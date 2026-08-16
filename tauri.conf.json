@@ -1,0 +1,73 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Kollegen Client",
+  "version": "1.0.0",
+  "identifier": "dev.kollegen.client",
+  "build": {
+    "beforeDevCommand": "yarn dev",
+    "devUrl": "http://localhost:1430",
+    "beforeBuildCommand": "yarn build",
+    "frontendDist": "./dist"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "fullscreen": false,
+        "resizable": true,
+        "title": "Kollegen Client",
+        "width": 1280,
+        "height": 800,
+        "minWidth": 1080,
+        "minHeight": 690,
+        "decorations": true,
+        "center": true,
+        "transparent": false,
+        "theme": "Dark"
+      }
+    ],
+    "security": {
+      "csp": {
+        "default-src": ["'self'", "ipc:", "http://ipc.localhost"],
+        "connect-src": [
+          "'self'",
+          "https://*.minecraft.net",
+          "https://login.microsoftonline.com",
+          "https://user.auth.xboxlive.com",
+          "https://xsts.auth.xboxlive.com",
+          "https://api.minecraftservices.com",
+          "https://api.modrinth.com",
+          "https://api.curseforge.com",
+          "https://launchermeta.mojang.com",
+          "https://sessionserver.mojang.com",
+          "https://api.boatswain.dev"
+        ],
+        "img-src": [
+          "'self'",
+          "https://*.modrinth.com",
+          "https://cdn.modrinth.com",
+          "https://*.minecraft.net",
+          "https://textures.minecraft.net",
+          "https://crafatar.com",
+          "https://media.forgecdn.net",
+          "https://mc-heads.net",
+          "data:"
+        ],
+        "style-src": ["'self'", "'unsafe-inline'"],
+        "script-src": ["'self'", "'unsafe-inline'"],
+        "frame-src": ["'self'", "https://www.youtube.com"]
+      }
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["app", "dmg", "deb", "appimage", "nsis"],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.ico",
+      "icons/icon.png"
+    ]
+  }
+}
