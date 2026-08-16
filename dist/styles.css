@@ -19,6 +19,7 @@ body {
   color: var(--text);
   background: var(--bg);
   min-height: 100vh;
+  overflow-x: hidden;
 }
 
 header {
@@ -27,10 +28,12 @@ header {
   gap: 1rem;
   padding: 1rem 1.5rem;
   background: #16131d;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 3px solid var(--accent);
   position: sticky;
   top: 0;
   z-index: 10;
+  max-width: 1100px;
+  margin: 0 auto;
 }
 
 header h1 {
@@ -47,13 +50,21 @@ main {
   grid-template-columns: 1fr 1fr;
   gap: 1.25rem;
   padding: 1.5rem;
+  max-width: 1100px;
+  margin: 0 auto;
 }
 
 .panel {
   background: var(--panel);
   border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
   border-radius: 14px;
   padding: 1.1rem 1.3rem;
+  transition: border-color 0.15s ease;
+}
+
+.panel:last-child {
+  grid-column: 1 / -1;
 }
 
 .panel h2 {
@@ -109,6 +120,17 @@ button:disabled {
   color: #ccc;
 }
 
+#jreBtn {
+  background: transparent;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  box-shadow: none;
+}
+
+#jreBtn:hover {
+  background: rgba(245, 166, 35, 0.12);
+}
+
 ul {
   list-style: none;
   padding: 0;
@@ -119,8 +141,39 @@ li {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 0.5rem;
   padding: 0.6rem 0.4rem;
   border-bottom: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+#instanceList li:hover {
+  background: rgba(245, 166, 35, 0.07);
+}
+
+#instanceList li span:first-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#instanceList button {
+  padding: 0.35rem 0.7rem;
+  font-size: 0.8rem;
+  margin: 0.1rem 0.2rem;
+}
+
+#instanceList button:not(:first-child) {
+  background: transparent;
+  color: var(--accent);
+  border: 1px solid var(--border);
+  box-shadow: none;
+}
+
+#instanceList button:not(:first-child):hover {
+  background: rgba(245, 166, 35, 0.12);
+  border-color: var(--accent);
 }
 
 li:last-child {
@@ -130,12 +183,17 @@ li:last-child {
 pre {
   max-height: 240px;
   overflow: auto;
+  overflow-x: hidden;
   font-size: 0.78rem;
   background: #0c0a10;
   padding: 0.6rem;
   border-radius: 8px;
   border: 1px solid var(--border);
   color: #d8c9ad;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  min-width: 0;
 }
 
 ::-webkit-scrollbar {
