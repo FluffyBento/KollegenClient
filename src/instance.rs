@@ -4,15 +4,83 @@
 use crate::types::{Instance, MojangVersionManifest, Settings, VersionJson};
 use crate::AppState;
 use anyhow::{anyhow, Result};
-use log::info;
+use log::{info, warn};
 use serde_json::Value;
 use std::fs;
 use std::path::Path;
 use std::process::{Command, Stdio};
-use std::sync::Arc;
+use std::io::Write;
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
+
+/// Resource pack (zipped at compile time) that overrides the Minecraft
+/// title-screen logo (`assets/minecraft/textures/gui/title/minecraft.png`)
+/// with `Logo.png`. This is how we replace the in-game "Minecraft Java
+/// Edition" logo without modifying the game jars.
+const TITLE_LOGO_PACK: &[u8] = include_bytes!("title_logo_pack.zip");
+const TITLE_LOGO_PACK_ID: &str = "KollegenTitle";
+
+/// Installs the title-logo resource pack into the instance and enables it in
+/// `options.txt` (force-enabled via `incompatibleResourcePacks` so it works
+/// across Minecraft versions regardless of `pack_format`).
+fn ensure_title_logo_pack(inst_dir: &Path) {
+    let rp_dir = inst_dir.join("resourcepacks");
+    if let Err(e) = fs::create_dir_all(&rp_dir) {
+        warn!("Konnte resourcepacks nicht anlegen: {}", e);
+        return;
+    }
+    let pack_zip = rp_dir.join(format!("{}.zip", TITLE_LOGO_PACK_ID));
+    if !pack_zip.exists() {
+        if let Err(e) = fs::write(&pack_zip, TITLE_LOGO_PACK) {
+            warn!("Konnte Titel-Logo-Pack nicht installieren: {}", e);
+            return;
+        }
+    }
+
+    let opts = inst_dir.join("options.txt");
+    let mut lines: Vec<String> = if opts.exists() {
+        fs::read_to_string(&opts)
+            .unwrap_or_default()
+            .lines()
+            .map(|l| l.to_string())
+            .collect()
+    } else {
+        Vec::new()
+    };
+    ensure_option_list(&mut lines, "resourcePacks", TITLE_LOGO_PACK_ID);
+    ensure_option_list(
+        &mut lines,
+        "incompatibleResourcePacks",
+        TITLE_LOGO_PACK_ID,
+    );
+    if let Err(e) = fs::write(&opts, lines.join("\n") + "\n") {
+        warn!("Konnte options.txt nicht aktualisieren: {}", e);
+    }
+}
+
+/// Ensures `value` is present in the comma-separated list stored in the
+/// `key:[...]` line of Minecraft's `options.txt` (creating the line if absent).
+/// Inserted at the front so our override has the highest priority.
+fn ensure_option_list(lines: &mut Vec<String>, key: &str, value: &str) {
+    let prefix = format!("{}:[", key);
+    for line in lines.iter_mut() {
+        if line.starts_with(&prefix) {
+            if line.trim_end() == format!("{}:[]", key) {
+                *line = format!("{}:[\"{}\"]", key, value);
+            } else if !line.contains(value) {
+                if let Some(b) = line.find('[') {
+                    let mut result = line[..=b].to_string();
+                    result.push_str(&format!("\"{}\", ", value));
+                    result.push_str(&line[b + 1..]);
+                    *line = result;
+                }
+            }
+            return;
+        }
+    }
+    lines.push(format!("{}:[\"{}\"]", key, value));
+}
 
 // ─=== Version Fetching ===
 
@@ -639,10 +707,22 @@ pub fn launch(
     }
     cmd.stdout(Stdio::piped());
 
+    // Install + enable the resource pack that replaces the in-game
+    // "Minecraft Java Edition" title logo with Logo.png.
+    ensure_title_logo_pack(&inst_dir);
+
     info!("Starting Minecraft process...");
     let mut child = cmd.spawn()?;
+    let pid = child.id();
 
     // Stream stdout (game log) into the in-memory launcher log and the file.
+    // The same stream is also scanned for server connect/disconnect so the
+    // launcher can show – and advertise via rich presence – the server you
+    // actually joined, with no manual configuration.
+    let log_discord_tx = state.discord.tx.clone();
+    let log_version = inst.version.clone();
+    let log_loader = inst.loader.clone();
+    let log_name = inst.name.clone();
     if let Some(mut out) = child.stdout.take() {
         let logs_arc = Arc::clone(&state.logs);
         let log_path2 = log_path.clone();
@@ -668,6 +748,27 @@ pub fn launch(
                             let line = carry[..idx].trim_end().to_string();
                             carry.replace_range(..=idx, "");
                             if !line.is_empty() {
+                                // Detect joining / leaving a server and keep
+                                // the Discord panel + rich presence in sync.
+                                if let Some(srv) = parse_server_from_log(&line) {
+                                    crate::discord::set_current_server(Some(srv.clone()));
+                                    let _ = log_discord_tx.send(crate::discord::RpcMessage::Set {
+                                        details: format!("Spielt auf {}", srv),
+                                        state: format!("{} · {}", log_version, log_loader),
+                                        large_text: log_name.clone(),
+                                        server: Some(srv),
+                                        players: None,
+                                    });
+                                } else if is_disconnect_log(&line) {
+                                    crate::discord::set_current_server(None);
+                                    let _ = log_discord_tx.send(crate::discord::RpcMessage::Set {
+                                        details: "Spielt Minecraft".to_string(),
+                                        state: format!("{} · {}", log_version, log_loader),
+                                        large_text: log_name.clone(),
+                                        server: None,
+                                        players: None,
+                                    });
+                                }
                                 if let Ok(mut logs) = logs_arc.lock() {
                                     logs.push(line);
                                     if logs.len() > crate::MAX_LOG_LINES {
@@ -691,6 +792,22 @@ pub fn launch(
         });
     }
 
+    // When the game exits, reset the rich presence to "Im Launcher" and clear
+    // the current-server display – otherwise it stays stuck showing
+    // "Spielt Minecraft" even after the game is closed.
+    let discord_tx = state.discord.tx.clone();
+    thread::spawn(move || {
+        let _ = child.wait();
+        let _ = discord_tx.send(crate::discord::RpcMessage::Set {
+            details: "Kollegen Client".to_string(),
+            state: "Im Launcher".to_string(),
+            large_text: "Kollegen Client".to_string(),
+            server: None,
+            players: None,
+        });
+        crate::discord::set_current_server(None);
+    });
+
     // Update last_played
     let path = crate::utils::instances_file(&state.data_dir);
     let mut instances = crate::utils::load_json::<Vec<Instance>>(&path, vec![]);
@@ -701,7 +818,43 @@ pub fn launch(
     }
     let _ = crate::utils::save_json(&path, &instances);
 
-    Ok(format!("Minecraft started (PID: {})", child.id()))
+    Ok(format!("Minecraft started (PID: {})", pid))
+}
+
+/// Extracts the server address from a Minecraft client log line such as
+/// `[Render thread/INFO]: Connecting to play.example.com, 25565`.
+fn parse_server_from_log(line: &str) -> Option<String> {
+    let marker = "Connecting to ";
+    let idx = line.find(marker)?;
+    let rest = &line[idx + marker.len()..];
+    let host_part = rest.split(',').next().unwrap_or("").trim();
+    // Some versions log "host/resolved-ip" – keep only the host part.
+    let host = host_part.split('/').next().unwrap_or(host_part).trim();
+    if host.is_empty() {
+        return None;
+    }
+    let port: String = rest
+        .split(',')
+        .nth(1)
+        .map(|p| p.trim().chars().take_while(|c| c.is_ascii_digit()).collect())
+        .unwrap_or_default();
+    let server = if port.is_empty() || port == "25565" {
+        host.to_string()
+    } else {
+        format!("{}:{}", host, port)
+    };
+    if server.is_empty() {
+        None
+    } else {
+        Some(server)
+    }
+}
+
+/// Returns true if the log line indicates the client left the server.
+fn is_disconnect_log(line: &str) -> bool {
+    line.contains("Disconnected from server")
+        || line.contains("Lost connection")
+        || line.contains("Client disconnected")
 }
 
 /// Recursively collects all .jar file paths from a directory.

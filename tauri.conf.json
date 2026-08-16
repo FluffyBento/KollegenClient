@@ -13,13 +13,14 @@
     "withGlobalTauri": true,
     "windows": [
       {
+        "label": "main",
         "fullscreen": false,
         "resizable": true,
         "title": "Kollegen Client",
         "width": 1280,
         "height": 800,
-        "minWidth": 1080,
-        "minHeight": 690,
+        "minWidth": 380,
+        "minHeight": 500,
         "decorations": true,
         "center": true,
         "transparent": false,

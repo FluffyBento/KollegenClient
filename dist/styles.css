@@ -32,7 +32,7 @@ header {
   position: sticky;
   top: 0;
   z-index: 10;
-  max-width: 1100px;
+  max-width: 1600px;
   margin: 0 auto;
 }
 
@@ -43,6 +43,92 @@ header h1 {
   letter-spacing: 0.5px;
   color: var(--accent);
   flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+header h1 .brand-logo {
+  height: 34px;
+  width: auto;
+  border-radius: 8px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.35);
+  flex: 0 0 auto;
+}
+
+.discord-account {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.7rem;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 0.85rem;
+}
+
+.discord-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: #5865f2;
+}
+
+#discordStatus {
+  font-size: 0.9rem;
+  color: var(--muted);
+  margin-bottom: 0.25rem;
+}
+
+.discord-server {
+  font-size: 0.85rem;
+  color: var(--text);
+  margin-bottom: 0.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.discord-server code {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.1rem 0.4rem;
+  font-family: ui-monospace, "Cascadia Code", monospace;
+}
+
+.server-btn {
+  width: 100%;
+  text-align: left;
+  background: var(--accent, #5865F2);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 0.55rem 0.7rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: ui-monospace, "Cascadia Code", monospace;
+}
+.server-btn:hover {
+  filter: brightness(1.1);
+}
+
+.discord-login-status {
+  font-size: 0.82rem;
+  color: var(--muted);
+  margin-top: 0.4rem;
+  line-height: 1.4;
+}
+
+#discordInvites li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.4rem 0.2rem;
+  border-bottom: 1px solid var(--border);
 }
 
 main {
@@ -50,8 +136,28 @@ main {
   grid-template-columns: 1fr 1fr;
   gap: 1.25rem;
   padding: 1.5rem;
-  max-width: 1100px;
+  max-width: 1600px;
   margin: 0 auto;
+}
+
+@media (max-width: 760px) {
+  main {
+    grid-template-columns: 1fr;
+  }
+  .panel:last-child {
+    grid-column: auto;
+  }
+  header {
+    gap: 0.5rem;
+    padding: 0.8rem 1rem;
+  }
+  header h1 {
+    font-size: 1.1rem;
+    flex-basis: 100%;
+  }
+  #fullscreenBtn {
+    display: none;
+  }
 }
 
 .panel {
@@ -452,4 +558,76 @@ pre {
   border-radius: 8px;
   border: 1px solid var(--border);
   background: #1a160e;
+}
+
+/* ── Left sidebar + Socials drawer ── */
+.sidebar {
+  position: fixed;
+  top: 0; left: 0; bottom: 0;
+  width: 56px;
+  background: #16131d;
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 1rem;
+  z-index: 20;
+}
+.sidebar-btn {
+  width: 40px; height: 40px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--panel-2);
+  color: var(--text);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+}
+.sidebar-btn:hover { background: var(--accent); color: #16131d; }
+
+.socials-panel {
+  position: fixed;
+  top: 0; left: 56px; bottom: 0;
+  width: 340px;
+  max-width: 85vw;
+  background: var(--panel);
+  border-right: 1px solid var(--border);
+  transform: translateX(-110%);
+  transition: transform .2s ease;
+  z-index: 19;
+  display: flex; flex-direction: column;
+  box-shadow: 2px 0 12px rgba(0,0,0,.4);
+}
+.socials-panel.open { transform: translateX(0); }
+.socials-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 1rem 1.25rem; border-bottom: 1px solid var(--border);
+}
+.socials-header h2 { margin: 0; }
+.socials-body { padding: 1rem 1.25rem; overflow-y: auto; }
+.socials-subhead { margin: 1.25rem 0 0.4rem; font-size: 0.95rem; }
+.socials-hint { color: var(--muted); font-size: 0.8rem; margin: 0.25rem 0 0.5rem; }
+.icon-btn { background: none; border: none; color: var(--muted); font-size: 1.1rem; cursor: pointer; }
+.icon-btn:hover { color: var(--text); }
+
+/* shift page content to the right of the fixed sidebar */
+header, main { padding-left: 56px; }
+
+.discord-status { font-weight: 600; }
+.discord-avatar { width: 28px; height: 28px; border-radius: 50%; }
+
+.friend-list, .invite-list { list-style: none; margin: 0; padding: 0; }
+.friend-list li, .invite-list li {
+  display: flex; align-items: center; gap: 0.5rem;
+  padding: 0.55rem 0; border-bottom: 1px solid var(--border);
+}
+.friend-avatar { width: 32px; height: 32px; border-radius: 50%; flex: 0 0 auto; }
+.friend-meta { flex: 1 1 auto; min-width: 0; }
+.friend-name { font-weight: 600; }
+.friend-sub { font-size: 0.78rem; color: var(--muted); }
+.friend-list button, .invite-list button { flex: 0 0 auto; }
+
+.instance-pick { list-style: none; margin: 0; padding: 0; }
+.instance-pick li {
+  display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;
+  padding: 0.6rem 0; border-bottom: 1px solid var(--border);
 }

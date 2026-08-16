@@ -3,6 +3,7 @@ const invoke = window.__TAURI__.core.invoke;
 const $ = (id) => document.getElementById(id);
 
 let availableVersions = [];
+let instancesCache = [];
 
 async function loadVersions() {
   try {
@@ -50,6 +51,7 @@ async function updateLoaderVersions() {
 async function refreshInstances() {
   try {
     const instances = await invoke("get_instances");
+    instancesCache = instances;
     const list = $("instanceList");
     list.innerHTML = "";
     if (instances.length === 0) {
@@ -126,20 +128,312 @@ async function refreshLogs() {
   }
 }
 
-async function refreshAuth() {
-  try {
-    const status = await invoke("auth_check_status");
-    const statusEl = $("authStatus");
-    statusEl.textContent = status.state === "done"
-      ? `Angemeldet: ${status.username || ""}`
-      : `Status: ${status.state} ${status.msg ? '(' + status.msg + ')' : ''}`;
-    if (status.state === "done") {
-      $("loginInfo").style.display = "none";
+  async function refreshAuth() {
+    try {
+      const status = await invoke("auth_check_status");
+      const statusEl = $("authStatus");
+      statusEl.textContent = status.state === "done"
+        ? `Angemeldet: ${status.username || ""}`
+        : `Status: ${status.state} ${status.msg ? '(' + status.msg + ')' : ''}`;
+      if (status.state === "done") {
+        $("loginInfo").style.display = "none";
+      }
+    } catch (e) {
+      console.error(e);
     }
-  } catch (e) {
-    console.error(e);
   }
-}
+
+  async function refreshDiscord() {
+    try {
+      // `discord_social` combines OAuth login + RPC presence + friends into a
+      // single source of truth, so the header and the Socials tab never show
+      // contradictory "verbunden" / "nicht verbunden" states.
+      const s = await invoke("discord_social");
+      const acct = $("discordAccountName");
+      const avatar = $("discordAvatar");
+      const statusEl = $("discordStatus");
+      const serverEl = $("discordCurrentServer");
+
+      const connected = s.oauth_logged_in || s.rpc_connected;
+      const u = s.user;
+      if (connected && u) {
+        const name = u.global_name || u.username;
+        acct.textContent = `Discord: ${name}`;
+        if (u.avatar_url) {
+          avatar.src = u.avatar_url;
+          avatar.style.display = "";
+        } else {
+          avatar.style.display = "none";
+        }
+        statusEl.textContent = `Verbunden als ${name}`;
+        statusEl.style.color = "var(--muted)";
+      } else {
+        acct.textContent = "Discord";
+        avatar.style.display = "none";
+        statusEl.textContent = "Nicht verbunden mit Discord";
+        statusEl.style.color = "var(--danger)";
+      }
+
+      // Current server (auto-detected from the game log). Shown as a button
+      // that copies the IP so it can be shared with friends.
+      serverEl.textContent = "";
+      if (s.current_server) {
+        const btn = document.createElement("button");
+        btn.className = "server-btn";
+        btn.textContent = `Aktueller Server: ${s.current_server}`;
+        btn.title = "Server-IP kopieren";
+        btn.onclick = () => copyText(s.current_server);
+        serverEl.append(btn);
+      }
+
+      renderDiscordFriends(s.friends || []);
+      renderDiscordInvites(s.invites || [], connected);
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  function statusLabel(status) {
+    return (
+      { online: "Online", idle: "Idle", dnd: "Beschäftigt", offline: "Offline" }[
+        status
+      ] || status
+    );
+  }
+
+  // Renders the online Discord friends and wires the "Beitreten" action that
+  // lets the user join a friend's game (instance picker filtered by version).
+  function renderDiscordFriends(friends) {
+    const list = $("discordFriends");
+    const hint = $("friendsHint");
+    if (!list) return;
+    list.innerHTML = "";
+
+    const online = friends.filter((f) => f.status && f.status !== "offline");
+    if (!friends.length) {
+      hint.style.display = "";
+      hint.textContent =
+        "Noch keine Freunde geladen – verbinde dich mit Discord, um sie zu sehen.";
+      return;
+    }
+    if (!online.length) {
+      hint.style.display = "";
+      hint.textContent = "Keine Freunde gerade online.";
+      return;
+    }
+    hint.style.display = "none";
+
+    for (const f of online) {
+      const li = document.createElement("li");
+
+      if (f.avatar_url) {
+        const img = document.createElement("img");
+        img.className = "friend-avatar";
+        img.src = f.avatar_url;
+        img.alt = "";
+        li.append(img);
+      }
+
+      const meta = document.createElement("div");
+      meta.className = "friend-meta";
+      const name = document.createElement("div");
+      name.className = "friend-name";
+      name.textContent = f.global_name || f.username;
+      const sub = document.createElement("div");
+      sub.className = "friend-sub";
+      sub.textContent = f.game
+        ? f.version
+          ? `${f.game} (${f.version})`
+          : f.game
+        : statusLabel(f.status);
+      meta.append(name, sub);
+      li.append(meta);
+
+      if (f.join_secret) {
+        const join = document.createElement("button");
+        join.textContent = "Beitreten";
+        join.title = "Instanz wählen und beitreten";
+        join.onclick = () => openJoinFriend(f);
+        li.append(join);
+      }
+
+      list.append(li);
+    }
+  }
+
+  let joinFriendTarget = null;
+
+  // Opens the instance picker for joining a friend. Only instances with the
+  // same Minecraft version as the friend are offered (if the version could be
+  // detected from their rich presence); otherwise all instances are shown.
+  function openJoinFriend(friend) {
+    joinFriendTarget = friend;
+    const list = $("joinFriendInstances");
+    const hint = $("joinFriendHint");
+    list.innerHTML = "";
+
+    const all = instancesCache || [];
+    let candidates = all;
+    if (friend.version) {
+      candidates = all.filter((i) => i.version === friend.version);
+    }
+
+    if (!candidates.length) {
+      hint.textContent = friend.version
+        ? `Keine Instanz mit Version ${friend.version} gefunden – zeige alle Instanzen.`
+        : "Wähle eine Instanz, um deinem Freund beizutreten.";
+      candidates = all;
+    } else {
+      hint.textContent = friend.version
+        ? `Instanzen mit Version ${friend.version}:`
+        : "Wähle eine Instanz, um deinem Freund beizutreten.";
+    }
+
+    if (!candidates.length) {
+      const li = document.createElement("li");
+      li.textContent = "Keine Instanzen vorhanden.";
+      list.append(li);
+      $("joinFriendModal").style.display = "flex";
+      return;
+    }
+
+    for (const inst of candidates) {
+      const li = document.createElement("li");
+      const label = document.createElement("span");
+      label.textContent = `${inst.name} (${inst.version}${
+        inst.loader ? " · " + inst.loader : ""
+      })`;
+      const btn = document.createElement("button");
+      btn.textContent = "Beitreten";
+      btn.onclick = () => selectJoinInstance(inst.name);
+      li.append(label, btn);
+      list.append(li);
+    }
+    $("joinFriendModal").style.display = "flex";
+  }
+
+  async function selectJoinInstance(name) {
+    if (!joinFriendTarget || !joinFriendTarget.join_secret) return;
+    const secret = joinFriendTarget.join_secret;
+    $("joinFriendModal").style.display = "none";
+    try {
+      const res = await invoke("discord_join", {
+        instanceName: name,
+        server: secret,
+      });
+      alert(res);
+      refreshDiscord();
+    } catch (e) {
+      alert("Beitreten fehlgeschlagen: " + e);
+    }
+  }
+
+  // ── Discord OAuth (browser login) ──
+  async function discordOauthStart() {
+    try {
+      await invoke("discord_oauth_start");
+      renderDiscordLogin({ state: "waiting" });
+    } catch (e) {
+      renderDiscordLogin({ state: "error", message: String(e) });
+    }
+  }
+
+  async function discordOauthLogout() {
+    try {
+      await invoke("discord_oauth_logout");
+    } catch (e) {
+      console.error(e);
+    }
+    renderDiscordLogin({ state: "idle" });
+  }
+
+  function renderDiscordLogin(info) {
+    const box = $("discordLoginStatus");
+    const btn = $("discordLoginBtn");
+    box.textContent = "";
+    if (info.state === "waiting") {
+      btn.style.display = "none";
+      box.textContent = "Browser wurde geöffnet – bitte bei Discord anmelden…";
+    } else if (info.state === "done") {
+      // The connection state itself is shown by #discordStatus ("Verbunden als
+      // …"), so here we only surface the logout action to avoid duplication.
+      btn.style.display = "none";
+      const out = document.createElement("button");
+      out.textContent = "Trennen";
+      out.onclick = discordOauthLogout;
+      box.append(out);
+    } else if (info.state === "error") {
+      btn.style.display = "";
+      box.textContent = `Fehler: ${info.message}`;
+    } else {
+      btn.style.display = "";
+    }
+  }
+
+  async function refreshDiscordLogin() {
+    try {
+      const s = await invoke("discord_oauth_status");
+      if (s.logged_in && s.user) {
+        renderDiscordLogin({ state: "done", user: s.user });
+      } else {
+        renderDiscordLogin({ state: "idle" });
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  function renderDiscordInvites(invites, connected) {
+    const list = $("discordInvites");
+    list.innerHTML = "";
+    if (!invites.length) {
+      const msg = connected
+        ? "Keine Einladungen."
+        : "Keine Einladungen – verbinde dich mit Discord, um Server-Einladungen von Freunden zu erhalten.";
+      list.innerHTML = `<li style='color:#888;'>${msg}</li>`;
+      return;
+    }
+    for (const inv of invites) {
+      const li = document.createElement("li");
+      const label = document.createElement("span");
+      label.textContent = inv.secret;
+      const join = document.createElement("button");
+      join.textContent = "Beitreten";
+      join.onclick = () => joinDiscordInvite(inv.secret);
+      const copy = document.createElement("button");
+      copy.textContent = "Kopieren";
+      copy.onclick = () => copyText(inv.secret);
+      const del = document.createElement("button");
+      del.textContent = "Verwerfen";
+      del.onclick = () => dismissInvite(inv.secret);
+      const actions = document.createElement("span");
+      actions.append(join, copy, del);
+      li.append(label, actions);
+      list.append(li);
+    }
+  }
+
+  async function joinDiscordInvite(secret) {
+    const instName = activeInstance || (instancesCache[0] && instancesCache[0].name);
+    if (!instName) return alert("Keine Instanz zum Beitreten vorhanden.");
+    try {
+      const res = await invoke("discord_join", { instanceName: instName, server: secret });
+      alert(res);
+      await invoke("discord_dismiss_invite", { secret });
+      refreshDiscord();
+    } catch (e) {
+      alert("Beitreten fehlgeschlagen: " + e);
+    }
+  }
+
+  async function dismissInvite(secret) {
+    try {
+      await invoke("discord_dismiss_invite", { secret });
+      refreshDiscord();
+    } catch (e) {
+      console.error(e);
+    }
+  }
 
 async function createInstance() {
   const name = $("iName").value.trim();
@@ -174,8 +468,27 @@ async function createInstance() {
 async function launchGame(name, isAuto) {
   if (!isAuto) conflictHandled = false;
   activeInstance = name;
+
+  const inst = instancesCache.find((i) => i.name === name);
+    if (inst) {
+      try {
+        // The actual server is detected later from the game log (see
+        // backend). We only publish the version/loader here; the server
+        // field is filled in automatically once you join a server.
+        await invoke("set_discord_presence", {
+          details: "Spielt Minecraft",
+          stateStr: `${inst.version} · ${inst.loader}`,
+          largeText: inst.name,
+          server: null,
+          players: null,
+        });
+      } catch (e) {
+        console.error("Discord RPC fehlgeschlagen:", e);
+      }
+    }
+
   try {
-    const result = await invoke("launch_game", { instanceName: name });
+    const result = await invoke("launch_game", { instanceName: name, server: null });
     alert(result);
   } catch (e) {
     alert("Launch fehlgeschlagen: " + e);
@@ -207,7 +520,8 @@ $("authBtn").onclick = async () => {
   } catch (e) {
     alert("Login fehlgeschlagen: " + e);
   }
-};
+  };
+
 
 async function copyText(text) {
   try {
@@ -228,7 +542,35 @@ $("copyUrlBtn").onclick = () => {
   setTimeout(() => ($("copyUrlBtn").textContent = "Kopieren"), 1500);
 };
 
+$("fullscreenBtn").onclick = async () => {
+  try {
+    await invoke("toggle_fullscreen");
+  } catch (e) {
+    console.error("Vollbild fehlgeschlagen:", e);
+  }
+};
+
+try {
+  const win = window.__TAURI__.window.getCurrentWebviewWindow();
+  win.onFullscreenChanged(({ payload }) => {
+    $("fullscreenBtn").textContent = payload ? "Fenster" : "Vollbild";
+  });
+} catch (e) {}
+
 $("createBtn").onclick = createInstance;
+
+$("discordLoginBtn").onclick = discordOauthStart;
+
+// Socials drawer (left sidebar) toggle.
+$("socialsBtn").onclick = () => {
+  $("socialsPanel").classList.toggle("open");
+};
+$("socialsClose").onclick = () => {
+  $("socialsPanel").classList.remove("open");
+};
+$("joinFriendClose").onclick = () => {
+  $("joinFriendModal").style.display = "none";
+};
 
 $("jreBtn").onclick = async () => {
   $("jreBtn").disabled = true;
@@ -537,14 +879,29 @@ function startBackgroundIntervals() {
   stopBackgroundIntervals();
   bgIntervals.push(setInterval(refreshLogs, 3000));
   bgIntervals.push(setInterval(refreshAuth, 2000));
+  bgIntervals.push(setInterval(refreshDiscord, 2000));
+  bgIntervals.push(setInterval(refreshDiscordLogin, 2000));
 }
 function stopBackgroundIntervals() {
   bgIntervals.forEach((id) => clearInterval(id));
   bgIntervals = [];
 }
 
+// Initiale Discord Rich Presence ("Im Launcher")
+try {
+  invoke("set_discord_presence", {
+    details: "Kollegen Client",
+    stateStr: "Im Launcher",
+    largeText: "Kollegen Client",
+    server: null,
+    players: null,
+  }).catch(() => {});
+} catch (e) {}
+
 loadVersions();
 refreshInstances();
 refreshLogs();
 refreshAuth();
+refreshDiscord();
+refreshDiscordLogin();
 startBackgroundIntervals();

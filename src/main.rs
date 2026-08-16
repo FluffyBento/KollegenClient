@@ -5,6 +5,8 @@
 )]
 
 mod auth;
+mod discord;
+mod discord_auth;
 mod instance;
 mod java;
 mod modrinth;
@@ -14,8 +16,9 @@ mod utils;
 use anyhow::Result;
 use directories::ProjectDirs;
 use serde_json::Value;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
+use tauri::Manager;
 use tauri::State;
 
 // ─=== Constants ===
@@ -25,12 +28,42 @@ pub const DEFAULT_MEMORY_MIN: &str = "2G";
 pub const DEFAULT_MEMORY_MAX: &str = "4G";
 pub const MAX_LOG_LINES: usize = 1000;
 
+// Discord Rich Presence application ID. Replace this with the numeric Client ID
+// of YOUR OWN Discord application (https://discord.com/developers/applications).
+// The rich presence only appears if this ID matches a real Discord app and the
+// Discord desktop client is running.
+//
+// This value can be overridden at runtime via the DISCORD_CLIENT_ID environment
+// variable. It must be the Client ID of a real Discord application (see
+// https://discord.com/developers/applications) for the rich presence to appear.
+pub const DISCORD_CLIENT_ID_DEFAULT: &str = "1538588736718373034";
+
+/// Discord application Client ID, overridable via the `DISCORD_CLIENT_ID` env var.
+pub fn discord_client_id() -> &'static str {
+    static V: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+    V.get_or_init(|| {
+        std::env::var("DISCORD_CLIENT_ID")
+            .ok()
+            .filter(|s| !s.is_empty())
+            .unwrap_or_else(|| DISCORD_CLIENT_ID_DEFAULT.to_string())
+    })
+    .as_str()
+}
+
+
+// Modrinth project id of the "Kollegen Client" companion mod. Set this to your
+// own Modrinth mod project id so every instance automatically gets the mod
+// (it drives the in-game rich presence + lets friends join via the presence).
+// Leave empty to disable automatic injection.
+pub const KOLLEGEN_MOD_PROJECT_ID: &str = "";
+
 // ─=== App State ===
 pub struct AppState {
     pub instances: Mutex<Vec<types::Instance>>,
     pub accounts: Mutex<Vec<types::Account>>,
     pub data_dir: PathBuf,
     pub logs: Arc<Mutex<Vec<String>>>,
+    pub discord: discord::DiscordHandle,
 }
 
 // ─=== Tauri Commands ===
@@ -144,54 +177,94 @@ fn auto_resolve_conflict(
         return Ok("Kein Mod-Konflikt erkannt.".to_string());
     }
 
-    let mut removed = Vec::new();
+    // The instance's Minecraft version + loader decide which replacement
+    // version is compatible.
+    let instances = utils::load_json::<Vec<types::Instance>>(
+        &utils::instances_file(&state.data_dir),
+        vec![],
+    );
+    let (mc_version, loader) = instances
+        .iter()
+        .find(|i| i.name == instance_name)
+        .map(|i| (i.version.clone(), i.loader.clone()))
+        .unwrap_or_else(|| ("".to_string(), "".to_string()));
+
+    let mut adjusted = Vec::new();
+    let mut skipped = Vec::new();
+
     for line in text.lines() {
         let l = line.trim();
-        if let Some(rest) = l.strip_prefix("- Remove mod") {
-            // rest looks like: 'Iris' (iris) 1.10.7 (full/path/file.jar).
-            if let (Some(start), Some(end)) = (rest.rfind('('), rest.rfind(')')) {
-                if end > start {
-                    let path = &rest[start + 1..end];
-                    if !path.is_empty() {
-                        let parts: Vec<&str> =
-                            path.split('/').filter(|s| !s.is_empty()).collect();
-                        if let Some(fname) = parts.last() {
-                            let kind = if parts.len() >= 2 {
-                                match parts[parts.len() - 2] {
-                                    "mods" => "mod",
-                                    "resourcepacks" => "resourcepack",
-                                    "shaderpacks" => "shader",
-                                    _ => "mod",
-                                }
-                            } else {
-                                "mod"
-                            };
-                            match crate::modrinth::delete_content(
+        // Fabric reports either "- Remove mod 'X' (x) ver (path)" or
+        // "- Replace 'X' (x) ver with any version that is compatible...".
+        let is_conflict = l.contains("- Remove mod")
+            || (l.contains("- Replace") && l.contains("mod"));
+        if !is_conflict {
+            continue;
+        }
+        // Extract the file path from between the last '(' and ')'.
+        if let (Some(start), Some(end)) = (l.rfind('('), l.rfind(')')) {
+            if end > start {
+                let path = &l[start + 1..end];
+                let fname = std::path::Path::new(path)
+                    .file_name()
+                    .and_then(|s| s.to_str())
+                    .map(|s| s.to_string());
+                if let Some(fname) = fname {
+                    match crate::modrinth::project_id_for_file(
+                        &state.data_dir,
+                        &instance_name,
+                        "mod",
+                        &fname,
+                    ) {
+                        Some(pid) => {
+                            // Remove the conflicting file, then reinstall the
+                            // latest version compatible with this instance.
+                            let _ = crate::modrinth::delete_content(
                                 &state.data_dir,
                                 &instance_name,
-                                kind,
-                                fname,
+                                "mod",
+                                &fname,
+                            );
+                            match crate::modrinth::install_content(
+                                &instance_name,
+                                &state.data_dir,
+                                "mod",
+                                &pid,
+                                &mc_version,
+                                &loader,
                             ) {
-                                Ok(()) => removed.push(path.to_string()),
-                                Err(e) => removed.push(format!("{} (Fehler: {})", path, e)),
+                                Ok(()) => adjusted.push(fname),
+                                Err(e) => {
+                                    skipped.push(format!("{} (Fehler: {})", fname, e))
+                                }
                             }
                         }
+                        None => skipped.push(format!(
+                            "{} (kein Modrinth-Mod – bitte manuell prüfen)",
+                            fname
+                        )),
                     }
                 }
             }
         }
     }
 
-    if removed.is_empty() {
-        return Ok(
-            "Konflikt erkannt, aber die betroffene Mod-Datei konnte nicht ermittelt werden."
-                .to_string(),
-        );
+    let mut msg = String::new();
+    if !adjusted.is_empty() {
+        msg.push_str("Mod-Versionen angepasst:\n- ");
+        msg.push_str(&adjusted.join("\n- "));
     }
-    Ok(format!(
-        "Mod-Konflikt automatisch behoben. Entfernte Mod-Dateien:\n- {}",
-        removed.join("\n- ")
-    ))
+    if !skipped.is_empty() {
+        if !msg.is_empty() {
+            msg.push_str("\n\n");
+        }
+        msg.push_str("Nicht automatisch behoben:\n- ");
+        msg.push_str(&skipped.join("\n- "));
+    }
+    if msg.is_empty() {
+        msg.push_str("Keine ersetzbaren Mods im Konflikt gefunden.");
+    }
+    Ok(msg)
 }
 
 #[tauri::command]
@@ -221,18 +294,64 @@ fn install_instance(
     }
     utils::save_json(&path, &instances).map_err(|e| e.to_string())?;
     instance::install_instance(&state.data_dir, &name, &version, &loader, loader_version.as_deref())
-        .map_err(|e| e.to_string())
+        .map_err(|e| e.to_string())?;
+    // Ensure every installed instance carries the Kollegen Client companion
+    // mod (drives in-game rich presence + join). No-op if id is empty or the
+    // instance is vanilla.
+    ensure_companion_mod(&state.data_dir, &name, &version, &loader);
+    Ok(())
+}
+
+/// Installs the "Kollegen Client" companion mod into an instance if it isn't
+/// already present. The mod id comes from `KOLLEGEN_MOD_PROJECT_ID` (set it to
+/// your Modrinth project id). Skipped for vanilla instances (mods need a
+/// loader) and when the id is empty (feature disabled).
+fn ensure_companion_mod(data_dir: &Path, instance_name: &str, version: &str, loader: &str) {
+    if KOLLEGEN_MOD_PROJECT_ID.is_empty() {
+        return;
+    }
+    if loader.eq_ignore_ascii_case("vanilla") {
+        return;
+    }
+    let meta = modrinth::installed_project_ids(data_dir, instance_name);
+    let already = meta
+        .get("mod")
+        .and_then(|m| m.as_array())
+        .map(|a| a.iter().any(|v| v.as_str() == Some(KOLLEGEN_MOD_PROJECT_ID)))
+        .unwrap_or(false);
+    if already {
+        return;
+    }
+    let _ = modrinth::install_content(
+        instance_name,
+        data_dir,
+        "mod",
+        KOLLEGEN_MOD_PROJECT_ID,
+        version,
+        loader,
+    );
 }
 
 #[tauri::command]
 fn launch_game(
     state: State<'_, AppState>,
     instance_name: String,
+    server: Option<String>,
 ) -> Result<String, String> {
     let path = utils::instances_file(&state.data_dir);
     let instances = utils::load_json::<Vec<types::Instance>>(&path, vec![]);
     let inst = instances.iter().find(|i| i.name == instance_name)
         .ok_or("Instanz nicht gefunden")?;
+    let mut inst = inst.clone();
+    if let Some(s) = &server {
+        // Normalize a bare host to host:25565 for the --server/--port args.
+        inst.server = Some(if s.contains(':') { s.clone() } else { format!("{}:25565", s) });
+    }
+
+    // Make sure the Kollegen Client companion mod is present (drives in-game
+    // rich presence + join). Best-effort; no-op if the project id is empty or
+    // the instance is vanilla.
+    ensure_companion_mod(&state.data_dir, &inst.name, &inst.version, &inst.loader);
 
     // Determine the required Java version from the instance's version JSON
     let required_java = {
@@ -263,7 +382,7 @@ fn launch_game(
         types::Settings::default(),
     );
 
-    let launch_result = instance::launch(&state, &state.data_dir, inst, &java_path, &settings);
+    let launch_result = instance::launch(&state, &state.data_dir, &inst, &java_path, &settings);
     match launch_result {
         Ok(result) => Ok(result),
         Err(e) => {
@@ -285,6 +404,8 @@ fn auth_check_status() -> Result<Value, String> {
 fn auth_start() -> Result<Value, String> {
     auth::ms_auth_start().map_err(|e| e.to_string())
 }
+
+// (device-code Discord login removed – RPC-only integration)
 
 #[tauri::command]
 fn download_jre_command(version: Option<u32>) -> Result<Value, String> {
@@ -363,6 +484,178 @@ fn open_url(url: String) -> Result<(), String> {
     open::that(&url).map_err(|e| e.to_string())
 }
 
+#[tauri::command]
+fn toggle_fullscreen(app: tauri::AppHandle) -> Result<(), String> {
+    let window = app
+        .get_webview_window("main")
+        .ok_or("Hauptfenster nicht gefunden")?;
+    let is_fs = window.is_fullscreen().map_err(|e| e.to_string())?;
+    window
+        .set_fullscreen(!is_fs)
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+fn set_discord_presence(
+    state: State<'_, AppState>,
+    details: String,
+    state_str: String,
+    large_text: String,
+    server: Option<String>,
+    players: Option<u32>,
+) -> Result<(), String> {
+    let _ = state.discord.tx.send(discord::RpcMessage::Set {
+        details,
+        state: state_str,
+        large_text,
+        server: server.clone(),
+        players,
+    });
+    discord::set_current_server(server);
+    Ok(())
+}
+
+#[tauri::command]
+fn clear_discord_presence(state: State<'_, AppState>) -> Result<(), String> {
+    let _ = state.discord.tx.send(discord::RpcMessage::Clear);
+    Ok(())
+}
+
+/// Snapshot of the Discord RPC connection (account + pending join invites).
+#[tauri::command]
+fn discord_status() -> Result<Value, String> {
+    let s = discord::discord_state();
+    let user = s.user.as_ref().map(|u| {
+        serde_json::json!({
+            "id": u.id,
+            "username": u.username,
+            "global_name": u.global_name,
+            "avatar_url": u.avatar_url,
+        })
+    });
+    Ok(serde_json::json!({
+        "connected": s.connected,
+        "user": user,
+        "current_server": s.current_server,
+        "invites": s.invites.iter().map(|i| serde_json::json!({
+            "secret": i.secret,
+            "received_at": i.received_at,
+        })).collect::<Vec<_>>(),
+    }))
+}
+
+/// Combined Discord view for the Socials tab: RPC connection state, OAuth login,
+/// the local user, current server, pending invites and the friends list.
+#[tauri::command]
+fn discord_social(state: State<'_, AppState>) -> Result<Value, String> {
+    let s = discord::discord_state();
+    let oauth = discord_auth::status(&state.data_dir);
+    let oauth_logged_in = oauth
+        .get("logged_in")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
+    let oauth_user = oauth.get("user").cloned();
+
+    // Normalize the identity into a single shape that always carries
+    // `avatar_url`, preferring the OAuth user (richer, present once logged in)
+    // and falling back to the RPC READY user.
+    let user = if let Some(u) = &oauth_user {
+        let id = u.get("id").and_then(|v| v.as_str()).unwrap_or("");
+        let avatar = u.get("avatar").and_then(|v| v.as_str());
+        let avatar_url = avatar.map(|a| {
+            let ext = if a.starts_with("a_") { "gif" } else { "png" };
+            format!("https://cdn.discordapp.com/avatars/{}/{}.{}", id, a, ext)
+        });
+        Some(serde_json::json!({
+            "id": id,
+            "username": u.get("username").and_then(|v| v.as_str()).unwrap_or(""),
+            "global_name": u.get("global_name").and_then(|v| v.as_str()),
+            "avatar_url": avatar_url,
+        }))
+    } else {
+        s.user.as_ref().map(|u| {
+            serde_json::json!({
+                "id": u.id,
+                "username": u.username,
+                "global_name": u.global_name,
+                "avatar_url": u.avatar_url,
+            })
+        })
+    };
+
+    let friends = discord::friends()
+        .iter()
+        .map(|f| {
+            serde_json::json!({
+                "id": f.id,
+                "username": f.username,
+                "global_name": f.global_name,
+                "avatar_url": f.avatar_url,
+                "status": f.status,
+                "game": f.game,
+                "version": f.version,
+                "join_secret": f.join_secret,
+            })
+        })
+        .collect::<Vec<_>>();
+    Ok(serde_json::json!({
+        "rpc_connected": s.connected,
+        "oauth_logged_in": oauth_logged_in,
+        "oauth_user": oauth_user,
+        "user": user,
+        "current_server": s.current_server,
+        "invites": s.invites.iter().map(|i| serde_json::json!({
+            "secret": i.secret,
+            "received_at": i.received_at,
+        })).collect::<Vec<_>>(),
+        "friends": friends,
+    }))
+}
+
+/// Launches an instance and connects straight to the server from a Discord
+/// join invite (`server` is the `host:port` the friend exposed). The secret is
+/// also written to `join_request.json` so the in-game mod connects on launch.
+#[tauri::command]
+fn discord_join(
+    state: State<'_, AppState>,
+    instance_name: String,
+    server: String,
+) -> Result<String, String> {
+    let _ = discord::write_join_request(&state.data_dir, &server);
+    launch_game(state, instance_name, Some(server))
+}
+
+#[tauri::command]
+fn discord_dismiss_invite(secret: String) -> Result<(), String> {
+    discord::dismiss_invite(&secret);
+    Ok(())
+}
+
+#[tauri::command]
+fn discord_clear_invites() -> Result<(), String> {
+    discord::clear_invites();
+    Ok(())
+}
+
+// ─=== Discord OAuth (browser login) ===
+
+#[tauri::command]
+fn discord_oauth_start(state: State<'_, AppState>) -> Result<String, String> {
+    discord_auth::start_flow(state.data_dir.clone())
+}
+
+#[tauri::command]
+fn discord_oauth_status(state: State<'_, AppState>) -> Result<serde_json::Value, String> {
+    Ok(discord_auth::status(&state.data_dir))
+}
+
+#[tauri::command]
+fn discord_oauth_logout(state: State<'_, AppState>) -> Result<(), String> {
+    discord_auth::logout(&state.data_dir);
+    Ok(())
+}
+
 fn main() {
     // Wayland compatibility: WebKit's DMABUF renderer crashes under some
     // Wayland compositors ("Error 71 dispatching to Wayland display").
@@ -393,11 +686,22 @@ fn main() {
 
     std::fs::create_dir_all(&data_dir).expect("Could not create data directory");
 
+    let discord = discord::start(data_dir.clone());
+    // Initial "in launcher" presence (only shows if Discord is running).
+    let _ = discord.tx.send(discord::RpcMessage::Set {
+        details: "Kollegen Client".to_string(),
+        state: "Im Launcher".to_string(),
+        large_text: "Kollegen Client".to_string(),
+        server: None,
+        players: None,
+    });
+
     let state = AppState {
         instances: Mutex::new(vec![]),
         accounts: Mutex::new(vec![]),
         data_dir: data_dir.clone(),
         logs: Arc::new(Mutex::new(vec![])),
+        discord,
     };
 
     utils::init_logging(&data_dir);
@@ -428,6 +732,17 @@ fn main() {
             open_url,
             get_game_log,
             auto_resolve_conflict,
+            toggle_fullscreen,
+            set_discord_presence,
+            clear_discord_presence,
+            discord_status,
+            discord_social,
+            discord_join,
+            discord_dismiss_invite,
+            discord_clear_invites,
+            discord_oauth_start,
+            discord_oauth_status,
+            discord_oauth_logout,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

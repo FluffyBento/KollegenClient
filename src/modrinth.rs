@@ -421,6 +421,23 @@ pub fn installed_project_ids(data_dir: &Path, instance_name: &str) -> Value {
     out
 }
 
+/// Returns the recorded Modrinth project id for an installed file (by content
+/// kind + filename), or `None` if the file isn't tracked as a Modrinth install.
+pub fn project_id_for_file(
+    data_dir: &Path,
+    instance_name: &str,
+    kind: &str,
+    filename: &str,
+) -> Option<String> {
+    let key = meta_key(kind)?;
+    load_meta(data_dir, instance_name)
+        .get(key)
+        .and_then(|v| v.as_object())
+        .and_then(|o| o.get(filename))
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string())
+}
+
 /// Fetches full project details (and gallery images) from Modrinth for the
 /// in-client detail view opened via "Ansehen".
 pub fn project_details(id: &str) -> Result<Value, String> {
