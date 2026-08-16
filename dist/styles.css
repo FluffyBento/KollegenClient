@@ -1,7 +1,7 @@
 :root {
   color-scheme: dark;
   --bg: #0d0d14;
-  --panel: rgba(30, 30, 46, 0.72);
+  --panel: rgba(28, 24, 17, 0.96);
   --panel-solid: #1e1e2c;
   --accent: #f5a623;   /* golden amber */
   --accent2: #ff7a00;  /* orange */
@@ -30,9 +30,8 @@ header {
   align-items: center;
   gap: 1rem;
   padding: 1rem 1.5rem;
-  background: linear-gradient(90deg, rgba(245, 166, 35, 0.16), rgba(255, 122, 0, 0.07)),
-    rgba(20, 20, 30, 0.82);
-  backdrop-filter: blur(10px);
+  background: linear-gradient(90deg, rgba(245, 166, 35, 0.18), rgba(255, 122, 0, 0.08)),
+    rgba(18, 16, 12, 0.95);
   border-bottom: 1px solid var(--border);
   position: sticky;
   top: 0;
@@ -60,7 +59,6 @@ main {
 
 .panel {
   background: var(--panel);
-  backdrop-filter: blur(12px);
   border: 1px solid var(--border);
   border-radius: 14px;
   padding: 1.1rem 1.3rem;
@@ -188,6 +186,7 @@ pre {
 }
 
 .modal-content {
+  position: relative;
   background: linear-gradient(180deg, rgba(36, 30, 20, 0.98), rgba(24, 20, 14, 0.98));
   width: min(900px, 95vw);
   max-height: 90vh;
@@ -253,15 +252,11 @@ pre {
   border: 1px solid var(--border);
   border-radius: 10px;
   padding: 0.7rem;
-  content-visibility: auto;
-  contain-intrinsic-size: auto 96px;
-  transition: transform 0.15s, border-color 0.2s, box-shadow 0.2s;
+  transition: border-color 0.15s;
 }
 
 .card:hover {
-  transform: translateY(-3px);
   border-color: var(--accent);
-  box-shadow: 0 10px 24px rgba(245, 166, 35, 0.3);
 }
 
 .card-icon {
@@ -328,4 +323,77 @@ pre {
   color: var(--muted);
   padding: 1rem;
   text-align: center;
+}
+
+.card button.view-btn {
+  background: #2a2418;
+  color: var(--text);
+  box-shadow: none;
+}
+
+.card button.view-btn:hover {
+  filter: brightness(1.15);
+  box-shadow: none;
+}
+
+.detail {
+  position: absolute;
+  inset: 0;
+  display: none;
+  flex-direction: column;
+  background: linear-gradient(180deg, rgba(34, 28, 18, 0.99), rgba(22, 18, 12, 0.99));
+  border-radius: 16px;
+  padding: 1.2rem 1.4rem;
+  overflow: auto;
+  z-index: 5;
+}
+
+.detail-header {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.detail-body {
+  margin-top: 0.5rem;
+}
+
+.detail-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 10px;
+  object-fit: cover;
+  margin-bottom: 0.6rem;
+  background: #1a160e;
+}
+
+.detail-body h2 {
+  margin: 0 0 0.4rem;
+  background: linear-gradient(90deg, var(--accent), var(--accent2));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.detail-meta {
+  color: var(--muted);
+  font-size: 0.85rem;
+  margin-bottom: 0.8rem;
+}
+
+.detail-desc {
+  color: var(--text);
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+
+.detail-link {
+  display: inline-block;
+  margin-top: 1rem;
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.detail-link:hover {
+  text-decoration: underline;
 }

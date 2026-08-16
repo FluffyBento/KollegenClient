@@ -222,7 +222,7 @@ function setManageTab(kind) {
   document.querySelectorAll(".tab").forEach((t) =>
     t.classList.toggle("active", t.dataset.kind === kind)
   );
-  manageSearch();
+  manageSearch(true);
   manageLoadInstalled();
 }
 
@@ -231,14 +231,18 @@ function openManage(inst) {
   $("manageTitle").textContent = `Verwalten: ${inst.name}`;
   $("manageQuery").value = "";
   $("manageModal").style.display = "flex";
+  stopBackgroundIntervals();
   setManageTab(inst.loader === "vanilla" ? "resourcepack" : "mod");
 }
 
-$("manageClose").onclick = () => ($("manageModal").style.display = "none");
+$("manageClose").onclick = () => {
+  $("manageModal").style.display = "none";
+  startBackgroundIntervals();
+};
 document.querySelectorAll(".tab").forEach((t) => {
   t.onclick = () => setManageTab(t.dataset.kind);
 });
-$("manageSearchBtn").onclick = manageSearch;
+$("manageSearchBtn").onclick = () => manageSearch(true);
 
 function renderCard(p) {
   const card = document.createElement("div");
@@ -267,17 +271,83 @@ function renderCard(p) {
   const btn = document.createElement("button");
   btn.textContent = "Installieren";
   btn.onclick = () => manageInstall(p.id, p.title);
-  body.append(title, desc, meta, btn);
+  const viewBtn = document.createElement("button");
+  viewBtn.textContent = "Ansehen";
+  viewBtn.className = "view-btn";
+  viewBtn.onclick = () => showDetail(p);
+  body.append(title, desc, meta, btn, viewBtn);
   card.append(body);
   return card;
 }
 
-let manageOffset = 0;
+// ─=== Paginated, install-filtered browsing ===
+// We walk the Modrinth result stream, skip already-installed projects, and
+// buffer the remaining hits. Each visible page is then filled from that buffer,
+// pulling extra API pages as needed so gaps left by installed items are filled
+// by subsequent results (which then don't reappear on later pages).
+const MANAGE_PAGE = 24;
+let manageAllHits = [];
+let manageApiOffset = 0;
+let manageExhausted = false;
+let manageCurrentPage = 0;
+let currentInstalled = new Set();
 
-async function manageSearch(offset) {
-  if (typeof offset === "number") manageOffset = offset;
-  else manageOffset = 0;
+function resetManageSearch() {
+  manageAllHits = [];
+  manageApiOffset = 0;
+  manageExhausted = false;
+  manageCurrentPage = 0;
+}
 
+async function refreshInstalledSet() {
+  currentInstalled = new Set();
+  try {
+    const ids = await invoke("installed_project_ids", { instanceName: manageInst.name });
+    (ids[manageKind] || []).forEach((id) => currentInstalled.add(id));
+  } catch (e) {
+    console.warn("installed_project_ids failed:", e);
+  }
+}
+
+async function fetchNextApiPage() {
+  if (manageExhausted) return;
+  const hits = await invoke("modrinth_search", {
+    kind: manageKind,
+    query: $("manageQuery").value,
+    mcVersion: manageInst.version,
+    loader: manageInst.loader,
+    offset: manageApiOffset,
+  });
+  const arr = hits || [];
+  for (const p of arr) {
+    if (!currentInstalled.has(p.id)) manageAllHits.push(p);
+  }
+  manageApiOffset += MANAGE_PAGE;
+  if (arr.length < MANAGE_PAGE) manageExhausted = true;
+}
+
+async function ensureHits(page) {
+  const needed = (page + 1) * MANAGE_PAGE;
+  while (manageAllHits.length < needed && !manageExhausted) {
+    await fetchNextApiPage();
+  }
+}
+
+function renderPage() {
+  const results = $("manageResults");
+  const start = manageCurrentPage * MANAGE_PAGE;
+  const pageHits = manageAllHits.slice(start, start + MANAGE_PAGE);
+  results.innerHTML = "";
+  if (pageHits.length === 0) {
+    results.innerHTML = "<div class='loading'>Keine Ergebnisse.</div>";
+    return;
+  }
+  for (const p of pageHits) results.append(renderCard(p));
+  renderPager();
+}
+
+async function manageSearch(reset) {
+  if (reset) resetManageSearch();
   const results = $("manageResults");
   results.innerHTML = "<div class='loading'>Lade...</div>";
   if (manageKind === "mod" && manageInst.loader === "vanilla") {
@@ -285,60 +355,44 @@ async function manageSearch(offset) {
       "<div class='loading'>Mods sind nur für Fabric/Forge/NeoForge Instanzen verfügbar.</div>";
     return;
   }
-  try {
-    const hits = await invoke("modrinth_search", {
-      kind: manageKind,
-      query: $("manageQuery").value,
-      mcVersion: manageInst.version,
-      loader: manageInst.loader,
-      offset: manageOffset,
-    });
-
-    // Hide already-installed projects so they don't clutter the list.
-    const installed = new Set();
-    try {
-      const ids = await invoke("installed_project_ids", {
-        instanceName: manageInst.name,
-      });
-      (ids[manageKind] || []).forEach((id) => installed.add(id));
-    } catch (e) {
-      console.warn("installed_project_ids failed:", e);
-    }
-    const filtered = (hits || []).filter((p) => !installed.has(p.id));
-
-    results.innerHTML = "";
-    if (filtered.length === 0) {
-      results.innerHTML = "<div class='loading'>Keine Ergebnisse.</div>";
-    } else {
-      for (const p of filtered) results.append(renderCard(p));
-    }
-    renderPager((hits || []).length);
-  } catch (e) {
-    results.innerHTML = `<div class='loading'>Fehler: ${e}</div>`;
-  }
+  await refreshInstalledSet();
+  await ensureHits(manageCurrentPage);
+  renderPage();
 }
 
-function renderPager(returned) {
+function renderPager() {
+  const results = $("manageResults");
   const pager = document.createElement("div");
   pager.className = "pager";
   pager.style.cssText = "display:flex; gap:12px; justify-content:center; align-items:center; padding:14px;";
 
   const prev = document.createElement("button");
   prev.textContent = "← Zurück";
-  prev.disabled = manageOffset === 0;
-  prev.onclick = () => manageSearch(manageOffset - 24);
+  prev.disabled = manageCurrentPage === 0;
+  prev.onclick = () => {
+    if (manageCurrentPage > 0) {
+      manageCurrentPage--;
+      renderPage();
+    }
+  };
 
   const info = document.createElement("span");
   info.className = "pager-info";
-  info.textContent = `Seite ${Math.floor(manageOffset / 24) + 1}`;
+  info.textContent = `Seite ${manageCurrentPage + 1}`;
 
   const next = document.createElement("button");
   next.textContent = "Weiter →";
-  next.disabled = returned < 24;
-  next.onclick = () => manageSearch(manageOffset + 24);
+  const hasMoreLoaded = manageAllHits.length > (manageCurrentPage + 1) * MANAGE_PAGE;
+  next.disabled = manageExhausted && !hasMoreLoaded;
+  next.onclick = async () => {
+    manageCurrentPage++;
+    $("manageResults").innerHTML = "<div class='loading'>Lade...</div>";
+    await ensureHits(manageCurrentPage);
+    renderPage();
+  };
 
   pager.append(prev, info, next);
-  $("manageResults").append(pager);
+  results.append(pager);
 }
 
 async function manageInstall(projectId, title) {
@@ -350,14 +404,17 @@ async function manageInstall(projectId, title) {
       mcVersion: manageInst.version,
       loader: manageInst.loader,
     });
-    // Remove the freshly installed card from the browse list so it no
-    // longer shows up as "not installed".
-    const card = document.querySelector(`#manageResults [data-pid="${projectId}"]`);
-    if (card) card.remove();
-    const results = $("manageResults");
-    if (!results.querySelector(".card")) {
-      results.innerHTML = "<div class='loading'>Keine Ergebnisse.</div>";
+    // Remove the freshly installed project from the buffered list and
+    // re-render the current page (freed slot is filled by the next hit).
+    const idx = manageAllHits.findIndex((x) => x.id === projectId);
+    if (idx >= 0) manageAllHits.splice(idx, 1);
+    if (
+      manageCurrentPage > 0 &&
+      manageAllHits.slice(manageCurrentPage * MANAGE_PAGE).length === 0
+    ) {
+      manageCurrentPage--;
     }
+    renderPage();
     manageLoadInstalled();
   } catch (e) {
     alert("Installation fehlgeschlagen: " + e);
@@ -403,9 +460,54 @@ async function manageDelete(filename) {
   }
 }
 
+// ─=== In-client detail view ("Ansehen") ===
+
+function escapeHtml(s) {
+  return String(s == null ? "" : s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function showDetail(p) {
+  const d = $("manageDetail");
+  const link = `https://modrinth.com/project/${encodeURIComponent(p.id)}`;
+  d.innerHTML = `
+    <div class="detail-header">
+      <button id="detailClose">Schließen</button>
+    </div>
+    <div class="detail-body">
+      ${p.icon_url ? `<img class="detail-icon" src="${escapeHtml(p.icon_url)}" alt="">` : ""}
+      <h2>${escapeHtml(p.title)}</h2>
+      <div class="detail-meta">${(p.downloads || 0).toLocaleString()} Downloads${p.author ? " · " + escapeHtml(p.author) : ""}</div>
+      <p class="detail-desc">${escapeHtml(p.description || "Keine Beschreibung verfügbar.")}</p>
+      <a class="detail-link" href="${link}" target="_blank" rel="noopener">Auf Modrinth öffnen</a>
+    </div>
+  `;
+  $("detailClose").onclick = hideDetail;
+  d.style.display = "flex";
+}
+
+function hideDetail() {
+  $("manageDetail").style.display = "none";
+}
+
+// ─=== Background intervals (paused while the content browser is open) ===
+let bgIntervals = [];
+function startBackgroundIntervals() {
+  stopBackgroundIntervals();
+  bgIntervals.push(setInterval(refreshLogs, 3000));
+  bgIntervals.push(setInterval(refreshAuth, 2000));
+}
+function stopBackgroundIntervals() {
+  bgIntervals.forEach((id) => clearInterval(id));
+  bgIntervals = [];
+}
+
 loadVersions();
 refreshInstances();
 refreshLogs();
 refreshAuth();
-setInterval(refreshLogs, 3000);
-setInterval(refreshAuth, 2000);
+startBackgroundIntervals();
