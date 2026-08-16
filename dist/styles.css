@@ -178,7 +178,7 @@ pre {
 .modal {
   position: fixed;
   inset: 0;
-  background: rgba(8, 6, 2, 0.72);
+  background: #0b0b10;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -187,6 +187,8 @@ pre {
 
 .modal-content {
   position: relative;
+  transform: translateZ(0);
+  will-change: transform;
   background: linear-gradient(180deg, rgba(36, 30, 20, 0.98), rgba(24, 20, 14, 0.98));
   width: min(900px, 95vw);
   max-height: 90vh;
@@ -252,6 +254,7 @@ pre {
   border: 1px solid var(--border);
   border-radius: 10px;
   padding: 0.7rem;
+  contain: content;
   transition: border-color 0.15s;
 }
 

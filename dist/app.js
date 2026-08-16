@@ -248,10 +248,20 @@ function renderCard(p) {
   const card = document.createElement("div");
   card.className = "card";
   card.dataset.pid = p.id;
-  const icon = document.createElement("div");
-  icon.className = "card-icon placeholder";
-  icon.textContent = (p.title || "?").trim().charAt(0).toUpperCase();
-  card.append(icon);
+  if (p.icon_url) {
+    const img = document.createElement("img");
+    img.src = p.icon_url;
+    img.className = "card-icon";
+    img.loading = "lazy";
+    img.decoding = "async";
+    img.onerror = () => img.remove();
+    card.append(img);
+  } else {
+    const icon = document.createElement("div");
+    icon.className = "card-icon placeholder";
+    icon.textContent = (p.title || "?").trim().charAt(0).toUpperCase();
+    card.append(icon);
+  }
   const body = document.createElement("div");
   body.className = "card-body";
   const title = document.createElement("div");
