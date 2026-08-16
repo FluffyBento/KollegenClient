@@ -619,8 +619,8 @@ pub fn launch(
     }
     if let Ok(log_file) = fs::File::create(&log_path) {
         if let Ok(err_file) = log_file.try_clone() {
-            cmd.stdout(Stdio::from_file(log_file));
-            cmd.stderr(Stdio::from_file(err_file));
+            cmd.stdout(Stdio::from(log_file));
+            cmd.stderr(Stdio::from(err_file));
         }
     }
 
