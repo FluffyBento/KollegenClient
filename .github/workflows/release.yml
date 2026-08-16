@@ -39,7 +39,7 @@ jobs:
       - name: Build Flatpak
         uses: flatpak/flatpak-github-actions/flatpak-builder@v6
         with:
-          bundle: Kollegen.flatpak
+          bundle: KollegenClient.flatpak
           manifest-path: com.kollegen.Client.yaml
           cache-key: flatpak-builder-${{ github.sha }}
           arch: x86_64
@@ -48,7 +48,7 @@ jobs:
       - name: Publish to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: "Kollegen.flatpak"
+          files: "KollegenClient.flatpak"
 
   windows:
     needs: create-release
