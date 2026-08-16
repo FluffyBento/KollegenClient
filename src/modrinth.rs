@@ -219,8 +219,13 @@ fn install_project_recursive(
     if !dest.exists() {
         crate::utils::download_file(&file_url, &dest)?;
         info!("Installiert: {} ({})", filename, project_id);
-        let _ = record_install(data_dir, instance_name, kind, &filename, project_id);
     }
+    // Always record the install so the project is tracked as "already
+    // installed" (and filtered out of search). Previously this only ran when
+    // the file was freshly downloaded, so mods whose file already existed on
+    // disk (older builds, re-installs) were never recorded and kept showing
+    // up in the browse list after a restart.
+    let _ = record_install(data_dir, instance_name, kind, &filename, project_id);
 
     // Recurse into required dependencies
     if let Some(deps) = chosen.get("dependencies").and_then(|d| d.as_array()) {
