@@ -36,8 +36,6 @@ modules:
           - dist
           - .git
     build-commands:
-      - yarn install --frozen-lockfile || yarn install
-      - yarn build
       - cargo build --release
       - install -Dm755 target/release/kollegen-client /app/bin/kollegen-client
       - install -Dm644 icons/icon.png /app/share/icons/hicolor/512x512/apps/dev.kollegen.client.png
