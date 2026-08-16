@@ -32,11 +32,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install runtimes and SDK extensions
+      - name: Install runtimes
         run: |
-          flatpak --system install -y org.freedesktop.Platform//23.08 org.freedesktop.Sdk//23.08
-          flatpak --system install -y org.freedesktop.Sdk.Extension.rust-stable
-          flatpak --system install -y org.freedesktop.Sdk.Extension.node20
+          flatpak --system install -y flathub org.gnome.Platform//46 org.gnome.Sdk//46
 
       - name: Build Flatpak
         uses: flatpak/flatpak-github-actions/flatpak-builder@v6
