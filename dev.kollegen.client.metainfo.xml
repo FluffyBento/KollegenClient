@@ -11,6 +11,11 @@
   <launchable type="desktop-id">dev.kollegen.client.desktop</launchable>
   <url type="homepage">https://github.com/FluffyBento/KollegenClient</url>
   <releases>
+    <release version="1.0.1" date="2026-08-16">
+      <description>
+        <p>Hotfix: removed the privileged "relationships" OAuth scope that broke Discord login ("Invalid Scope"). The friend list is provided via the Discord RPC relationships subscription.</p>
+      </description>
+    </release>
     <release version="1.0.0" date="2026-08-16"/>
   </releases>
 </component>
