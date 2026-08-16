@@ -10,12 +10,16 @@ use std::time::{Duration, Instant};
 const AUTHORIZE_ENDPOINT: &str = "https://discord.com/oauth2/authorize";
 const TOKEN_ENDPOINT: &str = "https://discord.com/api/v10/oauth2/token";
 const USER_ENDPOINT: &str = "https://discord.com/api/v10/users/@me";
-// `identify` is always required. `relationships` grants the application access
-// to the user's Discord friend list (used to surface friends inside the client).
-// NOTE: `relationships` is a *privileged* OAuth scope – it must be enabled for
-// the Discord application in the developer portal (OAuth2 → scopes) and approved
-// by Discord before tokens actually return the friend list.
-const SCOPES: &str = "identify relationships";
+// Only `identify` is requested via OAuth. The user's Discord friend list is
+// delivered through the Rich Presence (RPC) `RELATIONSHIPS` subscription in
+// `discord.rs`, which does not require an OAuth scope.
+//
+// NOTE: `relationships` is a *privileged* OAuth scope. Adding it here makes
+// Discord reject the authorize request with "Invalid Scope" unless the scope is
+// enabled AND approved for the application in the Discord developer portal. To
+// get the RPC friend list to populate, approve the `relationships` scope for
+// the app in the developer portal – no OAuth scope change is needed for that.
+const SCOPES: &str = "identify";
 /// Fixed localhost port the browser is redirected back to. This exact URI must
 /// be registered as a Redirect URI in the Discord application's OAuth2 settings.
 const CALLBACK_PORT: u16 = 31337;
