@@ -26,6 +26,7 @@ public class TitleScreenMixin {
         int x = (mc.getWindow().getGuiScaledWidth() - w) / 2;
         int y = (int) (mc.getWindow().getGuiScaledHeight() * 0.18);
 
-        guiGraphics.blit(logo, x, y, w, h);
+        // Draw the entire 1200x400 logo texture scaled into a w x h box.
+        guiGraphics.blit(logo, x, y, w, h, 0, 0, 1200, 400, 1200, 400);
     }
 }
