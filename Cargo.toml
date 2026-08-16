@@ -38,6 +38,7 @@ lazy_static = "1.4"
 sysinfo = "0.30"
 sanitize-filename = "0.6"
 tempfile = "3.8"
+open = "5"
 
 [features]
 default = ["custom-protocol"]

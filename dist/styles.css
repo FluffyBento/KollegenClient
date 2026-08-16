@@ -1,13 +1,13 @@
 :root {
   color-scheme: dark;
-  --bg: #0d0d14;
-  --panel: rgba(28, 24, 17, 0.96);
-  --panel-solid: #1e1e2c;
-  --accent: #f5a623;   /* golden amber */
-  --accent2: #ff7a00;  /* orange */
-  --text: #f3e9d8;     /* warm off-white */
+  --bg: #0d0d12;
+  --panel: #1a1a24;
+  --panel-2: #21212e;
+  --accent: #f5a623;
+  --accent2: #ff7a00;
+  --text: #f3e9d8;
   --muted: #b9a98c;
-  --border: #3a3225;
+  --border: #34303a;
   --danger: #ff5b6e;
 }
 
@@ -17,11 +17,7 @@ body {
   margin: 0;
   font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
   color: var(--text);
-  /* Hintergrund bewusst beibehalten */
-  background:
-    radial-gradient(1200px 600px at 85% -10%, rgba(108, 92, 231, 0.22), transparent 60%),
-    radial-gradient(900px 500px at -10% 110%, rgba(0, 206, 201, 0.16), transparent 55%),
-    var(--bg);
+  background: var(--bg);
   min-height: 100vh;
 }
 
@@ -30,8 +26,7 @@ header {
   align-items: center;
   gap: 1rem;
   padding: 1rem 1.5rem;
-  background: linear-gradient(90deg, rgba(245, 166, 35, 0.18), rgba(255, 122, 0, 0.08)),
-    rgba(18, 16, 12, 0.95);
+  background: #16131d;
   border-bottom: 1px solid var(--border);
   position: sticky;
   top: 0;
@@ -43,10 +38,7 @@ header h1 {
   font-size: 1.35rem;
   font-weight: 700;
   letter-spacing: 0.5px;
-  background: linear-gradient(90deg, var(--accent), var(--accent2));
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: var(--accent);
   flex: 1;
 }
 
@@ -62,16 +54,12 @@ main {
   border: 1px solid var(--border);
   border-radius: 14px;
   padding: 1.1rem 1.3rem;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
 }
 
 .panel h2 {
   margin-top: 0;
   font-size: 1.05rem;
-  background: linear-gradient(90deg, var(--accent), var(--accent2));
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: var(--accent);
 }
 
 input,
@@ -80,18 +68,16 @@ select {
   width: 100%;
   margin-bottom: 0.5rem;
   padding: 0.55rem 0.7rem;
-  background: #14110b;
+  background: #121019;
   border: 1px solid var(--border);
   border-radius: 8px;
   color: var(--text);
-  transition: border-color 0.2s, box-shadow 0.2s;
 }
 
 input:focus,
 select:focus {
   outline: none;
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(245, 166, 35, 0.25);
 }
 
 label {
@@ -102,7 +88,7 @@ label {
 }
 
 button {
-  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  background: var(--accent);
   color: #2a1a00;
   border: none;
   border-radius: 8px;
@@ -110,25 +96,17 @@ button {
   cursor: pointer;
   margin: 0.25rem 0.35rem 0.25rem 0;
   font-weight: 700;
-  transition: transform 0.12s, box-shadow 0.2s, filter 0.2s;
-  box-shadow: 0 2px 6px rgba(245, 166, 35, 0.22);
 }
 
 button:hover {
-  filter: brightness(1.08);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 14px rgba(245, 166, 35, 0.35);
-}
-
-button:active {
-  transform: translateY(0);
+  background: var(--accent2);
 }
 
 button:disabled {
   opacity: 0.5;
   cursor: default;
-  transform: none;
-  box-shadow: none;
+  background: #555;
+  color: #ccc;
 }
 
 ul {
@@ -153,7 +131,7 @@ pre {
   max-height: 240px;
   overflow: auto;
   font-size: 0.78rem;
-  background: #0c0a06;
+  background: #0c0a10;
   padding: 0.6rem;
   border-radius: 8px;
   border: 1px solid var(--border);
@@ -174,7 +152,7 @@ pre {
   background: var(--accent);
 }
 
-/* ─=== Manage modal === */
+/* === Manage modal === */
 .modal {
   position: fixed;
   inset: 0;
@@ -189,14 +167,13 @@ pre {
   position: relative;
   transform: translateZ(0);
   will-change: transform;
-  background: linear-gradient(180deg, rgba(36, 30, 20, 0.98), rgba(24, 20, 14, 0.98));
+  background: var(--panel-2);
   width: min(900px, 95vw);
   max-height: 90vh;
   overflow: auto;
   border-radius: 16px;
   padding: 1.1rem 1.4rem;
   border: 1px solid var(--border);
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
 }
 
 .modal-header {
@@ -206,10 +183,7 @@ pre {
 }
 
 .modal-header h2 {
-  background: linear-gradient(90deg, var(--accent), var(--accent2));
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: var(--accent);
 }
 
 .tabs {
@@ -220,13 +194,12 @@ pre {
 
 .tab {
   background: #2a2418;
-  box-shadow: none;
   border: 1px solid var(--border);
   color: var(--text);
 }
 
 .tab.active {
-  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  background: var(--accent);
   border-color: transparent;
   color: #2a1a00;
 }
@@ -250,13 +223,12 @@ pre {
 .card {
   display: flex;
   gap: 0.8rem;
-  background: rgba(28, 24, 16, 0.9);
+  background: var(--panel);
   border: 1px solid var(--border);
   border-radius: 10px;
   padding: 0.7rem;
   content-visibility: auto;
   contain-intrinsic-size: auto 96px;
-  transition: border-color 0.15s;
 }
 
 .card:hover {
@@ -279,7 +251,7 @@ pre {
   font-weight: 700;
   font-size: 1.4rem;
   color: #2a1a00;
-  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  background: var(--accent);
 }
 
 .card-body {
@@ -342,12 +314,11 @@ pre {
 .card button.view-btn {
   background: #2a2418;
   color: var(--text);
-  box-shadow: none;
 }
 
 .card button.view-btn:hover {
-  filter: brightness(1.15);
-  box-shadow: none;
+  background: var(--accent);
+  color: #2a1a00;
 }
 
 .detail {
@@ -355,7 +326,7 @@ pre {
   inset: 0;
   display: none;
   flex-direction: column;
-  background: linear-gradient(180deg, rgba(34, 28, 18, 0.99), rgba(22, 18, 12, 0.99));
+  background: var(--panel-2);
   border-radius: 16px;
   padding: 1.2rem 1.4rem;
   overflow: auto;
@@ -382,10 +353,7 @@ pre {
 
 .detail-body h2 {
   margin: 0 0 0.4rem;
-  background: linear-gradient(90deg, var(--accent), var(--accent2));
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: var(--accent);
 }
 
 .detail-meta {

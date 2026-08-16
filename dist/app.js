@@ -279,7 +279,7 @@ function renderCard(p) {
   const viewBtn = document.createElement("button");
   viewBtn.textContent = "Ansehen";
   viewBtn.className = "view-btn";
-  viewBtn.onclick = () => showDetail(p);
+  viewBtn.onclick = () => openExternal(p);
   body.append(title, desc, meta, btn, viewBtn);
   card.append(body);
   return card;
@@ -482,73 +482,17 @@ function stripHtml(s) {
   return tmp.textContent || "";
 }
 
-async function fetchProjectDetails(id) {
-  // Try a direct browser fetch first (works without a Rust rebuild); fall
-  // back to the Rust command if the webview blocks cross-origin requests.
-  try {
-    const [pr, gr] = await Promise.all([
-      fetch(`https://api.modrinth.com/v2/project/${encodeURIComponent(id)}`).then((r) => (r.ok ? r.json() : {})),
-      fetch(`https://api.modrinth.com/v2/project/${encodeURIComponent(id)}/gallery`).then((r) => (r.ok ? r.json() : [])),
-    ]);
-    return { project: pr || {}, gallery: Array.isArray(gr) ? gr : [] };
-  } catch (e) {
-    console.warn("browser fetch failed, trying rust command:", e);
-  }
-  try {
-    const data = await invoke("modrinth_project", { id });
-    return { project: data.project || {}, gallery: Array.isArray(data.gallery) ? data.gallery : [] };
-  } catch (e2) {
-    console.warn("modrinth_project failed:", e2);
-  }
-  return { project: {}, gallery: [] };
-}
-
-async function showDetail(p) {
-  const d = $("manageDetail");
-  d.innerHTML =
-    '<div class="detail-header"><button id="detailClose">Schließen</button></div>' +
-    '<div class="detail-body"><div class="loading">Lade Details…</div></div>';
-  $("detailClose").onclick = hideDetail;
-  d.style.display = "flex";
-
-  const { project: proj, gallery } = await fetchProjectDetails(p.id);
-
-  const icon = proj.icon_url || p.icon_url || "";
-  const title = proj.title || p.title || "";
-  const rawDesc = proj.body || proj.description || p.description || "";
-  const desc = (rawDesc ? stripHtml(rawDesc) : "") || "Keine Beschreibung verfügbar.";
-  const downloads = proj.downloads || p.downloads || 0;
-  const author = proj.publisher || "";
-  const categories = Array.isArray(proj.categories) ? proj.categories.join(", ") : "";
-  const gameVersions = Array.isArray(proj.game_versions) ? proj.game_versions.join(", ") : "";
+// "Ansehen" opens the project in the system's default browser (a separate,
+// GPU-accelerated window) instead of rendering a heavy in-app overlay. This
+// keeps the content browser smooth.
+async function openExternal(p) {
   const link = `https://modrinth.com/project/${encodeURIComponent(p.id)}`;
-
-  let galleryHtml = "";
-  if (gallery.length) {
-    galleryHtml =
-      '<div class="detail-gallery">' +
-      gallery
-        .map(
-          (g) =>
-            `<img class="detail-gallery-img" src="${escapeHtml(g.url)}" alt="${escapeHtml(g.title || "")}" loading="lazy" decoding="async" onerror="this.remove()">`
-        )
-        .join("") +
-      "</div>";
+  try {
+    await invoke("open_url", { url: link });
+  } catch (e) {
+    console.warn("open_url failed, falling back to window.open:", e);
+    window.open(link, "_blank");
   }
-
-  d.querySelector(".detail-body").innerHTML =
-    (icon ? `<img class="detail-icon" src="${escapeHtml(icon)}" alt="">` : "") +
-    `<h2>${escapeHtml(title)}</h2>` +
-    `<div class="detail-meta">${(downloads || 0).toLocaleString()} Downloads${author ? " · " + escapeHtml(author) : ""}</div>` +
-    (categories ? `<div class="detail-meta">Kategorien: ${escapeHtml(categories)}</div>` : "") +
-    (gameVersions ? `<div class="detail-meta">Versionen: ${escapeHtml(gameVersions)}</div>` : "") +
-    `<p class="detail-desc">${escapeHtml(desc)}</p>` +
-    galleryHtml +
-    `<a class="detail-link" href="${link}" target="_blank" rel="noopener">Auf Modrinth öffnen</a>`;
-}
-
-function hideDetail() {
-  $("manageDetail").style.display = "none";
 }
 
 // ─=== Background intervals (paused while the content browser is open) ===
