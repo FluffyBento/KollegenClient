@@ -3,11 +3,11 @@
   --bg: #0d0d14;
   --panel: rgba(30, 30, 46, 0.72);
   --panel-solid: #1e1e2c;
-  --accent: #6c5ce7;
-  --accent2: #00cec9;
-  --text: #e6e6f0;
-  --muted: #9aa0b5;
-  --border: #2c2c3c;
+  --accent: #f5a623;   /* golden amber */
+  --accent2: #ff7a00;  /* orange */
+  --text: #f3e9d8;     /* warm off-white */
+  --muted: #b9a98c;
+  --border: #3a3225;
   --danger: #ff5b6e;
 }
 
@@ -17,6 +17,7 @@ body {
   margin: 0;
   font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
   color: var(--text);
+  /* Hintergrund bewusst beibehalten */
   background:
     radial-gradient(1200px 600px at 85% -10%, rgba(108, 92, 231, 0.22), transparent 60%),
     radial-gradient(900px 500px at -10% 110%, rgba(0, 206, 201, 0.16), transparent 55%),
@@ -29,7 +30,7 @@ header {
   align-items: center;
   gap: 1rem;
   padding: 1rem 1.5rem;
-  background: linear-gradient(90deg, rgba(108, 92, 231, 0.16), rgba(0, 206, 201, 0.07)),
+  background: linear-gradient(90deg, rgba(245, 166, 35, 0.16), rgba(255, 122, 0, 0.07)),
     rgba(20, 20, 30, 0.82);
   backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--border);
@@ -81,7 +82,7 @@ select {
   width: 100%;
   margin-bottom: 0.5rem;
   padding: 0.55rem 0.7rem;
-  background: #11111a;
+  background: #14110b;
   border: 1px solid var(--border);
   border-radius: 8px;
   color: var(--text);
@@ -92,7 +93,7 @@ input:focus,
 select:focus {
   outline: none;
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(108, 92, 231, 0.25);
+  box-shadow: 0 0 0 3px rgba(245, 166, 35, 0.25);
 }
 
 label {
@@ -103,22 +104,22 @@ label {
 }
 
 button {
-  background: linear-gradient(135deg, var(--accent), #574bd6);
-  color: #fff;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  color: #2a1a00;
   border: none;
   border-radius: 8px;
   padding: 0.55rem 1rem;
   cursor: pointer;
   margin: 0.25rem 0.35rem 0.25rem 0;
-  font-weight: 600;
+  font-weight: 700;
   transition: transform 0.12s, box-shadow 0.2s, filter 0.2s;
-  box-shadow: 0 4px 14px rgba(108, 92, 231, 0.35);
+  box-shadow: 0 4px 14px rgba(245, 166, 35, 0.35);
 }
 
 button:hover {
   filter: brightness(1.08);
   transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(108, 92, 231, 0.5);
+  box-shadow: 0 6px 20px rgba(245, 166, 35, 0.5);
 }
 
 button:active {
@@ -154,11 +155,11 @@ pre {
   max-height: 240px;
   overflow: auto;
   font-size: 0.78rem;
-  background: #0c0c14;
+  background: #0c0a06;
   padding: 0.6rem;
   border-radius: 8px;
   border: 1px solid var(--border);
-  color: #c8c8e0;
+  color: #d8c9ad;
 }
 
 ::-webkit-scrollbar {
@@ -167,7 +168,7 @@ pre {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #2c2c3c;
+  background: #4a3d28;
   border-radius: 8px;
 }
 
@@ -179,8 +180,7 @@ pre {
 .modal {
   position: fixed;
   inset: 0;
-  background: rgba(5, 5, 10, 0.7);
-  backdrop-filter: blur(4px);
+  background: rgba(8, 6, 2, 0.72);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -188,15 +188,14 @@ pre {
 }
 
 .modal-content {
-  background: linear-gradient(180deg, rgba(30, 30, 46, 0.96), rgba(20, 20, 30, 0.96));
-  backdrop-filter: blur(14px);
+  background: linear-gradient(180deg, rgba(36, 30, 20, 0.98), rgba(24, 20, 14, 0.98));
   width: min(900px, 95vw);
   max-height: 90vh;
   overflow: auto;
   border-radius: 16px;
   padding: 1.1rem 1.4rem;
   border: 1px solid var(--border);
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
 }
 
 .modal-header {
@@ -219,14 +218,16 @@ pre {
 }
 
 .tab {
-  background: #23233a;
+  background: #2a2418;
   box-shadow: none;
   border: 1px solid var(--border);
+  color: var(--text);
 }
 
 .tab.active {
   background: linear-gradient(135deg, var(--accent), var(--accent2));
   border-color: transparent;
+  color: #2a1a00;
 }
 
 .manage-search {
@@ -248,17 +249,19 @@ pre {
 .card {
   display: flex;
   gap: 0.8rem;
-  background: rgba(24, 24, 38, 0.8);
+  background: rgba(28, 24, 16, 0.9);
   border: 1px solid var(--border);
   border-radius: 10px;
   padding: 0.7rem;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 96px;
   transition: transform 0.15s, border-color 0.2s, box-shadow 0.2s;
 }
 
 .card:hover {
   transform: translateY(-3px);
   border-color: var(--accent);
-  box-shadow: 0 10px 24px rgba(108, 92, 231, 0.3);
+  box-shadow: 0 10px 24px rgba(245, 166, 35, 0.3);
 }
 
 .card-icon {
@@ -267,6 +270,7 @@ pre {
   border-radius: 8px;
   object-fit: cover;
   flex-shrink: 0;
+  background: #1a160e;
 }
 
 .card-body {
@@ -292,7 +296,7 @@ pre {
 
 .card-meta {
   font-size: 0.75rem;
-  color: #7a7f95;
+  color: #8c7c5e;
 }
 
 .card button {

@@ -243,10 +243,13 @@ $("manageSearchBtn").onclick = manageSearch;
 function renderCard(p) {
   const card = document.createElement("div");
   card.className = "card";
+  card.dataset.pid = p.id;
   if (p.icon_url) {
     const img = document.createElement("img");
     img.src = p.icon_url;
     img.className = "card-icon";
+    img.loading = "lazy";
+    img.decoding = "async";
     img.onerror = () => img.remove();
     card.append(img);
   }
@@ -347,7 +350,14 @@ async function manageInstall(projectId, title) {
       mcVersion: manageInst.version,
       loader: manageInst.loader,
     });
-    alert(`${title} installiert.`);
+    // Remove the freshly installed card from the browse list so it no
+    // longer shows up as "not installed".
+    const card = document.querySelector(`#manageResults [data-pid="${projectId}"]`);
+    if (card) card.remove();
+    const results = $("manageResults");
+    if (!results.querySelector(".card")) {
+      results.innerHTML = "<div class='loading'>Keine Ergebnisse.</div>";
+    }
     manageLoadInstalled();
   } catch (e) {
     alert("Installation fehlgeschlagen: " + e);
