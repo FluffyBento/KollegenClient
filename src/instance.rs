@@ -139,11 +139,11 @@ fn ensure_title_logo_pack(inst_dir: &Path, version: &str) {
     } else {
         Vec::new()
     };
-    ensure_option_list(&mut lines, "resourcePacks", TITLE_LOGO_PACK_ID);
+    ensure_option_list(&mut lines, "resourcePacks", "file/KollegenTitle.zip");
     ensure_option_list(
         &mut lines,
         "incompatibleResourcePacks",
-        TITLE_LOGO_PACK_ID,
+        "file/KollegenTitle.zip",
     );
     if let Err(e) = fs::write(&opts, lines.join("\n") + "\n") {
         warn!("Konnte options.txt nicht aktualisieren: {}", e);
@@ -963,6 +963,7 @@ fn collect_jars(dir: &Path) -> Vec<String> {
     }
     result
 }
+
 
 
 

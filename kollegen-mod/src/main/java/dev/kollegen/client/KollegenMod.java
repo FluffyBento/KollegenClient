@@ -19,7 +19,7 @@ public class KollegenMod implements ClientModInitializer {
     public static final String MOD_ID = "kollegen-client";
     // Same Discord application as the launcher so the rich presence is consistent.
     public static final long DISCORD_CLIENT_ID = 1538588736718373034L;
-    public static KollegenConfig CONFIG;
+    public static KollegenConfig CONFIG = KollegenConfig.load();
 
     @Override
     public void onInitializeClient() {
