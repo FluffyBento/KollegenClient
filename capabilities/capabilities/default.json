@@ -1,7 +1,0 @@
-{
-  "$schema": "../gen/schemas/desktop-schema.json",
-  "identifier": "default",
-  "description": "Berechtigungen für das Hauptfenster des Kollegen Clients",
-  "windows": ["main"],
-  "permissions": ["core:default"]
-}

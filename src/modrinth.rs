@@ -7,7 +7,7 @@ use serde::Serialize;
 use serde_json::Value;
 use std::collections::HashSet;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 const MODRINTH_API: &str = "https://api.modrinth.com/v2";
