@@ -7,6 +7,11 @@ use std::path::Path;
 use std::process::Command;
 use std::time::Duration;
 
+/// Returns the platform-specific Java executable name ("java" or "java.exe").
+fn java_exe() -> &'static str {
+    if cfg!(target_os = "windows") { "java.exe" } else { "java" }
+}
+
 /// Finds a Java executable matching the required major version.
 /// Looks for a versioned bundled JRE first, then checks JAVA_HOME, the
 /// generic bundled JRE, and the system PATH (verifying the actual version).
@@ -26,22 +31,28 @@ pub fn find_java(data_dir: &Path, required_version: u32) -> Result<String> {
 
     // 2. JAVA_HOME (verify version)
     if let Ok(java_home) = std::env::var("JAVA_HOME") {
-        let java = std::path::PathBuf::from(java_home).join("bin").join("java");
+        let java = std::path::PathBuf::from(java_home).join("bin").join(java_exe());
         if java.exists() && java_major(&java) == Some(required_version) {
             return Ok(java.to_string_lossy().into_owned());
         }
     }
 
     // 3. Generic bundled JRE (verify version)
-    let bundled = data_dir.join("jre").join("bin").join("java");
+    let bundled = data_dir.join("jre").join("bin").join(java_exe());
     if bundled.exists() && java_major(&bundled) == Some(required_version) {
         return Ok(bundled.to_string_lossy().into_owned());
     }
 
     // 4. System PATH (verify version)
-    if let Ok(output) = Command::new("which").arg("java").output() {
+    let which_cmd = if cfg!(target_os = "windows") { "where" } else { "which" };
+    if let Ok(output) = Command::new(which_cmd).arg("java").output() {
         if output.status.success() {
-            let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
+            let path = String::from_utf8_lossy(&output.stdout)
+                .lines()
+                .next()
+                .unwrap_or("")
+                .trim()
+                .to_string();
             if !path.is_empty() && java_major(Path::new(&path)) == Some(required_version) {
                 return Ok(path);
             }
@@ -111,16 +122,12 @@ pub fn download_jre_internal(version: u32) -> Result<String> {
 
     // TAR.GZ archives from Adoptium extract into a subdirectory like jdk-21.x.x-jre/
     // We need to flatten that so jre-21/bin/java exists
-    let java_bin = jre_dir.join("bin").join(if cfg!(target_os = "windows") {
-        "java.exe"
-    } else {
-        "java"
-    });
+    let java_bin = jre_dir.join("bin").join(java_exe());
     if !java_bin.exists() {
         if let Ok(entries) = std::fs::read_dir(&jre_dir) {
             for entry in entries.flatten() {
                 let path = entry.path();
-                if path.is_dir() && path.join("bin").join("java").exists() {
+                if path.is_dir() && path.join("bin").join(java_exe()).exists() {
                     for sub_entry in std::fs::read_dir(&path).unwrap().flatten() {
                         let src = sub_entry.path();
                         let dest = jre_dir.join(sub_entry.file_name());

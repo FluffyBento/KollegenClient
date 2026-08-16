@@ -43,6 +43,7 @@ jobs:
           manifest-path: com.kollegen.Client.yaml
           cache-key: flatpak-builder-${{ github.sha }}
           arch: x86_64
+          build-args: --share=network
 
       - name: Publish to GitHub Release
         uses: softprops/action-gh-release@v2
