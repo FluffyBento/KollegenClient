@@ -15,7 +15,7 @@ use anyhow::Result;
 use directories::ProjectDirs;
 use serde_json::Value;
 use std::path::PathBuf;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use tauri::State;
 
 // ─=== Constants ===
@@ -30,7 +30,7 @@ pub struct AppState {
     pub instances: Mutex<Vec<types::Instance>>,
     pub accounts: Mutex<Vec<types::Account>>,
     pub data_dir: PathBuf,
-    pub logs: Mutex<Vec<String>>,
+    pub logs: Arc<Mutex<Vec<String>>>,
 }
 
 // ─=== Tauri Commands ===
@@ -397,7 +397,7 @@ fn main() {
         instances: Mutex::new(vec![]),
         accounts: Mutex::new(vec![]),
         data_dir: data_dir.clone(),
-        logs: Mutex::new(vec![]),
+        logs: Arc::new(Mutex::new(vec![])),
     };
 
     utils::init_logging(&data_dir);

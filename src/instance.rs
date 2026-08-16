@@ -9,6 +9,7 @@ use serde_json::Value;
 use std::fs;
 use std::path::Path;
 use std::process::{Command, Stdio};
+use std::sync::Arc;
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
@@ -444,6 +445,11 @@ pub fn launch(
     _settings: &Settings,
 ) -> Result<String> {
     let inst_dir = crate::utils::instance_dir(data_dir, &inst.name);
+    // Fresh launcher log per launch (avoids stale crash lines triggering the
+    // auto-resolver again on the next manual launch).
+    if let Ok(mut logs) = state.logs.lock() {
+        logs.clear();
+    }
     let version_dir = inst_dir.join("versions").join(&inst.version);
     let libs_dir = inst_dir.join("libraries");
     let assets_dir = inst_dir.join("assets");
@@ -611,21 +617,79 @@ pub fn launch(
     // Working directory
     cmd.current_dir(&inst_dir);
 
-    // Capture the game's stdout/stderr to a log file so crashes (e.g. Fabric
-    // mod-incompatibility errors) can be analysed and auto-resolved.
+    // Capture the game's output: stderr -> file, stdout -> piped so we can also
+    // stream it into the in-memory launcher log. That log is polled by the UI
+    // and used to auto-detect crashes (e.g. Fabric mod-incompatibility errors)
+    // and resolve them.
     let log_path = inst_dir.join("logs").join("latest.log");
     if let Some(parent) = log_path.parent() {
         let _ = fs::create_dir_all(parent);
     }
-    if let Ok(log_file) = fs::File::create(&log_path) {
-        if let Ok(err_file) = log_file.try_clone() {
-            cmd.stdout(Stdio::from(log_file));
-            cmd.stderr(Stdio::from(err_file));
+    match fs::File::create(&log_path) {
+        Ok(f) => {
+            let stderr = match f.try_clone() {
+                Ok(c) => Stdio::from(c),
+                Err(_) => Stdio::null(),
+            };
+            cmd.stderr(stderr);
+        }
+        Err(_) => {
+            cmd.stderr(Stdio::null());
         }
     }
+    cmd.stdout(Stdio::piped());
 
     info!("Starting Minecraft process...");
-    let child = cmd.spawn()?;
+    let mut child = cmd.spawn()?;
+
+    // Stream stdout (game log) into the in-memory launcher log and the file.
+    if let Some(mut out) = child.stdout.take() {
+        let logs_arc = Arc::clone(&state.logs);
+        let log_path2 = log_path.clone();
+        thread::spawn(move || {
+            use std::io::Read;
+            let mut buf = [0u8; 4096];
+            let mut file = fs::OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(&log_path2)
+                .ok();
+            let mut carry = String::new();
+            loop {
+                match out.read(&mut buf) {
+                    Ok(0) => break,
+                    Ok(n) => {
+                        let chunk = String::from_utf8_lossy(&buf[..n]);
+                        if let Some(f) = file.as_mut() {
+                            let _ = f.write_all(chunk.as_bytes());
+                        }
+                        carry.push_str(&chunk);
+                        while let Some(idx) = carry.find('\n') {
+                            let line = carry[..idx].trim_end().to_string();
+                            carry.replace_range(..=idx, "");
+                            if !line.is_empty() {
+                                if let Ok(mut logs) = logs_arc.lock() {
+                                    logs.push(line);
+                                    if logs.len() > crate::MAX_LOG_LINES {
+                                        logs.remove(0);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    Err(_) => break,
+                }
+            }
+            if !carry.trim().is_empty() {
+                if let Ok(mut logs) = logs_arc.lock() {
+                    logs.push(carry.trim().to_string());
+                    if logs.len() > crate::MAX_LOG_LINES {
+                        logs.remove(0);
+                    }
+                }
+            }
+        });
+    }
 
     // Update last_played
     let path = crate::utils::instances_file(&state.data_dir);
