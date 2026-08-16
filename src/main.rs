@@ -295,6 +295,16 @@ fn main() {
         }
     }
 
+    // Best-effort: force WebKitGTK's GPU compositing mode where a GPU is
+    // available. This dramatically improves scrolling performance in the
+    // Modrinth content browser. Harmless if no GPU is present (WebKit falls
+    // back to software rendering).
+    if std::env::var_os("WEBKIT_FORCE_COMPOSITING_MODE").is_none() {
+        unsafe {
+            std::env::set_var("WEBKIT_FORCE_COMPOSITING_MODE", "1");
+        }
+    }
+
     let data_dir = match ProjectDirs::from("dev", "kollegen", "KollegenClient") {
         Some(dir) => dir.data_dir().to_path_buf(),
         None => {

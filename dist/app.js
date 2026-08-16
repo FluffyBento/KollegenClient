@@ -482,6 +482,27 @@ function stripHtml(s) {
   return tmp.textContent || "";
 }
 
+async function fetchProjectDetails(id) {
+  // Try a direct browser fetch first (works without a Rust rebuild); fall
+  // back to the Rust command if the webview blocks cross-origin requests.
+  try {
+    const [pr, gr] = await Promise.all([
+      fetch(`https://api.modrinth.com/v2/project/${encodeURIComponent(id)}`).then((r) => (r.ok ? r.json() : {})),
+      fetch(`https://api.modrinth.com/v2/project/${encodeURIComponent(id)}/gallery`).then((r) => (r.ok ? r.json() : [])),
+    ]);
+    return { project: pr || {}, gallery: Array.isArray(gr) ? gr : [] };
+  } catch (e) {
+    console.warn("browser fetch failed, trying rust command:", e);
+  }
+  try {
+    const data = await invoke("modrinth_project", { id });
+    return { project: data.project || {}, gallery: Array.isArray(data.gallery) ? data.gallery : [] };
+  } catch (e2) {
+    console.warn("modrinth_project failed:", e2);
+  }
+  return { project: {}, gallery: [] };
+}
+
 async function showDetail(p) {
   const d = $("manageDetail");
   d.innerHTML =
@@ -490,15 +511,7 @@ async function showDetail(p) {
   $("detailClose").onclick = hideDetail;
   d.style.display = "flex";
 
-  let proj = {};
-  let gallery = [];
-  try {
-    const data = await invoke("modrinth_project", { id: p.id });
-    proj = data.project || {};
-    gallery = Array.isArray(data.gallery) ? data.gallery : [];
-  } catch (e) {
-    console.warn("modrinth_project failed:", e);
-  }
+  const { project: proj, gallery } = await fetchProjectDetails(p.id);
 
   const icon = proj.icon_url || p.icon_url || "";
   const title = proj.title || p.title || "";

@@ -254,7 +254,8 @@ pre {
   border: 1px solid var(--border);
   border-radius: 10px;
   padding: 0.7rem;
-  contain: content;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 96px;
   transition: border-color 0.15s;
 }
 
