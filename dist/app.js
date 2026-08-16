@@ -83,10 +83,44 @@ async function refreshInstances() {
   }
 }
 
+let activeInstance = null;
+let conflictHandled = false;
+
 async function refreshLogs() {
   try {
     const logs = await invoke("get_logs");
-    $("logs").textContent = logs.join("\n");
+    let text = logs.join("\n");
+    if (activeInstance) {
+      try {
+        const glog = await invoke("get_game_log", { instanceName: activeInstance });
+        if (glog) text += "\n" + glog;
+      } catch (e) {
+        /* ignore missing game log */
+      }
+    }
+    $("logs").textContent = text;
+
+    // Auto-detect and resolve Fabric mod incompatibilities in the game log
+    if (
+      activeInstance &&
+      !conflictHandled &&
+      text.includes("Incompatible mods found")
+    ) {
+      conflictHandled = true;
+      try {
+        const msg = await invoke("auto_resolve_conflict", {
+          instanceName: activeInstance,
+        });
+        alert(
+          "Mod-Konflikt erkannt und automatisch behoben:\n\n" +
+            msg +
+            "\n\nDer Launcher wird neu gestartet…"
+        );
+        launchGame(activeInstance, true);
+      } catch (e) {
+        alert("Konflikt konnte nicht automatisch behoben werden: " + e);
+      }
+    }
   } catch (e) {
     console.error(e);
   }
@@ -137,7 +171,9 @@ async function createInstance() {
   }
 }
 
-async function launchGame(name) {
+async function launchGame(name, isAuto) {
+  if (!isAuto) conflictHandled = false;
+  activeInstance = name;
   try {
     const result = await invoke("launch_game", { instanceName: name });
     alert(result);

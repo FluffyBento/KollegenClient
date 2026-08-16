@@ -122,6 +122,79 @@ fn get_logs(state: State<'_, AppState>) -> Result<Vec<String>, String> {
 }
 
 #[tauri::command]
+fn get_game_log(state: State<'_, AppState>, instance_name: String) -> String {
+    let p = crate::utils::instance_dir(&state.data_dir, &instance_name)
+        .join("logs")
+        .join("latest.log");
+    std::fs::read_to_string(&p).unwrap_or_default()
+}
+
+/// Detects a Fabric mod-incompatibility crash in the game log and automatically
+/// removes the conflicting mod file(s) that Fabric itself suggests removing.
+#[tauri::command]
+fn auto_resolve_conflict(
+    state: State<'_, AppState>,
+    instance_name: String,
+) -> Result<String, String> {
+    let log_path = crate::utils::instance_dir(&state.data_dir, &instance_name)
+        .join("logs")
+        .join("latest.log");
+    let text = std::fs::read_to_string(&log_path).unwrap_or_default();
+    if !text.contains("Incompatible mods found") {
+        return Ok("Kein Mod-Konflikt erkannt.".to_string());
+    }
+
+    let mut removed = Vec::new();
+    for line in text.lines() {
+        let l = line.trim();
+        if let Some(rest) = l.strip_prefix("- Remove mod") {
+            // rest looks like: 'Iris' (iris) 1.10.7 (full/path/file.jar).
+            if let (Some(start), Some(end)) = (rest.rfind('('), rest.rfind(')')) {
+                if end > start {
+                    let path = &rest[start + 1..end];
+                    if !path.is_empty() {
+                        let parts: Vec<&str> =
+                            path.split('/').filter(|s| !s.is_empty()).collect();
+                        if let Some(fname) = parts.last() {
+                            let kind = if parts.len() >= 2 {
+                                match parts[parts.len() - 2] {
+                                    "mods" => "mod",
+                                    "resourcepacks" => "resourcepack",
+                                    "shaderpacks" => "shader",
+                                    _ => "mod",
+                                }
+                            } else {
+                                "mod"
+                            };
+                            match crate::modrinth::delete_content(
+                                &state.data_dir,
+                                &instance_name,
+                                kind,
+                                fname,
+                            ) {
+                                Ok(()) => removed.push(path.to_string()),
+                                Err(e) => removed.push(format!("{} (Fehler: {})", path, e)),
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if removed.is_empty() {
+        return Ok(
+            "Konflikt erkannt, aber die betroffene Mod-Datei konnte nicht ermittelt werden."
+                .to_string(),
+        );
+    }
+    Ok(format!(
+        "Mod-Konflikt automatisch behoben. Entfernte Mod-Dateien:\n- {}",
+        removed.join("\n- ")
+    ))
+}
+
+#[tauri::command]
 fn get_available_versions() -> Result<Vec<String>, String> {
     instance::fetch_available_versions().map_err(|e| e.to_string())
 }
@@ -353,6 +426,8 @@ fn main() {
             installed_project_ids,
             modrinth_project,
             open_url,
+            get_game_log,
+            auto_resolve_conflict,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

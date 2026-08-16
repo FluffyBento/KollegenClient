@@ -8,7 +8,7 @@ use log::info;
 use serde_json::Value;
 use std::fs;
 use std::path::Path;
-use std::process::Command;
+use std::process::{Command, Stdio};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
@@ -610,6 +610,19 @@ pub fn launch(
 
     // Working directory
     cmd.current_dir(&inst_dir);
+
+    // Capture the game's stdout/stderr to a log file so crashes (e.g. Fabric
+    // mod-incompatibility errors) can be analysed and auto-resolved.
+    let log_path = inst_dir.join("logs").join("latest.log");
+    if let Some(parent) = log_path.parent() {
+        let _ = fs::create_dir_all(parent);
+    }
+    if let Ok(log_file) = fs::File::create(&log_path) {
+        if let Ok(err_file) = log_file.try_clone() {
+            cmd.stdout(Stdio::from_file(log_file));
+            cmd.stderr(Stdio::from_file(err_file));
+        }
+    }
 
     info!("Starting Minecraft process...");
     let child = cmd.spawn()?;
