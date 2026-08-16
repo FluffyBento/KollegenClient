@@ -6,3 +6,8 @@ accounts.json
 settings.json
 *.db
 .DS_Store
+
+# Kollegen in-game mod (gradle build artifacts)
+kollegen-mod/build/
+kollegen-mod/.gradle/
+kollegen-mod/.idea/

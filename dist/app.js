@@ -137,6 +137,9 @@ async function refreshLogs() {
         : `Status: ${status.state} ${status.msg ? '(' + status.msg + ')' : ''}`;
       if (status.state === "done") {
         $("loginInfo").style.display = "none";
+        $("authBtn").style.display = "none";
+      } else {
+        $("authBtn").style.display = "";
       }
     } catch (e) {
       console.error(e);
@@ -186,7 +189,7 @@ async function refreshLogs() {
         serverEl.append(btn);
       }
 
-      renderDiscordFriends(s.friends || []);
+      renderDiscordFriends(s.friends || [], connected);
       renderDiscordInvites(s.invites || [], connected);
     } catch (e) {
       console.error(e);
@@ -203,7 +206,7 @@ async function refreshLogs() {
 
   // Renders the online Discord friends and wires the "Beitreten" action that
   // lets the user join a friend's game (instance picker filtered by version).
-  function renderDiscordFriends(friends) {
+  function renderDiscordFriends(friends, connected) {
     const list = $("discordFriends");
     const hint = $("friendsHint");
     if (!list) return;
@@ -212,8 +215,9 @@ async function refreshLogs() {
     const online = friends.filter((f) => f.status && f.status !== "offline");
     if (!friends.length) {
       hint.style.display = "";
-      hint.textContent =
-        "Noch keine Freunde geladen – verbinde dich mit Discord, um sie zu sehen.";
+      hint.textContent = connected
+        ? "Noch keine Freunde geladen."
+        : "Verbinde dich mit Discord, um deine Freunde zu sehen.";
       return;
     }
     if (!online.length) {
@@ -542,24 +546,65 @@ $("copyUrlBtn").onclick = () => {
   setTimeout(() => ($("copyUrlBtn").textContent = "Kopieren"), 1500);
 };
 
-$("fullscreenBtn").onclick = async () => {
-  try {
-    await invoke("toggle_fullscreen");
-  } catch (e) {
-    console.error("Vollbild fehlgeschlagen:", e);
+// Vollbild umschalten mit F11 (kein extra Button mehr).
+document.addEventListener("keydown", async (e) => {
+  if (e.key === "F11") {
+    e.preventDefault();
+    try {
+      await invoke("toggle_fullscreen");
+    } catch (err) {
+      console.error("Vollbild fehlgeschlagen:", err);
+    }
   }
-};
-
-try {
-  const win = window.__TAURI__.window.getCurrentWebviewWindow();
-  win.onFullscreenChanged(({ payload }) => {
-    $("fullscreenBtn").textContent = payload ? "Fenster" : "Vollbild";
-  });
-} catch (e) {}
+});
 
 $("createBtn").onclick = createInstance;
 
 $("discordLoginBtn").onclick = discordOauthStart;
+
+// ─=== Akzentfarbe (wird auch in die Theme-Datei für den In-Game-Mod geschrieben) ===
+function readCssVar(name) {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+
+// Schreibt die aktuellen Launcher-Farben in eine Datei, damit der Kollegen-Client
+// In-Game-Mod sein Menü in exakt derselben Farbe rendern kann (auch wenn die
+// Launcher-Farbe zur Laufzeit geändert wird).
+function pushTheme() {
+  const theme = {
+    bg: readCssVar("--bg") || "#0d0d12",
+    panel: readCssVar("--panel") || "#1a1a24",
+    panel2: readCssVar("--panel-2") || "#21212e",
+    accent: readCssVar("--accent") || "#f5a623",
+    accent2: readCssVar("--accent2") || "#ff7a00",
+    text: readCssVar("--text") || "#f3e9d8",
+    muted: readCssVar("--muted") || "#b9a98c",
+    border: readCssVar("--border") || "#34303a",
+    danger: readCssVar("--danger") || "#ff5b6e",
+  };
+  invoke("write_theme_file", { json: JSON.stringify(theme) }).catch(() => {});
+}
+
+function applyAccent(accent, accent2) {
+  const r = document.documentElement.style;
+  r.setProperty("--accent", accent);
+  r.setProperty("--accent2", accent2 || accent);
+  pushTheme();
+}
+
+document.querySelectorAll("#accentSwatches .swatch").forEach((sw) => {
+  sw.onclick = () => applyAccent(sw.dataset.accent, sw.dataset.accent2);
+});
+
+// Einladen zum Launcher: Text + Link zum GitHub-Repo.
+$("inviteLauncherBtn").onclick = () => {
+  const url = "https://github.com/FluffyBento/KollegenClient";
+  copyText(url);
+  invoke("open_url", { url }).catch(() => window.open(url, "_blank"));
+};
+
+// Beim Start die aktuelle Launcher-Theme an den Mod weitergeben.
+pushTheme();
 
 // Socials drawer (left sidebar) toggle.
 $("socialsBtn").onclick = () => {

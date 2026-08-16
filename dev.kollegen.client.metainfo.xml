@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>dev.kollegen.client</id>
+  <name>Kollegen Client</name>
+  <summary>Minecraft-Client mit Freundes- und Discord-Integration</summary>
+  <description>
+    <p>Der Kollegen Client ist ein Minecraft-Launcher mit integrierten
+    Freundeslisten, Discord-Rich-Presence, Server-Einladungen und einem
+    In-Game-Mod (Logo-Ersatz &amp; Rich Presence).</p>
+  </description>
+  <launchable type="desktop-id">dev.kollegen.client.desktop</launchable>
+  <url type="homepage">https://github.com/FluffyBento/KollegenClient</url>
+  <releases>
+    <release version="1.0.0" date="2026-08-16"/>
+  </releases>
+</component>

@@ -484,6 +484,21 @@ fn open_url(url: String) -> Result<(), String> {
     open::that(&url).map_err(|e| e.to_string())
 }
 
+/// Persists the launcher's current theme colors so the in-game Kollegen Client
+/// mod can render its menu with the exact same palette (even when the user
+/// changes the accent color at runtime). Written both to the app data dir and to
+/// `~/.kollegen-theme.json` (a fixed, user-home location the mod can read).
+#[tauri::command]
+fn write_theme_file(state: State<'_, AppState>, json: String) -> Result<(), String> {
+    let dir = state.data_dir.join(".kollegen");
+    let _ = std::fs::create_dir_all(&dir);
+    let _ = std::fs::write(dir.join("theme.json"), &json);
+    if let Some(home) = dirs::home_dir() {
+        let _ = std::fs::write(home.join(".kollegen-theme.json"), &json);
+    }
+    Ok(())
+}
+
 #[tauri::command]
 fn toggle_fullscreen(app: tauri::AppHandle) -> Result<(), String> {
     let window = app
@@ -730,6 +745,7 @@ fn main() {
             installed_project_ids,
             modrinth_project,
             open_url,
+            write_theme_file,
             get_game_log,
             auto_resolve_conflict,
             toggle_fullscreen,

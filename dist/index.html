@@ -9,7 +9,13 @@
 <body>
   <header>
     <h1>Kollegen Client<img src="Kollegen.png" alt="Kollegen Client" class="brand-logo" /></h1>
-    <button id="fullscreenBtn">Vollbild</button>
+    <div id="accentSwatches" class="accent-swatches" title="Akzentfarbe ändern">
+      <button class="swatch" data-accent="#f5a623" data-accent2="#ff7a00" style="background:#f5a623"></button>
+      <button class="swatch" data-accent="#5865f2" data-accent2="#4752c4" style="background:#5865f2"></button>
+      <button class="swatch" data-accent="#3ba55d" data-accent2="#2d8049" style="background:#3ba55d"></button>
+      <button class="swatch" data-accent="#ff5b6e" data-accent2="#d83a4c" style="background:#ff5b6e"></button>
+      <button class="swatch" data-accent="#00bcd4" data-accent2="#0097a7" style="background:#00bcd4"></button>
+    </div>
     <button id="authBtn">Mit Microsoft anmelden</button>
     <span id="authStatus">nicht angemeldet</span>
     <span id="discordAccount" class="discord-account">
@@ -52,6 +58,11 @@
 
       <h3 class="socials-subhead">Einladungen (Server beitreten)</h3>
       <ul id="discordInvites" class="invite-list"><li style="color:#888;">Keine Einladungen</li></ul>
+
+      <div class="socials-invite">
+        <p class="socials-hint">Kennst du jemanden, der den Kollegen Client auch nutzen sollte?</p>
+        <button id="inviteLauncherBtn" class="invite-launcher-btn">Auf GitHub einladen</button>
+      </div>
     </div>
   </aside>
 

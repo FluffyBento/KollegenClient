@@ -631,3 +631,37 @@ header, main { padding-left: 56px; }
   display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;
   padding: 0.6rem 0; border-bottom: 1px solid var(--border);
 }
+
+/* ── Accent color swatches (header) ── */
+.accent-swatches {
+  display: flex; align-items: center; gap: 0.35rem;
+}
+.accent-swatches .swatch {
+  width: 18px; height: 18px; border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.25);
+  padding: 0; margin: 0; cursor: pointer;
+  transition: transform 0.1s ease, border-color 0.1s ease;
+}
+.accent-swatches .swatch:hover {
+  transform: scale(1.18);
+  border-color: #fff;
+}
+
+/* ── Invite-to-launcher block (bottom of Socials drawer) ── */
+.socials-invite {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px dashed var(--border);
+}
+.socials-invite .socials-hint { margin-bottom: 0.6rem; }
+.invite-launcher-btn {
+  width: 100%;
+  background: var(--accent);
+  color: #2a1a00;
+  border: none;
+  border-radius: 8px;
+  padding: 0.6rem 1rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.invite-launcher-btn:hover { background: var(--accent2); }

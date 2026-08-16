@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "id": "kollegen-client",
+  "version": "${version}",
+  "name": "Kollegen Client Mod",
+  "description": "Ersetzt das Minecraft-Logo durch das Kollegen-Logo, zeigt Rich Presence an und bietet ein Menü (Rechts-Shift) mit Launcher-Sync-Farben.",
+  "authors": ["FluffyBento"],
+  "contact": {
+    "homepage": "https://github.com/FluffyBento/KollegenClient",
+    "sources": "https://github.com/FluffyBento/KollegenClient"
+  },
+  "license": "MIT",
+  "icon": "assets/kollegen/textures/gui/logo.png",
+  "environment": "client",
+  "entrypoints": {
+    "client": ["dev.kollegen.client.KollegenMod"]
+  },
+  "mixins": ["kollegen.mixins.json"],
+  "depends": {
+    "fabricloader": ">=0.16.0",
+    "minecraft": ">=1.21.11",
+    "java": ">=21"
+  }
+}

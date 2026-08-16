@@ -9,7 +9,7 @@ use serde_json::Value;
 use std::fs;
 use std::path::Path;
 use std::process::{Command, Stdio};
-use std::io::Write;
+use std::io::{Cursor, Read, Write};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
@@ -21,21 +21,112 @@ use std::time::Duration;
 const TITLE_LOGO_PACK: &[u8] = include_bytes!("title_logo_pack.zip");
 const TITLE_LOGO_PACK_ID: &str = "KollegenTitle";
 
+/// Maps a Minecraft version string to the resource-pack `pack_format` number
+/// Minecraft expects, so the override actually loads (e.g. 1.21.11 -> 75).
+fn pack_format_for(version: &str) -> u32 {
+    let mut it = version.split('.');
+    let major: u32 = it.next().and_then(|s| s.parse().ok()).unwrap_or(1);
+    let minor: u32 = it.next().and_then(|s| s.parse().ok()).unwrap_or(0);
+    let patch: u32 = it.next().and_then(|s| s.parse().ok()).unwrap_or(0);
+    if major == 1 {
+        match minor {
+            21 => {
+                return match patch {
+                    11 => 75,
+                    9 | 10 => 69,
+                    7 | 8 => 64,
+                    6 => 63,
+                    5 => 55,
+                    4 => 46,
+                    2 | 3 => 42,
+                    _ => 34,
+                }
+            }
+            20 => {
+                return match patch {
+                    6 | 5 => 32,
+                    4 | 3 => 22,
+                    2 => 18,
+                    _ => 15,
+                }
+            }
+            19 => return if patch >= 4 { 13 } else { 9 },
+            18 => return if patch >= 2 { 8 } else { 7 },
+            17 => return 7,
+            16 => return 6,
+            _ => {}
+        }
+    }
+    75
+}
+
+/// Builds the title-logo resource pack zip in memory, rewriting `pack.mcmeta`
+/// with the `pack_format` that matches the instance's Minecraft version. For
+/// 1.21.9+ (format >= 65) Minecraft requires the `min_format`/`max_format`
+/// schema instead of a single `pack_format` number.
+fn build_title_logo_pack(version: &str) -> Vec<u8> {
+    let fmt = pack_format_for(version);
+    let meta = if fmt >= 65 {
+        serde_json::json!({
+            "pack": {
+                "description": "Kollegen Client Titel-Logo",
+                "min_format": [fmt, 0],
+                "max_format": [fmt + 24, 0]
+            }
+        })
+    } else {
+        serde_json::json!({
+            "pack": {
+                "description": "Kollegen Client Titel-Logo",
+                "pack_format": fmt
+            }
+        })
+    };
+    let meta_str = serde_json::to_string_pretty(&meta).unwrap_or_default();
+
+    let reader = std::io::Cursor::new(TITLE_LOGO_PACK);
+    let mut archive = match zip::ZipArchive::new(reader) {
+        Ok(a) => a,
+        Err(_) => return TITLE_LOGO_PACK.to_vec(),
+    };
+    let mut out = Vec::new();
+    {
+        let mut writer = zip::ZipWriter::new(std::io::Cursor::new(&mut out));
+        let opts = zip::write::FileOptions::default()
+            .compression_method(zip::CompressionMethod::Deflated);
+        for i in 0..archive.len() {
+            let mut file = match archive.by_index(i) {
+                Ok(f) => f,
+                Err(_) => continue,
+            };
+            let name = file.name().to_string();
+            if name == "pack.mcmeta" {
+                let _ = writer.start_file("pack.mcmeta", opts);
+                let _ = writer.write_all(meta_str.as_bytes());
+            } else {
+                let _ = writer.start_file(&name, opts);
+                let _ = std::io::copy(&mut file, &mut writer);
+            }
+        }
+        let _ = writer.finish();
+    }
+    out
+}
+
 /// Installs the title-logo resource pack into the instance and enables it in
 /// `options.txt` (force-enabled via `incompatibleResourcePacks` so it works
 /// across Minecraft versions regardless of `pack_format`).
-fn ensure_title_logo_pack(inst_dir: &Path) {
+fn ensure_title_logo_pack(inst_dir: &Path, version: &str) {
     let rp_dir = inst_dir.join("resourcepacks");
     if let Err(e) = fs::create_dir_all(&rp_dir) {
         warn!("Konnte resourcepacks nicht anlegen: {}", e);
         return;
     }
     let pack_zip = rp_dir.join(format!("{}.zip", TITLE_LOGO_PACK_ID));
-    if !pack_zip.exists() {
-        if let Err(e) = fs::write(&pack_zip, TITLE_LOGO_PACK) {
-            warn!("Konnte Titel-Logo-Pack nicht installieren: {}", e);
-            return;
-        }
+    let bytes = build_title_logo_pack(version);
+    if let Err(e) = fs::write(&pack_zip, &bytes) {
+        warn!("Konnte Titel-Logo-Pack nicht installieren: {}", e);
+        return;
     }
 
     let opts = inst_dir.join("options.txt");
@@ -709,7 +800,7 @@ pub fn launch(
 
     // Install + enable the resource pack that replaces the in-game
     // "Minecraft Java Edition" title logo with Logo.png.
-    ensure_title_logo_pack(&inst_dir);
+    ensure_title_logo_pack(&inst_dir, &inst.version);
 
     info!("Starting Minecraft process...");
     let mut child = cmd.spawn()?;

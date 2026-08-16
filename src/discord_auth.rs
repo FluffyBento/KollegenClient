@@ -10,7 +10,12 @@ use std::time::{Duration, Instant};
 const AUTHORIZE_ENDPOINT: &str = "https://discord.com/oauth2/authorize";
 const TOKEN_ENDPOINT: &str = "https://discord.com/api/v10/oauth2/token";
 const USER_ENDPOINT: &str = "https://discord.com/api/v10/users/@me";
-const SCOPES: &str = "identify";
+// `identify` is always required. `relationships` grants the application access
+// to the user's Discord friend list (used to surface friends inside the client).
+// NOTE: `relationships` is a *privileged* OAuth scope – it must be enabled for
+// the Discord application in the developer portal (OAuth2 → scopes) and approved
+// by Discord before tokens actually return the friend list.
+const SCOPES: &str = "identify relationships";
 /// Fixed localhost port the browser is redirected back to. This exact URI must
 /// be registered as a Redirect URI in the Discord application's OAuth2 settings.
 const CALLBACK_PORT: u16 = 31337;

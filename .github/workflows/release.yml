@@ -1,0 +1,42 @@
+name: Flatpak Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  flatpak:
+    runs-on: ubuntu-latest
+    container:
+      image: bilelmoussaoui/flatpak-github-actions:gnome-47
+      options: --privileged
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install runtimes and SDK extensions
+        run: |
+          flatpak --system install -y org.freedesktop.Platform//23.08 org.freedesktop.Sdk//23.08
+          flatpak --system install -y org.freedesktop.Sdk.Extension.rust-stable
+          flatpak --system install -y org.freedesktop.Sdk.Extension.node20
+
+      - name: Build Flatpak
+        uses: flatpak/flatpak-github-actions/flatpak-builder@v6
+        with:
+          bundle: kollegen-client.flatpak
+          manifest-path: com.kollegen.Client.yaml
+          cache-key: flatpak-builder-${{ github.sha }}
+          arch: x86_64
+
+      - name: Rename artifact
+        run: mv kollegen-client.flatpak "kollegen-client-${{ github.ref_name }}.flatpak"
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: "kollegen-client-${{ github.ref_name }}.flatpak"
+          generate_release_notes: true
