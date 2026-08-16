@@ -415,3 +415,29 @@ pub fn installed_project_ids(data_dir: &Path, instance_name: &str) -> Value {
     }
     out
 }
+
+/// Fetches full project details (and gallery images) from Modrinth for the
+/// in-client detail view opened via "Ansehen".
+pub fn project_details(id: &str) -> Result<Value, String> {
+    let client = client().map_err(|e| e.to_string())?;
+    let proj_url = format!("{}/project/{}", MODRINTH_API, id);
+    let proj_resp = client
+        .get(&proj_url)
+        .send()
+        .map_err(|e| e.to_string())?;
+    if !proj_resp.status().is_success() {
+        return Err(format!(
+            "Projekt konnte nicht geladen werden: {}",
+            proj_resp.status()
+        ));
+    }
+    let project: Value = proj_resp.json().map_err(|e| e.to_string())?;
+
+    let gal_url = format!("{}/project/{}/gallery", MODRINTH_API, id);
+    let gallery: Value = match client.get(&gal_url).send() {
+        Ok(r) if r.status().is_success() => r.json().unwrap_or(serde_json::Value::Null),
+        _ => serde_json::Value::Null,
+    };
+
+    Ok(serde_json::json!({ "project": project, "gallery": gallery }))
+}

@@ -245,6 +245,11 @@ fn installed_project_ids(
 }
 
 #[tauri::command]
+fn modrinth_project(id: String) -> Result<Value, String> {
+    crate::modrinth::project_details(&id)
+}
+
+#[tauri::command]
 fn install_content(
     state: State<'_, AppState>,
     instance_name: String,
@@ -331,6 +336,7 @@ fn main() {
             list_content,
             delete_content,
             installed_project_ids,
+            modrinth_project,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

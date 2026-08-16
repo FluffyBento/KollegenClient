@@ -248,15 +248,10 @@ function renderCard(p) {
   const card = document.createElement("div");
   card.className = "card";
   card.dataset.pid = p.id;
-  if (p.icon_url) {
-    const img = document.createElement("img");
-    img.src = p.icon_url;
-    img.className = "card-icon";
-    img.loading = "lazy";
-    img.decoding = "async";
-    img.onerror = () => img.remove();
-    card.append(img);
-  }
+  const icon = document.createElement("div");
+  icon.className = "card-icon placeholder";
+  icon.textContent = (p.title || "?").trim().charAt(0).toUpperCase();
+  card.append(icon);
   const body = document.createElement("div");
   body.className = "card-body";
   const title = document.createElement("div");
@@ -471,23 +466,62 @@ function escapeHtml(s) {
     .replace(/'/g, "&#39;");
 }
 
-function showDetail(p) {
+function stripHtml(s) {
+  const tmp = document.createElement("div");
+  tmp.innerHTML = s;
+  return tmp.textContent || "";
+}
+
+async function showDetail(p) {
   const d = $("manageDetail");
-  const link = `https://modrinth.com/project/${encodeURIComponent(p.id)}`;
-  d.innerHTML = `
-    <div class="detail-header">
-      <button id="detailClose">Schließen</button>
-    </div>
-    <div class="detail-body">
-      ${p.icon_url ? `<img class="detail-icon" src="${escapeHtml(p.icon_url)}" alt="">` : ""}
-      <h2>${escapeHtml(p.title)}</h2>
-      <div class="detail-meta">${(p.downloads || 0).toLocaleString()} Downloads${p.author ? " · " + escapeHtml(p.author) : ""}</div>
-      <p class="detail-desc">${escapeHtml(p.description || "Keine Beschreibung verfügbar.")}</p>
-      <a class="detail-link" href="${link}" target="_blank" rel="noopener">Auf Modrinth öffnen</a>
-    </div>
-  `;
+  d.innerHTML =
+    '<div class="detail-header"><button id="detailClose">Schließen</button></div>' +
+    '<div class="detail-body"><div class="loading">Lade Details…</div></div>';
   $("detailClose").onclick = hideDetail;
   d.style.display = "flex";
+
+  let proj = {};
+  let gallery = [];
+  try {
+    const data = await invoke("modrinth_project", { id: p.id });
+    proj = data.project || {};
+    gallery = Array.isArray(data.gallery) ? data.gallery : [];
+  } catch (e) {
+    console.warn("modrinth_project failed:", e);
+  }
+
+  const icon = proj.icon_url || p.icon_url || "";
+  const title = proj.title || p.title || "";
+  const rawDesc = proj.body || proj.description || p.description || "";
+  const desc = (rawDesc ? stripHtml(rawDesc) : "") || "Keine Beschreibung verfügbar.";
+  const downloads = proj.downloads || p.downloads || 0;
+  const author = proj.publisher || "";
+  const categories = Array.isArray(proj.categories) ? proj.categories.join(", ") : "";
+  const gameVersions = Array.isArray(proj.game_versions) ? proj.game_versions.join(", ") : "";
+  const link = `https://modrinth.com/project/${encodeURIComponent(p.id)}`;
+
+  let galleryHtml = "";
+  if (gallery.length) {
+    galleryHtml =
+      '<div class="detail-gallery">' +
+      gallery
+        .map(
+          (g) =>
+            `<img class="detail-gallery-img" src="${escapeHtml(g.url)}" alt="${escapeHtml(g.title || "")}" loading="lazy" decoding="async" onerror="this.remove()">`
+        )
+        .join("") +
+      "</div>";
+  }
+
+  d.querySelector(".detail-body").innerHTML =
+    (icon ? `<img class="detail-icon" src="${escapeHtml(icon)}" alt="">` : "") +
+    `<h2>${escapeHtml(title)}</h2>` +
+    `<div class="detail-meta">${(downloads || 0).toLocaleString()} Downloads${author ? " · " + escapeHtml(author) : ""}</div>` +
+    (categories ? `<div class="detail-meta">Kategorien: ${escapeHtml(categories)}</div>` : "") +
+    (gameVersions ? `<div class="detail-meta">Versionen: ${escapeHtml(gameVersions)}</div>` : "") +
+    `<p class="detail-desc">${escapeHtml(desc)}</p>` +
+    galleryHtml +
+    `<a class="detail-link" href="${link}" target="_blank" rel="noopener">Auf Modrinth öffnen</a>`;
 }
 
 function hideDetail() {
