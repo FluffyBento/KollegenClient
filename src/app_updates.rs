@@ -95,7 +95,7 @@ pub async fn check_info(app: &tauri::AppHandle) -> Result<Option<(String, String
 
 /// Directly fetches `latest.json` (bypassing the updater plugin) and returns
 /// the version/notes only when the remote version is newer than the running app.
-fn fetch_update_via_http(app: &tauri::AppHandle) -> Result<Option<(String, String)>, String> {
+async fn fetch_update_via_http(app: &tauri::AppHandle) -> Result<Option<(String, String)>, String> {
     let endpoint = UPDATE_ENDPOINT.to_string();
     let current = app.package_info().version.to_string();
     let body = tauri::async_runtime::spawn_blocking(move || {
@@ -109,6 +109,7 @@ fn fetch_update_via_http(app: &tauri::AppHandle) -> Result<Option<(String, Strin
             .text()
             .map_err(|e| e.to_string())
     })
+    .await
     .map_err(|e| e.to_string())??;
 
     let v: serde_json::Value = serde_json::from_str(&body)
