@@ -591,17 +591,6 @@ function pushTheme() {
   invoke("write_theme_file", { json: JSON.stringify(theme) }).catch(() => {});
 }
 
-function applyAccent(accent, accent2) {
-  const r = document.documentElement.style;
-  r.setProperty("--accent", accent);
-  r.setProperty("--accent2", accent2 || accent);
-  pushTheme();
-}
-
-document.querySelectorAll("#accentSwatches .swatch").forEach((sw) => {
-  sw.onclick = () => applyAccent(sw.dataset.accent, sw.dataset.accent2);
-});
-
 // Einladen zum Launcher: Text + Link zum GitHub-Repo.
 $("inviteLauncherBtn").onclick = () => {
   const url = "https://github.com/FluffyBento/KollegenClient";
