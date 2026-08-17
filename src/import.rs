@@ -276,20 +276,19 @@ pub fn import_instance(
     fs::create_dir_all(dest.as_path())?;
     copy_dir_contents(&src, &dest)?;
 
-    // Prism/MultiMC keep the real game files in a `.minecraft` subfolder; lift
-    // them to the instance root so our launcher layout matches.
-    let mc = dest.join(".minecraft");
-    if mc.is_dir() {
-        if let Ok(entries) = fs::read_dir(mc.as_path()) {
-            for e in entries.flatten() {
-                let target = dest.join(e.file_name());
-                let _ = fs::rename(e.path(), target.as_path());
-            }
-        }
-        let _ = fs::remove_dir_all(mc.as_path());
+    // Lift the source launcher's game directory to the instance root so our
+    // launcher layout matches. Prism/MultiMC use `.minecraft`, GDLauncher/
+    // Technic/ATLauncher use `minecraft`, and instances may override the path via
+    // Prism's instance.cfg `GameDirectory`. Without this, mods/saves/resource
+    // packs/options end up in a subfolder that Minecraft (gameDir = instance
+    // root) never reads – so the whole instance appears "empty" after import.
+    if let Some(gd) = detect_game_dir(&dest, kind) {
+        merge_dir_to_root(&gd, &dest);
+        let _ = fs::remove_dir_all(&gd);
     }
 
     let (_, version, loader) = parse_instance(kind, &src);
+    let (java_args, mem_min, mem_max) = parse_import_settings(kind, &src);
     let inst = Instance {
         name: dest_name.clone(),
         version,
@@ -298,11 +297,11 @@ pub fn import_instance(
         description: format!("Importiert von {}", launcher_id),
         mods: vec!["essentialmod.jar".to_string()],
         vulkan_enabled: true,
-        memory_min: crate::DEFAULT_MEMORY_MIN.to_string(),
-        memory_max: crate::DEFAULT_MEMORY_MAX.to_string(),
+        memory_min: mem_min.unwrap_or_else(|| crate::DEFAULT_MEMORY_MIN.to_string()),
+        memory_max: mem_max.unwrap_or_else(|| crate::DEFAULT_MEMORY_MAX.to_string()),
         created_at: chrono::Utc::now().to_rfc3339(),
         last_played: None,
-        java_args: None,
+        java_args,
         server: None,
     };
     instances.push(inst.clone());
@@ -333,6 +332,164 @@ fn copy_dir_contents(src: &Path, dst: &Path) -> Result<()> {
         }
     }
     Ok(())
+}
+
+/// Finds the source launcher's game directory inside the copied instance.
+/// Prism/MultiMC can override it via `instance.cfg` `GameDirectory` (relative or
+/// absolute); otherwise we fall back to the conventional `.minecraft` / `minecraft`
+/// folder names. Returns `None` when the game files already live at the instance
+/// root (e.g. `GameDirectory=.`).
+fn detect_game_dir(dest: &Path, kind: LauncherKind) -> Option<PathBuf> {
+    if matches!(kind, LauncherKind::Prism | LauncherKind::MultiMC) {
+        if let Some(txt) = read_text(&dest.join("instance.cfg")) {
+            for line in txt.lines() {
+                let line = line.trim();
+                if let Some(v) = line.strip_prefix("GameDirectory=") {
+                    let v = v.trim();
+                    if v.is_empty() || v == "." {
+                        return None;
+                    }
+                    let p = if Path::new(v).is_absolute() {
+                        PathBuf::from(v)
+                    } else {
+                        dest.join(v.trim_start_matches("./"))
+                    };
+                    if p.is_dir() {
+                        return Some(p);
+                    }
+                }
+            }
+        }
+    }
+    for name in [".minecraft", "minecraft"] {
+        let p = dest.join(name);
+        if p.is_dir() {
+            return Some(p);
+        }
+    }
+    None
+}
+
+/// Moves the contents of `src` into `dest`, merging directories and never
+/// overwriting existing files. Used to lift a nested game directory to the
+/// instance root without losing anything.
+fn merge_dir_to_root(src: &Path, dest: &Path) {
+    if let Ok(entries) = fs::read_dir(src) {
+        for e in entries.flatten() {
+            let p = e.path();
+            let target = dest.join(e.file_name());
+            if p.is_dir() {
+                fs::create_dir_all(&target).ok();
+                merge_dir_to_root(&p, &target);
+            } else if !target.exists() {
+                let _ = fs::rename(&p, &target);
+            }
+        }
+    }
+}
+
+/// Extracts per-instance JVM settings (extra args, min/max memory) from the
+/// source launcher's config so they survive the import. Missing fields fall back
+/// to the Kollegen Client defaults.
+fn parse_import_settings(
+    kind: LauncherKind,
+    dir: &Path,
+) -> (Option<String>, Option<String>, Option<String>) {
+    let mb_to_str = |mb: i64| -> Option<String> {
+        if mb > 0 {
+            Some(format!("{}M", mb))
+        } else {
+            None
+        }
+    };
+    let mut java_args = None;
+    let mut mem_min = None;
+    let mut mem_max = None;
+
+    match kind {
+        LauncherKind::Prism | LauncherKind::MultiMC => {
+            if let Some(txt) = read_text(&dir.join("instance.cfg")) {
+                for line in txt.lines() {
+                    let line = line.trim();
+                    if let Some(v) = line.strip_prefix("JvmArgs=") {
+                        let v = v.trim();
+                        if !v.is_empty() {
+                            java_args = Some(v.to_string());
+                        }
+                    } else if let Some(v) = line.strip_prefix("Memory=") {
+                        if let Ok(mb) = v.trim().parse::<i64>() {
+                            if let Some(s) = mb_to_str(mb) {
+                                mem_min = Some(s.clone());
+                                mem_max = Some(s);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        LauncherKind::Modrinth => {
+            for file in ["instance.json", "profile.json"] {
+                if let Some(txt) = read_text(&dir.join(file)) {
+                    if let Ok(v) = serde_json::from_str::<Value>(&txt) {
+                        if let Some(j) = v.get("java_args").and_then(|x| x.as_str()) {
+                            if !j.is_empty() {
+                                java_args = Some(j.to_string());
+                            }
+                        }
+                        if let Some(m) = v.get("memory").and_then(|x| x.as_object()) {
+                            if let Some(n) = m.get("min").and_then(|x| x.as_i64()) {
+                                mem_min = mem_min.or(mb_to_str(n));
+                            }
+                            if let Some(n) = m.get("max").and_then(|x| x.as_i64()) {
+                                mem_max = mem_max.or(mb_to_str(n));
+                            }
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+        LauncherKind::GDLauncher => {
+            if let Some(txt) = read_text(&dir.join("instance.json")) {
+                if let Ok(v) = serde_json::from_str::<Value>(&txt) {
+                    if let Some(j) = v.get("javaArgs").and_then(|x| x.as_str()) {
+                        if !j.is_empty() {
+                            java_args = Some(j.to_string());
+                        }
+                    }
+                    if let Some(m) = v.get("memory").and_then(|x| x.as_object()) {
+                        if let Some(n) = m.get("min").and_then(|x| x.as_i64()) {
+                            mem_min = mem_min.or(mb_to_str(n));
+                        }
+                        if let Some(n) = m.get("max").and_then(|x| x.as_i64()) {
+                            mem_max = mem_max.or(mb_to_str(n));
+                        }
+                    }
+                }
+            }
+        }
+        LauncherKind::ATLauncher => {
+            if let Some(txt) = read_text(&dir.join("instance.json")) {
+                if let Ok(v) = serde_json::from_str::<Value>(&txt) {
+                    if let Some(j) = v.get("javaArguments").and_then(|x| x.as_str()) {
+                        if !j.is_empty() {
+                            java_args = Some(j.to_string());
+                        }
+                    }
+                    if let Some(m) = v.get("memory").and_then(|x| x.as_object()) {
+                        if let Some(n) = m.get("min").and_then(|x| x.as_i64()) {
+                            mem_min = mem_min.or(mb_to_str(n));
+                        }
+                        if let Some(n) = m.get("max").and_then(|x| x.as_i64()) {
+                            mem_max = mem_max.or(mb_to_str(n));
+                        }
+                    }
+                }
+            }
+        }
+        _ => {}
+    }
+    (java_args, mem_min, mem_max)
 }
 
 // ─=== Instance metadata parsing (per launcher) ===

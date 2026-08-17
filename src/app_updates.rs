@@ -14,6 +14,11 @@ use tauri_plugin_updater::UpdaterExt;
 /// unsupported for the current install format, e.g. .deb/.rpm).
 const RELEASE_URL: &str = "https://github.com/FluffyBento/KollegenClient/releases/latest";
 
+/// Endpoint that serves the Tauri updater manifest (`latest.json`). Must match
+/// `plugins.updater.endpoints` in `tauri.conf.json`.
+const UPDATE_ENDPOINT: &str =
+    "https://github.com/FluffyBento/KollegenClient/releases/latest/download/latest.json";
+
 /// Whether this running binary can update itself in place.
 ///
 /// * Windows: the NSIS installer self-updates -> true.
@@ -67,15 +72,64 @@ pub fn spawn(app: tauri::AppHandle) {
 /// Returns `(version, notes)` of an available update, or `None` if up to date.
 /// Errors are returned as `Err(String)` so the UI can surface them.
 pub async fn check_info(app: &tauri::AppHandle) -> Result<Option<(String, String)>, String> {
-    let update = app
-        .updater()
-        .map_err(|e| e.to_string())?
-        .check()
-        .await
-        .map_err(|e| e.to_string())?;
-    match update {
-        Some(u) => Ok(Some((u.version.clone(), u.body.clone().unwrap_or_default()))),
-        None => Ok(None),
+    // 1) Prefer the official plugin: it verifies the artifact signature and is
+    //    what performs the actual in-place install (AppImage/NSIS).
+    if let Ok(updater) = app.updater() {
+        match updater.check().await {
+            Ok(Some(u)) => {
+                return Ok(Some((u.version.to_string(), u.body.clone().unwrap_or_default())));
+            }
+            // `None` = up to date; an error (e.g. transient fetch/parse problem)
+            // falls through to the direct fallback below so the manual check in
+            // the Settings UI never hard-fails with a cryptic message.
+            _ => {}
+        }
+    }
+
+    // 2) Fallback: fetch `latest.json` ourselves and compare versions. Robust
+    //    against plugin quirks and keeps the "Update verfügbar" notice working
+    //    for every install format (including .deb/.rpm, where self-install is
+    //    unsupported but the user still wants to know about new releases).
+    fetch_update_via_http(app).await
+}
+
+/// Directly fetches `latest.json` (bypassing the updater plugin) and returns
+/// the version/notes only when the remote version is newer than the running app.
+fn fetch_update_via_http(app: &tauri::AppHandle) -> Result<Option<(String, String)>, String> {
+    let endpoint = UPDATE_ENDPOINT.to_string();
+    let current = app.package_info().version.to_string();
+    let body = tauri::async_runtime::spawn_blocking(move || {
+        reqwest::blocking::Client::builder()
+            .user_agent(crate::USER_AGENT)
+            .build()
+            .map_err(|e| e.to_string())?
+            .get(&endpoint)
+            .send()
+            .map_err(|e| e.to_string())?
+            .text()
+            .map_err(|e| e.to_string())
+    })
+    .map_err(|e| e.to_string())??;
+
+    let v: serde_json::Value = serde_json::from_str(&body)
+        .map_err(|e| format!("Konnte Update-Informationen nicht lesen: {}", e))?;
+    let latest = v
+        .get("version")
+        .and_then(|x| x.as_str())
+        .ok_or_else(|| "Keine Versionsangabe in Update-Informationen.".to_string())?
+        .to_string();
+    let notes = v
+        .get("notes")
+        .and_then(|x| x.as_str())
+        .unwrap_or("")
+        .to_string();
+
+    let cur_ver = semver::Version::parse(&current).map_err(|e| e.to_string())?;
+    let new_ver = semver::Version::parse(&latest).map_err(|e| e.to_string())?;
+    if new_ver > cur_ver {
+        Ok(Some((latest, notes)))
+    } else {
+        Ok(None)
     }
 }
 

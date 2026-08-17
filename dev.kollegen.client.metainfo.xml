@@ -11,6 +11,15 @@
   <launchable type="desktop-id">dev.kollegen.client.desktop</launchable>
   <url type="homepage">https://github.com/FluffyBento/KollegenClient</url>
   <releases>
+    <release version="1.2.9" date="2026-08-17">
+      <description>
+        <p>Fehlerbehebungen:</p>
+        <ul>
+          <li>Import: Der komplette Instanz-Inhalt (Mods, Resource Packs, Welten, Optionen) wird jetzt korrekt übernommen. Bisher wurden Game-Daten aus einem `minecraft`-Unterordner (GDLauncher, Technic, ATLauncher) oder einem abweichenden `GameDirectory` (Prism/MultiMC) nicht an den Instanz-Root verschoben und von Minecraft ignoriert. Zusätzlich werden JVM-Einstellungen (Java-Argumente, RAM) aus der Quelle übernommen.</li>
+          <li>Update-Prüfung: "Jetzt auf Updates prüfen" schlägt nicht mehr hart fehl. Falls das Tauri-Updater-Plugin das Manifest nicht parsen kann, wird `latest.json` jetzt direkt abgerufen und die Version verglichen – die Meldung "Update verfügbar" funktioniert so zuverlässig für alle Installationsarten.</li>
+        </ul>
+      </description>
+    </release>
     <release version="1.2.8" date="2026-08-17">
       <description>
         <p>Fehlerbehebung Java-Auswahl (Nachfolger zu 1.2.7):</p>
