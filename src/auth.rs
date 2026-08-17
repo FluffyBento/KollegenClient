@@ -489,12 +489,20 @@ fn mc_login(xsts_token: &str, uhs: &str) -> Result<Value> {
         .header("Content-Type", "application/json")
         .header("Accept", "application/json")
         .body(body.to_string())
-        .send()?;
+        .send()
+        .map_err(|e| anyhow!("Minecraft-Login-Anfrage fehlgeschlagen: {}", e))?;
 
-    let data: Value = resp.json()?;
+    let status = resp.status();
+    let data: Value = resp
+        .json()
+        .map_err(|e| anyhow!("Minecraft-Login-Antwort ungültig (Status {}): {}", status, e))?;
 
-    if data.get("error").is_some() {
-        return Err(anyhow!("Minecraft login failed: {}", data["error_description"].as_str().unwrap_or("unknown error")));
+    if let Some(err) = data.get("error") {
+        let desc = data["error_description"]
+            .as_str()
+            .or_else(|| data["errorMessage"].as_str())
+            .unwrap_or("unbekannter Fehler");
+        return Err(anyhow!("Minecraft-Login fehlgeschlagen: {} ({})", err, desc));
     }
 
     Ok(data)
@@ -508,12 +516,28 @@ fn mc_profile(mc_token: &str) -> Result<Value> {
         .get("https://api.minecraftservices.com/minecraft/profile")
         .header("Authorization", format!("Bearer {}", mc_token))
         .header("Accept", "application/json")
-        .send()?;
+        .send()
+        .map_err(|e| anyhow!("Minecraft-Profil-Anfrage fehlgeschlagen: {}", e))?;
 
-    let data: Value = resp.json()?;
+    let status = resp.status();
+    let data: Value = resp
+        .json()
+        .map_err(|e| anyhow!("Minecraft-Profil-Antwort ungültig (Status {}): {}", status, e))?;
 
-    if data.get("error").is_some() {
-        return Err(anyhow!("Failed to fetch Minecraft profile: {}", data["error_description"].as_str().unwrap_or("unknown error")));
+    if let Some(err) = data.get("error") {
+        let desc = data["error_description"]
+            .as_str()
+            .or_else(|| data["errorMessage"].as_str())
+            .unwrap_or("unbekannter Fehler");
+        // `NOT_FOUND` means the Microsoft account does not own Minecraft Java
+        // Edition (or it isn't linked) – by far the most common cause, so say so.
+        if err.as_str() == Some("NOT_FOUND") {
+            return Err(anyhow!(
+                "Minecraft-Profil nicht gefunden: dieses Microsoft-Konto besitzt keine Minecraft Java Edition (oder sie ist nicht mit diesem Konto verknüpft). Details: {}",
+                desc
+            ));
+        }
+        return Err(anyhow!("Minecraft-Profil abrufen fehlgeschlagen: {} ({})", err, desc));
     }
 
     Ok(data)

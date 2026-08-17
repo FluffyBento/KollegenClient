@@ -336,6 +336,25 @@ fn ensure_companion_mod(data_dir: &Path, instance_name: &str, version: &str, loa
     );
 }
 
+/// Maps a Minecraft version string to the Java major version it requires, used
+/// as a fallback when the instance's Mojang version JSON isn't available locally
+/// (e.g. imported instances). 1.21+ needs Java 21; 1.17–1.20 need Java 17;
+/// 1.16 needs Java 16; everything older needs Java 8.
+fn required_java_for_version(version: &str) -> u32 {
+    let mut it = version.split('.');
+    let major: u32 = it.next().and_then(|s| s.parse().ok()).unwrap_or(99);
+    let minor: u32 = it.next().and_then(|s| s.parse().ok()).unwrap_or(0);
+    if major > 1 || (major == 1 && minor >= 21) {
+        21
+    } else if major == 1 && minor >= 17 {
+        17
+    } else if major == 1 && minor >= 16 {
+        16
+    } else {
+        8
+    }
+}
+
 #[tauri::command]
 fn launch_game(
     state: State<'_, AppState>,
@@ -357,8 +376,14 @@ fn launch_game(
     // the instance is vanilla.
     ensure_companion_mod(&state.data_dir, &inst.name, &inst.version, &inst.loader);
 
-    // Determine the required Java version from the instance's version JSON
+    // Determine the required Java version. Prefer the version JSON's
+    // `javaVersion.majorVersion` (authoritative), but fall back to a mapping
+    // derived from the Minecraft version string. This matters for instances
+    // imported from other launchers (e.g. Prism) whose Mojang version JSON may
+    // not be present locally – without the fallback they'd silently launch with
+    // Java 17 and crash on 1.21+ (which needs Java 21).
     let required_java = {
+        let fallback = required_java_for_version(&inst.version);
         let version_dir = utils::instance_dir(&state.data_dir, &inst.name)
             .join("versions")
             .join(&inst.version);
@@ -366,10 +391,10 @@ fn launch_game(
         if vjson_path.exists() {
             if let Ok(s) = std::fs::read_to_string(&vjson_path) {
                 if let Ok(vj) = serde_json::from_str::<types::VersionJson>(&s) {
-                    vj.java_version.map(|j| j.major_version).unwrap_or(17)
-                } else { 17 }
-            } else { 17 }
-        } else { 17 }
+                    vj.java_version.map(|j| j.major_version).unwrap_or(fallback)
+                } else { fallback }
+            } else { fallback }
+        } else { fallback }
     };
 
     let java_path = match java::find_java(&state.data_dir, required_java) {
@@ -648,6 +673,7 @@ fn discord_social(state: State<'_, AppState>) -> Result<Value, String> {
                 "version": f.version,
                 "join_secret": f.join_secret,
                 "presence_known": true,
+                "mutual_guilds": serde_json::json!([]),
             })
         })
         .collect();

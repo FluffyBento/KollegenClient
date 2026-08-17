@@ -267,6 +267,19 @@ async function refreshLogs() {
         li.append(join);
       }
 
+      if (f.mutual_guilds && f.mutual_guilds.length) {
+        for (const g of f.mutual_guilds) {
+          const srv = document.createElement("button");
+          srv.className = "friend-server-btn";
+          srv.textContent = g.name ? `Server: ${g.name}` : "Server öffnen";
+          srv.title = "Server in Discord öffnen";
+          srv.onclick = () => invoke("open_url", {
+            url: `discord://discord.com/channels/${g.id}`,
+          });
+          li.append(srv);
+        }
+      }
+
       list.append(li);
     }
   }

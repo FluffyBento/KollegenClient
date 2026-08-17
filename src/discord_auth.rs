@@ -11,15 +11,18 @@ use std::time::{Duration, Instant};
 const AUTHORIZE_ENDPOINT: &str = "https://discord.com/oauth2/authorize";
 const TOKEN_ENDPOINT: &str = "https://discord.com/api/v10/oauth2/token";
 const USER_ENDPOINT: &str = "https://discord.com/api/v10/users/@me";
-// `identify` is required to read the logged-in user. We intentionally do NOT
-// request the `relationships` scope: it is a *privileged* Discord OAuth scope and
-// Discord rejects the authorize request with "Invalid Scope: relationships"
-// unless it is explicitly enabled for the application in the Discord developer
-// portal. Requesting only `identify` lets every user connect without that
-// hurdle. Online friends still appear via Discord Rich Presence (RPC); the
-// offline friend list via REST is only available if the app owner enables the
-// `relationships` scope and we add it back here.
-const SCOPES: &str = "identify";
+// `identify` is required to read the logged-in user. `relationships` (privileged)
+// lets us show the full friend list in the Discord tab even without the Discord
+// desktop app / RPC, and includes `mutual_guilds` so users can open the servers
+// they share with a friend. `guilds` lets us resolve those guild ids to names.
+//
+// IMPORTANT: `relationships` is a *privileged* Discord OAuth scope. Discord
+// rejects the authorize request with "Invalid Scope: relationships" unless it is
+// enabled for the application in the Discord developer portal (OAuth2 → Scopes).
+// The app owner must toggle it on; once enabled, browser login works and the
+// friend list (plus shared servers) appears. Online friends still also come from
+// Rich Presence (RPC) regardless of this scope.
+const SCOPES: &str = "identify relationships guilds";
 const RELATIONSHIPS_ENDPOINT: &str = "https://discord.com/api/v10/users/@me/relationships";
 /// Fixed localhost port the browser is redirected back to. This exact URI must
 /// be registered as a Redirect URI in the Discord application's OAuth2 settings.
@@ -137,7 +140,16 @@ pub fn fetch_friends(data_dir: &Path) -> Vec<serde_json::Value> {
         None => return Vec::new(),
     };
 
-    let mut result: Vec<serde_json::Value> = Vec::new();
+    // Collect the raw friend entries first.
+    let mut base: Vec<(
+        String,
+        String,
+        Option<String>,
+        Option<String>,
+        String,
+        Option<String>,
+        bool,
+    )> = Vec::new();
     if let Ok(resp) = reqwest::blocking::Client::new()
         .get(RELATIONSHIPS_ENDPOINT)
         .bearer_auth(&token.access_token)
@@ -188,19 +200,87 @@ pub fn fetch_friends(data_dir: &Path) -> Vec<serde_json::Value> {
                     .and_then(|act| act.get("name"))
                     .and_then(|n| n.as_str())
                     .map(|s| s.to_string());
-                result.push(serde_json::json!({
-                    "id": id,
-                    "username": username,
-                    "global_name": global_name,
-                    "avatar_url": avatar_url,
-                    "status": status,
-                    "game": game,
-                    "version": null,
-                    "join_secret": null,
-                    "presence_known": presence.is_some(),
-                }));
+                base.push((
+                    id,
+                    username,
+                    global_name,
+                    avatar_url,
+                    status,
+                    game,
+                    presence.is_some(),
+                ));
             }
         }
+    }
+
+    // Own guild ids -> names (needs the `guilds` scope) for nicer "join server"
+    // labels. Missing names (scope not granted / fetch failed) are tolerated.
+    let mut guild_names: std::collections::HashMap<String, String> =
+        std::collections::HashMap::new();
+    if let Ok(resp) = reqwest::blocking::Client::new()
+        .get("https://discord.com/api/v10/users/@me/guilds")
+        .bearer_auth(&token.access_token)
+        .send()
+    {
+        if let Ok(arr) = resp.json::<Vec<serde_json::Value>>() {
+            for g in arr {
+                if let (Some(id), Some(name)) = (
+                    g.get("id").and_then(|v| v.as_str()),
+                    g.get("name").and_then(|v| v.as_str()),
+                ) {
+                    guild_names.insert(id.to_string(), name.to_string());
+                }
+            }
+        }
+    }
+
+    // `mutual_guilds` is NOT part of the relationship payload. It lives on the
+    // per-user profile endpoint, whose response carries a top-level
+    // `mutual_guilds` array of `{ id, nick }`. We fetch it per friend. The whole
+    // result is cached 60s at the call site to limit the number of requests.
+    let client = reqwest::blocking::Client::new();
+    let mut result: Vec<serde_json::Value> = Vec::new();
+    for (id, username, global_name, avatar_url, status, game, presence_known) in base {
+        let mut mutual: Vec<String> = Vec::new();
+        if let Ok(resp) = client
+            .get(format!(
+                "https://discord.com/api/v10/users/{}/profile?with_mutual_guilds=true",
+                id
+            ))
+            .bearer_auth(&token.access_token)
+            .send()
+        {
+            if let Ok(profile) = resp.json::<serde_json::Value>() {
+                if let Some(arr) = profile.get("mutual_guilds").and_then(|m| m.as_array()) {
+                    for g in arr {
+                        if let Some(gid) = g.get("id").and_then(|v| v.as_str()) {
+                            mutual.push(gid.to_string());
+                        }
+                    }
+                }
+            }
+        }
+        let mutual_guilds: Vec<serde_json::Value> = mutual
+            .iter()
+            .map(|gid| {
+                serde_json::json!({
+                    "id": gid,
+                    "name": guild_names.get(gid).cloned().unwrap_or_default(),
+                })
+            })
+            .collect();
+        result.push(serde_json::json!({
+            "id": id,
+            "username": username,
+            "global_name": global_name,
+            "avatar_url": avatar_url,
+            "status": status,
+            "game": game,
+            "version": null,
+            "join_secret": null,
+            "presence_known": presence_known,
+            "mutual_guilds": mutual_guilds,
+        }));
     }
 
     let mut cache = OAUTH_FRIENDS_CACHE.lock().unwrap();
