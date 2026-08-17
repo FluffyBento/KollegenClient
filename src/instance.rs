@@ -612,7 +612,14 @@ fn ensure_fabric(data_dir: &Path, inst: &Instance, java_path: &str) -> Result<St
         crate::utils::download_file(&installer_url, &installer_path)?;
     }
 
-    let status = Command::new(java_path)
+    let mut fab_cmd = Command::new(java_path);
+    // Hide the briefly flashing console window on Windows.
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        fab_cmd.creation_flags(0x08000000);
+    }
+    let status = fab_cmd
         .arg("-jar")
         .arg(&installer_path)
         .arg("client")
@@ -808,6 +815,13 @@ pub fn launch(
 
     // Build the command
     let mut cmd = std::process::Command::new(java_path);
+    // On Windows a GUI parent spawns a visible console window for java.exe; hide
+    // it (logs are still captured via the piped stdout/stderr below).
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        cmd.creation_flags(0x08000000);
+    }
     cmd.args(&jvm_args);
 
     // Add main class

@@ -63,7 +63,13 @@ fn launcher_defs() -> Vec<(&'static str, &'static str, LauncherKind, Vec<PathBuf
                 "modrinth",
                 "Modrinth App",
                 LauncherKind::Modrinth,
-                vec![config.join("modrinth").join("instances")],
+                vec![
+                    config.join("modrinth").join("instances"),
+                    config.join("com.modrinth.theseus").join("instances"),
+                    data_local.join("modrinth").join("instances"),
+                    data_local.join("Modrinth").join("instances"),
+                    h.join("Modrinth").join("instances"),
+                ],
             ),
             (
                 "gdlauncher",
@@ -139,6 +145,8 @@ fn launcher_defs() -> Vec<(&'static str, &'static str, LauncherKind, Vec<PathBuf
                 vec![
                     data_local.join("modrinth").join("instances"),
                     h.join("Modrinth").join("instances"),
+                    config.join("com.modrinth.theseus").join("instances"),
+                    data_local.join("com.modrinth.theseus").join("instances"),
                 ],
             ),
             (
@@ -351,26 +359,73 @@ fn parse_cfg_instance(dir: &Path) -> (String, String, String) {
     let mut name = dir_name_of(dir);
     let mut version = String::new();
     let mut loader = "vanilla".to_string();
+
+    // Prefer mmc-pack.json (Prism/MultiMC) which authoritatively lists the
+    // Minecraft version and the mod-loader components.
+    if let Some(txt) = read_text(&dir.join("mmc-pack.json")) {
+        if let Ok(v) = serde_json::from_str::<Value>(&txt) {
+            if let Some(comps) = v.get("components").and_then(|c| c.as_array()) {
+                for c in comps {
+                    let uid = c.get("uid").and_then(|x| x.as_str()).unwrap_or("").to_string();
+                    let ver = c.get("version").and_then(|x| x.as_str()).unwrap_or("").to_string();
+                    let lower = uid.to_lowercase();
+                    if lower == "net.minecraft" {
+                        version = ver;
+                    } else if lower.contains("fabric") {
+                        loader = "fabric".to_string();
+                    } else if lower.contains("neoforge") || lower.contains("neoforged") {
+                        loader = "neoforge".to_string();
+                    } else if lower.contains("forge") {
+                        loader = "forge".to_string();
+                    } else if lower.contains("quilt") {
+                        loader = "quilt".to_string();
+                    }
+                }
+            }
+        }
+    }
+
+    // Fall back to instance.cfg for older MultiMC layouts.
     if let Some(txt) = read_text(&dir.join("instance.cfg")) {
         for line in txt.lines() {
             let line = line.trim();
             if let Some((k, v)) = line.split_once('=') {
                 match k {
-                    "name" => name = v.to_string(),
-                    "IntendedVersion" => {
+                    "name" => {
                         if !v.is_empty() {
+                            name = v.to_string();
+                        }
+                    }
+                    "IntendedVersion" => {
+                        if version.is_empty() && !v.is_empty() {
                             version = v.to_string();
                         }
                     }
                     "MinecraftVersion" => {
-                        if !v.is_empty() {
+                        if version.is_empty() && !v.is_empty() {
                             version = v.to_string();
                         }
                     }
-                    "ForgeVersion" => loader = "forge".to_string(),
-                    "FabricVersion" => loader = "fabric".to_string(),
-                    "NeoForgeVersion" => loader = "neoforge".to_string(),
-                    "QuiltVersion" => loader = "quilt".to_string(),
+                    "ForgeVersion" => {
+                        if loader == "vanilla" && !v.is_empty() {
+                            loader = "forge".to_string();
+                        }
+                    }
+                    "FabricVersion" => {
+                        if loader == "vanilla" && !v.is_empty() {
+                            loader = "fabric".to_string();
+                        }
+                    }
+                    "NeoForgeVersion" => {
+                        if loader == "vanilla" && !v.is_empty() {
+                            loader = "neoforge".to_string();
+                        }
+                    }
+                    "QuiltVersion" => {
+                        if loader == "vanilla" && !v.is_empty() {
+                            loader = "quilt".to_string();
+                        }
+                    }
                     "LoaderType" => {
                         if loader == "vanilla" {
                             match v {
@@ -394,19 +449,27 @@ fn parse_modrinth_instance(dir: &Path) -> (String, String, String) {
     let mut name = dir_name_of(dir);
     let mut version = String::new();
     let mut loader = "vanilla".to_string();
-    if let Some(txt) = read_text(&dir.join("instance.json")) {
-        if let Ok(v) = serde_json::from_str::<Value>(&txt) {
-            if let Some(n) = v.get("name").and_then(|x| x.as_str()) {
-                name = n.to_string();
-            }
-            if let Some(n) = v.get("game_version").and_then(|x| x.as_str()) {
-                version = n.to_string();
-            }
-            if let Some(n) = v.get("loader").and_then(|x| x.as_str()) {
-                loader = match n {
-                    "fabric" | "forge" | "neoforge" | "quilt" => n.to_string(),
-                    _ => "vanilla".to_string(),
-                };
+    // Legacy Modrinth App stores instance.json; the newer "Theseus" build uses
+    // profile.json. Both expose the same fields (name, game_version, loader).
+    for file in ["instance.json", "profile.json"] {
+        if let Some(txt) = read_text(&dir.join(file)) {
+            if let Ok(v) = serde_json::from_str::<Value>(&txt) {
+                if let Some(n) = v.get("name").and_then(|x| x.as_str()) {
+                    if !n.is_empty() {
+                        name = n.to_string();
+                    }
+                }
+                if let Some(n) = v.get("game_version").and_then(|x| x.as_str()) {
+                    if !n.is_empty() {
+                        version = n.to_string();
+                    }
+                }
+                if let Some(n) = v.get("loader").and_then(|x| x.as_str()) {
+                    loader = match n {
+                        "fabric" | "forge" | "neoforge" | "quilt" => n.to_string(),
+                        _ => "vanilla".to_string(),
+                    };
+                }
             }
         }
     }

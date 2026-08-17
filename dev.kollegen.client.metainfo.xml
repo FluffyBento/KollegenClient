@@ -11,13 +11,13 @@
   <launchable type="desktop-id">dev.kollegen.client.desktop</launchable>
   <url type="homepage">https://github.com/FluffyBento/KollegenClient</url>
   <releases>
-    <release version="1.2.4" date="2026-08-17">
+    <release version="1.2.5" date="2026-08-17">
       <description>
         <p>Fehlerbehebungen:</p>
         <ul>
-          <li>Import: Minecraft-Version von Prism/MultiMC-Instanzen wird jetzt korrekt übernommen (Instanzen starten nicht mehr mit "Version nicht im Manifest").</li>
-          <li>Updates: Manueller "Auf Updates prüfen"-Button in den Einstellungen; der Launcher meldet jetzt verfügbare GitHub-Releases.</li>
-          <li>Discord: Verbindung funktioniert wieder (privilegierter `relationships`-Scope entfernt, der "Invalid Scope" verursachte). Online-Freunde kommen weiterhin über Rich Presence.</li>
+          <li>Import – Modrinth: Launcher wird unter Windows jetzt an den korrekten Speicherorten (u.a. `com.modrinth.theseus`) gefunden; Theseus-Profile (`profile.json`) werden ausgelesen.</li>
+          <li>Import – Prism/MultiMC: Version und Mod-Loader (z.B. Fabric) werden jetzt zuverlässig aus `mmc-pack.json` gelesen (statt fälschlich als „vanilla" ohne Version).</li>
+          <li>Windows: Beim Spielstart öffnet sich kein sichtbares Konsolen-/PowerShell-Fenster mehr (CREATE_NO_WINDOW).</li>
         </ul>
       </description>
     </release>

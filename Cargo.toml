@@ -1,6 +1,6 @@
 [package]
 name = "kollegen-client"
-version = "1.2.4"
+version = "1.2.5"
 description = "Kollegen Client | Minecraft-Client"
 authors = ["FluffyBento"]
 edition = "2021"
