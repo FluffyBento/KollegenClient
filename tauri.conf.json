@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Kollegen Client",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "identifier": "dev.kollegen.client",
   "build": {
     "beforeDevCommand": "yarn dev",
@@ -75,7 +75,7 @@
   "plugins": {
     "updater": {
       "active": true,
-      "pubkey": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAC5T5T3PuIoaAu1k9QzIlLz+84gnfAGP9dZ8o2u0wHHY=\n-----END PUBLIC KEY-----",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXkgNzk0RDNCMjc1MzZCQjA3NgpSV1Iyc0d0VEp6dE5lZjNUNWNVOWx0Y3VnOVUyS3ZjblZYTEpUZlRPc3BMSjBrdmRnSHJITDZGRAo=",
       "endpoints": [
         "https://github.com/FluffyBento/KollegenClient/releases/latest/download/latest.json"
       ],
