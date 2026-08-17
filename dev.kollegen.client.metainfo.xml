@@ -11,6 +11,14 @@
   <launchable type="desktop-id">dev.kollegen.client.desktop</launchable>
   <url type="homepage">https://github.com/FluffyBento/KollegenClient</url>
   <releases>
+    <release version="1.2.6" date="2026-08-17">
+      <description>
+        <p>Fehlerbehebungen:</p>
+        <ul>
+          <li>Updater: Bei Installationen über den Paketmanager (.deb/.rpm) schlägt die direkte Installation mit "invalid updater binary format" fehl. Der Launcher erkennt das Format jetzt und zeigt stattdessen eine "Update verfügbar – bitte manuell von GitHub laden"-Meldung (Auto-Update funktioniert weiterhin für AppImage unter Linux und den NSIS-Installer unter Windows).</li>
+        </ul>
+      </description>
+    </release>
     <release version="1.2.5" date="2026-08-17">
       <description>
         <p>Fehlerbehebungen:</p>

@@ -767,9 +767,11 @@ fn import_instance(
 #[tauri::command]
 async fn check_app_update(app: tauri::AppHandle) -> Result<Option<Value>, String> {
     match crate::app_updates::check_info(&app).await {
-        Ok(Some((version, notes))) => {
-            Ok(Some(serde_json::json!({ "version": version, "notes": notes })))
-        }
+        Ok(Some((version, notes))) => Ok(Some(serde_json::json!({
+            "version": version,
+            "notes": notes,
+            "can_install": crate::app_updates::can_self_install(),
+        }))),
         Ok(None) => Ok(None),
         Err(e) => Err(e),
     }

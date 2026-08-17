@@ -715,6 +715,8 @@ document.querySelectorAll(".settings-tab").forEach((tab) => {
 });
 
 // ─ Updates (manual check + install) ─
+let pendingCanInstall = false;
+const UPDATE_RELEASE_URL = "https://github.com/FluffyBento/KollegenClient/releases/latest";
 $("updateCheckBtn").onclick = async () => {
   const status = $("updateStatus");
   const installBtn = $("updateInstallBtn");
@@ -723,7 +725,14 @@ $("updateCheckBtn").onclick = async () => {
   try {
     const update = await invoke("check_app_update");
     if (update) {
-      status.textContent = "Update verfügbar: Version " + update.version + (update.notes ? "\n" + update.notes : "");
+      pendingCanInstall = !!update.can_install;
+      if (pendingCanInstall) {
+        status.textContent = "Update verfügbar: Version " + update.version + (update.notes ? "\n" + update.notes : "");
+        installBtn.textContent = "Update installieren";
+      } else {
+        status.textContent = "Update verfügbar: Version " + update.version + " – kann aus diesem Installationsformat (.deb/.rpm) nicht direkt installiert werden. Bitte manuell von GitHub laden." + (update.notes ? "\n" + update.notes : "");
+        installBtn.textContent = "Download auf GitHub öffnen";
+      }
       installBtn.style.display = "";
     } else {
       status.textContent = "Du verwendest bereits die aktuellste Version.";
@@ -734,12 +743,16 @@ $("updateCheckBtn").onclick = async () => {
 };
 $("updateInstallBtn").onclick = async () => {
   const status = $("updateStatus");
-  status.textContent = "Update wird heruntergeladen und installiert…";
-  try {
-    await invoke("install_app_update");
-    // App restarts itself after install; this line is only reached on failure.
-  } catch (e) {
-    status.textContent = "Installation fehlgeschlagen: " + e;
+  if (pendingCanInstall) {
+    status.textContent = "Update wird heruntergeladen und installiert…";
+    try {
+      await invoke("install_app_update");
+      // App restarts itself after install; this line is only reached on failure.
+    } catch (e) {
+      status.textContent = "Installation fehlgeschlagen: " + e;
+    }
+  } else {
+    await invoke("open_url", { url: UPDATE_RELEASE_URL });
   }
 };
 

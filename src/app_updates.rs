@@ -10,6 +10,40 @@
 use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_updater::UpdaterExt;
 
+/// Where users can grab a new version manually (used when self-update is
+/// unsupported for the current install format, e.g. .deb/.rpm).
+const RELEASE_URL: &str = "https://github.com/FluffyBento/KollegenClient/releases/latest";
+
+/// Whether this running binary can update itself in place.
+///
+/// * Windows: the NSIS installer self-updates -> true.
+/// * macOS: the app bundle self-updates -> true.
+/// * Linux: only the **AppImage** can be replaced in place. When the app was
+///   installed via a system package manager (.deb/.rpm) the current executable
+///   is not an AppImage, so downloading the AppImage artifact would fail with
+///   "invalid updater binary format". In that case we fall back to a
+///   "download manually" notification instead of attempting an in-place install.
+pub fn can_self_install() -> bool {
+    #[cfg(target_os = "windows")]
+    {
+        true
+    }
+    #[cfg(target_os = "linux")]
+    {
+        // AppImage launchers set the `APPIMAGE` environment variable to the
+        // running AppImage path; .deb/.rpm installs do not.
+        std::env::var("APPIMAGE").is_ok()
+    }
+    #[cfg(target_os = "macos")]
+    {
+        true
+    }
+    #[cfg(not(any(target_os = "windows", target_os = "linux", target_os = "macos")))]
+    {
+        false
+    }
+}
+
 /// Spawns the background update-checker loop. Safe to call once during setup.
 pub fn spawn(app: tauri::AppHandle) {
     tauri::async_runtime::spawn(async move {
@@ -46,7 +80,16 @@ pub async fn check_info(app: &tauri::AppHandle) -> Result<Option<(String, String
 }
 
 /// Downloads and installs the pending update, then restarts the app.
+/// Returns an error (without attempting an install) when the current install
+/// format cannot self-update (e.g. .deb/.rpm on Linux).
 pub async fn install(app: &tauri::AppHandle) -> Result<(), String> {
+    if !can_self_install() {
+        return Err(
+            "Direktes Update wird für dieses Installationsformat (.deb/.rpm) nicht unterstützt. \
+             Bitte die neue Version manuell von GitHub herunterladen."
+                .into(),
+        );
+    }
     let update = app
         .updater()
         .map_err(|e| e.to_string())?
@@ -71,34 +114,45 @@ async fn check_and_prompt(app: &tauri::AppHandle) -> tauri_plugin_updater::Resul
     let version = update.version.clone();
     let notes = update.body.clone().unwrap_or_default();
 
-    // The dialog callback runs on the main thread; ship the answer back through
-    // a channel so this async task can wait for the user's decision.
-    let (tx, rx) = std::sync::mpsc::channel::<bool>();
-    app.dialog()
-        .message(format!(
-            "Update verfügbar\n\nEine neue Version {version} des Kollegen Clients ist verfügbar.\n\n{notes}\n\nJetzt installieren?"
-        ))
-        .buttons(tauri_plugin_dialog::MessageDialogButtons::OkCancelCustom(
-            "Installieren".to_string(),
-            "Später".to_string(),
-        ))
-        .show(move |yes| {
-            let _ = tx.send(yes);
-        });
-
-    if !rx.recv().unwrap_or(false) {
-        return Ok(());
+    if can_self_install() {
+        // The normal flow: ask to install in place.
+        let (tx, rx) = std::sync::mpsc::channel::<bool>();
+        app.dialog()
+            .message(format!(
+                "Update verfügbar\n\nEine neue Version {version} des Kollegen Clients ist verfügbar.\n\n{notes}\n\nJetzt installieren?"
+            ))
+            .buttons(tauri_plugin_dialog::MessageDialogButtons::OkCancelCustom(
+                "Installieren".to_string(),
+                "Später".to_string(),
+            ))
+            .show(move |yes| {
+                let _ = tx.send(yes);
+            });
+        if !rx.recv().unwrap_or(false) {
+            return Ok(());
+        }
+        update
+            .download_and_install(|_chunk_length, _content_length| {}, || {})
+            .await?;
+        app.restart();
+        Ok(())
+    } else {
+        // Notification-only: .deb/.rpm can't self-update, point the user to GitHub.
+        let (tx, rx) = std::sync::mpsc::channel::<bool>();
+        app.dialog()
+            .message(format!(
+                "Update verfügbar\n\nEine neue Version {version} des Kollegen Clients ist verfügbar.\n\n{notes}\n\nDa diese Installation über einen Paketmanager (.deb/.rpm) erfolgte, kann sie nicht direkt aktualisiert werden. Die neue Version auf GitHub öffnen?"
+            ))
+            .buttons(tauri_plugin_dialog::MessageDialogButtons::OkCancelCustom(
+                "Download öffnen".to_string(),
+                "Später".to_string(),
+            ))
+            .show(move |yes| {
+                let _ = tx.send(yes);
+            });
+        if rx.recv().unwrap_or(false) {
+            let _ = open::that(RELEASE_URL);
+        }
+        Ok(())
     }
-
-    update
-        .download_and_install(
-            |_chunk_length, _content_length| {},
-            || {},
-        )
-        .await?;
-
-    // On Windows the installer exits the app automatically before installing;
-    // on Linux/macOS we restart explicitly once the new bundle is in place.
-    app.restart();
-    Ok(())
 }
