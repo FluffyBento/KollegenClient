@@ -384,7 +384,11 @@ pub fn list_content(data_dir: &Path, instance_name: &str) -> Value {
                 }
             }
         }
-        items.sort();
+        items.sort_by(|a, b| {
+            let an = a.get("name").and_then(|v| v.as_str()).unwrap_or("");
+            let bn = b.get("name").and_then(|v| v.as_str()).unwrap_or("");
+            an.cmp(bn)
+        });
         result[key] = serde_json::to_value(items).unwrap();
     }
     result

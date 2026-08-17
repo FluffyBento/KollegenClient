@@ -206,7 +206,7 @@ pub fn list_launcher_instances(launcher_id: &str) -> Vec<Value> {
             continue;
         }
         if let Some(root) = roots.iter().find(|p| p.is_dir()) {
-            if let Ok(entries) = fs::read_dir(root) {
+            if let Ok(entries) = fs::read_dir(root.as_path()) {
                 for e in entries.flatten() {
                     let p = e.path();
                     if !p.is_dir() {
@@ -265,20 +265,20 @@ pub fn import_instance(
     }
 
     let dest = utils::instance_dir(data_dir, &dest_name);
-    fs::create_dir_all(&dest)?;
+    fs::create_dir_all(dest.as_path())?;
     copy_dir_contents(&src, &dest)?;
 
     // Prism/MultiMC keep the real game files in a `.minecraft` subfolder; lift
     // them to the instance root so our launcher layout matches.
     let mc = dest.join(".minecraft");
     if mc.is_dir() {
-        if let Ok(entries) = fs::read_dir(&mc) {
+        if let Ok(entries) = fs::read_dir(mc.as_path()) {
             for e in entries.flatten() {
                 let target = dest.join(e.file_name());
-                let _ = fs::rename(e.path(), &target);
+                let _ = fs::rename(e.path(), target.as_path());
             }
         }
-        let _ = fs::remove_dir_all(&mc);
+        let _ = fs::remove_dir_all(mc.as_path());
     }
 
     let (_, version, loader) = parse_instance(kind, &src);
@@ -314,13 +314,13 @@ fn copy_dir_contents(src: &Path, dst: &Path) -> Result<()> {
             let p = e.path();
             let target = dst.join(e.file_name());
             if p.is_dir() {
-                fs::create_dir_all(&target)?;
+                fs::create_dir_all(target.as_path())?;
                 copy_dir_contents(&p, &target)?;
             } else {
                 if let Some(parent) = target.parent() {
                     fs::create_dir_all(parent)?;
                 }
-                fs::copy(&p, &target)?;
+                fs::copy(p.as_path(), target.as_path())?;
             }
         }
     }
