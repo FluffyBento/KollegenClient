@@ -14,10 +14,12 @@ use tauri_plugin_updater::UpdaterExt;
 /// unsupported for the current install format, e.g. .deb/.rpm).
 const RELEASE_URL: &str = "https://github.com/FluffyBento/KollegenClient/releases/latest";
 
-/// Endpoint that serves the Tauri updater manifest (`latest.json`). Must match
-/// `plugins.updater.endpoints` in `tauri.conf.json`.
-const UPDATE_ENDPOINT: &str =
-    "https://github.com/FluffyBento/KollegenClient/releases/latest/download/latest.json";
+/// GitHub REST API for the latest release. Used as a robust fallback for the
+/// manual "Check for updates" button: it returns clean JSON (no `latest.json`
+/// CDN redirect, which some reqwest configurations fail to follow) and gives us
+/// the tag + notes directly.
+const UPDATE_API_URL: &str =
+    "https://api.github.com/repos/FluffyBento/KollegenClient/releases/latest";
 
 /// Whether this running binary can update itself in place.
 ///
@@ -93,34 +95,47 @@ pub async fn check_info(app: &tauri::AppHandle) -> Result<Option<(String, String
     fetch_update_via_http(app).await
 }
 
-/// Directly fetches `latest.json` (bypassing the updater plugin) and returns
-/// the version/notes only when the remote version is newer than the running app.
+/// Directly fetches the latest release via the GitHub REST API (bypassing the
+/// updater plugin) and returns the version/notes only when the remote version
+/// is newer than the running app.
 async fn fetch_update_via_http(app: &tauri::AppHandle) -> Result<Option<(String, String)>, String> {
-    let endpoint = UPDATE_ENDPOINT.to_string();
+    let url = UPDATE_API_URL.to_string();
     let current = app.package_info().version.to_string();
     let body = tauri::async_runtime::spawn_blocking(move || {
-        reqwest::blocking::Client::builder()
+        let client = reqwest::blocking::Client::builder()
             .user_agent(crate::USER_AGENT)
             .build()
-            .map_err(|e| e.to_string())?
-            .get(&endpoint)
-            .send()
-            .map_err(|e| e.to_string())?
-            .text()
-            .map_err(|e| e.to_string())
+            .map_err(|e| e.to_string())?;
+        let resp = client.get(&url).send().map_err(|e| e.to_string())?;
+        let status = resp.status();
+        let text = resp.text().map_err(|e| e.to_string())?;
+        if !status.is_success() {
+            return Err(format!(
+                "GitHub API lieferte HTTP {}: {}",
+                status,
+                &text[..text.len().min(200)]
+            ));
+        }
+        Ok(text)
     })
     .await
     .map_err(|e| e.to_string())??;
 
-    let v: serde_json::Value = serde_json::from_str(&body)
-        .map_err(|e| format!("Konnte Update-Informationen nicht lesen: {}", e))?;
-    let latest = v
-        .get("version")
+    let v: serde_json::Value = serde_json::from_str(&body).map_err(|e| {
+        format!(
+            "Konnte Release-Info nicht lesen ({}): {}",
+            e,
+            &body[..body.len().min(200)]
+        )
+    })?;
+    let tag = v
+        .get("tag_name")
         .and_then(|x| x.as_str())
-        .ok_or_else(|| "Keine Versionsangabe in Update-Informationen.".to_string())?
+        .ok_or_else(|| "Kein tag_name in Release-Info.".to_string())?
         .to_string();
+    let latest = tag.trim_start_matches('v').to_string();
     let notes = v
-        .get("notes")
+        .get("body")
         .and_then(|x| x.as_str())
         .unwrap_or("")
         .to_string();
