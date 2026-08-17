@@ -496,6 +496,24 @@ fn delete_content(
 }
 
 #[tauri::command]
+fn change_content_version(
+    state: State<'_, AppState>,
+    instance_name: String,
+    kind: String,
+    filename: String,
+    version_id: String,
+) -> Result<(), String> {
+    crate::modrinth::change_content_version(
+        &state.data_dir,
+        &instance_name,
+        &kind,
+        &filename,
+        &version_id,
+    )
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 fn open_url(url: String) -> Result<(), String> {
     open::that(&url).map_err(|e| e.to_string())
 }
@@ -765,6 +783,7 @@ fn main() {
             modrinth_versions,
             list_content,
             delete_content,
+            change_content_version,
             installed_project_ids,
             modrinth_project,
             open_url,

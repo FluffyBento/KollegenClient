@@ -378,6 +378,17 @@ pre {
   margin-bottom: 0;
 }
 
+#manageInstalled li {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+#manageInstalled li button {
+  margin: 0;
+}
+
 .cards {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));

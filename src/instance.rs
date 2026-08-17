@@ -345,6 +345,37 @@ pub fn install_instance(
 
 // ─=== Asset Download ===
 
+/// Downloads a single Minecraft asset object, verifying its SHA-1 (and size)
+/// against the asset index before writing it. A corrupt/truncated download is
+/// removed so the caller can retry it.
+fn download_asset_object(
+    client: &reqwest::blocking::Client,
+    url: &str,
+    dest: &Path,
+    expected_hash: &str,
+    expected_size: u64,
+) -> Result<()> {
+    let resp = client.get(url).send()?;
+    if !resp.status().is_success() {
+        return Err(anyhow::anyhow!("HTTP {}", resp.status()));
+    }
+    let bytes = resp.bytes()?;
+    if expected_size != 0 && bytes.len() as u64 != expected_size {
+        return Err(anyhow::anyhow!("Größe stimmt nicht überein"));
+    }
+    if crate::utils::sha1_hex(&bytes) != expected_hash {
+        return Err(anyhow::anyhow!("SHA1 stimmt nicht überein"));
+    }
+    if let Some(parent) = dest.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    let tmp = dest.with_extension("part");
+    let _ = fs::remove_file(&tmp);
+    fs::write(&tmp, &bytes)?;
+    fs::rename(&tmp, dest)?;
+    Ok(())
+}
+
 /// Downloads the full asset set (index + all objects) for an instance.
 /// Idempotent: already-present object files are skipped, so it is safe to
 /// call on every launch to backfill any missing assets.
@@ -380,19 +411,39 @@ pub fn download_assets(data_dir: &Path, name: &str, version: &str) -> Result<()>
         None => return Ok(()),
     };
 
-    // Build the job list (only the files that are missing)
-    let mut jobs: Vec<(String, std::path::PathBuf)> = Vec::new();
+    // Build the job list. An object is (re)downloaded when it is missing OR
+    // when the already-present file fails the SHA-1/size check from the index
+    // (a previously truncated/corrupt download would otherwise be skipped
+    // forever and crash Minecraft with a "PNG header missing" on load).
+    let mut jobs: Vec<(String, std::path::PathBuf, String, u64)> = Vec::new();
     for (_key, obj) in objects {
-        if let Some(hash) = obj.get("hash").and_then(|h| h.as_str()) {
-            let prefix = &hash[0..2];
-            let obj_path = assets_dir.join("objects").join(prefix).join(hash);
-            if !obj_path.exists() {
-                let url = format!(
-                    "https://resources.download.minecraft.net/{}/{}",
-                    prefix, hash
-                );
-                jobs.push((url, obj_path));
+        let hash = match obj.get("hash").and_then(|h| h.as_str()) {
+            Some(h) => h,
+            None => continue,
+        };
+        let size = obj.get("size").and_then(|s| s.as_u64());
+        let prefix = &hash[0..2];
+        let obj_path = assets_dir.join("objects").join(prefix).join(hash);
+        let needs = if obj_path.exists() {
+            match (size, fs::metadata(&obj_path)) {
+                // Cheap stat-based check (no content read) when the index
+                // advertises a size; only re-downloads on a mismatch.
+                (Some(expected), Ok(m)) => m.len() != expected,
+                // No size in the index: fall back to a content hash check.
+                _ => match fs::read(&obj_path) {
+                    Ok(bytes) => crate::utils::sha1_hex(&bytes) != hash,
+                    Err(_) => true,
+                },
             }
+        } else {
+            true
+        };
+        if needs {
+            let url = format!(
+                "https://resources.download.minecraft.net/{}/{}",
+                prefix, hash
+            );
+            jobs.push((url, obj_path, hash.to_string(), size.unwrap_or(0)));
         }
     }
 
@@ -424,12 +475,31 @@ pub fn download_assets(data_dir: &Path, name: &str, version: &str) -> Result<()>
                     let mut g = jobs.lock().unwrap();
                     g.pop()
                 };
-                let (url, path) = match next {
+                let (url, path, expected, size) = match next {
                     Some(j) => j,
                     None => break,
                 };
-                if let Err(e) = crate::utils::download_file_client(&client, &url, &path) {
-                    log::warn!("Asset-Download fehlgeschlagen ({}): {}", url, e);
+                let mut ok = false;
+                for attempt in 0..3 {
+                    match download_asset_object(&client, &url, &path, &expected, size) {
+                        Ok(()) => {
+                            ok = true;
+                            break;
+                        }
+                        Err(e) => {
+                            if attempt == 2 {
+                                log::warn!(
+                                    "Asset-Download endgültig fehlgeschlagen ({}): {}",
+                                    url,
+                                    e
+                                );
+                            }
+                        }
+                    }
+                }
+                if !ok {
+                    // Never leave a corrupt partial file behind.
+                    let _ = fs::remove_file(path.with_extension("part"));
                 }
             }
         });

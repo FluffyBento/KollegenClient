@@ -662,6 +662,8 @@ function openManage(inst) {
 }
 
 $("manageClose").onclick = () => {
+  closeVersionMenu();
+  closeChangeMenu();
   $("manageModal").style.display = "none";
   startBackgroundIntervals();
 };
@@ -744,12 +746,26 @@ async function toggleVersionMenu(p, arrow) {
   const menu = document.createElement("div");
   menu.className = "version-menu";
   menu._pid = p.id;
+  const rect = arrow.getBoundingClientRect();
+  let top = rect.bottom + 4;
   menu.style.cssText =
-    "position:absolute; top:100%; left:0; margin-top:4px; z-index:50; background:#1e1e24; border:1px solid #333; border-radius:8px; padding:6px; min-width:210px; max-height:240px; overflow:auto; box-shadow:0 6px 20px rgba(0,0,0,.45);";
+    "position:fixed; top:" + top + "px; left:" + rect.left + "px; z-index:9999; background:#1e1e24; border:1px solid #333; border-radius:8px; padding:6px; min-width:210px; max-height:240px; overflow:auto; box-shadow:0 6px 20px rgba(0,0,0,.45);";
   menu.innerHTML =
     "<div style='padding:8px; color:#aaa;'>Lade Versionen…</div>";
-  arrow.parentElement.append(menu);
+  // Portaled to <body> so ancestors like `.card { content-visibility:auto }`
+  // or `.modal-content { overflow:auto }` can't clip the dropdown.
+  document.body.appendChild(menu);
   activeVersionMenu = menu;
+  const mh = menu.getBoundingClientRect().height;
+  if (top + mh > window.innerHeight && rect.top - 4 - mh > 0) {
+    menu.style.top = (rect.top - 4 - mh) + "px";
+  }
+  if (!window.__vmOutsideBound) {
+    window.__vmOutsideBound = true;
+    document.addEventListener("click", (e) => {
+      if (activeVersionMenu && !activeVersionMenu.contains(e.target)) closeVersionMenu();
+    });
+  }
   try {
     const versions = await invoke("modrinth_versions", {
       projectId: p.id,
@@ -933,7 +949,8 @@ async function manageLoadInstalled() {
       list.innerHTML = "<li style='color:#888;'>Keine installiert</li>";
       return;
     }
-    for (const name of items) {
+    for (const it of items) {
+      const name = it.name || it;
       const li = document.createElement("li");
       const span = document.createElement("span");
       span.textContent = name;
@@ -941,6 +958,16 @@ async function manageLoadInstalled() {
       del.textContent = "Entfernen";
       del.onclick = () => manageDelete(name);
       li.append(span, del);
+      if (it.project_id) {
+        const chg = document.createElement("button");
+        chg.textContent = "Version ändern";
+        chg.className = "ver-change-btn";
+        chg.onclick = (e) => {
+          e.stopPropagation();
+          openChangeMenu(name, it.project_id, chg);
+        };
+        li.append(chg);
+      }
       list.append(li);
     }
   } catch (e) {
@@ -959,6 +986,87 @@ async function manageDelete(filename) {
     manageLoadInstalled();
   } catch (e) {
     alert("Fehler: " + e);
+  }
+}
+
+// ─=== Change version of an already-installed mod/pack ===
+async function changeInstalledVersion(filename, projectId, versionId) {
+  try {
+    await invoke("change_content_version", {
+      instanceName: manageInst.name,
+      kind: manageKind,
+      filename,
+      versionId,
+    });
+    manageLoadInstalled();
+  } catch (e) {
+    alert("Version ändern fehlgeschlagen: " + e);
+  }
+}
+
+let activeChangeMenu = null;
+function closeChangeMenu() {
+  if (activeChangeMenu) {
+    activeChangeMenu.remove();
+    activeChangeMenu = null;
+  }
+}
+
+async function openChangeMenu(filename, projectId, btn) {
+  if (activeChangeMenu && activeChangeMenu._fn === filename) {
+    closeChangeMenu();
+    return;
+  }
+  closeVersionMenu();
+  closeChangeMenu();
+  const menu = document.createElement("div");
+  menu.className = "version-menu";
+  menu._fn = filename;
+  const rect = btn.getBoundingClientRect();
+  let top = rect.bottom + 4;
+  menu.style.cssText =
+    "position:fixed; top:" + top + "px; left:" + rect.left + "px; z-index:9999; background:#1e1e24; border:1px solid #333; border-radius:8px; padding:6px; min-width:210px; max-height:240px; overflow:auto; box-shadow:0 6px 20px rgba(0,0,0,.45);";
+  menu.innerHTML = "<div style='padding:8px; color:#aaa;'>Lade Versionen…</div>";
+  document.body.appendChild(menu);
+  activeChangeMenu = menu;
+  const mh = menu.getBoundingClientRect().height;
+  if (top + mh > window.innerHeight && rect.top - 4 - mh > 0) {
+    menu.style.top = (rect.top - 4 - mh) + "px";
+  }
+  if (!window.__cmOutsideBound) {
+    window.__cmOutsideBound = true;
+    document.addEventListener("click", (e) => {
+      if (activeChangeMenu && !activeChangeMenu.contains(e.target)) closeChangeMenu();
+    });
+  }
+  try {
+    const versions = await invoke("modrinth_versions", {
+      projectId,
+      mcVersion: manageInst.version,
+      loader: manageInst.loader,
+    });
+    menu.innerHTML = "";
+    if (!versions || versions.length === 0) {
+      menu.innerHTML = "<div style='padding:8px; color:#aaa;'>Keine Versionen</div>";
+    } else {
+      for (const v of versions) {
+        const item = document.createElement("div");
+        item.style.cssText =
+          "padding:8px 10px; cursor:pointer; border-radius:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;";
+        item.textContent = v.version_number || v.name;
+        item.title = v.name + "  (" + (v.game_versions || []).join(", ") + ")";
+        item.onmouseenter = () => (item.style.background = "#2c2c34");
+        item.onmouseleave = () => (item.style.background = "transparent");
+        item.onclick = (ev) => {
+          ev.stopPropagation();
+          closeChangeMenu();
+          changeInstalledVersion(filename, projectId, v.id);
+        };
+        menu.append(item);
+      }
+    }
+  } catch (e) {
+    menu.innerHTML = `<div style='padding:8px; color:#e88;'>Fehler: ${e}</div>`;
   }
 }
 

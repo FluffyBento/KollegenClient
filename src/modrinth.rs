@@ -372,7 +372,14 @@ pub fn list_content(data_dir: &Path, instance_name: &str) -> Value {
             for e in entries.flatten() {
                 if e.path().is_file() {
                     if let Some(name) = e.file_name().to_str() {
-                        items.push(name.to_string());
+                        let name = name.to_string();
+                        let mut obj = serde_json::json!({ "name": name.clone() });
+                        if let Some(pid) =
+                            project_id_for_file(data_dir, instance_name, key, &name)
+                        {
+                            obj["project_id"] = serde_json::Value::String(pid);
+                        }
+                        items.push(obj);
                     }
                 }
             }
@@ -401,6 +408,52 @@ pub fn delete_content(
         fs::remove_file(&path)?;
     }
     let _ = remove_install_record(data_dir, instance_name, kind, &filename);
+    Ok(())
+}
+
+/// Changes the installed version of a Modrinth-managed project: installs the
+/// requested version (downloading it if needed, including required dependencies)
+/// and removes the previously installed file for the same project so only one
+/// version stays installed at a time.
+pub fn change_content_version(
+    data_dir: &Path,
+    instance_name: &str,
+    kind: &str,
+    filename: &str,
+    version_id: &str,
+) -> Result<()> {
+    let inst_dir = crate::utils::instance_dir(data_dir, instance_name);
+    let target_dir = inst_dir.join(category_dir(kind)?);
+
+    let snapshot = |dir: &Path| -> std::collections::HashSet<String> {
+        if let Ok(entries) = fs::read_dir(dir) {
+            entries
+                .flatten()
+                .filter(|e| e.path().is_file())
+                .filter_map(|e| e.file_name().into_string().ok())
+                .collect()
+        } else {
+            std::collections::HashSet::new()
+        }
+    };
+
+    let before = snapshot(&target_dir);
+
+    let project_id = project_id_for_file(data_dir, instance_name, kind, filename)
+        .ok_or_else(|| anyhow!("Projekt-ID für '{}' nicht gefunden", filename))?;
+
+    // A specific version_id is given, so mc_version/loader are only required by
+    // the signature and are not used to pick a compatible version.
+    install_content(instance_name, data_dir, kind, &project_id, "", "", Some(version_id))?;
+
+    let after = snapshot(&target_dir);
+    // A newly added file means the chosen version installed under a different
+    // name than the old one – remove the previous file so only one remains.
+    let added: std::collections::HashSet<String> =
+        after.difference(&before).cloned().collect();
+    if !added.is_empty() && !added.contains(filename) {
+        let _ = delete_content(data_dir, instance_name, kind, filename);
+    }
     Ok(())
 }
 

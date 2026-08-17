@@ -4,6 +4,7 @@ use anyhow::Result;
 use directories::ProjectDirs;
 use log::info;
 use serde::Serialize;
+use sha1::Digest;
 use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -87,7 +88,23 @@ pub fn download_file(url: &str, dest: &Path) -> Result<()> {
     download_file_client(&client, url, dest)
 }
 
+/// Returns the lowercase hex SHA-1 of `data`, matching Mojang's asset hashes.
+pub fn sha1_hex(data: &[u8]) -> String {
+    let mut hasher = sha1::Sha1::new();
+    hasher.update(data);
+    let digest = hasher.finalize();
+    let mut out = String::with_capacity(digest.len() * 2);
+    for b in digest.as_slice() {
+        out.push_str(&format!("{:02x}", b));
+    }
+    out
+}
+
 /// Downloads a file using a caller-provided client (reused across many downloads).
+///
+/// Writes to a temporary `.part` file first and then atomically renames it into
+/// place, so an interrupted/truncated download never leaves a corrupt file at
+/// `dest` (which would otherwise be treated as "already downloaded" and skipped).
 pub fn download_file_client(client: &reqwest::blocking::Client, url: &str, dest: &Path) -> Result<()> {
     let resp = client.get(url).send()?;
     if !resp.status().is_success() {
@@ -97,7 +114,10 @@ pub fn download_file_client(client: &reqwest::blocking::Client, url: &str, dest:
     if let Some(parent) = dest.parent() {
         fs::create_dir_all(parent)?;
     }
-    fs::write(dest, &bytes)?;
+    let tmp = dest.with_extension("part");
+    let _ = fs::remove_file(&tmp);
+    fs::write(&tmp, &bytes)?;
+    fs::rename(&tmp, dest)?;
     Ok(())
 }
 

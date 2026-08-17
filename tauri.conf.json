@@ -95,7 +95,7 @@
   "plugins": {
     "updater": {
       "active": true,
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXkgRjA1RTU4QkYxNUZEQjVFRApSV1R0dGYwVnYxaGU4RVR5WGNDZEppeGtiTUc3TGx3RG5tZ0xUcFB3RmFzWGFxT0NVb1FyQWRVNwo=",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDU2MTM0OEZCMTkyNzg2MzUKUldRMWhpY1orMGdUVmpYOVREUGtzZXpBb241dWQzWW9HWjBsOWg5U3BHZTdJUUUzL0NEUWdLUnIK",
       "endpoints": [
         "https://github.com/FluffyBento/KollegenClient/releases/latest/download/latest.json"
       ],
