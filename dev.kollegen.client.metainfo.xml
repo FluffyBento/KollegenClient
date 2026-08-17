@@ -11,6 +11,16 @@
   <launchable type="desktop-id">dev.kollegen.client.desktop</launchable>
   <url type="homepage">https://github.com/FluffyBento/KollegenClient</url>
   <releases>
+    <release version="1.2.7" date="2026-08-17">
+      <description>
+        <p>Neue Funktionen &amp; Fehlerbehebungen:</p>
+        <ul>
+          <li>Discord: Freundesliste auch ohne Discord-Desktop-App über den Browser-Login (Scope "relationships" – muss im Discord-Entwicklerportal aktiviert sein). Pro Freund mit gemeinsamen Servern gibt es einen "Server öffnen"-Button (öffnet den Server in Discord).</li>
+          <li>Microsoft-Login: Fehlermeldung zeigt jetzt die echte Ursache (z.B. Konto besitzt keine Minecraft Java Edition) statt "unknown error".</li>
+          <li>Java-Auswahl: Importierte Instanzen (z.B. aus Prism) starten 1.21+ jetzt mit Java 21 (zuvor fälschlich Java 17 → Absturz durch UnsupportedClassVersionError).</li>
+        </ul>
+      </description>
+    </release>
     <release version="1.2.6" date="2026-08-17">
       <description>
         <p>Fehlerbehebungen:</p>
