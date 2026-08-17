@@ -376,25 +376,34 @@ fn launch_game(
     // the instance is vanilla.
     ensure_companion_mod(&state.data_dir, &inst.name, &inst.version, &inst.loader);
 
-    // Determine the required Java version. Prefer the version JSON's
-    // `javaVersion.majorVersion` (authoritative), but fall back to a mapping
-    // derived from the Minecraft version string. This matters for instances
-    // imported from other launchers (e.g. Prism) whose Mojang version JSON may
-    // not be present locally – without the fallback they'd silently launch with
-    // Java 17 and crash on 1.21+ (which needs Java 21).
+    // Determine the required Java version. We read every version JSON in the
+    // instance's version dir (the Mojang one AND the Fabric-merged one) and take
+    // the highest `javaVersion.majorVersion`, falling back to a mapping derived
+    // from the Minecraft version string. This matters for instances imported
+    // from other launchers (e.g. Prism) whose Mojang version JSON may not be
+    // present locally – without the fallback they'd silently launch with Java 17
+    // and crash on 1.21+ (which needs Java 21).
     let required_java = {
         let fallback = required_java_for_version(&inst.version);
         let version_dir = utils::instance_dir(&state.data_dir, &inst.name)
             .join("versions")
             .join(&inst.version);
-        let vjson_path = version_dir.join(format!("{}.json", inst.version));
-        if vjson_path.exists() {
-            if let Ok(s) = std::fs::read_to_string(&vjson_path) {
-                if let Ok(vj) = serde_json::from_str::<types::VersionJson>(&s) {
-                    vj.java_version.map(|j| j.major_version).unwrap_or(fallback)
-                } else { fallback }
-            } else { fallback }
-        } else { fallback }
+        let mut from_json = None;
+        if let Ok(entries) = std::fs::read_dir(&version_dir) {
+            for e in entries.flatten() {
+                let p = e.path();
+                if p.extension().and_then(|x| x.to_str()) == Some("json") {
+                    if let Ok(s) = std::fs::read_to_string(&p) {
+                        if let Ok(vj) = serde_json::from_str::<types::VersionJson>(&s) {
+                            if let Some(jv) = vj.java_version {
+                                from_json = Some(from_json.unwrap_or(0).max(jv.major_version));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        from_json.unwrap_or(fallback)
     };
 
     let java_path = match java::find_java(&state.data_dir, required_java) {
@@ -405,6 +414,14 @@ fn launch_game(
             java::find_java(&state.data_dir, required_java).map_err(|e| e.to_string())?
         }
     };
+
+    utils::append_log(
+        &state,
+        &format!(
+            "Instanz '{}' (MC {}) benötigt Java {}, verwende: {}",
+            inst.name, inst.version, required_java, java_path
+        ),
+    );
 
     let settings = utils::load_json::<types::Settings>(
         &utils::settings_file(&state.data_dir),

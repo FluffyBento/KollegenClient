@@ -11,6 +11,15 @@
   <launchable type="desktop-id">dev.kollegen.client.desktop</launchable>
   <url type="homepage">https://github.com/FluffyBento/KollegenClient</url>
   <releases>
+    <release version="1.2.8" date="2026-08-17">
+      <description>
+        <p>Fehlerbehebung Java-Auswahl (Nachfolger zu 1.2.7):</p>
+        <ul>
+          <li>Java-Erkennung robuster: es wird jetzt die höchste `javaVersion.majorVersion` aus allen Versions-JSONs des Instanz-Verzeichnisses (Mojang- &amp; Fabric-zusammengeführte JSON) gelesen, nicht nur aus `<version>.json`. Importierte Instanzen (z.B. Prism) starten 1.21+ damit zuverlässig mit Java 21.</li>
+          <li>Log-Eintrag beim Start nennt benötigte Java-Version und verwendeten Java-Pfad, damit Fehler nachvollziehbar sind.</li>
+        </ul>
+      </description>
+    </release>
     <release version="1.2.7" date="2026-08-17">
       <description>
         <p>Neue Funktionen &amp; Fehlerbehebungen:</p>
