@@ -764,6 +764,22 @@ fn import_instance(
         .map_err(|e| e.to_string())
 }
 
+#[tauri::command]
+async fn check_app_update(app: tauri::AppHandle) -> Result<Option<Value>, String> {
+    match crate::app_updates::check_info(&app).await {
+        Ok(Some((version, notes))) => {
+            Ok(Some(serde_json::json!({ "version": version, "notes": notes })))
+        }
+        Ok(None) => Ok(None),
+        Err(e) => Err(e),
+    }
+}
+
+#[tauri::command]
+async fn install_app_update(app: tauri::AppHandle) -> Result<(), String> {
+    crate::app_updates::install(&app).await
+}
+
 fn main() {
     // Wayland compatibility: WebKit's DMABUF renderer crashes under some
     // Wayland compositors ("Error 71 dispatching to Wayland display").
@@ -865,6 +881,8 @@ fn main() {
             detect_launchers,
             list_launcher_instances,
             import_instance,
+            check_app_update,
+            install_app_update,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

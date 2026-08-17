@@ -11,16 +11,15 @@ use std::time::{Duration, Instant};
 const AUTHORIZE_ENDPOINT: &str = "https://discord.com/oauth2/authorize";
 const TOKEN_ENDPOINT: &str = "https://discord.com/api/v10/oauth2/token";
 const USER_ENDPOINT: &str = "https://discord.com/api/v10/users/@me";
-// `identify` is always required. `relationships` (privileged) lets us fetch the
-// friend list directly via the REST API, so users who only authenticated in the
-// browser (no Discord desktop app / RPC) can still see their friends in the
-// Socials tab. The live rich-presence (game/version/join) still comes from RPC.
-//
-// NOTE: `relationships` is a *privileged* OAuth scope. Discord rejects the
-// authorize request with "Invalid Scope" unless it is enabled for the
-// application in the Discord developer portal (the app owner can toggle this on
-// for their own use without full verification).
-const SCOPES: &str = "identify relationships";
+// `identify` is required to read the logged-in user. We intentionally do NOT
+// request the `relationships` scope: it is a *privileged* Discord OAuth scope and
+// Discord rejects the authorize request with "Invalid Scope: relationships"
+// unless it is explicitly enabled for the application in the Discord developer
+// portal. Requesting only `identify` lets every user connect without that
+// hurdle. Online friends still appear via Discord Rich Presence (RPC); the
+// offline friend list via REST is only available if the app owner enables the
+// `relationships` scope and we add it back here.
+const SCOPES: &str = "identify";
 const RELATIONSHIPS_ENDPOINT: &str = "https://discord.com/api/v10/users/@me/relationships";
 /// Fixed localhost port the browser is redirected back to. This exact URI must
 /// be registered as a Redirect URI in the Discord application's OAuth2 settings.

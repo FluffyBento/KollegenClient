@@ -710,8 +710,38 @@ document.querySelectorAll(".settings-tab").forEach((tab) => {
     $("settingsConnections").style.display = t === "connections" ? "" : "none";
     $("settingsThemes").style.display = t === "themes" ? "" : "none";
     $("settingsImport").style.display = t === "import" ? "" : "none";
+    $("settingsUpdates").style.display = t === "updates" ? "" : "none";
   };
 });
+
+// ─ Updates (manual check + install) ─
+$("updateCheckBtn").onclick = async () => {
+  const status = $("updateStatus");
+  const installBtn = $("updateInstallBtn");
+  status.textContent = "Prüfe auf Updates…";
+  installBtn.style.display = "none";
+  try {
+    const update = await invoke("check_app_update");
+    if (update) {
+      status.textContent = "Update verfügbar: Version " + update.version + (update.notes ? "\n" + update.notes : "");
+      installBtn.style.display = "";
+    } else {
+      status.textContent = "Du verwendest bereits die aktuellste Version.";
+    }
+  } catch (e) {
+    status.textContent = "Update-Prüfung fehlgeschlagen: " + e;
+  }
+};
+$("updateInstallBtn").onclick = async () => {
+  const status = $("updateStatus");
+  status.textContent = "Update wird heruntergeladen und installiert…";
+  try {
+    await invoke("install_app_update");
+    // App restarts itself after install; this line is only reached on failure.
+  } catch (e) {
+    status.textContent = "Installation fehlgeschlagen: " + e;
+  }
+};
 
 // ─ Verbindungen (Microsoft / Discord) ─
 async function refreshSettingsAccounts() {

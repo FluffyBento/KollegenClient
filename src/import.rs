@@ -357,7 +357,16 @@ fn parse_cfg_instance(dir: &Path) -> (String, String, String) {
             if let Some((k, v)) = line.split_once('=') {
                 match k {
                     "name" => name = v.to_string(),
-                    "IntendedVersion" => version = v.to_string(),
+                    "IntendedVersion" => {
+                        if !v.is_empty() {
+                            version = v.to_string();
+                        }
+                    }
+                    "MinecraftVersion" => {
+                        if !v.is_empty() {
+                            version = v.to_string();
+                        }
+                    }
                     "ForgeVersion" => loader = "forge".to_string(),
                     "FabricVersion" => loader = "fabric".to_string(),
                     "NeoForgeVersion" => loader = "neoforge".to_string(),

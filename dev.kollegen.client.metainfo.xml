@@ -11,6 +11,16 @@
   <launchable type="desktop-id">dev.kollegen.client.desktop</launchable>
   <url type="homepage">https://github.com/FluffyBento/KollegenClient</url>
   <releases>
+    <release version="1.2.2" date="2026-08-17">
+      <description>
+        <p>Fehlerbehebungen:</p>
+        <ul>
+          <li>Import: Minecraft-Version von Prism/MultiMC-Instanzen wird jetzt korrekt übernommen (Instanzen starten nicht mehr mit "Version nicht im Manifest").</li>
+          <li>Updates: Manueller "Auf Updates prüfen"-Button in den Einstellungen; der Launcher meldet jetzt verfügbare GitHub-Releases.</li>
+          <li>Discord: Verbindung funktioniert wieder (privilegierter `relationships`-Scope entfernt, der "Invalid Scope" verursachte). Online-Freunde kommen weiterhin über Rich Presence.</li>
+        </ul>
+      </description>
+    </release>
     <release version="1.2.1" date="2026-08-17">
       <description>
         <p>Einstellungen-Menü (oben rechts) mit Verbindungen, Themes und Import:</p>

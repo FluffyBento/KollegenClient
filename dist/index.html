@@ -142,6 +142,7 @@
         <button class="settings-tab active" data-tab="connections">Verbindungen</button>
         <button class="settings-tab" data-tab="themes">Themes</button>
         <button class="settings-tab" data-tab="import">Importieren</button>
+        <button class="settings-tab" data-tab="updates">Updates</button>
       </div>
       <div class="settings-body">
         <section id="settingsConnections" class="settings-section">
@@ -165,6 +166,12 @@
           <div id="importLauncherList" class="import-list"></div>
           <div id="importInstanceList" class="import-list"></div>
           <div id="importStatus" class="socials-hint"></div>
+        </section>
+        <section id="settingsUpdates" class="settings-section" style="display:none;">
+          <h3>Updates</h3>
+          <button id="updateCheckBtn" class="settings-action">Jetzt auf Updates prüfen</button>
+          <div id="updateStatus" class="socials-hint"></div>
+          <button id="updateInstallBtn" class="settings-action" style="display:none;">Update installieren</button>
         </section>
       </div>
     </div>
