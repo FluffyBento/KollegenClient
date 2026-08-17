@@ -6,6 +6,7 @@ use crate::types::Account;
 use anyhow::{anyhow, Result};
 use lazy_static::lazy_static;
 use serde_json::Value;
+use std::path::Path;
 use std::sync::Mutex;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
@@ -366,6 +367,29 @@ pub fn refresh_stored_account() -> Result<()> {
     acc.expires_at = Some(now + 24 * 3600);
     acc.avatar_id = avatar_id;
     accts[idx] = acc;
+    crate::utils::save_json(&path, &accts)?;
+    Ok(())
+}
+
+/// Marks the account with the given uuid as the "active" (first) account by
+/// moving it to the front of the stored list. The first account is what the
+/// rest of the launcher treats as the signed-in identity.
+pub fn switch_account(data_dir: &Path, uuid: &str) -> Result<()> {
+    let path = crate::utils::accounts_file(data_dir);
+    let mut accts = crate::utils::load_json::<Vec<Account>>(&path, vec![]);
+    if let Some(pos) = accts.iter().position(|a| a.uuid == uuid) {
+        let acc = accts.remove(pos);
+        accts.insert(0, acc);
+        crate::utils::save_json(&path, &accts)?;
+    }
+    Ok(())
+}
+
+/// Removes the account with the given uuid from the stored list.
+pub fn remove_account(data_dir: &Path, uuid: &str) -> Result<()> {
+    let path = crate::utils::accounts_file(data_dir);
+    let mut accts = crate::utils::load_json::<Vec<Account>>(&path, vec![]);
+    accts.retain(|a| a.uuid != uuid);
     crate::utils::save_json(&path, &accts)?;
     Ok(())
 }

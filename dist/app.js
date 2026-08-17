@@ -212,7 +212,9 @@ async function refreshLogs() {
     if (!list) return;
     list.innerHTML = "";
 
-    const online = friends.filter((f) => f.status && f.status !== "offline");
+    const online = friends.filter((f) =>
+      f.presence_known ? (f.status && f.status !== "offline") : true
+    );
     if (!friends.length) {
       hint.style.display = "";
       hint.textContent = connected
@@ -245,11 +247,15 @@ async function refreshLogs() {
       name.textContent = f.global_name || f.username;
       const sub = document.createElement("div");
       sub.className = "friend-sub";
-      sub.textContent = f.game
-        ? f.version
-          ? `${f.game} (${f.version})`
-          : f.game
-        : statusLabel(f.status);
+      let subText;
+      if (f.game) {
+        subText = f.version ? `${f.game} (${f.version})` : f.game;
+      } else if (f.presence_known) {
+        subText = statusLabel(f.status);
+      } else {
+        subText = "Freund";
+      }
+      sub.textContent = subText;
       meta.append(name, sub);
       li.append(meta);
 
@@ -605,6 +611,323 @@ $("inviteLauncherBtn").onclick = () => {
 
 // Beim Start die aktuelle Launcher-Theme an den Mod weitergeben.
 pushTheme();
+
+// ─=== Settings (Verbindungen / Themes / Importieren) ===
+
+// Vollständige Farbpaletten je Theme + Modus. Schlüssel = Theme-Name.
+const THEMES = {
+  Limit_Los: {
+    dark:  { bg:"#1a0d0d", panel:"#241313", panel2:"#2e1717", accent:"#e6332a", accent2:"#b71c1c", text:"#f3e9e9", muted:"#c9a9a9", border:"#3a2222", danger:"#ff5b6e" },
+    light: { bg:"#fbeeee", panel:"#f3dcdc", panel2:"#ecd0d0", accent:"#e6332a", accent2:"#b71c1c", text:"#2b1414", muted:"#7a4f4f", border:"#e0b8b8", danger:"#d83a4c" },
+  },
+  FluffyBento: {
+    dark:  { bg:"#0f1410", panel:"#16201a", panel2:"#1d2a22", accent:"#3ba55d", accent2:"#b65cff", text:"#eaf7ee", muted:"#9fc4ab", border:"#29402f", danger:"#ff7aa2" },
+    light: { bg:"#eef6ee", panel:"#dcefe0", panel2:"#cfe9d4", accent:"#2d8049", accent2:"#9b3fd1", text:"#142117", muted:"#5a7d63", border:"#bfe0c6", danger:"#d83a4c" },
+  },
+  Annanastv: {
+    dark:  { bg:"#1a1605", panel:"#221d08", panel2:"#2b250c", accent:"#f1c40f", accent2:"#d4ac0d", text:"#fbf7e6", muted:"#cabf8e", border:"#3a3211", danger:"#ff7a59" },
+    light: { bg:"#fdf8e3", panel:"#fbf0c4", panel2:"#f6e8a8", accent:"#d4ac0d", accent2:"#b7950b", text:"#2b2410", muted:"#7a6e3a", border:"#efe0a0", danger:"#d83a4c" },
+  },
+  T_son_: {
+    dark:  { bg:"#0c1410", panel:"#112019", panel2:"#16271e", accent:"#2ecc71", accent2:"#239b56", text:"#e8f5ee", muted:"#9bc2ac", border:"#244234", danger:"#ff5b6e" },
+    light: { bg:"#e9f5ee", panel:"#d6ecdd", panel2:"#c4e3cd", accent:"#239b56", accent2:"#1e8449", text:"#11231a", muted:"#5a7d68", border:"#bce0c8", danger:"#d83a4c" },
+  },
+  zSpicyyy: {
+    dark:  { bg:"#0a1218", panel:"#0f1a22", panel2:"#14222c", accent:"#3498db", accent2:"#2471a3", text:"#e6f1f8", muted:"#9bbccc", border:"#223a48", danger:"#ff7a59" },
+    light: { bg:"#e6f2f9", panel:"#cfe6f2", panel2:"#bcdced", accent:"#2471a3", accent2:"#1f618d", text:"#0e1f2a", muted:"#4f788f", border:"#aed4e6", danger:"#d83a4c" },
+  },
+  Irongirl: {
+    dark:  { bg:"#14171a", panel:"#1c2024", panel2:"#24292e", accent:"#bdc3c7", accent2:"#95a5a6", text:"#f0f3f5", muted:"#aab4ba", border:"#2e343a", danger:"#ff5b6e" },
+    light: { bg:"#ffffff", panel:"#f4f6f7", panel2:"#e9edef", accent:"#95a5a6", accent2:"#7f8c8d", text:"#1c2127", muted:"#6b777e", border:"#dde1e3", danger:"#d83a4c" },
+  },
+  Notschie_: {
+    dark:  { bg:"#0c0810", panel:"#140e1a", panel2:"#1c1426", accent:"#9b59b6", accent2:"#71368a", text:"#f1eaf6", muted:"#b69cc6", border:"#2c2040", danger:"#ff6b9d" },
+    light: { bg:"#efe7f5", panel:"#e2d4ee", panel2:"#d4c1e6", accent:"#71368a", accent2:"#5b2c70", text:"#1c1226", muted:"#6a517e", border:"#cbb3e0", danger:"#d83a4c" },
+  },
+  SMPNico: {
+    dark:  { bg:"#081418", panel:"#0d1c20", panel2:"#122a2f", accent:"#1abc9c", accent2:"#138d75", text:"#e3f4f1", muted:"#8fc2b8", border:"#20434a", danger:"#ff7a59" },
+    light: { bg:"#e0f4f1", panel:"#c9eae4", panel2:"#b3e1d8", accent:"#138d75", accent2:"#0e6e5c", text:"#0c1f1c", muted:"#4f8278", border:"#a6d8cf", danger:"#d83a4c" },
+  },
+  LetsLennyy: {
+    dark:  { bg:"#140a0a", panel:"#1d0f0f", panel2:"#271414", accent:"#c0392b", accent2:"#922b21", text:"#f3e9e9", muted:"#c39b9b", border:"#3a2020", danger:"#ff5b6e" },
+    light: { bg:"#f6e6e4", panel:"#eccfcc", panel2:"#e0bcb8", accent:"#922b21", accent2:"#7b241c", text:"#261110", muted:"#7a4f4a", border:"#e0c2bf", danger:"#d83a4c" },
+  },
+};
+
+let currentSettings = null;
+
+async function loadSettingsOnce() {
+  if (currentSettings) return currentSettings;
+  try {
+    currentSettings = await invoke("get_settings");
+  } catch (e) {
+    currentSettings = { theme: "Limit_Los", theme_mode: "dark" };
+  }
+  return currentSettings;
+}
+
+function applyTheme(name, mode) {
+  const theme = THEMES[name];
+  const pal = theme ? (theme[mode] || theme.dark) : THEMES.Limit_Los.dark;
+  const r = document.documentElement.style;
+  r.setProperty("--bg", pal.bg);
+  r.setProperty("--panel", pal.panel);
+  r.setProperty("--panel-2", pal.panel2);
+  r.setProperty("--accent", pal.accent);
+  r.setProperty("--accent2", pal.accent2);
+  r.setProperty("--text", pal.text);
+  r.setProperty("--muted", pal.muted);
+  r.setProperty("--border", pal.border);
+  r.setProperty("--danger", pal.danger);
+  document.documentElement.setAttribute("data-theme", name);
+  document.documentElement.setAttribute("data-mode", mode);
+  pushTheme();
+}
+
+async function applySavedTheme() {
+  const s = await loadSettingsOnce();
+  const name = THEMES[s.theme] ? s.theme : "Limit_Los";
+  const mode = s.theme_mode === "light" ? "light" : "dark";
+  applyTheme(name, mode);
+}
+
+async function saveTheme(name, mode) {
+  const s = await loadSettingsOnce();
+  s.theme = name;
+  s.theme_mode = mode;
+  try {
+    await invoke("save_settings", { settings: s });
+  } catch (e) {}
+  applyTheme(name, mode);
+}
+
+// ─=== Settings panel wiring ===
+$("settingsBtn").onclick = async () => {
+  $("settingsModal").style.display = "flex";
+  await loadSettingsOnce();
+  await refreshSettingsAccounts();
+  renderThemeList();
+  syncModeButtons();
+};
+$("settingsClose").onclick = () => {
+  $("settingsModal").style.display = "none";
+};
+
+document.querySelectorAll(".settings-tab").forEach((tab) => {
+  tab.onclick = () => {
+    document.querySelectorAll(".settings-tab").forEach((t) => t.classList.remove("active"));
+    tab.classList.add("active");
+    const t = tab.dataset.tab;
+    $("settingsConnections").style.display = t === "connections" ? "" : "none";
+    $("settingsThemes").style.display = t === "themes" ? "" : "none";
+    $("settingsImport").style.display = t === "import" ? "" : "none";
+  };
+});
+
+// ─ Verbindungen (Microsoft / Discord) ─
+async function refreshSettingsAccounts() {
+  const list = $("msAccountList");
+  list.innerHTML = "";
+  let accounts = [];
+  try {
+    accounts = await invoke("get_accounts");
+  } catch (e) {}
+  if (accounts.length === 0) {
+    list.innerHTML = "<li style='color:#888;'>Keine Microsoft-Accounts verbunden.</li>";
+    return;
+  }
+  accounts.forEach((acc, i) => {
+    const li = document.createElement("li");
+    const info = document.createElement("div");
+    info.className = "acc-info";
+    const nm = document.createElement("span");
+    nm.className = "acc-name";
+    nm.textContent = acc.username || acc.uuid;
+    info.append(nm);
+    if (i === 0) {
+      const badge = document.createElement("span");
+      badge.className = "acc-badge";
+      badge.textContent = "Aktiv";
+      info.append(badge);
+    }
+    const actions = document.createElement("div");
+    actions.className = "acc-actions";
+    if (i !== 0) {
+      const sw = document.createElement("button");
+      sw.textContent = "Wechseln";
+      sw.onclick = async () => {
+        try {
+          await invoke("ms_switch_account", { uuid: acc.uuid });
+          await refreshSettingsAccounts();
+          refreshAuth();
+        } catch (e) {
+          alert("Wechseln fehlgeschlagen: " + e);
+        }
+      };
+      actions.append(sw);
+    }
+    const rm = document.createElement("button");
+    rm.textContent = "Entfernen";
+    rm.onclick = async () => {
+      if (!confirm(`Account '${acc.username || acc.uuid}' wirklich entfernen?`)) return;
+      try {
+        await invoke("ms_remove_account", { uuid: acc.uuid });
+        await refreshSettingsAccounts();
+        refreshAuth();
+      } catch (e) {
+        alert("Entfernen fehlgeschlagen: " + e);
+      }
+    };
+    actions.append(rm);
+    li.append(info, actions);
+    list.append(li);
+  });
+}
+
+$("msAddBtn").onclick = async () => {
+  try {
+    const res = await invoke("auth_start");
+    if (res.user_code && res.verification_uri) {
+      const loginUrl = `${res.verification_uri}?otc=${res.user_code}`;
+      window.open(loginUrl, "_blank");
+      copyText(loginUrl);
+      alert("Microsoft Login:\n\nBrowser wurde geöffnet. Der Link steht in der Zwischenablage.");
+    }
+    refreshAuth();
+    await refreshSettingsAccounts();
+  } catch (e) {
+    alert("Login fehlgeschlagen: " + e);
+  }
+};
+
+$("discordLogoutBtn").onclick = async () => {
+  try {
+    await invoke("discord_oauth_logout");
+    refreshDiscord();
+    refreshDiscordLogin();
+  } catch (e) {
+    alert("Discord Abmeldung fehlgeschlagen: " + e);
+  }
+};
+
+// ─ Themes ─
+function renderThemeList() {
+  const list = $("themeList");
+  list.innerHTML = "";
+  const s = currentSettings || { theme: "Limit_Los", theme_mode: "dark" };
+  for (const [name, modes] of Object.entries(THEMES)) {
+    const card = document.createElement("button");
+    card.className = "theme-card" + (name === s.theme ? " active" : "");
+    const dot = document.createElement("span");
+    dot.className = "theme-dot";
+    dot.style.background = modes.dark.accent;
+    const label = document.createElement("span");
+    label.textContent = name;
+    card.append(dot, label);
+    card.onclick = () => saveTheme(name, s.theme_mode === "light" ? "light" : "dark");
+    list.append(card);
+  }
+}
+
+function syncModeButtons() {
+  const mode = currentSettings && currentSettings.theme_mode === "light" ? "light" : "dark";
+  $("modeDark").classList.toggle("active", mode === "dark");
+  $("modeLight").classList.toggle("active", mode === "light");
+}
+
+$("modeDark").onclick = () => {
+  const name = currentSettings ? currentSettings.theme : "Limit_Los";
+  saveTheme(name, "dark");
+  syncModeButtons();
+  renderThemeList();
+};
+$("modeLight").onclick = () => {
+  const name = currentSettings ? currentSettings.theme : "Limit_Los";
+  saveTheme(name, "light");
+  syncModeButtons();
+  renderThemeList();
+};
+
+// ─ Importieren (andere Launcher) ─
+$("importScanBtn").onclick = async () => {
+  const list = $("importLauncherList");
+  list.innerHTML = "";
+  $("importInstanceList").innerHTML = "";
+  $("importStatus").textContent = "Suche nach installierten Launchern...";
+  try {
+    const launchers = await invoke("detect_launchers");
+    $("importStatus").textContent = "";
+    if (!launchers.length) {
+      $("importStatus").textContent = "Keine anderen Launcher gefunden.";
+      return;
+    }
+    for (const l of launchers) {
+      const li = document.createElement("li");
+      const info = document.createElement("div");
+      const nm = document.createElement("span");
+      nm.className = "imp-name";
+      nm.textContent = l.name;
+      const meta = document.createElement("span");
+      meta.className = "imp-meta";
+      meta.textContent = l.path;
+      info.append(nm, document.createElement("br"), meta);
+      const btn = document.createElement("button");
+      btn.textContent = "Instanzen anzeigen";
+      btn.onclick = () => showLauncherInstances(l.id);
+      li.append(info, btn);
+      list.append(li);
+    }
+  } catch (e) {
+    $("importStatus").textContent = "Fehler: " + e;
+  }
+};
+
+async function showLauncherInstances(launcherId) {
+  const list = $("importInstanceList");
+  list.innerHTML = "";
+  $("importStatus").textContent = "Lade Instanzen...";
+  try {
+    const instances = await invoke("list_launcher_instances", { launcherId });
+    $("importStatus").textContent = "";
+    if (!instances.length) {
+      $("importStatus").textContent = "Keine Instanzen in diesem Launcher gefunden.";
+      return;
+    }
+    for (const inst of instances) {
+      const li = document.createElement("li");
+      const info = document.createElement("div");
+      const nm = document.createElement("span");
+      nm.className = "imp-name";
+      nm.textContent = inst.name;
+      const meta = document.createElement("span");
+      meta.className = "imp-meta";
+      meta.textContent = `${inst.version || "?"} (${inst.loader})`;
+      info.append(nm, document.createElement("br"), meta);
+      const btn = document.createElement("button");
+      btn.textContent = "Importieren";
+      btn.onclick = () => doImport(launcherId, inst.dir_name, inst.name);
+      li.append(info, btn);
+      list.append(li);
+    }
+  } catch (e) {
+    $("importStatus").textContent = "Fehler: " + e;
+  }
+}
+
+async function doImport(launcherId, dirName, dispName) {
+  if (!confirm(`Instanz '${dispName}' importieren?`)) return;
+  $("importStatus").textContent = `Importiere '${dispName}'...`;
+  try {
+    const inst = await invoke("import_instance", { launcherId, instanceName: dirName });
+    $("importStatus").textContent = `Importiert: ${inst.name}`;
+    refreshInstances();
+  } catch (e) {
+    $("importStatus").textContent = "Import fehlgeschlagen: " + e;
+  }
+}
+
+// Beim Start das gespeicherte Theme anwenden.
+applySavedTheme();
 
 // Socials drawer (left sidebar) toggle.
 $("socialsBtn").onclick = () => {

@@ -1,4 +1,5 @@
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
+use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::io::{Read, Write};
@@ -10,16 +11,17 @@ use std::time::{Duration, Instant};
 const AUTHORIZE_ENDPOINT: &str = "https://discord.com/oauth2/authorize";
 const TOKEN_ENDPOINT: &str = "https://discord.com/api/v10/oauth2/token";
 const USER_ENDPOINT: &str = "https://discord.com/api/v10/users/@me";
-// Only `identify` is requested via OAuth. The user's Discord friend list is
-// delivered through the Rich Presence (RPC) `RELATIONSHIPS` subscription in
-// `discord.rs`, which does not require an OAuth scope.
+// `identify` is always required. `relationships` (privileged) lets us fetch the
+// friend list directly via the REST API, so users who only authenticated in the
+// browser (no Discord desktop app / RPC) can still see their friends in the
+// Socials tab. The live rich-presence (game/version/join) still comes from RPC.
 //
-// NOTE: `relationships` is a *privileged* OAuth scope. Adding it here makes
-// Discord reject the authorize request with "Invalid Scope" unless the scope is
-// enabled AND approved for the application in the Discord developer portal. To
-// get the RPC friend list to populate, approve the `relationships` scope for
-// the app in the developer portal – no OAuth scope change is needed for that.
-const SCOPES: &str = "identify";
+// NOTE: `relationships` is a *privileged* OAuth scope. Discord rejects the
+// authorize request with "Invalid Scope" unless it is enabled for the
+// application in the Discord developer portal (the app owner can toggle this on
+// for their own use without full verification).
+const SCOPES: &str = "identify relationships";
+const RELATIONSHIPS_ENDPOINT: &str = "https://discord.com/api/v10/users/@me/relationships";
 /// Fixed localhost port the browser is redirected back to. This exact URI must
 /// be registered as a Redirect URI in the Discord application's OAuth2 settings.
 const CALLBACK_PORT: u16 = 31337;
@@ -112,6 +114,101 @@ pub fn logout(data_dir: &Path) {
     delete_token(data_dir);
 }
 
+lazy_static! {
+    static ref OAUTH_FRIENDS_CACHE: std::sync::Mutex<(std::time::Instant, Vec<serde_json::Value>)> =
+        std::sync::Mutex::new((std::time::Instant::now(), Vec::new()));
+}
+
+/// Fetches the authenticated user's Discord friends via the REST API
+/// (`/users/@me/relationships`, requires the privileged `relationships` OAuth
+/// scope). Returns lightweight friend entries (no rich-presence join secret);
+/// `discord_social` merges these with the RPC-sourced friends (which carry live
+/// presence). Network/permission failures degrade gracefully to an empty list.
+/// Results are cached for 60s so the Socials tab can poll without hammering
+/// the Discord API.
+pub fn fetch_friends(data_dir: &Path) -> Vec<serde_json::Value> {
+    {
+        let cache = OAUTH_FRIENDS_CACHE.lock().unwrap();
+        if cache.0.elapsed() < std::time::Duration::from_secs(60) {
+            return cache.1.clone();
+        }
+    }
+    let token = match load_token(data_dir) {
+        Some(t) => t,
+        None => return Vec::new(),
+    };
+
+    let mut result: Vec<serde_json::Value> = Vec::new();
+    if let Ok(resp) = reqwest::blocking::Client::new()
+        .get(RELATIONSHIPS_ENDPOINT)
+        .bearer_auth(&token.access_token)
+        .send()
+    {
+        if let Ok(arr) = resp.json::<Vec<serde_json::Value>>() {
+            for r in arr {
+                // type 1 == friend (2 = blocked, 3 = incoming, 4 = outgoing).
+                if r.get("type").and_then(|t| t.as_i64()) != Some(1) {
+                    continue;
+                }
+                let user = match r.get("user") {
+                    Some(u) => u,
+                    None => continue,
+                };
+                let id = user
+                    .get("id")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string();
+                if id.is_empty() {
+                    continue;
+                }
+                let username = user
+                    .get("username")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string();
+                let global_name = user
+                    .get("global_name")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string());
+                let avatar = user.get("avatar").and_then(|v| v.as_str());
+                let avatar_url = avatar.map(|a| {
+                    let ext = if a.starts_with("a_") { "gif" } else { "png" };
+                    format!("https://cdn.discordapp.com/avatars/{}/{}.{}", id, a, ext)
+                });
+                let presence = r.get("presence");
+                let status = presence
+                    .and_then(|p| p.get("status"))
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("offline")
+                    .to_string();
+                let game = presence
+                    .and_then(|p| p.get("activities"))
+                    .and_then(|a| a.as_array())
+                    .and_then(|a| a.first())
+                    .and_then(|act| act.get("name"))
+                    .and_then(|n| n.as_str())
+                    .map(|s| s.to_string());
+                result.push(serde_json::json!({
+                    "id": id,
+                    "username": username,
+                    "global_name": global_name,
+                    "avatar_url": avatar_url,
+                    "status": status,
+                    "game": game,
+                    "version": null,
+                    "join_secret": null,
+                    "presence_known": presence.is_some(),
+                }));
+            }
+        }
+    }
+
+    let mut cache = OAUTH_FRIENDS_CACHE.lock().unwrap();
+    *cache = (std::time::Instant::now(), result.clone());
+    result
+}
+
 fn random_base64url(bytes: usize) -> String {
     use rand::Rng;
     let mut buf = vec![0u8; bytes];
@@ -166,6 +263,9 @@ fn exchange_token(code: &str, verifier: &str, data_dir: &Path) -> Result<(), Str
         user: Some(user),
     };
     save_token(data_dir, &token);
+    // Invalidate the cached OAuth friend list so it is refreshed for the new user.
+    OAUTH_FRIENDS_CACHE.lock().unwrap().0 =
+        std::time::Instant::now() - std::time::Duration::from_secs(120);
     Ok(())
 }
 

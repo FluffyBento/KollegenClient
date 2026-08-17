@@ -676,3 +676,107 @@ header, main { padding-left: 56px; }
   cursor: pointer;
 }
 .invite-launcher-btn:hover { background: var(--accent2); }
+
+/* ── Settings button + panel ── */
+.settings-btn {
+  font-size: 1.3rem;
+  width: 38px; height: 38px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--panel-2);
+  color: var(--text);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+.settings-btn:hover { background: var(--accent); color: #16131d; }
+
+.settings-content { width: min(720px, 96vw); }
+
+.settings-tabs {
+  display: flex; gap: 0.5rem; margin: 0.9rem 0 1rem;
+}
+.settings-tab {
+  background: #2a2418;
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+.settings-tab.active {
+  background: var(--accent);
+  border-color: transparent;
+  color: #2a1a00;
+}
+
+.settings-section h3 {
+  margin: 1.1rem 0 0.5rem;
+  color: var(--accent);
+  font-size: 0.95rem;
+}
+.settings-section h3:first-child { margin-top: 0; }
+
+.settings-action {
+  width: 100%;
+  text-align: left;
+  background: var(--accent);
+  color: #2a1a00;
+  border: none;
+  border-radius: 8px;
+  padding: 0.6rem 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  margin: 0.25rem 0;
+}
+.settings-action:hover { background: var(--accent2); }
+.settings-action.danger { background: var(--danger); color: #2a0008; }
+.settings-action.danger:hover { filter: brightness(1.1); }
+
+.account-list li {
+  display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;
+  padding: 0.55rem 0.4rem; border-bottom: 1px solid var(--border);
+}
+.account-list .acc-info { display: flex; flex-direction: column; min-width: 0; }
+.account-list .acc-name { font-weight: 600; }
+.account-list .acc-badge {
+  font-size: 0.72rem; color: #2a1a00; background: var(--accent);
+  border-radius: 999px; padding: 0.05rem 0.5rem; display: inline-block; width: fit-content;
+  margin-top: 0.15rem;
+}
+.account-list .acc-actions { display: flex; gap: 0.35rem; flex: 0 0 auto; }
+.account-list .acc-actions button {
+  margin: 0; padding: 0.35rem 0.7rem; font-size: 0.8rem;
+  background: transparent; color: var(--accent); border: 1px solid var(--border);
+}
+.account-list .acc-actions button:hover { background: rgba(245,166,35,0.12); border-color: var(--accent); }
+
+.theme-list {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 0.6rem;
+}
+.theme-card {
+  display: flex; align-items: center; gap: 0.6rem;
+  background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+  padding: 0.6rem; cursor: pointer; margin: 0; font-weight: 600;
+  color: var(--text); text-align: left;
+}
+.theme-card:hover { border-color: var(--accent); }
+.theme-card.active { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent) inset; }
+.theme-card .theme-dot {
+  width: 22px; height: 22px; border-radius: 50%; flex: 0 0 auto;
+  border: 2px solid rgba(255,255,255,0.25);
+}
+
+.mode-toggle { display: flex; gap: 0.5rem; }
+.mode-btn {
+  background: #2a2418; border: 1px solid var(--border); color: var(--text);
+  margin: 0;
+}
+.mode-btn.active { background: var(--accent); border-color: transparent; color: #2a1a00; }
+
+.import-list { margin-top: 0.6rem; }
+.import-list li {
+  display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;
+  padding: 0.55rem 0.4rem; border-bottom: 1px solid var(--border);
+}
+.import-list li button { margin: 0; padding: 0.35rem 0.7rem; font-size: 0.82rem; }
+.import-list .imp-name { font-weight: 600; }
+.import-list .imp-meta { font-size: 0.78rem; color: var(--muted); }

@@ -39,6 +39,8 @@ pub struct Settings {
     pub global_vulkan: bool,
     pub lang: String,
     pub theme: String,
+    #[serde(default)]
+    pub theme_mode: String,
     pub proxy: Option<String>,
 }
 
@@ -52,7 +54,8 @@ impl Default for Settings {
             memory_max: crate::DEFAULT_MEMORY_MAX.to_string(),
             global_vulkan: true,
             lang: "de".to_string(),
-            theme: "dark".to_string(),
+            theme: "Limit_Los".to_string(),
+            theme_mode: "dark".to_string(),
             proxy: None,
         }
     }

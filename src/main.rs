@@ -6,6 +6,7 @@
 
 mod app_updates;
 mod auth;
+mod import;
 mod discord;
 mod discord_auth;
 mod instance;
@@ -633,7 +634,8 @@ fn discord_social(state: State<'_, AppState>) -> Result<Value, String> {
         })
     };
 
-    let friends = discord::friends()
+    // RPC-sourced friends carry live rich presence (game/version/join secret).
+    let rpc_friends: Vec<serde_json::Value> = discord::friends()
         .iter()
         .map(|f| {
             serde_json::json!({
@@ -645,9 +647,30 @@ fn discord_social(state: State<'_, AppState>) -> Result<Value, String> {
                 "game": f.game,
                 "version": f.version,
                 "join_secret": f.join_secret,
+                "presence_known": true,
             })
         })
-        .collect::<Vec<_>>();
+        .collect();
+
+    // OAuth-sourced friends (via the `relationships` scope) so users who only
+    // authenticated in the browser – without the Discord desktop app / RPC –
+    // can still see their friends. RPC entries win on id collisions because
+    // they carry richer presence data.
+    let mut merged: std::collections::HashMap<String, serde_json::Value> =
+        std::collections::HashMap::new();
+    for f in discord_auth::fetch_friends(&state.data_dir) {
+        let key = match f.get("id").and_then(|v| v.as_str()) {
+            Some(s) => s.to_string(),
+            None => continue,
+        };
+        merged.insert(key, f);
+    }
+    for f in &rpc_friends {
+        if let Some(id) = f.get("id").and_then(|v| v.as_str()) {
+            merged.insert(id.to_string(), f.clone());
+        }
+    }
+    let friends: Vec<serde_json::Value> = merged.into_values().collect();
     Ok(serde_json::json!({
         "rpc_connected": s.connected,
         "oauth_logged_in": oauth_logged_in,
@@ -703,6 +726,42 @@ fn discord_oauth_status(state: State<'_, AppState>) -> Result<serde_json::Value,
 fn discord_oauth_logout(state: State<'_, AppState>) -> Result<(), String> {
     discord_auth::logout(&state.data_dir);
     Ok(())
+}
+
+// ─=== Microsoft account management (Connections) ===
+
+/// Switches the active Microsoft account to the one with the given uuid.
+#[tauri::command]
+fn ms_switch_account(state: State<'_, AppState>, uuid: String) -> Result<(), String> {
+    auth::switch_account(&state.data_dir, &uuid).map_err(|e| e.to_string())
+}
+
+/// Removes the Microsoft account with the given uuid.
+#[tauri::command]
+fn ms_remove_account(state: State<'_, AppState>, uuid: String) -> Result<(), String> {
+    auth::remove_account(&state.data_dir, &uuid).map_err(|e| e.to_string())
+}
+
+// ─=== Instance import from other launchers ===
+
+#[tauri::command]
+fn detect_launchers() -> Result<Vec<Value>, String> {
+    Ok(crate::import::detect_launchers())
+}
+
+#[tauri::command]
+fn list_launcher_instances(launcher_id: String) -> Result<Vec<Value>, String> {
+    Ok(crate::import::list_launcher_instances(&launcher_id))
+}
+
+#[tauri::command]
+fn import_instance(
+    state: State<'_, AppState>,
+    launcher_id: String,
+    instance_name: String,
+) -> Result<types::Instance, String> {
+    crate::import::import_instance(&state.data_dir, &launcher_id, &instance_name)
+        .map_err(|e| e.to_string())
 }
 
 fn main() {
@@ -801,6 +860,11 @@ fn main() {
             discord_oauth_start,
             discord_oauth_status,
             discord_oauth_logout,
+            ms_switch_account,
+            ms_remove_account,
+            detect_launchers,
+            list_launcher_instances,
+            import_instance,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

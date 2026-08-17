@@ -11,6 +11,16 @@
   <launchable type="desktop-id">dev.kollegen.client.desktop</launchable>
   <url type="homepage">https://github.com/FluffyBento/KollegenClient</url>
   <releases>
+    <release version="1.2.0" date="2026-08-17">
+      <description>
+        <p>Einstellungen-Menü (oben rechts) mit Verbindungen, Themes und Import:</p>
+        <ul>
+          <li>Verbindungen: Microsoft-Account hinzufügen, wechseln und entfernen (mit Auswahl); Discord abmelden.</li>
+          <li>Themes: 9 Themes (Limit_Los, FluffyBento, Annanastv, T_son_, zSpicyyy, Irongirl, Notschie_, SMPNico, LetsLennyy), jeweils mit Dunkel-/Hell-Modus.</li>
+          <li>Importieren: Instanzen von anderen Launchern (Prism, MultiMC, ATLauncher, Modrinth, GDLauncher, CurseForge, Technic) auf Windows und Linux übernehmen.</li>
+        </ul>
+      </description>
+    </release>
     <release version="1.1.0" date="2026-08-17">
       <description>
         <p>Linux-Distribution umgestellt: statt Flatpak werden jetzt AppImage, RPM und DEB bereitgestellt. Windows-Installer (.exe) bleibt bestehen, unbeschnittenes Titel-Logo inklusive.</p>
