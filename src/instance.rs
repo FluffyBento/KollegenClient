@@ -60,6 +60,43 @@ fn pack_format_for(version: &str) -> u32 {
     75
 }
 
+/// Composites the source `Logo.png` (any aspect ratio) into a square
+/// `minecraft.png` that Minecraft expects for the title screen. The logo is
+/// scaled to "contain" (never cropped) within a 256x256 transparent canvas and
+/// centered, so it keeps its aspect ratio and can't be stretched or clipped.
+fn fit_logo_square(png: &[u8]) -> Vec<u8> {
+    const SIZE: u32 = 256;
+    const FILL: f32 = 0.92;
+    let img = match image::load_from_memory(png) {
+        Ok(i) => i,
+        Err(_) => return png.to_vec(),
+    };
+    let (w, h) = (img.width(), img.height());
+    if w == 0 || h == 0 {
+        return png.to_vec();
+    }
+    let scale = (SIZE as f32 * FILL) / (w.max(h) as f32);
+    let nw = ((w as f32) * scale).max(1.0) as u32;
+    let nh = ((h as f32) * scale).max(1.0) as u32;
+    let resized = img.resize(nw, nh, image::imageops::FilterType::Lanczos3);
+    let mut canvas = image::RgbaImage::from_pixel(SIZE, SIZE, image::Rgba([0, 0, 0, 0]));
+    let x = ((SIZE as i64 - nw as i64) / 2) as i64;
+    let y = ((SIZE as i64 - nh as i64) / 2) as i64;
+    image::imageops::overlay(&mut canvas, &resized, x, y);
+    let mut buf = Vec::new();
+    if image::DynamicImage::ImageRgba8(canvas)
+        .write_to(
+            &mut std::io::Cursor::new(&mut buf),
+            image::ImageOutputFormat::Png,
+        )
+        .is_ok()
+    {
+        buf
+    } else {
+        png.to_vec()
+    }
+}
+
 /// Builds the title-logo resource pack zip in memory, rewriting `pack.mcmeta`
 /// with the `pack_format` that matches the instance's Minecraft version. For
 /// 1.21.9+ (format >= 65) Minecraft requires the `min_format`/`max_format`
@@ -103,6 +140,12 @@ fn build_title_logo_pack(version: &str) -> Vec<u8> {
             if name == "pack.mcmeta" {
                 let _ = writer.start_file("pack.mcmeta", opts);
                 let _ = writer.write_all(meta_str.as_bytes());
+            } else if name.ends_with("title/minecraft.png") {
+                let mut data = Vec::new();
+                let _ = std::io::copy(&mut file, &mut data);
+                let processed = fit_logo_square(&data);
+                let _ = writer.start_file(&name, opts);
+                let _ = writer.write_all(&processed);
             } else {
                 let _ = writer.start_file(&name, opts);
                 let _ = std::io::copy(&mut file, &mut writer);
