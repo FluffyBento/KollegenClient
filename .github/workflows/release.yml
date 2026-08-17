@@ -25,6 +25,8 @@ jobs:
   linux:
     needs: create-release
     runs-on: ubuntu-latest
+    env:
+      TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -60,6 +62,8 @@ jobs:
           cp target/release/bundle/appimage/*.AppImage release_artifacts/KollegenClient.AppImage || true
           cp target/release/bundle/rpm/*.rpm release_artifacts/KollegenClient.rpm || true
           cp target/release/bundle/deb/*.deb release_artifacts/KollegenClient.deb || true
+          # updater signature for the AppImage
+          cp target/release/bundle/appimage/*.AppImage.sig release_artifacts/KollegenClient.AppImage.sig || true
 
       - name: Publish to GitHub Release
         uses: softprops/action-gh-release@v2
@@ -69,6 +73,8 @@ jobs:
   windows:
     needs: create-release
     runs-on: windows-latest
+    env:
+      TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -96,13 +102,58 @@ jobs:
       - name: Build Windows installer (.exe)
         run: tauri build --config tauri.conf.json --bundles nsis
 
-      - name: Rename installer to KollegenClient.exe
+      - name: Rename installer + signature
         shell: pwsh
         run: |
           $exe = Get-ChildItem target/release/bundle/nsis/*.exe | Select-Object -First 1
           Copy-Item $exe.FullName "KollegenClient.exe"
+          $sig = Get-ChildItem target/release/bundle/nsis/*.exe.sig | Select-Object -First 1
+          if ($sig) { Copy-Item $sig.FullName "KollegenClient.exe.sig" }
 
       - name: Publish to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: "KollegenClient.exe"
+          files: |
+            KollegenClient.exe
+            KollegenClient.exe.sig
+
+  updater-manifest:
+    needs: [linux, windows]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download updater signatures
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p sigs
+          gh release download "${{ github.ref_name }}" \
+            --repo "${{ github.repository }}" \
+            --pattern "KollegenClient.AppImage.sig" \
+            --pattern "KollegenClient.exe.sig" \
+            --dir sigs || true
+          ls -la sigs
+
+      - name: Generate latest.json
+        run: |
+          TAG="${{ github.ref_name }}"
+          BASE="https://github.com/${{ github.repository }}/releases/download/${TAG}"
+          PUB_DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          LINUX_SIG=$(cat sigs/KollegenClient.AppImage.sig 2>/dev/null || echo "")
+          WIN_SIG=$(cat sigs/KollegenClient.exe.sig 2>/dev/null || echo "")
+          cat > latest.json <<EOF
+          {
+            "version": "${TAG#v}",
+            "notes": "Kollegen Client ${TAG}",
+            "pub_date": "${PUB_DATE}",
+            "platforms": {
+              "linux-x86_64": { "signature": "${LINUX_SIG}", "url": "${BASE}/KollegenClient.AppImage" },
+              "windows-x86_64": { "signature": "${WIN_SIG}", "url": "${BASE}/KollegenClient.exe" }
+            }
+          }
+          EOF
+          cat latest.json
+
+      - name: Publish latest.json
+        uses: softprops/action-gh-release@v2
+        with:
+          files: "latest.json"

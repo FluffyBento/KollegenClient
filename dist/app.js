@@ -640,6 +640,9 @@ $("jreBtn").onclick = async () => {
 let manageInst = null;
 let manageKind = "mod";
 
+// Close the version picker when clicking anywhere outside of it.
+document.addEventListener("click", () => closeVersionMenu());
+
 function setManageTab(kind) {
   manageKind = kind;
   document.querySelectorAll(".tab").forEach((t) =>
@@ -696,16 +699,86 @@ function renderCard(p) {
   const meta = document.createElement("div");
   meta.className = "card-meta";
   meta.textContent = `${(p.downloads || 0).toLocaleString()} Downloads`;
+  // Install button + version dropdown arrow. A plain click installs the newest
+  // compatible version; the arrow opens a menu to pick a specific version.
+  const installGroup = document.createElement("div");
+  installGroup.className = "install-group";
+  installGroup.style.cssText = "position:relative; display:inline-flex; gap:6px;";
   const btn = document.createElement("button");
   btn.textContent = "Installieren";
-  btn.onclick = () => manageInstall(p.id, p.title);
+  btn.onclick = () => manageInstall(p.id, p.title, null);
+  const arrow = document.createElement("button");
+  arrow.textContent = "▾";
+  arrow.className = "ver-arrow";
+  arrow.title = "Bestimmte Version wählen";
+  arrow.onclick = (e) => {
+    e.stopPropagation();
+    toggleVersionMenu(p, arrow);
+  };
+  installGroup.append(btn, arrow);
   const viewBtn = document.createElement("button");
   viewBtn.textContent = "Ansehen";
   viewBtn.className = "view-btn";
   viewBtn.onclick = () => openExternal(p);
-  body.append(title, desc, meta, btn, viewBtn);
+  body.append(title, desc, meta, installGroup, viewBtn);
   card.append(body);
   return card;
+}
+
+// ─=== Version picker ===
+let activeVersionMenu = null;
+
+function closeVersionMenu() {
+  if (activeVersionMenu) {
+    activeVersionMenu.remove();
+    activeVersionMenu = null;
+  }
+}
+
+async function toggleVersionMenu(p, arrow) {
+  if (activeVersionMenu && activeVersionMenu._pid === p.id) {
+    closeVersionMenu();
+    return;
+  }
+  closeVersionMenu();
+  const menu = document.createElement("div");
+  menu.className = "version-menu";
+  menu._pid = p.id;
+  menu.style.cssText =
+    "position:absolute; top:100%; left:0; margin-top:4px; z-index:50; background:#1e1e24; border:1px solid #333; border-radius:8px; padding:6px; min-width:210px; max-height:240px; overflow:auto; box-shadow:0 6px 20px rgba(0,0,0,.45);";
+  menu.innerHTML =
+    "<div style='padding:8px; color:#aaa;'>Lade Versionen…</div>";
+  arrow.parentElement.append(menu);
+  activeVersionMenu = menu;
+  try {
+    const versions = await invoke("modrinth_versions", {
+      projectId: p.id,
+      mcVersion: manageInst.version,
+      loader: manageInst.loader,
+    });
+    menu.innerHTML = "";
+    if (!versions || versions.length === 0) {
+      menu.innerHTML = "<div style='padding:8px; color:#aaa;'>Keine Versionen</div>";
+    } else {
+      for (const v of versions) {
+        const item = document.createElement("div");
+        item.style.cssText =
+          "padding:8px 10px; cursor:pointer; border-radius:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;";
+        item.textContent = v.version_number || v.name;
+        item.title = v.name + "  (" + (v.game_versions || []).join(", ") + ")";
+        item.onmouseenter = () => (item.style.background = "#2c2c34");
+        item.onmouseleave = () => (item.style.background = "transparent");
+        item.onclick = (ev) => {
+          ev.stopPropagation();
+          closeVersionMenu();
+          manageInstall(p.id, p.title, v.id);
+        };
+        menu.append(item);
+      }
+    }
+  } catch (e) {
+    menu.innerHTML = `<div style='padding:8px; color:#e88;'>Fehler: ${e}</div>`;
+  }
 }
 
 // ─=== Paginated, install-filtered browsing ===
@@ -823,7 +896,7 @@ function renderPager() {
   results.append(pager);
 }
 
-async function manageInstall(projectId, title) {
+async function manageInstall(projectId, title, versionId) {
   try {
     await invoke("install_content", {
       instanceName: manageInst.name,
@@ -831,6 +904,7 @@ async function manageInstall(projectId, title) {
       projectId,
       mcVersion: manageInst.version,
       loader: manageInst.loader,
+      versionId: versionId ?? null,
     });
     // Remove the freshly installed project from the buffered list and
     // re-render the current page (freed slot is filled by the next hit).

@@ -4,6 +4,7 @@
     windows_subsystem = "windows"
 )]
 
+mod app_updates;
 mod auth;
 mod discord;
 mod discord_auth;
@@ -232,6 +233,7 @@ fn auto_resolve_conflict(
                                 &pid,
                                 &mc_version,
                                 &loader,
+                                None,
                             ) {
                                 Ok(()) => adjusted.push(fname),
                                 Err(e) => {
@@ -329,6 +331,7 @@ fn ensure_companion_mod(data_dir: &Path, instance_name: &str, version: &str, loa
         KOLLEGEN_MOD_PROJECT_ID,
         version,
         loader,
+        None,
     );
 }
 
@@ -451,6 +454,7 @@ fn install_content(
     project_id: String,
     mc_version: String,
     loader: String,
+    version_id: Option<String>,
 ) -> Result<(), String> {
     crate::modrinth::install_content(
         &instance_name,
@@ -459,8 +463,20 @@ fn install_content(
         &project_id,
         &mc_version,
         &loader,
+        version_id.as_deref(),
     )
     .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn modrinth_versions(
+    project_id: String,
+    mc_version: String,
+    loader: String,
+) -> Result<Value, String> {
+    let versions = crate::modrinth::list_versions(&project_id, &mc_version, &loader)
+        .map_err(|e| e.to_string())?;
+    Ok(serde_json::to_value(versions).unwrap_or(Value::Null))
 }
 
 #[tauri::command]
@@ -723,6 +739,12 @@ fn main() {
 
     tauri::Builder::default()
         .manage(state)
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .setup(|app| {
+            app_updates::spawn(app.handle().clone());
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             get_instances,
             get_accounts,
@@ -740,6 +762,7 @@ fn main() {
             download_jre_command,
             modrinth_search,
             install_content,
+            modrinth_versions,
             list_content,
             delete_content,
             installed_project_ids,

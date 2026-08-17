@@ -9,7 +9,7 @@ use serde_json::Value;
 use std::fs;
 use std::path::Path;
 use std::process::{Command, Stdio};
-use std::io::{Cursor, Read, Write};
+use std::io::Write;
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;

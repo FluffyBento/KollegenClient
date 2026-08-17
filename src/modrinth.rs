@@ -24,6 +24,16 @@ pub struct ModrinthProject {
     pub categories: Vec<String>,
 }
 
+#[derive(Serialize)]
+pub struct ModrinthVersion {
+    pub id: String,
+    pub name: String,
+    pub version_number: String,
+    pub game_versions: Vec<String>,
+    pub loaders: Vec<String>,
+    pub date_published: String,
+}
+
 fn client() -> Result<reqwest::blocking::Client> {
     reqwest::blocking::Client::builder()
         .user_agent(crate::USER_AGENT)
@@ -176,8 +186,62 @@ fn primary_file(v: &Value) -> Option<(String, String)> {
     Some((url, filename))
 }
 
+/// Lists Modrinth versions of `project_id` that are compatible with the given
+/// Minecraft version (and loader, for mods). Newest first.
+pub fn list_versions(project_id: &str, mc_version: &str, loader: &str) -> Result<Vec<ModrinthVersion>> {
+    let url = format!("{}/project/{}/version", MODRINTH_API, project_id);
+    let resp = client()?.get(&url).send()?;
+    if !resp.status().is_success() {
+        return Err(anyhow!(
+            "Modrinth Versionen konnten nicht geladen werden: {}",
+            resp.status()
+        ));
+    }
+    let versions: Vec<Value> = resp.json()?;
+    let mut out = Vec::new();
+    for v in &versions {
+        let game_versions = v
+            .get("game_versions")
+            .and_then(|g| g.as_array())
+            .map(|a| a.iter().filter_map(|x| x.as_str().map(|s| s.to_string())).collect::<Vec<_>>())
+            .unwrap_or_default();
+        let game_ok = game_versions.iter().any(|g| g.eq_ignore_ascii_case(mc_version));
+        let loaders = v
+            .get("loaders")
+            .and_then(|l| l.as_array())
+            .map(|a| a.iter().filter_map(|x| x.as_str().map(|s| s.to_string())).collect::<Vec<_>>())
+            .unwrap_or_default();
+        // Mods carry a loader list; resource packs / shaders have none, so the
+        // loader filter only applies when the version actually declares loaders.
+        let loader_ok = loaders.is_empty() || loaders.iter().any(|l| l.eq_ignore_ascii_case(loader));
+        if !(game_ok && loader_ok) {
+            continue;
+        }
+        out.push(ModrinthVersion {
+            id: v.get("id").and_then(|x| x.as_str()).unwrap_or("").to_string(),
+            name: v.get("name").and_then(|x| x.as_str()).unwrap_or("").to_string(),
+            version_number: v
+                .get("version_number")
+                .and_then(|x| x.as_str())
+                .unwrap_or("")
+                .to_string(),
+            game_versions,
+            loaders,
+            date_published: v
+                .get("date_published")
+                .and_then(|x| x.as_str())
+                .unwrap_or("")
+                .to_string(),
+        });
+    }
+    out.sort_by(|a, b| b.date_published.cmp(&a.date_published));
+    Ok(out)
+}
+
 /// Downloads a project (and recursively its required dependencies) into the
 /// instance's content folder. `visited` prevents cycles / duplicate installs.
+/// `version_id` selects a specific version; when `None` the newest compatible
+/// version is installed (dependencies always use their newest compatible version).
 fn install_project_recursive(
     data_dir: &Path,
     instance_name: &str,
@@ -185,6 +249,7 @@ fn install_project_recursive(
     project_id: &str,
     mc_version: &str,
     loader: &str,
+    version_id: Option<&str>,
     visited: &mut std::collections::HashSet<String>,
     depth: usize,
 ) -> Result<()> {
@@ -205,13 +270,20 @@ fn install_project_recursive(
         ));
     }
     let versions: Vec<Value> = resp.json()?;
-    let chosen = pick_compatible(&versions, mc_version, loader, kind == "mod").ok_or_else(|| {
-        anyhow!(
-            "Keine kompatible Version für Minecraft {} / {} gefunden",
-            mc_version,
-            loader
-        )
-    })?;
+    let chosen = if let Some(vid) = version_id {
+        versions
+            .iter()
+            .find(|v| v.get("id").and_then(|x| x.as_str()) == Some(vid))
+            .ok_or_else(|| anyhow!("Version {} wurde nicht gefunden", vid))?
+    } else {
+        pick_compatible(&versions, mc_version, loader, kind == "mod").ok_or_else(|| {
+            anyhow!(
+                "Keine kompatible Version für Minecraft {} / {} gefunden",
+                mc_version,
+                loader
+            )
+        })?
+    };
 
     let (file_url, filename) = primary_file(chosen)
         .ok_or_else(|| anyhow!("Keine Datei in dieser Version gefunden"))?;
@@ -248,6 +320,7 @@ fn install_project_recursive(
                     pid,
                     mc_version,
                     loader,
+                    None,
                     visited,
                     depth + 1,
                 );
@@ -267,6 +340,7 @@ pub fn install_content(
     project_id: &str,
     mc_version: &str,
     loader: &str,
+    version_id: Option<&str>,
 ) -> Result<()> {
     let mut visited = HashSet::new();
     install_project_recursive(
@@ -276,6 +350,7 @@ pub fn install_content(
         project_id,
         mc_version,
         loader,
+        version_id,
         &mut visited,
         0,
     )

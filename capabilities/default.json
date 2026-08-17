@@ -3,5 +3,5 @@
   "identifier": "default",
   "description": "Berechtigungen für das Hauptfenster des Kollegen Clients",
   "windows": ["main"],
-  "permissions": ["core:default"]
+  "permissions": ["core:default", "updater:default", "dialog:default"]
 }
