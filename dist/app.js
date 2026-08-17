@@ -638,8 +638,8 @@ const THEMES = {
     light: { bg:"#e0f4f1", panel:"#c9eae4", panel2:"#b3e1d8", accent:"#138d75", accent2:"#0e6e5c", text:"#0c1f1c", muted:"#4f8278", border:"#a6d8cf", danger:"#d83a4c" },
   },
   LetsLennyy: {
-    dark:  { bg:"#140a0a", panel:"#1d0f0f", panel2:"#271414", accent:"#c0392b", accent2:"#922b21", text:"#f3e9e9", muted:"#c39b9b", border:"#3a2020", danger:"#ff5b6e" },
-    light: { bg:"#f6e6e4", panel:"#eccfcc", panel2:"#e0bcb8", accent:"#922b21", accent2:"#7b241c", text:"#261110", muted:"#7a4f4a", border:"#e0c2bf", danger:"#d83a4c" },
+    dark:  { bg:"#140a0a", panel:"#1d0f0f", panel2:"#271414", accent:"#FF0000", accent2:"#cc0000", text:"#f3e9e9", muted:"#c39b9b", border:"#600000", danger:"#ff5b6e" },
+    light: { bg:"#f6e6e4", panel:"#eccfcc", panel2:"#e0bcb8", accent:"#FF0000", accent2:"#cc0000", text:"#261110", muted:"#7a4f4a", border:"#600000", danger:"#d83a4c" },
   },
 };
 
