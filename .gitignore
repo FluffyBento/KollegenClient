@@ -11,3 +11,6 @@ settings.json
 kollegen-mod/build/
 kollegen-mod/.gradle/
 kollegen-mod/.idea/
+
+# Tauri updater signing secret key (minisign box format)
+minisign.key

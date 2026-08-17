@@ -75,7 +75,7 @@
   "plugins": {
     "updater": {
       "active": true,
-      "pubkey": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAAblymew9UPR/3n6zNKfT8VnlYeMaXTzMqcfzVJ7HYPo=\n-----END PUBLIC KEY-----",
+      "pubkey": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAC5T5T3PuIoaAu1k9QzIlLz+84gnfAGP9dZ8o2u0wHHY=\n-----END PUBLIC KEY-----",
       "endpoints": [
         "https://github.com/FluffyBento/KollegenClient/releases/latest/download/latest.json"
       ],
