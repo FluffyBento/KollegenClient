@@ -16,7 +16,7 @@
 
 <div align="center">
 
-### ⚠️ **ACHTUNG: ALPHA STATUS** ⚠️
+### ⚠️ **ACHTUNG: ALPHA SHIT** ⚠️
 
 > **Hinweis:** Bitte kopiere Fehler und hänge Screenshots an, wenn du ein Issue erstellst.
 
