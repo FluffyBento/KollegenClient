@@ -227,6 +227,19 @@ jobs:
       - name: Generate latest.json
         run: |
           TAG="${{ github.ref_name }}"
+          TAG_RAW="${TAG#v}"
+          if echo "$TAG_RAW" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+v[0-9]+$'; then
+            BASE_VER=$(echo "$TAG_RAW" | sed -E 's/v[0-9]+$//')
+            BLD=$(echo "$TAG_RAW" | sed -E 's/.*v([0-9]+)$/\1/')
+            MAJ=$(echo "$BASE_VER" | cut -d. -f1)
+            MIN=$(echo "$BASE_VER" | cut -d. -f2)
+            PAT=$(echo "$BASE_VER" | cut -d. -f3)
+            if [ "$PAT" = "0" ]; then PAT="$BLD"; fi
+            VERSION="$MAJ.$MIN.$PAT"
+          else
+            VERSION=$(echo "$TAG_RAW" | sed -E 's/^([0-9]+\.[0-9]+\.[0-9]+).*$/\1/')
+          fi
+          echo "Resolved updater version: $VERSION"
           BASE="https://github.com/${{ github.repository }}/releases/download/${TAG}"
           PUB_DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ)
           LINUX_SIG=$(cat sigs/KollegenClient.AppImage.sig 2>/dev/null || echo "")
@@ -234,7 +247,7 @@ jobs:
           MAC_SIG=$(cat sigs/KollegenClient.app.tar.gz.sig 2>/dev/null || echo "")
           cat > latest.json <<EOF
           {
-            "version": "${TAG#v}",
+            "version": "${VERSION}",
             "notes": "Kollegen Client ${TAG}",
             "pub_date": "${PUB_DATE}",
             "platforms": {
