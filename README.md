@@ -16,13 +16,6 @@
 
 <div align="center">
 
-# ![Logo](Logo.png)
-
-# █▀█ █   █▀█ █   █▀▀ █▀█   █▀ █ █ █ █▀ ▀█▀
-# █▀▄ █   █▄█ █▄▄ █▄▄ █▀▄   ▄█ █▀█ ▄█  █ 
-
----
-
 ### ⚠️ **ACHTUNG: ALPHA STATUS** ⚠️
 
 > **Hinweis:** Bitte kopiere Fehler und hänge Screenshots an, wenn du ein Issue erstellst.
