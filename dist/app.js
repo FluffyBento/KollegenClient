@@ -928,7 +928,18 @@ $("settingsBtn").onclick = async () => {
   await refreshSettingsAccounts();
   renderThemeList();
   syncModeButtons();
+  const cmt = $("companionModToggle");
+  if (cmt && currentSettings) cmt.checked = !!currentSettings.companion_mod;
 };
+
+const companionModToggle = $("companionModToggle");
+if (companionModToggle) {
+  companionModToggle.onchange = async () => {
+    const s = await loadSettingsOnce();
+    s.companion_mod = companionModToggle.checked;
+    try { await invoke("save_settings", { settings: s }); } catch (e) {}
+  };
+}
 $("settingsClose").onclick = () => {
   $("settingsModal").style.display = "none";
 };
@@ -1238,10 +1249,26 @@ $("pmCopy").onclick = () => { if (socialMe) copyText(socialMe.friend_code); };
 $("friendCodeAdd").onclick = async () => {
   const code = ($("friendCodeInput").value || "").trim().toUpperCase();
   if (!code) return;
-  await invoke("kollegen_friend_add", { code });
-  $("friendCodeInput").value = "";
-  refreshSocial();
+  try {
+    const res = await invoke("kollegen_friend_add", { code });
+    $("friendCodeInput").value = "";
+    if (res && res.error) toast("Fehler: " + res.error, "error");
+    else toast("Freund hinzugefügt", "ok");
+    refreshSocial();
+  } catch (e) {
+    toast("Freund konnte nicht hinzugefügt werden: " + e, "error");
+  }
 };
+
+let toastTimer = null;
+function toast(msg, kind) {
+  const el = $("toast");
+  if (!el) return;
+  el.textContent = msg;
+  el.className = "toast show" + (kind ? " toast-" + kind : "");
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { el.className = "toast"; }, 3200);
+}
 $("socialsClose").onclick = () => {
   $("socialsPanel").classList.remove("open");
 };

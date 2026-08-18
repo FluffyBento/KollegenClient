@@ -186,6 +186,12 @@
           <ul id="msAccountList" class="account-list"></ul>
           <h3>Discord</h3>
           <button id="discordLogoutBtn" class="settings-action danger">Discord abmelden</button>
+          <h3>Begleit-Mod</h3>
+          <label class="settings-check">
+            <input type="checkbox" id="companionModToggle" />
+            <span>Kollegen-Begleit-Mod automatisch installieren</span>
+          </label>
+          <p class="socials-hint">Ausschalten, falls ein Server (z.&nbsp;B. GommeHD) modifizierte Clients mit „invalid packet" kickt – ohne Mod ist der Client unverändert.</p>
         </section>
         <section id="settingsThemes" class="settings-section" style="display:none;">
           <h3>Theme</h3>
@@ -253,6 +259,8 @@
       </div>
     </div>
   </div>
+
+  <div id="toast" class="toast"></div>
 
   <script src="app.js"></script>
   <script>
