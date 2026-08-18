@@ -6,6 +6,7 @@
 // aktive (erste) Microsoft-Konto; ohne Konto funktioniert die lokale
 // Bibliothek + 3D-Vorschau trotzdem.
 
+use base64::Engine;
 use serde_json::Value;
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
