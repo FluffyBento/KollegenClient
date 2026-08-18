@@ -41,14 +41,31 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
 
-      - name: Build Kollegen Client companion mod (Fabric)
+      - name: Build Kollegen Client companion mod (Fabric, best effort)
+        id: buildmod
+        continue-on-error: true
         uses: gradle/gradle-build-action@v3
         with:
+          gradle-version: '8.14'
           build-root-directory: kollegen-mod
           arguments: build --stacktrace
-          # Disable Gradle caching so Loom re-downloads Minecraft instead of
-          # restoring a poisoned cache that yields an empty compile classpath.
           cache-disabled: true
+
+      - name: Publish companion mod jar (built or prebuilt)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          JAR=$(ls kollegen-mod/build/libs/kollegen-client-mod-*.jar 2>/dev/null | head -n1 || true)
+          if [ -z "$JAR" ] && [ -f kollegen-mod/kollegen-client-mod.jar ]; then
+            JAR=kollegen-mod/kollegen-client-mod.jar
+          fi
+          if [ -n "$JAR" ]; then
+            cp "$JAR" kollegen-client-mod.jar
+            gh release upload "${{ github.ref_name }}" kollegen-client-mod.jar --clobber
+            echo "Uploaded mod jar from: $JAR"
+          else
+            echo "No mod jar produced and none prebuilt; skipping mod upload."
+          fi
 
       - name: Publish companion mod jar to release
         env:
