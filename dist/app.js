@@ -444,7 +444,7 @@ async function refreshLogs() {
         const btn = document.createElement("button");
         btn.textContent = "Entfernen";
         btn.onclick = async () => {
-          await invoke("kollegen_friend_remove", { target_id: u.id });
+          await invoke("kollegen_friend_remove", { targetId: u.id });
           refreshSocial();
         };
         li.append(btn);
@@ -1250,7 +1250,7 @@ $("friendCodeAdd").onclick = async () => {
   const code = ($("friendCodeInput").value || "").trim().toUpperCase();
   if (!code) return;
   try {
-    const res = await invoke("kollegen_friend_add", { code });
+    const res = await invoke("kollegen_friend_add", { targetId: code });
     $("friendCodeInput").value = "";
     if (res && res.error) toast("Fehler: " + res.error, "error");
     else toast("Freund hinzugefügt", "ok");

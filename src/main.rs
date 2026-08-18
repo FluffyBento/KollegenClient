@@ -911,6 +911,9 @@ fn main() {
     // Presence-Reporter: meldet die im Spiel erkannte Server-Präsenz an das
     // externe Backend, damit andere Kollegen-Client-Nutzer markiert werden.
     presence::start(data_dir.clone());
+    // Profil + Freundesliste sofort schreiben (falls bereits mit Discord
+    // angemeldet), damit die Begleit-Mod im Spiel direkt Daten hat.
+    presence::sync_social(&data_dir);
     // Initial "in launcher" presence (only shows if Discord is running).
     let _ = discord.tx.send(discord::RpcMessage::Set {
         details: "Kollegen Client".to_string(),

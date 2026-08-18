@@ -15,6 +15,12 @@
 
 * { box-sizing: border-box; }
 
+/* Skaliert die komplette rem-basierte UI proportional zur Fenstergröße
+   (sowohl Breite als auch Höhe), damit der Launcher beim Resizen zoomt. */
+html {
+  font-size: clamp(13px, calc(0.4vw + 0.4vh + 6px), 19px);
+}
+
 body {
   margin: 0;
   font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -144,11 +150,12 @@ header h1 .brand-logo {
 
 main {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr));
   gap: 1.25rem;
   padding: 1.5rem;
   max-width: 1600px;
   margin: 0 auto;
+  align-content: start;
 }
 
 @media (max-width: 760px) {
@@ -169,6 +176,14 @@ main {
   #fullscreenBtn {
     display: none;
   }
+}
+
+/* Bei sehr flachen Fenstern Abstände reduzieren, damit nichts abgeschnitten wird. */
+@media (max-height: 620px) {
+  header { padding: 0.5rem 1rem; }
+  main { padding: 0.8rem 1.2rem; gap: 0.8rem; }
+  .panel { padding: 0.8rem 1rem; }
+  #versionBadge { bottom: 4px; }
 }
 
 .panel {
@@ -969,7 +984,7 @@ button.secondary:hover, .server-btn:hover, .settings-action:hover { border-color
 input, select, textarea {
   background: var(--panel-2); color: var(--text);
   border: 1px solid var(--border); border-radius: 8px; padding: 0.5rem 0.7rem;
-  font-family: "Inter", sans-serif;
+  font-family: "Inter", sans-serif; max-width: 100%;
 }
 input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); }
 
