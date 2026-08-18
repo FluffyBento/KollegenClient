@@ -256,7 +256,7 @@ pub fn ensure_kollegen_mod(data_dir: &Path, name: &str, loader: &str) {
 /// Lädt die Kollegen-Client-Mod aus dem aktuellen GitHub-Release herunter.
 /// Best-effort: gibt `false` zurück, wenn das nicht klappt.
 fn download_kollegen_mod(dest: &Path) -> bool {
-    let url = "https://github.com/JonasKoenig43/Kollegen-Client/releases/latest/download/kollegen-client-mod.jar";
+    let url = "https://github.com/FluffyBento/KollegenClient/releases/latest/download/kollegen-client-mod.jar";
     let client = match reqwest::blocking::Client::builder()
         .user_agent(crate::USER_AGENT)
         .build()

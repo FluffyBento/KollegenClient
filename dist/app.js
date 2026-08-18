@@ -309,8 +309,8 @@ async function refreshLogs() {
         invoke("kollegen_me"),
         invoke("kollegen_friends"),
       ]);
-      socialMe = me && !me.error ? me : null;
-      socialFriends = friends && !friends.error ? friends : [];
+      socialMe = me && !me.error ? normalizeProfile(me) : null;
+      socialFriends = (friends && !friends.error ? friends : []).map(normalizeFriend);
       renderProfileWidget();
       renderFriendsWidget();
       renderSocialPanel();
@@ -319,24 +319,86 @@ async function refreshLogs() {
     }
   }
 
+  // Das Backend liefert /me als {id,name,uuid,code,accounts} und /friends als
+  // [{id,name,uuid,code,server,online}]. Die Anzeige erwartet mc_name /
+  // friend_code / global_name / username / avatar – wir normalisieren hier zentral.
+  function normalizeProfile(me) {
+    if (!me) return me;
+    const accts = Array.isArray(me.accounts) ? me.accounts : [];
+    const disc = accts.find((a) => (a.type || "").toLowerCase().indexOf("discord") >= 0) || null;
+    const avatar = (disc && (disc.avatar_url || disc.avatar)) || me.avatar || "";
+    const name = me.name || me.mc_name || me.username || (disc && (disc.global_name || disc.username)) || "";
+    return {
+      id: me.id || (disc && disc.id) || "",
+      mc_name: name,
+      username: name,
+      global_name: name,
+      friend_code: me.code || me.friend_code || "",
+      uuid: me.uuid || null,
+      avatar,
+      accounts: accts,
+    };
+  }
+
+  function normalizeFriend(f) {
+    if (!f) return f;
+    const accts = Array.isArray(f.accounts) ? f.accounts : [];
+    const disc = accts.find((a) => (a.type || "").toLowerCase().indexOf("discord") >= 0) || null;
+    const avatar = (disc && (disc.avatar_url || disc.avatar)) || f.avatar || "";
+    const name = f.name || f.mc_name || f.global_name || f.username || "";
+    return {
+      id: f.id || "",
+      mc_name: name,
+      username: name,
+      global_name: name,
+      uuid: f.uuid || null,
+      server: f.server || null,
+      online: !!f.online,
+      avatar,
+      accounts: accts,
+    };
+  }
+
   function avatarUrl(u) {
-    if (u && u.avatar) return `https://cdn.discordapp.com/avatars/${u.id}/${u.avatar}.png`;
+    if (!u) return "";
+    if (u.avatar && /^https?:\/\//.test(u.avatar)) return u.avatar;
+    if (u.avatar && u.id) return `https://cdn.discordapp.com/avatars/${u.id}/${u.avatar}.png`;
     return "";
   }
 
   function renderProfileWidget() {
     const w = $("profileWidget");
-    if (!w) return;
-    if (!socialMe) {
-      $("pwAvatar").style.display = "none";
-      $("pwName").textContent = "nicht verbunden";
-      $("pwDiscord").textContent = "";
-      return;
+    if (w) {
+      if (!socialMe) {
+        $("pwAvatar").style.display = "none";
+        $("pwName").textContent = "nicht verbunden";
+        $("pwDiscord").textContent = "";
+      } else {
+        const url = avatarUrl(socialMe);
+        if (url) { $("pwAvatar").src = url; $("pwAvatar").style.display = ""; }
+        $("pwName").textContent = socialMe.mc_name || socialMe.username || "—";
+        $("pwDiscord").textContent = socialMe.global_name || socialMe.username || "";
+      }
     }
-    const url = avatarUrl(socialMe);
-    if (url) { $("pwAvatar").src = url; $("pwAvatar").style.display = ""; }
-    $("pwName").textContent = socialMe.mc_name || socialMe.username || "—";
-    $("pwDiscord").textContent = socialMe.global_name || socialMe.username || "";
+    // Profil-Block im Sozial-Panel (einziger Social-Hub, kein doppeltes HUD).
+    const spName = $("spName");
+    const spDiscord = $("spDiscord");
+    const spAvatar = $("spAvatar");
+    if (spName) {
+      if (!socialMe) {
+        spName.textContent = "nicht verbunden";
+        if (spDiscord) spDiscord.textContent = "";
+        if (spAvatar) spAvatar.style.display = "none";
+      } else {
+        spName.textContent = socialMe.mc_name || "—";
+        if (spDiscord) spDiscord.textContent = socialMe.global_name || socialMe.username || "";
+        if (spAvatar) {
+          const url = avatarUrl(socialMe);
+          if (url) { spAvatar.src = url; spAvatar.style.display = ""; }
+          else spAvatar.style.display = "none";
+        }
+      }
+    }
   }
 
   function renderFriendsWidget() {
@@ -770,6 +832,10 @@ pushTheme();
 
 // Vollständige Farbpaletten je Theme + Modus. Schlüssel = Theme-Name.
 const THEMES = {
+  Kollegen: {
+    dark:  { bg:"#0a0c10", panel:"#12141d", panel2:"#161922", accent:"#ffaa00", accent2:"#f5c518", text:"#ededed", muted:"#9ca3af", border:"#282d3d", danger:"#ff5b6e" },
+    light: { bg:"#f4f1ea", panel:"#ffffff", panel2:"#efe9dd", accent:"#c98a00", accent2:"#f5c518", text:"#1a1a1a", muted:"#6b6b6b", border:"#d8d2c4", danger:"#d83a4c" },
+  },
   Limit_Los: {
     dark:  { bg:"#1a0d0d", panel:"#241313", panel2:"#2e1717", accent:"#e6332a", accent2:"#b71c1c", text:"#f3e9e9", muted:"#c9a9a9", border:"#3a2222", danger:"#ff5b6e" },
     light: { bg:"#fbeeee", panel:"#f3dcdc", panel2:"#ecd0d0", accent:"#e6332a", accent2:"#b71c1c", text:"#2b1414", muted:"#7a4f4f", border:"#e0b8b8", danger:"#d83a4c" },
@@ -815,14 +881,14 @@ async function loadSettingsOnce() {
   try {
     currentSettings = await invoke("get_settings");
   } catch (e) {
-    currentSettings = { theme: "Limit_Los", theme_mode: "dark" };
+    currentSettings = { theme: "Kollegen", theme_mode: "dark" };
   }
   return currentSettings;
 }
 
 function applyTheme(name, mode) {
   const theme = THEMES[name];
-  const pal = theme ? (theme[mode] || theme.dark) : THEMES.Limit_Los.dark;
+  const pal = theme ? (theme[mode] || theme.dark) : THEMES.Kollegen.dark;
   const r = document.documentElement.style;
   r.setProperty("--bg", pal.bg);
   r.setProperty("--panel", pal.panel);
@@ -840,7 +906,7 @@ function applyTheme(name, mode) {
 
 async function applySavedTheme() {
   const s = await loadSettingsOnce();
-  const name = THEMES[s.theme] ? s.theme : "Limit_Los";
+  const name = THEMES[s.theme] ? s.theme : "Kollegen";
   const mode = s.theme_mode === "light" ? "light" : "dark";
   applyTheme(name, mode);
 }
@@ -1165,6 +1231,8 @@ $("socialsBtn").onclick = () => {
   refreshSocial();
 };
 $("profileWidget").onclick = () => openProfileModal();
+const openProfileBtn = $("openProfileBtn");
+if (openProfileBtn) openProfileBtn.onclick = () => openProfileModal();
 $("profileClose").onclick = () => { $("profileModal").style.display = "none"; };
 $("pmCopy").onclick = () => { if (socialMe) copyText(socialMe.friend_code); };
 $("friendCodeAdd").onclick = async () => {

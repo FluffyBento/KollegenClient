@@ -76,7 +76,9 @@
   "bundle": {
     "active": true,
     "createUpdaterArtifacts": true,
-    "resources": [],
+    "resources": [
+      "resources/"
+    ],
     "targets": [
       "app",
       "dmg",
