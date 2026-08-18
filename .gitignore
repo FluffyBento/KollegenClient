@@ -14,3 +14,7 @@ kollegen-mod/.idea/
 
 # Tauri updater signing secret key (minisign box format)
 minisign.key
+
+# Server SSH keys (never commit)
+Kollegenserver
+Kollegenserver.pub
