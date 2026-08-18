@@ -1,5 +1,6 @@
 LEUTE DAS HIER IST ALPHA SHIT
 
+![Logo](Logo.png)
 
 Errors bitte kopieren und Screenshots machen und bei Issues adden
 
