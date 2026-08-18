@@ -18,3 +18,6 @@ minisign.key
 # Server SSH keys (never commit)
 Kollegenserver
 Kollegenserver.pub
+
+# Backend server runtime data (friends/presence store)
+server/data/

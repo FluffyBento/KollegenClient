@@ -54,6 +54,24 @@ fn now_secs() -> u64 {
         .unwrap_or(0)
 }
 
+/// Liefert das aktive Minecraft-Profil (uuid + name) als JSON-Value, damit das
+/// Backend bei `/auth` den Kollegen-User mit MC-Daten anlegen kann.
+fn mc_profile_value(data_dir: &PathBuf) -> Option<serde_json::Value> {
+    let accounts = crate::utils::load_json::<Vec<crate::types::Account>>(
+        &crate::utils::accounts_file(data_dir),
+        Vec::new(),
+    );
+    let acc = accounts.into_iter().next()?;
+    if acc.uuid.is_empty() {
+        return None;
+    }
+    Some(serde_json::json!({
+        "uuid": acc.uuid,
+        "name": acc.username,
+        "accounts": [{ "type": "microsoft", "name": acc.username }]
+    }))
+}
+
 /// Liefert einen gültigen Discord-Access-Token (refresht ihn ggf.).
 fn discord_access_token(data_dir: &PathBuf) -> Option<String> {
     let tok = crate::discord_auth::load_token(data_dir)?;
@@ -136,10 +154,11 @@ fn ensure_session(
         return Some(s);
     }
     let url = format!("{}/auth", backend);
-    let resp = client
-        .post(&url)
-        .json(&serde_json::json!({ "discord_token": discord_token }))
-        .send();
+    let mut body = serde_json::json!({ "discord_token": discord_token });
+    if let Some(profile) = mc_profile_value(data_dir) {
+        body["profile"] = profile;
+    }
+    let resp = client.post(&url).json(&body).send();
     let resp = match resp {
         Ok(r) => r,
         Err(e) => {
