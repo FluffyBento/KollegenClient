@@ -11,6 +11,7 @@
   --muted: #9ca3af;
   --border: #282d3d;
   --danger: #ff5b6e;
+  --sidebar-w: 56px;
 }
 
 * { box-sizing: border-box; }
@@ -31,6 +32,10 @@ body {
     var(--bg);
   min-height: 100vh;
   overflow-x: hidden;
+  /* Die fixierte Sidebar (links, --sidebar-w breit) liegt über diesem
+     Padding; header/main sind im Normalfluss und rücken dadurch sauber
+     neben die Sidebar – unabhängig von Media-Queries. */
+  padding-left: var(--sidebar-w);
 }
 
 h1, h2, h3, h4 {
@@ -645,9 +650,6 @@ pre {
 .icon-btn { background: none; border: none; color: var(--muted); font-size: 1.1rem; cursor: pointer; }
 .icon-btn:hover { color: var(--text); }
 
-/* shift page content to the right of the fixed sidebar */
-header, main { padding-left: 56px; }
-
 .discord-status { font-weight: 600; }
 .discord-avatar { width: 28px; height: 28px; border-radius: 50%; }
 
@@ -862,10 +864,12 @@ header, main { padding-left: 56px; }
 
 .hud-friends {
   top: 64px;
-  left: 14px;
+  left: calc(var(--sidebar-w) + 12px);
   width: 230px;
   max-height: 60vh;
   overflow-y: auto;
+  /* unter dem Socials-Drawer (z-index 19), damit dieser ihn sauber überdeckt */
+  z-index: 15;
 }
 .hud-friends-head {
   font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em;
@@ -1074,7 +1078,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 .toast-error { border-left-color: var(--danger); }
 
 /* Allgemeine Layout-Politur */
-main { gap: 1.2rem; padding: 1.5rem; align-content: start; }
+main { gap: 1.2rem; align-content: start; }
 .panel h2 { color: var(--accent); margin-top: 0; }
 ul#instanceList li, .account-list li, .import-list li {
   background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
