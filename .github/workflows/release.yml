@@ -47,9 +47,9 @@ jobs:
           gradle-version: '8.14'
           build-root-directory: kollegen-mod
           arguments: build
-          # Force a fresh Gradle home so Loom re-downloads Minecraft instead of
-          # restoring a poisoned cache with an empty compile classpath.
-          gradle-home-cache-clean: true
+          # Disable Gradle caching so Loom re-downloads Minecraft instead of
+          # restoring a poisoned cache that yields an empty compile classpath.
+          cache-disabled: true
 
       - name: Publish companion mod jar to release
         env:
@@ -154,6 +154,50 @@ jobs:
             KollegenClient.exe
             KollegenClient.exe.sig
 
+  macos:
+    needs: create-release
+    runs-on: macos-latest
+    env:
+      TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+      TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""
+      MACOSX_DEPLOYMENT_TARGET: "11.0"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install yarn
+        run: npm install -g yarn
+
+      - name: Install frontend dependencies
+        run: yarn install
+
+      - name: Install Tauri CLI
+        run: npm install -g @tauri-apps/cli@^2
+
+      - name: Build macOS bundles (app + dmg + updater artifact)
+        run: tauri build --config tauri.conf.json --bundles app,dmg
+
+      - name: Collect release artifacts
+        run: |
+          mkdir -p release_artifacts
+          cp target/release/bundle/dmg/*.dmg release_artifacts/ 2>/dev/null || true
+          cp target/release/bundle/macos/*.app.tar.gz release_artifacts/ 2>/dev/null || true
+          cp target/release/bundle/macos/*.app.tar.gz.sig release_artifacts/ 2>/dev/null || true
+          ls -la release_artifacts
+
+      - name: Publish to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: "release_artifacts/*"
+
   updater-manifest:
     needs: [linux, windows]
     runs-on: ubuntu-latest
@@ -167,6 +211,7 @@ jobs:
             --repo "${{ github.repository }}" \
             --pattern "KollegenClient.AppImage.sig" \
             --pattern "KollegenClient.exe.sig" \
+            --pattern "KollegenClient.app.tar.gz.sig" \
             --dir sigs || true
           ls -la sigs
 
@@ -177,6 +222,7 @@ jobs:
           PUB_DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ)
           LINUX_SIG=$(cat sigs/KollegenClient.AppImage.sig 2>/dev/null || echo "")
           WIN_SIG=$(cat sigs/KollegenClient.exe.sig 2>/dev/null || echo "")
+          MAC_SIG=$(cat sigs/KollegenClient.app.tar.gz.sig 2>/dev/null || echo "")
           cat > latest.json <<EOF
           {
             "version": "${TAG#v}",
@@ -185,6 +231,7 @@ jobs:
             "platforms": {
               "linux-x86_64": { "signature": "${LINUX_SIG}", "url": "${BASE}/KollegenClient.AppImage" },
               "windows-x86_64": { "signature": "${WIN_SIG}", "url": "${BASE}/KollegenClient.exe" }
+              $([ -n "$MAC_SIG" ] && echo ', "darwin-aarch64": { "signature": "'"$MAC_SIG"'", "url": "'"${BASE}/KollegenClient.app.tar.gz"'" }')
             }
           }
           EOF
