@@ -8,6 +8,7 @@ mod app_updates;
 mod auth;
 mod companion;
 mod import;
+mod presence;
 mod discord;
 mod discord_auth;
 mod instance;
@@ -831,6 +832,13 @@ fn import_instance(
         .map_err(|e| e.to_string())
 }
 
+/// Importiert ein Modrinth-Modpack (`.mrpack` oder `.zip` mit
+/// `modrinth.index.json`) als neue Instanz.
+#[tauri::command]
+fn import_pack(state: State<'_, AppState>, path: String) -> Result<types::Instance, String> {
+    crate::instance::import_pack(&state.data_dir, &path).map_err(|e| e.to_string())
+}
+
 #[tauri::command]
 async fn check_app_update(app: tauri::AppHandle) -> Result<Option<Value>, String> {
     match crate::app_updates::check_info(&app).await {
@@ -880,6 +888,9 @@ fn main() {
     std::fs::create_dir_all(&data_dir).expect("Could not create data directory");
 
     let discord = discord::start(data_dir.clone());
+    // Presence-Reporter: meldet die im Spiel erkannte Server-Präsenz an das
+    // externe Backend, damit andere Kollegen-Client-Nutzer markiert werden.
+    presence::start(data_dir.clone());
     // Initial "in launcher" presence (only shows if Discord is running).
     let _ = discord.tx.send(discord::RpcMessage::Set {
         details: "Kollegen Client".to_string(),
@@ -951,6 +962,7 @@ fn main() {
             detect_launchers,
             list_launcher_instances,
             import_instance,
+            import_pack,
             check_app_update,
             install_app_update,
         ])

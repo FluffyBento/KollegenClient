@@ -47,6 +47,14 @@ pub struct Settings {
     #[serde(default)]
     pub theme_mode: String,
     pub proxy: Option<String>,
+    /// Basis-URL des externen Presence-Backends (z. B. "https://presence.kollegen.dev").
+    /// Leer = Presence-Feature aus. Umgebungsvariable KOLLEGEN_PRESENCE_BACKEND hat Vorrang.
+    #[serde(default)]
+    pub presence_backend: String,
+    /// Optionales Bearer-Token für das Presence-Backend. Umgebungsvariable
+    /// KOLLEGEN_PRESENCE_TOKEN hat Vorrang.
+    #[serde(default)]
+    pub presence_token: String,
 }
 
 impl Default for Settings {
@@ -62,6 +70,8 @@ impl Default for Settings {
             theme: "Limit_Los".to_string(),
             theme_mode: "dark".to_string(),
             proxy: None,
+            presence_backend: String::new(),
+            presence_token: String::new(),
         }
     }
 }

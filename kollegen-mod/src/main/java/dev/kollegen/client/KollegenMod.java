@@ -67,5 +67,8 @@ public class KollegenMod implements ClientModInitializer {
 
         // ── Rich Presence aktualisieren ──
         KollegenRPC.tick(mc);
+
+        // ── Kollegen-Presence (Icon neben Namen in der Tab-Liste) ──
+        dev.kollegen.client.presence.Presence.tick();
     }
 }

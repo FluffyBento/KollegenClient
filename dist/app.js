@@ -936,6 +936,39 @@ $("importScanBtn").onclick = async () => {
   }
 };
 
+$("importPackBtn").onclick = async () => {
+  const status = $("importStatus");
+  status.textContent = "Wähle eine .mrpack- oder .zip-Datei…";
+  const open = window.__TAURI__.dialog?.open || window.__TAURI__.pluginDialog?.open;
+  if (!open) {
+    status.textContent = "Datei-Dialog nicht verfügbar.";
+    return;
+  }
+  let path;
+  try {
+    path = await open({
+      title: "Modpack importieren",
+      multiple: false,
+      filters: [{ name: "Modpack", extensions: ["mrpack", "zip"] }],
+    });
+  } catch (e) {
+    status.textContent = "Fehler: " + e;
+    return;
+  }
+  if (!path) {
+    status.textContent = "";
+    return;
+  }
+  status.textContent = "Importiere Modpack…";
+  try {
+    const inst = await invoke("import_pack", { path });
+    status.textContent = `Modpack '${inst.name}' importiert.`;
+    refreshInstances();
+  } catch (e) {
+    status.textContent = "Fehler: " + e;
+  }
+};
+
 async function showLauncherInstances(launcherId) {
   const list = $("importInstanceList");
   list.innerHTML = "";

@@ -27,6 +27,23 @@ public class KollegenConfig {
     /** Stärke der Farbhervorhebung (0.0–1.0). */
     public float highlightAmount = 0.6f;
 
+    /** Presence: sollen andere Kollegen-Client-Nutzer im Spiel markiert werden? */
+    public boolean presenceEnabled = false;
+
+    /**
+     * Basis-URL des externen Presence-Backends, z. B.
+     * "https://presence.kollegen.dev". Leer = Feature aus.
+     * Kann auch über die Umgebungsvariable KOLLEGEN_PRESENCE_BACKEND
+     * gesetzt werden (hat Vorrang vor dieser Einstellung).
+     */
+    public String presenceBackend = "";
+
+    /**
+     * Optionales Bearer-Token, das im Header "Authorization: Bearer …"
+     * an das Backend geschickt wird. Leer = kein Token.
+     */
+    public String presenceToken = "";
+
     /** Kurzschreibweise: irgendein Farb-FX aktiv? (fürs Rendering) */
     public boolean colorFxActive() {
         return colorSaturation != 1.0f || colorHighlight;

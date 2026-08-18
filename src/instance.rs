@@ -10,6 +10,7 @@ use std::fs;
 use std::path::Path;
 use std::process::{Command, Stdio};
 use std::io::Write;
+use std::io::Read;
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
@@ -1095,6 +1096,208 @@ fn collect_jars(dir: &Path) -> Vec<String> {
         }
     }
     result
+}
+
+// ─=== Modrinth Modpack Import (.mrpack / .zip) ===
+
+/// Replaces filesystem-unfriendly characters so the pack name is a safe
+/// instance directory name.
+fn sanitize_name(name: &str) -> String {
+    let cleaned: String = name
+        .trim()
+        .chars()
+        .map(|c| match c {
+            '/' | '\\' | ':' | '*' | '?' | '"' | '<' | '>' | '|' => '_',
+            c => c,
+        })
+        .collect();
+    if cleaned.is_empty() {
+        "Modpack".to_string()
+    } else {
+        cleaned
+    }
+}
+
+/// Imports a Modrinth modpack (`.mrpack` or a `.zip` containing
+/// `modrinth.index.json`) as a new instance: parses the index, creates the
+/// instance, installs Minecraft + loader and downloads all client-side files
+/// (mods, resource packs, shaders, …) declared in the pack.
+pub fn import_pack(data_dir: &Path, path: &str) -> Result<Instance> {
+    let file = fs::File::open(path)
+        .map_err(|e| anyhow!("Konnte Paket nicht öffnen: {}", e))?;
+    let mut archive = zip::ZipArchive::new(file)
+        .map_err(|e| anyhow!("Datei ist kein gültiges zip: {}", e))?;
+
+    // Find modrinth.index.json (case-insensitive, anywhere in the archive).
+    let mut index_name = None;
+    for i in 0..archive.len() {
+        if let Ok(f) = archive.by_index(i) {
+            let lower = f.name().to_lowercase();
+            if lower == "modrinth.index.json" || lower.ends_with("/modrinth.index.json") {
+                index_name = Some(f.name().to_string());
+                break;
+            }
+        }
+    }
+    let index_name = index_name.ok_or_else(|| {
+        anyhow!(
+            "Kein Modrinth-Pack erkannt (modrinth.index.json fehlt). Nur .mrpack / Modrinth-zip werden unterstützt."
+        )
+    })?;
+
+    let mut idx_file = archive
+        .by_name(&index_name)
+        .map_err(|e| anyhow!("Konnte Index nicht lesen: {}", e))?;
+    let mut index_str = String::new();
+    idx_file
+        .read_to_string(&mut index_str)
+        .map_err(|e| anyhow!("Index ungültig: {}", e))?;
+    let index: Value = serde_json::from_str(&index_str)
+        .map_err(|e| anyhow!("modrinth.index.json Parse-Fehler: {}", e))?;
+
+    let game = index
+        .get("game")
+        .and_then(|g| g.as_str())
+        .unwrap_or("minecraft");
+    if game != "minecraft" {
+        return Err(anyhow!(
+            "Nur Minecraft-Packs werden unterstützt (game={}).",
+            game
+        ));
+    }
+
+    let deps = index
+        .get("dependencies")
+        .and_then(|d| d.as_object())
+        .ok_or_else(|| anyhow!("Keine dependencies im Pack."))?;
+    let mc_version = deps
+        .get("minecraft")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| anyhow!("Minecraft-Version fehlt im Pack."))?
+        .to_string();
+
+    // Loader + Loader-Version aus den dependencies ableiten.
+    let (loader, loader_version) = if let Some(v) =
+        deps.get("fabric-loader").and_then(|v| v.as_str())
+    {
+        ("fabric".to_string(), Some(v.to_string()))
+    } else if let Some(v) = deps.get("forge").and_then(|v| v.as_str()) {
+        ("forge".to_string(), Some(v.to_string()))
+    } else if let Some(v) = deps.get("neoforge").and_then(|v| v.as_str()) {
+        ("neoforge".to_string(), Some(v.to_string()))
+    } else if let Some(v) = deps.get("quilt-loader").and_then(|v| v.as_str()) {
+        ("quilt".to_string(), Some(v.to_string()))
+    } else {
+        ("vanilla".to_string(), None)
+    };
+
+    let pack_name = index
+        .get("name")
+        .and_then(|n| n.as_str())
+        .unwrap_or("Importiertes Pack")
+        .to_string();
+    let summary = index
+        .get("summary")
+        .and_then(|s| s.as_str())
+        .unwrap_or("")
+        .to_string();
+
+    // Instance anlegen (eindeutigen Namen sicherstellen).
+    let inst_path = crate::utils::instances_file(data_dir);
+    let mut instances = crate::utils::load_json::<Vec<Instance>>(&inst_path, vec![]);
+    let base = sanitize_name(&pack_name);
+    let mut name = base.clone();
+    let mut n = 2;
+    while instances.iter().any(|i| i.name == name) {
+        name = format!("{} ({})", base, n);
+        n += 1;
+    }
+
+    let inst = Instance {
+        id: uuid::Uuid::new_v4().to_string(),
+        name: name.clone(),
+        version: mc_version.clone(),
+        loader: loader.clone(),
+        loader_version,
+        description: summary,
+        mods: vec!["essentialmod.jar".to_string()],
+        vulkan_enabled: true,
+        memory_min: crate::DEFAULT_MEMORY_MIN.to_string(),
+        memory_max: crate::DEFAULT_MEMORY_MAX.to_string(),
+        created_at: chrono::Utc::now().to_rfc3339(),
+        last_played: None,
+        java_args: None,
+        server: None,
+    };
+
+    instances.push(inst.clone());
+    crate::utils::save_json(&inst_path, &instances)?;
+
+    // Minecraft + Loader installieren.
+    info!("Importiere Modpack '{}' (MC {})…", name, mc_version);
+    install_instance(
+        data_dir,
+        &name,
+        &mc_version,
+        &loader,
+        inst.loader_version.as_deref(),
+    )?;
+
+    // Pack-Dateien herunterladen (nur client-seitige).
+    let inst_dir = crate::utils::instance_dir(data_dir, &name);
+    let client = reqwest::blocking::Client::builder()
+        .user_agent(crate::USER_AGENT)
+        .timeout(Duration::from_secs(120))
+        .build()?;
+    if let Some(files) = index.get("files").and_then(|f| f.as_array()) {
+        for f in files {
+            let fpath = match f.get("path").and_then(|p| p.as_str()) {
+                Some(p) => p,
+                None => continue,
+            };
+            // Nur client-seitige Dateien (env.client != "unsupported").
+            if let Some(env) = f.get("env").and_then(|e| e.as_object()) {
+                let client_env = env
+                    .get("client")
+                    .and_then(|c| c.as_str())
+                    .unwrap_or("required");
+                if client_env == "unsupported" {
+                    continue;
+                }
+            }
+            let downloads = match f.get("downloads").and_then(|d| d.as_array()) {
+                Some(d) if !d.is_empty() => d,
+                _ => continue,
+            };
+            let url = match downloads[0].as_str() {
+                Some(u) => u.to_string(),
+                None => continue,
+            };
+            let dest = inst_dir.join(fpath);
+            if let Some(parent) = dest.parent() {
+                let _ = fs::create_dir_all(parent);
+            }
+            if dest.exists() {
+                continue;
+            }
+            info!("Lade Pack-Datei {}…", fpath);
+            if let Err(e) = crate::utils::download_file_client(&client, &url, &dest) {
+                warn!("Konnte {} nicht laden: {}", fpath, e);
+            } else if let Some(h) = f
+                .get("hashes")
+                .and_then(|h| h.get("sha1"))
+                .and_then(|h| h.as_str())
+            {
+                if let Ok(bytes) = fs::read(&dest) {
+                    if crate::utils::sha1_hex(&bytes) != h {
+                        warn!("SHA1 stimmt nicht überein bei {} (ignoriert).", fpath);
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(inst)
 }
 
 
