@@ -15,6 +15,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Remove any existing release for this tag (idempotent re-runs)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release delete "${{ github.ref_name }}" --yes || true
+
       - name: Create release
         uses: softprops/action-gh-release@v2
         with:
@@ -38,7 +43,7 @@ jobs:
       - name: Build Kollegen Client companion mod (Fabric)
         uses: gradle/gradle-build-action@v3
         with:
-          gradle-version: '8.10'
+          gradle-version: '8.14'
           build-root-directory: kollegen-mod
           arguments: build
 
@@ -64,7 +69,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
 
       - name: Install dependencies
         run: |
@@ -113,7 +118,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
 
       - name: Install yarn
         run: npm install -g yarn

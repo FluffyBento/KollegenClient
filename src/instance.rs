@@ -84,17 +84,21 @@ fn fit_logo_square(png: &[u8]) -> Vec<u8> {
     let y = ((SIZE as i64 - nh as i64) / 2) as i64;
     image::imageops::overlay(&mut canvas, &resized, x, y);
     let mut buf = Vec::new();
-    if image::DynamicImage::ImageRgba8(canvas)
-        .write_to(
-            &mut std::io::Cursor::new(&mut buf),
-            image::ImageOutputFormat::Png,
-        )
-        .is_ok()
     {
-        buf
-    } else {
-        png.to_vec()
+        let encoder = image::png::PngEncoder::new(&mut buf);
+        if encoder
+            .encode(
+                canvas.as_raw(),
+                canvas.width(),
+                canvas.height(),
+                image::ColorType::Rgba8,
+            )
+            .is_ok()
+        {
+            return buf;
+        }
     }
+    png.to_vec()
 }
 
 /// Builds the title-logo resource pack zip in memory, rewriting `pack.mcmeta`

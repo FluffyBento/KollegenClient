@@ -290,6 +290,7 @@ pub fn import_instance(
     let (_, version, loader) = parse_instance(kind, &src);
     let (java_args, mem_min, mem_max) = parse_import_settings(kind, &src);
     let inst = Instance {
+        id: uuid::Uuid::new_v4().to_string(),
         name: dest_name.clone(),
         version,
         loader,

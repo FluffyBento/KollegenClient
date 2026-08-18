@@ -155,8 +155,6 @@ fn create_instance(
     let dir = utils::instance_dir(&state.data_dir, &name);
     std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
 
-    let path = utils::instances_file(&state.data_dir);
-    let mut instances = utils::load_json::<Vec<types::Instance>>(&path, vec![]);
     instances.push(inst.clone());
     utils::save_json(&path, &instances).map_err(|e| e.to_string())?;
 
