@@ -227,9 +227,18 @@ jobs:
       - name: Collect release artifacts
         run: |
           mkdir -p release_artifacts
-          cp target/release/bundle/dmg/*.dmg release_artifacts/ 2>/dev/null || true
-          cp target/release/bundle/macos/*.app.tar.gz release_artifacts/ 2>/dev/null || true
-          cp target/release/bundle/macos/*.app.tar.gz.sig release_artifacts/ 2>/dev/null || true
+          # Bei Universal-Builds landen die Bundles unter dem Target-Triple-Pfad.
+          SRC="target/universal-apple-darwin/release/bundle"
+          cp "$SRC"/dmg/*.dmg release_artifacts/ 2>/dev/null || true
+          # Updater-Archiv + Signatur auf vorhersehbare Namen umbenennen, damit
+          # der updater-manifest-Job sie wiederfindet.
+          APP_TAR=$(ls "$SRC"/macos/*.app.tar.gz 2>/dev/null | head -n1)
+          if [ -n "$APP_TAR" ]; then
+            cp "$APP_TAR" release_artifacts/KollegenClient.app.tar.gz
+            if [ -f "${APP_TAR}.sig" ]; then
+              cp "${APP_TAR}.sig" release_artifacts/KollegenClient.app.tar.gz.sig
+            fi
+          fi
           ls -la release_artifacts
 
       - name: Publish to GitHub Release
