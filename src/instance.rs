@@ -85,18 +85,15 @@ fn fit_logo_square(png: &[u8]) -> Vec<u8> {
     image::imageops::overlay(&mut canvas, &resized, x, y);
     let mut buf = Vec::new();
     {
-        let encoder = image::png::PngEncoder::new(&mut buf);
-        if encoder
-            .encode(
-                canvas.as_raw(),
-                canvas.width(),
-                canvas.height(),
-                image::ColorType::Rgba8,
-            )
+        let img = image::DynamicImage::ImageRgba8(canvas);
+        let mut cursor = std::io::Cursor::new(buf);
+        if img
+            .write_to(&mut cursor, image::ImageFormat::Png)
             .is_ok()
         {
-            return buf;
+            return cursor.into_inner();
         }
+        buf = cursor.into_inner();
     }
     png.to_vec()
 }
