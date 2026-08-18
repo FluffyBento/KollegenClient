@@ -288,6 +288,22 @@ pub fn fetch_friends(data_dir: &Path) -> Vec<serde_json::Value> {
     result
 }
 
+/// Aktive Login-Session (PKCE-Verifier + State). Wird global gehalten, damit
+/// der (einzige) gebundene Callback-Server immer gegen die *neueste* Session
+/// validiert – auch wenn der Nutzer den Login mehrfach auslöst oder einen
+/// abbricht und erneut startet. Sonst prüft ein noch lebender alter Server
+/// gegen ein veraltetes State und wirft "State stimmt nicht überein".
+#[derive(Clone)]
+struct OAuthSession {
+    verifier: String,
+    state: String,
+}
+
+lazy_static! {
+    static ref OAUTH_SESSION: std::sync::Mutex<Option<OAuthSession>> =
+        std::sync::Mutex::new(None);
+}
+
 fn random_base64url(bytes: usize) -> String {
     use rand::Rng;
     let mut buf = vec![0u8; bytes];
@@ -350,11 +366,21 @@ fn exchange_token(code: &str, verifier: &str, data_dir: &Path) -> Result<(), Str
 
 /// Runs a minimal localhost HTTP server that waits for Discord's redirect,
 /// exchanges the code for a token, and shows a "done" page in the browser.
-fn run_callback_server(verifier: String, expected_state: String, data_dir: std::path::PathBuf) {
+/// State/Verifier werden aus dem globalen `OAUTH_SESSION` gelesen, damit auch
+/// ein bereits laufender Server (von einem vorherigen Login-Versuch) den
+/// aktuellen State akzeptiert.
+fn run_callback_server(data_dir: std::path::PathBuf) {
     let listener = match TcpListener::bind(("127.0.0.1", CALLBACK_PORT)) {
         Ok(l) => l,
         Err(e) => {
-            eprintln!("[discord_auth] Callback-Server konnte Port {} nicht binden: {}", CALLBACK_PORT, e);
+            // Port schon belegt (z. B. ein vorheriger Callback-Server aus diesem
+            // oder einem anderen Prozess läuft noch). Wir verlassen uns darauf,
+            // dass jener Server den Redirect bearbeitet – er validiert gegen
+            // dieselbe globale Session.
+            eprintln!(
+                "[discord_auth] Callback-Server konnte Port {} nicht binden (läuft evtl. schon): {}",
+                CALLBACK_PORT, e
+            );
             return;
         }
     };
@@ -377,39 +403,52 @@ fn run_callback_server(verifier: String, expected_state: String, data_dir: std::
                 let path = first_line.split_whitespace().nth(1).unwrap_or("");
                 let query = path.splitn(2, '?').nth(1).unwrap_or("");
 
-                let mut code = "";
-                let mut returned_state = "";
+                let mut code = String::new();
+                let mut returned_state = String::new();
                 for kv in query.split('&') {
                     let mut it = kv.splitn(2, '=');
                     let k = it.next().unwrap_or("");
                     let v = it.next().unwrap_or("");
                     if k == "code" {
-                        code = v;
+                        code = v.to_string();
                     } else if k == "state" {
-                        returned_state = v;
+                        // Discord kann State percent-kodieren – sicher decodieren.
+                        returned_state = urlencoding::decode(v).unwrap_or_default().to_string();
                     }
                 }
 
-                let (status_line, body): (&str, String) = if code.is_empty() {
-                    (
-                        "HTTP/1.1 400 Bad Request",
-                        "<h2>Authentifizierung fehlgeschlagen.</h2>".to_string(),
-                    )
-                } else if returned_state != expected_state {
-                    (
-                        "HTTP/1.1 403 Forbidden",
-                        "<h2>State stimmt nicht überein.</h2>".to_string(),
-                    )
-                } else {
-                    match exchange_token(code, &verifier, &data_dir) {
-                        Ok(()) => (
-                            "HTTP/1.1 200 OK",
-                            "<h2>Erfolgreich mit Discord verbunden!</h2><p>Du kannst dieses Fenster schließen.</p>".to_string(),
+                let (status_line, body): (&str, String) = {
+                    let session = OAUTH_SESSION.lock().unwrap().clone();
+                    match session {
+                        None => (
+                            "HTTP/1.1 403 Forbidden",
+                            "<h2>Kein aktiver Login-Vorgang. Bitte erneut versuchen.</h2>"
+                                .to_string(),
                         ),
-                        Err(e) => (
-                            "HTTP/1.1 500 Internal Server Error",
-                            format!("<h2>Fehler:</h2><pre>{}</pre>", e),
-                        ),
+                        Some(s) => {
+                            if code.is_empty() {
+                                (
+                                    "HTTP/1.1 400 Bad Request",
+                                    "<h2>Authentifizierung fehlgeschlagen.</h2>".to_string(),
+                                )
+                            } else if returned_state != s.state {
+                                (
+                                    "HTTP/1.1 403 Forbidden",
+                                    "<h2>State stimmt nicht überein. Schließe ggf. weitere Launcher-Fenster und starte den Login erneut.</h2>".to_string(),
+                                )
+                            } else {
+                                match exchange_token(&code, &s.verifier, &data_dir) {
+                                    Ok(()) => (
+                                        "HTTP/1.1 200 OK",
+                                        "<h2>Erfolgreich mit Discord verbunden!</h2><p>Du kannst dieses Fenster schließen.</p>".to_string(),
+                                    ),
+                                    Err(e) => (
+                                        "HTTP/1.1 500 Internal Server Error",
+                                        format!("<h2>Fehler:</h2><pre>{}</pre>", e),
+                                    ),
+                                }
+                            }
+                        }
                     }
                 };
 
@@ -453,9 +492,17 @@ pub fn start_flow(data_dir: std::path::PathBuf) -> Result<String, String> {
         challenge
     );
 
+    // Aktive Session global speichern, damit der (einzige) Callback-Server
+    // selbst bei einem erneuten Login-Versuch die jeweils neueste Session
+    // validiert (verhindert "State stimmt nicht überein").
+    *OAUTH_SESSION.lock().unwrap() = Some(OAuthSession {
+        verifier: verifier.clone(),
+        state: state.clone(),
+    });
+
     // Spawn the callback server (it stores the token on success).
     thread::spawn(move || {
-        run_callback_server(verifier, state, data_dir);
+        run_callback_server(data_dir);
     });
 
     // Open the browser for the user to authenticate.
