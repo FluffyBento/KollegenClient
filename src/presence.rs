@@ -153,6 +153,7 @@ fn ensure_session(
     client: &reqwest::blocking::Client,
     backend: &str,
     discord_token: &str,
+    data_dir: &PathBuf,
 ) -> Option<String> {
     if let Some(s) = SESSION.lock().unwrap().clone() {
         return Some(s);
@@ -189,7 +190,7 @@ fn authed_request(
 ) -> Option<(reqwest::blocking::Client, String, String)> {
     let backend = backend_url(data_dir)?;
     let discord_token = discord_access_token(data_dir)?;
-    let session = ensure_session(&reqwest::blocking::Client::new(), &backend, &discord_token)?;
+    let session = ensure_session(&reqwest::blocking::Client::new(), &backend, &discord_token, data_dir)?;
     Some((reqwest::blocking::Client::new(), backend, session))
 }
 
@@ -449,7 +450,7 @@ fn run(data_dir: PathBuf) {
             }
         };
 
-        let session = match ensure_session(&client, &backend, &discord_token) {
+        let session = match ensure_session(&client, &backend, &discord_token, &data_dir) {
             Some(s) => s,
             None => {
                 last_reported = None;
@@ -483,6 +484,7 @@ fn run(data_dir: PathBuf) {
                     Err(err) => debug!("Presence-Meldung fehlgeschlagen: {}", err),
                 }
             }
+        }
         }
 
         // Profil + Freundesliste für die Mod schreiben und ausstehende
