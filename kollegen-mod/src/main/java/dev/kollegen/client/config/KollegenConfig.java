@@ -28,7 +28,7 @@ public class KollegenConfig {
     public float highlightAmount = 0.6f;
 
     /** Kurzschreibweise: irgendein Farb-FX aktiv? (fürs Rendering) */
-    public transient boolean colorFxActive() {
+    public boolean colorFxActive() {
         return colorSaturation != 1.0f || colorHighlight;
     }
 

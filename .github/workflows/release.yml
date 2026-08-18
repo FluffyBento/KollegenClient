@@ -47,6 +47,9 @@ jobs:
           gradle-version: '8.14'
           build-root-directory: kollegen-mod
           arguments: build
+          # Force a fresh Gradle home so Loom re-downloads Minecraft instead of
+          # restoring a poisoned cache with an empty compile classpath.
+          gradle-home-cache-clean: true
 
       - name: Publish companion mod jar to release
         env:
