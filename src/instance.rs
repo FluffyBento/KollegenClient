@@ -158,8 +158,9 @@ fn build_title_logo_pack(version: &str) -> Vec<u8> {
 
 /// Installs the title-logo resource pack into the instance and enables it in
 /// `options.txt` (force-enabled via `incompatibleResourcePacks` so it works
-/// across Minecraft versions regardless of `pack_format`).
-fn ensure_title_logo_pack(inst_dir: &Path, version: &str) {
+/// across Minecraft versions regardless of `pack_format`). Called both when the
+/// instance is created/installed and right before every launch (safety net).
+pub fn ensure_title_logo_pack(inst_dir: &Path, version: &str) {
     let rp_dir = inst_dir.join("resourcepacks");
     if let Err(e) = fs::create_dir_all(&rp_dir) {
         warn!("Konnte resourcepacks nicht anlegen: {}", e);
@@ -382,6 +383,10 @@ pub fn install_instance(
     if loader != "vanilla" {
         crate::utils::ensure_essential(name, data_dir)?;
     }
+
+    // Install + enable the KollegenTitle resource pack (Logo.png on the title
+    // screen) already at creation, not just at launch.
+    ensure_title_logo_pack(&inst_dir, version);
 
     Ok(())
 }

@@ -765,3 +765,27 @@ header, main { padding-left: 56px; }
 .import-list li button { margin: 0; padding: 0.35rem 0.7rem; font-size: 0.82rem; }
 .import-list .imp-name { font-weight: 600; }
 .import-list .imp-meta { font-size: 0.78rem; color: var(--muted); }
+/* ═══ Kollegen-Nutzer in der Freundesliste ═══ */
+.friend-badge {
+  display: inline-block;
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  color: #1a1300;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  border-radius: 999px;
+  padding: 0.08rem 0.45rem;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+.friend-kollegen {
+  background: rgba(245, 166, 35, 0.08);
+  border: 1px solid rgba(245, 166, 35, 0.35);
+  border-radius: 10px;
+  margin-bottom: 0.3rem;
+}
+.friend-kollegen .friend-avatar {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}

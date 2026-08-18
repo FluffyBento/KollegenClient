@@ -5,7 +5,8 @@
   "mixins": [
     "TitleScreenMixin",
     "GameMenuScreenMixin",
-    "OptionsScreenMixin"
+    "OptionsScreenMixin",
+    "MinecraftClientMixin"
   ],
   "injectors": {
     "defaultRequire": 1

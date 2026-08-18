@@ -74,7 +74,7 @@ async function refreshInstances() {
 
       const del = document.createElement("button");
       del.textContent = "Löschen";
-      del.onclick = () => deleteInstance(inst.name);
+      del.onclick = () => deleteInstance(inst.name, inst.id);
 
       actions.append(launch, manage, del);
       li.append(label, actions);
@@ -204,8 +204,10 @@ async function refreshLogs() {
     );
   }
 
-  // Renders the online Discord friends and wires the "Beitreten" action that
+  // Renders the Discord friends and wires the "Freund beitreten" action that
   // lets the user join a friend's game (instance picker filtered by version).
+  // Friends who run the Kollegen Client (detected via rich presence) are
+  // highlighted with a badge and sorted to the top.
   function renderDiscordFriends(friends, connected) {
     const list = $("discordFriends");
     const hint = $("friendsHint");
@@ -229,8 +231,12 @@ async function refreshLogs() {
     }
     hint.style.display = "none";
 
+    // Kollegen-Nutzer zuerst anzeigen.
+    online.sort((a, b) => (!!b.kollegen || false) - (!!a.kollegen || false));
+
     for (const f of online) {
       const li = document.createElement("li");
+      li.classList.toggle("friend-kollegen", !!f.kollegen);
 
       if (f.avatar_url) {
         const img = document.createElement("img");
@@ -245,6 +251,13 @@ async function refreshLogs() {
       const name = document.createElement("div");
       name.className = "friend-name";
       name.textContent = f.global_name || f.username;
+      if (f.kollegen) {
+        const badge = document.createElement("span");
+        badge.className = "friend-badge";
+        badge.textContent = "⚡ Kollegen Client";
+        badge.title = "Nutzt den Kollegen Client – Freunden kann direkt beigetreten werden.";
+        name.append(" ", badge);
+      }
       const sub = document.createElement("div");
       sub.className = "friend-sub";
       let subText;
@@ -261,8 +274,8 @@ async function refreshLogs() {
 
       if (f.join_secret) {
         const join = document.createElement("button");
-        join.textContent = "Beitreten";
-        join.title = "Instanz wählen und beitreten";
+        join.textContent = f.kollegen ? "Freund beitreten" : "Beitreten";
+        join.title = "Instanz wählen und dem Server beitreten";
         join.onclick = () => openJoinFriend(f);
         li.append(join);
       }
@@ -378,13 +391,9 @@ async function refreshLogs() {
       btn.style.display = "none";
       box.textContent = "Browser wurde geöffnet – bitte bei Discord anmelden…";
     } else if (info.state === "done") {
-      // The connection state itself is shown by #discordStatus ("Verbunden als
-      // …"), so here we only surface the logout action to avoid duplication.
+      // Verbunden-Status zeigt #discordStatus an; "Abmelden" ist bewusst nur in
+      // den Einstellungen (Verbindungen → Discord abmelden) zu finden.
       btn.style.display = "none";
-      const out = document.createElement("button");
-      out.textContent = "Trennen";
-      out.onclick = discordOauthLogout;
-      box.append(out);
     } else if (info.state === "error") {
       btn.style.display = "";
       box.textContent = `Fehler: ${info.message}`;
@@ -519,9 +528,9 @@ async function launchGame(name, isAuto) {
   refreshLogs();
 }
 
-async function deleteInstance(name) {
+async function deleteInstance(name, id) {
   if (!confirm(`Instanz '${name}' wirklich löschen?`)) return;
-  await invoke("delete_instance", { name });
+  await invoke("delete_instance", { name, id: id || null });
   await refreshInstances();
 }
 

@@ -11,18 +11,17 @@ use std::time::{Duration, Instant};
 const AUTHORIZE_ENDPOINT: &str = "https://discord.com/oauth2/authorize";
 const TOKEN_ENDPOINT: &str = "https://discord.com/api/v10/oauth2/token";
 const USER_ENDPOINT: &str = "https://discord.com/api/v10/users/@me";
-// `identify` is required to read the logged-in user. `relationships` (privileged)
-// lets us show the full friend list in the Discord tab even without the Discord
-// desktop app / RPC, and includes `mutual_guilds` so users can open the servers
-// they share with a friend. `guilds` lets us resolve those guild ids to names.
+// Scopes requested on the Discord OAuth authorize page. `identify` + `guilds`
+// are standard (non-privileged) scopes and work for every application.
 //
-// IMPORTANT: `relationships` is a *privileged* Discord OAuth scope. Discord
-// rejects the authorize request with "Invalid Scope: relationships" unless it is
-// enabled for the application in the Discord developer portal (OAuth2 → Scopes).
-// The app owner must toggle it on; once enabled, browser login works and the
-// friend list (plus shared servers) appears. Online friends still also come from
-// Rich Presence (RPC) regardless of this scope.
-const SCOPES: &str = "identify relationships guilds";
+// NOTE: `relationships` (which previously lived here and powers the REST
+// friend list) is a *privileged* scope: Discord rejects the authorize request
+// with "Invalid scope: relationships" unless it is explicitly enabled for the
+// application in the developer portal (OAuth2 → Scopes). It is therefore not
+// requested here – the friends list still works via Rich Presence (RPC), which
+// does not need any OAuth scope. If the scope gets enabled later, the REST
+// friend fetch (`fetch_friends`) starts working again automatically.
+const SCOPES: &str = "identify guilds";
 const RELATIONSHIPS_ENDPOINT: &str = "https://discord.com/api/v10/users/@me/relationships";
 /// Fixed localhost port the browser is redirected back to. This exact URI must
 /// be registered as a Redirect URI in the Discord application's OAuth2 settings.
@@ -279,6 +278,7 @@ pub fn fetch_friends(data_dir: &Path) -> Vec<serde_json::Value> {
             "version": null,
             "join_secret": null,
             "presence_known": presence_known,
+            "kollegen": false,
             "mutual_guilds": mutual_guilds,
         }));
     }

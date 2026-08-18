@@ -1,18 +1,26 @@
 package dev.kollegen.client.input;
 
-import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
-import net.minecraft.client.KeyMapping;
+import net.minecraft.client.Minecraft;
 import org.lwjgl.glfw.GLFW;
 
-public class KollegenKeybind {
-    public static KeyMapping menuKey;
+/**
+ * Liest die Rechts-Shift-Taste direkt vom GLFW-Fenster aus. Damit braucht der
+ * Mod KEINE fabric-api (das fabric-Keybinding-API wäre sonst eine Pflicht-
+ * Abhängigkeit, die in fremden Instanzen fehlen kann).
+ */
+public final class KollegenKeybind {
 
-    public static void register() {
-        menuKey = new KeyMapping(
-                "key.kollegen.menu",
-                GLFW.GLFW_KEY_RIGHT_SHIFT,
-                "key.categories.kollegen"
-        );
-        KeyBindingHelper.registerKeyBinding(menuKey);
+    private KollegenKeybind() {
+    }
+
+    public static boolean isRightShiftHeld() {
+        try {
+            Minecraft mc = Minecraft.getInstance();
+            if (mc == null || mc.getWindow() == null) return false;
+            long handle = mc.getWindow().getWindow();
+            return GLFW.glfwGetKey(handle, GLFW.GLFW_KEY_RIGHT_SHIFT) == GLFW.GLFW_PRESS;
+        } catch (Throwable t) {
+            return false;
+        }
     }
 }

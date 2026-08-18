@@ -6,6 +6,7 @@
 
 mod app_updates;
 mod auth;
+mod companion;
 mod import;
 mod discord;
 mod discord_auth;
@@ -29,6 +30,9 @@ pub const USER_AGENT: &str = "KollegenClient/1.0 (+https://kollegen.dev)";
 pub const DEFAULT_MEMORY_MIN: &str = "2G";
 pub const DEFAULT_MEMORY_MAX: &str = "4G";
 pub const MAX_LOG_LINES: usize = 1000;
+/// Hotfix suffix appended to the version string (e.g. "v1", "v2"). Empty for a
+/// clean release. Shown in the UI corner so users can identify the exact build.
+pub const VERSION_HOTFIX: &str = "";
 
 // Discord Rich Presence application ID. Replace this with the numeric Client ID
 // of YOUR OWN Discord application (https://discord.com/developers/applications).
@@ -53,11 +57,9 @@ pub fn discord_client_id() -> &'static str {
 }
 
 
-// Modrinth project id of the "Kollegen Client" companion mod. Set this to your
-// own Modrinth mod project id so every instance automatically gets the mod
-// (it drives the in-game rich presence + lets friends join via the presence).
-// Leave empty to disable automatic injection.
-pub const KOLLEGEN_MOD_PROJECT_ID: &str = "";
+// The "Kollegen Client" companion mod is injected into every instance from the
+// bundled/downloaded `kollegen-client-mod.jar` (see `companion` module). It is
+// hidden from the mod browser and can't be removed by the user.
 
 // ─=== App State ===
 pub struct AppState {
@@ -69,6 +71,18 @@ pub struct AppState {
 }
 
 // ─=== Tauri Commands ===
+
+/// Returns the exact app version shown in the UI corner, composed of the Cargo
+/// package version plus an optional hotfix suffix (e.g. `1.3.0v1`).
+#[tauri::command]
+fn get_version() -> String {
+    let base = env!("CARGO_PKG_VERSION");
+    if VERSION_HOTFIX.is_empty() {
+        base.to_string()
+    } else {
+        format!("{}{}", base, VERSION_HOTFIX)
+    }
+}
 
 #[tauri::command]
 fn get_instances(state: State<'_, AppState>) -> Result<Vec<types::Instance>, String> {
@@ -108,7 +122,21 @@ fn create_instance(
     loader: String,
     loader_version: Option<String>,
 ) -> Result<types::Instance, String> {
+    let path = utils::instances_file(&state.data_dir);
+    let mut instances = utils::load_json::<Vec<types::Instance>>(&path, vec![]);
+
+    // The instance name is the on-disk identifier (`instances/<name>`). Two
+    // instances with the same name would share one directory, which breaks
+    // management (e.g. deleting one would wipe the other). Reject duplicates.
+    if instances.iter().any(|i| i.name == name) {
+        return Err(format!(
+            "Eine Instanz mit dem Namen '{}' existiert bereits.",
+            name
+        ));
+    }
+
     let inst = types::Instance {
+        id: uuid::Uuid::new_v4().to_string(),
         name: name.clone(),
         version: version.clone(),
         loader,
@@ -136,15 +164,35 @@ fn create_instance(
 }
 
 #[tauri::command]
-fn delete_instance(state: State<'_, AppState>, name: String) -> Result<(), String> {
+fn delete_instance(
+    state: State<'_, AppState>,
+    name: String,
+    id: Option<String>,
+) -> Result<(), String> {
     let path = utils::instances_file(&state.data_dir);
     let mut instances = utils::load_json::<Vec<types::Instance>>(&path, vec![]);
-    instances.retain(|i| i.name != name);
-    utils::save_json(&path, &instances).map_err(|e| e.to_string())?;
 
-    let dir = utils::instance_dir(&state.data_dir, &name);
-    if dir.exists() {
-        std::fs::remove_dir_all(&dir).map_err(|e| e.to_string())?;
+    // Address exactly one instance: prefer the unique id, otherwise fall back
+    // to the FIRST instance with this name. Never delete-all-matching, so two
+    // legacy instances sharing a display name don't both get removed.
+    let target_idx = if let Some(uid) = id.as_deref().filter(|s| !s.is_empty()) {
+        instances.iter().position(|i| i.id == uid)
+    } else {
+        instances.iter().position(|i| i.name == name)
+    };
+
+    if let Some(idx) = target_idx {
+        instances.remove(idx);
+        utils::save_json(&path, &instances).map_err(|e| e.to_string())?;
+    }
+
+    // The on-disk data dir is shared by all instances with the same name; only
+    // wipe it when no remaining instance still uses that name.
+    if !instances.iter().any(|i| i.name == name) {
+        let dir = utils::instance_dir(&state.data_dir, &name);
+        if dir.exists() {
+            std::fs::remove_dir_all(&dir).map_err(|e| e.to_string())?;
+        }
     }
 
     Ok(())
@@ -299,41 +347,18 @@ fn install_instance(
     instance::install_instance(&state.data_dir, &name, &version, &loader, loader_version.as_deref())
         .map_err(|e| e.to_string())?;
     // Ensure every installed instance carries the Kollegen Client companion
-    // mod (drives in-game rich presence + join). No-op if id is empty or the
-    // instance is vanilla.
-    ensure_companion_mod(&state.data_dir, &name, &version, &loader);
+    // mod (drives in-game rich presence + join). No-op for vanilla/offline.
+    companion::install_companion_mod(&state.data_dir, &name, &version, &loader);
     Ok(())
 }
 
-/// Installs the "Kollegen Client" companion mod into an instance if it isn't
-/// already present. The mod id comes from `KOLLEGEN_MOD_PROJECT_ID` (set it to
-/// your Modrinth project id). Skipped for vanilla instances (mods need a
-/// loader) and when the id is empty (feature disabled).
+/// Installs the "Kollegen Client" companion Fabric mod into an instance if it
+/// isn't already present. The mod is bundled/downloaded (see `companion`
+/// module), hidden from the mod browser and cannot be removed by the user.
+/// Best-effort: no-op when the jar is unavailable or the loader is not
+/// Fabric/Quilt compatible (Forge/NeoForge/vanilla).
 fn ensure_companion_mod(data_dir: &Path, instance_name: &str, version: &str, loader: &str) {
-    if KOLLEGEN_MOD_PROJECT_ID.is_empty() {
-        return;
-    }
-    if loader.eq_ignore_ascii_case("vanilla") {
-        return;
-    }
-    let meta = modrinth::installed_project_ids(data_dir, instance_name);
-    let already = meta
-        .get("mod")
-        .and_then(|m| m.as_array())
-        .map(|a| a.iter().any(|v| v.as_str() == Some(KOLLEGEN_MOD_PROJECT_ID)))
-        .unwrap_or(false);
-    if already {
-        return;
-    }
-    let _ = modrinth::install_content(
-        instance_name,
-        data_dir,
-        "mod",
-        KOLLEGEN_MOD_PROJECT_ID,
-        version,
-        loader,
-        None,
-    );
+    crate::companion::install_companion_mod(data_dir, instance_name, version, loader);
 }
 
 /// Maps a Minecraft version string to the Java major version it requires, used
@@ -690,6 +715,7 @@ fn discord_social(state: State<'_, AppState>) -> Result<Value, String> {
                 "version": f.version,
                 "join_secret": f.join_secret,
                 "presence_known": true,
+                "kollegen": f.kollegen,
                 "mutual_guilds": serde_json::json!([]),
             })
         })
@@ -885,6 +911,7 @@ fn main() {
         })
         .invoke_handler(tauri::generate_handler![
             get_instances,
+            get_version,
             get_accounts,
             get_settings,
             save_settings,

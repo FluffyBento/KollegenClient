@@ -89,6 +89,9 @@ pub struct DiscordFriend {
     pub version: Option<String>,
     /// Join secret advertised by the friend's game (enables "Beitreten").
     pub join_secret: Option<String>,
+    /// True when the friend's presence marks them as a Kollegen Client user
+    /// (`details`/`state`/activity name containing "Kollegen").
+    pub kollegen: bool,
 }
 
 lazy_static! {
@@ -177,6 +180,7 @@ fn parse_relationship(r: &Value) -> Option<DiscordFriend> {
     let mut game = None;
     let mut version = None;
     let mut join_secret = None;
+    let mut kollegen = false;
     if let Some(activities) = presence
         .and_then(|p| p.get("activities"))
         .and_then(|a| a.as_array())
@@ -190,6 +194,11 @@ fn parse_relationship(r: &Value) -> Option<DiscordFriend> {
                     act.get("details").and_then(|v| v.as_str()).unwrap_or(""),
                     act.get("state").and_then(|v| v.as_str()).unwrap_or("")
                 );
+                // Kollegen Client users advertise "Kollegen Client" in their
+                // presence details/state, so the UI can highlight them.
+                if blob.to_lowercase().contains("kollegen") {
+                    kollegen = true;
+                }
                 if let Some(v) = extract_version(&blob) {
                     version = Some(v);
                 }
@@ -212,6 +221,7 @@ fn parse_relationship(r: &Value) -> Option<DiscordFriend> {
         game,
         version,
         join_secret,
+        kollegen,
     })
 }
 
@@ -526,8 +536,9 @@ fn events_loop(data_dir: PathBuf, shutdown: Arc<AtomicBool>) {
     }
 }
 
-/// Writes the join secret to `<data_dir>/.kollegen/join_request.json` so the
-/// in-game mod can pick it up and connect to the friend's server.
+/// Writes the join secret to `<data_dir>/.kollegen/join_request.json` (and a
+/// mirrored copy at `~/.kollegen/join_request.json`) so the in-game mod can
+/// pick it up and connect to the friend's server.
 pub fn write_join_request(data_dir: &Path, secret: &str) -> std::io::Result<()> {
     let dir = data_dir.join(".kollegen");
     std::fs::create_dir_all(&dir)?;
@@ -537,7 +548,15 @@ pub fn write_join_request(data_dir: &Path, secret: &str) -> std::io::Result<()> 
     });
     let body = serde_json::to_string_pretty(&payload)
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
-    std::fs::write(dir.join("join_request.json"), body)?;
+    std::fs::write(dir.join("join_request.json"), &body)?;
+    // Mirrored to the user home so the Fabric mod finds it regardless of the
+    // launcher's data dir layout on the current OS.
+    if let Some(home) = dirs::home_dir() {
+        let hdir = home.join(".kollegen");
+        if std::fs::create_dir_all(&hdir).is_ok() {
+            let _ = std::fs::write(hdir.join("join_request.json"), &body);
+        }
+    }
     Ok(())
 }
 

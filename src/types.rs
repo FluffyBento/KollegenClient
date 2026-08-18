@@ -15,6 +15,11 @@ pub struct Account {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Instance {
+    /// Unique id so instance management (delete/join) can always address exactly
+    /// one instance, even when several share the same display name (legacy data
+    /// without an id falls back to name-based first-match handling).
+    #[serde(default)]
+    pub id: String,
     pub name: String,
     pub version: String,
     pub loader: String, // Vanilla | Fabric | Forge | NeoForge | Quilt

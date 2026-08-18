@@ -373,6 +373,11 @@ pub fn list_content(data_dir: &Path, instance_name: &str) -> Value {
                 if e.path().is_file() {
                     if let Some(name) = e.file_name().to_str() {
                         let name = name.to_string();
+                        // Launcher-managed files (companion mod / logo pack) are
+                        // hidden from the content browser.
+                        if is_managed_content(key, &name) {
+                            continue;
+                        }
                         let mut obj = serde_json::json!({ "name": name.clone() });
                         if let Some(pid) =
                             project_id_for_file(data_dir, instance_name, key, &name)
@@ -395,7 +400,8 @@ pub fn list_content(data_dir: &Path, instance_name: &str) -> Value {
 }
 
 /// Removes an installed content file. Filenames are validated to prevent
-/// path traversal.
+/// path traversal. Launcher-managed files (Kollegen Client mod, title-logo
+/// resource pack) are protected and cannot be removed here.
 pub fn delete_content(
     data_dir: &Path,
     instance_name: &str,
@@ -404,6 +410,12 @@ pub fn delete_content(
 ) -> Result<()> {
     if filename.contains('/') || filename.contains('\\') || filename.contains("..") {
         return Err(anyhow!("Ungültiger Dateiname"));
+    }
+    if is_managed_content(kind, filename) {
+        return Err(anyhow!(
+            "'{}' wird vom Kollegen Client automatisch verwaltet und kann nicht entfernt werden.",
+            filename
+        ));
     }
     let dir_name = category_dir(kind)?;
     let inst_dir = crate::utils::instance_dir(data_dir, instance_name);
@@ -459,6 +471,17 @@ pub fn change_content_version(
         let _ = delete_content(data_dir, instance_name, kind, filename);
     }
     Ok(())
+}
+
+/// Returns true when `filename` is managed by the launcher itself (the
+/// injected Kollegen Client mod and the title-logo resource pack). Such files
+/// are hidden from the content browser and cannot be deleted by the user.
+fn is_managed_content(kind: &str, filename: &str) -> bool {
+    if crate::companion::is_companion_mod_name(filename) {
+        return true;
+    }
+    // The KollegenTitle.zip pack is reinstalled + force-enabled on every launch.
+    kind == "resourcepack" && filename == "KollegenTitle.zip"
 }
 
 /// Returns the singular metadata key for a content kind.

@@ -5,6 +5,24 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Kollegen Client</title>
   <link rel="stylesheet" href="styles.css" />
+  <style>
+    #versionBadge {
+      position: fixed;
+      right: 10px;
+      bottom: 8px;
+      z-index: 9999;
+      font-size: 11px;
+      letter-spacing: 0.3px;
+      color: #b9a98c;
+      background: rgba(13, 13, 18, 0.55);
+      border: 1px solid #34303a;
+      padding: 2px 8px;
+      border-radius: 6px;
+      pointer-events: none;
+      user-select: none;
+      font-family: inherit;
+    }
+  </style>
 </head>
 <body>
   <header>
@@ -47,7 +65,7 @@
       </div>
 
       <h3 class="socials-subhead">Freunde</h3>
-      <p class="socials-hint" id="friendsHint">Melde dich mit Discord an, um zu sehen, welche Freunde gerade spielen.</p>
+      <p class="socials-hint" id="friendsHint">Verbinde dich mit Discord, um zu sehen, welche Freunde den Kollegen Client nutzen und gerade spielen.</p>
       <ul id="discordFriends" class="friend-list"></ul>
 
       <h3 class="socials-subhead">Einladungen (Server beitreten)</h3>
@@ -177,6 +195,26 @@
     </div>
   </div>
 
+  <div id="versionBadge">v…</div>
+
   <script src="app.js"></script>
+  <script>
+    (function () {
+      var el = document.getElementById('versionBadge');
+      function show(v) { el.textContent = 'v' + v; }
+      try {
+        var t = window.__TAURI__;
+        if (t && t.core && t.core.invoke) {
+          t.core.invoke('get_version').then(show).catch(function () { el.textContent = 'v1.3.0'; });
+        } else if (t && t.invoke) {
+          t.invoke('get_version').then(show).catch(function () { el.textContent = 'v1.3.0'; });
+        } else {
+          el.textContent = 'v1.3.0';
+        }
+      } catch (e) {
+        el.textContent = 'v1.3.0';
+      }
+    })();
+  </script>
 </body>
 </html>
