@@ -83,6 +83,11 @@ pub struct DiscordFriend {
     pub avatar_url: Option<String>,
     /// Presence status: "online" | "idle" | "dnd" | "offline".
     pub status: String,
+    /// True only when Discord actually delivered a `presence` object for this
+    /// friend. When false, `status` is just the "offline" default and must not
+    /// be trusted (the `RELATIONSHIPS` subscription often returns friends
+    /// without presence unless the app has the relationships scope).
+    pub presence_known: bool,
     /// Name of the friend's current activity (e.g. "Minecraft").
     pub game: Option<String>,
     /// Minecraft version parsed from the activity, if detectable.
@@ -171,6 +176,7 @@ fn parse_relationship(r: &Value) -> Option<DiscordFriend> {
     });
 
     let presence = r.get("presence");
+    let presence_known = presence.is_some();
     let status = presence
         .and_then(|p| p.get("status"))
         .and_then(|v| v.as_str())
@@ -218,6 +224,7 @@ fn parse_relationship(r: &Value) -> Option<DiscordFriend> {
         global_name,
         avatar_url,
         status,
+        presence_known,
         game,
         version,
         join_secret,
