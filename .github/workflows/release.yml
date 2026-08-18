@@ -46,7 +46,6 @@ jobs:
         continue-on-error: true
         uses: gradle/gradle-build-action@v3
         with:
-          gradle-version: '8.14'
           build-root-directory: kollegen-mod
           arguments: build --stacktrace
           cache-disabled: true

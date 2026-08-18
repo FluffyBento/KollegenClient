@@ -714,7 +714,7 @@ fn discord_social(state: State<'_, AppState>) -> Result<Value, String> {
                 "game": f.game,
                 "version": f.version,
                 "join_secret": f.join_secret,
-                "presence_known": true,
+                "presence_known": f.presence_known,
                 "kollegen": f.kollegen,
                 "mutual_guilds": serde_json::json!([]),
             })
@@ -735,6 +735,16 @@ fn discord_social(state: State<'_, AppState>) -> Result<Value, String> {
         merged.insert(key, f);
     }
     for f in &rpc_friends {
+        // Only let RPC friends override OAuth friends when Discord actually
+        // delivered a real presence – otherwise they'd clobber a known friend
+        // with a bogus "offline" status.
+        let known = f
+            .get("presence_known")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
+        if !known {
+            continue;
+        }
         if let Some(id) = f.get("id").and_then(|v| v.as_str()) {
             merged.insert(id.to_string(), f.clone());
         }
