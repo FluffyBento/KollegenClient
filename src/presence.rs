@@ -57,9 +57,11 @@ fn now_secs() -> u64 {
 /// Liefert einen gültigen Discord-Access-Token (refresht ihn ggf.).
 fn discord_access_token(data_dir: &PathBuf) -> Option<String> {
     let tok = crate::discord_auth::load_token(data_dir)?;
-    if let (Some(at), Some(exp)) = (&tok.access_token, tok.expires_at) {
-        if exp > now_secs() + 60 {
-            return Some(at.clone());
+    if !tok.access_token.is_empty() {
+        if let Some(exp) = tok.expires_at {
+            if exp > now_secs() + 60 {
+                return Some(tok.access_token.clone());
+            }
         }
     }
     if let Some(rt) = &tok.refresh_token {
@@ -286,7 +288,7 @@ fn send_upsert(
         .map_err(|e| e.to_string())?;
     match resp.status() {
         s if s.is_success() => Ok(()),
-        401 => {
+        s if s == reqwest::StatusCode::UNAUTHORIZED => {
             *SESSION.lock().unwrap() = None;
             Err("401".into())
         }
@@ -310,7 +312,7 @@ fn send_delete(
         .map_err(|e| e.to_string())?;
     match resp.status() {
         s if s.is_success() => Ok(()),
-        401 => {
+        s if s == reqwest::StatusCode::UNAUTHORIZED => {
             *SESSION.lock().unwrap() = None;
             Err("401".into())
         }
