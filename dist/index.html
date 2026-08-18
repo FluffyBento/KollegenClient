@@ -71,12 +71,12 @@
       <h3 class="socials-subhead">Einladungen (Server beitreten)</h3>
       <ul id="discordInvites" class="invite-list"><li style="color:#888;">Keine Einladungen</li></ul>
 
-      <h3 class="socials-subhead">Kollegen (Server)</h3>
-      <p class="socials-hint" id="kollegenHint">Verbinde dich mit Discord, um Kollegen-Client-Nutzer zu sehen.</p>
-      <div class="socials-refresh"><button id="kollegenRefresh">Aktualisieren</button></div>
-      <h4 class="socials-subsub">Alle Kollegen</h4>
-      <ul id="kollegenDirectory" class="friend-list"></ul>
-      <h4 class="socials-subsub">Meine Kollegen</h4>
+      <h3 class="socials-subhead">Freunde</h3>
+      <p class="socials-hint" id="kollegenHint">Verbinde dich mit Discord, um Freunde zu sehen und hinzuzufügen.</p>
+      <div class="add-friend">
+        <input id="friendCodeInput" placeholder="Freundes-Code" autocomplete="off" />
+        <button id="friendCodeAdd">Hinzufügen</button>
+      </div>
       <ul id="kollegenFriends" class="friend-list"></ul>
 
       <div class="socials-invite">
@@ -205,6 +205,45 @@
   </div>
 
   <div id="versionBadge">v…</div>
+
+  <!-- 3D-Skin-Anzeige im Profil-Modal (nur falls erreichbar; sonst 2D-Fallback) -->
+  <script src="https://cdn.jsdelivr.net/npm/skinview3d@3/dist/skinview3d.bundle.js"></script>
+
+  <!-- Profil (oben rechts) -->
+  <div id="profileWidget" class="hud-widget hud-profile" title="Profil öffnen">
+    <img id="pwAvatar" class="hud-avatar" alt="" />
+    <div class="hud-meta">
+      <div id="pwName" class="hud-name">nicht verbunden</div>
+      <div id="pwDiscord" class="hud-sub"></div>
+    </div>
+  </div>
+
+  <!-- Freunde (oben links) -->
+  <div id="friendsWidget" class="hud-widget hud-friends">
+    <div class="hud-friends-head">Freunde</div>
+    <ul id="fwList" class="friend-list"></ul>
+  </div>
+
+  <!-- Profil-Modal -->
+  <div id="profileModal" class="modal" style="display:none;">
+    <div class="modal-content profile-modal">
+      <button id="profileClose" class="icon-btn">✕</button>
+      <div class="profile-skin">
+        <canvas id="skinCanvas" width="200" height="400"></canvas>
+      </div>
+      <div class="profile-side">
+        <h2 id="pmName">—</h2>
+        <div id="pmDiscord" class="profile-discord"></div>
+        <div class="profile-code">
+          <span>Freundes-Code:</span>
+          <code id="pmCode"></code>
+          <button id="pmCopy">Kopieren</button>
+        </div>
+        <h4>Verbundene Accounts</h4>
+        <div id="pmAccounts" class="profile-accounts"></div>
+      </div>
+    </div>
+  </div>
 
   <script src="app.js"></script>
   <script>

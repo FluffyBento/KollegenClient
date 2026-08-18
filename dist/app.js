@@ -297,57 +297,76 @@ async function refreshLogs() {
     }
   }
 
-  // Kollegen-Feature (Server-basiert, Discord-verifiziert): zeigt alle
-  // Kollegen-Client-Nutzer und die eigene Freundesliste inkl. Online-Status
-  // und aktuellem Server. Freunde können hier hinzugefügt/entfernt werden.
-  async function refreshKollegen() {
+  // Social-System (Discord-verifiziert, Freundes-Codes): eigenes Profil +
+  // Freundesliste. Beides wird auch als ~/.kollegen/social.json für die Mod
+  // geschrieben. Freunde werden ausschließlich über den Freundes-Code hinzugefügt.
+  let socialMe = null;
+  let socialFriends = [];
+
+  async function refreshSocial() {
     try {
-      const [dir, fr] = await Promise.all([
-        invoke("kollegen_directory"),
+      const [me, friends] = await Promise.all([
+        invoke("kollegen_me"),
         invoke("kollegen_friends"),
       ]);
-      renderKollegenList("kollegenDirectory", dir, false);
-      renderKollegenList("kollegenFriends", fr, true);
+      socialMe = me && !me.error ? me : null;
+      socialFriends = friends && !friends.error ? friends : [];
+      renderProfileWidget();
+      renderFriendsWidget();
+      renderSocialPanel();
     } catch (e) {
       console.error(e);
     }
   }
 
-  function renderKollegenList(elId, arr, isFriend) {
+  function avatarUrl(u) {
+    if (u && u.avatar) return `https://cdn.discordapp.com/avatars/${u.id}/${u.avatar}.png`;
+    return "";
+  }
+
+  function renderProfileWidget() {
+    const w = $("profileWidget");
+    if (!w) return;
+    if (!socialMe) {
+      $("pwAvatar").style.display = "none";
+      $("pwName").textContent = "nicht verbunden";
+      $("pwDiscord").textContent = "";
+      return;
+    }
+    const url = avatarUrl(socialMe);
+    if (url) { $("pwAvatar").src = url; $("pwAvatar").style.display = ""; }
+    $("pwName").textContent = socialMe.mc_name || socialMe.username || "—";
+    $("pwDiscord").textContent = socialMe.global_name || socialMe.username || "";
+  }
+
+  function renderFriendsWidget() {
+    renderFriendsList("fwList", socialFriends, false);
+  }
+
+  function renderSocialPanel() {
+    renderFriendsList("kollegenFriends", socialFriends, true);
+  }
+
+  function renderFriendsList(elId, arr, withRemove) {
     const list = $(elId);
     if (!list) return;
     list.innerHTML = "";
-    if (arr && arr.error) {
-      list.innerHTML = `<li style="color:#888;">${
-        arr.error === "not_authenticated"
-          ? "Mit Discord verbinden, um Kollegen zu sehen."
-          : "Server nicht erreichbar."
-      }</li>`;
-      return;
-    }
     if (!arr || !arr.length) {
-      list.innerHTML = `<li style="color:#888;">${
-        isFriend ? "Noch keine Kollegen hinzugefügt." : "Keine Kollegen gefunden."
-      }</li>`;
+      list.innerHTML = `<li style="color:#888;">Keine Freunde – füge welche über deinen Code hinzu.</li>`;
       return;
     }
     for (const u of arr) {
       const li = document.createElement("li");
-      li.classList.toggle("friend-kollegen", true);
-
-      if (u.avatar) {
-        const img = document.createElement("img");
-        img.className = "friend-avatar";
-        img.src = `https://cdn.discordapp.com/avatars/${u.id}/${u.avatar}.png`;
-        img.alt = "";
-        li.append(img);
-      }
-
+      const img = document.createElement("img");
+      img.className = "friend-avatar";
+      const url = avatarUrl(u);
+      if (url) img.src = url; else img.style.display = "none";
+      li.append(img);
       const meta = document.createElement("div");
       meta.className = "friend-meta";
       const name = document.createElement("div");
       name.className = "friend-name";
-      name.textContent = u.global_name || u.username;
+      name.textContent = u.mc_name || u.global_name || u.username || "—";
       const dot = document.createElement("span");
       dot.className = "status-dot " + (u.online ? "online" : "offline");
       dot.title = u.online ? "Online" : "Offline";
@@ -355,30 +374,70 @@ async function refreshLogs() {
       const sub = document.createElement("div");
       sub.className = "friend-sub";
       sub.textContent = u.online
-        ? u.server
-          ? `Online auf ${u.server}`
-          : "Online"
+        ? (u.server ? `Online auf ${u.server}` : "Online")
         : "Offline" + (u.server ? ` · zuletzt ${u.server}` : "");
       meta.append(name, sub);
       li.append(meta);
-
-      const btn = document.createElement("button");
-      if (isFriend) {
+      if (withRemove) {
+        const btn = document.createElement("button");
         btn.textContent = "Entfernen";
         btn.onclick = async () => {
           await invoke("kollegen_friend_remove", { target_id: u.id });
-          refreshKollegen();
+          refreshSocial();
         };
-      } else {
-        btn.textContent = "Hinzufügen";
-        btn.onclick = async () => {
-          await invoke("kollegen_friend_add", { target_id: u.id });
-          refreshKollegen();
-        };
+        li.append(btn);
       }
-      li.append(btn);
       list.append(li);
     }
+  }
+
+  function openProfileModal() {
+    const m = $("profileModal");
+    if (!m) return;
+    m.style.display = "flex";
+    if (!socialMe) return;
+    $("pmName").textContent = socialMe.mc_name || socialMe.username || "—";
+    $("pmDiscord").textContent = "Discord: " + (socialMe.global_name || socialMe.username || "—");
+    $("pmCode").textContent = socialMe.friend_code || "—";
+    const acc = $("pmAccounts");
+    acc.innerHTML = "";
+    (socialMe.accounts || []).forEach((a) => {
+      const d = document.createElement("div");
+      d.className = "account-chip";
+      d.textContent = (a.type === "discord" ? "Discord: " : "") + (a.name || a.id);
+      acc.append(d);
+    });
+    renderSkin(socialMe.mc_name);
+  }
+
+  let skinViewer = null;
+  function renderSkin(mcName) {
+    const canvas = $("skinCanvas");
+    if (!canvas || !mcName) return;
+    const skinUrl = `https://mc-heads.net/skin/${encodeURIComponent(mcName)}`;
+    if (window.skinview3d) {
+      try {
+        if (skinViewer) { skinViewer.destroy(); skinViewer = null; }
+        canvas.style.display = "";
+        const fb = canvas.parentElement.querySelector("img.skin-fallback");
+        if (fb) fb.remove();
+        skinViewer = new window.skinview3d.SkinViewer({
+          canvas: canvas,
+          width: 200,
+          height: 400,
+          skin: skinUrl,
+        });
+        skinViewer.animation = new window.skinview3d.IdleAnimation();
+        return;
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    const wrap = canvas.parentElement;
+    let fb = wrap.querySelector("img.skin-fallback");
+    if (!fb) { fb = new Image(); fb.className = "skin-fallback"; wrap.append(fb); }
+    fb.src = skinUrl;
+    canvas.style.display = "none";
   }
 
   let joinFriendTarget = null;
@@ -1103,9 +1162,18 @@ applySavedTheme();
 // Socials drawer (left sidebar) toggle.
 $("socialsBtn").onclick = () => {
   $("socialsPanel").classList.toggle("open");
-  refreshKollegen();
+  refreshSocial();
 };
-$("kollegenRefresh").onclick = () => refreshKollegen();
+$("profileWidget").onclick = () => openProfileModal();
+$("profileClose").onclick = () => { $("profileModal").style.display = "none"; };
+$("pmCopy").onclick = () => { if (socialMe) copyText(socialMe.friend_code); };
+$("friendCodeAdd").onclick = async () => {
+  const code = ($("friendCodeInput").value || "").trim().toUpperCase();
+  if (!code) return;
+  await invoke("kollegen_friend_add", { code });
+  $("friendCodeInput").value = "";
+  refreshSocial();
+};
 $("socialsClose").onclick = () => {
   $("socialsPanel").classList.remove("open");
 };
@@ -1622,9 +1690,22 @@ try {
 } catch (e) {}
 
 loadVersions();
+// Defensive: alle Overlays beim Start schließen, damit nach Update/Neuinstall
+// nicht versehentlich mehrere Menüs gleichzeitig offen sind.
+function closeAllOverlays() {
+  ["settingsModal", "manageModal", "joinFriendModal", "profileModal"].forEach((id) => {
+    const el = $(id);
+    if (el) el.style.display = "none";
+  });
+  const sp = $("socialsPanel");
+  if (sp) sp.classList.remove("open");
+}
+closeAllOverlays();
+
 refreshInstances();
 refreshLogs();
 refreshAuth();
 refreshDiscord();
 refreshDiscordLogin();
+refreshSocial();
 startBackgroundIntervals();

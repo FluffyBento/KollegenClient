@@ -840,8 +840,8 @@ fn import_pack(state: State<'_, AppState>, path: String) -> Result<types::Instan
 }
 
 #[tauri::command]
-fn kollegen_directory(state: State<'_, AppState>) -> serde_json::Value {
-    crate::presence::kollegen_directory(&state.data_dir)
+fn kollegen_me(state: State<'_, AppState>) -> serde_json::Value {
+    crate::presence::kollegen_me(&state.data_dir)
 }
 
 #[tauri::command]
@@ -985,7 +985,7 @@ fn main() {
             import_pack,
             check_app_update,
             install_app_update,
-            kollegen_directory,
+            kollegen_me,
             kollegen_friends,
             kollegen_friend_add,
             kollegen_friend_remove,

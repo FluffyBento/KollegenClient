@@ -170,19 +170,28 @@ fn authed_request(
     Some((reqwest::blocking::Client::new(), backend, session))
 }
 
-/// Verzeichnis aller Discord-authentifizierten Kollegen-User (inkl. Status/Server).
-pub fn kollegen_directory(data_dir: &PathBuf) -> serde_json::Value {
+/// Holt das eigene Profil (GET /me) und schreibt Profil + Freundesliste
+/// nach ~/.kollegen/social.json, damit die Mod sie im Spiel anzeigen kann.
+pub fn kollegen_me(data_dir: &PathBuf) -> serde_json::Value {
+    let me = me_value(data_dir);
+    if me.get("error").is_none() {
+        sync_social(data_dir);
+    }
+    me
+}
+
+fn me_value(data_dir: &PathBuf) -> serde_json::Value {
     let (client, backend, session) = match authed_request(data_dir) {
         Some(x) => x,
         None => return serde_json::json!({ "error": "not_authenticated" }),
     };
-    let url = format!("{}/directory", backend);
+    let url = format!("{}/me", backend);
     match client
         .get(&url)
         .header("Authorization", format!("Bearer {}", session))
         .send()
     {
-        Ok(r) if r.status().is_success() => r.json().unwrap_or(serde_json::json!([])),
+        Ok(r) if r.status().is_success() => r.json().unwrap_or(serde_json::json!({})),
         Ok(r) if r.status() == 401 => {
             *SESSION.lock().unwrap() = None;
             serde_json::json!({ "error": "not_authenticated" })
@@ -191,8 +200,7 @@ pub fn kollegen_directory(data_dir: &PathBuf) -> serde_json::Value {
     }
 }
 
-/// Eigene Freundesliste (Discord-authentifizierte Kollegen inkl. Status/Server).
-pub fn kollegen_friends(data_dir: &PathBuf) -> serde_json::Value {
+fn friends_value(data_dir: &PathBuf) -> serde_json::Value {
     let (client, backend, session) = match authed_request(data_dir) {
         Some(x) => x,
         None => return serde_json::json!({ "error": "not_authenticated" }),
@@ -212,8 +220,42 @@ pub fn kollegen_friends(data_dir: &PathBuf) -> serde_json::Value {
     }
 }
 
-/// Fügt einen Discord-Nutzer (per id) als Freund hinzu.
-pub fn kollegen_friend_add(data_dir: &PathBuf, target_id: &str) -> serde_json::Value {
+/// Schreibt ~/.kollegen/social.json (eigenes Profil + Freunde) für die Mod.
+pub fn sync_social(data_dir: &PathBuf) {
+    let me = me_value(data_dir);
+    if me.get("error").is_some() {
+        return;
+    }
+    let friends = friends_value(data_dir);
+    let out = serde_json::json!({ "me": me, "friends": friends });
+    if let Some(home) = dirs::home_dir() {
+        let dir = home.join(".kollegen");
+        if std::fs::create_dir_all(&dir).is_ok() {
+            if let Ok(s) = serde_json::to_string_pretty(&out) {
+                let _ = std::fs::write(dir.join("social.json"), s);
+            }
+        }
+    }
+}
+
+/// Bearbeitet ausstehende Freundes-Code-Anfragen, die die Mod (im Spiel)
+/// nach ~/.kollegen/friend_add.json schreibt.
+pub fn process_pending_friend_add(data_dir: &PathBuf) {
+    if let Some(home) = dirs::home_dir() {
+        let file = home.join(".kollegen").join("friend_add.json");
+        if let Ok(text) = std::fs::read_to_string(&file) {
+            if let Ok(v) = serde_json::from_str::<serde_json::Value>(&text) {
+                if let Some(code) = v.get("code").and_then(|c| c.as_str()) {
+                    let _ = add_friend_by_code(data_dir, code);
+                }
+            }
+            let _ = std::fs::remove_file(&file);
+        }
+    }
+}
+
+/// Fügt einen Freund über dessen Freundes-Code hinzu.
+pub fn add_friend_by_code(data_dir: &PathBuf, code: &str) -> serde_json::Value {
     let (client, backend, session) = match authed_request(data_dir) {
         Some(x) => x,
         None => return serde_json::json!({ "error": "not_authenticated" }),
@@ -222,7 +264,7 @@ pub fn kollegen_friend_add(data_dir: &PathBuf, target_id: &str) -> serde_json::V
     match client
         .post(&url)
         .header("Authorization", format!("Bearer {}", session))
-        .json(&serde_json::json!({ "target_id": target_id }))
+        .json(&serde_json::json!({ "code": code }))
         .send()
     {
         Ok(r) if r.status().is_success() => serde_json::json!({ "ok": true }),
@@ -233,6 +275,16 @@ pub fn kollegen_friend_add(data_dir: &PathBuf, target_id: &str) -> serde_json::V
         Ok(r) => serde_json::json!({ "error": format!("HTTP {}", r.status()) }),
         Err(e) => serde_json::json!({ "error": e.to_string() }),
     }
+}
+
+/// Eigene Freundesliste (Profile inkl. Status/Server).
+pub fn kollegen_friends(data_dir: &PathBuf) -> serde_json::Value {
+    friends_value(data_dir)
+}
+
+/// Fügt einen Freund über dessen Freundes-Code hinzu.
+pub fn kollegen_friend_add(data_dir: &PathBuf, code: &str) -> serde_json::Value {
+    add_friend_by_code(data_dir, code)
 }
 
 /// Entfernt einen Freund (per id).
@@ -351,6 +403,7 @@ fn run(data_dir: PathBuf) {
 
     let mut last_reported: Option<PresenceEntry> = None;
     let mut last_heartbeat: u64 = 0;
+    let mut last_social: u64 = 0;
 
     loop {
         std::thread::sleep(Duration::from_millis(POLL_MS));
@@ -404,10 +457,18 @@ fn run(data_dir: PathBuf) {
                             last_reported = Some(e);
                             last_heartbeat = now;
                         }
-                        Err(err) => debug!("Presence-Meldung fehlgeschlagen: {}", err),
-                    }
+                    Err(err) => debug!("Presence-Meldung fehlgeschlagen: {}", err),
                 }
             }
         }
+
+        // Profil + Freundesliste für die Mod schreiben und ausstehende
+        // Freundes-Code-Anfragen der Mod bearbeiten.
+        if now - last_social > 5000 {
+            last_social = now;
+            sync_social(&data_dir);
+            process_pending_friend_add(&data_dir);
+        }
     }
+}
 }
