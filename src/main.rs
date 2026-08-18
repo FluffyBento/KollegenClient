@@ -840,6 +840,26 @@ fn import_pack(state: State<'_, AppState>, path: String) -> Result<types::Instan
 }
 
 #[tauri::command]
+fn kollegen_directory(state: State<'_, AppState>) -> serde_json::Value {
+    crate::presence::kollegen_directory(&state.data_dir)
+}
+
+#[tauri::command]
+fn kollegen_friends(state: State<'_, AppState>) -> serde_json::Value {
+    crate::presence::kollegen_friends(&state.data_dir)
+}
+
+#[tauri::command]
+fn kollegen_friend_add(state: State<'_, AppState>, target_id: String) -> serde_json::Value {
+    crate::presence::kollegen_friend_add(&state.data_dir, &target_id)
+}
+
+#[tauri::command]
+fn kollegen_friend_remove(state: State<'_, AppState>, target_id: String) -> serde_json::Value {
+    crate::presence::kollegen_friend_remove(&state.data_dir, &target_id)
+}
+
+#[tauri::command]
 async fn check_app_update(app: tauri::AppHandle) -> Result<Option<Value>, String> {
     match crate::app_updates::check_info(&app).await {
         Ok(Some((version, notes))) => Ok(Some(serde_json::json!({
@@ -965,6 +985,10 @@ fn main() {
             import_pack,
             check_app_update,
             install_app_update,
+            kollegen_directory,
+            kollegen_friends,
+            kollegen_friend_add,
+            kollegen_friend_remove,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

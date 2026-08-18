@@ -297,6 +297,90 @@ async function refreshLogs() {
     }
   }
 
+  // Kollegen-Feature (Server-basiert, Discord-verifiziert): zeigt alle
+  // Kollegen-Client-Nutzer und die eigene Freundesliste inkl. Online-Status
+  // und aktuellem Server. Freunde können hier hinzugefügt/entfernt werden.
+  async function refreshKollegen() {
+    try {
+      const [dir, fr] = await Promise.all([
+        invoke("kollegen_directory"),
+        invoke("kollegen_friends"),
+      ]);
+      renderKollegenList("kollegenDirectory", dir, false);
+      renderKollegenList("kollegenFriends", fr, true);
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  function renderKollegenList(elId, arr, isFriend) {
+    const list = $(elId);
+    if (!list) return;
+    list.innerHTML = "";
+    if (arr && arr.error) {
+      list.innerHTML = `<li style="color:#888;">${
+        arr.error === "not_authenticated"
+          ? "Mit Discord verbinden, um Kollegen zu sehen."
+          : "Server nicht erreichbar."
+      }</li>`;
+      return;
+    }
+    if (!arr || !arr.length) {
+      list.innerHTML = `<li style="color:#888;">${
+        isFriend ? "Noch keine Kollegen hinzugefügt." : "Keine Kollegen gefunden."
+      }</li>`;
+      return;
+    }
+    for (const u of arr) {
+      const li = document.createElement("li");
+      li.classList.toggle("friend-kollegen", true);
+
+      if (u.avatar) {
+        const img = document.createElement("img");
+        img.className = "friend-avatar";
+        img.src = `https://cdn.discordapp.com/avatars/${u.id}/${u.avatar}.png`;
+        img.alt = "";
+        li.append(img);
+      }
+
+      const meta = document.createElement("div");
+      meta.className = "friend-meta";
+      const name = document.createElement("div");
+      name.className = "friend-name";
+      name.textContent = u.global_name || u.username;
+      const dot = document.createElement("span");
+      dot.className = "status-dot " + (u.online ? "online" : "offline");
+      dot.title = u.online ? "Online" : "Offline";
+      name.append(" ", dot);
+      const sub = document.createElement("div");
+      sub.className = "friend-sub";
+      sub.textContent = u.online
+        ? u.server
+          ? `Online auf ${u.server}`
+          : "Online"
+        : "Offline" + (u.server ? ` · zuletzt ${u.server}` : "");
+      meta.append(name, sub);
+      li.append(meta);
+
+      const btn = document.createElement("button");
+      if (isFriend) {
+        btn.textContent = "Entfernen";
+        btn.onclick = async () => {
+          await invoke("kollegen_friend_remove", { target_id: u.id });
+          refreshKollegen();
+        };
+      } else {
+        btn.textContent = "Hinzufügen";
+        btn.onclick = async () => {
+          await invoke("kollegen_friend_add", { target_id: u.id });
+          refreshKollegen();
+        };
+      }
+      li.append(btn);
+      list.append(li);
+    }
+  }
+
   let joinFriendTarget = null;
 
   // Opens the instance picker for joining a friend. Only instances with the
@@ -1019,7 +1103,9 @@ applySavedTheme();
 // Socials drawer (left sidebar) toggle.
 $("socialsBtn").onclick = () => {
   $("socialsPanel").classList.toggle("open");
+  refreshKollegen();
 };
+$("kollegenRefresh").onclick = () => refreshKollegen();
 $("socialsClose").onclick = () => {
   $("socialsPanel").classList.remove("open");
 };
