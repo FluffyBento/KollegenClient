@@ -19,6 +19,11 @@ public final class KollegenHud {
     public static int profileW = 168;
     public static int profileH = 40;
 
+    public static int friendsX = 0;
+    public static int friendsY = 0;
+    public static int friendsW = 160;
+    public static int friendsH = 0;
+
     private static long lastLoad = 0;
     private static SocialData social = new SocialData();
 
@@ -66,6 +71,10 @@ public final class KollegenHud {
         int fx = 6;
         int fy = 6;
         int listH = 16 + Math.max(1, social.friendCount()) * 14 + 6;
+        friendsX = fx;
+        friendsY = fy;
+        friendsW = 160;
+        friendsH = listH;
         g.fill(fx, fy, fx + 160, fy + listH, 0x80000000);
         g.drawString(mc.font, "Freunde", fx + 6, fy + 4, 0xFF4CAF50);
 

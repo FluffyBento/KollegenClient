@@ -1,6 +1,7 @@
 package dev.kollegen.client.mixin;
 
 import dev.kollegen.client.hud.KollegenHud;
+import dev.kollegen.client.menu.KollegenFriendsScreen;
 import dev.kollegen.client.menu.KollegenProfileScreen;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.MouseHandler;
@@ -10,8 +11,10 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * Öffnet den Kollegen-Profil-Screen, wenn man im Spiel (kein Menü offen) auf
- * das Profil-Widget oben rechts klickt. OHNE fabric-api.
+ * Öffnet Kollegen-Screens, wenn man im Spiel (kein Menü offen) auf die HUD-
+ * Widgets klickt. OHNE fabric-api.
+ *  - Profil-Widget oben rechts  -> Profil-Screen
+ *  - Freundes-Widget oben links -> Freundesliste (mit „Joinen")
  */
 @Mixin(MouseHandler.class)
 public class MouseHandlerMixin {
@@ -30,6 +33,11 @@ public class MouseHandlerMixin {
         if (mx >= KollegenHud.profileX && mx <= KollegenHud.profileX + KollegenHud.profileW
                 && my >= KollegenHud.profileY && my <= KollegenHud.profileY + KollegenHud.profileH) {
             mc.setScreen(new KollegenProfileScreen());
+            return;
+        }
+        if (mx >= KollegenHud.friendsX && mx <= KollegenHud.friendsX + KollegenHud.friendsW
+                && my >= KollegenHud.friendsY && my <= KollegenHud.friendsY + KollegenHud.friendsH) {
+            mc.setScreen(new KollegenFriendsScreen());
         }
     }
 }

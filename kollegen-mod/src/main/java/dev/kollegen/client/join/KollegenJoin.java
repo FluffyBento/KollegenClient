@@ -89,6 +89,17 @@ public final class KollegenJoin {
         }
     }
 
+    /**
+     * Verbindet direkt mit einem Server (Host[:Port]), z. B. vom „Joinen"-Knopf
+     * in der Freundesliste. Host/Port kommt aus der Presence des Backends.
+     */
+    public static void joinServer(String hostPort) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc == null || hostPort == null || hostPort.isBlank()) return;
+        KollegenMod.LOGGER.info("Joinen mit Server: {}", hostPort);
+        connect(mc, hostPort);
+    }
+
     private static void connect(Minecraft mc, String hostPort) {
         try {
             String host = hostPort;
