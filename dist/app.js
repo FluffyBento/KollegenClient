@@ -469,14 +469,14 @@ async function refreshLogs() {
       d.textContent = (a.type === "discord" ? "Discord: " : "") + (a.name || a.id);
       acc.append(d);
     });
-    renderSkin(socialMe.mc_name);
+    showSkinFromName(socialMe.mc_name);
+    loadSkinChanger();
   }
 
   let skinViewer = null;
-  function renderSkin(mcName) {
+  function showSkin(url) {
     const canvas = $("skinCanvas");
-    if (!canvas || !mcName) return;
-    const skinUrl = `https://mc-heads.net/skin/${encodeURIComponent(mcName)}`;
+    if (!canvas || !url) return;
     if (window.skinview3d) {
       try {
         if (skinViewer) { skinViewer.destroy(); skinViewer = null; }
@@ -487,7 +487,7 @@ async function refreshLogs() {
           canvas: canvas,
           width: 200,
           height: 400,
-          skin: skinUrl,
+          skin: url,
         });
         skinViewer.animation = new window.skinview3d.IdleAnimation();
         return;
@@ -498,8 +498,88 @@ async function refreshLogs() {
     const wrap = canvas.parentElement;
     let fb = wrap.querySelector("img.skin-fallback");
     if (!fb) { fb = new Image(); fb.className = "skin-fallback"; wrap.append(fb); }
-    fb.src = skinUrl;
+    fb.src = url;
     canvas.style.display = "none";
+  }
+  function showSkinFromName(name) {
+    if (name) showSkin(`https://mc-heads.net/skin/${encodeURIComponent(name)}`);
+  }
+
+  // ── Skin-Bibliothek + Cape-Wechsler im Profil ──
+  function loadSkinChanger() {
+    invoke("skin_list").then(list => {
+      renderSkinLibrary(list);
+      const active = (list.skins || []).find(s => s.name === list.active);
+      if (active && active.url) showSkin(active.url);
+    }).catch(() => {});
+    invoke("skin_mc_profile").then(prof => renderCapes(prof)).catch(() => {});
+  }
+
+  function renderSkinLibrary(list) {
+    const lib = $("skinLibrary");
+    if (!lib) return;
+    lib.innerHTML = "";
+    (list.skins || []).forEach(s => {
+      const el = document.createElement("button");
+      el.className = "skin-lib-item" + (s.name === list.active ? " active" : "");
+      const img = document.createElement("img");
+      img.src = s.url;
+      img.alt = s.name;
+      el.append(img);
+      el.title = s.name + " (wechseln)";
+      el.onclick = () => switchSkin(s);
+      lib.append(el);
+    });
+    if (!(list.skins || []).length) {
+      const hint = document.createElement("div");
+      hint.className = "socials-hint";
+      hint.textContent = "Noch keine Skins – lade deinen aktuellen herunter oder lade eine Datei hoch.";
+      lib.append(hint);
+    }
+  }
+
+  function switchSkin(s) {
+    showSkin(s.url);
+    invoke("skin_set_active", { name: s.name }).catch(() => {});
+    invoke("skin_upload", { name: s.name, data: s.url, variant: "classic" }).then(r => {
+      if (r && r.mc_uploaded) toast("Skin gewechselt", "ok");
+      else if (r && r.ok) toast("Lokal gespeichert (kein MC-Upload möglich)", "ok");
+      else if (r && r.error) toast(r.error, "error");
+      loadSkinChanger();
+    }).catch(e => toast("Skin wechseln fehlgeschlagen: " + e, "error"));
+  }
+
+  function renderCapes(prof) {
+    const list = $("capeList");
+    if (!list) return;
+    list.innerHTML = "";
+    const capes = (prof && prof.capes) ? prof.capes : [];
+    if (!capes.length) {
+      list.innerHTML = '<div class="socials-hint">Keine Capes verfügbar.</div>';
+      return;
+    }
+    capes.forEach(c => {
+      const el = document.createElement("div");
+      el.className = "cape-item" + (c.state === "ACTIVE" ? " active" : "");
+      const img = document.createElement("img");
+      img.src = c.url;
+      img.alt = c.name || "Cape";
+      const name = document.createElement("span");
+      name.textContent = c.name || "Cape";
+      const btn = document.createElement("button");
+      btn.textContent = c.state === "ACTIVE" ? "Aktiv" : "Ausrüsten";
+      btn.disabled = c.state === "ACTIVE";
+      btn.onclick = () => equipCape(c.id);
+      el.append(img, name, btn);
+      list.append(el);
+    });
+  }
+
+  function equipCape(id) {
+    invoke("cape_equip", { capeId: id }).then(r => {
+      if (r && r.ok) { toast("Cape ausgerüstet", "ok"); loadSkinChanger(); }
+      else toast((r && r.error) || "Fehler", "error");
+    }).catch(e => toast("Cape fehlgeschlagen: " + e, "error"));
   }
 
   let joinFriendTarget = null;
@@ -1246,6 +1326,46 @@ const openProfileBtn = $("openProfileBtn");
 if (openProfileBtn) openProfileBtn.onclick = () => openProfileModal();
 $("profileClose").onclick = () => { $("profileModal").style.display = "none"; };
 $("pmCopy").onclick = () => { if (socialMe) copyText(socialMe.friend_code); };
+
+// Skin/Cape-Changer
+const skinFileInput = $("skinFileInput");
+if ($("skinDownloadBtn")) {
+  $("skinDownloadBtn").onclick = () => {
+    invoke("skin_download_current").then(r => {
+      if (r && r.state) {
+        renderSkinLibrary(r.state);
+        const a = (r.state.skins || []).find(s => s.name === r.state.active);
+        if (a) showSkin(a.url);
+        toast("Skin heruntergeladen", "ok");
+      } else {
+        toast((r && r.error) || "Download fehlgeschlagen", "error");
+      }
+    }).catch(e => toast("Download fehlgeschlagen: " + e, "error"));
+  };
+}
+if ($("skinUploadBtn") && skinFileInput) {
+  $("skinUploadBtn").onclick = () => skinFileInput.click();
+  skinFileInput.onchange = (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result;
+      const name = (file.name || "upload").replace(/\.[^.]+$/, "") || "upload";
+      invoke("skin_upload", { name, data: dataUrl, variant: "classic" }).then(r => {
+        if (r && r.state) {
+          renderSkinLibrary(r.state);
+          const a = (r.state.skins || []).find(s => s.name === r.state.active);
+          if (a) showSkin(a.url);
+        }
+        if (r && r.error) toast(r.error, "error");
+        else toast(r && r.mc_uploaded ? "Skin hochgeladen & gewechselt" : "Skin lokal gespeichert", "ok");
+      }).catch(err => toast("Upload fehlgeschlagen: " + err, "error"));
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  };
+}
 $("friendCodeAdd").onclick = async () => {
   const code = ($("friendCodeInput").value || "").trim().toUpperCase();
   if (!code) return;
