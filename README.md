@@ -1,6 +1,6 @@
 ![Logo](Logo.png)
 # LEUTE DAS HIER IST ALPHA SHIT
-(Errors bitte kopieren und Screenshots machen und bei Issues adden)
+> **Hinweis:** Bitte kopiere Fehler und hänge Screenshots an, wenn du ein Issue erstellst oder sende es mir per DM.
 
 ## **Zum installieren:**
 # Releases (An der rechten Seite) -> das mit .exe am ende herunterladen
@@ -18,7 +18,7 @@
 
 ### ⚠️ **ACHTUNG: ALPHA SHIT** ⚠️
 
-> **Hinweis:** Bitte kopiere Fehler und hänge Screenshots an, wenn du ein Issue erstellst.
+
 
 ---
 
