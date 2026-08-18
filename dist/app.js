@@ -72,11 +72,30 @@ async function refreshInstances() {
       manage.textContent = "Verwalten";
       manage.onclick = () => openManage(inst);
 
+      let opt = null;
+      if (inst.loader === "fabric" || inst.loader === "quilt") {
+        opt = document.createElement("button");
+        opt.textContent = "Optimize";
+        opt.title = "Performance-Modpack installieren";
+        opt.onclick = async () => {
+          opt.disabled = true;
+          opt.textContent = "…";
+          try {
+            await invoke("optimize_instance", { name: inst.name });
+            alert("Performance-Modpack wurde (neu) installiert.");
+          } catch (e) {
+            alert("Optimierung fehlgeschlagen: " + e);
+          }
+          opt.disabled = false;
+          opt.textContent = "Optimize";
+        };
+      }
+
       const del = document.createElement("button");
       del.textContent = "Löschen";
       del.onclick = () => deleteInstance(inst.name, inst.id);
 
-      actions.append(launch, manage, del);
+      actions.append(launch, manage, ...(opt ? [opt] : []), del);
       li.append(label, actions);
       list.append(li);
     }
@@ -457,6 +476,9 @@ async function refreshLogs() {
     const m = $("profileModal");
     if (!m) return;
     m.style.display = "flex";
+    // Skin + Capes laden – das funktioniert unabhängig von socialMe
+    // (Microsoft-Konto reicht), darf also NICHT hinter dem socialMe-Guard hängen.
+    loadSkinChanger();
     if (!socialMe) return;
     $("pmName").textContent = socialMe.mc_name || socialMe.username || "—";
     $("pmDiscord").textContent = "Discord: " + (socialMe.global_name || socialMe.username || "—");
@@ -469,8 +491,7 @@ async function refreshLogs() {
       d.textContent = (a.type === "discord" ? "Discord: " : "") + (a.name || a.id);
       acc.append(d);
     });
-    showSkinFromName(socialMe.mc_name);
-    loadSkinChanger();
+    if (socialMe.mc_name) showSkinFromName(socialMe.mc_name);
   }
 
   let skinViewer = null;
@@ -928,48 +949,18 @@ pushTheme();
 
 // ─=== Settings (Verbindungen / Themes / Importieren) ===
 
-// Vollständige Farbpaletten je Theme + Modus. Schlüssel = Theme-Name.
+// Farbschemata je Theme (reine Farbpaletten, kein Hell/Dunkel-Modus mehr).
 const THEMES = {
-  Kollegen: {
-    dark:  { bg:"#0a0c10", panel:"#12141d", panel2:"#161922", accent:"#ffaa00", accent2:"#f5c518", text:"#ededed", muted:"#9ca3af", border:"#282d3d", danger:"#ff5b6e" },
-    light: { bg:"#f4f1ea", panel:"#ffffff", panel2:"#efe9dd", accent:"#c98a00", accent2:"#f5c518", text:"#1a1a1a", muted:"#6b6b6b", border:"#d8d2c4", danger:"#d83a4c" },
-  },
-  Limit_Los: {
-    dark:  { bg:"#1a0d0d", panel:"#241313", panel2:"#2e1717", accent:"#e6332a", accent2:"#b71c1c", text:"#f3e9e9", muted:"#c9a9a9", border:"#3a2222", danger:"#ff5b6e" },
-    light: { bg:"#fbeeee", panel:"#f3dcdc", panel2:"#ecd0d0", accent:"#e6332a", accent2:"#b71c1c", text:"#2b1414", muted:"#7a4f4f", border:"#e0b8b8", danger:"#d83a4c" },
-  },
-  FluffyBento: {
-    dark:  { bg:"#0f1410", panel:"#16201a", panel2:"#1d2a22", accent:"#3ba55d", accent2:"#b65cff", text:"#eaf7ee", muted:"#9fc4ab", border:"#29402f", danger:"#ff7aa2" },
-    light: { bg:"#eef6ee", panel:"#dcefe0", panel2:"#cfe9d4", accent:"#2d8049", accent2:"#9b3fd1", text:"#142117", muted:"#5a7d63", border:"#bfe0c6", danger:"#d83a4c" },
-  },
-  Annanastv: {
-    dark:  { bg:"#1a1605", panel:"#221d08", panel2:"#2b250c", accent:"#f1c40f", accent2:"#d4ac0d", text:"#fbf7e6", muted:"#cabf8e", border:"#3a3211", danger:"#ff7a59" },
-    light: { bg:"#fdf8e3", panel:"#fbf0c4", panel2:"#f6e8a8", accent:"#d4ac0d", accent2:"#b7950b", text:"#2b2410", muted:"#7a6e3a", border:"#efe0a0", danger:"#d83a4c" },
-  },
-  T_son_: {
-    dark:  { bg:"#0c1410", panel:"#112019", panel2:"#16271e", accent:"#2ecc71", accent2:"#239b56", text:"#e8f5ee", muted:"#9bc2ac", border:"#244234", danger:"#ff5b6e" },
-    light: { bg:"#e9f5ee", panel:"#d6ecdd", panel2:"#c4e3cd", accent:"#239b56", accent2:"#1e8449", text:"#11231a", muted:"#5a7d68", border:"#bce0c8", danger:"#d83a4c" },
-  },
-  zSpicyyy: {
-    dark:  { bg:"#0a1218", panel:"#0f1a22", panel2:"#14222c", accent:"#3498db", accent2:"#2471a3", text:"#e6f1f8", muted:"#9bbccc", border:"#223a48", danger:"#ff7a59" },
-    light: { bg:"#e6f2f9", panel:"#cfe6f2", panel2:"#bcdced", accent:"#2471a3", accent2:"#1f618d", text:"#0e1f2a", muted:"#4f788f", border:"#aed4e6", danger:"#d83a4c" },
-  },
-  Irongirl: {
-    dark:  { bg:"#14171a", panel:"#1c2024", panel2:"#24292e", accent:"#bdc3c7", accent2:"#95a5a6", text:"#f0f3f5", muted:"#aab4ba", border:"#2e343a", danger:"#ff5b6e" },
-    light: { bg:"#ffffff", panel:"#f4f6f7", panel2:"#e9edef", accent:"#95a5a6", accent2:"#7f8c8d", text:"#1c2127", muted:"#6b777e", border:"#dde1e3", danger:"#d83a4c" },
-  },
-  Notschie_: {
-    dark:  { bg:"#0c0810", panel:"#140e1a", panel2:"#1c1426", accent:"#9b59b6", accent2:"#71368a", text:"#f1eaf6", muted:"#b69cc6", border:"#2c2040", danger:"#ff6b9d" },
-    light: { bg:"#efe7f5", panel:"#e2d4ee", panel2:"#d4c1e6", accent:"#71368a", accent2:"#5b2c70", text:"#1c1226", muted:"#6a517e", border:"#cbb3e0", danger:"#d83a4c" },
-  },
-  SMPNico: {
-    dark:  { bg:"#081418", panel:"#0d1c20", panel2:"#122a2f", accent:"#1abc9c", accent2:"#138d75", text:"#e3f4f1", muted:"#8fc2b8", border:"#20434a", danger:"#ff7a59" },
-    light: { bg:"#e0f4f1", panel:"#c9eae4", panel2:"#b3e1d8", accent:"#138d75", accent2:"#0e6e5c", text:"#0c1f1c", muted:"#4f8278", border:"#a6d8cf", danger:"#d83a4c" },
-  },
-  LetsLennyy: {
-    dark:  { bg:"#140a0a", panel:"#1d0f0f", panel2:"#271414", accent:"#FF0000", accent2:"#cc0000", text:"#f3e9e9", muted:"#c39b9b", border:"#600000", danger:"#ff5b6e" },
-    light: { bg:"#f6e6e4", panel:"#eccfcc", panel2:"#e0bcb8", accent:"#FF0000", accent2:"#cc0000", text:"#261110", muted:"#7a4f4a", border:"#600000", danger:"#d83a4c" },
-  },
+  Kollegen:    { bg:"#0a0c10", panel:"#12141d", panel2:"#161922", accent:"#ffaa00", accent2:"#f5c518", text:"#ededed", muted:"#9ca3af", border:"#282d3d", danger:"#ff5b6e" },
+  Limit_Los:   { bg:"#1a0d0d", panel:"#241313", panel2:"#2e1717", accent:"#e6332a", accent2:"#b71c1c", text:"#f3e9e9", muted:"#c9a9a9", border:"#3a2222", danger:"#ff5b6e" },
+  FluffyBento: { bg:"#0f1410", panel:"#16201a", panel2:"#1d2a22", accent:"#3ba55d", accent2:"#b65cff", text:"#eaf7ee", muted:"#9fc4ab", border:"#29402f", danger:"#ff7aa2" },
+  Annanastv:   { bg:"#1a1605", panel:"#221d08", panel2:"#2b250c", accent:"#f1c40f", accent2:"#d4ac0d", text:"#fbf7e6", muted:"#cabf8e", border:"#3a3211", danger:"#ff7a59" },
+  T_son_:      { bg:"#0c1410", panel:"#112019", panel2:"#16271e", accent:"#2ecc71", accent2:"#239b56", text:"#e8f5ee", muted:"#9bc2ac", border:"#244234", danger:"#ff5b6e" },
+  zSpicyyy:    { bg:"#0a1218", panel:"#0f1a22", panel2:"#14222c", accent:"#3498db", accent2:"#2471a3", text:"#e6f1f8", muted:"#9bbccc", border:"#223a48", danger:"#ff7a59" },
+  Irongirl:    { bg:"#14171a", panel:"#1c2024", panel2:"#24292e", accent:"#bdc3c7", accent2:"#95a5a6", text:"#f0f3f5", muted:"#aab4ba", border:"#2e343a", danger:"#ff5b6e" },
+  Notschie_:   { bg:"#0c0810", panel:"#140e1a", panel2:"#1c1426", accent:"#9b59b6", accent2:"#71368a", text:"#f1eaf6", muted:"#b69cc6", border:"#2c2040", danger:"#ff6b9d" },
+  SMPNico:     { bg:"#081418", panel:"#0d1c20", panel2:"#122a2f", accent:"#1abc9c", accent2:"#138d75", text:"#e3f4f1", muted:"#8fc2b8", border:"#20434a", danger:"#ff7a59" },
+  LetsLennyy:  { bg:"#140a0a", panel:"#1d0f0f", panel2:"#271414", accent:"#FF0000", accent2:"#cc0000", text:"#f3e9e9", muted:"#c39b9b", border:"#600000", danger:"#ff5b6e" },
 };
 
 let currentSettings = null;
@@ -984,9 +975,8 @@ async function loadSettingsOnce() {
   return currentSettings;
 }
 
-function applyTheme(name, mode) {
-  const theme = THEMES[name];
-  const pal = theme ? (theme[mode] || theme.dark) : THEMES.Kollegen.dark;
+function applyTheme(name) {
+  const pal = THEMES[name] || THEMES.Kollegen;
   const r = document.documentElement.style;
   r.setProperty("--bg", pal.bg);
   r.setProperty("--panel", pal.panel);
@@ -998,25 +988,22 @@ function applyTheme(name, mode) {
   r.setProperty("--border", pal.border);
   r.setProperty("--danger", pal.danger);
   document.documentElement.setAttribute("data-theme", name);
-  document.documentElement.setAttribute("data-mode", mode);
   pushTheme();
 }
 
 async function applySavedTheme() {
   const s = await loadSettingsOnce();
   const name = THEMES[s.theme] ? s.theme : "Kollegen";
-  const mode = s.theme_mode === "light" ? "light" : "dark";
-  applyTheme(name, mode);
+  applyTheme(name);
 }
 
-async function saveTheme(name, mode) {
+async function saveTheme(name) {
   const s = await loadSettingsOnce();
   s.theme = name;
-  s.theme_mode = mode;
   try {
     await invoke("save_settings", { settings: s });
   } catch (e) {}
-  applyTheme(name, mode);
+  applyTheme(name);
 }
 
 // ─=== Settings panel wiring ===
@@ -1025,9 +1012,11 @@ $("settingsBtn").onclick = async () => {
   await loadSettingsOnce();
   await refreshSettingsAccounts();
   renderThemeList();
-  syncModeButtons();
+  renderLayoutOptions();
   const cmt = $("companionModToggle");
   if (cmt && currentSettings) cmt.checked = !!currentSettings.companion_mod;
+  const pmt = $("perfModsToggle");
+  if (pmt && currentSettings) pmt.checked = currentSettings.perf_mods !== false;
 };
 
 const companionModToggle = $("companionModToggle");
@@ -1035,6 +1024,14 @@ if (companionModToggle) {
   companionModToggle.onchange = async () => {
     const s = await loadSettingsOnce();
     s.companion_mod = companionModToggle.checked;
+    try { await invoke("save_settings", { settings: s }); } catch (e) {}
+  };
+}
+const perfModsToggle = $("perfModsToggle");
+if (perfModsToggle) {
+  perfModsToggle.onchange = async () => {
+    const s = await loadSettingsOnce();
+    s.perf_mods = perfModsToggle.checked;
     try { await invoke("save_settings", { settings: s }); } catch (e) {}
   };
 }
@@ -1182,43 +1179,89 @@ $("discordLogoutBtn").onclick = async () => {
   }
 };
 
-// ─ Themes ─
+// ─ Themes (reine Farbschemata) ─
 function renderThemeList() {
   const list = $("themeList");
   list.innerHTML = "";
-  const s = currentSettings || { theme: "Limit_Los", theme_mode: "dark" };
-  for (const [name, modes] of Object.entries(THEMES)) {
+  const s = currentSettings || { theme: "Kollegen" };
+  for (const [name, pal] of Object.entries(THEMES)) {
     const card = document.createElement("button");
     card.className = "theme-card" + (name === s.theme ? " active" : "");
     const dot = document.createElement("span");
     dot.className = "theme-dot";
-    dot.style.background = modes.dark.accent;
+    dot.style.background = pal.accent;
     const label = document.createElement("span");
     label.textContent = name;
     card.append(dot, label);
-    card.onclick = () => saveTheme(name, s.theme_mode === "light" ? "light" : "dark");
+    card.onclick = () => saveTheme(name);
     list.append(card);
   }
 }
 
-function syncModeButtons() {
-  const mode = currentSettings && currentSettings.theme_mode === "light" ? "light" : "dark";
-  $("modeDark").classList.toggle("active", mode === "dark");
-  $("modeLight").classList.toggle("active", mode === "light");
+// ─ Layout-/Darstellungsoptionen ─
+function applyLayout() {
+  const s = currentSettings || { density: "comfortable", sidebar_visible: true, animations: true };
+  document.body.classList.toggle("density-compact", s.density === "compact");
+  document.body.classList.toggle("hide-sidebar", !s.sidebar_visible);
+  document.body.classList.toggle("reduce-motion", !s.animations);
 }
 
-$("modeDark").onclick = () => {
-  const name = currentSettings ? currentSettings.theme : "Limit_Los";
-  saveTheme(name, "dark");
-  syncModeButtons();
-  renderThemeList();
-};
-$("modeLight").onclick = () => {
-  const name = currentSettings ? currentSettings.theme : "Limit_Los";
-  saveTheme(name, "light");
-  syncModeButtons();
-  renderThemeList();
-};
+async function saveLayout(patch) {
+  const s = await loadSettingsOnce();
+  Object.assign(s, patch);
+  try { await invoke("save_settings", { settings: s }); } catch (e) {}
+  applyLayout();
+}
+
+function segButton(label, active, onClick) {
+  const b = document.createElement("button");
+  b.className = "mode-btn" + (active ? " active" : "");
+  b.textContent = label;
+  b.onclick = onClick;
+  return b;
+}
+
+function renderLayoutOptions() {
+  const wrap = $("layoutOptions");
+  if (!wrap) return;
+  wrap.innerHTML = "";
+  const s = currentSettings || { density: "comfortable", sidebar_visible: true, animations: true };
+
+  const density = document.createElement("div");
+  density.className = "layout-row";
+  density.innerHTML = "<span class='layout-label'>Dichte</span>";
+  const densSeg = document.createElement("div");
+  densSeg.className = "mode-toggle";
+  densSeg.append(
+    segButton("Komfortabel", s.density !== "compact", () => { saveLayout({ density: "comfortable" }); renderLayoutOptions(); }),
+    segButton("Kompakt", s.density === "compact", () => { saveLayout({ density: "compact" }); renderLayoutOptions(); })
+  );
+  density.append(densSeg);
+
+  const sidebar = document.createElement("div");
+  sidebar.className = "layout-row";
+  sidebar.innerHTML = "<span class='layout-label'>Sidebar</span>";
+  const sideSeg = document.createElement("div");
+  sideSeg.className = "mode-toggle";
+  sideSeg.append(
+    segButton("Anzeigen", s.sidebar_visible, () => { saveLayout({ sidebar_visible: true }); renderLayoutOptions(); }),
+    segButton("Ausblenden", !s.sidebar_visible, () => { saveLayout({ sidebar_visible: false }); renderLayoutOptions(); })
+  );
+  sidebar.append(sideSeg);
+
+  const anim = document.createElement("div");
+  anim.className = "layout-row";
+  anim.innerHTML = "<span class='layout-label'>Animationen</span>";
+  const animSeg = document.createElement("div");
+  animSeg.className = "mode-toggle";
+  animSeg.append(
+    segButton("An", s.animations, () => { saveLayout({ animations: true }); renderLayoutOptions(); }),
+    segButton("Aus", !s.animations, () => { saveLayout({ animations: false }); renderLayoutOptions(); })
+  );
+  anim.append(animSeg);
+
+  wrap.append(density, sidebar, anim);
+}
 
 // ─ Importieren (andere Launcher) ─
 $("importScanBtn").onclick = async () => {
@@ -1331,14 +1374,17 @@ async function doImport(launcherId, dirName, dispName) {
   }
 }
 
-// Beim Start das gespeicherte Theme anwenden.
-applySavedTheme();
+// Beim Start das gespeicherte Theme + Layout anwenden.
+applySavedTheme().then(applyLayout);
 
-// Socials drawer (left sidebar) toggle.
-$("socialsBtn").onclick = () => {
+// Socials drawer (left sidebar / FAB) toggle.
+function toggleSocials() {
   $("socialsPanel").classList.toggle("open");
   refreshSocial();
-};
+}
+$("socialsBtn").onclick = toggleSocials;
+const socialsFab = $("socialsFab");
+if (socialsFab) socialsFab.onclick = toggleSocials;
 $("profileWidget").onclick = () => openProfileModal();
 const openProfileBtn = $("openProfileBtn");
 if (openProfileBtn) openProfileBtn.onclick = () => openProfileModal();

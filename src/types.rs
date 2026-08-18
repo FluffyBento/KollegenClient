@@ -60,6 +60,23 @@ pub struct Settings {
     /// mit „invalid packet" kickt – ohne Mod ist der Client unverändert.
     #[serde(default = "default_true")]
     pub companion_mod: bool,
+    /// UI-Dichte: "comfortable" oder "compact".
+    #[serde(default = "default_density")]
+    pub density: String,
+    /// Sidebar mit den Social-Buttons anzeigen.
+    #[serde(default = "default_true")]
+    pub sidebar_visible: bool,
+    /// UI-Animationen aktivieren.
+    #[serde(default = "default_true")]
+    pub animations: bool,
+    /// Bekannte Fabric-Performance-Mods bei Fabric-/Quilt-Instanzen automatisch
+    /// installieren (Sodium, Lithium, FerriteCore, EntityCulling, …).
+    #[serde(default = "default_true")]
+    pub perf_mods: bool,
+}
+
+fn default_density() -> String {
+    "comfortable".to_string()
 }
 
 fn default_true() -> bool {
@@ -82,6 +99,10 @@ impl Default for Settings {
             presence_backend: "http://5.175.192.69:8080".to_string(),
             presence_token: String::new(),
             companion_mod: true,
+            density: "comfortable".to_string(),
+            sidebar_visible: true,
+            animations: true,
+            perf_mods: true,
         }
     }
 }

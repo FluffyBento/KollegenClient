@@ -20,6 +20,7 @@ mod utils;
 
 use anyhow::Result;
 use directories::ProjectDirs;
+use log::warn;
 use serde_json::Value;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
@@ -159,6 +160,27 @@ fn create_instance(
 
     instances.push(inst.clone());
     utils::save_json(&path, &instances).map_err(|e| e.to_string())?;
+
+    // Fabric/Quilt: stärkstes Performance-Modpack automatisch vorinstallieren
+    // (best-effort – einzelne Mods dürfen fehlschlagen, ohne die Instanz zu
+    // blockieren).
+    if inst.loader.eq_ignore_ascii_case("fabric")
+        || inst.loader.eq_ignore_ascii_case("quilt")
+    {
+        let settings = utils::load_json::<types::Settings>(
+            &utils::settings_file(&state.data_dir),
+            types::Settings::default(),
+        );
+        if settings.perf_mods {
+            let _ = modrinth::install_perf_mods(
+                &state.data_dir,
+                &name,
+                &version,
+                &inst.loader,
+            )
+            .map_err(|e| warn!("Performance-Mods nicht installiert: {}", e));
+        }
+    }
 
     Ok(inst)
 }
@@ -545,6 +567,28 @@ fn modrinth_versions(
     let versions = crate::modrinth::list_versions(&project_id, &mc_version, &loader)
         .map_err(|e| e.to_string())?;
     Ok(serde_json::to_value(versions).unwrap_or(Value::Null))
+}
+
+/// Installiert das kuratierte Performance-Modpack in eine bestehende
+/// Fabric-/Quilt-Instanz nachträglich (best-effort).
+#[tauri::command]
+fn optimize_instance(
+    state: State<'_, AppState>,
+    name: String,
+) -> Result<(), String> {
+    let path = utils::instances_file(&state.data_dir);
+    let instances = utils::load_json::<Vec<types::Instance>>(&path, vec![]);
+    let inst = instances
+        .iter()
+        .find(|i| i.name == name)
+        .ok_or_else(|| format!("Instanz '{}' nicht gefunden.", name))?;
+    crate::modrinth::install_perf_mods(
+        &state.data_dir,
+        &name,
+        &inst.version,
+        &inst.loader,
+    )
+    .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -1006,6 +1050,7 @@ fn main() {
             modrinth_search,
             install_content,
             modrinth_versions,
+            optimize_instance,
             list_content,
             delete_content,
             change_content_version,
