@@ -2,8 +2,16 @@
 # LEUTE DAS HIER IST ALPHA SHIT
 > **Hinweis:** Bitte kopiere Fehler und hänge Screenshots an, wenn du ein Issue erstellst oder sende es mir per DM.
 
-## **Zum installieren:**
-# Releases (An der rechten Seite) -> das mit .exe am ende herunterladen
+
+---
+
+## 📥 **Installation**
+
+<kbd> **Releases** </kbd> (siehe rechte Seite) ➔ **RICHTIGE VERSION AUSWÄHLEN (z.B. .exe)**
+
+</div>
+
+---
 
 
 ![Kollegen](Kollegen.png)
@@ -20,15 +28,6 @@
 
 
 
----
-
-## 📥 **Installation**
-
-<kbd> **Releases** </kbd> (siehe rechte Seite) ➔ **Download** der `.exe` Datei.
-
-</div>
-
----
 
 <div align="center">
 
