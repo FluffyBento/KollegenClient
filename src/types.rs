@@ -55,6 +55,15 @@ pub struct Settings {
     /// KOLLEGEN_PRESENCE_TOKEN hat Vorrang.
     #[serde(default)]
     pub presence_token: String,
+    /// Begleit-Mod (Fabric) automatisch in mod-fähige Instanzen installieren.
+    /// Ausschalten, falls ein Server (z. B. GommeHD) modifizierte Clients
+    /// mit „invalid packet" kickt – ohne Mod ist der Client unverändert.
+    #[serde(default = "default_true")]
+    pub companion_mod: bool,
+}
+
+fn default_true() -> bool {
+    true
 }
 
 impl Default for Settings {
@@ -72,6 +81,7 @@ impl Default for Settings {
             proxy: None,
             presence_backend: "http://5.175.192.69:8080".to_string(),
             presence_token: String::new(),
+            companion_mod: true,
         }
     }
 }

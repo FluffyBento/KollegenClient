@@ -195,6 +195,9 @@ jobs:
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Add macOS universal targets (Intel + Apple Silicon)
+        run: rustup target add aarch64-apple-darwin x86_64-apple-darwin
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
@@ -218,8 +221,8 @@ jobs:
           gh release download "${{ github.ref_name }}" --repo "${{ github.repository }}" --pattern "kollegen-client-mod.jar" --dir resources || \
           curl -fsSL -o resources/kollegen-client-mod.jar "https://github.com/FluffyBento/KollegenClient/releases/latest/download/kollegen-client-mod.jar" || true
 
-      - name: Build macOS bundles (app + dmg + updater artifact)
-        run: tauri build --config tauri.conf.json --bundles app,dmg
+      - name: Build macOS bundles (universal app + dmg + updater artifact)
+        run: tauri build --config tauri.conf.json --target universal-apple-darwin --bundles app,dmg
 
       - name: Collect release artifacts
         run: |
@@ -280,7 +283,7 @@ jobs:
             "platforms": {
               "linux-x86_64": { "signature": "${LINUX_SIG}", "url": "${BASE}/KollegenClient.AppImage" },
               "windows-x86_64": { "signature": "${WIN_SIG}", "url": "${BASE}/KollegenClient.exe" }
-              $([ -n "$MAC_SIG" ] && echo ', "darwin-aarch64": { "signature": "'"$MAC_SIG"'", "url": "'"${BASE}/KollegenClient.app.tar.gz"'" }')
+              $([ -n "$MAC_SIG" ] && echo ', "darwin-aarch64": { "signature": "'"$MAC_SIG"'", "url": "'"${BASE}/KollegenClient.app.tar.gz"'" }, "darwin-x86_64": { "signature": "'"$MAC_SIG"'", "url": "'"${BASE}/KollegenClient.app.tar.gz"'" }')
             }
           }
           EOF

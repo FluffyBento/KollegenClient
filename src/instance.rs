@@ -204,12 +204,24 @@ pub fn ensure_kollegen_mod(data_dir: &Path, name: &str, loader: &str) {
     if loader == "vanilla" {
         return;
     }
+    let settings = crate::utils::load_json::<crate::types::Settings>(
+        &crate::utils::settings_file(data_dir),
+        crate::types::Settings::default(),
+    );
     let mods_dir = crate::utils::instance_dir(data_dir, name).join("mods");
+    let target = mods_dir.join("kollegen-client-mod.jar");
+    if !settings.companion_mod {
+        // Begleit-Mod deaktiviert: vorhandene Installation entfernen, damit der
+        // Client unverändert bleibt (z. B. für Server mit Anti-Cheat wie GommeHD).
+        if target.exists() {
+            let _ = fs::remove_file(&target);
+        }
+        return;
+    }
     if let Err(e) = fs::create_dir_all(&mods_dir) {
         warn!("Konnte mods/ nicht anlegen: {}", e);
         return;
     }
-    let target = mods_dir.join("kollegen-client-mod.jar");
     if target.exists() {
         return; // bereits installiert
     }
