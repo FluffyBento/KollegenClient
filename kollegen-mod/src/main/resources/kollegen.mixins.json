@@ -7,7 +7,9 @@
     "GameMenuScreenMixin",
     "OptionsScreenMixin",
     "MinecraftClientMixin",
-    "PlayerListEntryMixin"
+    "PlayerListEntryMixin",
+    {"GuiMixin": {"required": false}},
+    {"MouseHandlerMixin": {"required": false}}
   ],
   "injectors": {
     "defaultRequire": 1
