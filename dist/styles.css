@@ -49,8 +49,6 @@ header {
   position: sticky;
   top: 0;
   z-index: 10;
-  max-width: 1600px;
-  margin: 0 auto;
 }
 
 header h1 {
@@ -150,11 +148,9 @@ header h1 .brand-logo {
 
 main {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr));
+  grid-template-columns: 1fr 1fr;
   gap: 1.25rem;
   padding: 1.5rem;
-  max-width: 1600px;
-  margin: 0 auto;
   align-content: start;
 }
 
@@ -365,6 +361,9 @@ pre {
   padding: 1.1rem 1.4rem;
   border: 1px solid var(--border);
 }
+
+#manageModal .modal-content { width: min(1200px, 97vw); }
+#manageModal .cards { grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1.1rem; }
 
 .modal-header {
   display: flex;
@@ -1075,7 +1074,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 .toast-error { border-left-color: var(--danger); }
 
 /* Allgemeine Layout-Politur */
-main { gap: 1.2rem; padding: 1.5rem; max-width: 1600px; margin: 0 auto; align-content: start; }
+main { gap: 1.2rem; padding: 1.5rem; align-content: start; }
 .panel h2 { color: var(--accent); margin-top: 0; }
 ul#instanceList li, .account-list li, .import-list li {
   background: var(--panel); border: 1px solid var(--border); border-radius: 10px;

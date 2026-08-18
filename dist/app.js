@@ -510,9 +510,23 @@ async function refreshLogs() {
     invoke("skin_list").then(list => {
       renderSkinLibrary(list);
       const active = (list.skins || []).find(s => s.name === list.active);
-      if (active && active.url) showSkin(active.url);
+      if (active && active.url) {
+        showSkin(active.url);
+        invoke("skin_mc_profile").then(renderCapes).catch(() => renderCapes({}));
+      } else {
+        // Kein lokaler aktiver Skin: Minecraft-Profil-Textur (CORS-fähig) bevorzugen
+        invoke("skin_mc_profile").then(prof => {
+          renderCapes(prof);
+          const skins = (prof && prof.skins) || [];
+          const s = skins.find(x => x.state === "ACTIVE") || skins[0];
+          if (s && s.url) showSkin(s.url);
+          else if (socialMe && socialMe.mc_name) showSkinFromName(socialMe.mc_name);
+        }).catch(() => {
+          renderCapes({});
+          if (socialMe && socialMe.mc_name) showSkinFromName(socialMe.mc_name);
+        });
+      }
     }).catch(() => {});
-    invoke("skin_mc_profile").then(prof => renderCapes(prof)).catch(() => {});
   }
 
   function renderSkinLibrary(list) {
@@ -553,6 +567,10 @@ async function refreshLogs() {
     const list = $("capeList");
     if (!list) return;
     list.innerHTML = "";
+    if (!prof || prof.error) {
+      list.innerHTML = '<div class="socials-hint">Mit Microsoft-Konto anmelden, um Capes zu sehen &amp; auszurüsten.</div>';
+      return;
+    }
     const capes = (prof && prof.capes) ? prof.capes : [];
     if (!capes.length) {
       list.innerHTML = '<div class="socials-hint">Keine Capes verfügbar.</div>';
