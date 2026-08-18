@@ -6,6 +6,7 @@
 
 mod app_updates;
 mod auth;
+mod skins;
 mod companion;
 mod import;
 mod presence;
@@ -859,6 +860,41 @@ fn kollegen_friend_remove(state: State<'_, AppState>, target_id: String) -> serd
     crate::presence::kollegen_friend_remove(&state.data_dir, &target_id)
 }
 
+// ─=== Skin / Cape Changer ===
+#[tauri::command]
+fn skin_list(state: State<'_, AppState>) -> Value {
+    crate::skins::list_skins(&state.data_dir)
+}
+#[tauri::command]
+fn skin_set_active(state: State<'_, AppState>, name: String) -> Value {
+    crate::skins::set_active_skin(&state.data_dir, &name)
+}
+#[tauri::command]
+fn skin_delete(state: State<'_, AppState>, name: String) -> Value {
+    crate::skins::delete_skin(&state.data_dir, &name)
+}
+#[tauri::command]
+fn skin_download_current(state: State<'_, AppState>) -> Value {
+    crate::skins::download_current_skin(&state.data_dir)
+}
+#[tauri::command]
+fn skin_upload(
+    state: State<'_, AppState>,
+    name: String,
+    data: String,
+    variant: String,
+) -> Value {
+    crate::skins::upload_skin(&state.data_dir, &name, &data, &variant)
+}
+#[tauri::command]
+fn skin_mc_profile(state: State<'_, AppState>) -> Value {
+    crate::skins::minecraft_profile(&state.data_dir)
+}
+#[tauri::command]
+fn cape_equip(state: State<'_, AppState>, cape_id: String) -> Value {
+    crate::skins::equip_cape(&state.data_dir, &cape_id)
+}
+
 #[tauri::command]
 async fn check_app_update(app: tauri::AppHandle) -> Result<Option<Value>, String> {
     match crate::app_updates::check_info(&app).await {
@@ -992,6 +1028,13 @@ fn main() {
             kollegen_friends,
             kollegen_friend_add,
             kollegen_friend_remove,
+            skin_list,
+            skin_set_active,
+            skin_delete,
+            skin_download_current,
+            skin_upload,
+            skin_mc_profile,
+            cape_equip,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

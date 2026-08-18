@@ -1081,3 +1081,30 @@ ul#instanceList li, .account-list li, .import-list li {
   background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
   padding: 0.6rem 0.8rem; margin-bottom: 0.5rem;
 }
+
+/* ── Skin-/Cape-Changer im Profil ── */
+.profile-modal { max-height: 90vh; overflow-y: auto; }
+.skin-changer, .cape-changer { margin-top: 1rem; }
+.skin-actions { display: flex; gap: 0.5rem; margin-bottom: 0.6rem; }
+.skin-library {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+  gap: 0.5rem; max-height: 230px; overflow-y: auto;
+}
+.skin-lib-item {
+  background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px;
+  padding: 4px; cursor: pointer; aspect-ratio: 1 / 1; overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+}
+.skin-lib-item:hover { border-color: var(--accent); }
+.skin-lib-item.active { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(255,170,0,0.4); }
+.skin-lib-item img { width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; }
+.cape-list { display: flex; flex-direction: column; gap: 0.5rem; }
+.cape-item {
+  display: flex; align-items: center; gap: 0.6rem;
+  background: var(--panel-2); border: 1px solid var(--border); border-radius: 10px; padding: 0.5rem 0.7rem;
+}
+.cape-item.active { border-color: var(--accent); }
+.cape-item img { width: 64px; height: 40px; object-fit: contain; background: #0a0c10; border-radius: 6px; }
+.cape-item span { flex: 1; font-size: 0.9rem; color: var(--text); }
+.cape-item button { background: var(--accent); color: #111; border: none; border-radius: 8px; padding: 0.4rem 0.8rem; font-weight: 700; cursor: pointer; }
+.cape-item button:disabled { background: var(--panel); color: var(--muted); cursor: default; }
