@@ -2,7 +2,7 @@
 // (mods, resource packs, shader packs).
 
 use anyhow::{anyhow, Result};
-use log::info;
+use log::{info, warn};
 use serde::Serialize;
 use serde_json::Value;
 use std::collections::HashSet;
@@ -354,6 +354,51 @@ pub fn install_content(
         &mut visited,
         0,
     )
+}
+
+/// Curated set of the strongest, mutually-compatible Fabric performance mods.
+/// Each entry is a Modrinth project id (slug) and is resolved to the newest
+/// version compatible with the instance's Minecraft version + loader. Mods
+/// without a compatible release for a given version are simply skipped, so the
+/// list stays safe across Minecraft versions. Dependencies (e.g. config libs)
+/// are pulled in automatically by `install_content`.
+const PERF_MODS: &[&str] = &[
+    "sodium",
+    "lithium",
+    "ferrite-core",
+    "entityculling",
+    "dynamic-fps",
+    "modernfix",
+    "immediatelyfast",
+    "krypton",
+    "memoryleakfix",
+];
+
+/// Installs the curated performance-modpack into a Fabric/Quilt instance.
+/// Best-effort: a single mod failing to install is logged and skipped rather
+/// than aborting the whole batch, so instance creation never breaks.
+pub fn install_perf_mods(
+    data_dir: &Path,
+    instance_name: &str,
+    mc_version: &str,
+    loader: &str,
+) -> Result<()> {
+    if !matches!(loader.to_ascii_lowercase().as_str(), "fabric" | "quilt") {
+        return Ok(());
+    }
+    for slug in PERF_MODS {
+        let _ = install_content(
+            instance_name,
+            data_dir,
+            "mod",
+            slug,
+            mc_version,
+            loader,
+            None,
+        )
+        .map_err(|e| warn!("Performance-Mod '{}' nicht installiert: {}", slug, e));
+    }
+    Ok(())
 }
 
 /// Lists installed content filenames per category for an instance.

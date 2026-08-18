@@ -784,6 +784,44 @@ pre {
 }
 .mode-btn.active { background: var(--accent); border-color: transparent; color: #2a1a00; }
 
+/* ── Layout-/Darstellungsoptionen ── */
+.layout-options { display: flex; flex-direction: column; gap: 0.9rem; margin-top: 0.3rem; }
+.layout-row { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.layout-label { font-weight: 600; }
+
+/* Sidebar ausblenden → Soziale über FAB erreichbar */
+.socials-fab {
+  display: none;
+  position: fixed; top: 0.8rem; left: 0.8rem;
+  width: 42px; height: 42px; border-radius: 10px;
+  border: 1px solid var(--border); background: var(--panel-2); color: var(--text);
+  align-items: center; justify-content: center; cursor: pointer; z-index: 21;
+}
+.socials-fab:hover { background: var(--accent); color: #16131d; }
+body.hide-sidebar .sidebar { display: none; }
+body.hide-sidebar .socials-fab { display: flex; }
+body.hide-sidebar .socials-panel { left: 0; }
+body.hide-sidebar .hud-top,
+body.hide-sidebar .main-wrap,
+body.hide-sidebar .header,
+body.hide-sidebar .content { margin-left: 0 !important; padding-left: 0 !important; }
+
+/* Kompakte Dichte */
+body.density-compact .theme-card,
+body.density-compact .instance-card,
+body.density-compact .mod-card,
+body.density-compact button,
+body.density-compact input,
+body.density-compact select { padding: 0.32rem 0.55rem; font-size: 0.85rem; }
+body.density-compact .hud-top { gap: 0.5rem; padding: 0.5rem 0.8rem; }
+body.density-compact .instance-card .instance-name { font-size: 0.92rem; }
+body.density-compact .section-title { margin: 0.8rem 0 0.5rem; }
+
+/* Animationen aus */
+body.reduce-motion *,
+body.reduce-motion *::before,
+body.reduce-motion *::after { transition: none !important; animation: none !important; }
+
 .import-list { margin-top: 0.6rem; }
 .import-list li {
   display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;
