@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - 'v*'
+      - '1.*'
 
 permissions:
   contents: write
