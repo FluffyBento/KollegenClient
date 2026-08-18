@@ -70,7 +70,7 @@ impl Default for Settings {
             theme: "Limit_Los".to_string(),
             theme_mode: "dark".to_string(),
             proxy: None,
-            presence_backend: String::new(),
+            presence_backend: "http://5.175.192.69:8080".to_string(),
             presence_token: String::new(),
         }
     }

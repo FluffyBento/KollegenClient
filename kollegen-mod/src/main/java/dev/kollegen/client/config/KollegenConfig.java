@@ -28,7 +28,7 @@ public class KollegenConfig {
     public float highlightAmount = 0.6f;
 
     /** Presence: sollen andere Kollegen-Client-Nutzer im Spiel markiert werden? */
-    public boolean presenceEnabled = false;
+    public boolean presenceEnabled = true;
 
     /**
      * Basis-URL des externen Presence-Backends, z. B.
@@ -36,7 +36,7 @@ public class KollegenConfig {
      * Kann auch über die Umgebungsvariable KOLLEGEN_PRESENCE_BACKEND
      * gesetzt werden (hat Vorrang vor dieser Einstellung).
      */
-    public String presenceBackend = "";
+    public String presenceBackend = "http://5.175.192.69:8080";
 
     /**
      * Optionales Bearer-Token, das im Header "Authorization: Bearer …"
