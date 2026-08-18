@@ -24,7 +24,7 @@ dependencies {
     // Discord Rich Presence (Minnced) – vendored locally (club.minnced sources
     // from java-discord-rpc v1.3.6 + JNA + native libs) since the original
     // artifact was only ever published to the now-defunct JCenter.
-    include files('libs/discord-rpc.jar')
+    implementation files('libs/discord-rpc.jar')
 }
 
 processResources {

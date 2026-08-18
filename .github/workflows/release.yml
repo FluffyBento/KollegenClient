@@ -44,9 +44,8 @@ jobs:
       - name: Build Kollegen Client companion mod (Fabric)
         uses: gradle/gradle-build-action@v3
         with:
-          gradle-version: '8.14'
           build-root-directory: kollegen-mod
-          arguments: build
+          arguments: build --stacktrace
           # Disable Gradle caching so Loom re-downloads Minecraft instead of
           # restoring a poisoned cache that yields an empty compile classpath.
           cache-disabled: true
