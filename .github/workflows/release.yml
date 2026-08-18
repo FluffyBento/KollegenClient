@@ -67,13 +67,6 @@ jobs:
             echo "No mod jar produced and none prebuilt; skipping mod upload."
           fi
 
-      - name: Publish companion mod jar to release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          cp kollegen-mod/build/libs/kollegen-client-mod-*.jar kollegen-client-mod.jar
-          gh release upload "${{ github.ref_name }}" kollegen-client-mod.jar --clobber
-
   linux:
     needs: create-release
     runs-on: ubuntu-latest
