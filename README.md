@@ -7,7 +7,7 @@
 
 ## 📥 **Installation**
 
-<kbd> **Releases** </kbd> (siehe rechte Seite) ➔ **RICHTIGE VERSION AUSWÄHLEN (z.B. .exe)**
+<kbd> **Releases** </kbd> (siehe rechte Seite) ➔ **RICHTIGE VERSION AUSWÄHLEN (z.B. KollegenClient.exe)**
 
 </div>
 
@@ -21,23 +21,3 @@
 
 
 
-
-<div align="center">
-
-### ⚠️ **ACHTUNG: ALPHA SHIT** ⚠️
-
-
-
-
-<div align="center">
-
-![Kollegen](Kollegen.png)
-
-</div>
-
----
-
-### 🛠️ **Technische Infos**
-- **Status:** `Alpha`
-- **Plattform:** `Windows`
-- **Format:** `EXE`
