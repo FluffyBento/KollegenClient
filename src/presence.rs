@@ -496,4 +496,3 @@ fn run(data_dir: PathBuf) {
         }
     }
 }
-}
