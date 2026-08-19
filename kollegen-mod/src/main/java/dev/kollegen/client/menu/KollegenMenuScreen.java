@@ -31,6 +31,7 @@ public class KollegenMenuScreen extends Screen {
     private int hiToggleX, hiToggleY;
     private int hiX, hiY, hiW, hiH;
     private int hexX, hexY, hexW = 96, hexH = 20;
+    private int fbToggleX, fbToggleY;
 
     private boolean satDragging = false;
     private boolean hiDragging = false;
@@ -67,6 +68,12 @@ public class KollegenMenuScreen extends Screen {
         if (inRect(mx, my, logoToggleX, logoToggleY, TOGGLE_W, TOGGLE_H)) {
             KollegenMod.CONFIG.replaceLogo = !KollegenMod.CONFIG.replaceLogo;
             KollegenMod.CONFIG.save();
+            return true;
+        }
+        if (inRect(mx, my, fbToggleX, fbToggleY, TOGGLE_W, TOGGLE_H)) {
+            KollegenMod.CONFIG.fullbright = !KollegenMod.CONFIG.fullbright;
+            KollegenMod.CONFIG.save();
+            dev.kollegen.client.feature.Fullbright.reconcile();
             return true;
         }
         if (inRect(mx, my, satX, satY, satW, satH)) {
@@ -248,7 +255,14 @@ public class KollegenMenuScreen extends Screen {
         int pct2 = Math.round(KollegenMod.CONFIG.highlightAmount * 100);
         gg.drawString(this.font, pct2 + "%", hiX + hiW + 10, hiY + 8, text);
 
-        gg.drawCenteredString(this.font, "Weitere Einstellungen folgen…", cx, py + ph - 30, muted);
+        // ── Zeile 5: Fullbright ──
+        int fbY = hiLabelY + 44;
+        fbToggleX = px + pw - 28 - TOGGLE_W;
+        fbToggleY = fbY;
+        drawToggle(gg, fbToggleX, fbToggleY, KollegenMod.CONFIG.fullbright, accent, muted);
+        gg.drawString(this.font, "Fullbright (Gamma)", left, fbY + 7, text);
+
+        gg.drawCenteredString(this.font, "Einstellungen werden laufend erweitert…", cx, py + ph - 30, muted);
 
         super.render(gg, mx, my, delta);
     }

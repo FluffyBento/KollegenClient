@@ -12,14 +12,13 @@ const AUTHORIZE_ENDPOINT: &str = "https://discord.com/oauth2/authorize";
 const TOKEN_ENDPOINT: &str = "https://discord.com/api/v10/oauth2/token";
 const USER_ENDPOINT: &str = "https://discord.com/api/v10/users/@me";
 // Scopes requested on the Discord OAuth authorize page. `identify` + `guilds`
-// are standard (non-privileged) scopes. `relationships` powers the REST friend
-// list WITH live Discord presence (so the launcher can show friends as
-// online/offline). It is a privileged scope: it MUST be enabled for the
-// application in the Discord Developer Portal (OAuth2 → Scopes → "relationships")
-// – otherwise Discord rejects the authorize request and login fails with
-// "invalid_scope". Once enabled there, `fetch_friends` returns real friend
-// presence and the launcher stops showing everyone as offline.
-const SCOPES: &str = "identify guilds relationships";
+// are standard (non-privileged) scopes. We previously also requested
+// `relationships` to power the REST friend list, but Discord removed that scope
+// for (new) OAuth applications – requesting it now makes Discord reject the
+// authorize call with "scope relationships does not exist". So we only ask for
+// the scopes Discord still grants; the friend list is sourced from the Discord
+// RPC gateway (RELATIONSHIP_ADD events) instead, which needs no special scope.
+const SCOPES: &str = "identify guilds";
 const RELATIONSHIPS_ENDPOINT: &str = "https://discord.com/api/v10/users/@me/relationships";
 /// Fixed localhost port the browser is redirected back to. This exact URI must
 /// be registered as a Redirect URI in the Discord application's OAuth2 settings.
