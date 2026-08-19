@@ -803,6 +803,9 @@ fn optimize_instance(
     // Keine einzelne Mod-Liste anzeigen – nur kurz bestätigen, dass die
     // Instanz optimiert wurde (auch wenn kein Mod neu hinzugefügt wurde).
     let _ = installed;
+    // Kollegen Client Begleit-Mod sicherstellen, auch wenn die Instanz noch
+    // nicht gestartet wurde (best-effort; no-op bei Vanilla/Forge/NeoForge).
+    crate::companion::install_companion_mod(&state.data_dir, &name, &inst.version, &inst.loader);
     Ok("Instanz wurde optimiert.".to_string())
 }
 
