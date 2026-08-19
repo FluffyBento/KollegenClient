@@ -110,22 +110,26 @@ let conflictHandled = false;
 async function refreshLogs() {
   try {
     const logs = await invoke("get_logs");
-    let text = logs.join("\n");
+    const logsEl = $("logs");
+    // Only touch the DOM when the Logs panel is actually visible – otherwise
+    // we'd keep allocating huge strings in the renderer every poll and the
+    // webview (Edge/WebView2) memory would grow without bound.
+    const visible =
+      logsEl && (logsEl.offsetParent !== null || logsEl.style.display !== "none");
+    let glogText = "";
     if (activeInstance) {
       try {
-        const glog = await invoke("get_game_log", { instanceName: activeInstance });
-        if (glog) text += "\n" + glog;
+        glogText = await invoke("get_game_log", { instanceName: activeInstance });
       } catch (e) {
         /* ignore missing game log */
       }
     }
-    $("logs").textContent = text;
 
     // Auto-detect and resolve Fabric mod incompatibilities in the game log
     if (
       activeInstance &&
       !conflictHandled &&
-      text.includes("Incompatible mods found")
+      glogText.includes("Incompatible mods found")
     ) {
       conflictHandled = true;
       try {
@@ -141,6 +145,11 @@ async function refreshLogs() {
       } catch (e) {
         alert("Konflikt konnte nicht automatisch behoben werden: " + e);
       }
+    }
+
+    if (visible && logsEl) {
+      logsEl.textContent =
+        logs.join("\n") + (glogText ? "\n" + glogText : "");
     }
   } catch (e) {
     console.error(e);
@@ -1961,10 +1970,10 @@ async function openExternal(p) {
 let bgIntervals = [];
 function startBackgroundIntervals() {
   stopBackgroundIntervals();
-  bgIntervals.push(setInterval(refreshLogs, 3000));
-  bgIntervals.push(setInterval(refreshAuth, 2000));
-  bgIntervals.push(setInterval(refreshDiscord, 2000));
-  bgIntervals.push(setInterval(refreshDiscordLogin, 2000));
+  bgIntervals.push(setInterval(refreshLogs, 5000));
+  bgIntervals.push(setInterval(refreshAuth, 5000));
+  bgIntervals.push(setInterval(refreshDiscord, 5000));
+  bgIntervals.push(setInterval(refreshDiscordLogin, 5000));
 }
 function stopBackgroundIntervals() {
   bgIntervals.forEach((id) => clearInterval(id));

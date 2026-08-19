@@ -244,7 +244,38 @@ fn get_game_log(state: State<'_, AppState>, instance_name: String) -> String {
     let p = crate::utils::instance_dir(&state.data_dir, &instance_name)
         .join("logs")
         .join("latest.log");
-    std::fs::read_to_string(&p).unwrap_or_default()
+    read_log_tail(&p, 200 * 1024)
+}
+
+/// Reads at most the last `max_bytes` of a file. Used for `latest.log` so we
+/// never ship a multi-hundred-MB string over IPC / into the DOM on every poll
+/// (that unbounded transfer is what ballooned the webview's memory).
+fn read_log_tail(path: &Path, max_bytes: usize) -> String {
+    use std::io::{Read, Seek, SeekFrom};
+    let mut f = match std::fs::File::open(path) {
+        Ok(f) => f,
+        Err(_) => return String::new(),
+    };
+    let len = match f.metadata() {
+        Ok(m) => m.len() as usize,
+        Err(_) => return String::new(),
+    };
+    if len <= max_bytes {
+        let mut s = String::new();
+        let _ = f.read_to_string(&mut s);
+        return s;
+    }
+    if f.seek(SeekFrom::Start((len - max_bytes) as u64)).is_err() {
+        return String::new();
+    }
+    let mut buf = Vec::new();
+    let _ = f.read_to_end(&mut buf);
+    let s = String::from_utf8_lossy(&buf).to_string();
+    // Drop the leading partial line so we start on a clean log line.
+    match s.find('\n') {
+        Some(i) => s[i + 1..].to_string(),
+        None => s,
+    }
 }
 
 /// Detects a Fabric mod-incompatibility crash in the game log and automatically
