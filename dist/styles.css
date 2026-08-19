@@ -253,17 +253,6 @@ button:disabled {
   color: #ccc;
 }
 
-#jreBtn {
-  background: transparent;
-  color: var(--accent);
-  border: 1px solid var(--accent);
-  box-shadow: none;
-}
-
-#jreBtn:hover {
-  background: rgba(245, 166, 35, 0.12);
-}
-
 ul {
   list-style: none;
   padding: 0;

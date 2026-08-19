@@ -1076,6 +1076,10 @@ document.querySelectorAll(".settings-tab").forEach((tab) => {
     $("settingsThemes").style.display = t === "themes" ? "" : "none";
     $("settingsImport").style.display = t === "import" ? "" : "none";
     $("settingsUpdates").style.display = t === "updates" ? "" : "none";
+    // Inhalte erst (neu) rendern, wenn der jeweilige Tab wirklich sichtbar ist,
+    // sonst erscheinen sie erst nach einem Tab-Wechsel (leere Panels).
+    if (t === "themes") { renderThemeList(); renderLayoutOptions(); }
+    if (t === "connections") { refreshSettingsAccounts(); }
   };
 });
 
@@ -1486,24 +1490,6 @@ $("socialsClose").onclick = () => {
 };
 $("joinFriendClose").onclick = () => {
   $("joinFriendModal").style.display = "none";
-};
-
-$("jreBtn").onclick = async () => {
-  $("jreBtn").disabled = true;
-  $("jreBtn").textContent = "Lade JRE...";
-  try {
-    const res = await invoke("download_jre_command", { version: 21 });
-    if (res.ok) {
-      alert("JRE erfolgreich heruntergeladen und eingerichtet!");
-    } else {
-      alert("JRE Download Fehler: " + (res.error || "Unbekannt"));
-    }
-  } catch (e) {
-    alert("JRE Download fehlgeschlagen: " + e);
-  } finally {
-    $("jreBtn").disabled = false;
-    $("jreBtn").textContent = "JRE herunterladen";
-  }
 };
 
 // ─=== Instance content management (Modrinth) ===
