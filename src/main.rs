@@ -161,6 +161,19 @@ fn create_instance(
     instances.push(inst.clone());
     utils::save_json(&path, &instances).map_err(|e| e.to_string())?;
 
+    // JRE für die benötigte Java-Version automatisch herunterladen (best-effort),
+    // sobald die Instanz erstellt wird – der separate „JRE herunterladen"-Knopf
+    // entfällt. Nur laden, wenn noch kein passendes JRE vorhanden ist.
+    let required_java = required_java_for_version(&version);
+    if java::find_java(&state.data_dir, required_java).is_err() {
+        let _ = java::download_jre_internal(required_java).map_err(|e| {
+            warn!(
+                "JRE {} konnte nicht automatisch heruntergeladen werden: {}",
+                required_java, e
+            )
+        });
+    }
+
     // Fabric/Quilt: stärkstes Performance-Modpack automatisch vorinstallieren
     // (best-effort – einzelne Mods dürfen fehlschlagen, ohne die Instanz zu
     // blockieren).
@@ -787,14 +800,10 @@ fn optimize_instance(
         &inst.loader,
     )
     .map_err(|e| e.to_string())?;
-    if installed.is_empty() {
-        Ok(
-            "Kein Performance-Mod wurde installiert – evtl. ist für diese Minecraft-Version ({} / {}) noch keine kompatible Version verfügbar."
-                .to_string(),
-        )
-    } else {
-        Ok("Installiert: ".to_string() + &installed.join(", "))
-    }
+    // Keine einzelne Mod-Liste anzeigen – nur kurz bestätigen, dass die
+    // Instanz optimiert wurde (auch wenn kein Mod neu hinzugefügt wurde).
+    let _ = installed;
+    Ok("Instanz wurde optimiert.".to_string())
 }
 
 #[tauri::command]
