@@ -81,8 +81,8 @@ async function refreshInstances() {
           opt.disabled = true;
           opt.textContent = "…";
           try {
-            await invoke("optimize_instance", { name: inst.name });
-            alert("Performance-Modpack wurde (neu) installiert.");
+            const msg = await invoke("optimize_instance", { name: inst.name });
+            alert(msg || "Performance-Modpack verarbeitet.");
           } catch (e) {
             alert("Optimierung fehlgeschlagen: " + e);
           }
@@ -495,25 +495,41 @@ async function refreshLogs() {
   }
 
   let skinViewer = null;
+  let currentSkinUrl = null;
+  let currentCapeUrl = null;
+
+  // Lädt (sofern vorhanden) das aktive Cape auf den 3D-Viewer.
+  function applyCapeToViewer() {
+    if (!skinViewer || !currentCapeUrl) return;
+    try {
+      const p = skinViewer.loadCape(currentCapeUrl);
+      if (p && typeof p.catch === "function") p.catch(() => {});
+    } catch (_) {}
+  }
+
   function showSkin(url) {
     const canvas = $("skinCanvas");
     if (!canvas || !url) return;
-    if (window.skinview3d) {
+    currentSkinUrl = url;
+    const sv3d = window.skinview3d;
+    if (sv3d && sv3d.SkinViewer && sv3d.IdleAnimation) {
       try {
-        if (skinViewer) { skinViewer.destroy(); skinViewer = null; }
+        if (skinViewer) { try { skinViewer.dispose && skinViewer.dispose(); } catch (_) {} skinViewer = null; }
         canvas.style.display = "";
         const fb = canvas.parentElement.querySelector("img.skin-fallback");
         if (fb) fb.remove();
-        skinViewer = new window.skinview3d.SkinViewer({
-          canvas: canvas,
-          width: 200,
-          height: 400,
-          skin: url,
-        });
-        skinViewer.animation = new window.skinview3d.IdleAnimation();
+        skinViewer = new sv3d.SkinViewer({ canvas: canvas, width: 200, height: 400 });
+        // Dieser skinview3d-Build wertet die `skin`-Option nicht aus – die
+        // Textur muss explizit via loadSkin() geladen werden.
+        const p = skinViewer.loadSkin(url);
+        if (p && typeof p.catch === "function") {
+          p.catch((e) => console.warn("Skin-Textur konnte nicht geladen werden:", e));
+        }
+        skinViewer.animation = new sv3d.IdleAnimation();
+        applyCapeToViewer();
         return;
       } catch (e) {
-        console.error(e);
+        console.error("3D-Skin fehlgeschlagen, Fallback-Bild:", e);
       }
     }
     const wrap = canvas.parentElement;
@@ -603,20 +619,32 @@ async function refreshLogs() {
       const img = document.createElement("img");
       img.src = c.url;
       img.alt = c.name || "Cape";
+      img.loading = "lazy";
+      // Bricht das Bild fehl (z. B. CORS), zeigen wir nur den Namen, damit
+      // die Capes weiterhin unterscheidbar bleiben.
+      img.onerror = () => { img.style.visibility = "hidden"; };
       const name = document.createElement("span");
       name.textContent = c.name || "Cape";
       const btn = document.createElement("button");
       btn.textContent = c.state === "ACTIVE" ? "Aktiv" : "Ausrüsten";
       btn.disabled = c.state === "ACTIVE";
-      btn.onclick = () => equipCape(c.id);
+      btn.onclick = () => equipCape(c.id, c.url);
       el.append(img, name, btn);
       list.append(el);
+      if (c.state === "ACTIVE") {
+        currentCapeUrl = c.url;
+        applyCapeToViewer();
+      }
     });
   }
 
-  function equipCape(id) {
+  function equipCape(id, url) {
     invoke("cape_equip", { capeId: id }).then(r => {
-      if (r && r.ok) { toast("Cape ausgerüstet", "ok"); loadSkinChanger(); }
+      if (r && r.ok) {
+        toast("Cape ausgerüstet", "ok");
+        if (url) { currentCapeUrl = url; applyCapeToViewer(); }
+        loadSkinChanger();
+      }
       else toast((r && r.error) || "Fehler", "error");
     }).catch(e => toast("Cape fehlgeschlagen: " + e, "error"));
   }

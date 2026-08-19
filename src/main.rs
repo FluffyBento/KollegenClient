@@ -570,25 +570,33 @@ fn modrinth_versions(
 }
 
 /// Installiert das kuratierte Performance-Modpack in eine bestehende
-/// Fabric-/Quilt-Instanz nachträglich (best-effort).
+/// Fabric-/Quilt-Instanz nachträglich (best-effort) und meldet das Ergebnis.
 #[tauri::command]
 fn optimize_instance(
     state: State<'_, AppState>,
     name: String,
-) -> Result<(), String> {
+) -> Result<String, String> {
     let path = utils::instances_file(&state.data_dir);
     let instances = utils::load_json::<Vec<types::Instance>>(&path, vec![]);
     let inst = instances
         .iter()
         .find(|i| i.name == name)
         .ok_or_else(|| format!("Instanz '{}' nicht gefunden.", name))?;
-    crate::modrinth::install_perf_mods(
+    let installed = crate::modrinth::install_perf_mods(
         &state.data_dir,
         &name,
         &inst.version,
         &inst.loader,
     )
-    .map_err(|e| e.to_string())
+    .map_err(|e| e.to_string())?;
+    if installed.is_empty() {
+        Ok(
+            "Kein Performance-Mod wurde installiert – evtl. ist für diese Minecraft-Version ({} / {}) noch keine kompatible Version verfügbar."
+                .to_string(),
+        )
+    } else {
+        Ok("Installiert: ".to_string() + &installed.join(", "))
+    }
 }
 
 #[tauri::command]
