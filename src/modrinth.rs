@@ -377,17 +377,19 @@ const PERF_MODS: &[&str] = &[
 /// Installs the curated performance-modpack into a Fabric/Quilt instance.
 /// Best-effort: a single mod failing to install is logged and skipped rather
 /// than aborting the whole batch, so instance creation never breaks.
+/// Returns the slugs of all successfully installed mods.
 pub fn install_perf_mods(
     data_dir: &Path,
     instance_name: &str,
     mc_version: &str,
     loader: &str,
-) -> Result<()> {
+) -> Result<Vec<String>> {
     if !matches!(loader.to_ascii_lowercase().as_str(), "fabric" | "quilt") {
-        return Ok(());
+        return Ok(vec![]);
     }
+    let mut installed = Vec::new();
     for slug in PERF_MODS {
-        let _ = install_content(
+        match install_content(
             instance_name,
             data_dir,
             "mod",
@@ -395,10 +397,12 @@ pub fn install_perf_mods(
             mc_version,
             loader,
             None,
-        )
-        .map_err(|e| warn!("Performance-Mod '{}' nicht installiert: {}", slug, e));
+        ) {
+            Ok(()) => installed.push((*slug).to_string()),
+            Err(e) => warn!("Performance-Mod '{}' nicht installiert: {}", slug, e),
+        }
     }
-    Ok(())
+    Ok(installed)
 }
 
 /// Lists installed content filenames per category for an instance.
