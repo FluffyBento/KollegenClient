@@ -9,6 +9,12 @@ on:
 permissions:
   contents: write
 
+# Cancel any in-progress run for the same tag (e.g. when a tag is deleted and
+# re-pushed) so we never build the same release twice in parallel.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   create-release:
     runs-on: ubuntu-latest
@@ -67,7 +73,7 @@ jobs:
           fi
 
   linux:
-    needs: create-release
+    needs: [create-release, build-mod]
     runs-on: ubuntu-latest
     env:
       TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
@@ -78,6 +84,16 @@ jobs:
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
+      - name: Cache Rust build
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
@@ -104,7 +120,7 @@ jobs:
         run: |
           mkdir -p resources
           gh release download "${{ github.ref_name }}" --repo "${{ github.repository }}" --pattern "kollegen-client-mod.jar" --dir resources || \
-          curl -fsSL -o resources/kollegen-client-mod.jar "https://github.com/FluffyBento/KollegenClient/releases/latest/download/kollegen-client-mod.jar" || true
+          curl -fsSL --max-time 120 -o resources/kollegen-client-mod.jar "https://github.com/FluffyBento/KollegenClient/releases/latest/download/kollegen-client-mod.jar" || true
 
       - name: Build Linux bundles (AppImage, RPM, DEB)
         run: tauri build --config tauri.conf.json --bundles appimage,rpm,deb
@@ -124,7 +140,7 @@ jobs:
           files: "release_artifacts/*"
 
   windows:
-    needs: create-release
+    needs: [create-release, build-mod]
     runs-on: windows-latest
     env:
       TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
@@ -160,7 +176,7 @@ jobs:
         run: |
           mkdir resources
           gh release download "${{ github.ref_name }}" --repo "${{ github.repository }}" --pattern "kollegen-client-mod.jar" --dir resources || \
-          curl -fsSL -o resources/kollegen-client-mod.jar "https://github.com/FluffyBento/KollegenClient/releases/latest/download/kollegen-client-mod.jar" || true
+          curl -fsSL --max-time 120 -o resources/kollegen-client-mod.jar "https://github.com/FluffyBento/KollegenClient/releases/latest/download/kollegen-client-mod.jar" || true
 
       - name: Build Windows installer (.exe)
         run: tauri build --config tauri.conf.json --bundles nsis
@@ -181,7 +197,7 @@ jobs:
             KollegenClient.exe.sig
 
   macos:
-    needs: create-release
+    needs: [create-release, build-mod]
     runs-on: macos-latest
     env:
       TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
@@ -218,7 +234,7 @@ jobs:
         run: |
           mkdir -p resources
           gh release download "${{ github.ref_name }}" --repo "${{ github.repository }}" --pattern "kollegen-client-mod.jar" --dir resources || \
-          curl -fsSL -o resources/kollegen-client-mod.jar "https://github.com/FluffyBento/KollegenClient/releases/latest/download/kollegen-client-mod.jar" || true
+          curl -fsSL --max-time 120 -o resources/kollegen-client-mod.jar "https://github.com/FluffyBento/KollegenClient/releases/latest/download/kollegen-client-mod.jar" || true
 
       - name: Build macOS bundles (universal app + dmg + updater artifact)
         run: tauri build --config tauri.conf.json --target universal-apple-darwin --bundles app,dmg
