@@ -422,9 +422,11 @@ pub fn list_content(data_dir: &Path, instance_name: &str) -> Value {
                 if e.path().is_file() {
                     if let Some(name) = e.file_name().to_str() {
                         let name = name.to_string();
-                        // Launcher-managed files (companion mod / logo pack) are
-                        // hidden from the content browser.
-                        if is_managed_content(key, &name) {
+                        // The launcher-managed title-logo pack stays hidden from
+                        // the browser. The Kollegen Client companion mod is shown
+                        // so users can confirm it's present (deletion is still
+                        // blocked in `delete_content`).
+                        if key == "resourcepack" && name == "KollegenTitle.zip" {
                             continue;
                         }
                         let mut obj = serde_json::json!({ "name": name.clone() });
