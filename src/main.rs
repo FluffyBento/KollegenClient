@@ -235,7 +235,9 @@ fn get_game_log(state: State<'_, AppState>, instance_name: String) -> String {
 }
 
 /// Detects a Fabric mod-incompatibility crash in the game log and automatically
-/// removes the conflicting mod file(s) that Fabric itself suggests removing.
+/// fixes it: for every conflicting mod Fabric lists, the matching jar is
+/// replaced with the recommended (or latest compatible) version from Modrinth.
+/// If no compatible version can be installed, the incompatible mod is removed.
 #[tauri::command]
 fn auto_resolve_conflict(
     state: State<'_, AppState>,
@@ -245,7 +247,8 @@ fn auto_resolve_conflict(
         .join("logs")
         .join("latest.log");
     let text = std::fs::read_to_string(&log_path).unwrap_or_default();
-    if !text.contains("Incompatible mods found") {
+    let lowered = text.to_lowercase();
+    if !lowered.contains("incompatible mods found") {
         return Ok("Kein Mod-Konflikt erkannt.".to_string());
     }
 
@@ -261,71 +264,110 @@ fn auto_resolve_conflict(
         .map(|i| (i.version.clone(), i.loader.clone()))
         .unwrap_or_else(|| ("".to_string(), "".to_string()));
 
-    let mut adjusted = Vec::new();
+    let mods_dir = crate::utils::instance_dir(&state.data_dir, &instance_name).join("mods");
+    let targets = parse_conflict_targets(&text);
+    if targets.is_empty() {
+        return Ok("Konflikt erkannt, aber keine ersetzbaren Mods gefunden.".to_string());
+    }
+
+    let mut fixed = Vec::new();
+    let mut removed = Vec::new();
     let mut skipped = Vec::new();
 
-    for line in text.lines() {
-        let l = line.trim();
-        // Fabric reports either "- Remove mod 'X' (x) ver (path)" or
-        // "- Replace 'X' (x) ver with any version that is compatible...".
-        let is_conflict = l.contains("- Remove mod")
-            || (l.contains("- Replace") && l.contains("mod"));
-        if !is_conflict {
+    for (modid, name) in targets {
+        let label = if !name.is_empty() {
+            name.clone()
+        } else {
+            modid.clone()
+        };
+        let jar = match find_mod_jar(&mods_dir, &modid, &name) {
+            Some(j) => j,
+            None => {
+                skipped.push(format!("{} (Datei nicht gefunden)", label));
+                continue;
+            }
+        };
+        let fname = jar.file_name().unwrap().to_string_lossy().to_string();
+        if crate::companion::is_companion_mod_name(&fname) {
             continue;
         }
-        // Extract the file path from between the last '(' and ')'.
-        if let (Some(start), Some(end)) = (l.rfind('('), l.rfind(')')) {
-            if end > start {
-                let path = &l[start + 1..end];
-                let fname = std::path::Path::new(path)
-                    .file_name()
-                    .and_then(|s| s.to_str())
-                    .map(|s| s.to_string());
-                if let Some(fname) = fname {
-                    match crate::modrinth::project_id_for_file(
-                        &state.data_dir,
+
+        let pid = resolve_mod_pid(
+            &state.data_dir,
+            &instance_name,
+            &modid,
+            &name,
+            &mc_version,
+            &loader,
+        );
+
+        match pid {
+            Some(pid) => {
+                // Remove the conflicting file before installing the fix so only
+                // the new version remains.
+                let _ = std::fs::remove_file(&jar);
+                let preferred = preferred_version_id(&pid, &mc_version, &loader, &modid, &name, &text);
+                // Try the recommended version from the error first, then fall
+                // back to the latest compatible version.
+                let mut install = match &preferred {
+                    Some(vid) => crate::modrinth::install_content(
                         &instance_name,
+                        &state.data_dir,
                         "mod",
-                        &fname,
-                    ) {
-                        Some(pid) => {
-                            // Remove the conflicting file, then reinstall the
-                            // latest version compatible with this instance.
-                            let _ = crate::modrinth::delete_content(
-                                &state.data_dir,
-                                &instance_name,
-                                "mod",
-                                &fname,
-                            );
-                            match crate::modrinth::install_content(
-                                &instance_name,
-                                &state.data_dir,
-                                "mod",
-                                &pid,
-                                &mc_version,
-                                &loader,
-                                None,
-                            ) {
-                                Ok(()) => adjusted.push(fname),
-                                Err(e) => {
-                                    skipped.push(format!("{} (Fehler: {})", fname, e))
-                                }
-                            }
-                        }
-                        None => skipped.push(format!(
-                            "{} (kein Modrinth-Mod – bitte manuell prüfen)",
-                            fname
-                        )),
+                        &pid,
+                        "",
+                        "",
+                        Some(vid),
+                    ),
+                    None => crate::modrinth::install_content(
+                        &instance_name,
+                        &state.data_dir,
+                        "mod",
+                        &pid,
+                        &mc_version,
+                        &loader,
+                        None,
+                    ),
+                };
+                if install.is_err() && preferred.is_some() {
+                    install = crate::modrinth::install_content(
+                        &instance_name,
+                        &state.data_dir,
+                        "mod",
+                        &pid,
+                        &mc_version,
+                        &loader,
+                        None,
+                    );
+                }
+                match install {
+                    Ok(()) => fixed.push(format!("{} → {}", label, fname)),
+                    Err(_) => {
+                        // Fix failed -> ensure the incompatible mod is removed.
+                        let _ = std::fs::remove_file(&jar);
+                        removed.push(format!("{} (entfernt – keine kompatible Version)", label));
                     }
                 }
+            }
+            None => {
+                // Not a known Modrinth mod -> remove the incompatible file.
+                let _ = std::fs::remove_file(&jar);
+                removed.push(format!("{} (entfernt)", label));
             }
         }
     }
 
     let mut msg = String::new();
-    if !adjusted.is_empty() {
-        msg.push_str("Mod-Versionen angepasst:\n- ");
-        msg.push_str(&adjusted.join("\n- "));
+    if !fixed.is_empty() {
+        msg.push_str("Mod automatisch repariert (Version angepasst):\n- ");
+        msg.push_str(&fixed.join("\n- "));
+    }
+    if !removed.is_empty() {
+        if !msg.is_empty() {
+            msg.push_str("\n\n");
+        }
+        msg.push_str("Inkompatible Mods entfernt:\n- ");
+        msg.push_str(&removed.join("\n- "));
     }
     if !skipped.is_empty() {
         if !msg.is_empty() {
@@ -338,6 +380,162 @@ fn auto_resolve_conflict(
         msg.push_str("Keine ersetzbaren Mods im Konflikt gefunden.");
     }
     Ok(msg)
+}
+
+/// Parses Fabric's "Incompatible mods found!" report and returns, for each
+/// conflicting mod, its modid (from the `(modid)` parenthetical) and display
+/// name. Handles both "- Replace 'Name' (modid) ver ..." and
+/// "- Remove Name (modid) ver" lines (Fabric uses a capital "Mod").
+fn parse_conflict_targets(text: &str) -> Vec<(String, String)> {
+    let mut out = Vec::new();
+    for line in text.lines() {
+        let l = line.trim();
+        if !(l.starts_with("- Remove") || l.starts_with("- Replace")) {
+            continue;
+        }
+        let s = match l.find('(') {
+            Some(s) => s,
+            None => continue,
+        };
+        let e = match l[s..].find(')') {
+            Some(e) => e,
+            None => continue,
+        };
+        let modid = l[s + 1..s + e].trim().to_string();
+        if modid.is_empty() {
+            continue;
+        }
+        // Display name: between single quotes (Replace) or, when Fabric has no
+        // quotes (e.g. "- Remove fabric-api (fabric-api)"), the modid itself.
+        let name = if let Some(a) = l.find('\'') {
+            if let Some(b) = l[a + 1..].find('\'') {
+                l[a + 1..a + 1 + b].to_string()
+            } else {
+                modid.clone()
+            }
+        } else {
+            modid.clone()
+        };
+        out.push((modid, name));
+    }
+    out
+}
+
+/// Finds the jar file in `mods_dir` that belongs to a mod with the given modid
+/// / display name (case-insensitive substring match).
+fn find_mod_jar(mods_dir: &Path, modid: &str, name: &str) -> Option<PathBuf> {
+    let mid = modid.to_lowercase();
+    let nm = name.to_lowercase();
+    if let Ok(entries) = std::fs::read_dir(mods_dir) {
+        for e in entries.flatten() {
+            let p = e.path();
+            let fname = p.file_name()?.to_string_lossy().to_lowercase();
+            if !fname.ends_with(".jar") {
+                continue;
+            }
+            if !mid.is_empty() && fname.contains(&mid) {
+                return Some(p);
+            }
+            if nm.len() > 2 && fname.contains(&nm) {
+                return Some(p);
+            }
+        }
+    }
+    None
+}
+
+/// Resolves a Modrinth project id for a conflicting mod: first from the
+/// launcher's own install metadata (if the jar is managed), then by searching
+/// Modrinth with the modid or display name.
+fn resolve_mod_pid(
+    data_dir: &Path,
+    instance_name: &str,
+    modid: &str,
+    name: &str,
+    mc_version: &str,
+    loader: &str,
+) -> Option<String> {
+    let mods_dir = crate::utils::instance_dir(data_dir, instance_name).join("mods");
+    if let Some(jar) = find_mod_jar(&mods_dir, modid, name) {
+        let fname = jar.file_name()?.to_string_lossy().to_string();
+        if let Some(pid) =
+            crate::modrinth::project_id_for_file(data_dir, instance_name, "mod", &fname)
+        {
+            return Some(pid);
+        }
+    }
+    if !modid.is_empty() {
+        if let Ok(r) = crate::modrinth::search("mod", modid, mc_version, loader, 0) {
+            if let Some(p) = r.first() {
+                return Some(p.id.clone());
+            }
+        }
+    }
+    if name.len() > 2 {
+        if let Ok(r) = crate::modrinth::search("mod", name, mc_version, loader, 0) {
+            if let Some(p) = r.first() {
+                return Some(p.id.clone());
+            }
+        }
+    }
+    None
+}
+
+/// Extracts the first `X.Y.Z`-style version token from a string.
+fn extract_version(s: &str) -> Option<String> {
+    let bytes = s.as_bytes();
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i].is_ascii_digit() {
+            let start = i;
+            while i < bytes.len() && (bytes[i].is_ascii_digit() || bytes[i] == b'.') {
+                i += 1;
+            }
+            let tok = &s[start..i];
+            if tok.chars().filter(|c| *c == '.').count() >= 1 {
+                return Some(tok.to_string());
+            }
+        } else {
+            i += 1;
+        }
+    }
+    None
+}
+
+/// If Fabric's report names a specific version that is "compatible", returns the
+/// matching Modrinth version id so we can install exactly that recommended fix.
+fn preferred_version_id(
+    pid: &str,
+    mc_version: &str,
+    loader: &str,
+    modid: &str,
+    name: &str,
+    text: &str,
+) -> Option<String> {
+    let needle = if name.len() > 2 {
+        name.to_lowercase()
+    } else {
+        modid.to_lowercase()
+    };
+    let mut hint = None;
+    for line in text.lines() {
+        let l = line.to_lowercase();
+        if l.contains(&needle) && l.contains("is compatible with") {
+            if let Some(v) = extract_version(&l) {
+                hint = Some(v);
+                break;
+            }
+        }
+    }
+    let hint = hint?;
+    if let Ok(versions) = crate::modrinth::list_versions(pid, mc_version, loader) {
+        for v in &versions {
+            if v.version_number.contains(&hint) || v.name.contains(&hint) {
+                return Some(v.id.clone());
+            }
+        }
+    }
+    None
 }
 
 #[tauri::command]
