@@ -173,12 +173,13 @@ pub fn download_jre_internal(version: u32) -> Result<String> {
     // jre-21/bin/java exists.
     let java_bin = jre_dir.join("bin").join(java_exe());
     if !java_bin.exists() {
-        if let Some(found) = find_java_bin(&jre_dir) {
-            // `found` is .../bin/java; its parent is the JRE root — the directory
-            // that directly contains bin/ — which may be nested (e.g. on macOS:
-            // jdk-21.x-jre/Contents/Home). Flatten that root into jre_dir.
-            if let Some(root) = found.parent() {
-                if root != jre_dir {
+            if let Some(found) = find_java_bin(&jre_dir) {
+                // `found` is .../bin/java[.exe]; its parent's parent is the JRE root —
+                // the directory that directly contains bin/ — which may be nested
+                // (e.g. on macOS: jdk-21.x-jre/Contents/Home). Flatten that root into
+                // jre_dir so jre_dir/bin/java[.exe] exists.
+                if let Some(root) = found.parent().and_then(|b| b.parent()) {
+                    if root != jre_dir {
                     if let Ok(entries) = std::fs::read_dir(&root) {
                         for e in entries.flatten() {
                             let dest = jre_dir.join(e.file_name());
