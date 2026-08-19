@@ -27,6 +27,9 @@ public class KollegenConfig {
     /** Stärke der Farbhervorhebung (0.0–1.0). */
     public float highlightAmount = 0.6f;
 
+    /** Fullbright: Gamma auf Max setzen, damit alles voll ausgeleuchtet ist. */
+    public boolean fullbright = false;
+
     /** Presence: sollen andere Kollegen-Client-Nutzer im Spiel markiert werden? */
     public boolean presenceEnabled = true;
 

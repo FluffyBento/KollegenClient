@@ -39,6 +39,7 @@ public class KollegenMod implements ClientModInitializer {
         // JVM-Sicherheitsnetz: RPC-Shutdown auch ohne fabric-lifecycle-Hook.
         Runtime.getRuntime().addShutdownHook(new Thread(KollegenRPC::stop));
         KollegenPostFX.applyConfig();
+        dev.kollegen.client.feature.Fullbright.reconcile();
         LOGGER.info("Kollegen Client Mod initialisiert (Rechts-Shift = Menü).");
     }
 
@@ -61,6 +62,9 @@ public class KollegenMod implements ClientModInitializer {
 
         // ── Farb-FX (Sättigung / Hervorhebung) anwenden ──
         KollegenPostFX.tick();
+
+        // ── Fullbright-Zustand mit Config abgleichen ──
+        dev.kollegen.client.feature.Fullbright.reconcile();
 
         // ── Join-Requests aus join_request.json abarbeiten ──
         KollegenJoin.tick(mc);

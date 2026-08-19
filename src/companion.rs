@@ -14,6 +14,7 @@
 //   4. The latest GitHub release asset `kollegen-client-mod.jar` (fallback)
 
 use log::{info, warn};
+use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 
 /// File name the companion mod is copied to inside an instance's `mods/`.
@@ -119,6 +120,80 @@ pub fn companion_jar(data_dir: &Path) -> Option<PathBuf> {
     try_download(data_dir)
 }
 
+/// The published companion-mod jar pins `minecraft >= 1.21.11`. To let it load
+/// on *any* 1.21.x instance we relax that constraint to `>= 1.21` by rewriting
+/// the jar's `fabric.mod.json` on the fly (the mod's code is compatible across
+/// the whole 1.21 line). Returns a path to a patched copy; on any failure the
+/// original jar path is returned so installation still proceeds.
+fn relax_companion_constraints(jar: &Path) -> PathBuf {
+    let patched = std::env::temp_dir().join(format!(
+        "kollegen-mod-relaxed-{}.jar",
+        std::process::id()
+    ));
+    if let (Ok(file), Ok(out)) = (std::fs::File::open(jar), std::fs::File::create(&patched)) {
+        if let Ok(mut archive) = zip::ZipArchive::new(file) {
+            let mut writer = zip::ZipWriter::new(out);
+            let opts = zip::write::FileOptions::default()
+                .compression_method(zip::CompressionMethod::Deflated);
+            let mut ok = true;
+            for i in 0..archive.len() {
+                let mut entry = match archive.by_index(i) {
+                    Ok(e) => e,
+                    Err(_) => {
+                        ok = false;
+                        break;
+                    }
+                };
+                let name = entry.name().to_string();
+                if name == "fabric.mod.json" {
+                    let mut bytes = Vec::new();
+                    if std::io::Read::read_to_end(&mut entry, &mut bytes).is_err() {
+                        ok = false;
+                        break;
+                    }
+                    match serde_json::from_slice::<serde_json::Value>(&bytes) {
+                        Ok(mut doc) => {
+                            if let Some(depends) =
+                                doc.get_mut("depends").and_then(|d| d.as_object_mut())
+                            {
+                                depends.insert(
+                                    "minecraft".to_string(),
+                                    serde_json::Value::String(">=1.21".to_string()),
+                                );
+                            }
+                            if let Ok(patched_bytes) = serde_json::to_vec(&doc) {
+                                let _ = writer.start_file(&name, opts);
+                                let _ = writer.write_all(&patched_bytes);
+                                continue;
+                            }
+                            ok = false;
+                            break;
+                        }
+                        Err(_) => {
+                            ok = false;
+                            break;
+                        }
+                    }
+                }
+                // Copy every other entry verbatim.
+                let mut bytes = Vec::new();
+                if std::io::Read::read_to_end(&mut entry, &mut bytes).is_err() {
+                    ok = false;
+                    break;
+                }
+                let _ = writer.start_file(&name, opts);
+                let _ = writer.write_all(&bytes);
+            }
+            let _ = writer.finish();
+            if ok && patched.exists() {
+                return patched;
+            }
+        }
+    }
+    // Fallback: install the original jar unchanged.
+    jar.to_path_buf()
+}
+
 /// Injects the companion mod into an instance's `mods/` folder. The file name
 /// is the fixed `kollegen-client-mod.jar` so `list_content`/`delete_content`
 /// can hide/protect it. Skipped for vanilla servers (nothing would load it)
@@ -147,6 +222,10 @@ pub fn install_companion_mod(data_dir: &Path, instance_name: &str, version: &str
             return;
         }
     };
+
+    // Relax the `minecraft` version constraint so the mod also loads on
+    // 1.21.0–1.21.10 (the published jar requires >= 1.21.11).
+    let jar = relax_companion_constraints(&jar);
 
     let mods_dir = crate::utils::instance_dir(data_dir, instance_name).join("mods");
     if let Err(e) = std::fs::create_dir_all(&mods_dir) {
