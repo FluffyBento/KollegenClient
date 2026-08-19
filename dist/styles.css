@@ -924,13 +924,19 @@ body.reduce-motion *::after { transition: none !important; animation: none !impo
 
 /* Profil-Modal */
 .profile-modal {
-  display: flex; gap: 1.2rem; align-items: flex-start;
+  display: flex; gap: 1.2rem; align-items: flex-start; flex-wrap: wrap;
+  width: min(560px, 95vw);
   max-width: 560px;
 }
 .profile-skin {
   width: 200px; flex: 0 0 auto;
   background: #0e0e14; border-radius: 10px; overflow: hidden;
-  display: flex; justify-content: center;
+  display: flex; justify-content: center; align-items: flex-start;
+}
+.profile-skin canvas { width: 200px; height: 400px; }
+@media (max-width: 540px) {
+  .profile-skin { width: 100%; }
+  .profile-skin canvas { width: 100%; height: auto; max-height: 360px; }
 }
 .profile-skin canvas, .profile-skin img.skin-fallback { display: block; }
 .profile-side { flex: 1; min-width: 0; }
@@ -1145,7 +1151,7 @@ ul#instanceList li, .account-list li, .import-list li {
   background: var(--panel-2); border: 1px solid var(--border); border-radius: 10px; padding: 0.5rem 0.7rem;
 }
 .cape-item.active { border-color: var(--accent); }
-.cape-item img { width: 64px; height: 40px; object-fit: contain; background: #0a0c10; border-radius: 6px; }
-.cape-item span { flex: 1; font-size: 0.9rem; color: var(--text); }
+.cape-item img { width: 96px; height: 48px; object-fit: contain; background: #0a0c10; border-radius: 6px; flex: 0 0 auto; }
+.cape-item span { flex: 1; font-size: 0.95rem; font-weight: 600; color: var(--text); }
 .cape-item button { background: var(--accent); color: #111; border: none; border-radius: 8px; padding: 0.4rem 0.8rem; font-weight: 700; cursor: pointer; }
 .cape-item button:disabled { background: var(--panel); color: var(--muted); cursor: default; }
