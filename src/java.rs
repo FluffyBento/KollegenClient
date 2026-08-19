@@ -3,7 +3,7 @@
 use anyhow::{anyhow, Result};
 use log::{info, warn};
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::Duration;
 
