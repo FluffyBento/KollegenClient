@@ -1519,11 +1519,13 @@ function toast(msg, kind) {
     $("openLogFolderBtn").onclick = () => invoke("open_logs_folder");
 
   // Update-Status: Version anzeigen + Launcher-Update prüfen
-  try {
-    const v = await invoke("get_version");
-    const uv = $("updateVersion");
-    if (uv) uv.textContent = v;
-  } catch (e) {}
+  (async () => {
+    try {
+      const v = await invoke("get_version");
+      const uv = $("updateVersion");
+      if (uv) uv.textContent = v;
+    } catch (e) {}
+  })();
   if ($("checkUpdateBtn")) {
     $("checkUpdateBtn").onclick = async () => {
       const res = $("updateResult");
@@ -2056,6 +2058,19 @@ function closeAllOverlays() {
   if (sp) sp.classList.remove("open");
 }
 closeAllOverlays();
+
+// Globales Schließen von Modals: Klick auf den Backdrop oder ESC schließt alles,
+// damit nie ein Overlay hängen bleibt (robust gegen einzelne fehlende Close-Buttons).
+document.addEventListener("click", (e) => {
+  if (e.target && e.target.classList && e.target.classList.contains("modal")) {
+    e.target.style.display = "none";
+  }
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") {
+    document.querySelectorAll(".modal").forEach((m) => (m.style.display = "none"));
+  }
+});
 
 refreshInstances();
 refreshLogs();
