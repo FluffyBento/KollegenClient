@@ -689,6 +689,27 @@ pre {
 }
 .side-label { white-space: nowrap; }
 
+/* Tab-System: nur das aktive Panel ist sichtbar */
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+.sidebar-brand-img {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  margin: 0.2rem auto 0.9rem;
+  display: block;
+  object-fit: cover;
+  box-shadow: 0 6px 18px rgba(245, 166, 35, 0.35);
+}
+
+.socials-logo {
+  color: var(--accent);
+  display: inline-flex;
+  align-items: center;
+  margin-right: 0.1rem;
+}
+
 .socials-panel {
   position: fixed;
   top: 0; left: var(--sidebar-w); bottom: 0;

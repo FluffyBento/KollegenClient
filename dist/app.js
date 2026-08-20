@@ -1418,14 +1418,22 @@ async function doImport(launcherId, dirName, dispName) {
 // Beim Start das gespeicherte Theme + Layout anwenden.
 applySavedTheme().then(applyLayout);
 
-// Socials drawer (left sidebar / FAB) toggle.
-function toggleSocials() {
-  $("socialsPanel").classList.toggle("open");
-  refreshSocial();
-}
-$("socialsBtn").onclick = toggleSocials;
-const socialsFab = $("socialsFab");
-if (socialsFab) socialsFab.onclick = toggleSocials;
+  // Tab-System (Sidebar: Home / Erstellen / Soziales).
+  function switchTab(name) {
+    document.querySelectorAll(".sidebar-link[data-tab]").forEach((l) => {
+      l.classList.toggle("active", l.dataset.tab === name);
+    });
+    document.querySelectorAll(".tab-panel[data-tab]").forEach((p) => {
+      p.classList.toggle("active", p.dataset.tab === name);
+    });
+    if (name === "socials") refreshSocial();
+  }
+  document.querySelectorAll(".sidebar-link[data-tab]").forEach((l) => {
+    l.addEventListener("click", (e) => {
+      e.preventDefault();
+      switchTab(l.dataset.tab);
+    });
+  });
 $("profileWidget").onclick = () => openProfileModal();
 const openProfileBtn = $("openProfileBtn");
 if (openProfileBtn) openProfileBtn.onclick = () => openProfileModal();
@@ -1494,9 +1502,7 @@ function toast(msg, kind) {
   if (toastTimer) clearTimeout(toastTimer);
   toastTimer = setTimeout(() => { el.className = "toast"; }, 3200);
 }
-$("socialsClose").onclick = () => {
-  $("socialsPanel").classList.remove("open");
-};
+  $("socialsClose").onclick = () => switchTab("home");
 $("joinFriendClose").onclick = () => {
   $("joinFriendModal").style.display = "none";
 };

@@ -44,82 +44,34 @@
   </header>
 
   <nav class="sidebar">
-    <div class="sidebar-brand">K</div>
+    <img src="Kollegen.png" alt="Kollegen" class="sidebar-brand-img" />
     <div class="sidebar-nav">
-      <a href="#instancesPanel" class="sidebar-link" title="Instanzen">
-        <span class="side-ico">▦</span><span class="side-label">Instanzen</span>
+      <a href="#" class="sidebar-link active" data-tab="home" title="Home">
+        <span class="side-ico">▦</span><span class="side-label">Home</span>
       </a>
-      <a href="#createPanel" class="sidebar-link" title="Erstellen">
+      <a href="#" class="sidebar-link" data-tab="create" title="Erstellen">
         <span class="side-ico">＋</span><span class="side-label">Erstellen</span>
       </a>
-      <a href="#logsPanel" class="sidebar-link" title="Logs">
-        <span class="side-ico">≣</span><span class="side-label">Logs</span>
+      <a href="#" class="sidebar-link" data-tab="socials" title="Soziales" id="socialsBtn">
+        <span class="side-ico"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M4 4h16a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H11l-5 4v-4H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/></svg></span><span class="side-label">Soziales</span>
       </a>
-      <button id="socialsBtn" class="sidebar-link" title="Soziale / Discord">
-        <span class="side-ico"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M20.317 4.369a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.249a18.27 18.27 0 0 0-5.487 0 12.6 12.6 0 0 0-.617-1.25.077.077 0 0 0-.079-.036A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.1 13.1 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.009c.12.099.245.198.372.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.028ZM8.02 15.331c-1.182 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418Zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418Z"/></svg></span><span class="side-label">Soziales</span>
-      </button>
     </div>
   </nav>
 
-  <button id="socialsFab" class="socials-fab" title="Soziale / Discord">
-    <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
-      <path fill="currentColor" d="M20.317 4.369a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.249a18.27 18.27 0 0 0-5.487 0 12.6 12.6 0 0 0-.617-1.25.077.077 0 0 0-.079-.036A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.1 13.1 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.009c.12.099.245.198.372.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.028ZM8.02 15.331c-1.182 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418Zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418Z"/>
-    </svg>
-  </button>
-
-  <aside id="socialsPanel" class="socials-panel">
-    <div class="socials-header">
-      <h2>Soziale</h2>
-      <button id="socialsClose" class="icon-btn" title="Schließen">✕</button>
-    </div>
-    <div class="socials-body">
-      <div class="socials-profile">
-        <img id="spAvatar" class="socials-profile-avatar" alt="" style="display:none;" />
-        <div class="socials-profile-meta">
-          <div id="spName" class="socials-profile-name">nicht verbunden</div>
-          <div id="spDiscord" class="socials-profile-sub"></div>
-        </div>
-        <button id="openProfileBtn" class="socials-profile-btn">Profil</button>
-      </div>
-
-      <div id="discordStatus" class="discord-status">nicht verbunden</div>
-      <div id="discordCurrentServer" class="discord-server"></div>
-      <div id="discordLogin" style="margin-top:0.5rem;">
-        <button id="discordLoginBtn">Mit Discord verbinden</button>
-        <div id="discordLoginStatus" class="discord-login-status"></div>
-      </div>
-
-      <h3 class="socials-subhead">Freunde</h3>
-      <p class="socials-hint" id="friendsHint">Verbinde dich mit Discord, um zu sehen, welche Freunde den Kollegen Client nutzen und gerade spielen.</p>
-      <ul id="discordFriends" class="friend-list"></ul>
-
-      <h3 class="socials-subhead">Einladungen (Server beitreten)</h3>
-      <ul id="discordInvites" class="invite-list"><li style="color:#888;">Keine Einladungen</li></ul>
-
-      <h3 class="socials-subhead">Freunde</h3>
-      <p class="socials-hint" id="kollegenHint">Verbinde dich mit Discord, um Freunde zu sehen und hinzuzufügen.</p>
-      <div class="add-friend">
-        <input id="friendCodeInput" placeholder="Freundes-Code" autocomplete="off" />
-        <button id="friendCodeAdd">Hinzufügen</button>
-      </div>
-      <ul id="kollegenFriends" class="friend-list"></ul>
-
-      <div class="socials-invite">
-        <p class="socials-hint">Kennst du jemanden, der den Kollegen Client auch nutzen sollte?</p>
-        <button id="inviteLauncherBtn" class="invite-launcher-btn">Auf GitHub einladen</button>
-      </div>
-    </div>
-  </aside>
-
   <main>
-    <section id="createPanel" class="panel">
+    <section id="homePanel" class="panel tab-panel active" data-tab="home">
+      <h2>Home</h2>
+      <ul id="instanceList"></ul>
+    </section>
+
+    <section id="createPanel" class="panel tab-panel" data-tab="create">
       <h2>Instanz erstellen</h2>
       <label>Name</label>
       <input id="iName" placeholder="Instanz Name" />
-      
+
       <label>Minecraft Version</label>
       <select id="iVersion"></select>
-      
+
       <label>Mod Loader</label>
       <select id="iLoader">
         <option value="vanilla">Vanilla</option>
@@ -127,7 +79,7 @@
         <option value="forge">Forge</option>
         <option value="neoforge">NeoForge</option>
       </select>
-      
+
       <label>Loader-Version</label>
       <select id="iLoaderVer">
         <option value="">(Standard / Neueste)</option>
@@ -138,14 +90,49 @@
       </div>
     </section>
 
-    <section id="instancesPanel" class="panel">
-      <h2>Instanzen</h2>
-      <ul id="instanceList"></ul>
-    </section>
+    <section id="socialsPanel" class="panel tab-panel" data-tab="socials">
+      <div class="socials-header">
+        <span class="socials-logo"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M4 4h16a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H11l-5 4v-4H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/></svg></span>
+        <h2>Soziales</h2>
+        <button id="socialsClose" class="icon-btn" title="Schließen">✕</button>
+      </div>
+      <div class="socials-body">
+        <div class="socials-profile">
+          <img id="spAvatar" class="socials-profile-avatar" alt="" style="display:none;" />
+          <div class="socials-profile-meta">
+            <div id="spName" class="socials-profile-name">nicht verbunden</div>
+            <div id="spDiscord" class="socials-profile-sub"></div>
+          </div>
+          <button id="openProfileBtn" class="socials-profile-btn">Profil</button>
+        </div>
 
-    <section id="logsPanel" class="panel">
-      <h2>Logs</h2>
-      <pre id="logs"></pre>
+        <div id="discordStatus" class="discord-status">nicht verbunden</div>
+        <div id="discordCurrentServer" class="discord-server"></div>
+        <div id="discordLogin" style="margin-top:0.5rem;">
+          <button id="discordLoginBtn">Mit Discord verbinden</button>
+          <div id="discordLoginStatus" class="discord-login-status"></div>
+        </div>
+
+        <h3 class="socials-subhead">Freunde</h3>
+        <p class="socials-hint" id="friendsHint">Verbinde dich mit Discord, um zu sehen, welche Freunde den Kollegen Client nutzen und gerade spielen.</p>
+        <ul id="discordFriends" class="friend-list"></ul>
+
+        <h3 class="socials-subhead">Einladungen (Server beitreten)</h3>
+        <ul id="discordInvites" class="invite-list"><li style="color:#888;">Keine Einladungen</li></ul>
+
+        <h3 class="socials-subhead">Freunde</h3>
+        <p class="socials-hint" id="kollegenHint">Verbinde dich mit Discord, um Freunde zu sehen und hinzuzufügen.</p>
+        <div class="add-friend">
+          <input id="friendCodeInput" placeholder="Freundes-Code" autocomplete="off" />
+          <button id="friendCodeAdd">Hinzufügen</button>
+        </div>
+        <ul id="kollegenFriends" class="friend-list"></ul>
+
+        <div class="socials-invite">
+          <p class="socials-hint">Kennst du jemanden, der den Kollegen Client auch nutzen sollte?</p>
+          <button id="inviteLauncherBtn" class="invite-launcher-btn">Auf GitHub einladen</button>
+        </div>
+      </div>
     </section>
   </main>
 
