@@ -13,6 +13,7 @@ import dev.kollegen.client.ui.GlassToggle;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.renderer.RenderPipelines;
@@ -20,15 +21,16 @@ import net.minecraft.client.resources.DefaultPlayerSkin;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
+import java.util.function.Supplier;
 
 /**
- * Mod-Menü (über Rechts-Shift). NoRisk-/Feather-artige Glas-Optik in den
- * Launcher-Theme-Farben. Kategorien: Profil, Einstellungen, Info.
- *
- * Alle interaktiven Elemente sind echte Widgets (GlassToggle / GlassSlider /
- * GlassButton / EditBox), damit die Eingabe über Minecrafts Widget-System
- * zuverlässig funktioniert. Hintergrund durchsichtig (Welt bleibt sichtbar).
+ * Mod-Menü (über Rechts-Shift). Angelehnt an NoRisk-Clients Mod-Menü:
+ * dunkle Glas-Optik, Sidebar mit Kategorie-Pills, Inhaltsbereich mit Titel +
+ * Suche und einzelnen, abgerundeten Einstellungs-Zeilen (Label links, Control
+ * rechts). Hintergrund durchsichtig (Welt bleibt sichtbar).
  */
 public class KollegenMenuScreen extends Screen {
 
@@ -37,8 +39,10 @@ public class KollegenMenuScreen extends Screen {
     private static final String[] CATS = {"Profil", "Einstellungen", "Info"};
     private int category = 1; // standard: Einstellungen
 
-    private static final int TOGGLE_W = 52, TOGGLE_H = 28;
-    private static final int R = 18;
+    private static final int TOGGLE_W = 52, TOGGLE_H = 28, SLIDER_H = 18;
+    private static final int SW = 188;            // Sidebar-Breite
+    private static final int R = 16;              // Panel-Radius
+    private static final int ROW_H = 60, ROW_GAP = 8;
 
     private GlassButton[] navbar = new GlassButton[CATS.length];
     private GlassButton closeBtn;
@@ -46,12 +50,26 @@ public class KollegenMenuScreen extends Screen {
 
     private GlassToggle tLogo, tHi, tFb;
     private GlassSlider sSat, sHi;
-    private EditBox hexBox;
+    private EditBox hexBox, searchBox;
 
-    private int cntX, cntY, cntW, rowStep;
-    private int togRX;
+    private final List<SettingRow> settings = new ArrayList<>();
+
+    private int px, py, pw, ph;     // Panel-Rechteck
+    private int cx, cy, cw;         // Inhalts-Rechteck
     private SocialData data = new SocialData();
     private Identifier cachedSkin;
+
+    private static final class SettingRow {
+        final String label;
+        final List<AbstractWidget> widgets = new ArrayList<>();
+        Supplier<String> value = () -> "";
+        int y;
+        boolean visible = true;
+
+        SettingRow(String label) {
+            this.label = label;
+        }
+    }
 
     public KollegenMenuScreen(Screen parent) {
         super(Component.literal("Kollegen Client"));
@@ -80,14 +98,14 @@ public class KollegenMenuScreen extends Screen {
     // ═══ Geometrie ═══
 
     private int[] panel() {
-        int w = Math.min(this.width - 60, 720);
-        int h = Math.min(this.height - 60, 470);
+        int w = Math.min(this.width - 70, 824);
+        int h = Math.min(this.height - 70, 548);
         return new int[]{(this.width - w) / 2, (this.height - h) / 2, w, h};
     }
 
-    // ═══ Widgets (native) ═══
+    // ═══ Widgets ═══
 
-    private final java.util.List<net.minecraft.client.gui.components.events.GuiEventListener> built = new java.util.ArrayList<>();
+    private final List<net.minecraft.client.gui.components.events.GuiEventListener> built = new ArrayList<>();
 
     private void resetWidgets() {
         for (net.minecraft.client.gui.components.events.GuiEventListener w : built) removeWidget(w);
@@ -101,18 +119,19 @@ public class KollegenMenuScreen extends Screen {
 
     private void buildWidgets() {
         resetWidgets();
+        settings.clear();
         int[] p = panel();
-        int px = p[0], py = p[1], pw = p[2], ph = p[3];
+        px = p[0]; py = p[1]; pw = p[2]; ph = p[3];
 
         int accent = ThemeSync.argb(ThemeSync.get("accent", "#f5a623"), 0xfff5a623);
         int panelC = ThemeSync.argb(ThemeSync.get("panel", "#1a1a24"), 0xff1a1a24);
+        int panel2 = ThemeSync.argb(ThemeSync.get("panel2", "#21212e"), 0xff21212e);
         int textC = ThemeSync.argb(ThemeSync.get("text", "#f3e9d8"), 0xfff3e9d8);
         int muted = ThemeSync.argb(ThemeSync.get("muted", "#b9a98c"), 0xffb9a98c);
 
-        // Navbar (Sidebar)
-        int sw = 150;
+        // Sidebar-Pills
         for (int i = 0; i < CATS.length; i++) {
-            int bx = px + 14, by = py + 56 + i * 42, bw = sw - 28, bh = 34;
+            int bx = px + 14, by = py + 70 + i * 46, bw = SW - 28, bh = 38;
             final int idx = i;
             GlassButton b = new GlassButton(bx, by, bw, bh, Component.literal(CATS[i]), btn -> setCategory(idx));
             b.colors(panelC, accent, textC);
@@ -124,66 +143,132 @@ public class KollegenMenuScreen extends Screen {
         closeBtn.colors(panelC, accent, textC);
         reg(closeBtn);
 
-        // Inhaltsbereich
-        cntX = px + sw + 16;
-        cntY = py + 54;
-        cntW = pw - sw - 32;
-        rowStep = 46;
-        togRX = cntX + cntW - TOGGLE_W;
+        // Inhalts-Geometrie
+        cx = px + SW + 18;
+        cw = pw - SW - 34;
+        cy = py + 70;
 
-        // ── Einstellungen-Widgets ──
-        tLogo = new GlassToggle(togRX, cntY + 0 * rowStep + 2, TOGGLE_W, TOGGLE_H,
-                KollegenMod.CONFIG.replaceLogo, on -> {
-            KollegenMod.CONFIG.replaceLogo = on;
-            KollegenMod.CONFIG.save();
-        });
-        tLogo.colors(accent, muted);
+        // Suche (nur Einstellungen)
+        searchBox = new EditBox(this.font, cx + cw - 168, py + 18, 156, 22, Component.literal(""));
+        searchBox.setMaxLength(32);
+        searchBox.setTextColor(textC);
+        searchBox.setResponder(this::onSearch);
+        reg(searchBox);
 
-        int satW = Math.min(240, cntW - 60);
-        sSat = new GlassSlider(cntX, cntY + 1 * rowStep + 14, satW, 18,
-                KollegenMod.CONFIG.colorSaturation / 2.0f);
-        sSat.accent(accent).onChanged(v -> setSaturation((float) (v * 2)));
+        // ── Einstellungs-Zeilen ──
+        int ry = cy + 8;
 
-        tHi = new GlassToggle(togRX, cntY + 2 * rowStep + 2, TOGGLE_W, TOGGLE_H,
-                KollegenMod.CONFIG.colorHighlight, on -> {
-            KollegenMod.CONFIG.colorHighlight = on;
-            KollegenMod.CONFIG.save();
-            KollegenPostFX.applyConfig();
-        });
-        tHi.colors(accent, muted);
+        // Logo ersetzen
+        {
+            SettingRow r = new SettingRow("Minecraft-Logo durch Logo.png");
+            r.y = ry;
+            tLogo = new GlassToggle(cx + cw - TOGGLE_W - 12, ry + (ROW_H - TOGGLE_H) / 2, TOGGLE_W, TOGGLE_H,
+                    KollegenMod.CONFIG.replaceLogo, on -> {
+                KollegenMod.CONFIG.replaceLogo = on;
+                KollegenMod.CONFIG.save();
+            });
+            tLogo.colors(accent, muted);
+            reg(tLogo);
+            r.widgets.add(tLogo);
+            settings.add(r);
+        }
+        ry += ROW_H + ROW_GAP;
 
-        int hexW = Math.min(140, cntW - 40);
-        hexBox = new EditBox(this.font, cntX, cntY + 3 * rowStep + 14, hexW, 20, Component.literal(""));
-        hexBox.setMaxLength(7);
-        hexBox.setValue(KollegenMod.CONFIG.highlightColor);
-        hexBox.setTextColor(textC);
-        hexBox.setResponder(this::tryApplyHex);
+        // Farb-Sättigung
+        {
+            SettingRow r = new SettingRow("Farb-Sättigung");
+            r.y = ry;
+            r.value = () -> Math.round(KollegenMod.CONFIG.colorSaturation * 100) + "%";
+            int sw = Math.min(240, cw - 60);
+            sSat = new GlassSlider(cx + cw - sw - 12, ry + (ROW_H - SLIDER_H) / 2, sw, SLIDER_H,
+                    KollegenMod.CONFIG.colorSaturation / 2.0f);
+            sSat.accent(accent).onChanged(v -> setSaturation((float) (v * 2)));
+            reg(sSat);
+            r.widgets.add(sSat);
+            settings.add(r);
+        }
+        ry += ROW_H + ROW_GAP;
 
-        int hiW = Math.min(240, cntW - 60);
-        sHi = new GlassSlider(cntX, cntY + 4 * rowStep + 14, hiW, 18,
-                KollegenMod.CONFIG.highlightAmount);
-        sHi.accent(accent).onChanged(v -> setHighlightAmount((float) (double) v));
+        // Farbe hervorheben
+        {
+            SettingRow r = new SettingRow("Farbe hervorheben");
+            r.y = ry;
+            tHi = new GlassToggle(cx + cw - TOGGLE_W - 12, ry + (ROW_H - TOGGLE_H) / 2, TOGGLE_W, TOGGLE_H,
+                    KollegenMod.CONFIG.colorHighlight, on -> {
+                KollegenMod.CONFIG.colorHighlight = on;
+                KollegenMod.CONFIG.save();
+                KollegenPostFX.applyConfig();
+            });
+            tHi.colors(accent, muted);
+            reg(tHi);
+            r.widgets.add(tHi);
+            settings.add(r);
+        }
+        ry += ROW_H + ROW_GAP;
 
-        tFb = new GlassToggle(togRX, cntY + 5 * rowStep + 2, TOGGLE_W, TOGGLE_H,
-                KollegenMod.CONFIG.fullbright, on -> {
-            KollegenMod.CONFIG.fullbright = on;
-            KollegenMod.CONFIG.save();
-            Fullbright.reconcile();
-        });
-        tFb.colors(accent, muted);
+        // Hex-Farbe
+        {
+            SettingRow r = new SettingRow("Hex-Farbe");
+            r.y = ry;
+            r.value = () -> KollegenMod.CONFIG.highlightColor;
+            int hw = Math.min(140, cw - 40);
+            hexBox = new EditBox(this.font, cx + cw - hw - 12, ry + (ROW_H - 20) / 2, hw, 20, Component.literal(""));
+            hexBox.setMaxLength(7);
+            hexBox.setValue(KollegenMod.CONFIG.highlightColor);
+            hexBox.setTextColor(textC);
+            hexBox.setResponder(this::tryApplyHex);
+            reg(hexBox);
+            r.widgets.add(hexBox);
+            settings.add(r);
+        }
+        ry += ROW_H + ROW_GAP;
 
-        reg(tLogo);
-        reg(sSat);
-        reg(tHi);
-        reg(hexBox);
-        reg(sHi);
-        reg(tFb);
+        // Stärke
+        {
+            SettingRow r = new SettingRow("Stärke");
+            r.y = ry;
+            r.value = () -> Math.round(KollegenMod.CONFIG.highlightAmount * 100) + "%";
+            int sw = Math.min(240, cw - 60);
+            sHi = new GlassSlider(cx + cw - sw - 12, ry + (ROW_H - SLIDER_H) / 2, sw, SLIDER_H,
+                    KollegenMod.CONFIG.highlightAmount);
+            sHi.accent(accent).onChanged(v -> setHighlightAmount((float) (double) v));
+            reg(sHi);
+            r.widgets.add(sHi);
+            settings.add(r);
+        }
+        ry += ROW_H + ROW_GAP;
 
-        // ── Profil: Code kopieren ──
-        copyBtn = new GlassButton(cntX, cntY + 200, Math.min(180, cntW), 26,
-                Component.literal("Code kopieren"), btn -> copyCode());
+        // Fullbright
+        {
+            SettingRow r = new SettingRow("Fullbright (Gamma)");
+            r.y = ry;
+            tFb = new GlassToggle(cx + cw - TOGGLE_W - 12, ry + (ROW_H - TOGGLE_H) / 2, TOGGLE_W, TOGGLE_H,
+                    KollegenMod.CONFIG.fullbright, on -> {
+                KollegenMod.CONFIG.fullbright = on;
+                KollegenMod.CONFIG.save();
+                Fullbright.reconcile();
+            });
+            tFb.colors(accent, muted);
+            reg(tFb);
+            r.widgets.add(tFb);
+            settings.add(r);
+        }
+
+        // Profil: Code kopieren
+        copyBtn = new GlassButton(cx + 14, py + ph - 46, Math.min(190, cw), 28,
+                Component.literal("Freundes-Code kopieren"), btn -> copyCode());
         copyBtn.colors(panelC, accent, textC);
         reg(copyBtn);
+    }
+
+    private void onSearch(String q) {
+        String ql = (q == null ? "" : q).toLowerCase();
+        for (SettingRow r : settings) {
+            r.visible = ql.isEmpty() || r.label.toLowerCase().contains(ql);
+            for (AbstractWidget w : r.widgets) {
+                w.visible = w.active = r.visible;
+            }
+        }
     }
 
     private void setCategory(int c) {
@@ -194,19 +279,19 @@ public class KollegenMenuScreen extends Screen {
         int muted = ThemeSync.argb(ThemeSync.get("muted", "#b9a98c"), 0xffb9a98c);
 
         for (int i = 0; i < navbar.length; i++) {
-            boolean sel = i == category;
-            navbar[i].colors(panelC, sel ? accent : muted, sel ? accent : textC);
+            navbar[i].selected(i == category);
         }
 
         boolean s = category == 1;
-        tLogo.visible = tLogo.active = s;
-        sSat.visible = sSat.active = s;
-        tHi.visible = tHi.active = s;
-        hexBox.visible = hexBox.active = s;
-        sHi.visible = sHi.active = s;
-        tFb.visible = tFb.active = s;
+        for (SettingRow r : settings) {
+            boolean v = s && r.visible;
+            r.visible = v || !s; // bei Suche bleibt sichtbarkeitsfilter erhalten
+            for (AbstractWidget w : r.widgets) w.visible = w.active = s;
+        }
+        if (s) onSearch(searchBox != null ? searchBox.getValue() : "");
 
         copyBtn.visible = copyBtn.active = category == 0;
+        searchBox.visible = searchBox.active = s;
     }
 
     private void setSaturation(float v) {
@@ -248,53 +333,78 @@ public class KollegenMenuScreen extends Screen {
         ThemeSync.refresh();
         int bg = ThemeSync.argb(ThemeSync.get("bg", "#0d0d12"), 0xff0d0d12);
         int panelC = ThemeSync.argb(ThemeSync.get("panel", "#1a1a24"), 0xff1a1a24);
+        int panel2 = ThemeSync.argb(ThemeSync.get("panel2", "#21212e"), 0xff21212e);
         int border = ThemeSync.argb(ThemeSync.get("border", "#34303a"), 0xff34303a);
         int accent = ThemeSync.argb(ThemeSync.get("accent", "#f5a623"), 0xfff5a623);
         int text = ThemeSync.argb(ThemeSync.get("text", "#f3e9d8"), 0xfff3e9d8);
         int muted = ThemeSync.argb(ThemeSync.get("muted", "#b9a98c"), 0xffb9a98c);
         Font font = this.font;
 
-        g.fill(0, 0, this.width, this.height, Glass.tint(bg, 0x16));
+        // Dunkler, leicht transparenter Backdrop (Welt bleibt sichtbar)
+        g.fill(0, 0, this.width, this.height, Glass.tint(bg, 0x18));
 
         int[] p = panel();
-        Glass.panel(g, p[0], p[1], p[2], p[3], R,
+        px = p[0]; py = p[1]; pw = p[2]; ph = p[3];
+        cx = px + SW + 18;
+        cw = pw - SW - 34;
+        cy = py + 70;
+
+        // Haupt-Panel
+        Glass.panel(g, px, py, pw, ph, R,
                 Glass.tint(panelC, 0xE0), Glass.tint(border, 0xCC), Glass.tint(accent, 0xFF));
-        g.fill(p[0] + 2, p[1] + 2, p[2] - 4, 1, Glass.tint(0xffffff, 0x22));
+        g.fill(px + 2, py + 2, pw - 4, 1, Glass.tint(0xffffff, 0x22));
 
-        // Sidebar-Hintergrund
-        int sw = 150;
-        Glass.fillRound(g, p[0] + 10, p[1] + 50, sw - 20, p[3] - 70, 12, Glass.tint(panelC, 0x90));
+        // Sidebar-Panel
+        Glass.fillRound(g, px + 8, py + 8, SW, ph - 16, 12, Glass.tint(panel2, 0xCC));
+        g.drawString(font, "KOLLEGEN", px + 20, py + 24, accent, false);
+        g.drawString(font, "Client", px + 20 + font.width("KOLLEGEN") + 6, py + 26, muted, false);
+        g.fill(px + 16, py + 54, SW - 16, 1, Glass.tint(border, 0x80));
 
-        g.drawString(font, "KOLLEGEN", p[0] + 20, p[1] + 18, accent, false);
-        g.drawString(font, "Client", p[0] + 20 + font.width("KOLLEGEN") + 6, p[1] + 20, muted, false);
+        // Inhalts-Header
+        String title = CATS[category];
+        g.drawString(font, title, cx + 14, py + 20, text, false);
+        if (category == 1 && searchBox.getValue().isEmpty()) {
+            g.drawString(font, "Suche…", cx + cw - 168 + 6, py + 24, muted, false);
+        }
 
         if (category == 0) renderProfile(g, accent, panelC, border, text, muted);
-        else if (category == 1) renderSettingsLabels(g, accent, text, muted);
+        else if (category == 1) renderSettings(g, accent, panel2, border, text, muted, mx, my);
         else renderInfo(g, accent, text, muted);
 
         super.render(g, mx, my, pt);
     }
 
-    private void renderSettingsLabels(GuiGraphics g, int accent, int text, int muted) {
+    private void renderSettings(GuiGraphics g, int accent, int panel2, int border, int text, int muted, int mx, int my) {
         Font font = this.font;
-        g.drawString(font, "Minecraft-Logo durch Logo.png", cntX, cntY + 0 * rowStep + 9, text, false);
-        g.drawString(font, "Farb-Sättigung", cntX, cntY + 1 * rowStep, muted, false);
-        g.drawString(font, Math.round(KollegenMod.CONFIG.colorSaturation * 100) + "%",
-                cntX + sSat.getWidth() + 10, cntY + 1 * rowStep + 14 + 5, text, false);
-        g.drawString(font, "Farbe hervorheben", cntX, cntY + 2 * rowStep + 9, text, false);
-        g.drawString(font, "Hex-Farbe", cntX, cntY + 3 * rowStep, muted, false);
-        int[] rgb = hexToRgb(KollegenMod.CONFIG.highlightColor);
-        int sx = hexBox.getX() + hexBox.getWidth() + 8;
-        g.fill(sx, hexBox.getY(), sx + 18, hexBox.getY() + 18, 0xff000000 | (rgb[0] << 16) | (rgb[1] << 8) | rgb[2]);
-        g.drawString(font, "Stärke", cntX, cntY + 4 * rowStep, muted, false);
-        g.drawString(font, Math.round(KollegenMod.CONFIG.highlightAmount * 100) + "%",
-                cntX + sHi.getWidth() + 10, cntY + 4 * rowStep + 14 + 5, text, false);
-        g.drawString(font, "Fullbright (Gamma)", cntX, cntY + 5 * rowStep + 9, text, false);
+        int i = 0;
+        for (SettingRow r : settings) {
+            if (!r.visible) {
+                i++;
+                continue;
+            }
+            boolean hov = mx >= cx + 8 && mx <= cx + cw - 8 && my >= r.y && my < r.y + ROW_H;
+            int rowBg = hov ? Glass.tint(panel2, 0x6E) : Glass.tint(panel2, 0x52);
+            Glass.fillRound(g, cx + 8, r.y, cw - 16, ROW_H, 12, rowBg);
+            g.drawString(font, r.label, cx + 22, r.y + 14, text, false);
+            String val = r.value.get();
+            if (!val.isEmpty()) {
+                g.drawString(font, val, cx + 22, r.y + 36, muted, false);
+            }
+            if (r.widgets.contains(hexBox) && hexBox.getValue().matches("#[0-9a-fA-F]{6}")) {
+                int[] rgb = hexToRgb(hexBox.getValue());
+                g.fill(hexBox.getX() + hexBox.getWidth() + 8, hexBox.getY(), 18, 18,
+                        0xff000000 | (rgb[0] << 16) | (rgb[1] << 8) | rgb[2]);
+            }
+            if (i < settings.size() - 1) {
+                g.fill(cx + 8, r.y + ROW_H, cx + cw - 8, r.y + ROW_H + 1, Glass.tint(border, 0x55));
+            }
+            i++;
+        }
     }
 
     private void renderProfile(GuiGraphics g, int accent, int panelC, int border, int text, int muted) {
         Font font = this.font;
-        int x = cntX, y = cntY;
+        int x = cx + 14, y = cy + 8;
 
         int headSize = 64;
         if (cachedSkin != null) {
@@ -319,7 +429,7 @@ public class KollegenMenuScreen extends Screen {
             g.drawString(font, "Discord: " + disc, tx, ty, accent, false);
             ty += 16;
         }
-        ty = y + headSize + 12;
+        ty = y + headSize + 14;
         g.drawString(font, "Verknüpfte Accounts", x, ty, accent, false);
         ty += 16;
         var accs = data.accounts();
@@ -337,10 +447,11 @@ public class KollegenMenuScreen extends Screen {
 
     private void renderInfo(GuiGraphics g, int accent, int text, int muted) {
         Font font = this.font;
-        g.drawString(font, "Kollegen Client", cntX, cntY, accent, false);
-        g.drawString(font, "Version " + KollegenMod.VERSION, cntX, cntY + 20, text, false);
-        g.drawString(font, "Discord Rich Presence: aktiv", cntX, cntY + 40, muted, false);
-        g.drawString(font, "Öffnen: Rechts-Shift  •  Social: Freunde-Button", cntX, cntY + 60, muted, false);
+        int x = cx + 14, y = cy + 10;
+        g.drawString(font, "Kollegen Client", x, y, accent, false);
+        g.drawString(font, "Version " + KollegenMod.VERSION, x, y + 22, text, false);
+        g.drawString(font, "Discord Rich Presence: aktiv", x, y + 44, muted, false);
+        g.drawString(font, "Öffnen: Rechts-Shift  •  Social: Freunde-Button", x, y + 64, muted, false);
     }
 
     private int[] hexToRgb(String hex) {

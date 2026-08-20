@@ -32,8 +32,9 @@ public class GlassSlider extends AbstractSliderButton {
     public void renderWidget(GuiGraphics g, int mx, int my, float pt) {
         int r = height / 2;
         Glass.fillRound(g, getX(), getY(), width, height, r, 0x802b2b34);
-        int fx = getX() + (int) (this.value * (width - 10));
-        Glass.fillRound(g, fx, getY() + 1, 10, height - 2, (height - 2) / 2, Glass.tint(accent, 0xF0));
+        int thumb = height - 2;
+        int fx = getX() + (int) (this.value * (width - thumb));
+        Glass.fillRound(g, fx, getY() + 1, thumb, thumb, thumb / 2, Glass.tint(accent, 0xF0));
     }
 
     @Override

@@ -45,8 +45,9 @@ public class GlassToggle extends AbstractWidget {
         int r = height / 2;
         Glass.fillRound(g, getX(), getY(), width, height, r,
                 state ? Glass.tint(accent, 0xD8) : Glass.tint(off, 0x70));
+        int knob = height - 6;
         int kx = state ? (getX() + width - height + 3) : (getX() + 3);
-        g.fill(kx, getY() + 3, kx + height - 6, getY() + height - 3, 0xffffffff);
+        Glass.fillRound(g, kx, getY() + 3, knob, knob, knob / 2, 0xffffffff);
     }
 
     @Override
