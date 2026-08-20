@@ -879,6 +879,13 @@ fn open_url(url: String) -> Result<(), String> {
     open::that(&url).map_err(|e| e.to_string())
 }
 
+#[tauri::command]
+fn open_logs_folder(state: State<'_, AppState>) -> Result<(), String> {
+    let dir = state.data_dir.join("logs");
+    let _ = std::fs::create_dir_all(&dir);
+    open::that(dir.as_os_str()).map_err(|e| e.to_string())
+}
+
 /// Persists the launcher's current theme colors so the in-game Kollegen Client
 /// mod can render its menu with the exact same palette (even when the user
 /// changes the accent color at runtime). Written both to the app data dir and to
@@ -1339,6 +1346,7 @@ fn main() {
             skin_upload,
             skin_mc_profile,
             cape_equip,
+            open_logs_folder,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -1503,6 +1503,53 @@ function toast(msg, kind) {
   toastTimer = setTimeout(() => { el.className = "toast"; }, 3200);
 }
   $("socialsClose").onclick = () => switchTab("home");
+
+  const logsEl = $("logs");
+  if ($("refreshLogsBtn")) $("refreshLogsBtn").onclick = () => refreshLogs();
+  if ($("copyLogsBtn"))
+    $("copyLogsBtn").onclick = async () => {
+      try {
+        await navigator.clipboard.writeText(logsEl.textContent || "");
+        toast("Logs in Zwischenablage kopiert");
+      } catch (e) {
+        toast("Kopieren fehlgeschlagen: " + e);
+      }
+    };
+  if ($("openLogFolderBtn"))
+    $("openLogFolderBtn").onclick = () => invoke("open_logs_folder");
+
+  // Update-Status: Version anzeigen + Launcher-Update prüfen
+  try {
+    const v = await invoke("get_version");
+    const uv = $("updateVersion");
+    if (uv) uv.textContent = v;
+  } catch (e) {}
+  if ($("checkUpdateBtn")) {
+    $("checkUpdateBtn").onclick = async () => {
+      const res = $("updateResult");
+      if (res) res.textContent = "prüfe…";
+      try {
+        const info = await invoke("check_app_update");
+        if (!info) {
+          if (res) res.textContent = "Kein Update verfügbar – du bist aktuell.";
+        } else {
+          const cur = await invoke("get_version");
+          if (res)
+            res.textContent =
+              "Update verfügbar: v" + info.version + " (aktuell v" + cur + ")";
+          if (info.can_install) {
+            if (confirm("Update auf v" + info.version + " installieren?")) {
+              await invoke("install_app_update");
+            }
+          } else if (res) {
+            res.textContent += " (bitte manuell via GitHub installieren)";
+          }
+        }
+      } catch (e) {
+        if (res) res.textContent = "Fehler: " + e;
+      }
+    };
+  }
 $("joinFriendClose").onclick = () => {
   $("joinFriendModal").style.display = "none";
 };

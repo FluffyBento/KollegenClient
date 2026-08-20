@@ -55,6 +55,9 @@
       <a href="#" class="sidebar-link" data-tab="socials" title="Soziales" id="socialsBtn">
         <span class="side-ico"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M4 4h16a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H11l-5 4v-4H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/></svg></span><span class="side-label">Soziales</span>
       </a>
+      <a href="#" class="sidebar-link" data-tab="logs" title="Logs" id="logsBtn">
+        <span class="side-ico">☰</span><span class="side-label">Logs</span>
+      </a>
     </div>
   </nav>
 
@@ -133,6 +136,32 @@
           <button id="inviteLauncherBtn" class="invite-launcher-btn">Auf GitHub einladen</button>
         </div>
       </div>
+    </section>
+
+    <section id="logsPanel" class="panel tab-panel" data-tab="logs">
+      <div class="logs-header">
+        <h2>Logs &amp; Updates</h2>
+        <div class="logs-actions">
+          <button id="refreshLogsBtn" class="icon-btn" title="Aktualisieren">↻</button>
+          <button id="copyLogsBtn" class="icon-btn" title="Kopieren">⧉</button>
+          <button id="openLogFolderBtn" class="icon-btn" title="Ordner öffnen">📁</button>
+        </div>
+      </div>
+      <div class="update-status">
+        <div class="update-row">
+          <span class="update-label">Launcher-Version:</span>
+          <span id="updateVersion" class="update-value">…</span>
+        </div>
+        <div class="update-row">
+          <span class="update-label">Mod-Update:</span>
+          <span class="update-value">wird bei jedem Start automatisch geprüft &amp; installiert</span>
+        </div>
+        <div class="update-row update-actions">
+          <button id="checkUpdateBtn" class="small-btn">Launcher-Update prüfen</button>
+          <span id="updateResult" class="update-result"></span>
+        </div>
+      </div>
+      <pre id="logs" class="logs-view">Lade Logs…</pre>
     </section>
   </main>
 

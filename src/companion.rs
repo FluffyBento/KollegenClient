@@ -248,8 +248,6 @@ pub fn install_companion_mod(data_dir: &Path, instance_name: &str, version: &str
             return;
         }
     };
-    let source_len = std::fs::metadata(&source).map(|m| m.len()).unwrap_or(0);
-
     // Relax the `minecraft` version constraint so the mod also loads on
     // 1.21.0–1.21.10 (the published jar requires >= 1.21.11).
     let jar = relax_companion_constraints(&source);
@@ -265,15 +263,11 @@ pub fn install_companion_mod(data_dir: &Path, instance_name: &str, version: &str
     }
 
     let target = mods_dir.join(COMPANION_MOD_FILENAME);
-    let up_to_date = target.exists()
-        && source_len > 0
-        && std::fs::metadata(&target)
-            .map(|m| m.len() == source_len)
-            .unwrap_or(false);
-    if up_to_date {
-        return;
-    }
 
+    // Immer neu injizieren: der Cache hält bereits die neueste Mod-Version
+    // (refresh_cache lädt bei jedem Start releases/latest), und ein erneutes
+    // Kopieren stellt sicher, dass in keiner Instanz eine veraltete Mod
+    // hängen bleibt – auch wenn ein früheres Update übersprungen wurde.
     match std::fs::copy(&jar, &target) {
         Ok(_) => info!(
             "Kollegen-Client-Mod in Instanz '{}' (MC {}) injiziert.",
