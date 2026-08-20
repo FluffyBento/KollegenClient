@@ -6,9 +6,10 @@ import com.google.gson.JsonParser;
 import dev.kollegen.client.KollegenMod;
 import dev.kollegen.client.config.KollegenConfig;
 import net.minecraft.client.Minecraft;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.text.Style;
-import net.minecraft.text.Text;
+import net.minecraft.resources.Identifier;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.FontDescription;
+import net.minecraft.network.chat.Style;
 
 import java.net.URI;
 import java.net.URLEncoder;
@@ -92,11 +93,11 @@ public final class Presence {
     }
 
     /** Liefert den (ggf. glyph-dekorierten) Anzeigenamen für die Tab-Liste. */
-    public static Text decorateName(Text original) {
+    public static Component decorateName(Component original) {
         if (original == null) return null;
         if (!isKollege(original.getString())) return original;
-        Text glyph = Text.literal(GLYPH).setStyle(Style.EMPTY.withFont(ResourceLocation.fromNamespaceAndPath("kollegen", "kollegen")));
-        return Text.empty().append(glyph).append(original);
+        Component glyph = Component.literal(GLYPH).setStyle(Style.EMPTY.withFont(new FontDescription.Resource(Identifier.fromNamespaceAndPath("kollegen", "kollegen"))));
+        return Component.empty().append(glyph).append(original);
     }
 
     public static boolean isKollege(String name) {
@@ -171,8 +172,8 @@ public final class Presence {
                     }
                     kollegenNames.set(names);
                 }
-            } catch (Throwable t) {
-                KollegenMod.LOGGER.debug("Presence-Abfrage fehlgeschlagen: {}", t.getMessage());
+            } catch (Throwable ex) {
+                KollegenMod.LOGGER.debug("Presence-Abfrage fehlgeschlagen: {}", ex.getMessage());
             } finally {
                 refreshRunning.set(false);
             }

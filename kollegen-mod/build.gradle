@@ -1,5 +1,5 @@
 plugins {
-    id 'fabric-loom' version '1.13.6'
+    id 'fabric-loom' version '1.14.10'
     id 'maven-publish'
 }
 
@@ -11,20 +11,26 @@ base {
 }
 
 repositories {
+    mavenLocal()
     maven { url 'https://maven.fabricmc.net/' }
     mavenCentral()
 }
 
 dependencies {
     minecraft "com.mojang:minecraft:${project.minecraft_version}"
-    mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
+    mappings loom.officialMojangMappings()
     modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
     modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
 
     // Discord Rich Presence (Minnced) – vendored locally (club.minnced sources
     // from java-discord-rpc v1.3.6 + JNA + native libs) since the original
     // artifact was only ever published to the now-defunct JCenter.
-    implementation files('libs/discord-rpc.jar')
+    implementation('dev.kollegen:discord-rpc:1.3.6') { transitive = false }
+    include('dev.kollegen:discord-rpc:1.3.6') { transitive = false }
+
+    // NOTE: Fabric Loom automatically registers the Mixin annotation processor
+    // and generates the refmap. The refmap (kollegen.refmap.json) is maintained
+    // manually in src/main/resources because Loom does not emit it for this setup.
 }
 
 processResources {

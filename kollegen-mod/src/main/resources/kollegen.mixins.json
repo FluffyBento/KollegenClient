@@ -8,8 +8,7 @@
     "OptionsScreenMixin",
     "MinecraftClientMixin",
     "PlayerListEntryMixin",
-    {"GuiMixin": {"required": false}},
-    {"MouseHandlerMixin": {"required": false}}
+    "MouseHandlerMixin"
   ],
   "injectors": {
     "defaultRequire": 1

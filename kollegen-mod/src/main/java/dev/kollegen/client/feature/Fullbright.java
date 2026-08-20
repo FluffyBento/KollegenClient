@@ -15,13 +15,13 @@ public class Fullbright {
     private static double getGamma() {
         Minecraft mc = Minecraft.getInstance();
         if (mc == null || mc.options == null) return 0.5;
-        return mc.options.getGamma().getValue();
+        return mc.options.gamma().get();
     }
 
     private static void setGamma(double v) {
         Minecraft mc = Minecraft.getInstance();
         if (mc == null || mc.options == null) return;
-        mc.options.getGamma().setValue(v);
+        mc.options.gamma().set(v);
     }
 
     /** Gleicht den angewandten Zustand mit der Config-Einstellung ab. */

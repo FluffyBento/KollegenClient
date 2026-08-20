@@ -28,7 +28,7 @@ public class KollegenRPC {
         try {
             rpc = DiscordRPC.INSTANCE;
             DiscordEventHandlers handlers = new DiscordEventHandlers();
-            handlers.ready = (user) -> ready = true;
+            handlers.ready = () -> ready = true;
             rpc.Discord_Initialize(String.valueOf(KollegenMod.DISCORD_CLIENT_ID), handlers, true, "");
             Thread t = new Thread(() -> {
                 while (!Thread.currentThread().isInterrupted()) {

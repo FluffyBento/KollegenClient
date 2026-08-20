@@ -17,6 +17,7 @@ import java.util.Map;
 public class ThemeSync {
     private static final Gson GSON = new Gson();
     private static final Map<String, String> colors = new HashMap<>();
+    private static long lastRefresh = 0;
 
     private static final String D_ACCENT = "#f5a623";
     private static final String D_ACCENT2 = "#ff7a00";
@@ -29,6 +30,14 @@ public class ThemeSync {
     private static final String D_DANGER = "#ff5b6e";
 
     public static void refresh() {
+        // Theme wird nur alle 500ms neu von der Platte gelesen, damit das
+        // Menü-Rendering keinen Frame-Drops durch Datei-I/O verursacht.
+        long now = System.currentTimeMillis();
+        if (now - lastRefresh < 500 && !colors.isEmpty()) {
+            return;
+        }
+        lastRefresh = now;
+
         Path p = Path.of(System.getProperty("user.home"), ".kollegen-theme.json");
         if (!Files.exists(p)) {
             Path dd = FabricLoader.getInstance().getGameDir().resolve("kollegen-theme.json");

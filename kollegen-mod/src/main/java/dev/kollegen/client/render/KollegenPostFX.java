@@ -2,7 +2,7 @@ package dev.kollegen.client.render;
 
 import dev.kollegen.client.KollegenMod;
 import net.minecraft.client.Minecraft;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 
 /**
  * Farb-PostFX: Sättigung + gezielte Farb-Hervorhebung als Vollbild-Shader.
@@ -64,8 +64,8 @@ public final class KollegenPostFX {
         close();
         try {
             Class<?> pc = Class.forName("net.minecraft.client.renderer.PostChain");
-            ResourceLocation id = ResourceLocation.fromNamespaceAndPath("kollegen", "saturize");
-            Object inst = pc.getConstructor(ResourceLocation.class).newInstance(id);
+            Identifier id = Identifier.fromNamespaceAndPath("kollegen", "saturize");
+            Object inst = pc.getConstructor(Identifier.class).newInstance(id);
             chain = inst;
             applied = true;
             lastW = lastH = -1;

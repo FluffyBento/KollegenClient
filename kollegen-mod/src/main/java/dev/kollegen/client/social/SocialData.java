@@ -31,6 +31,8 @@ public final class SocialData {
         public String code;
         public String friend_code;
         public List<Account> accounts;
+        public String discord_name;
+        public String discord_avatar_url;
     }
 
     public static class Account {
@@ -56,6 +58,11 @@ public final class SocialData {
 
     public String meUuid() {
         return me != null ? me.uuid : null;
+    }
+
+    public String discordName() {
+        if (me == null) return null;
+        return me.discord_name != null && !me.discord_name.isEmpty() ? me.discord_name : null;
     }
 
     public String meCode() {

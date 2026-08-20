@@ -26,6 +26,7 @@ import org.slf4j.LoggerFactory;
 public class KollegenMod implements ClientModInitializer {
     public static final Logger LOGGER = LoggerFactory.getLogger("kollegen-client");
     public static final String MOD_ID = "kollegen-client";
+    public static final String VERSION = "1.0.0";
     // Same Discord application as the launcher so the rich presence is consistent.
     public static final long DISCORD_CLIENT_ID = 1538588736718373034L;
     public static KollegenConfig CONFIG = KollegenConfig.load();

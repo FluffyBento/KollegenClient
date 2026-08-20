@@ -1,43 +1,37 @@
 package dev.kollegen.client.mixin;
 
-import dev.kollegen.client.hud.KollegenHud;
-import dev.kollegen.client.menu.KollegenFriendsScreen;
-import dev.kollegen.client.menu.KollegenProfileScreen;
+import dev.kollegen.client.menu.KollegenSocialScreen;
+import dev.kollegen.client.menu.SocialButton;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.MouseHandler;
+import net.minecraft.client.gui.screens.PauseScreen;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.gui.screens.TitleScreen;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * Öffnet Kollegen-Screens, wenn man im Spiel (kein Menü offen) auf die HUD-
- * Widgets klickt. OHNE fabric-api.
- *  - Profil-Widget oben rechts  -> Profil-Screen
- *  - Freundes-Widget oben links -> Freundesliste (mit „Joinen")
+ * Globaler Maus-Fang (GLFW-Callback). Öffnet das Social-Menü, wenn auf dem
+ * Startbildschirm oder im Pausenmenü der „Freunde"-Button geklickt wird.
+ * Da TitleScreen/PauseScreen mouseClicked nicht überschreiben (Interface-Default),
+ * ist dieser zentrale Punkt der zuverlässige Weg – ganz ohne fabric-api.
  */
 @Mixin(MouseHandler.class)
 public class MouseHandlerMixin {
 
-    @Inject(method = "onPress", at = @At("HEAD"))
-    private void kollegen_client$onClick(long window, int button, int action, int modifiers, CallbackInfo ci) {
-        // Nur linke Maustaste (0) und nur beim Drücken (action == 1).
-        if (action != 1 || button != 0) return;
-
+    @Inject(method = "method_22684", at = @At("HEAD"), cancellable = true)
+    private void kollegen_client$social(long window, int button, int action, int mods, CallbackInfo ci) {
+        if (button != 0 || action != 1) return; // nur Linksklick (Press)
         Minecraft mc = Minecraft.getInstance();
-        if (mc == null || mc.screen != null) return;
-
-        double mx = mc.mouseHandler.xpos();
-        double my = mc.mouseHandler.ypos();
-
-        if (mx >= KollegenHud.profileX && mx <= KollegenHud.profileX + KollegenHud.profileW
-                && my >= KollegenHud.profileY && my <= KollegenHud.profileY + KollegenHud.profileH) {
-            mc.setScreen(new KollegenProfileScreen());
-            return;
-        }
-        if (mx >= KollegenHud.friendsX && mx <= KollegenHud.friendsX + KollegenHud.friendsW
-                && my >= KollegenHud.friendsY && my <= KollegenHud.friendsY + KollegenHud.friendsH) {
-            mc.setScreen(new KollegenFriendsScreen());
+        Screen s = mc.screen;
+        if (s instanceof TitleScreen || s instanceof PauseScreen) {
+            MouseHandler mh = mc.mouseHandler;
+            if (SocialButton.hit(mc, mh.xpos(), mh.ypos())) {
+                mc.setScreen(new KollegenSocialScreen());
+                ci.cancel();
+            }
         }
     }
 }

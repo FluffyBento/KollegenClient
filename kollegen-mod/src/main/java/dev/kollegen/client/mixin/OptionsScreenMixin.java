@@ -2,7 +2,7 @@ package dev.kollegen.client.mixin;
 
 import dev.kollegen.client.theme.ThemeSync;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.screens.option.OptionsScreen;
+import net.minecraft.client.gui.screens.options.OptionsScreen;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
