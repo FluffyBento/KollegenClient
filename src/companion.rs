@@ -63,6 +63,28 @@ fn try_download(data_dir: &Path) -> Option<PathBuf> {
         }
     }
 }
+/// Aktualisiert den Cache mit der neuesten Companion-Mod aus dem GitHub-Release
+/// (überschreibt die bisherige Cache-Datei). Best-effort: schlägt der Download
+/// fehl (offline), bleibt der bestehende Cache erhalten. Wird vor jeder
+/// Installation aufgerufen, damit sich die Mod automatisch aktualisiert.
+fn refresh_cache(data_dir: &Path) -> Option<PathBuf> {
+    let dir = cache_dir(data_dir);
+    let _ = std::fs::create_dir_all(&dir);
+    let dest = dir.join(COMPANION_MOD_FILENAME);
+    let tmp = dir.join("kollegen-client-mod.jar.tmp");
+    match crate::utils::download_file(GITHUB_DOWNLOAD_URL, &tmp) {
+        Ok(()) if is_valid_jar(&tmp) => {
+            let _ = std::fs::rename(&tmp, &dest);
+            Some(dest)
+        }
+        _ => {
+            let _ = std::fs::remove_file(&tmp);
+            warn!("Kollegen-Mod-Update fehlgeschlagen – bestehende Version wird genutzt.");
+            None
+        }
+    }
+}
+
 /// Locates a usable companion-mod jar, downloading it on demand. Returns
 /// `None` when no jar could be found/obtained (offline + not bundled).
 pub fn companion_jar(data_dir: &Path) -> Option<PathBuf> {
@@ -212,7 +234,11 @@ pub fn install_companion_mod(data_dir: &Path, instance_name: &str, version: &str
         return;
     }
 
-    let jar = match companion_jar(data_dir) {
+    // Auto-Update: Cache immer mit der neuesten Mod-Version vom Release
+    // versorgen, bevor wir installieren (best-effort, offline = alter Cache).
+    let _ = refresh_cache(data_dir);
+
+    let source = match companion_jar(data_dir) {
         Some(j) => j,
         None => {
             warn!(
@@ -222,10 +248,11 @@ pub fn install_companion_mod(data_dir: &Path, instance_name: &str, version: &str
             return;
         }
     };
+    let source_len = std::fs::metadata(&source).map(|m| m.len()).unwrap_or(0);
 
     // Relax the `minecraft` version constraint so the mod also loads on
     // 1.21.0–1.21.10 (the published jar requires >= 1.21.11).
-    let jar = relax_companion_constraints(&jar);
+    let jar = relax_companion_constraints(&source);
 
     let mods_dir = crate::utils::instance_dir(data_dir, instance_name).join("mods");
     if let Err(e) = std::fs::create_dir_all(&mods_dir) {
@@ -239,8 +266,9 @@ pub fn install_companion_mod(data_dir: &Path, instance_name: &str, version: &str
 
     let target = mods_dir.join(COMPANION_MOD_FILENAME);
     let up_to_date = target.exists()
+        && source_len > 0
         && std::fs::metadata(&target)
-            .and_then(|m| std::fs::metadata(&jar).map(|j| m.len() == j.len()))
+            .map(|m| m.len() == source_len)
             .unwrap_or(false);
     if up_to_date {
         return;
