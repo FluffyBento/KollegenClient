@@ -17,14 +17,14 @@ public final class Palette {
     private Palette() {
     }
 
-    // Standard: Launcher-Look (dunkel + blauer Markenakzent #125a9d).
+    // Standard: Launcher-Look (dunkel + orangener Markenakzent #f5a623).
     public static int BG = 0xFF121212;
     public static int PANEL = 0xFF1e1e1e;
     public static int PANEL2 = 0xFF262626;
     public static int BORDER = 0xFF3a3a3a;
-    public static int ACCENT = 0xFF125a9d;
-    public static int ACCENT2 = 0xFF1a6ebd;
-    public static int ACCENT_DARK = 0xFF0e4678;
+    public static int ACCENT = 0xFFf5a623;
+    public static int ACCENT2 = 0xFFffc04d;
+    public static int ACCENT_DARK = 0xFFa86a00;
     public static int TEXT = 0xFFf8fafc;
     public static int MUTED = 0xFF94a3b8;
     public static int DANGER = 0xFFef4444;

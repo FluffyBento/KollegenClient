@@ -56,17 +56,24 @@ public class KollegenMenuScreen extends Screen {
         final boolean isModule;
         final Module module;
         final Setting setting;
-        final int y;
+        final int baseY;
+        int y;
         final int h;
-        final AbstractWidget widget;
+        final AbstractWidget widget;   // Steuerelement der Einstellung (oder null)
+        final AbstractWidget toggle;    // Modul-An/Aus (oder null)
+        final AbstractWidget gear;      // Modul-Aufklapp-Button (oder null)
 
-        Row(boolean isModule, Module module, Setting setting, int y, int h, AbstractWidget widget) {
+        Row(boolean isModule, Module module, Setting setting, int baseY, int h,
+            AbstractWidget widget, AbstractWidget toggle, AbstractWidget gear) {
             this.isModule = isModule;
             this.module = module;
             this.setting = setting;
-            this.y = y;
+            this.baseY = baseY;
+            this.y = baseY;
             this.h = h;
             this.widget = widget;
+            this.toggle = toggle;
+            this.gear = gear;
         }
     }
 
@@ -144,6 +151,7 @@ public class KollegenMenuScreen extends Screen {
         search.setMaxLength(40);
         search.setHint(Component.literal("Suchen…"));
         search.setTextColor(Palette.TEXT);
+        search.setBordered(false); // eigenes Glas-Menü statt Vanilla-Rechteck
         search.setValue(query);
         search.setResponder(t -> {
             query = t;
@@ -157,13 +165,13 @@ public class KollegenMenuScreen extends Screen {
         contentTop = py + 52;
         contentBottom = py + ph - 14;
         int contentH = 0;
-        int y = contentTop + 2 - scroll;
+        int baseY = contentTop + 2;
         for (Module m : visibleModules()) {
             int toggleX = cx + cw - 62;
             int gearX = toggleX - 36;
-            boolean vis = y + ROW_H > contentTop && y < contentBottom;
-            if (!m.locked && vis) {
-                GlassToggle t = new GlassToggle(toggleX, y + (ROW_H - 28) / 2, 54, 28, m.enabled, on -> {
+            GlassToggle t = null;
+            if (!m.locked) {
+                t = new GlassToggle(toggleX, baseY + (ROW_H - 28) / 2, 54, 28, m.enabled, on -> {
                     m.enabled = on;
                     if (on) m.onEnable();
                     else m.onDisable();
@@ -172,30 +180,25 @@ public class KollegenMenuScreen extends Screen {
                 t.colors(Palette.ACCENT, Palette.MUTED);
                 addRenderableWidget(t);
             }
-            if (vis) {
-                GlassButton gear = new GlassButton(gearX, y + (ROW_H - 24) / 2, 30, 24,
-                        Component.empty(), btn -> {
-                    if (expanded.contains(m.id)) expanded.remove(m.id);
-                    else expanded.add(m.id);
-                    rebuild();
-                });
-                gear.colors(Palette.PANEL2, Palette.ACCENT, Palette.TEXT);
-                addRenderableWidget(gear);
-            }
-            rows.add(new Row(true, m, null, y, ROW_H, null));
-            y += ROW_H + 8;
+            GlassButton gear = new GlassButton(gearX, baseY + (ROW_H - 24) / 2, 30, 24,
+                    Component.empty(), btn -> {
+                if (expanded.contains(m.id)) expanded.remove(m.id);
+                else expanded.add(m.id);
+                rebuild();
+            });
+            gear.colors(Palette.PANEL2, Palette.ACCENT, Palette.TEXT);
+            addRenderableWidget(gear);
+
+            rows.add(new Row(true, m, null, baseY, ROW_H, null, t, gear));
+            baseY += ROW_H + 8;
             contentH += ROW_H + 8;
 
             if (expanded.contains(m.id)) {
                 for (Setting s : m.settings()) {
-                    boolean sv = y + SET_H > contentTop && y < contentBottom;
-                    AbstractWidget w = null;
-                    if (sv) {
-                        w = s.buildWidget(cx + 8, y, cw - 16, SET_H, this);
-                        addRenderableWidget(w);
-                    }
-                    rows.add(new Row(false, m, s, y, SET_H, w));
-                    y += SET_H + 6;
+                    AbstractWidget w = s.buildWidget(cx + 8, baseY, cw - 16, SET_H, this);
+                    addRenderableWidget(w);
+                    rows.add(new Row(false, m, s, baseY, SET_H, w, null, null));
+                    baseY += SET_H + 6;
                     contentH += SET_H + 6;
                 }
             }
@@ -204,6 +207,30 @@ public class KollegenMenuScreen extends Screen {
         maxScroll = Math.max(0, contentH - visibleH);
         if (scroll > maxScroll) scroll = maxScroll;
         if (scroll < 0) scroll = 0;
+        positionWidgets();
+    }
+
+    /** Verschiebt alle Widgets anhand des aktuellen Scroll-Offsets (günstig,
+     *  ohne das Menü komplett neu aufzubauen – das war die Ursache fürs Lag). */
+    private void positionWidgets() {
+        for (Row r : rows) {
+            int y = r.baseY - scroll;
+            boolean vis = y + r.h > contentTop && y < contentBottom;
+            r.y = y;
+            if (r.isModule) {
+                if (r.toggle != null) {
+                    r.toggle.setY(y + (ROW_H - 28) / 2);
+                    r.toggle.visible = vis;
+                }
+                if (r.gear != null) {
+                    r.gear.setY(y + (ROW_H - 24) / 2);
+                    r.gear.visible = vis;
+                }
+            } else if (r.widget != null) {
+                r.widget.setY(y);
+                r.widget.visible = vis;
+            }
+        }
     }
 
     private void close() {
@@ -239,7 +266,7 @@ public class KollegenMenuScreen extends Screen {
         }
         if (maxScroll > 0) {
             scroll = Math.max(0, Math.min(maxScroll, scroll - (int) (vertical * 24)));
-            rebuild();
+            positionWidgets();
             return true;
         }
         return super.mouseScrolled(mx, my, horizontal, vertical);
@@ -278,6 +305,9 @@ public class KollegenMenuScreen extends Screen {
 
         String title = query.isEmpty() ? cats[category].display : "Suche: " + query;
         g.drawString(FONT, title, cx + 14, py + 22, Palette.TEXT, false);
+
+        // Suchfeld-Hintergrund (Glas statt des Vanilla-Rechtecks)
+        Glass.fillRound(g, cx + 10, py + 12, cw - 20, 32, 10, Palette.tint(Palette.PANEL2, 0xAA));
 
         // ── Sidebar (manuell, gescrollt, skaliert) ──
         g.enableScissor(px + 10, sidebarTop, px + SW - 2, sidebarBottom);

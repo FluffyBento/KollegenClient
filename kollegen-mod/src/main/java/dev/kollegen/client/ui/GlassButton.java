@@ -3,14 +3,9 @@ package dev.kollegen.client.ui;
 import dev.kollegen.client.mods.Palette;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GlyphSource;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
-import net.minecraft.client.gui.font.FontSet;
-import net.minecraft.client.gui.font.glyphs.EffectGlyph;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.FontDescription;
-import net.minecraft.resources.Identifier;
 
 /**
  * Glas-Button, der {@link Button} erweitert, damit Klick-Eingabe über Vanilla läuft.
@@ -42,34 +37,10 @@ public class GlassButton extends Button {
 
     public static Font smoothFont() {
         if (SMOOTH != null) return SMOOTH;
-        Minecraft mc = Minecraft.getInstance();
-        try {
-            // Minecraft.fontManager ist private final. Darüber holen wir den glatten
-            // TTF-Font "minecraft:uniform" (FontSet) und bauen daraus einen Font, dessen
-            // Standard-Zeichensatz dieser Satz ist – so wird drawString(String, ...) glatt.
-            java.lang.reflect.Field f = Minecraft.class.getDeclaredField("fontManager");
-            f.setAccessible(true);
-            Object fm = f.get(mc);
-            java.lang.reflect.Method gfs = fm.getClass().getDeclaredMethod("getFontSetRaw", Identifier.class);
-            gfs.setAccessible(true);
-            FontSet set = (FontSet) gfs.invoke(fm, Minecraft.UNIFORM_FONT);
-            if (set != null) {
-                SMOOTH = new Font(new Font.Provider() {
-                    @Override
-                    public GlyphSource glyphs(FontDescription desc) {
-                        return set.source(false);
-                    }
-
-                    @Override
-                    public EffectGlyph effect() {
-                        return set.whiteGlyph();
-                    }
-                });
-                return SMOOTH;
-            }
-        } catch (Throwable ignored) {
-        }
-        SMOOTH = mc.font;
+        // Glatte (TTF-)Standardschrift von Minecraft – exakt wie im HUD, damit
+        // der Text nicht pixelig (Bitmap-Font) aussieht. Die vorige Reflection-
+        // Lösung lieferte teils die Bitmap-Variante zurück und wirkte daher kantig.
+        SMOOTH = Minecraft.getInstance().font;
         return SMOOTH;
     }
 
