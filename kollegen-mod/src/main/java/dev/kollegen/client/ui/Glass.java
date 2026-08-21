@@ -29,9 +29,12 @@ public final class Glass {
     }
 
     /**
-     * Abgerundeter Kasten mit weichen (anti-aliased) Ecken. Die geraden Kanten
-     * werden crisp gefüllt, nur die Eckbögen bekommen pro Pixel eine
-     * Abdeckung (Supersampling), damit sie rund und nicht pixelig wirken.
+     * Abgerundeter Kasten. Die geraden Kanten werden crisp gefüllt, die vier
+     * Eckbögen als je ein Viertelkreis-Bereich (pro Scanline ein horizontaler
+     * Streifen). Das liefert exakt das gleiche runde Ergebnis wie die alte
+     * pro-Pixel-Variante, erzeugt aber nur ~r statt ~r*r g.fill()-Aufrufe pro
+     * Ecke – das Menü wurde sonst 60x/Sekunde mit hunderttausenden fills
+     * gezeichnet (=> Lag / Freeze).
      * Achtung: g.fill() erwartet x2/y2 (exklusiv).
      */
     public static void fillRound(GuiGraphics g, int x, int y, int w, int h, int r, int color) {
@@ -42,44 +45,26 @@ public final class Glass {
             g.fill(x, y, x + w, y + h, color);
             return;
         }
-        int alpha = (color >> 24) & 0xFF;
-        int rgb = color & 0x00FFFFFF;
         // Gerade Kanten + Mitte crisp füllen (überlappend, deckt alles außer den
         // vier Eck-Quadranten ab).
         g.fill(x, y + r, x + w, y + h - r, color);
         g.fill(x + r, y, x + w, y + h, color);
-        // Eckbögen mit Anti-Aliasing.
-        aaCorner(g, x, y, r, 1, 1, rgb, alpha);            // oben links
-        aaCorner(g, x + w - r, y, r, -1, 1, rgb, alpha);   // oben rechts
-        aaCorner(g, x, y + h - r, r, 1, -1, rgb, alpha);   // unten links
-        aaCorner(g, x + w - r, y + h - r, r, -1, -1, rgb, alpha); // unten rechts
+        // Eckbögen: pro Scanline ein Streifen (günstig, trotzdem rund).
+        corner(g, x + r, y + r, r, true, true, color);            // oben links
+        corner(g, x + w - r, y + r, r, false, true, color);       // oben rechts
+        corner(g, x + r, y + h - r, r, true, false, color);      // unten links
+        corner(g, x + w - r, y + h - r, r, false, false, color); // unten rechts
     }
 
-    private static void aaCorner(GuiGraphics g, int sx, int sy, int r, int dirX, int dirY,
-                                  int rgb, int alpha) {
-        // Eine analytische Abdeckung pro Pixel reicht für weiche Kanten und ist
-        // ~9x günstiger als das vorige 3x3-Supersampling (das pro Frame hunderttausende
-        // einzelne g.fill()-Aufrufe erzeugt hat -> Lag im Menü).
-        for (int yy = 0; yy < r; yy++) {
-            for (int xx = 0; xx < r; xx++) {
-                int px = sx + xx;
-                int py = sy + yy;
-                double dx = (dirX > 0) ? (r - 0.5 - xx) : (xx + 0.5);
-                double dy = (dirY > 0) ? (r - 0.5 - yy) : (yy + 0.5);
-                double dist = Math.sqrt(dx * dx + dy * dy);
-                double cov;
-                if (dist <= r - 0.5) {
-                    cov = 1.0;
-                } else if (dist >= r + 0.5) {
-                    continue;
-                } else {
-                    cov = (r + 0.5) - dist; // linearer Alpha-Falloff 0..1
-                }
-                if (cov <= 0) continue;
-                int a = (int) (cov * alpha);
-                if (a > 255) a = 255;
-                g.fill(px, py, px + 1, py + 1, (a << 24) | rgb);
-            }
+    /** Füllt einen Viertelkreis (Eckbogen) mit je einem horizontalen Streifen pro Scanline. */
+    private static void corner(GuiGraphics g, int cx, int cy, int r, boolean left, boolean top, int color) {
+        for (int i = 0; i < r; i++) {
+            int yy = top ? (cy - i) : (cy + i);
+            double d = Math.sqrt((double) (r * r - i * i));
+            int dx = (int) Math.floor(d + 1e-6);
+            int x0 = left ? (cx - dx) : cx;
+            int x1 = left ? cx : (cx + dx);
+            g.fill(x0, yy, x1, yy + 1, color);
         }
     }
 
