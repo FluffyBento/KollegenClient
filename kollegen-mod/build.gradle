@@ -11,6 +11,10 @@ base {
 }
 
 repositories {
+    // Vendored local Maven repo: the `dev.kollegen:discord-rpc` artifact is
+    // only ever published to the now-defunct JCenter, so we commit it under
+    // `libs/` and resolve it from here on every machine / CI runner.
+    maven { url = uri("${projectDir}/libs") }
     mavenLocal()
     maven { url 'https://maven.fabricmc.net/' }
     mavenCentral()

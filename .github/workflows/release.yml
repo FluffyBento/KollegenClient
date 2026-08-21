@@ -178,14 +178,12 @@ jobs:
           distribution: 'temurin'
 
       - name: Bundle companion mod (build locally)
-        shell: pwsh
+        shell: bash
         run: |
-          New-Item -ItemType Directory -Force -Path resources
-          cd kollegen-mod
-          .\gradlew.bat build --no-daemon
-          cd ..
-          $JAR = (Get-ChildItem kollegen-mod/build/libs/kollegen-client-mod-*.jar | Select-Object -First 1)
-          if ($JAR) { Copy-Item $JAR.FullName resources/kollegen-client-mod.jar; Write-Host "Bundled $($JAR.FullName)" } else { Write-Error "Mod build failed" }
+          mkdir -p resources
+          cd kollegen-mod && chmod +x ./gradlew && ./gradlew build --no-daemon && cd ..
+          JAR=$(ls kollegen-mod/build/libs/kollegen-client-mod-*.jar 2>/dev/null | head -n1)
+          if [ -n "$JAR" ]; then cp "$JAR" resources/kollegen-client-mod.jar; echo "Bundled $JAR"; else echo "Mod build failed"; exit 1; fi
 
       - name: Build Windows installer (.exe)
         run: tauri build --config tauri.conf.json --bundles nsis
