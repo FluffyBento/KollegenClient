@@ -47,14 +47,12 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
 
-      - name: Build Kollegen Client companion mod (Fabric, best effort)
+      - name: Build Kollegen Client companion mod (Fabric)
         id: buildmod
-        continue-on-error: true
-        uses: gradle/gradle-build-action@v3
-        with:
-          build-root-directory: kollegen-mod
-          arguments: build --stacktrace
-          cache-disabled: true
+        run: |
+          cd kollegen-mod
+          chmod +x ./gradlew
+          ./gradlew build --no-daemon --stacktrace
 
       - name: Publish companion mod jar (built or prebuilt)
         env:
@@ -73,7 +71,7 @@ jobs:
           fi
 
   linux:
-    needs: [create-release, build-mod]
+    needs: [create-release]
     runs-on: ubuntu-latest
     env:
       TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
@@ -113,14 +111,18 @@ jobs:
       - name: Install Tauri CLI
         run: npm install -g @tauri-apps/cli@^2
 
-      - name: Bundle companion mod (best effort)
-        continue-on-error: true
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Bundle companion mod (build locally)
         run: |
           mkdir -p resources
-          gh release download "${{ github.ref_name }}" --repo "${{ github.repository }}" --pattern "kollegen-client-mod.jar" --dir resources || \
-          curl -fsSL --max-time 120 -o resources/kollegen-client-mod.jar "https://github.com/FluffyBento/KollegenClient/releases/latest/download/kollegen-client-mod.jar" || true
+          cd kollegen-mod && chmod +x ./gradlew && ./gradlew build --no-daemon && cd ..
+          JAR=$(ls kollegen-mod/build/libs/kollegen-client-mod-*.jar 2>/dev/null | head -n1)
+          if [ -n "$JAR" ]; then cp "$JAR" resources/kollegen-client-mod.jar; echo "Bundled $JAR"; else echo "Mod build failed"; exit 1; fi
 
       - name: Build Linux bundles (AppImage, RPM, DEB)
         run: tauri build --config tauri.conf.json --bundles appimage,rpm,deb
@@ -140,7 +142,7 @@ jobs:
           files: "release_artifacts/*"
 
   windows:
-    needs: [create-release, build-mod]
+    needs: [create-release]
     runs-on: windows-latest
     env:
       TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
@@ -169,14 +171,21 @@ jobs:
       - name: Install Tauri CLI
         run: npm install -g @tauri-apps/cli@^2
 
-      - name: Bundle companion mod (best effort)
-        continue-on-error: true
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Bundle companion mod (build locally)
+        shell: pwsh
         run: |
-          mkdir resources
-          gh release download "${{ github.ref_name }}" --repo "${{ github.repository }}" --pattern "kollegen-client-mod.jar" --dir resources || \
-          curl -fsSL --max-time 120 -o resources/kollegen-client-mod.jar "https://github.com/FluffyBento/KollegenClient/releases/latest/download/kollegen-client-mod.jar" || true
+          New-Item -ItemType Directory -Force -Path resources
+          cd kollegen-mod
+          .\gradlew.bat build --no-daemon
+          cd ..
+          $JAR = (Get-ChildItem kollegen-mod/build/libs/kollegen-client-mod-*.jar | Select-Object -First 1)
+          if ($JAR) { Copy-Item $JAR.FullName resources/kollegen-client-mod.jar; Write-Host "Bundled $($JAR.FullName)" } else { Write-Error "Mod build failed" }
 
       - name: Build Windows installer (.exe)
         run: tauri build --config tauri.conf.json --bundles nsis
@@ -197,7 +206,7 @@ jobs:
             KollegenClient.exe.sig
 
   macos:
-    needs: [create-release, build-mod]
+    needs: [create-release]
     runs-on: macos-latest
     env:
       TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
@@ -227,14 +236,18 @@ jobs:
       - name: Install Tauri CLI
         run: npm install -g @tauri-apps/cli@^2
 
-      - name: Bundle companion mod (best effort)
-        continue-on-error: true
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Bundle companion mod (build locally)
         run: |
           mkdir -p resources
-          gh release download "${{ github.ref_name }}" --repo "${{ github.repository }}" --pattern "kollegen-client-mod.jar" --dir resources || \
-          curl -fsSL --max-time 120 -o resources/kollegen-client-mod.jar "https://github.com/FluffyBento/KollegenClient/releases/latest/download/kollegen-client-mod.jar" || true
+          cd kollegen-mod && chmod +x ./gradlew && ./gradlew build --no-daemon && cd ..
+          JAR=$(ls kollegen-mod/build/libs/kollegen-client-mod-*.jar 2>/dev/null | head -n1)
+          if [ -n "$JAR" ]; then cp "$JAR" resources/kollegen-client-mod.jar; echo "Bundled $JAR"; else echo "Mod build failed"; exit 1; fi
 
       - name: Build macOS bundles (universal app + dmg + updater artifact)
         run: tauri build --config tauri.conf.json --target universal-apple-darwin --bundles app,dmg
