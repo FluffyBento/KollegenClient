@@ -28,55 +28,19 @@ public final class Glass {
         return (0xFF << 24) | (r << 16) | (g << 8) | bl;
     }
 
-    /**
-     * Abgerundeter Kasten. Die geraden Kanten werden crisp gefüllt, die vier
-     * Eckbögen als je ein Viertelkreis (pro Scanline ein Streifen) – das ist
-     * ~r statt ~r*r g.fill()-Aufrufe pro Ecke (kein Lag). Der Bogennand
-     * bekommt zusätzlich ein 1px-Anti-Aliasing, damit die Kanten nicht
-     * pixelig wirken.
-     * Achtung: g.fill() erwartet x2/y2 (exklusiv).
-     */
+    /** Scanline-basierter abgerundeter Kasten (gefüllt). */
     public static void fillRound(GuiGraphics g, int x, int y, int w, int h, int r, int color) {
         if (w <= 0 || h <= 0) return;
         r = Math.min(r, w / 2);
         r = Math.min(r, h / 2);
-        if (r <= 0) {
-            g.fill(x, y, x + w, y + h, color);
-            return;
-        }
-        // Gerade Kanten + Mitte crisp füllen (überlappend, deckt alles außer den
-        // vier Eck-Quadranten ab).
-        g.fill(x, y + r, x + w, y + h - r, color);
-        g.fill(x + r, y, x + w, y + h, color);
-        // Eckbögen: pro Scanline ein Streifen + AA am Rand.
-        corner(g, x + r, y + r, r, true, true, color);            // oben links
-        corner(g, x + w - r, y + r, r, false, true, color);       // oben rechts
-        corner(g, x + r, y + h - r, r, true, false, color);      // unten links
-        corner(g, x + w - r, y + h - r, r, false, false, color); // unten rechts
-    }
-
-    /** Füllt einen Viertelkreis (Eckbogen): komplett innenliegende Pixel und ein
-     *  1px-Anti-Aliasing-Pixel am Rand pro Scanline. */
-    private static void corner(GuiGraphics g, int cx, int cy, int r, boolean left, boolean top, int color) {
-        int alpha = (color >> 24) & 0xFF;
-        int rgb = color & 0x00FFFFFF;
-        for (int i = 0; i < r; i++) {
-            int yy = top ? (cy - i) : (cy + i);
-            double df = Math.sqrt((double) (r * r - i * i));
-            int dx = (int) Math.floor(df + 1e-9);
-            // voll innenliegende Pixel (k = 1 .. dx-1 bzw. Mitte) undurchsichtig
-            int x0 = left ? (cx - dx + 1) : cx;
-            int x1 = left ? cx : (cx + dx);
-            g.fill(x0, yy, x1, yy + 1, color);
-            // AA: angrenzendes Randpixel mit Bruchteil-Abdeckung
-            double frac = df - dx;
-            if (frac > 0.02 && frac < 0.98) {
-                int a = (int) (frac * alpha + 0.5);
-                if (a > 0 && a < 256) {
-                    int ax = left ? (cx - dx) : (cx + dx);
-                    g.fill(ax, yy, ax + 1, yy + 1, (a << 24) | rgb);
-                }
+        for (int yy = y; yy < y + h; yy++) {
+            int dy = Math.min(yy - y, (y + h - 1) - yy);
+            int inset = 0;
+            if (dy < r) {
+                int d = r - dy;
+                inset = (int) Math.round(r - Math.sqrt((double) (r * r - d * d)));
             }
+            g.fill(x + inset, yy, x + w - inset, yy + 1, color);
         }
     }
 
@@ -111,30 +75,5 @@ public final class Glass {
         fillRound(g, x + 1, y + 1, w - 2, h - 2, Math.max(0, r - 1), f);
         int tw = font.width(label);
         g.drawString(font, label, x + (w - tw) / 2, y + (h - font.lineHeight) / 2, text, false);
-    }
-
-    /** Zeichnet eine beliebige Linie (Bresenham) – 1px, für Vektor-Icons. */
-    public static void line(GuiGraphics g, int x0, int y0, int x1, int y1, int color) {
-        int dx = Math.abs(x1 - x0), dy = -Math.abs(y1 - y0);
-        int sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1;
-        int err = dx + dy;
-        while (true) {
-            g.fill(x0, y0, 1, 1, color);
-            if (x0 == x1 && y0 == y1) break;
-            int e2 = 2 * err;
-            if (e2 >= dy) { err += dy; x0 += sx; }
-            if (e2 <= dx) { err += dx; y0 += sy; }
-        }
-    }
-
-    /** Weicher Glanz/Halo (wenige Lagen mit ausreichend Alpha, damit keine
-     *  Quantisierungs-Artefakte/"Flecken" bei sehr niedrigen Alphas entstehen). */
-    public static void glow(GuiGraphics g, int x, int y, int w, int h, int r, int color, int strength) {
-        for (int i = 0; i < 2; i++) {
-            int pad = i * 5 + 2;
-            int a = strength / (i + 1);
-            if (a <= 0) continue;
-            fillRound(g, x - pad, y - pad, w + pad * 2, h + pad * 2, r + pad, tint(color, a));
-        }
     }
 }

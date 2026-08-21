@@ -1,8 +1,8 @@
 package dev.kollegen.client.mods;
 
 import com.google.gson.JsonObject;
-import dev.kollegen.client.ui.GlassButton;
 import net.minecraft.client.gui.components.AbstractWidget;
+import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
@@ -48,13 +48,12 @@ public class ModeSetting extends Setting {
         int h = 24;
         int x = px + cw - w - 8;
         int y = py + (rowH - h) / 2;
-        GlassButton b = new GlassButton(x, y, w, h, Component.literal(current()), btn -> {
+        Button b = Button.builder(Component.literal(current()), btn -> {
             index = (index + 1) % options.length;
             btn.setMessage(Component.literal(current()));
             if (onChange != null) onChange.accept(index);
             changed();
-        });
-        b.colors(Palette.PANEL2, Palette.ACCENT, Palette.TEXT);
+        }).bounds(x, y, w, h).build();
         return b;
     }
 }

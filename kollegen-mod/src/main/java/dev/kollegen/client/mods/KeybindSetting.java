@@ -1,8 +1,8 @@
 package dev.kollegen.client.mods;
 
 import com.google.gson.JsonObject;
-import dev.kollegen.client.ui.GlassButton;
 import net.minecraft.client.gui.components.AbstractWidget;
+import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import org.lwjgl.glfw.GLFW;
@@ -50,11 +50,10 @@ public class KeybindSetting extends Setting {
         int h = 24;
         int x = px + cw - w - 8;
         int y = py + (rowH - h) / 2;
-        GlassButton b = new GlassButton(x, y, w, h, Component.literal(capturing == this ? "…" : keyName(value)), btn -> {
+        Button b = Button.builder(Component.literal(capturing == this ? "…" : keyName(value)), btn -> {
             capturing = (capturing == this) ? null : this;
             btn.setMessage(Component.literal(capturing == this ? "…" : keyName(value)));
-        });
-        b.colors(Palette.PANEL2, Palette.ACCENT, Palette.TEXT);
+        }).bounds(x, y, w, h).build();
         return b;
     }
 }
