@@ -4,6 +4,7 @@ import dev.kollegen.client.mods.BooleanSetting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -24,6 +25,8 @@ public abstract class HudModule extends Module {
     public static int dragOffX = 0, dragOffY = 0;
     /** Aktuelle Maus-Position in GUI-Skalierung (für Drag). */
     public static double cursorX = 0, cursorY = 0;
+    /** Globaler Bearbeitungsmodus: alle HUD-Elemente werden verschiebbar. */
+    public static boolean editMode = false;
 
     protected HudModule(String id, String name, String description) {
         super(id, name, description, Category.HUD);
@@ -64,13 +67,40 @@ public abstract class HudModule extends Module {
 
     public static HudModule moduleAt(double x, double y) {
         for (Module m : ModuleManager.modules()) {
-            if (m instanceof HudModule hm && hm.enabled && hm.move.value) {
+            if (m instanceof HudModule hm && hm.enabled && (hm.move.value || editMode)) {
                 if (x >= hm.lastX && x <= hm.lastX + hm.lastW && y >= hm.lastY && y <= hm.lastY + hm.lastH) {
                     return hm;
                 }
             }
         }
         return null;
+    }
+
+    /**
+     * Ordnet alle aktiven HUD-Elemente so an, dass sie sich innerhalb ihrer
+     * Ecke nicht überlappen (stapelt sie mit Abstand).
+     */
+    public static void autoArrange() {
+        for (int corner = 0; corner < 4; corner++) {
+            List<HudModule> list = new ArrayList<>();
+            for (Module m : ModuleManager.modules()) {
+                if (m instanceof HudModule hm && hm.enabled && hm.position.index == corner) {
+                    list.add(hm);
+                }
+            }
+            list.sort((a, b) -> Integer.compare(a.lastY, b.lastY));
+            int gap = 8;
+            int total = 0;
+            for (HudModule hm : list) total += Math.max(20, hm.lastH) + gap;
+            total = total > 0 ? total - gap : 0;
+            int y = (corner == 2 || corner == 3) ? -total : 0;
+            for (HudModule hm : list) {
+                hm.offsetX.value = 0;
+                hm.offsetY.value = y;
+                y += Math.max(20, hm.lastH) + gap;
+            }
+        }
+        ModuleManager.save();
     }
 
     protected void panel(GuiGraphics g, int x, int y, int w, int h) {

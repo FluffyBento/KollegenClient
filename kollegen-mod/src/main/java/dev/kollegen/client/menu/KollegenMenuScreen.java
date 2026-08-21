@@ -3,6 +3,7 @@ package dev.kollegen.client.menu;
 import com.mojang.blaze3d.platform.InputConstants;
 import dev.kollegen.client.KollegenMod;
 import dev.kollegen.client.mods.Category;
+import dev.kollegen.client.mods.HudModule;
 import dev.kollegen.client.mods.Module;
 import dev.kollegen.client.mods.ModuleManager;
 import dev.kollegen.client.mods.Palette;
@@ -149,8 +150,25 @@ public class KollegenMenuScreen extends Screen {
         // Inhalt
         contentTop = py + 52;
         contentBottom = py + ph - 14;
+        boolean hudCat = cats[category] == Category.HUD;
+        int topExtra = 0;
+        if (hudCat) {
+            topExtra = 46;
+            int bx = cx + 14;
+            int half = (cw - 28) / 2 - 4;
+            Button editBtn = Button.builder(
+                    Component.literal(HudModule.editMode ? "✓ Elemente verschieben" : "Elemente verschieben"),
+                    btn -> {
+                        HudModule.editMode = !HudModule.editMode;
+                        rebuild();
+                    }).bounds(bx, contentTop + 6, half, 32).build();
+            addRenderableWidget(editBtn);
+            Button arrBtn = Button.builder(Component.literal("Auto-Anordnen"),
+                    btn -> HudModule.autoArrange()).bounds(bx + half + 8, contentTop + 6, half, 32).build();
+            addRenderableWidget(arrBtn);
+        }
         int contentH = 0;
-        int y = contentTop + 2 - scroll;
+        int y = contentTop + 2 + topExtra - scroll;
         for (Module m : visibleModules()) {
             int toggleX = cx + cw - 62;
             int gearX = toggleX - 36;

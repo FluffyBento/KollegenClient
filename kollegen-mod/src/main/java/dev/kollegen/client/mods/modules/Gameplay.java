@@ -17,8 +17,6 @@ public final class Gameplay {
         ModuleManager.register(new AutoJump());
         ModuleManager.register(new ToggleSprint());
         ModuleManager.register(new ToggleSneak());
-        ModuleManager.register(new SafeWalk());
-        ModuleManager.register(new AutoWalk());
     }
 
     private static class AutoSprint extends Module {
@@ -97,53 +95,6 @@ public final class Gameplay {
         public void onDisable() {
             toggled = false;
             if (mc.player != null) mc.options.keyShift.setDown(false);
-        }
-    }
-
-    private static class SafeWalk extends Module {
-        SafeWalk() {
-            super("safewalk", "Safe Walk", "Schleicht automatisch am Rand von Klippen.", Category.GAMEPLAY);
-            risk = "Nicht auf Servern mit Anti-Cheat nutzen (Kick-Risiko)!";
-        }
-
-        @Override
-        public void onTick() {
-            if (mc.player == null || !mc.player.onGround()) return;
-            try {
-                double x = mc.player.getX(), z = mc.player.getZ();
-                float yaw = (float) Math.toRadians(mc.player.getYRot());
-                double fx = -Math.sin(yaw), fz = Math.cos(yaw);
-                int bx = (int) Math.floor(x + fx * 0.6);
-                int bz = (int) Math.floor(z + fz * 0.6);
-                int by = (int) Math.floor(mc.player.getY() - 0.1);
-                var state = mc.level.getBlockState(new net.minecraft.core.BlockPos(bx, by, bz));
-                var below = mc.level.getBlockState(new net.minecraft.core.BlockPos(bx, by - 1, bz));
-                boolean edge = state.isAir() && !below.isAir();
-                boolean moving = mc.options.keyUp.isDown() || mc.options.keyLeft.isDown()
-                        || mc.options.keyRight.isDown() || mc.options.keyDown.isDown();
-                if (edge && moving && !mc.player.isCrouching()) {
-                    mc.options.keyShift.setDown(true);
-                } else if (mc.player.isShiftKeyDown() && !mc.player.isCrouching()) {
-                    mc.options.keyShift.setDown(false);
-                }
-            } catch (Throwable ignored) {
-            }
-        }
-    }
-
-    private static class AutoWalk extends Module {
-        AutoWalk() {
-            super("autowalk", "Auto-Walk", "Läuft dauerhaft vorwärts.", Category.GAMEPLAY);
-        }
-
-        @Override
-        public void onEnable() {
-            if (mc.options != null) mc.options.keyUp.setDown(true);
-        }
-
-        @Override
-        public void onDisable() {
-            if (mc.options != null) mc.options.keyUp.setDown(false);
         }
     }
 }

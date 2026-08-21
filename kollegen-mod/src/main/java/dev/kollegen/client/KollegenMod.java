@@ -1,5 +1,6 @@
 package dev.kollegen.client;
 
+import dev.kollegen.client.mods.KeybindSetting;
 import dev.kollegen.client.mods.Module;
 import dev.kollegen.client.mods.ModuleManager;
 import dev.kollegen.client.menu.KollegenMenuScreen;
@@ -26,7 +27,7 @@ import java.util.Set;
 public class KollegenMod implements ClientModInitializer {
     public static final Logger LOGGER = LoggerFactory.getLogger("kollegen-client");
     public static final String MOD_ID = "kollegen-client";
-    public static final String VERSION = "1.6.11";
+    public static final String VERSION = "1.7.1";
     public static final long DISCORD_CLIENT_ID = 1538588736718373034L;
 
     private static boolean shiftWasDown = false;
@@ -71,6 +72,15 @@ public class KollegenMod implements ClientModInitializer {
 
         // ── Keybinds der Module (Edge-Trigger) ──
         for (Module m : ModuleManager.modules()) {
+            for (dev.kollegen.client.mods.Setting s : m.settings()) {
+                if (s instanceof KeybindSetting ks && ks.value >= 0) {
+                    boolean down = isKeyDown(ks.value);
+                    boolean was = pressedKeys.contains(ks.value);
+                    if (down && !was) m.onKey();
+                    if (down) pressedKeys.add(ks.value);
+                    else pressedKeys.remove(ks.value);
+                }
+            }
             if (m.key >= 0) {
                 boolean down = isKeyDown(m.key);
                 boolean was = pressedKeys.contains(m.key);

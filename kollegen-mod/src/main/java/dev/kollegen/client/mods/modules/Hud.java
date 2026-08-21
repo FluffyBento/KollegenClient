@@ -13,8 +13,10 @@ import dev.kollegen.client.mods.SliderSetting;
 import dev.kollegen.client.ui.Glass;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.multiplayer.ServerData;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemStack;
 
 import java.util.ArrayList;
@@ -38,6 +40,14 @@ public final class Hud {
         ModuleManager.register(new PotionHud());
         ModuleManager.register(new Speed());
         ModuleManager.register(new Crosshair());
+        ModuleManager.register(new Memory());
+        ModuleManager.register(new Biome());
+        ModuleManager.register(new EntityCount());
+        ModuleManager.register(new Reach());
+        ModuleManager.register(new Combo());
+        ModuleManager.register(new Saturation());
+        ModuleManager.register(new ServerInfo());
+        ModuleManager.register(new TargetInfo());
     }
 
     private static class Coordinates extends HudModule {
@@ -355,6 +365,195 @@ public final class Hud {
                 g.fill(cx - gp - s, cy - s, cx - gp, cy + s, c);
                 g.fill(cx + gp, cy - s, cx + gp + s, cy + s, c);
             }
+        }
+    }
+
+    private static class Memory extends HudModule {
+        Memory() {
+            super("memory", "Arbeitsspeicher", "Zeigt belegten RAM (MB) an.");
+        }
+
+        @Override
+        public void onRenderHud(GuiGraphics g, float td) {
+            Runtime r = Runtime.getRuntime();
+            long used = (r.totalMemory() - r.freeMemory()) / (1024 * 1024);
+            long total = r.maxMemory() / (1024 * 1024);
+            List<String> lines = new ArrayList<>();
+            lines.add("RAM: " + used + " / " + total + " MB");
+            renderLines(g, lines, 0, 0);
+        }
+    }
+
+    private static class Biome extends HudModule {
+        Biome() {
+            super("biome", "Biom", "Aktuelles Biom an der Spielerposition.");
+        }
+
+        @Override
+        public void onRenderHud(GuiGraphics g, float td) {
+            List<String> lines = new ArrayList<>();
+            if (mc.level != null && mc.player != null) {
+                try {
+                    var holder = mc.level.getBiome(mc.player.blockPosition());
+                    String name = holder.getRegisteredName();
+                    lines.add("Biom: " + name);
+                } catch (Throwable ignored) {
+                    lines.add("Biom: ?");
+                }
+            } else {
+                lines.add("Biom: –");
+            }
+            renderLines(g, lines, 0, 0);
+        }
+    }
+
+    private static class EntityCount extends HudModule {
+        EntityCount() {
+            super("entitycount", "Entitäten", "Anzahl geladener Entitäten.");
+        }
+
+        @Override
+        public void onRenderHud(GuiGraphics g, float td) {
+            List<String> lines = new ArrayList<>();
+            int n = 0;
+            if (mc.level != null) {
+                net.minecraft.world.level.entity.EntityTypeTest<net.minecraft.world.entity.Entity, net.minecraft.world.entity.Entity> test =
+                        new net.minecraft.world.level.entity.EntityTypeTest<net.minecraft.world.entity.Entity, net.minecraft.world.entity.Entity>() {
+                            public boolean test(net.minecraft.world.entity.EntityType<net.minecraft.world.entity.Entity> t) {
+                                return true;
+                            }
+
+                            public Class<net.minecraft.world.entity.Entity> getBaseClass() {
+                                return net.minecraft.world.entity.Entity.class;
+                            }
+
+                            public net.minecraft.world.entity.Entity tryCast(net.minecraft.world.entity.Entity e) {
+                                return e;
+                            }
+                        };
+                var all = mc.level.getEntities(test,
+                        new net.minecraft.world.phys.AABB(-3.0E7, -3.0E7, -3.0E7, 3.0E7, 3.0E7, 3.0E7),
+                        e -> true);
+                n = all.size();
+            }
+            lines.add("Entitäten: " + n);
+            renderLines(g, lines, 0, 0);
+        }
+    }
+
+    private static class Reach extends HudModule {
+        Reach() {
+            super("reach", "Reichweite", "Distanz zum anvisierten Ziel (Block/Entität).");
+        }
+
+        @Override
+        public void onRenderHud(GuiGraphics g, float td) {
+            List<String> lines = new ArrayList<>();
+            double d = -1;
+            try {
+                var hr = mc.hitResult;
+                if (hr != null) {
+                    if (hr.getType() == net.minecraft.world.phys.HitResult.Type.BLOCK) {
+                        var center = ((net.minecraft.world.phys.BlockHitResult) hr).getBlockPos().getCenter();
+                        d = mc.player.position().distanceTo(center);
+                    } else if (hr.getType() == net.minecraft.world.phys.HitResult.Type.ENTITY) {
+                        var e = ((net.minecraft.world.phys.EntityHitResult) hr).getEntity();
+                        d = mc.player.position().distanceTo(e.position());
+                    }
+                }
+            } catch (Throwable ignored) {
+            }
+            lines.add("Reichweite: " + (d < 0 ? "–" : String.format("%.2f", d) + " m"));
+            renderLines(g, lines, 0, 0);
+        }
+    }
+
+    private static class Combo extends HudModule {
+        Combo() {
+            super("combo", "Combo", "Aufeinanderfolgende Linksklicks (letzte 2 s).");
+        }
+
+        @Override
+        public void onRenderHud(GuiGraphics g, float td) {
+            List<String> lines = new ArrayList<>();
+            long now = System.currentTimeMillis();
+            int c = 0;
+            for (Long t : ClickTracker.LEFT) {
+                if (now - t <= 2000) c++;
+                else break;
+            }
+            lines.add("Combo: " + c);
+            renderLines(g, lines, 0, 0);
+        }
+    }
+
+    private static class Saturation extends HudModule {
+        Saturation() {
+            super("saturation", "Sättigung", "Aktuelle Nahrungssättigung.");
+        }
+
+        @Override
+        public void onRenderHud(GuiGraphics g, float td) {
+            List<String> lines = new ArrayList<>();
+            if (mc.player != null) {
+                float s = mc.player.getFoodData().getSaturationLevel();
+                lines.add("Sättigung: " + String.format("%.1f", s));
+            } else {
+                lines.add("Sättigung: –");
+            }
+            renderLines(g, lines, 0, 0);
+        }
+    }
+
+    private static class ServerInfo extends HudModule {
+        ServerInfo() {
+            super("serverinfo", "Server-Info", "Adresse und Spielerzahl des Servers.");
+        }
+
+        @Override
+        public void onRenderHud(GuiGraphics g, float td) {
+            List<String> lines = new ArrayList<>();
+            ServerData srv = mc.getCurrentServer();
+            if (srv != null) {
+                lines.add("Server: " + srv.ip);
+                try {
+                    int n = mc.getConnection().getOnlinePlayers().size();
+                    lines.add("Spieler: " + n);
+                } catch (Throwable ignored) {
+                }
+            } else {
+                lines.add("Modus: Einzelspieler");
+            }
+            renderLines(g, lines, 0, 0);
+        }
+    }
+
+    private static class TargetInfo extends HudModule {
+        TargetInfo() {
+            super("targetinfo", "Ziel-Info", "Name & Leben des anvisierten Lebewesens.");
+        }
+
+        @Override
+        public void onRenderHud(GuiGraphics g, float td) {
+            List<String> lines = new ArrayList<>();
+            try {
+                var hr = mc.hitResult;
+                if (hr != null && hr.getType() == net.minecraft.world.phys.HitResult.Type.ENTITY) {
+                    var e = ((net.minecraft.world.phys.EntityHitResult) hr).getEntity();
+                    if (e instanceof LivingEntity le) {
+                        lines.add(le.getName().getString());
+                        lines.add("Leben: " + String.format("%.1f", le.getHealth()) + " / "
+                                + String.format("%.1f", le.getMaxHealth()));
+                    } else {
+                        lines.add(e.getName().getString());
+                    }
+                } else {
+                    lines.add("Kein Ziel");
+                }
+            } catch (Throwable ignored) {
+                lines.add("Kein Ziel");
+            }
+            renderLines(g, lines, 0, 0);
         }
     }
 }
