@@ -30,11 +30,10 @@ public final class Glass {
 
     /**
      * Abgerundeter Kasten. Die geraden Kanten werden crisp gefüllt, die vier
-     * Eckbögen als je ein Viertelkreis-Bereich (pro Scanline ein horizontaler
-     * Streifen). Das liefert exakt das gleiche runde Ergebnis wie die alte
-     * pro-Pixel-Variante, erzeugt aber nur ~r statt ~r*r g.fill()-Aufrufe pro
-     * Ecke – das Menü wurde sonst 60x/Sekunde mit hunderttausenden fills
-     * gezeichnet (=> Lag / Freeze).
+     * Eckbögen als je ein Viertelkreis (pro Scanline ein Streifen) – das ist
+     * ~r statt ~r*r g.fill()-Aufrufe pro Ecke (kein Lag). Der Bogennand
+     * bekommt zusätzlich ein 1px-Anti-Aliasing, damit die Kanten nicht
+     * pixelig wirken.
      * Achtung: g.fill() erwartet x2/y2 (exklusiv).
      */
     public static void fillRound(GuiGraphics g, int x, int y, int w, int h, int r, int color) {
@@ -49,22 +48,35 @@ public final class Glass {
         // vier Eck-Quadranten ab).
         g.fill(x, y + r, x + w, y + h - r, color);
         g.fill(x + r, y, x + w, y + h, color);
-        // Eckbögen: pro Scanline ein Streifen (günstig, trotzdem rund).
+        // Eckbögen: pro Scanline ein Streifen + AA am Rand.
         corner(g, x + r, y + r, r, true, true, color);            // oben links
         corner(g, x + w - r, y + r, r, false, true, color);       // oben rechts
         corner(g, x + r, y + h - r, r, true, false, color);      // unten links
         corner(g, x + w - r, y + h - r, r, false, false, color); // unten rechts
     }
 
-    /** Füllt einen Viertelkreis (Eckbogen) mit je einem horizontalen Streifen pro Scanline. */
+    /** Füllt einen Viertelkreis (Eckbogen): komplett innenliegende Pixel und ein
+     *  1px-Anti-Aliasing-Pixel am Rand pro Scanline. */
     private static void corner(GuiGraphics g, int cx, int cy, int r, boolean left, boolean top, int color) {
+        int alpha = (color >> 24) & 0xFF;
+        int rgb = color & 0x00FFFFFF;
         for (int i = 0; i < r; i++) {
             int yy = top ? (cy - i) : (cy + i);
-            double d = Math.sqrt((double) (r * r - i * i));
-            int dx = (int) Math.floor(d + 1e-6);
-            int x0 = left ? (cx - dx) : cx;
+            double df = Math.sqrt((double) (r * r - i * i));
+            int dx = (int) Math.floor(df + 1e-9);
+            // voll innenliegende Pixel (k = 1 .. dx-1 bzw. Mitte) undurchsichtig
+            int x0 = left ? (cx - dx + 1) : cx;
             int x1 = left ? cx : (cx + dx);
             g.fill(x0, yy, x1, yy + 1, color);
+            // AA: angrenzendes Randpixel mit Bruchteil-Abdeckung
+            double frac = df - dx;
+            if (frac > 0.02 && frac < 0.98) {
+                int a = (int) (frac * alpha + 0.5);
+                if (a > 0 && a < 256) {
+                    int ax = left ? (cx - dx) : (cx + dx);
+                    g.fill(ax, yy, ax + 1, yy + 1, (a << 24) | rgb);
+                }
+            }
         }
     }
 
@@ -115,11 +127,14 @@ public final class Glass {
         }
     }
 
-    /** Weicher Glanz/Halo (mehrere konzentrische, abnehmend transparente Ränder). */
+    /** Weicher Glanz/Halo (wenige Lagen mit ausreichend Alpha, damit keine
+     *  Quantisierungs-Artefakte/"Flecken" bei sehr niedrigen Alphas entstehen). */
     public static void glow(GuiGraphics g, int x, int y, int w, int h, int r, int color, int strength) {
-        for (int i = 1; i <= 3; i++) {
-            int pad = i * 3;
-            fillRound(g, x - pad, y - pad, w + pad * 2, h + pad * 2, r + pad, tint(color, strength / i));
+        for (int i = 0; i < 2; i++) {
+            int pad = i * 5 + 2;
+            int a = strength / (i + 1);
+            if (a <= 0) continue;
+            fillRound(g, x - pad, y - pad, w + pad * 2, h + pad * 2, r + pad, tint(color, a));
         }
     }
 }

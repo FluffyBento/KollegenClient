@@ -289,7 +289,7 @@ public class KollegenMenuScreen extends Screen {
         g.fill(0, 0, this.width, this.height, Palette.tint(Palette.BG, 0x20));
 
         // Weicher Akzent-Glow hinter dem Panel (Launcher-Look)
-        Glass.glow(g, px, py, pw, ph, R, Palette.ACCENT, 10);
+        Glass.glow(g, px, py, pw, ph, R, Palette.ACCENT, 70);
 
         // Panel
         Glass.fillRound(g, px, py, pw, ph, R, Palette.BORDER);
@@ -315,7 +315,7 @@ public class KollegenMenuScreen extends Screen {
             int by = sidebarTop + i * (catItemH + CAT_GAP) - catScroll;
             if (by + catItemH < sidebarTop || by > sidebarBottom) continue;
             boolean sel = i == category;
-            if (sel) Glass.glow(g, px + 14, by, SW - 28, catItemH, 10, Palette.ACCENT, 16);
+            if (sel) Glass.glow(g, px + 14, by, SW - 28, catItemH, 10, Palette.ACCENT, 40);
             Glass.fillRound(g, px + 14, by, SW - 28, catItemH, 13,
                     sel ? Palette.tint(Palette.ACCENT, 0xD8) : Palette.tint(Palette.PANEL2, 0x66));
             int ty = by + (catItemH - FONT.lineHeight) / 2;
