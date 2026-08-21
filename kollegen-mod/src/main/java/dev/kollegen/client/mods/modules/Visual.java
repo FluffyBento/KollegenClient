@@ -2,6 +2,7 @@ package dev.kollegen.client.mods.modules;
 
 import dev.kollegen.client.mods.BooleanSetting;
 import dev.kollegen.client.mods.Category;
+import dev.kollegen.client.mods.KeybindSetting;
 import dev.kollegen.client.mods.Module;
 import dev.kollegen.client.mods.ModuleManager;
 import dev.kollegen.client.mods.SliderSetting;
@@ -88,11 +89,20 @@ public final class Visual {
     /** Optifine-artiger Zoom über den FOV-Wert. */
     private static class Zoom extends Module {
         private final SliderSetting fov = new SliderSetting("FOV", "Sichtfeld beim Zoomen", 30, 10, 70, 1);
+        private final KeybindSetting key = new KeybindSetting("Taste", "Schaltet den Zoom ein/aus.");
         private double saved = -1;
 
         Zoom() {
             super("zoom", "Zoom", "Verringert den FOV zum Heranzoomen.", Category.VISUAL);
             add(fov);
+            add(key);
+        }
+
+        @Override
+        public void onKey() {
+            enabled = !enabled;
+            if (enabled) onEnable();
+            else onDisable();
         }
 
         @Override
