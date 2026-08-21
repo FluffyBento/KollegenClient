@@ -195,6 +195,9 @@ fn create_instance(
         }
     }
 
+    // Begleit-Mod direkt bei der Erstellung in die Instanz legen (1.21.x – 1.26.x).
+    crate::instance::ensure_kollegen_mod(&state.data_dir, &inst.name, &inst.loader, &inst.version);
+
     Ok(inst)
 }
 

@@ -1,37 +1,28 @@
 package dev.kollegen.client.mixin;
 
-import dev.kollegen.client.menu.KollegenSocialScreen;
-import dev.kollegen.client.menu.SocialButton;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.MouseHandler;
-import net.minecraft.client.gui.screens.PauseScreen;
-import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.client.gui.screens.TitleScreen;
+import dev.kollegen.client.mods.ClickTracker;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * Globaler Maus-Fang (GLFW-Callback). Öffnet das Social-Menü, wenn auf dem
- * Startbildschirm oder im Pausenmenü der „Freunde"-Button geklickt wird.
- * Da TitleScreen/PauseScreen mouseClicked nicht überschreiben (Interface-Default),
- * ist dieser zentrale Punkt der zuverlässige Weg – ganz ohne fabric-api.
+ * Zählt Maus-Klicks für die CPS-Anzeige (Keystrokes/CPS-Module). Greift direkt
+ * auf den GLFW-Callback des MouseHandler zu – ohne fabric-api.
  */
-@Mixin(MouseHandler.class)
+@Mixin(net.minecraft.client.MouseHandler.class)
 public class MouseHandlerMixin {
 
-    @Inject(method = "method_22684", at = @At("HEAD"), cancellable = true)
-    private void kollegen_client$social(long window, int button, int action, int mods, CallbackInfo ci) {
-        if (button != 0 || action != 1) return; // nur Linksklick (Press)
-        Minecraft mc = Minecraft.getInstance();
-        Screen s = mc.screen;
-        if (s instanceof TitleScreen || s instanceof PauseScreen) {
-            MouseHandler mh = mc.mouseHandler;
-            if (SocialButton.hit(mc, mh.xpos(), mh.ypos())) {
-                mc.setScreen(new KollegenSocialScreen());
-                ci.cancel();
-            }
+    @Inject(method = "method_22684", at = @At("HEAD"))
+    private void kollegen_client$cps(long window, int button, int action, int mods, CallbackInfo ci) {
+        if (action != 0 && action != 1) return;
+        boolean press = action == 1;
+        if (button == 0) {
+            if (press) ClickTracker.pressLeft();
+            else ClickTracker.releaseLeft();
+        } else if (button == 1) {
+            if (press) ClickTracker.pressRight();
+            else ClickTracker.releaseRight();
         }
     }
 }

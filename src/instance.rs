@@ -198,10 +198,15 @@ pub fn ensure_title_logo_pack(inst_dir: &Path, version: &str) {
 
 /// Auto-installiert die Kollegen-Client-Mod in die `mods/`-Familie der Instanz
 /// (für Fabric/Forge/NeoForge). Die Mod soll standardmäßig in jeder
-/// mod-fähigen Instanz aktiv sein. Best-effort: fehlt die Mod-Datei lokal,
-/// wird nur gewarnt – die Installation der Instanz schlägt deswegen nicht fehl.
-pub fn ensure_kollegen_mod(data_dir: &Path, name: &str, loader: &str) {
+/// mod-fähigen Instanz im Bereich 1.21.x – 1.26.x aktiv sein. Best-effort:
+/// fehlt die Mod-Datei lokal, wird nur gewarnt – die Installation der Instanz
+/// schlägt deswegen nicht fehl.
+pub fn ensure_kollegen_mod(data_dir: &Path, name: &str, loader: &str, version: &str) {
     if loader == "vanilla" {
+        return;
+    }
+    // Nur für unterstützte Minecraft-Versionen (1.21.x – 1.26.x).
+    if !is_supported_version(version) {
         return;
     }
     let settings = crate::utils::load_json::<crate::types::Settings>(
@@ -281,6 +286,17 @@ fn download_kollegen_mod(dest: &Path) -> bool {
             Ok(bytes) => fs::write(dest, &bytes).is_ok(),
             Err(_) => false,
         },
+        _ => false,
+    }
+}
+
+/// Prüft, ob die Minecraft-Version im unterstützten Bereich 1.21.x – 1.26.x liegt.
+fn is_supported_version(version: &str) -> bool {
+    let mut parts = version.split('.');
+    let major = parts.next().and_then(|s| s.parse::<u32>().ok());
+    let minor = parts.next().and_then(|s| s.parse::<u32>().ok());
+    match (major, minor) {
+        (Some(1), Some(m)) => m >= 21 && m <= 26,
         _ => false,
     }
 }
@@ -476,7 +492,7 @@ pub fn install_instance(
     }
 
     // Kollegen-Client-Mod standardmäßig in jede Mod-Instanz installieren.
-    ensure_kollegen_mod(data_dir, name, loader);
+    ensure_kollegen_mod(data_dir, name, loader, version);
 
     // Install + enable the KollegenTitle resource pack (Logo.png on the title
     // screen) already at creation, not just at launch.
@@ -823,6 +839,8 @@ pub fn launch(
     _settings: &Settings,
 ) -> Result<String> {
     let inst_dir = crate::utils::instance_dir(data_dir, &inst.name);
+    // Begleit-Mod bei jedem Start erneut sicherstellen (1.21.x – 1.26.x).
+    ensure_kollegen_mod(data_dir, &inst.name, &inst.loader, &inst.version);
     // Fresh launcher log per launch (avoids stale crash lines triggering the
     // auto-resolver again on the next manual launch).
     if let Ok(mut logs) = state.logs.lock() {

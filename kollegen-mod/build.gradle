@@ -28,9 +28,17 @@ dependencies {
     implementation('dev.kollegen:discord-rpc:1.3.6') { transitive = false }
     include('dev.kollegen:discord-rpc:1.3.6') { transitive = false }
 
-    // NOTE: Fabric Loom automatically registers the Mixin annotation processor
-    // and generates the refmap. The refmap (kollegen.refmap.json) is maintained
-    // manually in src/main/resources because Loom does not emit it for this setup.
+    // Fabric Loom automatically registers the Mixin annotation processor and
+    // generates the refmap (kollegen-client-mod.refmap.json). It must be declared
+    // in kollegen.mixins.json via the "refmap" key so Mixin can resolve Yarn
+    // method names against the obfuscated runtime.
+}
+
+loom {
+    mixin {
+        useLegacyMixinAp = true
+        defaultRefmapName = "kollegen-client-mod.refmap.json"
+    }
 }
 
 processResources {

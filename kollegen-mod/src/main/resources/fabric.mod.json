@@ -3,14 +3,13 @@
   "id": "kollegen-client",
   "version": "${version}",
   "name": "Kollegen Client Mod",
-  "description": "Ersetzt das Minecraft-Logo durch das Kollegen-Logo, zeigt Rich Presence an und bietet ein Menü (Rechts-Shift) mit Launcher-Sync-Farben.",
+  "description": "Umfangreiches Mod-Menü (Rechts-Shift) mit Optionen aus Visual, HUD, Gameplay, Player, Welt, Chat, Performance und Verschiedenes – angelehnt an NoRisk Client, Feather und LabyMod.",
   "authors": ["FluffyBento"],
   "contact": {
     "homepage": "https://github.com/FluffyBento/KollegenClient",
     "sources": "https://github.com/FluffyBento/KollegenClient"
   },
   "license": "MIT",
-  "icon": "assets/kollegen/textures/gui/logo.png",
   "environment": "client",
   "entrypoints": {
     "client": ["dev.kollegen.client.KollegenMod"]

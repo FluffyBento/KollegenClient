@@ -8,9 +8,8 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * Tick-Hook OHNE fabric-api: make Target ist der Client selbst. Jeder
- * Client-Tick läuft durch {@code KollegenMod.onTick()} (Menü-Taste,
- * Farb-FX, Join-Requests, Rich Presence).
+ * Tick-Hook OHNE fabric-api: Ziel ist der Client selbst. Jeder Client-Tick läuft
+ * durch {@code KollegenMod.onTick()} (Menü-Taste, Module, Keybinds, RPC).
  */
 @Mixin(Minecraft.class)
 public class MinecraftClientMixin {

@@ -14,7 +14,7 @@
 //   4. The latest GitHub release asset `kollegen-client-mod.jar` (fallback)
 
 use log::{info, warn};
-use std::io::{Read, Write};
+use std::io::Write;
 use std::path::{Path, PathBuf};
 
 /// File name the companion mod is copied to inside an instance's `mods/`.

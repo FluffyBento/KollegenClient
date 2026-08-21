@@ -1,53 +1,43 @@
 package dev.kollegen.client;
 
-import dev.kollegen.client.config.KollegenConfig;
-import dev.kollegen.client.join.KollegenJoin;
+import dev.kollegen.client.mods.Module;
+import dev.kollegen.client.mods.ModuleManager;
 import dev.kollegen.client.menu.KollegenMenuScreen;
-import dev.kollegen.client.render.KollegenPostFX;
 import dev.kollegen.client.rpc.KollegenRPC;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
+import org.lwjgl.glfw.GLFW;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.HashSet;
+import java.util.Set;
+
 /**
  * Kollegen Client Mod. Bewusst OHNE fabric-api geschrieben, damit er in jede
- * Fabric-/Quilt-Instanz injiziert werden kann (auch in Instanzen ohne
- * fabric-api). Der Tick-Hook kommt aus {@code MinecraftClientMixin}.
- *
- * Features:
- *  - Rechts-Shift öffnet das Kollegen-Mod-Menü (Sättigung, Farb-Hervorhebung …)
- *  - Discord Rich Presence mit Join-Secret (Freunde können „beitreten“)
- *  - Automatisches Verbinden, wenn eine join_request.json existiert
+ * Fabric-/Quilt-Instanz injiziert werden kann. Der Tick-Hook kommt aus
+ * {@code MinecraftClientMixin}. Alle Features/Menü-Optionen liegen im
+ * Package {@code dev.kollegen.client.mods} (Module + Settings) und werden zur
+ * Laufzeit aus einer JSON-Config geladen.
  */
 @Environment(EnvType.CLIENT)
 public class KollegenMod implements ClientModInitializer {
     public static final Logger LOGGER = LoggerFactory.getLogger("kollegen-client");
     public static final String MOD_ID = "kollegen-client";
-    public static final String VERSION = "1.0.0";
-    // Same Discord application as the launcher so the rich presence is consistent.
+    public static final String VERSION = "1.6.4";
     public static final long DISCORD_CLIENT_ID = 1538588736718373034L;
-    public static KollegenConfig CONFIG = KollegenConfig.load();
 
     private static boolean shiftWasDown = false;
+    private static final Set<Integer> pressedKeys = new HashSet<>();
 
     @Override
     public void onInitializeClient() {
-        CONFIG = KollegenConfig.load();
-        KollegenRPC.start();
-        // JVM-Sicherheitsnetz: RPC-Shutdown auch ohne fabric-lifecycle-Hook.
-        Runtime.getRuntime().addShutdownHook(new Thread(KollegenRPC::stop));
-        KollegenPostFX.applyConfig();
-        dev.kollegen.client.feature.Fullbright.reconcile();
+        ModuleManager.registerAll(); // lädt Config + ruft onEnable für aktive Module
         LOGGER.info("Kollegen Client Mod initialisiert (Rechts-Shift = Menü).");
     }
 
-    /**
-     * Wird jeden Client-Tick aus {@code MinecraftClientMixin} aufgerufen
-     * (Ersatz für fabric-api {@code ClientTickEvents}).
-     */
     public static void onTick() {
         Minecraft mc = Minecraft.getInstance();
         if (mc == null) return;
@@ -61,19 +51,32 @@ public class KollegenMod implements ClientModInitializer {
         }
         shiftWasDown = shiftDown;
 
-        // ── Farb-FX (Sättigung / Hervorhebung) anwenden ──
-        KollegenPostFX.tick();
+        // ── Module-Ticks ──
+        ModuleManager.tick();
 
-        // ── Fullbright-Zustand mit Config abgleichen ──
-        dev.kollegen.client.feature.Fullbright.reconcile();
+        // ── Keybinds der Module (Edge-Trigger) ──
+        for (Module m : ModuleManager.modules()) {
+            if (m.key >= 0) {
+                boolean down = isKeyDown(m.key);
+                boolean was = pressedKeys.contains(m.key);
+                if (down && !was) m.onKey();
+                if (down) pressedKeys.add(m.key);
+                else pressedKeys.remove(m.key);
+            }
+        }
 
-        // ── Join-Requests aus join_request.json abarbeiten ──
-        KollegenJoin.tick(mc);
-
-        // ── Rich Presence aktualisieren ──
+        // ── Rich Presence ──
         KollegenRPC.tick(mc);
+    }
 
-        // ── Kollegen-Presence (Icon neben Namen in der Tab-Liste) ──
-        dev.kollegen.client.presence.Presence.tick();
+    private static boolean isKeyDown(int key) {
+        try {
+            Minecraft mc = Minecraft.getInstance();
+            if (mc == null || mc.getWindow() == null) return false;
+            long handle = mc.getWindow().handle();
+            return GLFW.glfwGetKey(handle, key) == GLFW.GLFW_PRESS;
+        } catch (Throwable t) {
+            return false;
+        }
     }
 }
