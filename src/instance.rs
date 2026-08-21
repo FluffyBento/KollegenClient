@@ -196,109 +196,11 @@ pub fn ensure_title_logo_pack(inst_dir: &Path, version: &str) {
     }
 }
 
-/// Auto-installiert die Kollegen-Client-Mod in die `mods/`-Familie der Instanz
-/// (für Fabric/Forge/NeoForge). Die Mod soll standardmäßig in jeder
-/// mod-fähigen Instanz im Bereich 1.21.x – 1.26.x aktiv sein. Best-effort:
-/// fehlt die Mod-Datei lokal, wird nur gewarnt – die Installation der Instanz
-/// schlägt deswegen nicht fehl.
+/// Auto-installiert die Kollegen-Client-Mod in die `mods/`-Familie der Instanz.
+/// Delegiert an das `companion`-Modul, das Bundling/Download, Version-Relax
+/// (1.21.x – 1.26.x) und Verstecken im Mod-Browser übernimmt.
 pub fn ensure_kollegen_mod(data_dir: &Path, name: &str, loader: &str, version: &str) {
-    if loader == "vanilla" {
-        return;
-    }
-    // Nur für unterstützte Minecraft-Versionen (1.21.x – 1.26.x).
-    if !is_supported_version(version) {
-        return;
-    }
-    let settings = crate::utils::load_json::<crate::types::Settings>(
-        &crate::utils::settings_file(data_dir),
-        crate::types::Settings::default(),
-    );
-    let mods_dir = crate::utils::instance_dir(data_dir, name).join("mods");
-    let target = mods_dir.join("kollegen-client-mod.jar");
-    if !settings.companion_mod {
-        // Begleit-Mod deaktiviert: vorhandene Installation entfernen, damit der
-        // Client unverändert bleibt (z. B. für Server mit Anti-Cheat wie GommeHD).
-        if target.exists() {
-            let _ = fs::remove_file(&target);
-        }
-        return;
-    }
-    if let Err(e) = fs::create_dir_all(&mods_dir) {
-        warn!("Konnte mods/ nicht anlegen: {}", e);
-        return;
-    }
-    if target.exists() {
-        return; // bereits installiert
-    }
-
-    // Kandidaten-Pfade für die gebündelte Mod-Datei.
-    let mut candidates: Vec<PathBuf> = Vec::new();
-    candidates.push(data_dir.join("kollegen-client-mod.jar"));
-    candidates.push(data_dir.join("resources").join("kollegen-client-mod.jar"));
-    candidates.push(data_dir.join("mods_cache").join("kollegen-client-mod.jar"));
-    if let Ok(exe) = std::env::current_exe() {
-        if let Some(dir) = exe.parent() {
-            candidates.push(dir.join("kollegen-client-mod.jar"));
-            candidates.push(dir.join("resources").join("kollegen-client-mod.jar"));
-        }
-    }
-
-    // Keine lokale Mod-Datei? Versuche, sie aus dem aktuellen Release zu laden.
-    if candidates.iter().all(|c| !c.exists()) {
-        let cache = data_dir.join("mods_cache");
-        let _ = fs::create_dir_all(&cache);
-        let cached = cache.join("kollegen-client-mod.jar");
-        if download_kollegen_mod(&cached) {
-            candidates.push(cached);
-        }
-    }
-
-    for src in candidates {
-        if src.exists() {
-            match fs::copy(&src, &target) {
-                Ok(_) => {
-                    info!("Kollegen-Mod installiert: {}", target.display());
-                    return;
-                }
-                Err(e) => warn!("Konnte Kollegen-Mod nicht kopieren: {}", e),
-            }
-        }
-    }
-    warn!(
-        "Kollegen-Mod nicht gefunden – sie muss manuell nach {} kopiert werden",
-        mods_dir.display()
-    );
-}
-
-/// Lädt die Kollegen-Client-Mod aus dem aktuellen GitHub-Release herunter.
-/// Best-effort: gibt `false` zurück, wenn das nicht klappt.
-fn download_kollegen_mod(dest: &Path) -> bool {
-    let url = "https://github.com/FluffyBento/KollegenClient/releases/latest/download/kollegen-client-mod.jar";
-    let client = match reqwest::blocking::Client::builder()
-        .user_agent(crate::USER_AGENT)
-        .build()
-    {
-        Ok(c) => c,
-        Err(_) => return false,
-    };
-    match client.get(url).send() {
-        Ok(r) if r.status().is_success() => match r.bytes() {
-            Ok(bytes) => fs::write(dest, &bytes).is_ok(),
-            Err(_) => false,
-        },
-        _ => false,
-    }
-}
-
-/// Prüft, ob die Minecraft-Version im unterstützten Bereich 1.21.x – 1.26.x liegt.
-fn is_supported_version(version: &str) -> bool {
-    let mut parts = version.split('.');
-    let major = parts.next().and_then(|s| s.parse::<u32>().ok());
-    let minor = parts.next().and_then(|s| s.parse::<u32>().ok());
-    match (major, minor) {
-        (Some(1), Some(m)) => m >= 21 && m <= 26,
-        _ => false,
-    }
+    crate::companion::install_companion_mod(data_dir, name, version, loader);
 }
 
 /// Ensures `value` is present in the comma-separated list stored in the

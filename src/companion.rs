@@ -216,6 +216,14 @@ fn relax_companion_constraints(jar: &Path) -> PathBuf {
     jar.to_path_buf()
 }
 
+/// Prüft, ob die Minecraft-Version im unterstützten Bereich 1.21.x – 1.26.x liegt.
+fn is_supported_version(version: &str) -> bool {
+    let mut parts = version.split('.');
+    let major = parts.next().and_then(|s| s.parse::<u32>().ok());
+    let minor = parts.next().and_then(|s| s.parse::<u32>().ok());
+    matches!((major, minor), (Some(1), Some(m)) if (21..=26).contains(&m))
+}
+
 /// Injects the companion mod into an instance's `mods/` folder. The file name
 /// is the fixed `kollegen-client-mod.jar` so `list_content`/`delete_content`
 /// can hide/protect it. Skipped for vanilla servers (nothing would load it)
@@ -230,6 +238,14 @@ pub fn install_companion_mod(data_dir: &Path, instance_name: &str, version: &str
         warn!(
             "Kollegen-Client-Mod wird bei Loader '{}' übersprungen (nur Fabric/Quilt unterstützt).",
             loader
+        );
+        return;
+    }
+    // Nur für unterstützte Minecraft-Versionen (1.21.x – 1.26.x).
+    if !is_supported_version(version) {
+        warn!(
+            "Kollegen-Client-Mod wird bei MC {} übersprungen (nur 1.21.x – 1.26.x unterstützt).",
+            version
         );
         return;
     }
