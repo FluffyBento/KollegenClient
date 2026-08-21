@@ -21,3 +21,6 @@ Kollegenserver.pub
 
 # Backend server runtime data (friends/presence store)
 server/data/
+
+# Reference / inspiration material (not part of the client or mod)
+Inspiration/
