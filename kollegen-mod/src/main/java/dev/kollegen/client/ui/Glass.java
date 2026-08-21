@@ -28,19 +28,64 @@ public final class Glass {
         return (0xFF << 24) | (r << 16) | (g << 8) | bl;
     }
 
-    /** Scanline-basierter abgerundeter Kasten (gefüllt). */
+    /**
+     * Abgerundeter Kasten mit weichen (anti-aliased) Ecken. Die geraden Kanten
+     * werden crisp gefüllt, nur die Eckbögen bekommen pro Pixel eine
+     * Abdeckung (Supersampling), damit sie rund und nicht pixelig wirken.
+     * Achtung: g.fill() erwartet x2/y2 (exklusiv).
+     */
     public static void fillRound(GuiGraphics g, int x, int y, int w, int h, int r, int color) {
         if (w <= 0 || h <= 0) return;
         r = Math.min(r, w / 2);
         r = Math.min(r, h / 2);
-        for (int yy = y; yy < y + h; yy++) {
-            int dy = Math.min(yy - y, (y + h - 1) - yy);
-            int inset = 0;
-            if (dy < r) {
-                int d = r - dy;
-                inset = (int) Math.round(r - Math.sqrt((double) (r * r - d * d)));
+        if (r <= 0) {
+            g.fill(x, y, x + w, y + h, color);
+            return;
+        }
+        int alpha = (color >> 24) & 0xFF;
+        int rgb = color & 0x00FFFFFF;
+        // Gerade Kanten + Mitte crisp füllen (überlappend, deckt alles außer den
+        // vier Eck-Quadranten ab).
+        g.fill(x, y + r, x + w, y + h - r, color);
+        g.fill(x + r, y, x + w, y + h, color);
+        // Eckbögen mit Anti-Aliasing.
+        aaCorner(g, x, y, r, 1, 1, rgb, alpha);            // oben links
+        aaCorner(g, x + w - r, y, r, -1, 1, rgb, alpha);   // oben rechts
+        aaCorner(g, x, y + h - r, r, 1, -1, rgb, alpha);   // unten links
+        aaCorner(g, x + w - r, y + h - r, r, -1, -1, rgb, alpha); // unten rechts
+    }
+
+    private static void aaCorner(GuiGraphics g, int sx, int sy, int r, int dirX, int dirY,
+                                 int rgb, int alpha) {
+        int SS = 3;
+        for (int yy = 0; yy < r; yy++) {
+            for (int xx = 0; xx < r; xx++) {
+                int px = sx + xx;
+                int py = sy + yy;
+                double dx = (dirX > 0) ? (r - 0.5 - xx) : (xx + 0.5);
+                double dy = (dirY > 0) ? (r - 0.5 - yy) : (yy + 0.5);
+                double dist = Math.sqrt(dx * dx + dy * dy);
+                double cov;
+                if (dist <= r - 1.0) {
+                    cov = 1.0;
+                } else if (dist >= r + 0.5) {
+                    continue;
+                } else {
+                    double sum = 0;
+                    for (int s = 0; s < SS; s++) {
+                        for (int t = 0; t < SS; t++) {
+                            double ax = (dirX > 0) ? (r - (xx + (s + 0.5) / SS)) : (xx + (s + 0.5) / SS);
+                            double ay = (dirY > 0) ? (r - (yy + (t + 0.5) / SS)) : (yy + (t + 0.5) / SS);
+                            if (Math.sqrt(ax * ax + ay * ay) <= r) sum += 1.0;
+                        }
+                    }
+                    cov = sum / (SS * SS);
+                }
+                if (cov <= 0) continue;
+                int a = (int) (cov * alpha);
+                if (a > 255) a = 255;
+                g.fill(px, py, px + 1, py + 1, (a << 24) | rgb);
             }
-            g.fill(x + inset, yy, x + w - inset, yy + 1, color);
         }
     }
 

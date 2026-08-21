@@ -33,7 +33,7 @@ public class KollegenMenuScreen extends Screen {
     private final Set<String> expanded = new HashSet<>();
 
     private static final int SW = 220;
-    private static final int R = 16;
+    private static final int R = 22;
     private static final int ROW_H = 58;
     private static final int SET_H = 34;
 
@@ -268,7 +268,7 @@ public class KollegenMenuScreen extends Screen {
         Glass.fillRound(g, px, py, pw, ph, R, Palette.BORDER);
         Glass.fillRound(g, px + 1, py + 1, pw - 2, ph - 2, R - 1, Palette.tint(Palette.PANEL, 0xF2));
         // Sidebar-Fläche
-        Glass.fillRound(g, px + 8, py + 8, SW, ph - 16, 12, Palette.tint(Palette.PANEL2, 0xCC));
+        Glass.fillRound(g, px + 8, py + 8, SW, ph - 16, 18, Palette.tint(Palette.PANEL2, 0xCC));
         // Akzentleiste oben
         Glass.fillRound(g, px + 8, py + 8, SW, 6, 4, Palette.tint(Palette.ACCENT, 0xE0));
 
@@ -286,7 +286,7 @@ public class KollegenMenuScreen extends Screen {
             if (by + catItemH < sidebarTop || by > sidebarBottom) continue;
             boolean sel = i == category;
             if (sel) Glass.glow(g, px + 14, by, SW - 28, catItemH, 10, Palette.ACCENT, 16);
-            Glass.fillRound(g, px + 14, by, SW - 28, catItemH, 10,
+            Glass.fillRound(g, px + 14, by, SW - 28, catItemH, 13,
                     sel ? Palette.tint(Palette.ACCENT, 0xD8) : Palette.tint(Palette.PANEL2, 0x66));
             int ty = by + (catItemH - FONT.lineHeight) / 2;
             g.drawString(FONT, cats[i].icon + "  " + cats[i].display, px + 26, ty,
@@ -306,8 +306,8 @@ public class KollegenMenuScreen extends Screen {
         for (Row r : rows) {
             if (r.isModule) {
                 boolean hov = mx >= cx + 8 && mx <= cx + cw - 8 && my >= r.y && my < r.y + r.h;
-                Glass.fillRound(g, cx + 8, r.y, cw - 16, r.h, 10, Palette.tint(Palette.BORDER, 0xAA));
-                Glass.fillRound(g, cx + 9, r.y + 1, cw - 18, r.h - 2, 9,
+                Glass.fillRound(g, cx + 8, r.y, cw - 16, r.h, 13, Palette.tint(Palette.BORDER, 0xAA));
+                Glass.fillRound(g, cx + 9, r.y + 1, cw - 18, r.h - 2, 12,
                         hov ? Palette.tint(Palette.PANEL2, 0x99) : Palette.tint(Palette.PANEL2, 0x66));
                 g.drawString(FONT, r.module.name, cx + 22, r.y + 11, Palette.TEXT, false);
                 g.drawString(FONT, trunc(r.module.description, cw - 220), cx + 22, r.y + 31, Palette.MUTED, false);

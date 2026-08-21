@@ -78,7 +78,7 @@ public class GlassButton extends Button {
         boolean hov = isMouseOver(mx, my);
         int fill = selected ? accent : panel;
         int txt = selected ? 0xffffffff : text;
-        Glass.button(g, getX(), getY(), width, height, 9,
+        Glass.button(g, getX(), getY(), width, height, 13,
                 Glass.tint(fill, selected ? 0xE6 : (hov ? 0xE0 : 0xC8)),
                 Glass.tint(accent, hov ? 0xD0 : 0xB0),
                 txt, smoothFont(), getMessage().getString(), hov, selected);
