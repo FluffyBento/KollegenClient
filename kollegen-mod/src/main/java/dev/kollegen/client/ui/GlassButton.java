@@ -3,9 +3,13 @@ package dev.kollegen.client.ui;
 import dev.kollegen.client.mods.Palette;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
+import net.minecraft.client.gui.GlyphSource;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.font.FontSet;
+import net.minecraft.client.gui.font.glyphs.EffectGlyph;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.FontDescription;
 import net.minecraft.resources.Identifier;
 
 /**
@@ -39,21 +43,29 @@ public class GlassButton extends Button {
     public static Font smoothFont() {
         if (SMOOTH != null) return SMOOTH;
         Minecraft mc = Minecraft.getInstance();
-        Identifier uni = Identifier.fromNamespaceAndPath("minecraft", "unicode");
         try {
-            try {
-                java.lang.reflect.Method m = Minecraft.class.getMethod("getFont", Identifier.class);
-                SMOOTH = (Font) m.invoke(mc, uni);
+            // Minecraft.fontManager ist private final. Darüber holen wir den glatten
+            // TTF-Font "minecraft:uniform" (FontSet) und bauen daraus einen Font, dessen
+            // Standard-Zeichensatz dieser Satz ist – so wird drawString(String, ...) glatt.
+            java.lang.reflect.Field f = Minecraft.class.getDeclaredField("fontManager");
+            f.setAccessible(true);
+            Object fm = f.get(mc);
+            java.lang.reflect.Method gfs = fm.getClass().getDeclaredMethod("getFontSetRaw", Identifier.class);
+            gfs.setAccessible(true);
+            FontSet set = (FontSet) gfs.invoke(fm, Minecraft.UNIFORM_FONT);
+            if (set != null) {
+                SMOOTH = new Font(new Font.Provider() {
+                    @Override
+                    public GlyphSource glyphs(FontDescription desc) {
+                        return set.source(false);
+                    }
+
+                    @Override
+                    public EffectGlyph effect() {
+                        return set.whiteGlyph();
+                    }
+                });
                 return SMOOTH;
-            } catch (NoSuchMethodException ignored) {
-            }
-            try {
-                java.lang.reflect.Method fm = Minecraft.class.getMethod("fontManager");
-                Object mgr = fm.invoke(mc);
-                java.lang.reflect.Method gf = mgr.getClass().getMethod("getFont", Identifier.class);
-                SMOOTH = (Font) gf.invoke(mgr, uni);
-                return SMOOTH;
-            } catch (NoSuchMethodException ignored) {
             }
         } catch (Throwable ignored) {
         }
