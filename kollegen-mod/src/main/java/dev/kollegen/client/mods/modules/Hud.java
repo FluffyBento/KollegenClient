@@ -176,6 +176,7 @@ public final class Hud {
             boolean ml = ClickTracker.leftDown, mr = ClickTracker.rightDown;
             drawKey(g, "L", baseX - s - gap, by + s + gap, ml);
             drawKey(g, "R", baseX, by + s + gap, mr);
+            markBounds(baseX - s - gap, by - s - gap, s * 3 + gap * 2, s * 3 + gap * 2);
         }
 
         private void drawKey(GuiGraphics g, String label, int x, int y, boolean pressed) {
@@ -220,12 +221,13 @@ public final class Hud {
                 default -> m;
             };
             int y = switch (position.index) {
-                case 2, 3 -> mc.getWindow().getGuiScaledHeight() - h - m;
+                case 2, 3 -> mc.getWindow().getGuiScaledHeight() - h - m - 48;
                 default -> m;
             };
             if (background.value) {
                 Glass.fillRound(g, x - 4, y - 4, w + 8, h + 8, 6, backgroundColor.value);
             }
+            markBounds(x - 4, y - 4, w + 8, h + 8);
             for (int i = 0; i < n; i++) {
                 ItemStack stack = armor.get(i);
                 int ix = x + i * 20;
@@ -292,12 +294,31 @@ public final class Hud {
         private final SliderSetting size = new SliderSetting("Größe", "", 4, 1, 20, 1);
         private final SliderSetting gap = new SliderSetting("Lücke", "", 2, 0, 12, 1);
         private final ModeSetting type = new ModeSetting("Typ", "", new String[]{"Kreuz", "Punkt", "Viereck"}, 0);
+        private final BooleanSetting canHitEnabled = new BooleanSetting("Farbwechsel bei Treffer",
+                "Fadenkreuz färbt sich um, wenn die anvisierte Person schlagbar ist.", false);
+        private final ColorSetting canHitColor = new ColorSetting("Treffer-Farbe", "", 0xFFff5b6e);
 
         Crosshair() {
             super("crosshair", "Fadenkreuz", "Eigenes Fadenkreuz über dem Vanilla-Kreuz.");
             add(size);
             add(gap);
             add(type);
+            add(canHitEnabled);
+            add(canHitColor);
+        }
+
+        private boolean canHit() {
+            try {
+                var hr = mc.hitResult;
+                if (hr != null && hr.getType() == net.minecraft.world.phys.HitResult.Type.ENTITY) {
+                    var e = ((net.minecraft.world.phys.EntityHitResult) hr).getEntity();
+                    if (e != mc.player && !(e instanceof net.minecraft.world.entity.player.Player p && p.isSpectator())) {
+                        return true;
+                    }
+                }
+            } catch (Throwable ignored) {
+            }
+            return false;
         }
 
         @Override
@@ -306,7 +327,7 @@ public final class Hud {
             int cy = mc.getWindow().getGuiScaledHeight() / 2;
             int s = (int) size.value;
             int gp = (int) gap.value;
-            int c = color.value;
+            int c = (canHitEnabled.value && canHit()) ? canHitColor.value : color.value;
             if (type.index == 1) {
                 g.fill(cx - s / 2, cy - s / 2, cx + s / 2, cy + s / 2, c);
             } else if (type.index == 2) {

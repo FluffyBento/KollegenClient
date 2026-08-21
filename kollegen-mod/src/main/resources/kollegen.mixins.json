@@ -6,7 +6,8 @@
   "mixins": [
     "MinecraftClientMixin",
     "HudMixin",
-    "MouseHandlerMixin"
+    "MouseHandlerMixin",
+    "NametagMixin"
   ],
   "injectors": {
     "defaultRequire": 1

@@ -23,6 +23,12 @@ public abstract class Module {
     /** Warnhinweis (z. B. "Server-Risiko") – wird im Menü rot markiert. */
     public String risk = null;
 
+    /**
+     * Wenn true, kann das Modul nicht deaktiviert werden (Toggle im Menü
+     * gesperrt, z. B. Discord Rich Presence, die immer laufen soll).
+     */
+    public boolean locked = false;
+
     protected final List<Setting> settings = new ArrayList<>();
     protected final Minecraft mc = Minecraft.getInstance();
 
@@ -71,6 +77,7 @@ public abstract class Module {
 
     public void load(JsonObject o) {
         if (o.has("enabled")) enabled = o.get("enabled").getAsBoolean();
+        if (locked) enabled = true; // gesperrte Module bleiben immer an
         if (o.has("key")) key = o.get("key").getAsInt();
         if (o.has("settings")) {
             JsonObject s = o.getAsJsonObject("settings");

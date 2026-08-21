@@ -31,9 +31,11 @@ public class KollegenMod implements ClientModInitializer {
 
     private static boolean shiftWasDown = false;
     private static final Set<Integer> pressedKeys = new HashSet<>();
+    private static boolean wasConnected = false;
 
     @Override
     public void onInitializeClient() {
+        dev.kollegen.client.mods.Palette.loadTheme(); // ggf. Launcher-Theme übernehmen
         ModuleManager.registerAll(); // lädt Config + ruft onEnable für aktive Module
         LOGGER.info("Kollegen Client Mod initialisiert (Rechts-Shift = Menü).");
     }
@@ -54,6 +56,18 @@ public class KollegenMod implements ClientModInitializer {
         // ── Module-Ticks ──
         ModuleManager.tick();
 
+        // ── HUD verschieben per Drag ──
+        if (dev.kollegen.client.mods.HudModule.dragging != null) {
+            try {
+                dev.kollegen.client.mods.HudModule d = dev.kollegen.client.mods.HudModule.dragging;
+                int nx = (int) dev.kollegen.client.mods.HudModule.cursorX - dev.kollegen.client.mods.HudModule.dragOffX;
+                int ny = (int) dev.kollegen.client.mods.HudModule.cursorY - dev.kollegen.client.mods.HudModule.dragOffY;
+                d.offsetX.value = Math.max(-2000, Math.min(2000, nx));
+                d.offsetY.value = Math.max(-2000, Math.min(2000, ny));
+            } catch (Throwable ignored) {
+            }
+        }
+
         // ── Keybinds der Module (Edge-Trigger) ──
         for (Module m : ModuleManager.modules()) {
             if (m.key >= 0) {
@@ -67,6 +81,12 @@ public class KollegenMod implements ClientModInitializer {
 
         // ── Rich Presence ──
         KollegenRPC.tick(mc);
+
+        // ── Kollegen-Präsenz (Backend-Liste) bei Join/Leave ──
+        boolean connected = mc.getConnection() != null;
+        if (connected && !wasConnected) dev.kollegen.client.presence.KollegenPresence.join(mc);
+        else if (!connected && wasConnected) dev.kollegen.client.presence.KollegenPresence.leave();
+        wasConnected = connected;
     }
 
     private static boolean isKeyDown(int key) {

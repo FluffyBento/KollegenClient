@@ -19,6 +19,7 @@ public final class Misc {
         DiscordRpc() {
             super("discordrpc", "Discord Rich Presence", "Zeigt Kollegen Client in Discord an.", Category.MISC);
             this.enabled = true;
+            this.locked = true; // nicht ausschaltbar
         }
 
         @Override
@@ -28,7 +29,7 @@ public final class Misc {
 
         @Override
         public void onDisable() {
-            KollegenRPC.stop();
+            // Gesperrt: RPC läuft immer weiter.
         }
     }
 }
