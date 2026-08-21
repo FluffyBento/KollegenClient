@@ -15,6 +15,7 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
@@ -38,6 +39,7 @@ public class KollegenMenuScreen extends Screen {
 
     private EditBox search;
     private GlassButton closeBtn;
+    private Font FONT;
 
     private int px, py, pw, ph, cx, cw;
     private int scroll = 0;
@@ -77,6 +79,9 @@ public class KollegenMenuScreen extends Screen {
 
     @Override
     protected void init() {
+        // Glatte (TTF-)Schrift statt der pixeligen Minecraft-Bitmap-Schrift,
+        // damit das Menü exakt dem Launcher-Look entspricht.
+        FONT = GlassButton.smoothFont();
         rebuild();
     }
 
@@ -135,7 +140,7 @@ public class KollegenMenuScreen extends Screen {
         addRenderableWidget(closeBtn);
 
         // Suche
-        search = new EditBox(this.font, cx + 14, py + 16, cw - 28, 24, Component.literal(""));
+        search = new EditBox(FONT, cx + 14, py + 16, cw - 28, 24, Component.literal(""));
         search.setMaxLength(40);
         search.setHint(Component.literal("Suchen…"));
         search.setTextColor(Palette.TEXT);
@@ -268,11 +273,11 @@ public class KollegenMenuScreen extends Screen {
         Glass.fillRound(g, px + 8, py + 8, SW, 6, 4, Palette.tint(Palette.ACCENT, 0xE0));
 
         // Header-Text (Launcher-Stil: fett-blau "KOLLEGEN" + muted "Client")
-        g.drawString(this.font, "KOLLEGEN", px + 22, py + 26, Palette.ACCENT, false);
-        g.drawString(this.font, "Client", px + 22 + this.font.width("KOLLEGEN") + 6, py + 28, Palette.MUTED, false);
+        g.drawString(FONT, "KOLLEGEN", px + 22, py + 26, Palette.ACCENT, false);
+        g.drawString(FONT, "Client", px + 22 + FONT.width("KOLLEGEN") + 6, py + 28, Palette.MUTED, false);
 
         String title = query.isEmpty() ? cats[category].display : "Suche: " + query;
-        g.drawString(this.font, title, cx + 14, py + 22, Palette.TEXT, false);
+        g.drawString(FONT, title, cx + 14, py + 22, Palette.TEXT, false);
 
         // ── Sidebar (manuell, gescrollt, skaliert) ──
         g.enableScissor(px + 10, sidebarTop, px + SW - 2, sidebarBottom);
@@ -283,8 +288,8 @@ public class KollegenMenuScreen extends Screen {
             if (sel) Glass.glow(g, px + 14, by, SW - 28, catItemH, 10, Palette.ACCENT, 16);
             Glass.fillRound(g, px + 14, by, SW - 28, catItemH, 10,
                     sel ? Palette.tint(Palette.ACCENT, 0xD8) : Palette.tint(Palette.PANEL2, 0x66));
-            int ty = by + (catItemH - this.font.lineHeight) / 2;
-            g.drawString(this.font, cats[i].icon + "  " + cats[i].display, px + 26, ty,
+            int ty = by + (catItemH - FONT.lineHeight) / 2;
+            g.drawString(FONT, cats[i].icon + "  " + cats[i].display, px + 26, ty,
                     sel ? 0xFFffffff : Palette.TEXT, false);
         }
         g.disableScissor();
@@ -304,19 +309,19 @@ public class KollegenMenuScreen extends Screen {
                 Glass.fillRound(g, cx + 8, r.y, cw - 16, r.h, 10, Palette.tint(Palette.BORDER, 0xAA));
                 Glass.fillRound(g, cx + 9, r.y + 1, cw - 18, r.h - 2, 9,
                         hov ? Palette.tint(Palette.PANEL2, 0x99) : Palette.tint(Palette.PANEL2, 0x66));
-                g.drawString(this.font, r.module.name, cx + 22, r.y + 11, Palette.TEXT, false);
-                g.drawString(this.font, trunc(r.module.description, cw - 220), cx + 22, r.y + 31, Palette.MUTED, false);
+                g.drawString(FONT, r.module.name, cx + 22, r.y + 11, Palette.TEXT, false);
+                g.drawString(FONT, trunc(r.module.description, cw - 220), cx + 22, r.y + 31, Palette.MUTED, false);
 
                 // Risiko-Hinweis (Text; Dreieck wird nach den Widgets gezeichnet)
                 if (r.module.risk != null) {
-                    g.drawString(this.font, trunc(r.module.risk, cw - 60), cx + 38, r.y + 45, Palette.DANGER, false);
+                    g.drawString(FONT, trunc(r.module.risk, cw - 60), cx + 38, r.y + 45, Palette.DANGER, false);
                 }
             } else {
-                g.drawString(this.font, r.setting.name, cx + 22, r.y + (r.h - this.font.lineHeight) / 2, Palette.TEXT, false);
+                g.drawString(FONT, r.setting.name, cx + 22, r.y + (r.h - FONT.lineHeight) / 2, Palette.TEXT, false);
                 String vt = r.setting.valueText();
                 if (!vt.isEmpty() && r.widget != null) {
-                    int vx = r.widget.getX() - 8 - this.font.width(vt);
-                    g.drawString(this.font, vt, vx, r.y + (r.h - this.font.lineHeight) / 2, Palette.MUTED, false);
+                    int vx = r.widget.getX() - 8 - FONT.width(vt);
+                    g.drawString(FONT, vt, vx, r.y + (r.h - FONT.lineHeight) / 2, Palette.MUTED, false);
                 }
             }
         }

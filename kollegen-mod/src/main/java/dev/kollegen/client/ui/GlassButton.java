@@ -6,6 +6,7 @@ import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.Identifier;
 
 /**
  * Glas-Button, der {@link Button} erweitert, damit Klick-Eingabe über Vanilla läuft.
@@ -33,8 +34,31 @@ public class GlassButton extends Button {
         return this;
     }
 
-    private static Font smoothFont() {
-        return Minecraft.getInstance().font;
+    private static Font SMOOTH;
+
+    public static Font smoothFont() {
+        if (SMOOTH != null) return SMOOTH;
+        Minecraft mc = Minecraft.getInstance();
+        Identifier uni = Identifier.fromNamespaceAndPath("minecraft", "unicode");
+        try {
+            try {
+                java.lang.reflect.Method m = Minecraft.class.getMethod("getFont", Identifier.class);
+                SMOOTH = (Font) m.invoke(mc, uni);
+                return SMOOTH;
+            } catch (NoSuchMethodException ignored) {
+            }
+            try {
+                java.lang.reflect.Method fm = Minecraft.class.getMethod("fontManager");
+                Object mgr = fm.invoke(mc);
+                java.lang.reflect.Method gf = mgr.getClass().getMethod("getFont", Identifier.class);
+                SMOOTH = (Font) gf.invoke(mgr, uni);
+                return SMOOTH;
+            } catch (NoSuchMethodException ignored) {
+            }
+        } catch (Throwable ignored) {
+        }
+        SMOOTH = mc.font;
+        return SMOOTH;
     }
 
     @Override
