@@ -202,7 +202,7 @@ public final class Hud {
 
     private static class ArmorHud extends HudModule {
         ArmorHud() {
-            super("armor", "Rüstung", "Zeigt getragene Rüstung + Haltbarkeit.");
+            super("armor", "Rüstung", "Zeigt die getragene Rüstung + Haltbarkeit untereinander.");
         }
 
         @Override
@@ -214,8 +214,18 @@ public final class Hud {
                     mc.player.getItemBySlot(net.minecraft.world.entity.EquipmentSlot.LEGS),
                     mc.player.getItemBySlot(net.minecraft.world.entity.EquipmentSlot.FEET));
             int n = armor.size();
-            int w = 4 * 20 + 10, h = 20;
+            int rowH = 20;
+            int icon = 16;
+            int textGap = 6;
             int m = 6;
+
+            int textW = 0;
+            for (ItemStack s : armor) {
+                String t = durabilityText(s);
+                if (!t.isEmpty()) textW = Math.max(textW, mc.font.width(t));
+            }
+            int w = (textW > 0 ? icon + textGap + textW : icon) + 6;
+            int h = n * rowH;
             int x = switch (position.index) {
                 case 1, 3 -> mc.getWindow().getGuiScaledWidth() - w - m;
                 default -> m;
@@ -230,16 +240,23 @@ public final class Hud {
             markBounds(x - 4, y - 4, w + 8, h + 8);
             for (int i = 0; i < n; i++) {
                 ItemStack stack = armor.get(i);
-                int ix = x + i * 20;
-                g.renderItem(stack, ix, y);
-                if (!stack.isEmpty() && stack.isDamageableItem()) {
+                int ry = y + i * rowH;
+                g.renderItem(stack, x, ry + (rowH - icon) / 2);
+                String t = durabilityText(stack);
+                if (!t.isEmpty()) {
                     int dmg = stack.getDamageValue();
                     int max = Math.max(1, stack.getMaxDamage());
                     float f = 1f - (float) dmg / max;
                     int col = f > 0.5 ? Palette.GREEN : (f > 0.25 ? Palette.ACCENT : Palette.DANGER);
-                    g.fill(ix, y + 17, (int) (16 * f), 2, col);
+                    g.drawString(mc.font, t, x + icon + textGap, ry + (rowH - mc.font.lineHeight) / 2, col, true);
                 }
             }
+        }
+
+        private static String durabilityText(ItemStack s) {
+            if (s.isEmpty() || !s.isDamageableItem()) return "";
+            int left = s.getMaxDamage() - s.getDamageValue();
+            return left + "/" + s.getMaxDamage();
         }
     }
 

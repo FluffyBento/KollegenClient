@@ -26,7 +26,7 @@ import java.util.Set;
 public class KollegenMod implements ClientModInitializer {
     public static final Logger LOGGER = LoggerFactory.getLogger("kollegen-client");
     public static final String MOD_ID = "kollegen-client";
-    public static final String VERSION = "1.6.4";
+    public static final String VERSION = "1.6.8";
     public static final long DISCORD_CLIENT_ID = 1538588736718373034L;
 
     private static boolean shiftWasDown = false;
@@ -37,6 +37,7 @@ public class KollegenMod implements ClientModInitializer {
     public void onInitializeClient() {
         dev.kollegen.client.mods.Palette.loadTheme(); // ggf. Launcher-Theme übernehmen
         ModuleManager.registerAll(); // lädt Config + ruft onEnable für aktive Module
+        KollegenRPC.start(); // Rich Presence läuft ab sofort (ohne extra Setting)
         LOGGER.info("Kollegen Client Mod initialisiert (Rechts-Shift = Menü).");
     }
 
