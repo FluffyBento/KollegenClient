@@ -20,7 +20,7 @@ public class MouseHandlerMixin {
     /** Speichert die Maus-Position (Roh-Pixel) für die GUI-Skalierung. */
     private static double kollegen$cursorRawX = 0, kollegen$cursorRawY = 0;
 
-    @Inject(method = "method_22686", at = @At("HEAD"))
+    @Inject(method = "onMove", at = @At("HEAD"))
     private void kollegen_client$cursor(long window, double x, double y, CallbackInfo ci) {
         kollegen$cursorRawX = x;
         kollegen$cursorRawY = y;
