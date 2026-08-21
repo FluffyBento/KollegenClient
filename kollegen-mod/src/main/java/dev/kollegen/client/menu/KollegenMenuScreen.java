@@ -32,12 +32,12 @@ public class KollegenMenuScreen extends Screen {
     private final Set<String> expanded = new HashSet<>();
 
     private static final int SW = 220;
-    private static final int R = 20;
+    private static final int R = 16;
     private static final int ROW_H = 58;
     private static final int SET_H = 34;
 
     private EditBox search;
-    private Button closeBtn;
+    private GlassButton closeBtn;
 
     private int px, py, pw, ph, cx, cw;
     private int scroll = 0;
@@ -129,14 +129,16 @@ public class KollegenMenuScreen extends Screen {
         if (catScroll > maxCatScroll) catScroll = maxCatScroll;
         if (catScroll < 0) catScroll = 0;
 
-        // Schließen
-        closeBtn = Button.builder(Component.literal("✕"), btn -> close()).bounds(px + pw - 38, py + 14, 26, 26).build();
+        // Schließen (leeres Glas-Button als Hitbox, X wird manuell gezeichnet)
+        closeBtn = new GlassButton(px + pw - 38, py + 14, 26, 26, Component.empty(), btn -> close());
+        closeBtn.colors(Palette.PANEL2, Palette.ACCENT, Palette.TEXT);
         addRenderableWidget(closeBtn);
 
         // Suche
         search = new EditBox(this.font, cx + 14, py + 16, cw - 28, 24, Component.literal(""));
         search.setMaxLength(40);
         search.setHint(Component.literal("Suchen…"));
+        search.setTextColor(Palette.TEXT);
         search.setValue(query);
         search.setResponder(t -> {
             query = t;
@@ -166,11 +168,13 @@ public class KollegenMenuScreen extends Screen {
                 addRenderableWidget(t);
             }
             if (vis) {
-                Button gear = Button.builder(Component.literal("⚙"), btn -> {
+                GlassButton gear = new GlassButton(gearX, y + (ROW_H - 24) / 2, 30, 24,
+                        Component.empty(), btn -> {
                     if (expanded.contains(m.id)) expanded.remove(m.id);
                     else expanded.add(m.id);
                     rebuild();
-                }).bounds(gearX, y + (ROW_H - 24) / 2, 30, 24).build();
+                });
+                gear.colors(Palette.PANEL2, Palette.ACCENT, Palette.TEXT);
                 addRenderableWidget(gear);
             }
             rows.add(new Row(true, m, null, y, ROW_H, null));
@@ -251,15 +255,19 @@ public class KollegenMenuScreen extends Screen {
     @Override
     public void render(GuiGraphics g, int mx, int my, float pt) {
         g.fill(0, 0, this.width, this.height, Palette.tint(Palette.BG, 0x20));
+
+        // Weicher Akzent-Glow hinter dem Panel (Launcher-Look)
+        Glass.glow(g, px, py, pw, ph, R, Palette.ACCENT, 10);
+
         // Panel
         Glass.fillRound(g, px, py, pw, ph, R, Palette.BORDER);
         Glass.fillRound(g, px + 1, py + 1, pw - 2, ph - 2, R - 1, Palette.tint(Palette.PANEL, 0xF2));
         // Sidebar-Fläche
-        Glass.fillRound(g, px + 8, py + 8, SW, ph - 16, 14, Palette.tint(Palette.PANEL2, 0xCC));
+        Glass.fillRound(g, px + 8, py + 8, SW, ph - 16, 12, Palette.tint(Palette.PANEL2, 0xCC));
         // Akzentleiste oben
         Glass.fillRound(g, px + 8, py + 8, SW, 6, 4, Palette.tint(Palette.ACCENT, 0xE0));
 
-        // Header-Text (Launcher-Stil: fett-orange "KOLLEGEN" + muted "Client")
+        // Header-Text (Launcher-Stil: fett-blau "KOLLEGEN" + muted "Client")
         g.drawString(this.font, "KOLLEGEN", px + 22, py + 26, Palette.ACCENT, false);
         g.drawString(this.font, "Client", px + 22 + this.font.width("KOLLEGEN") + 6, py + 28, Palette.MUTED, false);
 
@@ -272,6 +280,7 @@ public class KollegenMenuScreen extends Screen {
             int by = sidebarTop + i * (catItemH + CAT_GAP) - catScroll;
             if (by + catItemH < sidebarTop || by > sidebarBottom) continue;
             boolean sel = i == category;
+            if (sel) Glass.glow(g, px + 14, by, SW - 28, catItemH, 10, Palette.ACCENT, 16);
             Glass.fillRound(g, px + 14, by, SW - 28, catItemH, 10,
                     sel ? Palette.tint(Palette.ACCENT, 0xD8) : Palette.tint(Palette.PANEL2, 0x66));
             int ty = by + (catItemH - this.font.lineHeight) / 2;
@@ -297,12 +306,10 @@ public class KollegenMenuScreen extends Screen {
                         hov ? Palette.tint(Palette.PANEL2, 0x99) : Palette.tint(Palette.PANEL2, 0x66));
                 g.drawString(this.font, r.module.name, cx + 22, r.y + 11, Palette.TEXT, false);
                 g.drawString(this.font, trunc(r.module.description, cw - 220), cx + 22, r.y + 31, Palette.MUTED, false);
+
+                // Risiko-Hinweis (Text; Dreieck wird nach den Widgets gezeichnet)
                 if (r.module.risk != null) {
-                    g.drawString(this.font, "⚠ " + trunc(r.module.risk, cw - 60), cx + 22, r.y + 45, Palette.DANGER, false);
-                }
-                // Gesperrte Module: Schloss statt Toggle
-                if (r.module.locked) {
-                    g.drawString(this.font, "🔒", cx + cw - 56, r.y + (ROW_H - 28) / 2 + 6, Palette.MUTED, false);
+                    g.drawString(this.font, trunc(r.module.risk, cw - 60), cx + 38, r.y + 45, Palette.DANGER, false);
                 }
             } else {
                 g.drawString(this.font, r.setting.name, cx + 22, r.y + (r.h - this.font.lineHeight) / 2, Palette.TEXT, false);
@@ -324,6 +331,45 @@ public class KollegenMenuScreen extends Screen {
         }
 
         super.render(g, mx, my, pt);
+
+        // Icons über den Widgets zeichnen (Toggle/Gear-Hintergründe sonst darüber)
+        g.enableScissor(cx, contentTop, cx + cw, contentBottom);
+        for (Row r : rows) {
+            if (!r.isModule) continue;
+            boolean hov = mx >= cx + 8 && mx <= cx + cw - 8 && my >= r.y && my < r.y + r.h;
+            int gearCx = cx + cw - 98 + 15;
+            int gearCy = r.y + ROW_H / 2;
+            GlassButton.drawChevron(g, gearCx, gearCy, 6, expanded.contains(r.module.id),
+                    hov ? Palette.TEXT : Palette.MUTED);
+            if (r.module.locked) {
+                drawLock(g, cx + cw - 40, r.y + (ROW_H - 16) / 2, 16, Palette.MUTED);
+            }
+            if (r.module.risk != null) {
+                drawWarning(g, cx + 22, r.y + 41, 12, Palette.DANGER);
+            }
+        }
+        g.disableScissor();
+
+        // Schließen-X manuell über das (leere) Glas-Button zeichnen
+        GlassButton.drawClose(g, px + pw - 38 + 4, py + 14 + 4, 18, Palette.TEXT);
+    }
+
+    private static void drawLock(GuiGraphics g, int x, int y, int s, int color) {
+        int by = y + (int) (s * 0.38);
+        int bh = (int) (s * 0.62);
+        Glass.line(g, x + (int) (s * 0.22), y + (int) (s * 0.30), x + (int) (s * 0.22), by, color);
+        Glass.line(g, x + (int) (s * 0.78), y + (int) (s * 0.30), x + (int) (s * 0.78), by, color);
+        Glass.line(g, x + (int) (s * 0.22), y + (int) (s * 0.30), x + (int) (s * 0.78), y + (int) (s * 0.30), color);
+        g.fill(x, by, s, bh, color);
+    }
+
+    private static void drawWarning(GuiGraphics g, int x, int y, int s, int color) {
+        int midx = x + s / 2;
+        Glass.line(g, x, y + s, midx, y, color);
+        Glass.line(g, x + s, y + s, midx, y, color);
+        Glass.line(g, x, y + s, x + s, y + s, color);
+        Glass.line(g, midx, y + (int) (s * 0.35), midx, y + (int) (s * 0.62), color);
+        g.fill(midx, y + (int) (s * 0.72), 1, 1, color);
     }
 
     private static String trunc(String s, int max) {
