@@ -56,8 +56,10 @@ public final class Glass {
     }
 
     private static void aaCorner(GuiGraphics g, int sx, int sy, int r, int dirX, int dirY,
-                                 int rgb, int alpha) {
-        int SS = 3;
+                                  int rgb, int alpha) {
+        // Eine analytische Abdeckung pro Pixel reicht für weiche Kanten und ist
+        // ~9x günstiger als das vorige 3x3-Supersampling (das pro Frame hunderttausende
+        // einzelne g.fill()-Aufrufe erzeugt hat -> Lag im Menü).
         for (int yy = 0; yy < r; yy++) {
             for (int xx = 0; xx < r; xx++) {
                 int px = sx + xx;
@@ -66,20 +68,12 @@ public final class Glass {
                 double dy = (dirY > 0) ? (r - 0.5 - yy) : (yy + 0.5);
                 double dist = Math.sqrt(dx * dx + dy * dy);
                 double cov;
-                if (dist <= r - 1.0) {
+                if (dist <= r - 0.5) {
                     cov = 1.0;
                 } else if (dist >= r + 0.5) {
                     continue;
                 } else {
-                    double sum = 0;
-                    for (int s = 0; s < SS; s++) {
-                        for (int t = 0; t < SS; t++) {
-                            double ax = (dirX > 0) ? (r - (xx + (s + 0.5) / SS)) : (xx + (s + 0.5) / SS);
-                            double ay = (dirY > 0) ? (r - (yy + (t + 0.5) / SS)) : (yy + (t + 0.5) / SS);
-                            if (Math.sqrt(ax * ax + ay * ay) <= r) sum += 1.0;
-                        }
-                    }
-                    cov = sum / (SS * SS);
+                    cov = (r + 0.5) - dist; // linearer Alpha-Falloff 0..1
                 }
                 if (cov <= 0) continue;
                 int a = (int) (cov * alpha);

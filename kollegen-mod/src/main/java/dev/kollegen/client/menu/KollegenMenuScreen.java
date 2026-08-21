@@ -334,6 +334,8 @@ public class KollegenMenuScreen extends Screen {
         // ── Inhalt (gescissort) ──
         g.enableScissor(cx, contentTop, cx + cw, contentBottom);
         for (Row r : rows) {
+            // nicht sichtbare Zeilen überspringen (sonst tausende g.fill-Aufrufe pro Frame)
+            if (r.y + r.h <= contentTop || r.y >= contentBottom) continue;
             if (r.isModule) {
                 boolean hov = mx >= cx + 8 && mx <= cx + cw - 8 && my >= r.y && my < r.y + r.h;
                 Glass.fillRound(g, cx + 8, r.y, cw - 16, r.h, 13, Palette.tint(Palette.BORDER, 0xAA));
@@ -371,6 +373,7 @@ public class KollegenMenuScreen extends Screen {
         g.enableScissor(cx, contentTop, cx + cw, contentBottom);
         for (Row r : rows) {
             if (!r.isModule) continue;
+            if (r.y + r.h <= contentTop || r.y >= contentBottom) continue;
             boolean hov = mx >= cx + 8 && mx <= cx + cw - 8 && my >= r.y && my < r.y + r.h;
             int gearCx = cx + cw - 98 + 15;
             int gearCy = r.y + ROW_H / 2;
