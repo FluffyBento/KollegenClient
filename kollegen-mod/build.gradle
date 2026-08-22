@@ -1,3 +1,10 @@
+// ASM for bytecode patching (VulkanMod Discord URL)
+buildscript {
+    dependencies {
+        classpath 'org.ow2.asm:asm:9.7.1'
+    }
+}
+
 plugins {
     id 'fabric-loom' version '1.14.10'
     id 'maven-publish'
@@ -153,6 +160,33 @@ tasks.register('vendorVulkanMod') {
                 }
             }
             mixinFile.write(groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(json)))
+        }
+
+        // 5) Bytecode patchen: Ko-fi URL → Discord URL in VOptionScreen.class
+        def voptionScreen = file("${unzipDir}/net/vulkanmod/config/gui/VOptionScreen.class")
+        if (voptionScreen.exists()) {
+            def classBytes = voptionScreen.bytes
+            def reader = new org.objectweb.asm.ClassReader(classBytes)
+            def writer = new org.objectweb.asm.ClassWriter(reader, org.objectweb.asm.ClassWriter.COMPUTE_MAXS)
+            def visitor = new org.objectweb.asm.ClassVisitor(org.objectweb.asm.Opcodes.ASM9, writer) {
+                org.objectweb.asm.MethodVisitor visitMethod(int access, String name, String desc, String signature, String[] exceptions) {
+                    def mv = super.visitMethod(access, name, desc, signature, exceptions)
+                    if (name == "<init>" || name == "<clinit>") {
+                        return new org.objectweb.asm.MethodVisitor(org.objectweb.asm.Opcodes.ASM9, mv) {
+                            void visitLdcInsn(Object value) {
+                                if (value instanceof String && value.contains("ko-fi.com/xcollateral")) {
+                                    super.visitLdcInsn("https://dsc.gg/Kollegen")
+                                    return
+                                }
+                                super.visitLdcInsn(value)
+                            }
+                        }
+                    }
+                    return mv
+                }
+            }
+            reader.accept(visitor, 0)
+            file("${unzipDir}/net/vulkanmod/config/gui/VOptionScreen.class").bytes = writer.toByteArray()
         }
 
         // Rezippen
