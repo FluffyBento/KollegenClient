@@ -6,8 +6,8 @@ import dev.kollegen.client.mods.ModuleManager;
 import net.minecraft.client.CloudStatus;
 import net.minecraft.client.GraphicsPreset;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.ParticlesStatus;
 import net.minecraft.client.PrioritizeChunkUpdates;
+import net.minecraft.particle.ParticlesMode;
 
 public final class Performance {
 
@@ -97,7 +97,7 @@ public final class Performance {
         private GraphicsPreset savedGfx = GraphicsPreset.FANCY;
         private CloudStatus savedCloud = CloudStatus.FANCY;
         private Boolean savedAO = Boolean.TRUE;
-        private ParticlesStatus savedParticles = ParticlesStatus.ALL;
+        private ParticlesMode savedParticles = ParticlesMode.ALL;
         private Boolean savedEntityShadows = Boolean.TRUE;
         private Boolean savedBob = Boolean.TRUE;
         private Boolean savedVignette = Boolean.TRUE;
@@ -127,7 +127,7 @@ public final class Performance {
             o.graphicsPreset().set(GraphicsPreset.FAST);
             o.cloudStatus().set(CloudStatus.OFF);
             o.ambientOcclusion().set(false);
-            o.particles().set(ParticlesStatus.MINIMAL);
+            o.particles().set(ParticlesMode.MINIMAL);
             o.entityShadows().set(false);
             o.bobView().set(false);
             o.vignette().set(false);

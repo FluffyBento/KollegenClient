@@ -24,7 +24,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 @Mixin(net.minecraft.client.multiplayer.ClientLevel.class)
 public abstract class ClientLevelMixin {
 
-    @Inject(method = "dimensionType", at = @At("HEAD"), cancellable = true)
+    @Inject(method = "dimensionType()Lnet/minecraft/world/level/dimension/DimensionType;", at = @At("HEAD"), cancellable = true)
     private void kollegen$fakeDimension(CallbackInfoReturnable<DimensionType> cir) {
         try {
             int mode = WeatherState.mode;

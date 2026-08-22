@@ -8,7 +8,6 @@ import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.Slot;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
@@ -25,11 +24,6 @@ import java.lang.reflect.Field;
  */
 @Mixin(net.minecraft.client.gui.screens.inventory.InventoryScreen.class)
 public class InventoryScreenMixin {
-
-    @Shadow
-    protected int leftPos;
-    @Shadow
-    protected int topPos;
 
     @Unique
     private static final Field KOLLEGEN_SLOT_X;
@@ -98,8 +92,13 @@ public class InventoryScreenMixin {
 
     @Inject(method = "renderBg", at = @At("RETURN"))
     private void kollegen$tintBackground(GuiGraphics gui, float partialTick, int mouseX, int mouseY, CallbackInfo ci) {
-        if (InventoryColor.enabled) {
-            gui.fill(RenderPipelines.GUI, leftPos, topPos, leftPos + 176, topPos + 166, InventoryColor.color.value);
+        if (InventoryColor.enabled && KOLLEGEN_LEFT != null && KOLLEGEN_TOP != null) {
+            try {
+                int lx = (int) KOLLEGEN_LEFT.get(this);
+                int ty = (int) KOLLEGEN_TOP.get(this);
+                gui.fill(RenderPipelines.GUI, lx, ty, lx + 176, ty + 166, InventoryColor.color.value);
+            } catch (ReflectiveOperationException ignored) {
+            }
         }
     }
 
