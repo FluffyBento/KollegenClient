@@ -52,17 +52,115 @@ processResources {
     }
 }
 
-// VulkanMod (LGPL-3.0) wird als Resource in unser Mod-Jar eingebettet, damit der
-// Kollegen-Client den Vulkan-Renderer selbstständig mitbringt – kein externer
-// VulkanMod-Download mehr nötig. Wird nur heruntergeladen, wenn lokal nicht
-// vorhanden (frischer Clone / CI). Die Datei ist in .gitignore (20 MB).
+// VulkanMod (LGPL-3.0) wird gepatcht und als Resource eingebettet:
+//  1. Logo durch Kollegen.png ersetzen
+//  2. fabric.mod.json Name/Description für F3-Branding
+//  3. Sprache auf Deutsch übersetzen + "Support me" → "Zum Discord" (dsc.gg/Kollegen)
+//  4. Mixin-Priorität RenderTypeM 1000 → 1100 (npcstudio-Konflikt vermeiden)
 def vulkanRes = file("src/main/resources/dev/kollegen/client/vulkanmod.bin")
 def vulkanUrl = "https://cdn.modrinth.com/data/JYQhtZtO/versions/hWKRTXbQ/VulkanMod-0.6.8%2B1.21.11.jar"
 tasks.register('vendorVulkanMod') {
     onlyIf { !vulkanRes.exists() }
     doLast {
         vulkanRes.parentFile.mkdirs()
-        ant.get(src: vulkanUrl, dest: vulkanRes, verbose: true)
+        def tmpDir = file("${buildDir}/vulkanmod-patch")
+        tmpDir.deleteDir()
+        tmpDir.mkdirs()
+        def download = file("${tmpDir}/VulkanMod.jar")
+        ant.get(src: vulkanUrl, dest: download, verbose: true)
+
+        def unzipDir = file("${tmpDir}/unzipped")
+        ant.unzip(src: download, dest: unzipDir)
+
+        // 1) Logo ersetzen: Kollegen.png → vlogo.png + vlogo_transparent.png
+        def srcLogo = file("src/main/resources/assets/kollegen/textures/kollegen.png")
+        if (srcLogo.exists()) {
+            ant.copy(file: srcLogo, tofile: file("${unzipDir}/assets/vulkanmod/vlogo.png"))
+            ant.copy(file: srcLogo, tofile: file("${unzipDir}/assets/vulkanmod/vlogo_transparent.png"))
+        }
+
+        // 2) fabric.mod.json patchen: Name + Description für F3
+        def fabricFile = file("${unzipDir}/fabric.mod.json")
+        if (fabricFile.exists()) {
+            def json = new groovy.json.JsonSlurper().parseText(fabricFile.text)
+            json.name = "Kollegen Client Vulkan+${project.version}"
+            json.description = "Vulkan-Renderer (VulkanMod), integriert in den Kollegen Client. Von Kollegen Client verwaltet."
+            fabricFile.write(groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(json)))
+        }
+
+        // 3) Sprache auf Deutsch übersetzen + "Support me" → "Zum Discord"
+        def langFile = file("${unzipDir}/assets/vulkanmod/lang/en_us.json")
+        if (langFile.exists()) {
+            def json = new groovy.json.JsonSlurper().parseText(langFile.text)
+            // Deutsch-Übersetzung
+            json["vulkanmod.options.unknown"] = "Unbekannt"
+            json["vulkanmod.options.pages.video"] = "Video"
+            json["vulkanmod.options.pages.graphics"] = "Grafik"
+            json["vulkanmod.options.pages.optimizations"] = "Optimierungen"
+            json["vulkanmod.options.pages.other"] = "Sonstiges"
+            json["vulkanmod.options.performanceImpact"] = "Performance-Auswirkung: %s"
+            json["vulkanmod.options.performanceImpact.low"] = "Niedrig"
+            json["vulkanmod.options.performanceImpact.medium"] = "Mittel"
+            json["vulkanmod.options.performanceImpact.high"] = "Hoch"
+            json["vulkanmod.options.buttons.apply"] = "Anwenden"
+            json["vulkanmod.options.buttons.undo"] = "Zurücksetzen"
+            json["vulkanmod.options.buttons.kofi"] = "Zum Discord"
+            json["vulkanmod.options.buttons.update_available"] = "Update verfügbar!"
+            json["vulkanmod.options.advCulling"] = "Erweitertes Chunk-Culling"
+            json["vulkanmod.options.advCulling.aggressive"] = "Aggressiv"
+            json["vulkanmod.options.advCulling.conservative"] = "Konservativ"
+            json["vulkanmod.options.advCulling.normal"] = "Normal"
+            json["vulkanmod.options.advCulling.tooltip"] = "Verwendet einen Culling-Algorithmus, der die Performance durch Reduzierung nicht sichtbarer Chunk-Abschnitte verbessern kann."
+            json["vulkanmod.options.ao.subBlock"] = "Sub-Block"
+            json["vulkanmod.options.ao.subBlock.tooltip"] = "Aktiviert weiche Beleuchtung für nicht-vollständige Blöcke (experimentell)."
+            json["vulkanmod.options.deviceSelector"] = "Geräte-Auswahl"
+            json["vulkanmod.options.deviceSelector.auto"] = "Auto"
+            json["vulkanmod.options.deviceSelector.tooltip"] = "Aktuelles Gerät"
+            json["vulkanmod.options.entityCulling"] = "Entity-Culling"
+            json["vulkanmod.options.entityCulling.tooltip"] = "Aktiviert Culling für Entitäten in nicht sichtbaren Abschnitten."
+            json["vulkanmod.options.frameQueue"] = "Render-Warteschlangengröße"
+            json["vulkanmod.options.frameQueue.tooltip"] = "Höhere Werte können Frametimes stabilisieren, erhöhen aber die Eingabeverzögerung."
+            json["vulkanmod.options.backfaceCulling"] = "Backface-Culling"
+            json["vulkanmod.options.backfaceCulling.tooltip"] = "Blendet nicht sichtbare Blockseiten auf der CPU aus, verbessert GPU-Performance. Für weniger CPU-Overhead: Indirect Draw aktivieren."
+            json["vulkanmod.options.indirectDraw"] = "Indirect Draw"
+            json["vulkanmod.options.indirectDraw.tooltip"] = "Reduziert CPU-Overhead, kann GPU-Overhead erhöhen."
+            json["vulkanmod.options.refreshRate"] = "Vollbild-Bildwiederholrate"
+            json["vulkanmod.options.uniqueOpaqueLayer"] = "Eindeutiger undurchsichtiger Layer"
+            json["vulkanmod.options.uniqueOpaqueLayer.tooltip"] = "Verwendet einen einzigartigen Render-Layer für undurchsichtiges Terrain zur Performance-Verbesserung."
+            json["vulkanmod.options.wayland"] = "Wayland nutzen"
+            json["vulkanmod.options.wayland.tooltip"] = "Nutzt Linux Wayland Compositor falls verfügbar (Experimentell). Erfordert Neustart."
+            json["vulkanmod.options.windowMode"] = "Fenstermodus"
+            json["vulkanmod.options.windowMode.windowed"] = "Fenster"
+            json["vulkanmod.options.windowMode.windowedFullscreen"] = "Vollbild im Fenster"
+            json["vulkanmod.options.builderThreads"] = "Chunk-Builder-Threads"
+            json["vulkanmod.options.builderThreads.auto"] = "Auto"
+            json["vulkanmod.options.textureAnimations"] = "Textur-Animationen"
+            json["vulkanmod.options.searchFieldPlaceholder"] = "Grafikeinstellungen suchen"
+            langFile.write(groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(json)))
+        }
+
+        // 4) Mixin-Priorität patchen: RenderTypeM priority 1000 → 1100
+        def mixinFile = file("${unzipDir}/vulkanmod.mixins.json")
+        if (mixinFile.exists()) {
+            def json = new groovy.json.JsonSlurper().parseText(mixinFile.text)
+            json.mixins.each { mixin ->
+                if (mixin.config && mixin.config.injectors) {
+                    mixin.config.injectors.each { injector ->
+                        if (injector.method?.contains("method_60895") && injector.at?.value == "INVOKE") {
+                            injector.priority = 1100
+                        }
+                    }
+                }
+            }
+            mixinFile.write(groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(json)))
+        }
+
+        // Rezippen
+        def patchedJar = file("${tmpDir}/VulkanMod-patched.jar")
+        ant.zip(destfile: patchedJar, basedir: unzipDir)
+
+        // Als Resource kopieren
+        ant.copy(file: patchedJar, tofile: vulkanRes)
     }
 }
 processResources.dependsOn vendorVulkanMod
