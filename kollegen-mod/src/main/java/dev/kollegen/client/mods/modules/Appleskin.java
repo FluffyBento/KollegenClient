@@ -16,7 +16,7 @@ import net.minecraft.world.food.FoodProperties;
  * anpassbar und einzeln an-/ausschaltbar. Zeichnung läuft über den bestehenden
  * HUD-Hook ({@code ModuleManager.renderHud}), Tooltips über ScreenTooltipMixin.
  */
-public final class Appleskin {
+public final class Appleskin extends Module {
 
     /** Für ScreenTooltipMixin. */
     private static Appleskin instance = null;
