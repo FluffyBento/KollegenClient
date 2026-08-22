@@ -89,13 +89,13 @@ public final class Visual {
 
     /** Optifine-artiger Zoom über den FOV-Wert. */
     private static class Zoom extends Module {
-        private final SliderSetting fov = new SliderSetting("FOV", "Sichtfeld beim Zoomen", 30, 10, 70, 1);
+        private final SliderSetting zoom = new SliderSetting("Zoom", "Zoomstärke (1 = kein Zoom, höher = stärker heran).", 4.0, 1.0, 16.0, 0.5);
         private final KeybindSetting key = new KeybindSetting("Taste", "Schaltet den Zoom ein/aus.");
         private double saved = -1;
 
         Zoom() {
-            super("zoom", "Zoom", "Verringert den FOV zum Heranzoomen.", Category.VISUAL);
-            add(fov);
+            super("zoom", "Zoom", "Zoomt heran, behält aber die normale FOV als Basis.", Category.VISUAL);
+            add(zoom);
             add(key);
         }
 
@@ -110,8 +110,15 @@ public final class Visual {
         public void onEnable() {
             if (mc.options != null) {
                 saved = mc.options.fov().get();
-                mc.options.fov().set((int) fov.value);
+                apply();
             }
+        }
+
+        private void apply() {
+            if (mc.options == null || saved <= 0) return;
+            int target = (int) (saved / zoom.value);
+            if (target < 1) target = 1;
+            mc.options.fov().set(target);
         }
 
         @Override
