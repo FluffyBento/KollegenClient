@@ -52,6 +52,7 @@ public final class ModuleManager {
         dev.kollegen.client.mods.modules.World.register();
         dev.kollegen.client.mods.modules.Chat.register();
         dev.kollegen.client.mods.modules.Performance.register();
+        dev.kollegen.client.mods.modules.Vulkan.register();
         dev.kollegen.client.mods.modules.Misc.register();
         dev.kollegen.client.mods.modules.InventoryTweaks.register();
         load();

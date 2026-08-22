@@ -22,6 +22,15 @@ pub const COMPANION_MOD_FILENAME: &str = "kollegen-client-mod.jar";
 /// Name prefix used by the mod's build outputs (`kollegen-client-mod-<version>.jar`).
 pub const COMPANION_MOD_PREFIX: &str = "kollegen-client";
 
+/// Minecraft version the published companion-mod jar is *built* against
+/// (`minecraftVersion` in `kollegen-mod/build.gradle`). The mod's classes are
+/// remapped to this version's intermediary, so the jar can only actually load
+/// on the same `major.minor` line. Installing it onto a different line (e.g.
+/// `26.2`) makes the loader crash with cryptic `class_xxxx`
+/// `NoClassDefFoundError`s, so we refuse those versions explicitly instead of
+/// silently relaxing the metadata constraint.
+pub const COMPANION_TARGET_MC_VERSION: &str = "1.21.11";
+
 const GITHUB_DOWNLOAD_URL: &str =
     "https://github.com/FluffyBento/KollegenClient/releases/latest/download/kollegen-client-mod.jar";
 
@@ -216,12 +225,27 @@ fn relax_companion_constraints(jar: &Path) -> PathBuf {
     jar.to_path_buf()
 }
 
-/// Prüft, ob die Minecraft-Version im unterstützten Bereich 1.21.x – 1.26.x liegt.
-fn is_supported_version(version: &str) -> bool {
+/// Returns the `major.minor` of a Minecraft version string, if parseable.
+fn version_major_minor(version: &str) -> Option<(u32, u32)> {
     let mut parts = version.split('.');
-    let major = parts.next().and_then(|s| s.parse::<u32>().ok());
-    let minor = parts.next().and_then(|s| s.parse::<u32>().ok());
-    matches!((major, minor), (Some(1), Some(m)) if (21..=26).contains(&m))
+    let major = parts.next().and_then(|s| s.parse::<u32>().ok())?;
+    let minor = parts.next().and_then(|s| s.parse::<u32>().ok())?;
+    Some((major, minor))
+}
+
+/// True when the instance's Minecraft version is on the same `major.minor`
+/// line as the companion mod's build target. The mod is remapped to
+/// `COMPANION_TARGET_MC_VERSION`'s intermediary, so it can only load on that
+/// line (e.g. any `1.21.x`); other lines (e.g. `26.2`) crash at runtime with
+/// `NoClassDefFoundError`. We therefore refuse them before injecting anything.
+fn is_compatible_version(version: &str) -> bool {
+    match (
+        version_major_minor(version),
+        version_major_minor(COMPANION_TARGET_MC_VERSION),
+    ) {
+        (Some(a), Some(b)) => a == b,
+        _ => false,
+    }
 }
 
 /// Injects the companion mod into an instance's `mods/` folder. The file name
@@ -241,11 +265,21 @@ pub fn install_companion_mod(data_dir: &Path, instance_name: &str, version: &str
         );
         return;
     }
-    // Nur für unterstützte Minecraft-Versionen (1.21.x – 1.26.x).
-    if !is_supported_version(version) {
+    // The companion mod is built against a single Minecraft major.minor line
+    // (see `COMPANION_TARGET_MC_VERSION`). Installing it onto a different line
+    // would make the loader crash with cryptic class-not-found errors, so we
+    // refuse early with a clear message instead of relaxing the constraint.
+    if !is_compatible_version(version) {
+        let line = version_major_minor(COMPANION_TARGET_MC_VERSION)
+            .map(|(m, n)| format!("{}.{}", m, n))
+            .unwrap_or_else(|| COMPANION_TARGET_MC_VERSION.to_string());
         warn!(
-            "Kollegen-Client-Mod wird bei MC {} übersprungen (nur 1.21.x – 1.26.x unterstützt).",
-            version
+            "Kollegen-Client-Mod bei MC {v} übersprungen: die Mod ist nur mit Minecraft {t} ({line}.x) kompatibel. \
+             Eine Installation auf {v} würde beim Start mit NoClassDefFoundError abstürzen. \
+             Bitte eine Instanz mit {t} (oder einer anderen {line}.x-Version) nutzen.",
+            v = version,
+            t = COMPANION_TARGET_MC_VERSION,
+            line = line
         );
         return;
     }
