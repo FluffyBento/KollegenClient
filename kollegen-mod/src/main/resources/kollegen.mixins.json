@@ -11,7 +11,8 @@
     "BiomeMixin",
     "LogoRendererMixin",
     "FogRendererMixin",
-    "SkyRendererMixin"
+    "SkyRendererMixin",
+    "InventoryScreenMixin"
   ],
   "injectors": {
     "defaultRequire": 1
