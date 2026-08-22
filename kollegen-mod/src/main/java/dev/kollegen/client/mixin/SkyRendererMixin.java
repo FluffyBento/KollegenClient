@@ -21,11 +21,17 @@ public class SkyRendererMixin {
             at = @At("RETURN"))
     private void kollegen$sky(ClientLevel level, float f, Camera camera, SkyRenderState state, CallbackInfo ci) {
         if (WeatherState.mode < 4) return;
-        state.skyColor = switch (WeatherState.mode) {
-            case 4 -> 0xFF_CCCC_CC;   // Nebel: hellgrau
-            case 5 -> 0xFF_2E_13_48;  // End-Blitz: dunkles Violett
-            case 6 -> 0xFF_4A_1E_10;  // Basalt-Delta: orange-rot
-            default -> state.skyColor;
-        };
+        try {
+            if (state != null) {
+                state.skyColor = switch (WeatherState.mode) {
+                    case 4 -> 0xFF_CCCC_CC;   // Nebel: hellgrau
+                    case 5 -> 0xFF_2E_13_48;  // End-Blitz: dunkles Violett
+                    case 6 -> 0xFF_4A_1E_10;  // Basalt-Delta: orange-rot
+                    default -> state.skyColor;
+                };
+            }
+        } catch (Throwable t) {
+            t.printStackTrace();
+        }
     }
 }

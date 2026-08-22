@@ -22,11 +22,15 @@ public class FogRendererMixin {
             at = @At("RETURN"))
     private void kollegen$fog(Camera camera, int i, DeltaTracker delta, float f, ClientLevel level, CallbackInfoReturnable<Vector4f> cir) {
         if (WeatherState.mode < 4) return;
-        cir.setReturnValue(switch (WeatherState.mode) {
-            case 4 -> new Vector4f(0.80F, 0.80F, 0.82F, 1.0F);   // Nebel: hellgrau
-            case 5 -> new Vector4f(0.18F, 0.08F, 0.28F, 1.0F);   // End-Blitz: dunkles Violett
-            case 6 -> new Vector4f(0.65F, 0.28F, 0.12F, 1.0F);   // Basalt-Delta: orange-rot
-            default -> cir.getReturnValue();
-        });
+        try {
+            cir.setReturnValue(switch (WeatherState.mode) {
+                case 4 -> new Vector4f(0.80F, 0.80F, 0.82F, 1.0F);   // Nebel: hellgrau
+                case 5 -> new Vector4f(0.18F, 0.08F, 0.28F, 1.0F);   // End-Blitz: dunkles Violett
+                case 6 -> new Vector4f(0.65F, 0.28F, 0.12F, 1.0F);   // Basalt-Delta: orange-rot
+                default -> cir.getReturnValue();
+            });
+        } catch (Throwable t) {
+            t.printStackTrace();
+        }
     }
 }
