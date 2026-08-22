@@ -8,7 +8,8 @@
     "HudMixin",
     "MouseHandlerMixin",
     "NametagMixin",
-    "BiomeMixin"
+    "BiomeMixin",
+    "LogoRendererMixin"
   ],
   "injectors": {
     "defaultRequire": 1
