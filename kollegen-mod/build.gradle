@@ -24,6 +24,8 @@ repositories {
     maven { url = uri("${projectDir}/libs") }
     mavenLocal()
     maven { url 'https://maven.fabricmc.net/' }
+    // ModMenu (optionale Compile-Only-Abhängigkeit für ModMenuIntegration).
+    maven { url = uri("https://maven.terraformersmc.com/") }
     mavenCentral()
 }
 
