@@ -2,6 +2,7 @@ package dev.kollegen.client.mods;
 
 import com.google.gson.JsonObject;
 import dev.kollegen.client.mods.Palette;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
@@ -46,7 +47,8 @@ public class StringSetting extends Setting {
         int h = 20;
         int x = px + cw - w - 8;
         int y = py + (rowH - h) / 2;
-        EditBox box = new EditBox(screen.font, x, y, w, h, Component.literal(""));
+        // Screen#font ist protected – über die globale Minecraft-Instanz abgreifen.
+        EditBox box = new EditBox(Minecraft.getInstance().font, x, y, w, h, Component.literal(""));
         box.setMaxLength(maxLength);
         box.setValue(value == null ? "" : value);
         String hint = description;

@@ -83,7 +83,7 @@ public final class Chat {
                 activeChatInput.setValue(cur.isEmpty() ? text : cur + " " + text);
                 return;
             }
-            mc.setScreen(new ChatScreen(text));
+            mc.setScreen(new ChatScreen(text, false));
         }
 
         private static class Slot {

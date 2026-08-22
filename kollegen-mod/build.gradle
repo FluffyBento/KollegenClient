@@ -24,8 +24,6 @@ repositories {
     maven { url = uri("${projectDir}/libs") }
     mavenLocal()
     maven { url 'https://maven.fabricmc.net/' }
-    // ModMenu (optionale Compile-Only-Abhängigkeit für ModMenuIntegration).
-    maven { url = uri("https://maven.terraformersmc.com/") }
     mavenCentral()
 }
 
@@ -45,17 +43,16 @@ dependencies {
     // generates the refmap (kollegen-client-mod.refmap.json). It must be declared
     // in kollegen.mixins.json via the "refmap" key so Mixin can resolve Yarn
     // method names against the obfuscated runtime.
-
-    // ModMenu wird nur zum Kompilieren benötigt (optionale API, um die eingebetteten
-    // Mods in der ModMenu-Liste zu verstecken). Zur Laufzeit ist es keine harte
-    // Abhängigkeit – ohne ModMenu wird der Entrypoint einfach ignoriert.
-    modCompileOnly "com.terraformersmc:modmenu:11.0.3"
 }
 
 // ── Eingebettete Renderer-Mods ───────────────────────────────────────────────
 // VulkanMod (LGPL) wird gepatcht (siehe vendorVulkanMod). Sodium, Iris und Beryl
-// werden unverändert als Resource eingebettet und zur Laufzeit vom Kollegen-Client
-// je nach Renderer-Gruppe deployed (.jar) bzw. deaktiviert (.disabled).
+// werden als Resource eingebettet und zur Laufzeit vom Kollegen-Client je nach
+// Renderer-Gruppe deployed (.jar) bzw. deaktiviert (.disabled).
+//
+// Alle vier jars bekommen beim Vendoring ihre fabric.mod.json um
+// "custom.modmenu.parent = kollegen-client" ergänzt – dadurch ordnet ModMenu sie
+// als Unterpunkte des Kollegen-Client ein statt als eigene Top-Level-Mods.
 
 def modrinthPrimaryFileUrl(String slug, String mc, String loader) {
     def url = "https://api.modrinth.com/v2/project/${slug}/version?game_versions=[\"${mc}\"]&loaders=[\"${loader}\"]"
@@ -72,7 +69,30 @@ def vendorModResource(String resourceRel, String slug) {
         doLast {
             res.parentFile.mkdirs()
             def url = modrinthPrimaryFileUrl(slug, project.minecraft_version, "fabric")
-            ant.get(src: url, dest: res, verbose: true)
+            // Original-Jar cachen (Download), danach immer neu patchen
+            def cacheDir = file("${buildDir}/vendor-patch/${slug}")
+            cacheDir.mkdirs()
+            def download = new File(cacheDir, "${slug}-orig.jar")
+            if (!download.exists()) {
+                ant.get(src: url, dest: download, verbose: true)
+            }
+
+            // Entpacken → fabric.mod.json für ModMenu patchen (unter dem
+            // Kollegen-Client einordnen) → neu zippen.
+            def unzipDir = new File(cacheDir, "unzipped")
+            unzipDir.deleteDir()
+            unzipDir.mkdirs()
+            ant.unzip(src: download, dest: unzipDir)
+            def fmj = new File(unzipDir, "fabric.mod.json")
+            if (fmj.exists()) {
+                def json = new groovy.json.JsonSlurper().parseText(fmj.text)
+                if (!(json.custom instanceof Map)) {
+                    json.custom = [:]
+                }
+                json.custom.modmenu = [parent: "kollegen-client"]
+                fmj.write(groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(json)))
+            }
+            ant.zip(destfile: res, basedir: unzipDir)
         }
     }
 }
@@ -133,6 +153,11 @@ tasks.register('vendorVulkanMod') {
             def json = new groovy.json.JsonSlurper().parseText(fabricFile.text)
             json.name = "Kollegen Client Vulkan+${project.version}"
             json.description = "Vulkan-Renderer (VulkanMod), integriert in den Kollegen Client. Von Kollegen Client verwaltet."
+            // In ModMenu unter dem Kollegen-Client einordnen statt Top-Level-Eintrag
+            if (!(json.custom instanceof Map)) {
+                json.custom = [:]
+            }
+            json.custom.modmenu = [parent: "kollegen-client"]
             fabricFile.write(groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(json)))
         }
 
