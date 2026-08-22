@@ -55,10 +55,44 @@ dependencies {
 // als Unterpunkte des Kollegen-Client ein statt als eigene Top-Level-Mods.
 
 def modrinthPrimaryFileUrl(String slug, String mc, String loader) {
-    def url = "https://api.modrinth.com/v2/project/${slug}/version?game_versions=[\"${mc}\"]&loaders=[\"${loader}\"]"
-    def arr = new groovy.json.JsonSlurper().parse(new URL(url).newReader())
-    def version = arr.find { it.game_versions.contains(mc) && it.loaders.contains(loader) } ?: arr[0]
-    def file = (version.files.find { it.primary } ?: version.files[0])
+    def slurp = { String body -> new groovy.json.JsonSlurper().parseText(body) }
+    def fetch = { String u ->
+        def conn = new URL(u).openConnection()
+        // Modrinth verlangt einen User-Agent ohne diesen droht 403/Rate-Limit.
+        conn.setRequestProperty("User-Agent", "KollegenClient/${project.version} (+https://github.com/FluffyBento/KollegenClient)")
+        conn.setConnectTimeout(20000)
+        conn.setReadTimeout(120000)
+        def code = conn.responseCode
+        if (code != 200) {
+            throw new GradleException("Modrinth-Anfrage fehlgeschlagen (HTTP ${code}) für: ${u}")
+        }
+        return slurp(conn.inputStream.getText("UTF-8"))
+    }
+
+    // Wichtig: Query-Parameter URL-enkodieren. Rohe [ ] " im Query-String
+    // liefern sonst HTTP 400 von der Modrinth-API (Grund für den CI-Fehler).
+    def enc = { String v -> java.net.URLEncoder.encode(v, "UTF-8") }
+
+    List versions = []
+    try {
+        versions = fetch("https://api.modrinth.com/v2/project/${slug}/version?game_versions=${enc("[\"${mc}\"]")}&loaders=${enc("[\"${loader}\"]")}")
+    } catch (Exception e) {
+        println("vendor${slug.capitalize()}Mod: gefilterte Modrinth-Abfrage fehlgeschlagen (${e.message}) – nutze ungefilterte Abfrage.")
+    }
+
+    // Fallback: alle Versionen laden und selbst filtern (robust gegen
+    // unbekannte Game-Version-Tags).
+    if (!versions) {
+        versions = fetch("https://api.modrinth.com/v2/project/${slug}/version")
+    }
+    if (!versions) {
+        throw new GradleException("Keine Modrinth-Versionen für '${slug}' gefunden.")
+    }
+
+    def chosen = versions.find { it.game_versions?.contains(mc) && it.loaders?.contains(loader) }
+            ?: versions.find { it.game_versions?.contains(mc) }
+            ?: versions.first()
+    def file = (chosen.files.find { it.primary } ?: chosen.files[0])
     return file.url
 }
 
