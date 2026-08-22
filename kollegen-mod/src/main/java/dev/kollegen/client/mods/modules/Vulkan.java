@@ -16,19 +16,17 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Integriert den Vulkan-Renderer (VulkanMod, LGPL-3.0) vollständig in den
- * Kollegen-Client: die VulkanMod-Datei ist als Resource im Mod-Jar eingebettet,
- * sodass KEIN externer VulkanMod-Download nötig ist. Der Toggle entpackt
- * VulkanMod in den {@code mods/}-Ordner (aktiv) bzw. entfernt es wieder
- * (inaktiv).
- *
- * <p>VulkanMod hat selbst keinen Abschalt-Schalter in seiner Config – die
- * einzige Möglichkeit, es zu deaktivieren, ist das Entfernen der Jar. Deshalb
- * wird beim Umschalten jeweils ein Neustart nötig (ein Renderer-Tausch im
- * laufenden Spiel ist nicht möglich). Damit der Launcher diese von uns
- * verwaltete Jar nicht als "Konflikt" repariert (und so eine Neustart-Schleife
- * erzeugt), überspringt {@code auto_resolve_conflict} in {@code main.rs}
- * VulkanMod.</p>
+ * Integriert den Vulkan-Renderer (VulkanMod, LGPL-3.0) in den
+ * Kollegen-Client. VulkanMod und Sodium (plus Iris) sind gegenseitig
+ * inkompatibel (beide ersetzen den Renderer). Dieser Toggle managt die
+ * Exklusivität automatisch:
+ * <ul>
+ *   <li>Vulkan AN  → Sodium + Iris werden deaktiviert (.disabled), VulkanMod wird deployed.</li>
+ *   <li>Vulkan AUS → VulkanMod wird entfernt, Sodium + Iris werden wiederhergestellt.</li>
+ * </ul>
+ * Der Wechsel wirkt erst nach Neustart (Renderer-Tausch im laufenden Spiel nicht möglich).
+ * Eine Marker-Datei (`.kollegen-vulkan-disabled`) merkt sich, welche Mods wir deaktiviert
+ * haben, damit nur unsere Änderungen rückgängig gemacht werden.
  */
 public final class Vulkan {
 
@@ -42,11 +40,15 @@ public final class Vulkan {
     private static final class VulkanModule extends Module {
         private static final String EMBEDDED = "/dev/kollegen/client/vulkanmod.bin";
         private static final String FILE_NAME = "VulkanMod-0.6.8+1.21.11.jar";
-        private static final String PREFIX = "VulkanMod-";
+        private static final String VULKAN_PREFIX = "VulkanMod-";
+        private static final String[] EXCLUSIVE_PREFIXES = {"sodium-", "iris-"};
+
+        private static final Path MARKER =
+                FabricLoader.getInstance().getGameDir().resolve("mods").resolve(".kollegen-vulkan-disabled");
 
         VulkanModule() {
             super("vulkan", "Vulkan Renderer",
-                    "Integrierter Vulkan-Renderer (VulkanMod). Ein-Klick aktiv/deaktiv – wirkt nach Neustart.",
+                    "Integrierter Vulkan-Renderer (VulkanMod). Inkompatibel mit Sodium/Iris – diese werden automatisch deaktiviert. Wirkt nach Neustart.",
                     Category.PERFORMANCE);
         }
 
@@ -67,49 +69,138 @@ public final class Vulkan {
                 return;
             }
             if (enable) {
-                // Alle vorhandenen VulkanMod-Versionen entfernen, damit genau
-                // EINE (unsere eingebettete) übrig bleibt. Zwei VulkanMod-Jars
-                // würde Fabric sonst als "incompatible mods" melden und crashen.
+                // Alle vorhandenen VulkanMod-Versionen entfernen (sauberer Zustand)
                 removeAllVulkanMod(mods);
+
+                // Exklusive Mods (Sodium + Iris) deaktivieren und merken
+                List<Path> disabled = disableExclusiveMods(mods);
+                if (!disabled.isEmpty()) {
+                    KollegenMod.LOGGER.info("Kollegen: Für Vulkan deaktiviert: {}", disabled);
+                }
+
+                // VulkanMod deployen
                 try (InputStream in = VulkanModule.class.getResourceAsStream(EMBEDDED)) {
                     if (in == null) {
                         risk = "VulkanMod ist nicht in diesem Mod eingebettet (Build-Fehler)";
+                        restoreExclusiveMods(mods, disabled);
                         return;
                     }
                     Files.copy(in, mods.resolve(FILE_NAME), StandardCopyOption.REPLACE_EXISTING);
                 } catch (IOException e) {
                     KollegenMod.LOGGER.warn("Kollegen: VulkanMod konnte nicht deployt werden: {}", e.getMessage());
                     risk = "VulkanMod konnte nicht aktiviert werden";
+                    restoreExclusiveMods(mods, disabled);
                     return;
                 }
-                risk = "Vulkan ist AKTIV – Minecraft neu starten, damit es lädt.";
-                KollegenMod.LOGGER.info("Kollegen: VulkanMod deployt (aktiv nach Neustart).");
+
+                // Marker schreiben (damit wir beim Deaktivieren wissen, was wir deaktiviert haben)
+                writeMarker(disabled);
+
+                risk = "Vulkan ist AKTIV – Minecraft neu starten, damit es lädt. (Sodium/Iris wurden automatisch deaktiviert.)";
+                KollegenMod.LOGGER.info("Kollegen: VulkanMod deployt, Exklusiv-Mods deaktiviert (aktiv nach Neustart).");
             } else {
+                // VulkanMod entfernen
                 boolean removed = removeAllVulkanMod(mods);
                 if (!removed) {
                     risk = "VulkanMod war nicht installiert";
                     return;
                 }
-                risk = "Vulkan ist DEAKTIVIERT – Minecraft neu starten (lädt OpenGL).";
-                KollegenMod.LOGGER.info("Kollegen: VulkanMod entfernt (OpenGL nach Neustart).");
+
+                // Exklusive Mods wiederherstellen (falls wir sie deaktiviert hatten)
+                List<Path> disabled = readMarker();
+                if (!disabled.isEmpty()) {
+                    restoreExclusiveMods(mods, disabled);
+                    KollegenMod.LOGGER.info("Kollegen: Exklusive Mods wiederhergestellt: {}", disabled);
+                }
+                deleteMarker();
+
+                risk = "Vulkan ist DEAKTIVIERT – Minecraft neu starten (lädt OpenGL). (Sodium/Iris wieder aktiv.)";
+                KollegenMod.LOGGER.info("Kollegen: VulkanMod entfernt, Exklusiv-Mods wiederhergestellt (OpenGL nach Neustart).");
+            }
+        }
+
+        private static List<Path> disableExclusiveMods(Path mods) {
+            List<Path> disabled = new ArrayList<>();
+            try (DirectoryStream<Path> ds = Files.newDirectoryStream(mods)) {
+                for (Path p : ds) {
+                    String n = p.getFileName().toString().toLowerCase();
+                    for (String prefix : EXCLUSIVE_PREFIXES) {
+                        if (n.startsWith(prefix) && (n.endsWith(".jar") || n.endsWith(".jar.disabled"))) {
+                            Path target = p.getFileName().toString().endsWith(".jar")
+                                    ? p.resolveSibling(p.getFileName() + ".disabled")
+                                    : p; // schon .disabled? dann nichts tun
+                            if (!p.equals(target)) {
+                                try {
+                                    Files.move(p, target);
+                                    disabled.add(target);
+                                } catch (IOException ignored) {
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch (IOException ignored) {
+            }
+            return disabled;
+        }
+
+        private static void restoreExclusiveMods(Path mods, List<Path> disabled) {
+            for (Path p : disabled) {
+                String n = p.getFileName().toString();
+                if (n.endsWith(".jar.disabled")) {
+                    Path target = p.resolveSibling(n.substring(0, n.length() - ".disabled".length()));
+                    try {
+                        Files.move(p, target);
+                    } catch (IOException ignored) {
+                    }
+                }
+            }
+        }
+
+        private void writeMarker(List<Path> disabled) {
+            if (disabled.isEmpty()) return;
+            try {
+                List<String> lines = new ArrayList<>();
+                for (Path p : disabled) {
+                    lines.add(p.getFileName().toString());
+                }
+                Files.write(MARKER, lines);
+            } catch (IOException ignored) {
+            }
+        }
+
+        private List<Path> readMarker() {
+            List<Path> out = new ArrayList<>();
+            if (!Files.exists(MARKER)) return out;
+            try {
+                List<String> lines = Files.readAllLines(MARKER);
+                Path mods = FabricLoader.getInstance().getGameDir().resolve("mods");
+                for (String name : lines) {
+                    out.add(mods.resolve(name));
+                }
+            } catch (IOException ignored) {
+            }
+            return out;
+        }
+
+        private void deleteMarker() {
+            try {
+                Files.deleteIfExists(MARKER);
+            } catch (IOException ignored) {
             }
         }
 
         private static boolean removeAllVulkanMod(Path mods) {
             boolean removed = false;
             try (DirectoryStream<Path> ds = Files.newDirectoryStream(mods)) {
-                List<Path> toRemove = new ArrayList<>();
                 for (Path p : ds) {
                     String n = p.getFileName().toString().toLowerCase();
-                    if (n.startsWith(PREFIX.toLowerCase())
+                    if (n.startsWith(VULKAN_PREFIX.toLowerCase())
                             && (n.endsWith(".jar") || n.endsWith(".jar.disabled"))) {
-                        toRemove.add(p);
-                    }
-                }
-                for (Path p : toRemove) {
-                    try {
-                        if (Files.deleteIfExists(p)) removed = true;
-                    } catch (IOException ignored) {
+                        try {
+                            if (Files.deleteIfExists(p)) removed = true;
+                        } catch (IOException ignored) {
+                        }
                     }
                 }
             } catch (IOException ignored) {

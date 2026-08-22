@@ -338,12 +338,6 @@ fn auto_resolve_conflict(
         if crate::companion::is_companion_mod_name(&fname) {
             continue;
         }
-        // Vom Kollegen-Client selbst verwalteter VulkanMod (embedded + vom
-        // Mod aus deployt/entfernt). Würde der Launcher ihn "reparieren",
-        // entstünde eine Neustart-Schleife – also hier überspringen.
-        if fname.to_lowercase().contains("vulkanmod") {
-            continue;
-        }
 
         let pid = resolve_mod_pid(
             &state.data_dir,
