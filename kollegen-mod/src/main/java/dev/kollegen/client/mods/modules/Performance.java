@@ -5,9 +5,7 @@ import dev.kollegen.client.mods.Module;
 import dev.kollegen.client.mods.ModuleManager;
 import net.minecraft.client.CloudStatus;
 import net.minecraft.client.GraphicsPreset;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.PrioritizeChunkUpdates;
-import net.minecraft.particle.ParticlesMode;
 
 public final class Performance {
 
@@ -88,7 +86,7 @@ public final class Performance {
     /**
      * Ein-Klick-Preset fuer maximale Leistung: b&uuml;ndelt die aggressivsten
      * client-seitigen Einstellungen (Schnelle Grafik, keine Wolken, keine weiche
-     * Beleuchtung, minimale Partikel, keine Entity-Schatten, keine Sicht-Effekte
+     * Beleuchtung, keine Entity-Schatten, keine Sicht-Effekte
      * wie Verletzungs-/K&uuml;rbis-Overlay, reduzierte Entity-Sichtweite und
      * Chunk-Update-Priorisierung auf Performance). Stellt die Originalwerte beim
      * Deaktivieren wieder her.
@@ -97,7 +95,6 @@ public final class Performance {
         private GraphicsPreset savedGfx = GraphicsPreset.FANCY;
         private CloudStatus savedCloud = CloudStatus.FANCY;
         private Boolean savedAO = Boolean.TRUE;
-        private ParticlesMode savedParticles = ParticlesMode.ALL;
         private Boolean savedEntityShadows = Boolean.TRUE;
         private Boolean savedBob = Boolean.TRUE;
         private Boolean savedVignette = Boolean.TRUE;
@@ -116,7 +113,6 @@ public final class Performance {
             savedGfx = o.graphicsPreset().get();
             savedCloud = o.cloudStatus().get();
             savedAO = o.ambientOcclusion().get();
-            savedParticles = o.particles().get();
             savedEntityShadows = o.entityShadows().get();
             savedBob = o.bobView().get();
             savedVignette = o.vignette().get();
@@ -127,7 +123,6 @@ public final class Performance {
             o.graphicsPreset().set(GraphicsPreset.FAST);
             o.cloudStatus().set(CloudStatus.OFF);
             o.ambientOcclusion().set(false);
-            o.particles().set(ParticlesMode.MINIMAL);
             o.entityShadows().set(false);
             o.bobView().set(false);
             o.vignette().set(false);
@@ -143,7 +138,6 @@ public final class Performance {
             o.graphicsPreset().set(savedGfx);
             o.cloudStatus().set(savedCloud);
             o.ambientOcclusion().set(savedAO);
-            o.particles().set(savedParticles);
             o.entityShadows().set(savedEntityShadows);
             o.bobView().set(savedBob);
             o.vignette().set(savedVignette);
