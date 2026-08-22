@@ -16,6 +16,7 @@ public final class Performance {
         ModuleManager.register(new FastGraphics());
         ModuleManager.register(new NoClouds());
         ModuleManager.register(new SmoothLighting());
+        ModuleManager.register(new CpuOffload());
         ModuleManager.register(new MaxFps());
         ModuleManager.register(new AdaptivePerformance());
     }
@@ -80,6 +81,48 @@ public final class Performance {
         @Override
         public void onDisable() {
             if (mc.options != null) mc.options.ambientOcclusion().set(saved);
+        }
+    }
+
+    /**
+     * Verschiebt die Last staerker auf die CPU und entlastet die (schwache) GPU:
+     * VSync aus (entkoppelt, CPU treibt Frames), Mipmaps aus und Biom-Mischung
+     * aus (weniger GPU-Textur-/F&nbsp;llkosten), sowie Chunk-Updates nahe dem
+     * Spieler (CPU priorisiert). Bei starker CPU + schwacher GPU der beste
+     * Hebel f&uuml;r mehr FPS.
+     */
+    private static class CpuOffload extends Module {
+        private Boolean savedVsync = Boolean.TRUE;
+        private Integer savedMipmap = 4;
+        private Integer savedBiomeBlend = 4;
+        private PrioritizeChunkUpdates savedChunk = PrioritizeChunkUpdates.PLAYER_AFFECTED;
+
+        CpuOffload() {
+            super("cpuoffload", "CPU-Last", "Last auf die CPU verschieben, GPU entlasten (VSync aus, Mipmaps/Biom-Mischung aus, Chunk-Updates nahe).", Category.PERFORMANCE);
+        }
+
+        @Override
+        public void onEnable() {
+            var o = mc.options;
+            if (o == null) return;
+            savedVsync = o.enableVsync().get();
+            savedMipmap = o.mipmapLevels().get();
+            savedBiomeBlend = o.biomeBlendRadius().get();
+            savedChunk = o.prioritizeChunkUpdates().get();
+            o.enableVsync().set(false);
+            o.mipmapLevels().set(0);
+            o.biomeBlendRadius().set(0);
+            o.prioritizeChunkUpdates().set(PrioritizeChunkUpdates.NEARBY);
+        }
+
+        @Override
+        public void onDisable() {
+            var o = mc.options;
+            if (o == null) return;
+            o.enableVsync().set(savedVsync);
+            o.mipmapLevels().set(savedMipmap);
+            o.biomeBlendRadius().set(savedBiomeBlend);
+            o.prioritizeChunkUpdates().set(savedChunk);
         }
     }
 
