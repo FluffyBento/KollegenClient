@@ -135,25 +135,26 @@ def vendorModResource(String resourceRel, String slug, String urlOverride = null
     }
 }
 
-// Renderer-Gruppe
-vendorModResource('dev/kollegen/client/sodium.bin', 'sodium')
-vendorModResource('dev/kollegen/client/iris.bin', 'iris')
-vendorModResource('dev/kollegen/client/beryl.bin', 'beryl')
+// Renderer-Gruppe. vendorModResource gibt den TaskProvider zurück – wir
+// sammeln ihn direkt ein, statt Task-Namen in der dependsOn-Zeile zu raten.
+def sodiumTask = vendorModResource('dev/kollegen/client/sodium.bin', 'sodium')
+def irisTask = vendorModResource('dev/kollegen/client/iris.bin', 'iris')
+def berylTask = vendorModResource('dev/kollegen/client/beryl.bin', 'beryl')
 
 // Integrations-Bundles: Spotify Overlay (+ alle harten Dependencies laut dessen
 // fabric.mod.json) und Chat Heads. Spotify ist bewusst auf die vom Nutzer
 // angegebene Version gepinnt; der Rest zieht automatisch die neueste zur
 // MC-Version passende Version.
 def spotifyUrl = 'https://cdn.modrinth.com/data/iRsArBuW/versions/BMGGYY7f/spotify_overlay-1.0.17-SNAPSHOT%2Bfabric.1.21.11.jar'
-vendorModResource('dev/kollegen/client/spotify.bin', 'spotify-overlay', spotifyUrl)
-vendorModResource('dev/kollegen/client/flk.bin', 'fabric-language-kotlin')
-vendorModResource('dev/kollegen/client/fabricapi.bin', 'fabric-api')
-vendorModResource('dev/kollegen/client/owo.bin', 'owo-lib')
-vendorModResource('dev/kollegen/client/modmenu.bin', 'modmenu')
-vendorModResource('dev/kollegen/client/tpa.bin', 'placeholder-api')
-vendorModResource('dev/kollegen/client/silk.bin', 'silk')
-vendorModResource('dev/kollegen/client/clothconfig.bin', 'cloth-config')
-vendorModResource('dev/kollegen/client/chatheads.bin', 'chat-heads')
+def spotifyTask = vendorModResource('dev/kollegen/client/spotify.bin', 'spotify-overlay', spotifyUrl)
+def flkTask = vendorModResource('dev/kollegen/client/flk.bin', 'fabric-language-kotlin')
+def fabricApiTask = vendorModResource('dev/kollegen/client/fabricapi.bin', 'fabric-api')
+def owoTask = vendorModResource('dev/kollegen/client/owo.bin', 'owo-lib')
+def modMenuTask = vendorModResource('dev/kollegen/client/modmenu.bin', 'modmenu')
+def tpaTask = vendorModResource('dev/kollegen/client/tpa.bin', 'placeholder-api')
+def silkTask = vendorModResource('dev/kollegen/client/silk.bin', 'silk')
+def clothConfigTask = vendorModResource('dev/kollegen/client/clothconfig.bin', 'cloth-config')
+def chatHeadsTask = vendorModResource('dev/kollegen/client/chatheads.bin', 'chat-heads')
 
 loom {
     mixin {
@@ -338,9 +339,9 @@ tasks.register('vendorVulkanMod') {
         ant.copy(file: patchedJar, tofile: vulkanRes)
     }
 }
-processResources.dependsOn vendorVulkanMod, vendorSodiumMod, vendorIrisMod, vendorBerylMod,
-        vendorSpotifyoverlayMod, vendorFlkMod, vendorFabricapiMod, vendorOwoMod, vendorModmenuMod,
-        vendorTpaMod, vendorSilkMod, vendorClothconfigMod, vendorChatheadsMod
+processResources.dependsOn vendorVulkanMod, sodiumTask, irisTask, berylTask,
+        spotifyTask, flkTask, fabricApiTask, owoTask, modMenuTask,
+        tpaTask, silkTask, clothConfigTask, chatHeadsTask
 
 java {
     sourceCompatibility = JavaVersion.VERSION_21
