@@ -46,8 +46,8 @@ public final class LogoDraw {
         float scale = (float) targetW / dim[0];
         var pose = gui.pose();
         pose.pushMatrix();
-        pose.translate(x, y, 0.0F);
-        pose.scale(scale, scale, 1.0F);
+        pose.translate(x, y);
+        pose.scale(scale, scale);
         gui.blit(RenderPipelines.GUI_TEXTURED, KOLLEGEN_LOGO, 0, 0, 0.0F, 0.0F, dim[0], dim[1], dim[0], dim[1]);
         pose.popMatrix();
     }

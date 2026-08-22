@@ -39,7 +39,7 @@ public abstract class Module {
         this.category = category;
     }
 
-    protected void add(Setting s) {
+    public void add(Setting s) {
         settings.add(s);
     }
 

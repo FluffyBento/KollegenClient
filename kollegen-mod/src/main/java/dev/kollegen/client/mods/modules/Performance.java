@@ -100,7 +100,7 @@ public final class Performance {
         private Boolean savedVignette = Boolean.TRUE;
         private Double savedScreenEffect = 1.0;
         private Double savedEntityDist = 1.0;
-        private PrioritizeChunkUpdates savedChunk = PrioritizeChunkUpdates.BALANCED;
+        private PrioritizeChunkUpdates savedChunk = PrioritizeChunkUpdates.PLAYER_AFFECTED;
 
         MaxFps() {
             super("maxfps", "Max FPS", "Wendet die aggressivsten Performance-Einstellungen auf einmal an.", Category.PERFORMANCE);
@@ -128,7 +128,7 @@ public final class Performance {
             o.vignette().set(false);
             o.screenEffectScale().set(0.0);
             o.entityDistanceScaling().set(0.5);
-            o.prioritizeChunkUpdates().set(PrioritizeChunkUpdates.PERFORMANCE);
+            o.prioritizeChunkUpdates().set(PrioritizeChunkUpdates.NEARBY);
         }
 
         @Override
