@@ -12,7 +12,8 @@
     "LogoRendererMixin",
     "FogRendererMixin",
     "SkyRendererMixin",
-    "InventoryScreenMixin"
+    "InventoryScreenMixin",
+    "ClientLevelMixin"
   ],
   "injectors": {
     "defaultRequire": 1
