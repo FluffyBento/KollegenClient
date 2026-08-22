@@ -146,7 +146,7 @@ fn create_instance(
         loader_version,
         description: String::new(),
         mods: vec!["essentialmod.jar".to_string()],
-        vulkan_enabled: true,
+        vulkan_enabled: false,
         memory_min: DEFAULT_MEMORY_MIN.to_string(),
         memory_max: DEFAULT_MEMORY_MAX.to_string(),
         created_at: chrono::Utc::now().to_rfc3339(),

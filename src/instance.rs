@@ -8,6 +8,7 @@ use log::{info, warn};
 use serde_json::Value;
 use std::fs;
 use std::path::{Path, PathBuf};
+use zip::ZipArchive;
 use std::process::{Command, Stdio};
 use std::io::Write;
 use std::io::Read;
@@ -732,6 +733,82 @@ fn clean_corrupt_mods(mods_dir: &Path) {
 
 // ─=== Game Launch ===
 
+/// Reads the `id` field from a jar's `fabric.mod.json`, if present. Used to
+/// identify mods by their real modid rather than guessing from the file name.
+fn jar_mod_id(jar: &Path) -> Option<String> {
+    let file = fs::File::open(jar).ok()?;
+    let mut archive = ZipArchive::new(file).ok()?;
+    let mut entry = archive.by_name("fabric.mod.json").ok()?;
+    let mut bytes = Vec::new();
+    std::io::Read::read_to_end(&mut entry, &mut bytes).ok()?;
+    let doc: serde_json::Value = serde_json::from_slice(&bytes).ok()?;
+    doc.get("id")?.as_str().map(|s| s.to_string())
+}
+
+/// Sodium and VulkanMod are mutually exclusive renderers: with both present the
+/// Fabric loader hard-crashes ("Incompatible mods found") *before* any mod code
+/// runs, so the conflict can't be resolved in-game (not even by our companion
+/// mod). The launcher therefore enforces exclusivity at the filesystem level,
+/// driven by the instance's `vulkan_enabled` flag:
+///
+/// * `vulkan_enabled == true`  -> keep VulkanMod, remove Sodium
+/// * `vulkan_enabled == false` -> keep Sodium, remove the VulkanMod fork
+///
+/// Sodium is auto-installed by the performance-modpack (`PERF_MODS`) and is
+/// re-added on every launch, so it is the stable baseline when Vulkan is off.
+/// The VulkanMod fork ("Kollegen Client Vulkan", modid `vulkanmod`) is an
+/// optional, user-added mod; when Vulkan is off we drop it so the instance can
+/// actually launch instead of crashing.
+pub(crate) fn enforce_renderer_exclusivity(mods_dir: &Path, vulkan_enabled: bool) {
+    if !mods_dir.exists() {
+        return;
+    }
+    let mut sodium_jar = None;
+    let mut vulkan_jar = None;
+    if let Ok(entries) = fs::read_dir(mods_dir) {
+        for e in entries.flatten() {
+            let p = e.path();
+            if p.extension().and_then(|x| x.to_str()) != Some("jar") {
+                continue;
+            }
+            let fname = p.file_name().unwrap().to_string_lossy().to_lowercase();
+            if crate::companion::is_companion_mod_name(&fname) {
+                continue;
+            }
+            let id = jar_mod_id(&p).unwrap_or_default().to_lowercase();
+            if id == "sodium" || fname.contains("sodium") {
+                sodium_jar = Some(p);
+            } else if id == "vulkanmod"
+                || fname.contains("vulkanmod")
+                || fname.contains("kollegen client vulkan")
+            {
+                vulkan_jar = Some(p);
+            }
+        }
+    }
+    if vulkan_enabled {
+        // Vulkan-Modus: Sodium darf nicht gleichzeitig geladen werden.
+        if let Some(s) = sodium_jar {
+            warn!(
+                "Vulkan-Modus aktiv: Sodium ('{}') wird entfernt, da Sodium und VulkanMod nicht gemeinsam geladen werden können.",
+                s.file_name().unwrap().to_string_lossy()
+            );
+            let _ = fs::remove_file(&s);
+        }
+    } else {
+        // Standard (Sodium): die optionale VulkanMod-Fork würde den Start
+        // abstürzen lassen – sie wird entfernt.
+        if let Some(v) = vulkan_jar {
+            warn!(
+                "Sodium und VulkanMod sind inkompatibel und können nicht gemeinsam geladen werden. \
+                 VulkanMod ('{}') wird entfernt, damit die Instanz startet (Sodium bleibt aktiv).",
+                v.file_name().unwrap().to_string_lossy()
+            );
+            let _ = fs::remove_file(&v);
+        }
+    }
+}
+
 /// Builds the classpath and launches Minecraft for the given instance.
 pub fn launch(
     state: &AppState,
@@ -743,6 +820,11 @@ pub fn launch(
     let inst_dir = crate::utils::instance_dir(data_dir, &inst.name);
     // Begleit-Mod bei jedem Start erneut sicherstellen (1.21.x – 1.26.x).
     ensure_kollegen_mod(data_dir, &inst.name, &inst.loader, &inst.version);
+    // Sodium/VulkanMod dürfen nicht gleichzeitig geladen werden – sonst crasht
+    // der Fabric-Loader vor dem Mod-Start. Konflikt präventiv auflösen,
+    // abhängig vom Vulkan-Schalter der Instanz.
+    let mods_dir = inst_dir.join("mods");
+    enforce_renderer_exclusivity(&mods_dir, inst.vulkan_enabled);
     // Fresh launcher log per launch (avoids stale crash lines triggering the
     // auto-resolver again on the next manual launch).
     if let Ok(mut logs) = state.logs.lock() {
@@ -1238,7 +1320,7 @@ pub fn import_pack(data_dir: &Path, path: &str) -> Result<Instance> {
         loader_version,
         description: summary,
         mods: vec!["essentialmod.jar".to_string()],
-        vulkan_enabled: true,
+        vulkan_enabled: false,
         memory_min: crate::DEFAULT_MEMORY_MIN.to_string(),
         memory_max: crate::DEFAULT_MEMORY_MAX.to_string(),
         created_at: chrono::Utc::now().to_rfc3339(),

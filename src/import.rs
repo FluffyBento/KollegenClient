@@ -297,7 +297,7 @@ pub fn import_instance(
         loader_version: None,
         description: format!("Importiert von {}", launcher_id),
         mods: vec!["essentialmod.jar".to_string()],
-        vulkan_enabled: true,
+        vulkan_enabled: false,
         memory_min: mem_min.unwrap_or_else(|| crate::DEFAULT_MEMORY_MIN.to_string()),
         memory_max: mem_max.unwrap_or_else(|| crate::DEFAULT_MEMORY_MAX.to_string()),
         created_at: chrono::Utc::now().to_rfc3339(),
