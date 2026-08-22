@@ -18,6 +18,8 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.world.food.FoodProperties;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -489,15 +491,29 @@ public final class Hud {
 
     private static class Saturation extends HudModule {
         Saturation() {
-            super("saturation", "Sättigung", "Aktuelle Nahrungssättigung.");
+            super("saturation", "Sättigung", "Aktuelle Nahrungssättigung und wie viel die gehaltene Speise auffüllt.");
         }
 
         @Override
         public void onRenderHud(GuiGraphics g, float td) {
             List<String> lines = new ArrayList<>();
             if (mc.player != null) {
-                float s = mc.player.getFoodData().getSaturationLevel();
+                var food = mc.player.getFoodData();
+                float s = food.getSaturationLevel();
+                int h = food.getFoodLevel();
                 lines.add("Sättigung: " + String.format("%.1f", s));
+                lines.add("Hunger: " + h + "/20");
+
+                var held = mc.player.getMainHandItem();
+                FoodProperties fp = held.get(DataComponents.FOOD);
+                if (fp != null) {
+                    int addH = fp.nutrition();
+                    float addS = fp.saturation();
+                    int newH = Math.min(20, h + addH);
+                    float newS = Math.min(newH, s + addS);
+                    lines.add("Speise: +" + addH + " Hunger, +" + String.format("%.1f", addS) + " Sat");
+                    lines.add("Danach: " + newH + "/20, " + String.format("%.1f", newS) + " Sat");
+                }
             } else {
                 lines.add("Sättigung: –");
             }
