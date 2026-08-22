@@ -832,6 +832,11 @@ pub fn launch(
     // Build JVM arguments
     let mut jvm_args: Vec<String> = vec![];
 
+    // macOS: GLFW requires -XstartOnFirstThread
+    if cfg!(target_os = "macos") {
+        jvm_args.push("-XstartOnFirstThread".to_string());
+    }
+
     // Java library path for natives
     let natives_dir = version_dir.join("natives");
     if natives_dir.exists() {
