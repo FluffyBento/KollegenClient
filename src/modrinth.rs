@@ -439,6 +439,11 @@ pub fn list_content(data_dir: &Path, instance_name: &str) -> Value {
                         if crate::modrinth::is_managed_renderer_mod(&name) {
                             continue;
                         }
+                        // Ebenso die vom Launcher deployten Integrations-Bundles
+                        // (Spotify Overlay, ChatHeads + Dependencies).
+                        if name.starts_with("kollegen-bundle") {
+                            continue;
+                        }
                         let mut obj = serde_json::json!({ "name": name.clone() });
                         if let Some(mo) = meta_obj {
                             if let Some(pid) = mo.get(&name).and_then(|v| v.as_str()) {
@@ -555,6 +560,11 @@ fn is_managed_content(kind: &str, filename: &str) -> bool {
         return true;
     }
     if crate::modrinth::is_managed_renderer_mod(filename) {
+        return true;
+    }
+    // Integrations-Bundles (Spotify Overlay, ChatHeads + Dependencies) werden
+    // vom Launcher vor jedem Start neu deployed/entfernt.
+    if filename.starts_with("kollegen-bundle") {
         return true;
     }
     // The KollegenTitle.zip pack is reinstalled + force-enabled on every launch.

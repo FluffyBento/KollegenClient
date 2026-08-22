@@ -18,6 +18,9 @@ public final class Visual {
     /** Vom ParticleEngineMixin gelesen: alle Partikel abbrechen. */
     public static boolean particleCancelAll = false;
 
+    /** Vom GameRendererMixin gelesen: FOV wird durch diesen Wert geteilt (Zoom aktiv). */
+    public static float zoomFovDivisor = 1.0f;
+
     private Visual() {
     }
 
@@ -103,14 +106,16 @@ public final class Visual {
         }
     }
 
-    /** Optifine-artiger Zoom über den FOV-Wert. */
+    /** Optifine-artiger Zoom: FOV-Teiler im GameRendererMixin statt Manipulation
+     *  der FOV-Einstellung (überschrieb früher dauerhaft die Option und reagierte
+     *  nicht live auf den Slider). Zusätzlich weiche Kamera wie bei OptiFine. */
     private static class Zoom extends Module {
-        private final SliderSetting zoom = new SliderSetting("Zoom", "Zoomstärke (1 = kein Zoom, höher = stärker heran).", 4.0, 1.0, 16.0, 0.5);
+        private final SliderSetting zoom = new SliderSetting("Zoom", "Zoomstärke (1 = kein Zoom, höher = stärker heran). Wirkt sofort.", 4.0, 1.0, 16.0, 0.5);
         private final KeybindSetting key = new KeybindSetting("Taste", "Schaltet den Zoom ein/aus.");
-        private double saved = -1;
+        private boolean savedSmooth = false;
 
         Zoom() {
-            super("zoom", "Zoom", "Zoomt heran, behält aber die normale FOV als Basis.", Category.VISUAL);
+            super("zoom", "Zoom", "Zoomt heran (mit weicher Kamera), ohne die eingestellte FOV zu verändern.", Category.VISUAL);
             add(zoom);
             add(key);
         }
@@ -125,21 +130,25 @@ public final class Visual {
         @Override
         public void onEnable() {
             if (mc.options != null) {
-                saved = mc.options.fov().get();
-                apply();
+                savedSmooth = mc.options.smoothCamera;
+                mc.options.smoothCamera = true;
             }
+            applyZoom();
         }
 
-        private void apply() {
-            if (mc.options == null || saved <= 0) return;
-            int target = (int) (saved / zoom.value);
-            if (target < 1) target = 1;
-            mc.options.fov().set(target);
+        @Override
+        public void onTick() {
+            applyZoom();
+        }
+
+        private void applyZoom() {
+            Visual.zoomFovDivisor = zoom.value > 1.001 ? (float) (1.0 / zoom.value) : 1.0f;
         }
 
         @Override
         public void onDisable() {
-            if (mc.options != null) mc.options.fov().set((int) (saved > 0 ? saved : 70));
+            Visual.zoomFovDivisor = 1.0f;
+            if (mc.options != null) mc.options.smoothCamera = savedSmooth;
         }
     }
 

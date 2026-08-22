@@ -829,6 +829,151 @@ pub(crate) fn enforce_renderer_consistency(mods_dir: &Path, vulkan_enabled: bool
     }
 }
 
+/// Eingebettete Integrations-Bundles: (Flag-Schlüssel in
+/// `.kollegen-bundles.json`, Ziel-Jar in mods/, Ressourcen-Pfad innerhalb der
+/// Begleit-Mod-Jar). `"@deps"` heißt: aktiv, sobald mindestens ein echtes
+/// Bundle aktiv ist (gemeinsame Dependencies von Spotify Overlay/ChatHeads).
+const BUNDLED_MODS: &[(&str, &str, &str)] = &[
+    ("spotify", "kollegen-bundle-spotify.jar", "dev/kollegen/client/spotify.bin"),
+    ("chatheads", "kollegen-bundle-chatheads.jar", "dev/kollegen/client/chatheads.bin"),
+    ("@deps", "kollegen-bundle-fabric-api.jar", "dev/kollegen/client/fabricapi.bin"),
+    ("@deps", "kollegen-bundle-flk.jar", "dev/kollegen/client/flk.bin"),
+    ("@deps", "kollegen-bundle-owo.jar", "dev/kollegen/client/owo.bin"),
+    ("@deps", "kollegen-bundle-modmenu.jar", "dev/kollegen/client/modmenu.bin"),
+    ("@deps", "kollegen-bundle-tpa.jar", "dev/kollegen/client/tpa.bin"),
+    ("@deps", "kollegen-bundle-silk.jar", "dev/kollegen/client/silk.bin"),
+    ("@deps", "kollegen-bundle-clothconfig.jar", "dev/kollegen/client/clothconfig.bin"),
+];
+
+/// Standalone-Kopien dieser Mods entfernen wir aus Instanzen – der Client
+/// bündelt sie selbst (Duplikate würden die Fabric-Loader-Kette zum Absturz
+/// bringen bzw. Features doppelt ausführen). Präfix-Match auf kleingeschriebene
+/// Dateinamen (ohne .jar/.disabled).
+const BUNDLED_STANDALONE_PREFIXES: &[&str] = &[
+    "spotify_overlay",
+    "spotify-overlay",
+    "chat_heads",
+    "chat-heads",
+    "appleskin",
+    "fabric-language-kotlin",
+    "fabric_language_kotlin",
+    "fabric-api",
+    "fabric_api",
+    "owo-lib",
+    "owo_lib",
+    "modmenu",
+    "text-placeholder-api",
+    "text_placeholder_api",
+    "placeholder-api",
+    "placeholder_api",
+    "silk-",
+    "cloth-config",
+    "cloth_config",
+];
+
+fn bundles_flag_path(mods_dir: &Path) -> PathBuf {
+    mods_dir.join(".kollegen-bundles.json")
+}
+
+/// Liest die Bundle-Flags; fehlende/unbekannte Werte gelten als AN (gute
+/// Out-of-the-box-Erfahrung), genau wie der Default in der Begleit-Mod.
+fn read_bundle_flags(mods_dir: &Path) -> Value {
+    let mut flags = serde_json::json!({ "spotify": true, "chatheads": true });
+    if let Ok(s) = fs::read_to_string(bundles_flag_path(mods_dir)) {
+        if let Ok(v) = serde_json::from_str::<Value>(&s) {
+            if v.is_object() {
+                for k in ["spotify", "chatheads"] {
+                    if let Some(b) = v.get(k).and_then(|x| x.as_bool()) {
+                        flags[k] = serde_json::Value::Bool(b);
+                    }
+                }
+            }
+        }
+    }
+    flags
+}
+
+/// Deployt die aus der Begleit-Mod eingebetteten Integrations-Bundles nach
+/// mods/, entfernt sie bei deaktiviertem Flag und räumt Standalone-Kopien
+/// derselben Mods weg. Läuft ausschließlich VOR dem Spielstart – im laufenden
+/// Spiel werden niemals Jars angefasst (bereits geladene Klassen wären sonst
+/// nicht mehr nachladbar). Die In-Game-Toggles schreiben nur die Flag-Datei;
+/// hier ist der Zwei-Wege-Sync.
+pub(crate) fn enforce_bundled_mods(mods_dir: &Path, companion_jar: Option<&Path>) {
+    if let Err(e) = fs::create_dir_all(mods_dir) {
+        warn!("mods-Verzeichnis {} nicht erstellbar: {}", mods_dir.display(), e);
+        return;
+    }
+    let flags = read_bundle_flags(mods_dir);
+    let flag_on =
+        |k: &str| flags.get(k).and_then(|v| v.as_bool()).unwrap_or(true);
+
+    // 1) Standalone-Kopien gebündelter Mods löschen (auch .disabled-Varianten).
+    if let Ok(entries) = fs::read_dir(mods_dir) {
+        for e in entries.flatten() {
+            let p = e.path();
+            if !p.is_file() {
+                continue;
+            }
+            let name = e.file_name().to_string_lossy().to_lowercase();
+            if !name.ends_with(".jar") && !name.ends_with(".disabled") {
+                continue;
+            }
+            if name.starts_with("kollegen-client-mod") || name.starts_with("kollegen-bundle") {
+                continue;
+            }
+            if BUNDLED_STANDALONE_PREFIXES.iter().any(|pre| name.starts_with(pre)) {
+                info!("Entferne Standalone-Kopie (bündelt der Kollegen Client): {}", name);
+                let _ = fs::remove_file(&p);
+            }
+        }
+    }
+
+    // 2) Managed Bundles deployen oder entfernen. Die Begleit-Jar wird einmal
+    //    geöffnet und pro Bundle der passende .bin-Eintrag extrahiert.
+    let any_bundle = flag_on("spotify") || flag_on("chatheads");
+    let mut archive: Option<zip::ZipArchive<fs::File>> = None;
+    if let Some(path) = companion_jar {
+        match fs::File::open(path) {
+            Ok(f) => match zip::ZipArchive::new(f) {
+                Ok(z) => archive = Some(z),
+                Err(e) => warn!("Begleit-Jar {} nicht lesbar: {}", path.display(), e),
+            },
+            Err(e) => warn!("Begleit-Jar {} nicht gefunden: {}", path.display(), e),
+        }
+    }
+
+    for &(flag_key, jar_name, bin_path) in BUNDLED_MODS {
+        let desired = if flag_key == "@deps" { any_bundle } else { flag_on(flag_key) };
+        let dest = mods_dir.join(jar_name);
+        if desired {
+            let Some(archive) = archive.as_mut() else { continue };
+            let mut src = match archive.by_name(bin_path) {
+                Ok(s) => s,
+                Err(_) => continue,
+            };
+            let tmp = dest.with_extension("jar.tmp");
+            let ok = fs::File::create(&tmp)
+                .and_then(|mut out| std::io::copy(&mut src, &mut out).map(|_| ()))
+                .is_ok();
+            if ok {
+                let _ = fs::rename(&tmp, &dest);
+            } else {
+                let _ = fs::remove_file(&tmp);
+                warn!("Konnte Bundle {} nicht aus der Begleit-Mod extrahieren.", jar_name);
+            }
+        } else {
+            let _ = fs::remove_file(&dest);
+            let _ = fs::remove_file(mods_dir.join(format!("{}.disabled", jar_name)));
+        }
+    }
+
+    // 3) Kanonische Flags zurückschreiben (Quelle der Wahrheit für beide Seiten).
+    if let Ok(json) = serde_json::to_string_pretty(&flags) {
+        let _ = fs::write(bundles_flag_path(mods_dir), json);
+    }
+}
+
 /// Builds the classpath and launches Minecraft for the given instance.
 pub fn launch(
     state: &AppState,
@@ -846,6 +991,12 @@ pub fn launch(
     // (.kollegen-renderer) und stimmt die .disabled-State ab.
     let mods_dir = inst_dir.join("mods");
     enforce_renderer_consistency(&mods_dir, inst.vulkan_enabled);
+    // Integrations-Bundles (Spotify Overlay, ChatHeads + Dependencies) aus der
+    // Begleit-Mod deployen/entfernen und Standalone-Kopien derselben Mods
+    // aufräumen – siehe enforce_bundled_mods (Zwei-Wege-Sync über
+    // mods/.kollegen-bundles.json).
+    let companion_jar = crate::companion::companion_jar(data_dir);
+    enforce_bundled_mods(&mods_dir, companion_jar.as_deref());
     // Fresh launcher log per launch (avoids stale crash lines triggering the
     // auto-resolver again on the next manual launch).
     if let Ok(mut logs) = state.logs.lock() {

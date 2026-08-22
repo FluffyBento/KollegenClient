@@ -9,6 +9,9 @@ public final class Misc {
 
     public static void register() {
         InventoryColor.register();
+        SpotifyOverlay.register();
+        ChatHeads.register();
+        Appleskin.register();
         // Discord Rich Presence läuft ab sofort automatisch (siehe KollegenMod.onInitializeClient),
         // daher ist hier kein eigenes Modul/Setting mehr nötig.
     }

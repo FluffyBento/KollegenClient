@@ -15,7 +15,10 @@
     "SkyBodiesMixin",
     "ChatScreenMixin",
     "ParticleEngineMixin",
-    "InventoryScreenMixin"
+    "InventoryScreenMixin",
+    "ContainerScreenMixin",
+    "GameRendererMixin",
+    "ScreenTooltipMixin"
   ],
   "injectors": {
     "defaultRequire": 1

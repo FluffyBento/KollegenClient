@@ -27,3 +27,4 @@ Inspiration/
 
 # Vendored VulkanMod binary (fetched at build via vendorVulkanMod task)
 kollegen-mod/src/main/resources/dev/kollegen/client/vulkanmod.bin
+Das/

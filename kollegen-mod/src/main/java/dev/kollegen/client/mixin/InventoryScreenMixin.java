@@ -1,10 +1,8 @@
 package dev.kollegen.client.mixin;
 
-import dev.kollegen.client.mods.modules.InventoryColor;
 import dev.kollegen.client.mods.modules.InventoryLayout;
 import dev.kollegen.client.ui.LogoDraw;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.Slot;
 import org.spongepowered.asm.mixin.Mixin;
@@ -87,18 +85,6 @@ public class InventoryScreenMixin {
             kollegen$appliedX = ox;
             kollegen$appliedY = oy;
         } catch (ReflectiveOperationException ignored) {
-        }
-    }
-
-    @Inject(method = "renderBg", at = @At("RETURN"))
-    private void kollegen$tintBackground(GuiGraphics gui, float partialTick, int mouseX, int mouseY, CallbackInfo ci) {
-        if (InventoryColor.enabled && KOLLEGEN_LEFT != null && KOLLEGEN_TOP != null) {
-            try {
-                int lx = (int) KOLLEGEN_LEFT.get(this);
-                int ty = (int) KOLLEGEN_TOP.get(this);
-                gui.fill(RenderPipelines.GUI, lx, ty, lx + 176, ty + 166, InventoryColor.color.value);
-            } catch (ReflectiveOperationException ignored) {
-            }
         }
     }
 
