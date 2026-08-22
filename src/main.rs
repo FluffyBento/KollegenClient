@@ -480,6 +480,12 @@ fn find_mod_jar(mods_dir: &Path, modid: &str, name: &str) -> Option<PathBuf> {
             if !fname.ends_with(".jar") {
                 continue;
             }
+            // Vom Kollegen-Client verwaltete Renderer-Mods (Sodium/Iris/
+            // VulkanMod/Beryl) werden vom Crash-Resolver ignoriert – sie werden
+            // von der Begleit-Mod verwaltet, nicht über Modrinth ersetzt.
+            if crate::modrinth::is_managed_renderer_mod(&fname) {
+                continue;
+            }
             if !mid.is_empty() && fname.contains(&mid) {
                 return Some(p);
             }

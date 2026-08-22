@@ -3,6 +3,7 @@ package dev.kollegen.client.mods.modules;
 import dev.kollegen.client.mods.BooleanSetting;
 import dev.kollegen.client.mods.Category;
 import dev.kollegen.client.mods.KeybindSetting;
+import dev.kollegen.client.mods.ModeSetting;
 import dev.kollegen.client.mods.Module;
 import dev.kollegen.client.mods.ModuleManager;
 import dev.kollegen.client.mods.SliderSetting;
@@ -13,6 +14,9 @@ import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.phys.Vec3;
 
 public final class Visual {
+
+    /** Vom ParticleEngineMixin gelesen: alle Partikel abbrechen. */
+    public static boolean particleCancelAll = false;
 
     private Visual() {
     }
@@ -65,25 +69,37 @@ public final class Visual {
         }
     }
 
-    /** Reduziert Partikel auf ein Minimum (mehr FPS, weniger Ablenkung). */
+    /** Partikel: An / Reduziert (Minimum) / Aus (keine). */
     private static class ReducedParticles extends Module {
         private ParticleStatus saved = ParticleStatus.ALL;
+        private final ModeSetting mode = new ModeSetting("Modus",
+                "An = alle Partikel, Reduziert = Minimum, Aus = keine Partikel.",
+                new String[]{"An", "Reduziert", "Aus"}, 1, v -> { if (enabled) apply(); });
 
         ReducedParticles() {
-            super("reducedparticles", "Reduzierte Partikel", "Schaltet Partikel auf Minimum.", Category.VISUAL);
+            super("reducedparticles", "Partikel", "Steuert die Sichtbarkeit von Partikeln.", Category.VISUAL);
+            add(mode);
         }
 
         @Override
         public void onEnable() {
-            if (mc.options != null) {
-                saved = mc.options.particles().get();
-                mc.options.particles().set(ParticleStatus.MINIMAL);
-            }
+            if (mc.options != null) saved = mc.options.particles().get();
+            apply();
         }
 
         @Override
         public void onDisable() {
+            Visual.particleCancelAll = false;
             if (mc.options != null) mc.options.particles().set(saved);
+        }
+
+        private void apply() {
+            if (mc.options == null) return;
+            switch (mode.index) {
+                case 0 -> { mc.options.particles().set(ParticleStatus.ALL); Visual.particleCancelAll = false; }
+                case 1 -> { mc.options.particles().set(ParticleStatus.MINIMAL); Visual.particleCancelAll = false; }
+                default -> { mc.options.particles().set(ParticleStatus.MINIMAL); Visual.particleCancelAll = true; }
+            }
         }
     }
 

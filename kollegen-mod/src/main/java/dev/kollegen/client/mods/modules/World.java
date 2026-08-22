@@ -1,5 +1,6 @@
 package dev.kollegen.client.mods.modules;
 
+import dev.kollegen.client.mods.BooleanSetting;
 import dev.kollegen.client.mods.Category;
 import dev.kollegen.client.mods.Module;
 import dev.kollegen.client.mods.ModeSetting;
@@ -9,12 +10,17 @@ import net.minecraft.client.Minecraft;
 
 public final class World {
 
+    /** Vom SkyBodiesMixin gelesen: Sonne/Mond ausblenden. */
+    public static boolean hideSun = false;
+    public static boolean hideMoon = false;
+
     private World() {
     }
 
     public static void register() {
         ModuleManager.register(new TimeChanger());
         ModuleManager.register(new WeatherChanger());
+        ModuleManager.register(new CelestialBodies());
     }
 
     private static class TimeChanger extends Module {
@@ -78,6 +84,36 @@ public final class World {
                 }
             } catch (Throwable ignored) {
             }
+        }
+    }
+
+    /** Blendet Sonne und/oder Mond im Überworld-Himmel aus. */
+    private static class CelestialBodies extends Module {
+        private final BooleanSetting sun = new BooleanSetting("Sonne ausblenden", "Blendet die Sonne aus.", false);
+        private final BooleanSetting moon = new BooleanSetting("Mond ausblenden", "Blendet den Mond aus.", false);
+
+        CelestialBodies() {
+            super("celestial", "Himmelskörper", "Blendet Sonne und/oder Mond aus.", Category.WORLD);
+            add(sun);
+            add(moon);
+        }
+
+        @Override
+        public void onEnable() {
+            World.hideSun = sun.value;
+            World.hideMoon = moon.value;
+        }
+
+        @Override
+        public void onTick() {
+            World.hideSun = sun.value;
+            World.hideMoon = moon.value;
+        }
+
+        @Override
+        public void onDisable() {
+            World.hideSun = false;
+            World.hideMoon = false;
         }
     }
 }

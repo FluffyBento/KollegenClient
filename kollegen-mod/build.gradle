@@ -45,6 +45,40 @@ dependencies {
     // method names against the obfuscated runtime.
 }
 
+// ── Eingebettete Renderer-Mods ───────────────────────────────────────────────
+// VulkanMod (LGPL) wird gepatcht (siehe vendorVulkanMod). Sodium, Iris und Beryl
+// werden unverändert als Resource eingebettet und zur Laufzeit vom Kollegen-Client
+// je nach Renderer-Gruppe deployed (.jar) bzw. deaktiviert (.disabled).
+//
+// ModMenu wird nur zum Kompilieren benötigt (optionale API, um die eingebetteten
+// Mods in der ModMenu-Liste zu verstecken). Zur Laufzeit ist es keine harte
+// Abhängigkeit – ohne ModMenu wird der Entrypoint einfach ignoriert.
+modCompileOnly "com.terraformersmc:modmenu:11.0.3"
+
+def modrinthPrimaryFileUrl(String slug, String mc, String loader) {
+    def url = "https://api.modrinth.com/v2/project/${slug}/version?game_versions=[\"${mc}\"]&loaders=[\"${loader}\"]"
+    def arr = new groovy.json.JsonSlurper().parse(new URL(url).newReader())
+    def version = arr.find { it.game_versions.contains(mc) && it.loaders.contains(loader) } ?: arr[0]
+    def file = (version.files.find { it.primary } ?: version.files[0])
+    return file.url
+}
+
+def vendorModResource(String resourceRel, String slug) {
+    def res = file("src/main/resources/${resourceRel}")
+    tasks.register("vendor${slug.capitalize()}Mod") {
+        onlyIf { !res.exists() }
+        doLast {
+            res.parentFile.mkdirs()
+            def url = modrinthPrimaryFileUrl(slug, project.minecraft_version, "fabric")
+            ant.get(src: url, dest: res, verbose: true)
+        }
+    }
+}
+
+vendorModResource('dev/kollegen/client/sodium.bin', 'sodium')
+vendorModResource('dev/kollegen/client/iris.bin', 'iris')
+vendorModResource('dev/kollegen/client/beryl.bin', 'beryl')
+
 loom {
     mixin {
         useLegacyMixinAp = true
@@ -64,19 +98,24 @@ processResources {
 //  2. fabric.mod.json Name/Description für F3-Branding
 //  3. Sprache auf Deutsch übersetzen + "Support me" → "Zum Discord" (dsc.gg/Kollegen)
 //  4. Mixin-Priorität RenderTypeM 1000 → 1100 (npcstudio-Konflikt vermeiden)
+//  5. "Support me"-Button (Ko-fi) → "Zum Discord" (dsc.gg/Kollegen)
+//  6. Farbpalette (ColorUtil$ARGB): Weiß→Creme, Grün→Akzent, Rot→Danger – Kollegen-Look
 def vulkanRes = file("src/main/resources/dev/kollegen/client/vulkanmod.bin")
 def vulkanUrl = "https://cdn.modrinth.com/data/JYQhtZtO/versions/hWKRTXbQ/VulkanMod-0.6.8%2B1.21.11.jar"
 tasks.register('vendorVulkanMod') {
-    onlyIf { !vulkanRes.exists() }
     doLast {
         vulkanRes.parentFile.mkdirs()
-        def tmpDir = file("${buildDir}/vulkanmod-patch")
-        tmpDir.deleteDir()
-        tmpDir.mkdirs()
-        def download = file("${tmpDir}/VulkanMod.jar")
-        ant.get(src: vulkanUrl, dest: download, verbose: true)
+        def cacheDir = file("${buildDir}/vulkanmod-patch")
+        cacheDir.mkdirs()
+        // Original-Jar nur einmal cachen (Download), danach immer neu patchen
+        def download = file("${cacheDir}/VulkanMod-orig.jar")
+        if (!download.exists()) {
+            ant.get(src: vulkanUrl, dest: download, verbose: true)
+        }
 
-        def unzipDir = file("${tmpDir}/unzipped")
+        def unzipDir = file("${cacheDir}/unzipped")
+        unzipDir.deleteDir()
+        unzipDir.mkdirs()
         ant.unzip(src: download, dest: unzipDir)
 
         // 1) Logo ersetzen: Kollegen.png → vlogo.png + vlogo_transparent.png
@@ -189,15 +228,36 @@ tasks.register('vendorVulkanMod') {
             file("${unzipDir}/net/vulkanmod/config/gui/VOptionScreen.class").bytes = writer.toByteArray()
         }
 
+        // 6) Farbpalette an Kollegen-Look anpassen (ColorUtil$ARGB):
+        //    Weiß→Creme (Text), Grün→Kollegen-Akzent (orange), Rot→Kollegen-Danger
+        def colorUtil = file("${unzipDir}/net/vulkanmod/vulkan/util/ColorUtil\$ARGB.class")
+        if (colorUtil.exists()) {
+            def cuReader = new org.objectweb.asm.ClassReader(colorUtil.bytes)
+            def cuWriter = new org.objectweb.asm.ClassWriter(cuReader, org.objectweb.asm.ClassWriter.COMPUTE_MAXS)
+            def cuVisitor = new org.objectweb.asm.ClassVisitor(org.objectweb.asm.Opcodes.ASM9, cuWriter) {
+                void visitLdcInsn(Object value) {
+                    if (value instanceof Integer) {
+                        int v = value.intValue()
+                        if (v == (0xffffff as int)) { super.visitLdcInsn(0xFFf3e9d8 as int); return }
+                        if (v == (0xFF00FF00 as int)) { super.visitLdcInsn(0xFFf5a623 as int); return }
+                        if (v == (0xff0000 as int)) { super.visitLdcInsn(0xFFff5b6e as int); return }
+                    }
+                    super.visitLdcInsn(value)
+                }
+            }
+            cuReader.accept(cuVisitor, 0)
+            colorUtil.bytes = cuWriter.toByteArray()
+        }
+
         // Rezippen
-        def patchedJar = file("${tmpDir}/VulkanMod-patched.jar")
+        def patchedJar = file("${cacheDir}/VulkanMod-patched.jar")
         ant.zip(destfile: patchedJar, basedir: unzipDir)
 
         // Als Resource kopieren
         ant.copy(file: patchedJar, tofile: vulkanRes)
     }
 }
-processResources.dependsOn vendorVulkanMod
+processResources.dependsOn vendorVulkanMod, vendorSodiumMod, vendorIrisMod, vendorBerylMod
 
 java {
     sourceCompatibility = JavaVersion.VERSION_21

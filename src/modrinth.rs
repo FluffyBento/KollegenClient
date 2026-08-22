@@ -363,7 +363,6 @@ pub fn install_content(
 /// list stays safe across Minecraft versions. Dependencies (e.g. config libs)
 /// are pulled in automatically by `install_content`.
 const PERF_MODS: &[&str] = &[
-    "sodium",
     "lithium",
     "ferrite-core",
     "entityculling",
@@ -414,8 +413,12 @@ pub fn list_content(data_dir: &Path, instance_name: &str) -> Value {
         ("shaderpacks", "shader"),
     ];
     let mut result = serde_json::json!({});
+    // Metadaten einmalig laden statt pro Datei neu von der Platte zu lesen
+    // (Ursache für das Lag im "Installiert"-Tab bei vielen Mods).
+    let meta = load_meta(data_dir, instance_name);
     for (dir, key) in cats {
         let d = inst_dir.join(dir);
+        let meta_obj = meta.get(key).and_then(|v| v.as_object());
         let mut items = vec![];
         if let Ok(entries) = fs::read_dir(&d) {
             for e in entries.flatten() {
@@ -429,11 +432,18 @@ pub fn list_content(data_dir: &Path, instance_name: &str) -> Value {
                         if key == "resourcepack" && name == "KollegenTitle.zip" {
                             continue;
                         }
+                        // Vom Kollegen-Client eingebettet/verwaltete Renderer-Mods
+                        // (VulkanMod, Beryl, Sodium, Iris) werden in der Liste
+                        // ausgeblendet – es soll nur die Kollegen-Client-Mod
+                        // sichtbar sein.
+                        if crate::modrinth::is_managed_renderer_mod(&name) {
+                            continue;
+                        }
                         let mut obj = serde_json::json!({ "name": name.clone() });
-                        if let Some(pid) =
-                            project_id_for_file(data_dir, instance_name, key, &name)
-                        {
-                            obj["project_id"] = serde_json::Value::String(pid);
+                        if let Some(mo) = meta_obj {
+                            if let Some(pid) = mo.get(&name).and_then(|v| v.as_str()) {
+                                obj["project_id"] = serde_json::Value::String(pid.to_string());
+                            }
                         }
                         items.push(obj);
                     }
@@ -524,11 +534,27 @@ pub fn change_content_version(
     Ok(())
 }
 
+/// True for mods the in-game companion mod manages internally (VulkanMod fork,
+/// Beryl, Sodium, Iris). They are deployed/disabled by the companion mod and
+/// hidden from the launcher's content browser so only the Kollegen Client
+/// companion mod is shown. Matched by file-name prefix (incl. `.disabled`).
+pub fn is_managed_renderer_mod(filename: &str) -> bool {
+    let f = filename.to_lowercase();
+    let f = f.strip_suffix(".disabled").unwrap_or(&f);
+    f.starts_with("sodium")
+        || f.starts_with("iris")
+        || f.starts_with("vulkanmod")
+        || f.starts_with("beryl")
+}
+
 /// Returns true when `filename` is managed by the launcher itself (the
 /// injected Kollegen Client mod and the title-logo resource pack). Such files
 /// are hidden from the content browser and cannot be deleted by the user.
 fn is_managed_content(kind: &str, filename: &str) -> bool {
     if crate::companion::is_companion_mod_name(filename) {
+        return true;
+    }
+    if crate::modrinth::is_managed_renderer_mod(filename) {
         return true;
     }
     // The KollegenTitle.zip pack is reinstalled + force-enabled on every launch.

@@ -12,6 +12,9 @@
     "LogoRendererMixin",
     "FogRendererMixin",
     "SkyRendererMixin",
+    "SkyBodiesMixin",
+    "ChatScreenMixin",
+    "ParticleEngineMixin",
     "InventoryScreenMixin"
   ],
   "injectors": {

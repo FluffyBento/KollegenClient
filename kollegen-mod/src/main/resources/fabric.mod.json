@@ -12,7 +12,8 @@
   "license": "MIT",
   "environment": "client",
   "entrypoints": {
-    "client": ["dev.kollegen.client.KollegenMod"]
+    "client": ["dev.kollegen.client.KollegenMod"],
+    "modmenu": ["dev.kollegen.client.ModMenuIntegration"]
   },
   "mixins": ["kollegen.mixins.json"],
   "depends": {
