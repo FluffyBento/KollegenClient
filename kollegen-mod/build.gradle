@@ -1,13 +1,13 @@
-plugins {
-    id 'fabric-loom' version '1.14.10'
-    id 'maven-publish'
-}
-
 // ASM for bytecode patching (VulkanMod patches)
 buildscript {
     dependencies {
         classpath 'org.ow2.asm:asm:9.7.1'
     }
+}
+
+plugins {
+    id 'fabric-loom' version '1.14.10'
+    id 'maven-publish'
 }
 
 version = project.mod_version
