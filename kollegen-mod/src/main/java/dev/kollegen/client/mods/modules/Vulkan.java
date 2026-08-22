@@ -7,21 +7,19 @@ import dev.kollegen.client.mods.ModuleManager;
 import net.fabricmc.loader.api.FabricLoader;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.List;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
+import java.nio.file.StandardCopyOption;
 
 /**
- * Integriert den Vulkan-Renderer (VulkanMod) direkt ins Kollegen-Menü. Statt
- * wie im Original-Mod eine Config-Datei von Hand zu editieren, wird
- * VulkanMod hier über das Modul-Ein/Aus sanft ein- und ausgeschaltet, indem
- * seine Jar-Datei in der Instance umbenannt wird:
- *   - aktiv   → {@code VulkanMod-*.jar}
- *   - inaktiv → {@code VulkanMod-*.jar.disabled} (Fabric lädt diese nicht)
- * Das Umbenennen greift natürlich erst beim nächsten Start – das Modul zeigt
- * daher über {@code risk} einen Hinweis, falls VulkanMod fehlt.
+ * Integriert den Vulkan-Renderer (VulkanMod, LGPL-3.0) vollständig in den
+ * Kollegen-Client: die VulkanMod-Datei ist als Resource in unserem Mod-Jar
+ * eingebettet, sodass KEIN externer VulkanMod-Download/-Mod mehr nötig ist.
+ * Der Toggle entpackt VulkanMod bei Bedarf in den {@code mods/}-Ordner der
+ * Instanz (aktiv) bzw. entfernt es wieder (inaktiv). Das ist komfortabler als
+ * im Original-Mod: ein Klick statt manueller Jar-Verwaltung, versionsfest und
+ * mit klarer Statusanzeige. Die Änderung greift natürlich erst nach Neustart.
  */
 public final class Vulkan {
 
@@ -33,10 +31,12 @@ public final class Vulkan {
     }
 
     private static final class VulkanModule extends Module {
+        private static final String EMBEDDED = "/dev/kollegen/client/vulkanmod.bin";
+        private static final String FILE_NAME = "VulkanMod-0.6.8+1.21.11.jar";
 
         VulkanModule() {
             super("vulkan", "Vulkan Renderer",
-                    "Aktiviert/deaktiviert den Vulkan-Renderer (VulkanMod). Wirkt nach Neustart.",
+                    "Integrierter Vulkan-Renderer (VulkanMod). Ein-Klick aktiv/deaktiv – wirkt nach Neustart.",
                     Category.PERFORMANCE);
         }
 
@@ -56,63 +56,52 @@ public final class Vulkan {
                 risk = "mods-Ordner nicht gefunden";
                 return;
             }
-            Path current = findVulkanMod(mods);
-            if (current == null) {
-                risk = "VulkanMod nicht installiert – in mods/ ablegen";
-                return;
-            }
-            Path target = targetPath(current, enable);
-            if (!current.equals(target)) {
-                try {
-                    Files.move(current, target);
-                } catch (IOException e) {
-                    KollegenMod.LOGGER.warn("Kollegen: VulkanMod konnte nicht {} werden: {}",
-                            enable ? "aktiviert" : "deaktiviert", e.getMessage());
-                    risk = "VulkanMod konnte nicht " + (enable ? "aktiviert" : "deaktiviert") + " werden";
+            Path target = mods.resolve(FILE_NAME);
+            Path disabled = mods.resolve(FILE_NAME + ".disabled");
+            if (enable) {
+                if (Files.exists(target)) {
+                    risk = null;
+                    return; // bereits deployt
+                }
+                if (Files.exists(disabled)) {
+                    // zuvor deaktivierte Variante wieder aktivieren
+                    try {
+                        Files.move(disabled, target);
+                        risk = null;
+                        KollegenMod.LOGGER.info("Kollegen: VulkanMod reaktiviert (aktiv nach Neustart).");
+                    } catch (IOException e) {
+                        risk = "VulkanMod konnte nicht aktiviert werden";
+                    }
                     return;
                 }
+                try (InputStream in = VulkanModule.class.getResourceAsStream(EMBEDDED)) {
+                    if (in == null) {
+                        risk = "VulkanMod ist nicht in diesem Mod eingebettet (Build-Fehler)";
+                        return;
+                    }
+                    Files.copy(in, target, StandardCopyOption.REPLACE_EXISTING);
+                } catch (IOException e) {
+                    KollegenMod.LOGGER.warn("Kollegen: VulkanMod konnte nicht deployt werden: {}", e.getMessage());
+                    risk = "VulkanMod konnte nicht aktiviert werden";
+                    return;
+                }
+                risk = null;
+                KollegenMod.LOGGER.info("Kollegen: VulkanMod deployt (aktiv nach Neustart).");
+            } else {
+                try {
+                    boolean removed = Files.deleteIfExists(target) | Files.deleteIfExists(disabled);
+                    if (!removed) {
+                        risk = "VulkanMod war nicht installiert";
+                        return;
+                    }
+                } catch (IOException e) {
+                    KollegenMod.LOGGER.warn("Kollegen: VulkanMod konnte nicht entfernt werden: {}", e.getMessage());
+                    risk = "VulkanMod konnte nicht deaktiviert werden";
+                    return;
+                }
+                risk = null;
+                KollegenMod.LOGGER.info("Kollegen: VulkanMod entfernt (OpenGL nach Neustart).");
             }
-            String ver = versionFromName(target);
-            risk = null;
-            KollegenMod.LOGGER.info("Kollegen: Vulkan-Renderer {} (VulkanMod {})",
-                    enable ? "aktiviert" : "deaktiviert", ver);
-        }
-
-        private static Path findVulkanMod(Path mods) {
-            List<Path> files;
-            try (Stream<Path> s = Files.list(mods)) {
-                files = s.collect(Collectors.toList());
-            } catch (IOException e) {
-                return null;
-            }
-            Path enabled = null;
-            Path disabled = null;
-            for (Path p : files) {
-                String n = p.getFileName().toString().toLowerCase();
-                if (!n.startsWith("vulkanmod-")) continue;
-                if (n.endsWith(".jar")) enabled = p;
-                else if (n.endsWith(".jar.disabled")) disabled = p;
-            }
-            return enabled != null ? enabled : disabled;
-        }
-
-        private static Path targetPath(Path p, boolean enable) {
-            String name = p.getFileName().toString();
-            if (enable) {
-                if (name.endsWith(".jar.disabled"))
-                    return p.resolveSibling(name.substring(0, name.length() - ".disabled".length()));
-                return p;
-            }
-            if (name.endsWith(".jar.disabled")) return p;
-            return p.resolveSibling(name + ".disabled");
-        }
-
-        private static String versionFromName(Path p) {
-            String n = p.getFileName().toString();
-            String v = n.substring("vulkanmod-".length());
-            if (v.endsWith(".jar")) v = v.substring(0, v.length() - ".jar".length());
-            if (v.endsWith(".disabled")) v = v.substring(0, v.length() - ".disabled".length());
-            return v;
         }
     }
 }

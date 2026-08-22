@@ -52,6 +52,21 @@ processResources {
     }
 }
 
+// VulkanMod (LGPL-3.0) wird als Resource in unser Mod-Jar eingebettet, damit der
+// Kollegen-Client den Vulkan-Renderer selbstständig mitbringt – kein externer
+// VulkanMod-Download mehr nötig. Wird nur heruntergeladen, wenn lokal nicht
+// vorhanden (frischer Clone / CI). Die Datei ist in .gitignore (20 MB).
+def vulkanRes = file("src/main/resources/dev/kollegen/client/vulkanmod.bin")
+def vulkanUrl = "https://cdn.modrinth.com/data/JYQhtZtO/versions/hWKRTXbQ/VulkanMod-0.6.8%2B1.21.11.jar"
+tasks.register('vendorVulkanMod') {
+    onlyIf { !vulkanRes.exists() }
+    doLast {
+        vulkanRes.parentFile.mkdirs()
+        ant.get(src: vulkanUrl, dest: vulkanRes, verbose: true)
+    }
+}
+processResources.dependsOn vendorVulkanMod
+
 java {
     sourceCompatibility = JavaVersion.VERSION_21
     targetCompatibility = JavaVersion.VERSION_21

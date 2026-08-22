@@ -24,3 +24,6 @@ server/data/
 
 # Reference / inspiration material (not part of the client or mod)
 Inspiration/
+
+# Vendored VulkanMod binary (fetched at build via vendorVulkanMod task)
+kollegen-mod/src/main/resources/dev/kollegen/client/vulkanmod.bin
