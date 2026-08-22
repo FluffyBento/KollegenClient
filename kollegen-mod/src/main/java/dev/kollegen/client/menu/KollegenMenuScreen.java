@@ -9,6 +9,7 @@ import dev.kollegen.client.mods.ModuleManager;
 import dev.kollegen.client.mods.Palette;
 import dev.kollegen.client.mods.Setting;
 import dev.kollegen.client.ui.Glass;
+import dev.kollegen.client.menu.HudEditScreen;
 import dev.kollegen.client.ui.GlassButton;
 import dev.kollegen.client.ui.GlassToggle;
 import net.minecraft.client.Minecraft;
@@ -159,8 +160,8 @@ public class KollegenMenuScreen extends Screen {
             Button editBtn = Button.builder(
                     Component.literal(HudModule.editMode ? "✓ Elemente verschieben" : "Elemente verschieben"),
                     btn -> {
-                        HudModule.editMode = !HudModule.editMode;
-                        rebuild();
+                        HudModule.editMode = true;
+                        Minecraft.getInstance().setScreen(new HudEditScreen());
                     }).bounds(bx, contentTop + 6, half, 32).build();
             addRenderableWidget(editBtn);
             Button arrBtn = Button.builder(Component.literal("Auto-Anordnen"),

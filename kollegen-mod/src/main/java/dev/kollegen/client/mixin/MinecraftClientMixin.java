@@ -18,9 +18,4 @@ public class MinecraftClientMixin {
     private void kollegen_client$onTick(CallbackInfo ci) {
         KollegenMod.onTick();
     }
-
-    @Inject(method = "tick", at = @At("TAIL"))
-    private void kollegen_client$onTickTail(CallbackInfo ci) {
-        dev.kollegen.client.mods.modules.FreeCamState.apply();
-    }
 }
