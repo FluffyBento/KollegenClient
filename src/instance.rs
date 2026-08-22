@@ -745,26 +745,79 @@ fn jar_mod_id(jar: &Path) -> Option<String> {
     doc.get("id")?.as_str().map(|s| s.to_string())
 }
 
-/// Sodium and VulkanMod are mutually exclusive renderers: with both present the
-/// Fabric loader hard-crashes ("Incompatible mods found") *before* any mod code
-/// runs, so the conflict can't be resolved in-game (not even by our companion
-/// mod). The launcher therefore enforces exclusivity at the filesystem level,
-/// driven by the instance's `vulkan_enabled` flag:
-///
-/// * `vulkan_enabled == true`  -> keep VulkanMod, remove Sodium
-/// * `vulkan_enabled == false` -> keep Sodium, remove the VulkanMod fork
-///
-/// Sodium is auto-installed by the performance-modpack (`PERF_MODS`) and is
-/// re-added on every launch, so it is the stable baseline when Vulkan is off.
-/// The VulkanMod fork ("Kollegen Client Vulkan", modid `vulkanmod`) is an
-/// optional, user-added mod; when Vulkan is off we drop it so the instance can
-/// actually launch instead of crashing.
-pub(crate) fn enforce_renderer_exclusivity(mods_dir: &Path, vulkan_enabled: bool) {
-    if !mods_dir.exists() {
-        return;
+/// True when `p` is a non-empty, valid jar/zip (jars start with `PK`).
+fn valid_jar(p: &Path) -> bool {
+    match fs::metadata(p) {
+        Ok(m) if m.len() > 0 => fs::read(p)
+            .map(|b| b.len() >= 4 && b.starts_with(b"PK"))
+            .unwrap_or(false),
+        _ => false,
     }
-    let mut sodium_jar = None;
-    let mut vulkan_jar = None;
+}
+
+/// The two mutually exclusive renderer mods.
+enum RendererSide {
+    Sodium,
+    Vulkan,
+}
+
+/// File name the launcher deploys/removes the VulkanMod fork as inside `mods/`.
+const VULKAN_MOD_FILENAME: &str = "kollegen-client-vulkan.jar";
+
+/// GitHub release asset for the VulkanMod fork (mirrors the companion mod's
+/// `kollegen-client-mod.jar` download). Publish the fork there so enabling
+/// Vulkan can re-install it.
+const VULKAN_MOD_URL: &str =
+    "https://github.com/FluffyBento/KollegenClient/releases/latest/download/kollegen-client-vulkan.jar";
+
+/// Returns a usable VulkanMod-fork jar, resolving in this order: a bundled
+/// resource next to the executable, then a cached download of the GitHub
+/// release asset. Returns `None` when no jar could be obtained.
+fn vulkan_source_jar(data_dir: &Path) -> Option<PathBuf> {
+    // 1) Bundled resource (packaged builds / dev runs).
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(dir) = exe.parent() {
+            for cand in [
+                dir.join("resources").join(VULKAN_MOD_FILENAME),
+                dir.join(VULKAN_MOD_FILENAME),
+            ] {
+                if valid_jar(&cand) {
+                    return Some(cand);
+                }
+            }
+        }
+    }
+    // 2) Cached download (best-effort).
+    let cache_dir = data_dir.join("vulkan");
+    let _ = fs::create_dir_all(&cache_dir);
+    let cache = cache_dir.join(VULKAN_MOD_FILENAME);
+    if valid_jar(&cache) {
+        return Some(cache);
+    }
+    match crate::utils::download_file(VULKAN_MOD_URL, &cache) {
+        Ok(()) if valid_jar(&cache) => Some(cache),
+        _ => {
+            warn!("Vulkan-Fork konnte nicht bezogen werden (Download fehlgeschlagen).");
+            None
+        }
+    }
+}
+
+/// True when `fname`/`id` belong to the given renderer side.
+fn matches_renderer(fname: &str, id: &str, side: RendererSide) -> bool {
+    match side {
+        RendererSide::Sodium => id == "sodium" || fname.contains("sodium"),
+        RendererSide::Vulkan => {
+            id == "vulkanmod" || fname.contains("vulkanmod") || fname.contains("kollegen client vulkan")
+        }
+    }
+}
+
+/// Finds the first jar in `mods_dir` belonging to the given renderer side.
+fn find_renderer_jar(mods_dir: &Path, side: RendererSide) -> Option<PathBuf> {
+    if !mods_dir.exists() {
+        return None;
+    }
     if let Ok(entries) = fs::read_dir(mods_dir) {
         for e in entries.flatten() {
             let p = e.path();
@@ -776,35 +829,96 @@ pub(crate) fn enforce_renderer_exclusivity(mods_dir: &Path, vulkan_enabled: bool
                 continue;
             }
             let id = jar_mod_id(&p).unwrap_or_default().to_lowercase();
-            if id == "sodium" || fname.contains("sodium") {
-                sodium_jar = Some(p);
-            } else if id == "vulkanmod"
-                || fname.contains("vulkanmod")
-                || fname.contains("kollegen client vulkan")
-            {
-                vulkan_jar = Some(p);
+            if matches_renderer(&fname, &id, side) {
+                return Some(p);
             }
         }
     }
+    None
+}
+
+/// Removes every jar in `mods_dir` belonging to the given renderer side.
+fn remove_renderer_jars(mods_dir: &Path, side: RendererSide) {
+    if !mods_dir.exists() {
+        return;
+    }
+    if let Ok(entries) = fs::read_dir(mods_dir) {
+        for e in entries.flatten() {
+            let p = e.path();
+            if p.extension().and_then(|x| x.to_str()) != Some("jar") {
+                continue;
+            }
+            let fname = p.file_name().unwrap().to_string_lossy().to_lowercase();
+            if crate::companion::is_companion_mod_name(&fname) {
+                continue;
+            }
+            let id = jar_mod_id(&p).unwrap_or_default().to_lowercase();
+            if matches_renderer(&fname, &id, side) {
+                warn!(
+                    "Entferne Renderer-Mod ('{}') wegen Wechsel des Vulkan-Schalters.",
+                    p.file_name().unwrap().to_string_lossy()
+                );
+                let _ = fs::remove_file(&p);
+            }
+        }
+    }
+}
+
+/// Reconciles the renderer mods in an instance's `mods/` folder with the
+/// instance's `vulkan_enabled` flag. Sodium and VulkanMod are mutually
+/// exclusive and make the Fabric loader hard-crash if both are present, so the
+/// launcher manages them here (the in-game companion mod can't, because the
+/// crash happens before any mod runs):
+///
+/// * `vulkan_enabled == true`  -> remove Sodium, deploy the VulkanMod fork
+/// * `vulkan_enabled == false` -> remove the VulkanMod fork, (re)install Sodium
+pub(crate) fn reconcile_renderer(
+    data_dir: &Path,
+    instance_name: &str,
+    version: &str,
+    loader: &str,
+    mods_dir: &Path,
+    vulkan_enabled: bool,
+) {
     if vulkan_enabled {
-        // Vulkan-Modus: Sodium darf nicht gleichzeitig geladen werden.
-        if let Some(s) = sodium_jar {
-            warn!(
-                "Vulkan-Modus aktiv: Sodium ('{}') wird entfernt, da Sodium und VulkanMod nicht gemeinsam geladen werden können.",
-                s.file_name().unwrap().to_string_lossy()
-            );
-            let _ = fs::remove_file(&s);
+        remove_renderer_jars(mods_dir, RendererSide::Sodium);
+        // Vulkan-Fork nur deployen, wenn (noch) kein VulkanMod vorhanden ist.
+        if find_renderer_jar(mods_dir, RendererSide::Vulkan).is_none() {
+            match vulkan_source_jar(data_dir) {
+                Some(src) => {
+                    let target = mods_dir.join(VULKAN_MOD_FILENAME);
+                    if let Err(e) = fs::copy(&src, &target) {
+                        warn!(
+                            "Konnte Vulkan-Fork nicht nach '{}' kopieren: {}",
+                            target.display(),
+                            e
+                        );
+                    } else {
+                        info!("Vulkan-Fork in Instanz '{}' aktiviert.", instance_name);
+                    }
+                }
+                None => warn!(
+                    "Vulkan ist aktiv, aber der Vulkan-Fork konnte nicht bezogen werden – \
+                     die Instanz startet ohne Vulkan-Renderer."
+                ),
+            }
         }
     } else {
-        // Standard (Sodium): die optionale VulkanMod-Fork würde den Start
-        // abstürzen lassen – sie wird entfernt.
-        if let Some(v) = vulkan_jar {
-            warn!(
-                "Sodium und VulkanMod sind inkompatibel und können nicht gemeinsam geladen werden. \
-                 VulkanMod ('{}') wird entfernt, damit die Instanz startet (Sodium bleibt aktiv).",
-                v.file_name().unwrap().to_string_lossy()
-            );
-            let _ = fs::remove_file(&v);
+        remove_renderer_jars(mods_dir, RendererSide::Vulkan);
+        // Sodium sicherstellen (kann fehlen, wenn zuvor Vulkan aktiv war).
+        if find_renderer_jar(mods_dir, RendererSide::Sodium).is_none() {
+            info!("Installiere Sodium (Performance-Mod) neu…");
+            if let Err(e) = crate::modrinth::install_content(
+                instance_name,
+                data_dir,
+                "mod",
+                "sodium",
+                version,
+                loader,
+                None,
+            ) {
+                warn!("Sodium konnte nicht neu installiert werden: {}", e);
+            }
         }
     }
 }
@@ -821,10 +935,17 @@ pub fn launch(
     // Begleit-Mod bei jedem Start erneut sicherstellen (1.21.x – 1.26.x).
     ensure_kollegen_mod(data_dir, &inst.name, &inst.loader, &inst.version);
     // Sodium/VulkanMod dürfen nicht gleichzeitig geladen werden – sonst crasht
-    // der Fabric-Loader vor dem Mod-Start. Konflikt präventiv auflösen,
-    // abhängig vom Vulkan-Schalter der Instanz.
+    // der Fabric-Loader vor dem Mod-Start. Renderer anhand des Vulkan-Schalters
+    // der Instanz abstimmen (Vulkan-Fork deployen bzw. Sodium neu installieren).
     let mods_dir = inst_dir.join("mods");
-    enforce_renderer_exclusivity(&mods_dir, inst.vulkan_enabled);
+    reconcile_renderer(
+        data_dir,
+        &inst.name,
+        &inst.version,
+        &inst.loader,
+        &mods_dir,
+        inst.vulkan_enabled,
+    );
     // Fresh launcher log per launch (avoids stale crash lines triggering the
     // auto-resolver again on the next manual launch).
     if let Ok(mut logs) = state.logs.lock() {
