@@ -9,7 +9,9 @@
     "MouseHandlerMixin",
     "NametagMixin",
     "BiomeMixin",
-    "LogoRendererMixin"
+    "LogoRendererMixin",
+    "FogRendererMixin",
+    "SkyRendererMixin"
   ],
   "injectors": {
     "defaultRequire": 1
