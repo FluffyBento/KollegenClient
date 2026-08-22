@@ -669,6 +669,34 @@ fn launch_game(
         inst.server = Some(if s.contains(':') { s.clone() } else { format!("{}:25565", s) });
     }
 
+    // Zwei-Wege-Sync des Renderer-Toggles: Der In-Game-Schalter schreibt nur
+    // die State-Datei mods/.kollegen-renderer ("vulkan"/"opengl") – Jars dürfen
+    // im laufenden Spiel nicht umbenannt werden (SIGSEGV). Beim Start übernehmen
+    // wir den Wunsch als Quelle der Wahrheit, bevor enforce_renderer_consistency
+    // ihn überschreiben würde, und persistieren ihn in instances.json.
+    {
+        let mods_dir = utils::instance_dir(&state.data_dir, &inst.name).join("mods");
+        if let Some(desired) = instance::read_renderer_state(&mods_dir) {
+            if desired != inst.vulkan_enabled {
+                inst.vulkan_enabled = desired;
+                let mut instances = instances;
+                if let Some(i) = instances.iter_mut().find(|i| i.name == instance_name) {
+                    i.vulkan_enabled = desired;
+                }
+                if let Err(e) = utils::save_json(&path, &instances) {
+                    utils::append_log(&state, &format!("Renderer-Wunsch konnte nicht gespeichert werden: {}", e));
+                }
+                utils::append_log(
+                    &state,
+                    &format!(
+                        "In-Game-Renderer-Toggle übernommen: {}",
+                        if desired { "Vulkan" } else { "OpenGL" }
+                    ),
+                );
+            }
+        }
+    }
+
     // Make sure the Kollegen Client companion mod is present (drives in-game
     // rich presence + join). Best-effort; no-op if the project id is empty or
     // the instance is vanilla.

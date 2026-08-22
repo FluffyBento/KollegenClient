@@ -762,6 +762,20 @@ fn renderer_state_path(mods_dir: &Path) -> PathBuf {
     mods_dir.join(".kollegen-renderer")
 }
 
+/// Reads the renderer-state file written by the in-game toggle. The toggle
+/// deliberately only writes this file (renaming renderer jars while the JVM
+/// has them loaded crashes natively); the launcher adopts it here at next
+/// start. Returns `Some(true)` for "vulkan", `Some(false)` for "opengl" and
+/// `None` when the file is missing or has an unknown value.
+pub(crate) fn read_renderer_state(mods_dir: &Path) -> Option<bool> {
+    let s = fs::read_to_string(renderer_state_path(mods_dir)).ok()?;
+    match s.trim().to_lowercase().as_str() {
+        "vulkan" => Some(true),
+        "opengl" => Some(false),
+        _ => None,
+    }
+}
+
 /// Enforces renderer exclusivity on the instance's `mods/` folder WITHOUT
 /// downloading or deploying any mod binaries — the companion mod embeds and
 /// deploys them at runtime. It only guarantees the on-disk `.disabled` state

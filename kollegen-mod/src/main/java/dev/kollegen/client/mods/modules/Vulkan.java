@@ -8,9 +8,15 @@ import dev.kollegen.client.mods.ModuleManager;
 /**
  * In-Game-Toggle für den Vulkan-Renderer. Aktiviert den Vulkan-Modus
  * (VulkanMod-Fork + Beryl-Shaderloader) und deaktiviert automatisch die
- * OpenGL-Gruppe (Sodium + Iris) – und umgekehrt. Die eigentliche Exklusivität
- * wird von {@link RendererManager} durchgesetzt; dieser Toggle schreibt nur
- * den gewünschten Zustand und löst {@code apply()} aus. Wirkt nach Neustart.
+ * OpenGL-Gruppe (Sodium + Iris) – und umgekehrt.
+ *
+ * WICHTIG: Der Toggle darf die Renderer-Jars NIEMALS zur Laufzeit umbenennen
+ * ({@code apply()}): Die Klassen der aktuell geladenen Gruppe sind im JVM
+ * bereits geladen und hängen an nativen GL/Vulkan-Kontexten – ein Umbenennen
+ * führt zu hartem SIGSEGV (libnvidia-glcore o.ä.). Der Toggle schreibt
+ * ausschließlich die State-Datei; der Launcher übernimmt sie beim nächsten
+ * Start (Zwei-Wege-Sync) und stimmt die .disabled-States ab, bevor Minecraft
+ * hochfährt.
  */
 public final class Vulkan {
 
@@ -32,16 +38,16 @@ public final class Vulkan {
 
         @Override
         public void onEnable() {
+            // Nur Wunsch speichern – kein Datei-Umbau im laufenden Spiel!
             RendererManager.setDesired(RendererManager.Group.VULKAN);
-            RendererManager.apply();
-            risk = "Vulkan ist AKTIV – Minecraft neu starten, damit es lädt. (Sodium/Iris wurden automatisch deaktiviert.)";
+            risk = "Vulkan AKTIV – starte Minecraft neu, damit VulkanMod+Beryl laden.";
         }
 
         @Override
         public void onDisable() {
+            // Nur Wunsch speichern – kein Datei-Umbau im laufenden Spiel!
             RendererManager.setDesired(RendererManager.Group.OPENGL);
-            RendererManager.apply();
-            risk = "Vulkan ist DEAKTIVIERT – Minecraft neu starten (lädt OpenGL). (Sodium/Iris wieder aktiv.)";
+            risk = "Vulkan DEAKTIVIERT – starte Minecraft neu, damit Sodium+Iris laden.";
         }
     }
 }
