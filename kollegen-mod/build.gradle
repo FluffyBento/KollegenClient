@@ -147,11 +147,13 @@ def berylTask = vendorModResource('dev/kollegen/client/beryl.bin', 'beryl')
 // MC-Version passende Version.
 def spotifyUrl = 'https://cdn.modrinth.com/data/iRsArBuW/versions/BMGGYY7f/spotify_overlay-1.0.17-SNAPSHOT%2Bfabric.1.21.11.jar'
 def spotifyTask = vendorModResource('dev/kollegen/client/spotify.bin', 'spotify-overlay', spotifyUrl)
-// FLK wird bewusst NICHT gebündelt: "Essential Dependencies" liefert sein
-// eigenes fabric-language-kotlin als Nested-Jar (>=1.13.8+kotlin.2.3.0) mit.
-// Ein zweites FLK im Klassenraum kollidiert damit und bricht Essential mit
-// AbstractMethodError in kotlinx-serialization (typeParametersSerializers).
-// Essentials Nested-Version (1.13.8) erfüllt auch Spotify (>=1.13.7) und Silk.
+// FLK bewusst auf EXAKT 1.13.8+kotlin.2.3.0 gepinnt – das ist die Version, die
+// "Essential Dependencies" selbst als Nested-Jar mitbringt. So ist die
+// kotlinx-serialization-ABI überall identisch und Essential bricht nicht mit
+// AbstractMethodError (typeParametersSerializers). Instance ohne Essential
+// bekommen so trotzdem ein fabric-language-kotlin für Spotify/Silk/etc.
+def flkUrl = 'https://cdn.modrinth.com/data/Ha28R6CL/versions/N6D3uiZF/fabric-language-kotlin-1.13.8%2Bkotlin.2.3.0.jar'
+def flkTask = vendorModResource('dev/kollegen/client/flk.bin', 'fabric-language-kotlin', flkUrl)
 def fabricApiTask = vendorModResource('dev/kollegen/client/fabricapi.bin', 'fabric-api')
 def owoTask = vendorModResource('dev/kollegen/client/owo.bin', 'owo-lib')
 def modMenuTask = vendorModResource('dev/kollegen/client/modmenu.bin', 'modmenu')
@@ -344,7 +346,7 @@ tasks.register('vendorVulkanMod') {
     }
 }
 processResources.dependsOn vendorVulkanMod, sodiumTask, irisTask, berylTask,
-        spotifyTask, fabricApiTask, owoTask, modMenuTask,
+        spotifyTask, flkTask, fabricApiTask, owoTask, modMenuTask,
         tpaTask, silkTask, clothConfigTask, chatHeadsTask
 
 java {

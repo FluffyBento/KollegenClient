@@ -837,6 +837,7 @@ const BUNDLED_MODS: &[(&str, &str, &str)] = &[
     ("spotify", "kollegen-bundle-spotify.jar", "dev/kollegen/client/spotify.bin"),
     ("chatheads", "kollegen-bundle-chatheads.jar", "dev/kollegen/client/chatheads.bin"),
     ("@deps", "kollegen-bundle-fabric-api.jar", "dev/kollegen/client/fabricapi.bin"),
+    ("@deps", "kollegen-bundle-flk.jar", "dev/kollegen/client/flk.bin"),
     ("@deps", "kollegen-bundle-owo.jar", "dev/kollegen/client/owo.bin"),
     ("@deps", "kollegen-bundle-modmenu.jar", "dev/kollegen/client/modmenu.bin"),
     ("@deps", "kollegen-bundle-tpa.jar", "dev/kollegen/client/tpa.bin"),
