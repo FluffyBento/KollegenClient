@@ -746,13 +746,17 @@ enum RendererGroup {
 ///
 /// Xaero's World Map/Minimap ship OpenGL-only shaders (xaerolib) that
 /// VulkanMod's GLSL→Vulkan converter cannot parse (`pos_tex_alpha_pre` etc.),
-/// which hard-crashes the client. They are therefore bound to the OpenGL group
-/// and are auto-disabled whenever the Vulkan renderer is active.
+/// which hard-crashes the client. Axiom patches the same `LevelRenderer`
+/// chunk-render path (`prepareChunkRenders`) that VulkanMod replaces with its
+/// own pipeline, so the two Mixins collide and Fabric aborts at startup. Both
+/// only work with the OpenGL/Sodium render path, hence they are bound to the
+/// OpenGL group and auto-disabled whenever the Vulkan renderer is active.
 fn renderer_mod_group(fname: &str) -> Option<RendererGroup> {
     let f = fname.to_lowercase();
     let f = f.strip_suffix(".disabled").unwrap_or(&f);
     if f.starts_with("sodium")
         || f.starts_with("iris")
+        || f.starts_with("axiom")
         || f.starts_with("xaeroworldmap")
         || f.starts_with("xaerominimap")
         || f.starts_with("xaerolib")
