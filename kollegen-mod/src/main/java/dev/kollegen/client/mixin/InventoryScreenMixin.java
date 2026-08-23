@@ -2,101 +2,75 @@ package dev.kollegen.client.mixin;
 
 import dev.kollegen.client.mods.modules.InventoryLayout;
 import dev.kollegen.client.ui.LogoDraw;
-import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.Slot;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import org.spongepowered.asm.mixin.Unique;
-
-import java.lang.reflect.Field;
 
 /**
  * Verschiebt das Inventar-Panel (Hintergrund, Slots, Ruestung, Crafting) um den
- * in InventoryLayout konfigurierten Versatz. Slots werden per Reflection
- * verschoben, damit Anzeige und Klick-Trefferzonen zusammen bleiben. Ausserdem
- * wird unten rechts das Kollegen-Logo eingeblendet und der Inventar-Hintergrund
- * mit der in InventoryColor konfigurierten Farbe eingefaerbt.
+ * in InventoryLayout konfigurierten Versatz. Slots werden ueber ihre oeffentlichen
+ * Felder x/y verschoben, damit Anzeige und Klick-Trefferzonen zusammen bleiben.
+ * Ausserdem wird unten rechts das Kollegen-Logo eingeblendet und der
+ * Inventar-Hintergrund mit der in InventoryColor konfigurierten Farbe eingefaerbt.
  *
- * WICHTIG: Kein Class.forName() im static-Block! Das wuerde sonst in
- * AbstractContainerScreen.<clinit> (via Mixin-Merge) aufgerufen, waehrend die
- * Klasse gerade initialisiert wird, und wirft ClassNotFoundException -> Crash
- * beim ersten Oeffnen eines Container-Screens (Inventar). Stattdessen wird die
- * Klasse ueber den direkten .class-Literal referenziert (laedt NUR das Class-
- * Objekt, loest KEINEN <clinit> aus).
+ * Alle Vanilla-Feldzugriffe (leftPos/topPos/menu ueber @Shadow, Slot.x/Slot.y
+ * direkt) werden ueber den refmap des Mods remapped. Reflection ueber
+ * Class.getDeclaredField(...) wuerde unter Intermediary mit NoSuchFieldException
+ * crashn, weil String-Literale NICHT vom refmap erfasst werden.
  */
-@Mixin(net.minecraft.client.gui.screens.inventory.InventoryScreen.class)
+@Mixin(InventoryScreen.class)
 public class InventoryScreenMixin {
 
-    @Unique
-    private static final Field KOLLEGEN_SLOT_X;
-    @Unique
-    private static final Field KOLLEGEN_SLOT_Y;
-    @Unique
-    private static final Field KOLLEGEN_LEFT;
-    @Unique
-    private static final Field KOLLEGEN_TOP;
-    @Unique
-    private static final Field KOLLEGEN_MENU;
+    @Shadow
+    protected int leftPos;
+
+    @Shadow
+    protected int topPos;
+
+    @Shadow
+    protected AbstractContainerMenu menu;
+
     @Unique
     private int kollegen$appliedX = 0;
+
     @Unique
     private int kollegen$appliedY = 0;
 
-    static {
-        Field x = null, y = null, left = null, top = null, menu = null;
-        try {
-            // Direkter Klassen-Literal statt Class.forName (siehe Klassen-Javadoc).
-            Class<?> acs = AbstractContainerScreen.class;
-            x = Slot.class.getDeclaredField("x");
-            y = Slot.class.getDeclaredField("y");
-            left = acs.getDeclaredField("leftPos");
-            top = acs.getDeclaredField("topPos");
-            menu = acs.getDeclaredField("menu");
-            for (Field f : new Field[]{x, y, left, top, menu}) f.setAccessible(true);
-        } catch (ReflectiveOperationException ignored) {
-        }
-        KOLLEGEN_SLOT_X = x;
-        KOLLEGEN_SLOT_Y = y;
-        KOLLEGEN_LEFT = left;
-        KOLLEGEN_TOP = top;
-        KOLLEGEN_MENU = menu;
-    }
-
     @Inject(method = "init", at = @At("RETURN"))
     private void kollegen$shift(CallbackInfo ci) {
-        if (KOLLEGEN_SLOT_X == null || KOLLEGEN_SLOT_Y == null
-                || KOLLEGEN_LEFT == null || KOLLEGEN_TOP == null || KOLLEGEN_MENU == null) return;
+        int ox = InventoryLayout.offX, oy = InventoryLayout.offY;
 
-        Object self = this;
-        try {
-            // vorherigen Versatz rueckgaengig machen (Resize-/Mehrfach-Init sicher)
-            int prevX = kollegen$appliedX, prevY = kollegen$appliedY;
-            KOLLEGEN_LEFT.set(self, (int) KOLLEGEN_LEFT.get(self) - prevX);
-            KOLLEGEN_TOP.set(self, (int) KOLLEGEN_TOP.get(self) - prevY);
-            AbstractContainerMenu menu = (AbstractContainerMenu) KOLLEGEN_MENU.get(self);
-            if (menu == null || menu.slots == null) return;
-            for (Slot s : menu.slots) {
-                KOLLEGEN_SLOT_X.set(s, s.x - prevX);
-                KOLLEGEN_SLOT_Y.set(s, s.y - prevY);
+        // vorherigen Versatz rueckgaengig machen (Resize-/Mehrfach-Init sicher)
+        int prevX = kollegen$appliedX, prevY = kollegen$appliedY;
+        this.leftPos -= prevX;
+        this.topPos -= prevY;
+        AbstractContainerMenu m = this.menu;
+        if (m != null && m.slots != null) {
+            for (Slot s : m.slots) {
+                s.x -= prevX;
+                s.y -= prevY;
             }
-
-            // neuen Versatz anwenden
-            int ox = InventoryLayout.offX, oy = InventoryLayout.offY;
-            KOLLEGEN_LEFT.set(self, (int) KOLLEGEN_LEFT.get(self) + ox);
-            KOLLEGEN_TOP.set(self, (int) KOLLEGEN_TOP.get(self) + oy);
-            for (Slot s : menu.slots) {
-                KOLLEGEN_SLOT_X.set(s, s.x + ox);
-                KOLLEGEN_SLOT_Y.set(s, s.y + oy);
-            }
-            kollegen$appliedX = ox;
-            kollegen$appliedY = oy;
-        } catch (Exception ignored) {
-            // Kosmetik-Feature: darf niemals zum Crash fuehren.
         }
+
+        // neuen Versatz anwenden
+        this.leftPos += ox;
+        this.topPos += oy;
+        if (m != null && m.slots != null) {
+            for (Slot s : m.slots) {
+                s.x += ox;
+                s.y += oy;
+            }
+        }
+        kollegen$appliedX = ox;
+        kollegen$appliedY = oy;
     }
 
     @Inject(method = "render(Lnet/minecraft/client/gui/GuiGraphics;IIF)V", at = @At("RETURN"))

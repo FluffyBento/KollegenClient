@@ -4,7 +4,10 @@ import club.minnced.discord.rpc.DiscordEventHandlers;
 import club.minnced.discord.rpc.DiscordRPC;
 import club.minnced.discord.rpc.DiscordRichPresence;
 import dev.kollegen.client.KollegenMod;
+import dev.kollegen.client.mixin.MinecraftAccessor;
+import dev.kollegen.client.mixin.ServerDataAccessor;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ServerData;
 
 /**
  * In-game Discord Rich Presence. Verbindet sich über IPC mit dem lokalen
@@ -113,37 +116,16 @@ public class KollegenRPC {
     }
 //PART2
     /**
-     * Holt die aktuelle Server-Adresse robust über Reflection – funktioniert
-     * auch, wenn sich Methoden-/Feldnamen zwischen MC-Versionen unterscheiden.
+     * Holt die aktuelle Server-Adresse ueber @Accessor-Mixins (refmap-remapped).
+     * Reflection ueber Class.getMethod(...) wuerde unter Intermediary mit
+     * NoSuchMethodException scheitern.
      */
     private static String currentServerIp(Minecraft mc) {
         try {
-            Object serverData = null;
-            try {
-                serverData = mc.getClass().getMethod("getCurrentServer").invoke(mc);
-            } catch (NoSuchMethodException ignored) {
-            }
-            if (serverData == null) {
-                try {
-                    serverData = mc.getClass().getMethod("getServerData").invoke(mc);
-                } catch (NoSuchMethodException ignored) {
-                }
-            }
-            if (serverData == null) {
-                try {
-                    serverData = mc.getClass().getField("currentServer").get(mc);
-                } catch (NoSuchFieldException ignored) {
-                }
-            }
+            ServerData serverData = ((MinecraftAccessor) mc).kollegen$getCurrentServer();
             if (serverData == null) return null;
-            for (String m : new String[]{"ip", "getIp", "getIpAddress"}) {
-                try {
-                    Object v = serverData.getClass().getMethod(m).invoke(serverData);
-                    if (v instanceof String s && !s.isEmpty()) return s;
-                } catch (NoSuchMethodException | ClassCastException ignored) {
-                }
-            }
-            return null;
+            String ip = ((ServerDataAccessor) serverData).kollegen$getIp();
+            return (ip != null && !ip.isEmpty()) ? ip : null;
         } catch (Throwable t) {
             return null;
         }

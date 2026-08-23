@@ -18,6 +18,8 @@
     "ParticleEngineMixin",
     "InventoryScreenMixin",
     "ContainerScreenMixin",
+    "MinecraftAccessor",
+    "ServerDataAccessor",
     "GameRendererMixin",
     "ScreenTooltipMixin",
     "XaeroWorldMapMixin"
