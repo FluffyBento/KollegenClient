@@ -28,7 +28,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * Class.getDeclaredField(...) wuerde unter Intermediary mit NoSuchFieldException
  * crashn, weil String-Literale NICHT vom refmap erfasst werden.
  */
-@Mixin(InventoryScreen.class)
+@Mixin(AbstractContainerScreen.class)
 public class InventoryScreenMixin {
 
     @Shadow
@@ -48,6 +48,7 @@ public class InventoryScreenMixin {
 
     @Inject(method = "init", at = @At("RETURN"))
     private void kollegen$shift(CallbackInfo ci) {
+        if (!(this instanceof InventoryScreen)) return;
         int ox = InventoryLayout.offX, oy = InventoryLayout.offY;
 
         // vorherigen Versatz rueckgaengig machen (Resize-/Mehrfach-Init sicher)
@@ -79,6 +80,7 @@ public class InventoryScreenMixin {
 
     @Inject(method = "render(Lnet/minecraft/client/gui/GuiGraphics;IIF)V", at = @At("RETURN"))
     private void kollegen$drawLogo(GuiGraphics gui, int mouseX, int mouseY, float partialTick, CallbackInfo ci) {
+        if (!(this instanceof InventoryScreen)) return;
         try {
             int[] dim = LogoDraw.dims();
             int targetW = 72;
