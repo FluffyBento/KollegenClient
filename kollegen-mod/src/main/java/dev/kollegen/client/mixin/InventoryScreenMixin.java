@@ -2,6 +2,7 @@ package dev.kollegen.client.mixin;
 
 import dev.kollegen.client.mods.modules.InventoryLayout;
 import dev.kollegen.client.ui.LogoDraw;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.Slot;
@@ -10,7 +11,6 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.Unique;
-import org.spongepowered.asm.mixin.Shadow;
 
 import java.lang.reflect.Field;
 
@@ -20,59 +20,76 @@ import java.lang.reflect.Field;
  * verschoben, damit Anzeige und Klick-Trefferzonen zusammen bleiben. Ausserdem
  * wird unten rechts das Kollegen-Logo eingeblendet und der Inventar-Hintergrund
  * mit der in InventoryColor konfigurierten Farbe eingefaerbt.
+ *
+ * WICHTIG: Kein Class.forName() im static-Block! Das wuerde sonst in
+ * AbstractContainerScreen.<clinit> (via Mixin-Merge) aufgerufen, waehrend die
+ * Klasse gerade initialisiert wird, und wirft ClassNotFoundException -> Crash
+ * beim ersten Oeffnen eines Container-Screens (Inventar). Stattdessen wird die
+ * Klasse ueber den direkten .class-Literal referenziert (laedt NUR das Class-
+ * Objekt, loest KEINEN <clinit> aus).
  */
 @Mixin(net.minecraft.client.gui.screens.inventory.InventoryScreen.class)
 public class InventoryScreenMixin {
-
-    @Shadow
-    protected int leftPos;
-    @Shadow
-    protected int topPos;
-    @Shadow
-    protected AbstractContainerMenu menu;
 
     @Unique
     private static final Field KOLLEGEN_SLOT_X;
     @Unique
     private static final Field KOLLEGEN_SLOT_Y;
     @Unique
+    private static final Field KOLLEGEN_LEFT;
+    @Unique
+    private static final Field KOLLEGEN_TOP;
+    @Unique
+    private static final Field KOLLEGEN_MENU;
+    @Unique
     private int kollegen$appliedX = 0;
     @Unique
     private int kollegen$appliedY = 0;
 
     static {
-        Field x = null, y = null;
+        Field x = null, y = null, left = null, top = null, menu = null;
         try {
+            // Direkter Klassen-Literal statt Class.forName (siehe Klassen-Javadoc).
+            Class<?> acs = AbstractContainerScreen.class;
             x = Slot.class.getDeclaredField("x");
             y = Slot.class.getDeclaredField("y");
-            for (Field f : new Field[]{x, y}) f.setAccessible(true);
+            left = acs.getDeclaredField("leftPos");
+            top = acs.getDeclaredField("topPos");
+            menu = acs.getDeclaredField("menu");
+            for (Field f : new Field[]{x, y, left, top, menu}) f.setAccessible(true);
         } catch (ReflectiveOperationException ignored) {
         }
         KOLLEGEN_SLOT_X = x;
         KOLLEGEN_SLOT_Y = y;
+        KOLLEGEN_LEFT = left;
+        KOLLEGEN_TOP = top;
+        KOLLEGEN_MENU = menu;
     }
 
     @Inject(method = "init", at = @At("RETURN"))
     private void kollegen$shift(CallbackInfo ci) {
-        if (KOLLEGEN_SLOT_X == null || KOLLEGEN_SLOT_Y == null) return;
+        if (KOLLEGEN_SLOT_X == null || KOLLEGEN_SLOT_Y == null
+                || KOLLEGEN_LEFT == null || KOLLEGEN_TOP == null || KOLLEGEN_MENU == null) return;
 
+        Object self = this;
         try {
             // vorherigen Versatz rueckgaengig machen (Resize-/Mehrfach-Init sicher)
             int prevX = kollegen$appliedX, prevY = kollegen$appliedY;
-            leftPos -= prevX;
-            topPos -= prevY;
+            KOLLEGEN_LEFT.set(self, (int) KOLLEGEN_LEFT.get(self) - prevX);
+            KOLLEGEN_TOP.set(self, (int) KOLLEGEN_TOP.get(self) - prevY);
+            AbstractContainerMenu menu = (AbstractContainerMenu) KOLLEGEN_MENU.get(self);
             for (Slot s : menu.slots) {
-                KOLLEGEN_SLOT_X.set(s, (int) KOLLEGEN_SLOT_X.get(s) - prevX);
-                KOLLEGEN_SLOT_Y.set(s, (int) KOLLEGEN_SLOT_Y.get(s) - prevY);
+                KOLLEGEN_SLOT_X.set(s, s.x - prevX);
+                KOLLEGEN_SLOT_Y.set(s, s.y - prevY);
             }
 
             // neuen Versatz anwenden
             int ox = InventoryLayout.offX, oy = InventoryLayout.offY;
-            leftPos += ox;
-            topPos += oy;
+            KOLLEGEN_LEFT.set(self, (int) KOLLEGEN_LEFT.get(self) + ox);
+            KOLLEGEN_TOP.set(self, (int) KOLLEGEN_TOP.get(self) + oy);
             for (Slot s : menu.slots) {
-                KOLLEGEN_SLOT_X.set(s, (int) KOLLEGEN_SLOT_X.get(s) + ox);
-                KOLLEGEN_SLOT_Y.set(s, (int) KOLLEGEN_SLOT_Y.get(s) + oy);
+                KOLLEGEN_SLOT_X.set(s, s.x + ox);
+                KOLLEGEN_SLOT_Y.set(s, s.y + oy);
             }
             kollegen$appliedX = ox;
             kollegen$appliedY = oy;
