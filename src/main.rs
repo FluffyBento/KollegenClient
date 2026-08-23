@@ -46,6 +46,37 @@ pub fn client_id() -> &'static str {
     })
     .as_str()
 }
+
+// Public Microsoft client IDs that work with the device-code flow and the
+// `XboxLive.Signin` / `offline_access` scopes. These are *public* clients (no
+// secret) that are reused across the open-source Minecraft-launcher ecosystem at
+// no cost and without registering your own Azure app. When Microsoft blocks or
+// throttles one ID for a user, `ms_auth_start` automatically retries with the
+// next candidate so login keeps working. Add more known-good public IDs here.
+pub const MS_CLIENT_IDS: &[&str] = &[
+    CLIENT_ID_DEFAULT,                                   // PrismLauncher's public client
+    "9c1f1f43-58d5-4b7a-af0d-4e487f073441",              // public client used by minecraft-rs/auth
+];
+
+// Client ID selected for the in-progress login attempt (a fallback candidate).
+static ACTIVE_MS_CLIENT_ID: std::sync::Mutex<Option<String>> = std::sync::Mutex::new(None);
+
+/// Client ID for the current login attempt: `MICROSOFT_CLIENT_ID` env override,
+/// then the selected fallback candidate, then the default.
+pub fn auth_client_id() -> String {
+    if let Some(env) = std::env::var("MICROSOFT_CLIENT_ID").ok().filter(|s| !s.is_empty()) {
+        return env;
+    }
+    if let Some(active) = ACTIVE_MS_CLIENT_ID.lock().unwrap().as_ref() {
+        return active.clone();
+    }
+    CLIENT_ID_DEFAULT.to_string()
+}
+
+/// Selects which fallback client ID the next login attempt uses.
+pub fn set_auth_client_id(id: &str) {
+    *ACTIVE_MS_CLIENT_ID.lock().unwrap() = Some(id.to_string());
+}
 pub const USER_AGENT: &str = "KollegenClient/1.0 (+https://kollegen.dev)";
 pub const DEFAULT_MEMORY_MIN: &str = "2G";
 pub const DEFAULT_MEMORY_MAX: &str = "4G";

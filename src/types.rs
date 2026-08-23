@@ -11,6 +11,11 @@ pub struct Account {
     pub expires_at: Option<u64>,
     pub avatar_id: Option<String>,
     pub xuid: Option<String>,
+    /// Microsoft OAuth client ID that obtained this account's tokens. Stored so
+    /// refresh uses the exact same public client (important when the default was
+    /// overridden or a fallback candidate was used during login).
+    #[serde(default)]
+    pub client_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

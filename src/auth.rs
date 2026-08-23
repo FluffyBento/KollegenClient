@@ -100,56 +100,88 @@ pub fn get_auth_status() -> Value {
 
 /// Starts the Microsoft OAuth login flow using the device code flow.
 /// Returns the auth status with user code and verification URI.
+///
+/// Tries each known public client ID in turn (`MICROSOFT_CLIENT_ID` env override
+/// first, otherwise `crate::MS_CLIENT_IDS`). If Microsoft blocks/throttles one
+/// ID for a user, the next candidate is tried automatically so login still works.
 pub fn ms_auth_start() -> Result<Value> {
-    let body = format!(
-        "client_id={}&scope={}",
-        crate::client_id(),
-        urlencoding::encode("XboxLive.Signin XboxLive.offline_access")
-    );
+    let candidates: Vec<String> = match std::env::var("MICROSOFT_CLIENT_ID").ok().filter(|s| !s.is_empty()) {
+        Some(env) => vec![env],
+        None => crate::MS_CLIENT_IDS.iter().map(|s| s.to_string()).collect(),
+    };
 
-    let resp = reqwest::blocking::Client::new()
-        .post("https://login.microsoftonline.com/consumers/oauth2/v2.0/devicecode")
-        .header("Content-Type", "application/x-www-form-urlencoded")
-        .header("Accept", "application/json")
-        .body(body)
-        .send()?;
+    let mut last_err = String::from("Unbekannter Fehler bei der OAuth-Anfrage");
 
-    let r: Value = resp.json()?;
+    for cid in &candidates {
+        crate::set_auth_client_id(cid);
 
-    if !r.get("device_code").is_some() {
-        let err = r.get("error_description")
-            .or_else(|| r.get("error"))
+        let body = format!(
+            "client_id={}&scope={}",
+            cid,
+            urlencoding::encode("XboxLive.Signin XboxLive.offline_access")
+        );
+
+        let resp = match reqwest::blocking::Client::new()
+            .post("https://login.microsoftonline.com/consumers/oauth2/v2.0/devicecode")
+            .header("Content-Type", "application/x-www-form-urlencoded")
+            .header("Accept", "application/json")
+            .body(body)
+            .send()
+        {
+            Ok(r) => r,
+            Err(e) => {
+                last_err = format!("Verbindungsfehler: {}", e);
+                continue;
+            }
+        };
+
+        let r: Value = match resp.json() {
+            Ok(v) => v,
+            Err(e) => {
+                last_err = format!("Ungültige Antwort vom Server: {}", e);
+                continue;
+            }
+        };
+
+        if !r.get("device_code").is_some() {
+            last_err = r
+                .get("error_description")
+                .or_else(|| r.get("error"))
+                .and_then(|v| v.as_str())
+                .unwrap_or("Unbekannter Fehler bei der OAuth-Anfrage")
+                .to_string();
+            continue;
+        }
+
+        let device_code = r.get("device_code").and_then(|v| v.as_str()).unwrap_or("").to_string();
+        let interval = r.get("interval").and_then(|v| v.as_i64()).unwrap_or(5) as i64;
+        let expires_in = r.get("expires_in").and_then(|v| v.as_i64()).unwrap_or(900);
+        let user_code = r.get("user_code").and_then(|v| v.as_str()).unwrap_or("").to_string();
+        let verification_uri = r.get("verification_uri")
+            .or_else(|| r.get("verification_uri_complete"))
             .and_then(|v| v.as_str())
-            .unwrap_or("Unbekannter Fehler bei der OAuth-Anfrage");
-        return Err(anyhow!("{}", err));
-    }
+            .unwrap_or("https://microsoft.com/devicelogin")
+            .to_string();
 
-    let device_code = r.get("device_code").and_then(|v| v.as_str()).unwrap_or("").to_string();
-    let interval = r.get("interval").and_then(|v| v.as_i64()).unwrap_or(5) as i64;
-    let expires_in = r.get("expires_in").and_then(|v| v.as_i64()).unwrap_or(900);
-    let user_code = r.get("user_code").and_then(|v| v.as_str()).unwrap_or("").to_string();
-    let verification_uri = r.get("verification_uri")
-        .or_else(|| r.get("verification_uri_complete"))
-        .and_then(|v| v.as_str())
-        .unwrap_or("https://microsoft.com/devicelogin")
-        .to_string();
+        {
+            let mut status = AUTH_STATUS.lock().unwrap();
+            *status = serde_json::json!({
+                "state": "pending",
+                "user_code": user_code,
+                "verification_uri": verification_uri,
+                "msg": format!("Browser öffnen und Code eingeben... (Client: {}…)", &cid[..8.min(cid.len())])
+            });
+        }
 
-    {
-        let mut status = AUTH_STATUS.lock().unwrap();
-        *status = serde_json::json!({
-            "state": "pending",
-            "user_code": user_code,
-            "verification_uri": verification_uri,
-            "msg": "Browser öffnen und Code eingeben..."
+        // Spawn polling thread (uses the same client ID via crate::auth_client_id())
+        std::thread::spawn(move || {
+            ms_auth_poll(device_code, interval, expires_in);
         });
+
+        return Ok(AUTH_STATUS.lock().unwrap().clone());
     }
 
-    // Spawn polling thread
-    std::thread::spawn(move || {
-        ms_auth_poll(device_code, interval, expires_in);
-    });
-
-    Ok(AUTH_STATUS.lock().unwrap().clone())
+    Err(anyhow!("Alle Microsoft-Client-IDs fehlgeschlagen: {}", last_err))
 }
 
 /// Polls Microsoft for the OAuth token, then completes the full auth chain.
@@ -162,7 +194,7 @@ fn ms_auth_poll(device_code: String, interval: i64, expires_in: i64) {
     let token_url = "https://login.microsoftonline.com/consumers/oauth2/v2.0/token";
     let body = format!(
         "client_id={}&grant_type=urn:ietf:params:oauth:grant-type:device_code&device_code={}",
-        crate::client_id(),
+        crate::auth_client_id(),
         urlencoding::encode(&device_code)
     );
 
@@ -281,6 +313,7 @@ fn complete_auth(username: &str, uuid: &str, mc_token: &str, prof: &Value, msa: 
         expires_at: Some(now + 24 * 3600),
         avatar_id,
         xuid: None,
+        client_id: Some(crate::auth_client_id()),
     };
 
     // Save account to disk
@@ -314,13 +347,17 @@ pub fn refresh_stored_account() -> Result<()> {
         .position(|a| a.refresh_token.is_some())
         .ok_or_else(|| anyhow!("Kein gespeichertes Konto zum Erneuern gefunden"))?;
     let refresh_token = accts[idx].refresh_token.clone().unwrap();
+    let cid = accts[idx]
+        .client_id
+        .clone()
+        .unwrap_or_else(|| crate::client_id().to_string());
 
     let client = reqwest::blocking::Client::builder()
         .timeout(Duration::from_secs(30))
         .build()?;
     let body = format!(
         "client_id={}&grant_type=refresh_token&refresh_token={}",
-        crate::client_id(),
+        cid,
         urlencoding::encode(&refresh_token)
     );
     let resp = client
