@@ -973,6 +973,19 @@ pub(crate) fn enforce_bundled_mods(mods_dir: &Path, companion_jar: Option<&Path>
                 let _ = fs::remove_file(&p);
                 continue;
             }
+            // Eigenständige fabric-language-kotlin-Jars entfernen: Essential
+            // bringt sein eigenes FLK als Nested-Jar mit. Doppelte oder
+            // veraltete FLK-Versionen (z.B. von älteren Kollegen-Client-Ständen
+            // oder manuell hinzugefügt) laden eine inkompatible
+            // kotlinx-serialization und verursachen einen AbstractMethodError
+            // (typeParametersSerializers) im Cosmetics-Loader von Essential.
+            // Unser kollegen-bundle-flk.jar (Name beginnt nicht mit
+            // "fabric-language-kotlin") wird danach ohnehin neu deployt.
+            if name.starts_with("fabric-language-kotlin") || name.starts_with("fabric_language_kotlin") {
+                info!("Entferne eigenständiges FLK (Essential stellt es selbst bereit): {}", name);
+                let _ = fs::remove_file(&p);
+                continue;
+            }
             if !name.ends_with(".jar") && !name.ends_with(".disabled") {
                 continue;
             }
