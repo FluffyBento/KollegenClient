@@ -169,7 +169,7 @@ def chatHeadsTask = vendorModResource('dev/kollegen/client/chatheads.bin', 'chat
 
 loom {
     mixin {
-        useLegacyMixinAp = true
+        useLegacyMixinAp = false
         defaultRefmapName = "kollegen-client-mod.refmap.json"
     }
 }
