@@ -54,7 +54,7 @@ pub fn user_agent() -> &'static str {
 
 /// Returns the Prism Launcher client ID for Microsoft OAuth.
 pub fn client_id() -> &'static str {
-    super::CLIENT_ID
+    super::client_id()
 }
 
 /// Loads JSON from a file path, returning default if file doesn't exist or parsing fails.

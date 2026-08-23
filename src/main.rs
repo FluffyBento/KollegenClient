@@ -28,7 +28,24 @@ use tauri::Manager;
 use tauri::State;
 
 // ─=== Constants ===
-pub const CLIENT_ID: &str = "c36a9fb6-4f2a-41ff-90bd-ae7cc92031eb";
+// Microsoft Identity Platform (Azure AD) public client ID used for the device-code
+// OAuth flow that authenticates with PrismLauncher / Minecraft. This is a "public
+// client" (no secret) so it can be shared openly, but if Microsoft ever blocks or
+// throttles this ID you can point the app at your own Entra app registration via
+// the `MICROSOFT_CLIENT_ID` environment variable.
+pub const CLIENT_ID_DEFAULT: &str = "c36a9fb6-4f2a-41ff-90bd-ae7cc92031eb";
+
+/// Microsoft OAuth client ID, overridable via the `MICROSOFT_CLIENT_ID` env var.
+pub fn client_id() -> &'static str {
+    static V: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+    V.get_or_init(|| {
+        std::env::var("MICROSOFT_CLIENT_ID")
+            .ok()
+            .filter(|s| !s.is_empty())
+            .unwrap_or_else(|| CLIENT_ID_DEFAULT.to_string())
+    })
+    .as_str()
+}
 pub const USER_AGENT: &str = "KollegenClient/1.0 (+https://kollegen.dev)";
 pub const DEFAULT_MEMORY_MIN: &str = "2G";
 pub const DEFAULT_MEMORY_MAX: &str = "4G";

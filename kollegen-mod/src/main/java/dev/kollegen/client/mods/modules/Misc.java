@@ -12,6 +12,7 @@ public final class Misc {
         SpotifyOverlay.register();
         ChatHeads.register();
         Appleskin.register();
+        AutoRemoveMods.register();
         // Discord Rich Presence läuft ab sofort automatisch (siehe KollegenMod.onInitializeClient),
         // daher ist hier kein eigenes Modul/Setting mehr nötig.
     }

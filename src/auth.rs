@@ -103,7 +103,7 @@ pub fn get_auth_status() -> Value {
 pub fn ms_auth_start() -> Result<Value> {
     let body = format!(
         "client_id={}&scope={}",
-        crate::CLIENT_ID,
+        crate::client_id(),
         urlencoding::encode("XboxLive.Signin XboxLive.offline_access")
     );
 
@@ -162,7 +162,7 @@ fn ms_auth_poll(device_code: String, interval: i64, expires_in: i64) {
     let token_url = "https://login.microsoftonline.com/consumers/oauth2/v2.0/token";
     let body = format!(
         "client_id={}&grant_type=urn:ietf:params:oauth:grant-type:device_code&device_code={}",
-        crate::CLIENT_ID,
+        crate::client_id(),
         urlencoding::encode(&device_code)
     );
 
@@ -320,7 +320,7 @@ pub fn refresh_stored_account() -> Result<()> {
         .build()?;
     let body = format!(
         "client_id={}&grant_type=refresh_token&refresh_token={}",
-        crate::CLIENT_ID,
+        crate::client_id(),
         urlencoding::encode(&refresh_token)
     );
     let resp = client

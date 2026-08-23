@@ -953,9 +953,12 @@ pub(crate) fn enforce_bundled_mods(mods_dir: &Path, companion_jar: Option<&Path>
         })
         .collect();
 
-    // 1) Standalone-Kopien gebündelter Mods löschen – ABER nur, wenn wir sie
-    //    durch das entsprechende Bundle ersetzen (sonst würden z.B. fabric-api
-    //    oder ModMenu stumm verschwinden und Fabric mit "missing!" aborten).
+    // 1) Standalone-Kopien gebündelter Mods aufräumen – NUR opt-in (Beta):
+    //    der Nutzer aktiviert "Auto-Remove Mods (Beta)" in der Begleit-Mod, die
+    //    dann `mods/.kollegen-autoremove` schreibt. Ohne diese Flag verändern
+    //    wir die Mods des Nutzers nicht automatisch (kein erzwungenes Fixen).
+    let autoremove = mods_dir.join(".kollegen-autoremove").exists();
+    if autoremove {
     if let Ok(entries) = fs::read_dir(mods_dir) {
         for e in entries.flatten() {
             let p = e.path();
