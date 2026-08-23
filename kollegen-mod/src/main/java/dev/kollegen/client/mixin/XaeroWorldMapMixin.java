@@ -22,7 +22,7 @@ import xaero.map.MapLimiter;
  * kein Disconnect. Bei normalen (OpenGL-)Usern läuft determineDriverType()
  * unverändert, das VRAM-Limiting bleibt erhalten.
  */
-@Mixin(value = MapLimiter.class)
+@Mixin(value = MapLimiter.class, remap = false)
 public abstract class XaeroWorldMapMixin {
 
     private static final Logger LOG = LoggerFactory.getLogger("Kollegen/XaeroFix");
