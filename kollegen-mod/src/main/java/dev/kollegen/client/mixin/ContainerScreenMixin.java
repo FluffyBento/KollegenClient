@@ -63,7 +63,8 @@ public class ContainerScreenMixin {
             int alpha = Math.max(8, (int) (255 * InventoryColor.opacity.value / 100.0));
             int argb = (alpha << 24) | (InventoryColor.color.value & 0xFF_FF_FF);
             gui.fill(RenderPipelines.GUI, lx, ty, lx + 176, ty + 166, argb);
-        } catch (ReflectiveOperationException ignored) {
+        } catch (Exception ignored) {
+            // Kosmetik-Feature: darf niemals zum Crash fuehren.
         }
     }
 }

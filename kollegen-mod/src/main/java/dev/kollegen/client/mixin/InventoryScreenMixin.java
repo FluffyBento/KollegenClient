@@ -78,6 +78,7 @@ public class InventoryScreenMixin {
             KOLLEGEN_LEFT.set(self, (int) KOLLEGEN_LEFT.get(self) - prevX);
             KOLLEGEN_TOP.set(self, (int) KOLLEGEN_TOP.get(self) - prevY);
             AbstractContainerMenu menu = (AbstractContainerMenu) KOLLEGEN_MENU.get(self);
+            if (menu == null || menu.slots == null) return;
             for (Slot s : menu.slots) {
                 KOLLEGEN_SLOT_X.set(s, s.x - prevX);
                 KOLLEGEN_SLOT_Y.set(s, s.y - prevY);
@@ -93,17 +94,22 @@ public class InventoryScreenMixin {
             }
             kollegen$appliedX = ox;
             kollegen$appliedY = oy;
-        } catch (ReflectiveOperationException ignored) {
+        } catch (Exception ignored) {
+            // Kosmetik-Feature: darf niemals zum Crash fuehren.
         }
     }
 
     @Inject(method = "render(Lnet/minecraft/client/gui/GuiGraphics;IIF)V", at = @At("RETURN"))
     private void kollegen$drawLogo(GuiGraphics gui, int mouseX, int mouseY, float partialTick, CallbackInfo ci) {
-        int[] dim = LogoDraw.dims();
-        int targetW = 72;
-        int targetH = (int) (targetW * (dim[1] / (float) dim[0]));
-        int x = gui.guiWidth() - targetW - 10;
-        int y = gui.guiHeight() - targetH - 10;
-        LogoDraw.draw(gui, x, y, targetW);
+        try {
+            int[] dim = LogoDraw.dims();
+            int targetW = 72;
+            int targetH = (int) (targetW * (dim[1] / (float) dim[0]));
+            int x = gui.guiWidth() - targetW - 10;
+            int y = gui.guiHeight() - targetH - 10;
+            LogoDraw.draw(gui, x, y, targetW);
+        } catch (Exception ignored) {
+            // Kosmetik-Feature: darf niemals zum Crash fuehren.
+        }
     }
 }
