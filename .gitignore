@@ -28,3 +28,6 @@ Inspiration/
 # Vendored VulkanMod binary (fetched at build via vendorVulkanMod task)
 kollegen-mod/src/main/resources/dev/kollegen/client/vulkanmod.bin
 Das/
+
+# Vendored Mod-Binaries (werden von den vendor*-Gradle-Tasks generiert)
+kollegen-mod/src/main/resources/dev/

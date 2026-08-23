@@ -147,7 +147,11 @@ def berylTask = vendorModResource('dev/kollegen/client/beryl.bin', 'beryl')
 // MC-Version passende Version.
 def spotifyUrl = 'https://cdn.modrinth.com/data/iRsArBuW/versions/BMGGYY7f/spotify_overlay-1.0.17-SNAPSHOT%2Bfabric.1.21.11.jar'
 def spotifyTask = vendorModResource('dev/kollegen/client/spotify.bin', 'spotify-overlay', spotifyUrl)
-def flkTask = vendorModResource('dev/kollegen/client/flk.bin', 'fabric-language-kotlin')
+// FLK gepinnt auf 1.13.7+kotlin.2.2.21: neuere Kotlin-Versionen (2.3+/2.4+) brechen
+// Essentials vorkompilierte kotlinx.serialization-Serializer (AbstractMethodError
+// bei Capes/Kosmetik). 1.13.7 ist zugleich das Minimum für Spotify Overlay.
+def flkUrl = 'https://cdn.modrinth.com/data/Ha28R6CL/versions/LcgnDDmT/fabric-language-kotlin-1.13.7%2Bkotlin.2.2.21.jar'
+def flkTask = vendorModResource('dev/kollegen/client/flk.bin', 'fabric-language-kotlin', flkUrl)
 def fabricApiTask = vendorModResource('dev/kollegen/client/fabricapi.bin', 'fabric-api')
 def owoTask = vendorModResource('dev/kollegen/client/owo.bin', 'owo-lib')
 def modMenuTask = vendorModResource('dev/kollegen/client/modmenu.bin', 'modmenu')

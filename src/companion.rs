@@ -58,6 +58,50 @@ fn cache_dir(data_dir: &Path) -> PathBuf {
     data_dir.join("companion")
 }
 
+/// Liest die `version` aus der fabric.mod.json eines Jars (Best-effort).
+fn jar_fabric_version(p: &Path) -> Option<String> {
+    use std::io::Read;
+    let file = std::fs::File::open(p).ok()?;
+    let mut archive = zip::ZipArchive::new(file).ok()?;
+    let mut fmj = String::new();
+    archive
+        .by_name("fabric.mod.json")
+        .ok()?
+        .read_to_string(&mut fmj)
+        .ok()?;
+    let value: serde_json::Value = serde_json::from_str(&fmj).ok()?;
+    value.get("version")?.as_str().map(str::to_string)
+}
+
+/// Grober Versionsvergleich: true, wenn `a` mindestens so neu wie `b` ist.
+/// Segmentiert an Punkten und vergleicht numerisch; nicht-numerische Segmente
+/// gelten als kleiner (1.8.8 > 1.8.8-beta). Kurze Versionen zählen als gleich,
+/// solange alle vorhandenen Segmente übereinstimmen.
+fn version_at_least(a: &str, b: &str) -> bool {
+    let parse = |v: &str| -> Vec<(u64, bool)> {
+        v.split(['.', '-', '+'])
+            .map(|s| (s.parse::<u64>().unwrap_or(0), s.chars().all(|c| c.is_ascii_digit())))
+            .collect()
+    };
+    let (va, vb) = (parse(a), parse(b));
+    for i in 0..vb.len().max(va.len()) {
+        let (sa, sb) = (va.get(i), vb.get(i));
+        match (sa, sb) {
+            (Some(x), Some(y)) => match x.cmp(y) {
+                std::cmp::Ordering::Greater => return true,
+                std::cmp::Ordering::Less => return false,
+                std::cmp::Ordering::Equal => {}
+            },
+            // Zusätzliche Segmente: nur ein echtes numerisches Segment (>0)
+            // macht neuer (1.8.10 > 1.8); Suffixe wie "-beta" gelten als älter.
+            (Some(x), None) => return x.0 > 0 && x.1,
+            (None, Some(y)) => return !(y.0 > 0 && y.1),
+            (None, None) => break,
+        }
+    }
+    true
+}
+
 fn try_download(data_dir: &Path) -> Option<PathBuf> {
     let dest = cache_dir(data_dir).join(COMPANION_MOD_FILENAME);
     if is_valid_jar(&dest) {
@@ -83,7 +127,26 @@ fn refresh_cache(data_dir: &Path) -> Option<PathBuf> {
     let tmp = dir.join("kollegen-client-mod.jar.tmp");
     match crate::utils::download_file(GITHUB_DOWNLOAD_URL, &tmp) {
         Ok(()) if is_valid_jar(&tmp) => {
-            let _ = std::fs::rename(&tmp, &dest);
+            // Nur überschreiben, wenn der Release wirklich neuer ist als der
+            // Cache. Sonst würde ein Dev-Build (lokaler Cache) beim nächsten
+            // Start still mit dem alten Release downgegradet.
+            let keep_cached = is_valid_jar(&dest)
+                .then(|| {
+                    match (
+                        jar_fabric_version(&dest).as_deref(),
+                        jar_fabric_version(&tmp).as_deref(),
+                    ) {
+                        (Some(cur), Some(new)) => version_at_least(cur, new),
+                        // Versionen nicht lesbar: altes Verhalten (überschreiben).
+                        _ => false,
+                    }
+                })
+                .unwrap_or(false);
+            if keep_cached {
+                let _ = std::fs::remove_file(&tmp);
+            } else {
+                let _ = std::fs::rename(&tmp, &dest);
+            }
             Some(dest)
         }
         _ => {
