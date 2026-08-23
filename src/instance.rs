@@ -861,31 +861,25 @@ const BUNDLED_MODS: &[(&str, &str, &str)] = &[
 /// BUNDLED_MODS auftauchen (dort würden sie sonst ewig liegen bleiben).
 const LEGACY_BUNDLE_JARS: &[&str] = &["kollegen-bundle-flk.jar"];
 
-/// Standalone-Kopien dieser Mods entfernen wir aus Instanzen – der Client
-/// bündelt sie selbst (Duplikate würden die Fabric-Loader-Kette zum Absturz
-/// bringen bzw. Features doppelt ausführen). Präfix-Match auf kleingeschriebene
-/// Dateinamen (ohne .jar/.disabled).
-const BUNDLED_STANDALONE_PREFIXES: &[&str] = &[
-    "spotify_overlay",
-    "spotify-overlay",
-    "chat_heads",
-    "chat-heads",
-    "appleskin",
-    "fabric-language-kotlin",
-    "fabric_language_kotlin",
-    "fabric-api",
-    "fabric_api",
-    "owo-lib",
-    "owo_lib",
-    "modmenu",
-    "text-placeholder-api",
-    "text_placeholder_api",
-    "placeholder-api",
-    "placeholder_api",
-    "silk-",
-    "cloth-config",
-    "cloth_config",
-];
+/// Standalone-Dateinamen-Präfixe, die ein gebündeltes Mod ersetzt. Dient
+/// ausschließlich zum Aufräumen in `enforce_bundled_mods`: eine Standalone-Kopie
+/// wird nur gelöscht, wenn das entsprechende Bundle danach auch wirklich
+/// (wieder-)deployt wird – so verschwinden z.B. fabric-api oder ModMenu nie
+/// stumm, nur weil eine Integration deaktiviert ist.
+fn bundle_standalone_prefixes(jar_name: &str) -> &'static [&'static str] {
+    match jar_name {
+        "kollegen-bundle-spotify.jar" => &["spotify_overlay", "spotify-overlay"],
+        "kollegen-bundle-chatheads.jar" => &["chat_heads", "chat-heads"],
+        "kollegen-bundle-fabric-api.jar" => &["fabric-api", "fabric_api"],
+        "kollegen-bundle-flk.jar" => &["fabric-language-kotlin", "fabric_language_kotlin"],
+        "kollegen-bundle-owo.jar" => &["owo-lib", "owo_lib"],
+        "kollegen-bundle-modmenu.jar" => &["modmenu"],
+        "kollegen-bundle-tpa.jar" => &["kollegen-tpa", "tpa-"],
+        "kollegen-bundle-silk.jar" => &["silk-"],
+        "kollegen-bundle-clothconfig.jar" => &["cloth-config", "cloth_config"],
+        _ => &[],
+    }
+}
 
 fn bundles_flag_path(mods_dir: &Path) -> PathBuf {
     mods_dir.join(".kollegen-bundles.json")
@@ -924,7 +918,40 @@ pub(crate) fn enforce_bundled_mods(mods_dir: &Path, companion_jar: Option<&Path>
     let flag_on =
         |k: &str| flags.get(k).and_then(|v| v.as_bool()).unwrap_or(true);
 
-    // 1) Standalone-Kopien gebündelter Mods löschen (auch .disabled-Varianten).
+    // Begleit-Jar einmal öffnen und die verfügbaren .bin-Ressourcen erfassen.
+    let mut archive: Option<zip::ZipArchive<fs::File>> = None;
+    if let Some(path) = companion_jar {
+        match fs::File::open(path) {
+            Ok(f) => match zip::ZipArchive::new(f) {
+                Ok(z) => archive = Some(z),
+                Err(e) => warn!("Begleit-Jar {} nicht lesbar: {}", path.display(), e),
+            },
+            Err(e) => warn!("Begleit-Jar {} nicht gefunden: {}", path.display(), e),
+        }
+    }
+    let archive_available = archive.is_some();
+    let available: std::collections::HashSet<String> = archive
+        .as_mut()
+        .map(|a| a.file_names().map(|s| s.to_string()).collect())
+        .unwrap_or_default();
+
+    // Pro Bundle entscheiden: gewünscht? (@deps sind zwingende Core-Dependencies
+    // des Clients – fabric-api wird z.B. von JEDEM Fabric-Mod zum Laden
+    // benötigt – und dürfen NIEMALS fehlen, auch nicht wenn beide Integrationen
+    // (Spotify/ChatHeads) deaktiviert sind). Und tatsächlich deploybar (Begleit-
+    // Jar + passender .bin-Eintrag vorhanden)?
+    let decisions: Vec<(&str, &str, bool, bool)> = BUNDLED_MODS
+        .iter()
+        .map(|&(flag_key, jar_name, bin_path)| {
+            let desired = if flag_key == "@deps" { true } else { flag_on(flag_key) };
+            let deployable = archive_available && available.contains(bin_path);
+            (jar_name, bin_path, desired, desired && deployable)
+        })
+        .collect();
+
+    // 1) Standalone-Kopien gebündelter Mods löschen – ABER nur, wenn wir sie
+    //    durch das entsprechende Bundle ersetzen (sonst würden z.B. fabric-api
+    //    oder ModMenu stumm verschwinden und Fabric mit "missing!" aborten).
     if let Ok(entries) = fs::read_dir(mods_dir) {
         for e in entries.flatten() {
             let p = e.path();
@@ -948,31 +975,22 @@ pub(crate) fn enforce_bundled_mods(mods_dir: &Path, companion_jar: Option<&Path>
             if name.starts_with("kollegen-client-mod") || name.starts_with("kollegen-bundle") {
                 continue;
             }
-            if BUNDLED_STANDALONE_PREFIXES.iter().any(|pre| name.starts_with(pre)) {
+            let will_replace = decisions.iter().any(|&(jn, _, _, wd)| {
+                wd && bundle_standalone_prefixes(jn).iter().any(|pre| name.starts_with(*pre))
+            });
+            if will_replace {
                 info!("Entferne Standalone-Kopie (bündelt der Kollegen Client): {}", name);
                 let _ = fs::remove_file(&p);
             }
         }
     }
 
-    // 2) Managed Bundles deployen oder entfernen. Die Begleit-Jar wird einmal
-    //    geöffnet und pro Bundle der passende .bin-Eintrag extrahiert.
-    let any_bundle = flag_on("spotify") || flag_on("chatheads");
-    let mut archive: Option<zip::ZipArchive<fs::File>> = None;
-    if let Some(path) = companion_jar {
-        match fs::File::open(path) {
-            Ok(f) => match zip::ZipArchive::new(f) {
-                Ok(z) => archive = Some(z),
-                Err(e) => warn!("Begleit-Jar {} nicht lesbar: {}", path.display(), e),
-            },
-            Err(e) => warn!("Begleit-Jar {} nicht gefunden: {}", path.display(), e),
-        }
-    }
-
-    for &(flag_key, jar_name, bin_path) in BUNDLED_MODS {
-        let desired = if flag_key == "@deps" { any_bundle } else { flag_on(flag_key) };
+    // 2) Bundles deployen. Gewünscht + deploybar -> extrahieren. Nur explizit
+    //    deaktivierte Bundles entfernen; bei fehlender Begleit-Jar das zuletzt
+    //    deployte Bundle belassen (nie die einzige Quelle eines Mods löschen).
+    for &(jar_name, bin_path, desired, will_deploy) in &decisions {
         let dest = mods_dir.join(jar_name);
-        if desired {
+        if will_deploy {
             let Some(archive) = archive.as_mut() else { continue };
             let mut src = match archive.by_name(bin_path) {
                 Ok(s) => s,
@@ -988,7 +1006,7 @@ pub(crate) fn enforce_bundled_mods(mods_dir: &Path, companion_jar: Option<&Path>
                 let _ = fs::remove_file(&tmp);
                 warn!("Konnte Bundle {} nicht aus der Begleit-Mod extrahieren.", jar_name);
             }
-        } else {
+        } else if !desired {
             let _ = fs::remove_file(&dest);
             let _ = fs::remove_file(mods_dir.join(format!("{}.disabled", jar_name)));
         }
