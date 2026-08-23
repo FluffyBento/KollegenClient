@@ -17,6 +17,7 @@
     "ChatScreenMixin",
     "ParticleEngineMixin",
     "InventoryScreenMixin",
+    "ScreenLogoMixin",
     "ContainerScreenMixin",
     "MinecraftAccessor",
     "ServerDataAccessor",
