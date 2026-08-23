@@ -1,6 +1,7 @@
 package dev.kollegen.client.mixin;
 
 import dev.kollegen.client.mods.modules.InventoryLayout;
+import dev.kollegen.client.mixin.SlotAccessor;
 import dev.kollegen.client.ui.LogoDraw;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
@@ -16,13 +17,14 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
  * Verschiebt das Inventar-Panel (Hintergrund, Slots, Ruestung, Crafting) um den
- * in InventoryLayout konfigurierten Versatz. Slots werden ueber ihre oeffentlichen
- * Felder x/y verschoben, damit Anzeige und Klick-Trefferzonen zusammen bleiben.
- * Ausserdem wird unten rechts das Kollegen-Logo eingeblendet und der
- * Inventar-Hintergrund mit der in InventoryColor konfigurierten Farbe eingefaerbt.
+ * in InventoryLayout konfigurierten Versatz. Slots werden ueber SlotAccessor
+ * verschoben (ihre Felder x/y sind final), damit Anzeige und Klick-Trefferzonen
+ * zusammen bleiben. Ausserdem wird unten rechts das Kollegen-Logo eingeblendet
+ * und der Inventar-Hintergrund mit der in InventoryColor konfigurierten Farbe
+ * eingefaerbt.
  *
- * Alle Vanilla-Feldzugriffe (leftPos/topPos/menu ueber @Shadow, Slot.x/Slot.y
- * direkt) werden ueber den refmap des Mods remapped. Reflection ueber
+ * Alle Vanilla-Feldzugriffe (leftPos/topPos/menu ueber @Shadow, Slot ueber
+ * SlotAccessor) werden ueber den refmap des Mods remapped. Reflection ueber
  * Class.getDeclaredField(...) wuerde unter Intermediary mit NoSuchFieldException
  * crashn, weil String-Literale NICHT vom refmap erfasst werden.
  */
@@ -55,8 +57,9 @@ public class InventoryScreenMixin {
         AbstractContainerMenu m = this.menu;
         if (m != null && m.slots != null) {
             for (Slot s : m.slots) {
-                s.x -= prevX;
-                s.y -= prevY;
+                SlotAccessor sa = (SlotAccessor) s;
+                sa.kollegen$setX(sa.kollegen$getX() - prevX);
+                sa.kollegen$setY(sa.kollegen$getY() - prevY);
             }
         }
 
@@ -65,8 +68,9 @@ public class InventoryScreenMixin {
         this.topPos += oy;
         if (m != null && m.slots != null) {
             for (Slot s : m.slots) {
-                s.x += ox;
-                s.y += oy;
+                SlotAccessor sa = (SlotAccessor) s;
+                sa.kollegen$setX(sa.kollegen$getX() + ox);
+                sa.kollegen$setY(sa.kollegen$getY() + oy);
             }
         }
         kollegen$appliedX = ox;
