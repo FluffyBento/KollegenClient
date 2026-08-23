@@ -2,6 +2,7 @@ package dev.kollegen.client.mixin;
 
 import dev.kollegen.client.mods.ClickTracker;
 import dev.kollegen.client.mods.HudModule;
+import dev.kollegen.client.mods.ModuleManager;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.MouseHandler;
 import org.spongepowered.asm.mixin.Mixin;
@@ -58,7 +59,12 @@ public class MouseHandlerMixin {
                         HudModule.dragOffY = (int) HudModule.cursorY - (int) hm.offsetY.value;
                     }
                 } else {
-                    HudModule.dragging = null;
+                    if (HudModule.dragging != null) {
+                        HudModule.dragging = null;
+                        // Position wurde per Drag veraendert -> sofort persistieren,
+                        // sonst geht die Verschiebung beim Neustart verloren.
+                        ModuleManager.save();
+                    }
                 }
             }
         }
