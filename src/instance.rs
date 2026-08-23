@@ -837,13 +837,18 @@ const BUNDLED_MODS: &[(&str, &str, &str)] = &[
     ("spotify", "kollegen-bundle-spotify.jar", "dev/kollegen/client/spotify.bin"),
     ("chatheads", "kollegen-bundle-chatheads.jar", "dev/kollegen/client/chatheads.bin"),
     ("@deps", "kollegen-bundle-fabric-api.jar", "dev/kollegen/client/fabricapi.bin"),
-    ("@deps", "kollegen-bundle-flk.jar", "dev/kollegen/client/flk.bin"),
     ("@deps", "kollegen-bundle-owo.jar", "dev/kollegen/client/owo.bin"),
     ("@deps", "kollegen-bundle-modmenu.jar", "dev/kollegen/client/modmenu.bin"),
     ("@deps", "kollegen-bundle-tpa.jar", "dev/kollegen/client/tpa.bin"),
     ("@deps", "kollegen-bundle-silk.jar", "dev/kollegen/client/silk.bin"),
     ("@deps", "kollegen-bundle-clothconfig.jar", "dev/kollegen/client/clothconfig.bin"),
 ];
+
+/// Legacy-Bundles, die früher gebündelt wurden, jetzt aber stören bzw. von
+/// anderer Stelle (Essential bringt sein eigenes FLK als Nested-Jar mit) kommen.
+/// Werden beim Sync immer aus mods/ entfernt – auch wenn sie nicht mehr in
+/// BUNDLED_MODS auftauchen (dort würden sie sonst ewig liegen bleiben).
+const LEGACY_BUNDLE_JARS: &[&str] = &["kollegen-bundle-flk.jar"];
 
 /// Standalone-Kopien dieser Mods entfernen wir aus Instanzen – der Client
 /// bündelt sie selbst (Duplikate würden die Fabric-Loader-Kette zum Absturz
@@ -916,6 +921,16 @@ pub(crate) fn enforce_bundled_mods(mods_dir: &Path, companion_jar: Option<&Path>
                 continue;
             }
             let name = e.file_name().to_string_lossy().to_lowercase();
+            // Legacy-Bundles (z.B. FLK, das Essential jetzt selbst mitbringt)
+            // zuerst entfernen – bevor der kollegen-bundle-Schutz greift.
+            if LEGACY_BUNDLE_JARS
+                .iter()
+                .any(|l| name == *l || name == format!("{l}.disabled"))
+            {
+                info!("Entferne Legacy-Bundle (wird nicht mehr gebündelt): {}", name);
+                let _ = fs::remove_file(&p);
+                continue;
+            }
             if !name.ends_with(".jar") && !name.ends_with(".disabled") {
                 continue;
             }
