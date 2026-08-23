@@ -39,10 +39,16 @@ public class ContainerScreenMixin {
         KOLLEGEN_TOP = top;
     }
 
-    @Inject(method = "render(Lnet/minecraft/client/gui/GuiGraphics;IIF)V",
+    // Seit dem Screen-Pipeline-Refactor orchestriert render() nur noch;
+    // renderBg (Panel-Hintergrund der Unterklassen) wird am Anfang von
+    // renderContents() aufgerufen. Wir injizieren direkt DANACH -> die Faerbung
+    // liegt ueber dem Panel, aber unter Slots/Items. require=0: Falls sich ein
+    // Update die Struktur anders umbaut, fehlt nur die Faerbung statt Crash.
+    @Inject(method = "renderContents",
             at = @At(value = "INVOKE",
                     target = "Lnet/minecraft/client/gui/screens/inventory/AbstractContainerScreen;renderBg(Lnet/minecraft/client/gui/GuiGraphics;FII)V",
-                    shift = At.Shift.AFTER))
+                    shift = At.Shift.AFTER),
+            require = 0)
     private void kollegen$tintBackground(GuiGraphics gui, int mouseX, int mouseY, float partialTick,
                                          CallbackInfo ci) {
         if (!InventoryColor.enabled || KOLLEGEN_LEFT == null || KOLLEGEN_TOP == null) return;
