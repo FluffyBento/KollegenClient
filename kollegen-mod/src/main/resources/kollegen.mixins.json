@@ -2,6 +2,7 @@
   "required": true,
   "package": "dev.kollegen.client.mixin",
   "refmap": "kollegen-client-mod.refmap.json",
+  "plugin": "dev.kollegen.client.mixin.KollegenMixinConfigPlugin",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
     "MinecraftClientMixin",
@@ -18,7 +19,8 @@
     "InventoryScreenMixin",
     "ContainerScreenMixin",
     "GameRendererMixin",
-    "ScreenTooltipMixin"
+    "ScreenTooltipMixin",
+    "XaeroWorldMapMixin"
   ],
   "injectors": {
     "defaultRequire": 1

@@ -164,9 +164,33 @@ def chatHeadsTask = vendorModResource('dev/kollegen/client/chatheads.bin', 'chat
 
 loom {
     mixin {
-        useLegacyMixinAp = true
+        useLegacyMixinAp = false
         defaultRefmapName = "kollegen-client-mod.refmap.json"
     }
+}
+
+// ── Xaero World Map (optionaler Mixin-Target) ────────────────────────────────
+// XaeroWorldMapMixin patcht xaero.map.MapLimiter, damit World Map unter VulkanMod
+// nicht mehr crasht. Die Klasse muss nur zur Compile-Zeit auf dem Classpath
+// liegen – der Mixin wird zur Laufzeit ohnehin nur angewandt, wenn Xaero geladen
+// ist (siehe KollegenMixinConfigPlugin). Sie wird NICHT in den Mod-Jar gebündelt.
+def xaeroWorldMapJar = layout.buildDirectory.file('xaero/xaeroworldmap.jar')
+tasks.register('downloadXaeroWorldMapJar') {
+    def out = xaeroWorldMapJar.get().asFile
+    outputs.file(out)
+    doLast {
+        out.parentFile.mkdirs()
+        if (!out.exists()) {
+            def url = modrinthPrimaryFileUrl('xaeros-world-map', project.minecraft_version, 'fabric')
+            def conn = new URL(url).openConnection()
+            conn.setRequestProperty("User-Agent", "KollegenClient/${project.version}")
+            out.bytes = conn.inputStream.bytes
+        }
+    }
+}
+compileJava.dependsOn downloadXaeroWorldMapJar
+dependencies {
+    compileOnly files(xaeroWorldMapJar)
 }
 
 processResources {
