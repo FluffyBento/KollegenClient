@@ -1004,6 +1004,7 @@ pub(crate) fn enforce_bundled_mods(mods_dir: &Path, companion_jar: Option<&Path>
             }
         }
     }
+    } // end if autoremove
 
     // 2) Bundles deployen. Gewünscht + deploybar -> extrahieren. Nur explizit
     //    deaktivierte Bundles entfernen; bei fehlender Begleit-Jar das zuletzt
