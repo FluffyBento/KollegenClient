@@ -81,6 +81,7 @@ public final class RendererManager {
             boolean wantActive = isVulkan(mod[2]) == (active == Group.VULKAN);
             ensureState(mods, mod[0], mod[1], wantActive);
         }
+        handleRendererConflicts(mods, active);
         KollegenMod.LOGGER.info("Kollegen: Renderer abgestimmt → {}", active == Group.VULKAN ? "Vulkan (VulkanMod + Beryl)" : "OpenGL (Sodium + Iris)");
     }
 
@@ -117,6 +118,51 @@ public final class RendererManager {
                     Files.move(jar, disabled);
                 } catch (IOException ignored) {
                 }
+            }
+        }
+    }
+
+    /**
+     * Deaktiviert Mods, die mit dem aktiven Renderer inkompatibel sind, damit
+     * kein harter Mixin-/Ressourcenpack-Fehler beim Start entsteht.
+     *
+     * <p>Bekannter Fall: 'animatium' patcht den Sky-Renderer und kollidiert mit
+     * Beryls {@code SkyRendererM}-Mixin – beim Vulkan(Beryl)-Renderer daher
+     * ausschalten. Läuft in {@link #apply()} (onInitializeClient); die Mod-Jars
+     * stehen beim Klassenladen bereits auf dem Classpath, weshalb die Änderung
+     * erst ab dem NÄCHSTEN Launch greift – ein Neustart ist nötig.
+     */
+    private static void handleRendererConflicts(Path mods, Group active) {
+        boolean vulkan = active == Group.VULKAN;
+        if (vulkan) {
+            // animatium <-> Beryl (Sky-Renderer-Mixin-Konflikt)
+            try (java.nio.file.DirectoryStream<Path> ds = Files.newDirectoryStream(mods, "animatium*.jar")) {
+                for (Path p : ds) {
+                    try {
+                        Path disabled = mods.resolve(p.getFileName().toString() + ".kollegen-disabled");
+                        Files.move(p, disabled);
+                        KollegenMod.LOGGER.warn(
+                                "Kollegen: '{}' ist mit dem Vulkan(Beryl)-Renderer inkompatibel "
+                                        + "(Sky-Renderer-Mixin-Konflikt) und wurde deaktiviert. Beim Wechsel auf den "
+                                        + "OpenGL-Renderer wird es automatisch reaktiviert – ein Neustart der Instanz ist nötig.",
+                                p.getFileName());
+                    } catch (IOException ignored) {
+                    }
+                }
+            } catch (IOException ignored) {
+            }
+        } else {
+            // OpenGL: ggf. zuvor deaktiviertes animatium wieder reaktivieren.
+            try (java.nio.file.DirectoryStream<Path> ds = Files.newDirectoryStream(mods, "animatium*.jar.kollegen-disabled")) {
+                for (Path p : ds) {
+                    String name = p.getFileName().toString();
+                    Path enabled = mods.resolve(name.substring(0, name.length() - ".kollegen-disabled".length()));
+                    try {
+                        Files.move(p, enabled);
+                    } catch (IOException ignored) {
+                    }
+                }
+            } catch (IOException ignored) {
             }
         }
     }
