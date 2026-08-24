@@ -92,24 +92,20 @@ public final class RendererManager {
         Path jar = mods.resolve(fileName);
         Path disabled = mods.resolve(fileName + ".disabled");
         if (active) {
-            // Aktiv: falls deaktiviert, wieder aktivieren; fehlt es, aus Resource deployen.
-            if (Files.exists(disabled) && !Files.exists(jar)) {
-                try {
-                    Files.move(disabled, jar);
-                } catch (IOException ignored) {
-                }
-            }
-            if (!Files.exists(jar)) {
-                try (InputStream in = RendererManager.class.getResourceAsStream(resource)) {
-                    if (in == null) {
-                        KollegenMod.LOGGER.warn("Kollegen: eingebettete Mod '{}' fehlt (Build-Fehler).", resource);
-                        return;
-                    }
+            // Aktiv: aus der eingebetteten Resource (immer) neu deployen, damit ein
+            // gebündeltes Versions-Update (z.B. Sodium 0.8.12 statt 0.8.13) einen evtl.
+            // schon im Instance-Mods-Ordner liegenden, veralteten Jar ersetzt. Sonst
+            // bliebe die alte, mit Iris inkompatible Version trotz Launcher-Update aktiv.
+            try (InputStream in = RendererManager.class.getResourceAsStream(resource)) {
+                if (in == null) {
+                    KollegenMod.LOGGER.warn("Kollegen: eingebettete Mod '{}' fehlt (Build-Fehler).", resource);
+                } else {
                     Files.copy(in, jar, StandardCopyOption.REPLACE_EXISTING);
-                } catch (IOException e) {
-                    KollegenMod.LOGGER.warn("Kollegen: Mod '{}' konnte nicht deployt werden: {}", fileName, e.getMessage());
                 }
+            } catch (IOException e) {
+                KollegenMod.LOGGER.warn("Kollegen: Mod '{}' konnte nicht deployt werden: {}", fileName, e.getMessage());
             }
+            // Falls zuvor deaktiviert, die .disabled-Kopie aufräumen.
             try {
                 Files.deleteIfExists(disabled);
             } catch (IOException ignored) {
