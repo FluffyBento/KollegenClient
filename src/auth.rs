@@ -513,16 +513,18 @@ fn xsts_auth(xbl_token: &str) -> Result<(String, String)> {
 // ─=== Minecraft Login ===
 
 /// Logs in to Minecraft services using the XSTS token.
-/// Returns the Minecraft access token and other profile data.
+/// Uses the canonical third-party endpoint (`authentication/login_with_xbox`,
+/// also used by PrismLauncher/ATLauncher) rather than the official launcher's
+/// `/launcher/login`, so the returned access token is accepted by Mojang's
+/// session server for multiplayer joins.
 fn mc_login(xsts_token: &str, uhs: &str) -> Result<Value> {
     let token_str = format!("XBL3.0 x={};{}", uhs, xsts_token);
     let body = serde_json::json!({
-        "platform": "PC_LAUNCHER",
-        "xtoken": token_str
+        "identityToken": token_str
     });
 
     let resp = reqwest::blocking::Client::new()
-        .post("https://api.minecraftservices.com/launcher/login")
+        .post("https://api.minecraftservices.com/authentication/login_with_xbox")
         .header("Content-Type", "application/json")
         .header("Accept", "application/json")
         .body(body.to_string())
