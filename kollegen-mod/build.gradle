@@ -137,11 +137,12 @@ def vendorModResource(String resourceRel, String slug, String urlOverride = null
 
 // Renderer-Gruppe. vendorModResource gibt den TaskProvider zurück – wir
 // sammeln ihn direkt ein, statt Task-Namen in der dependsOn-Zeile zu raten.
-// Sodium bewusst auf 0.8.13 gepinnt: 0.8.14-beta.2 deklariert
-// "breaks iris @ [<=1.10.7]" und kollidiert mit dem gebündelten Iris 1.10.7
-// (Iris hat fuer 1.21.11 noch kein neueres Release). Pin gilt nur fuer
-// minecraft_version == 1.21.11 – bei einem MC-Wechsel diese URL anpassen.
-def sodiumUrl = "https://cdn.modrinth.com/data/AANobbMI/versions/Ny3XyYle/sodium-fabric-0.8.13%2Bmc${project.minecraft_version}.jar"
+// Sodium auf 0.8.12 gepinnt: Iris 1.10.7 (aktuellstes Iris-Release für
+// 1.21.11, keine neuere Version verfügbar) ist inkompatibel mit Sodium >= 0.8.13
+// (Fehler: "Sodium 0.8.13 is incompatible with version 1.10.7 or earlier of
+// Iris"). 0.8.14-beta.2 deklariert sogar explizit "breaks iris @ [<=1.10.7]".
+// Pin gilt nur für minecraft_version == 1.21.11 – bei einem MC-Wechsel prüfen.
+def sodiumUrl = "https://cdn.modrinth.com/data/AANobbMI/versions/NFkjnzWE/sodium-fabric-0.8.12%2Bmc${project.minecraft_version}.jar"
 def sodiumTask = vendorModResource('dev/kollegen/client/sodium.bin', 'sodium', sodiumUrl)
 def irisTask = vendorModResource('dev/kollegen/client/iris.bin', 'iris')
 def berylTask = vendorModResource('dev/kollegen/client/beryl.bin', 'beryl')
