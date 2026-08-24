@@ -939,6 +939,19 @@ pub(crate) fn enforce_bundled_mods(mods_dir: &Path, companion_jar: Option<&Path>
         .map(|a| a.file_names().map(|s| s.to_string()).collect())
         .unwrap_or_default();
 
+    // Essential bundlelt ein eigenes fabric-language-kotlin (inkl. kotlinx.serialization)
+    // als Nested-Jar mit. Ist zusätzlich ein eigenständiges FLK im mods/-Ordner, landen
+    // zwei kotlinx.serialization-Versionen auf dem Classpath und Essentials (gegen eine
+    // ältere Version kompilierte) Serializer werfen einen AbstractMethodError
+    // (typeParametersSerializers) im Cosmetics-Loader. Merken, ob Essential vorhanden ist.
+    let essential_present = fs::read_dir(mods_dir)
+        .map(|entries| {
+            entries.flatten().any(|e| {
+                e.file_name().to_string_lossy().to_lowercase().starts_with("essential")
+            })
+        })
+        .unwrap_or(false);
+
     // Pro Bundle entscheiden: gewünscht? (@deps sind zwingende Core-Dependencies
     // des Clients – fabric-api wird z.B. von JEDEM Fabric-Mod zum Laden
     // benötigt – und dürfen NIEMALS fehlen, auch nicht wenn beide Integrationen
@@ -947,7 +960,12 @@ pub(crate) fn enforce_bundled_mods(mods_dir: &Path, companion_jar: Option<&Path>
     let decisions: Vec<(&str, &str, bool, bool)> = BUNDLED_MODS
         .iter()
         .map(|&(flag_key, jar_name, bin_path)| {
-            let desired = if flag_key == "@deps" { true } else { flag_on(flag_key) };
+            let mut desired = if flag_key == "@deps" { true } else { flag_on(flag_key) };
+            // Essential bringt sein eigenes FLK mit – unser gebündeltes FLK nicht
+            // zusätzlich deployen, sonst doppelte kotlinx.serialization + Crash.
+            if jar_name == "kollegen-bundle-flk.jar" && essential_present {
+                desired = false;
+            }
             let deployable = archive_available && available.contains(bin_path);
             (jar_name, bin_path, desired, desired && deployable)
         })
@@ -1005,6 +1023,29 @@ pub(crate) fn enforce_bundled_mods(mods_dir: &Path, companion_jar: Option<&Path>
         }
     }
     } // end if autoremove
+
+    // Eigenständige fabric-language-kotlin-Jars entfernen, sobald Essential
+    // vorhanden ist – unabhängig von der Auto-Remove-Opt-In, da sonst Essentials
+    // Cosmetics-Loader mit AbstractMethodError (typeParametersSerializers) abstürzt.
+    // Essential stellt FLK selbst bereit; ein weiteres FLK auf dem Classpath ist
+    // überflüssig und liefert die inkompatible kotlinx.serialization-Version.
+    // (Unser eigenes kollegen-bundle-flk.jar wird bereits oben über desired=false
+    // durch den Deploy-Schritt entfernt.)
+    if essential_present {
+        if let Ok(entries) = fs::read_dir(mods_dir) {
+            for e in entries.flatten() {
+                let p = e.path();
+                if !p.is_file() {
+                    continue;
+                }
+                let name = e.file_name().to_string_lossy().to_lowercase();
+                if name.starts_with("fabric-language-kotlin") || name.starts_with("fabric_language_kotlin") {
+                    info!("Entferne eigenständiges FLK (Essential stellt es selbst bereit): {}", name);
+                    let _ = fs::remove_file(&p);
+                }
+            }
+        }
+    }
 
     // 2) Bundles deployen. Gewünscht + deploybar -> extrahieren. Nur explizit
     //    deaktivierte Bundles entfernen; bei fehlender Begleit-Jar das zuletzt
