@@ -1309,20 +1309,35 @@ async fn install_app_update(app: tauri::AppHandle) -> Result<(), String> {
 }
 
 fn main() {
-    // Wayland compatibility: WebKit's DMABUF renderer crashes under some
-    // Wayland compositors ("Error 71 dispatching to Wayland display").
-    // This is a no-op on X11, so the app works on both backends.
+    // Wayland compatibility: WebKit's DMABUF renderer crashes/white-screens
+    // under several Wayland compositors (e.g. "Error 71 dispatching to Wayland
+    // display", or a blank white window). Disabling it is a no-op on X11, so
+    // the app works on both backends.
     if std::env::var_os("WEBKIT_DISABLE_DMABUF_RENDERER").is_none() {
         unsafe {
             std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
         }
     }
 
-    // Best-effort: force WebKitGTK's GPU compositing mode where a GPU is
-    // available. This dramatically improves scrolling performance in the
-    // Modrinth content browser. Harmless if no GPU is present (WebKit falls
-    // back to software rendering).
-    if std::env::var_os("WEBKIT_FORCE_COMPOSITING_MODE").is_none() {
+    // Fedora KDE (and other Wayland sessions) commonly show a white/blank
+    // webview because WebKitGTK's native Wayland rendering path fails to paint.
+    // Prefer the X11 GDK backend (via XWayland, installed by default on Fedora
+    // KDE); fall back to Wayland only if X11 is unavailable. This must be set
+    // before GTK initializes, so it lives here in main().
+    if std::env::var_os("WAYLAND_DISPLAY").is_some()
+        && std::env::var_os("GDK_BACKEND").is_none()
+    {
+        unsafe {
+            std::env::set_var("GDK_BACKEND", "x11,wayland");
+        }
+    }
+
+    // GPU compositing improves scrolling in the Modrinth browser, but forcing
+    // it under Wayland can itself trigger a white screen on some compositors.
+    // Only enable it on X11 sessions, where it is safe and beneficial.
+    if std::env::var_os("WAYLAND_DISPLAY").is_none()
+        && std::env::var_os("WEBKIT_FORCE_COMPOSITING_MODE").is_none()
+    {
         unsafe {
             std::env::set_var("WEBKIT_FORCE_COMPOSITING_MODE", "1");
         }
