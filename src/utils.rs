@@ -121,24 +121,29 @@ pub fn download_file_client(client: &reqwest::blocking::Client, url: &str, dest:
     Ok(())
 }
 
-/// Ensures the Essential mod is installed for an instance.
+/// Ensures the Essential mod is installed and kept up to date for an instance.
+///
+/// Essential wird bei jedem Start neu heruntergeladen, wenn eine Verbindung
+/// besteht: veraltete Essential-Versionen laden eine inkompatible
+/// kotlinx.serialization und verursachen einen AbstractMethodError
+/// (typeParametersSerializers) im Cosmetics-Loader. Schlägt der Download fehl
+/// (offline/zentrale nicht erreichbar), bleibt die vorhandene Datei erhalten,
+/// damit der Start nicht blockiert wird.
 pub fn ensure_essential(name: &str, data_dir: &Path) -> Result<()> {
     let mods_dir = instance_dir(data_dir, name).join("mods");
     fs::create_dir_all(&mods_dir)?;
     let target = mods_dir.join("essentialmod.jar");
 
-    // Already installed (valid, non-empty jar)?
+    // Stale/empty placeholder from a previous failed download.
     if target.exists() {
         if let Ok(meta) = fs::metadata(&target) {
-            if meta.len() > 0 {
-                return Ok(());
+            if meta.len() == 0 {
+                let _ = fs::remove_file(&target);
             }
         }
-        // Stale/empty placeholder from a previous failed download.
-        let _ = fs::remove_file(&target);
     }
 
-    info!("Installing Essential mod for {}...", name);
+    info!("Aktualisiere Essential-Mod für {}...", name);
     for url in [
         "https://cdn.modrinth.com/data/essential/files/latest/essential.jar",
         "https://github.com/sparkuniverse/essential-mod/releases/latest/download/essential.jar",
@@ -153,21 +158,28 @@ pub fn ensure_essential(name: &str, data_dir: &Path) -> Result<()> {
                     // Only accept a real (non-empty) zip archive.
                     if bytes.len() > 0 && bytes.starts_with(b"PK") {
                         fs::write(&target, &bytes)?;
-                        info!("Essential mod installed successfully.");
+                        info!("Essential mod aktualisiert/installiert.");
                         return Ok(());
                     }
                 }
             }
             Err(e) => {
-                log::warn!("Essential download failed ({}): {}", url, e);
+                log::warn!("Essential-Download fehlgeschlagen ({}): {}", url, e);
             }
             _ => {}
         }
     }
-    log::warn!(
-        "Essential mod konnte nicht heruntergeladen werden; wird übersprungen, damit Fabric nicht blockiert wird."
-    );
-    Ok(())
+    if target.exists() {
+        log::warn!(
+            "Essential konnte nicht aktualisiert werden; vorhandene Version wird beibehalten (offline?)."
+        );
+        Ok(())
+    } else {
+        log::warn!(
+            "Essential mod konnte nicht heruntergeladen werden; wird übersprungen, damit Fabric nicht blockiert wird."
+        );
+        Ok(())
+    }
 }
 
 /// Appends a message to the launcher log.
