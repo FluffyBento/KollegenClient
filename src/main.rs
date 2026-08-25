@@ -1308,6 +1308,73 @@ async fn install_app_update(app: tauri::AppHandle) -> Result<(), String> {
     crate::app_updates::install(&app).await
 }
 
+/// Configures WebKitGTK's runtime location for the AppImage. The AppImage is
+/// not fully self-contained for WebKit on every distro (notably Fedora), where
+/// webkit2gtk4.1 is provided by the host. Without `WEBKIT_EXEC_PATH` the WebKit
+/// web/network processes can't be found and the window stays blank (white
+/// screen); without the host lib dirs on `LD_LIBRARY_PATH` the spawned web
+/// process may fail to load libwebkit.
+///
+/// We only touch the environment inside an AppImage – distro packages (rpm/deb)
+/// and from-source builds already have a working WebKit and keep their own
+/// layout. Must run before GTK/WebKit initializes.
+fn setup_webkit_appimage_env() {
+    if std::env::var_os("APPIMAGE").is_none() {
+        return;
+    }
+
+    // Point WebKit at the host's web-process helpers if present.
+    if std::env::var_os("WEBKIT_EXEC_PATH").is_none() {
+        for dir in [
+            "/usr/libexec/webkit2gtk-4.1",
+            "/usr/libexec/webkit2gtk-4.0",
+            "/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1",
+            "/usr/lib/x86_64-linux-gnu/webkit2gtk-4.0",
+            "/usr/lib/webkit2gtk-4.1",
+            "/usr/lib/webkit2gtk-4.0",
+            "/usr/lib64/webkit2gtk-4.1",
+            "/usr/lib64/webkit2gtk-4.0",
+        ] {
+            if Path::new(dir).join("WebKitWebProcess").exists() {
+                unsafe {
+                    std::env::set_var("WEBKIT_EXEC_PATH", dir);
+                }
+                break;
+            }
+        }
+    }
+
+    // Make the host's webkit libraries discoverable for the spawned web process.
+    // Append (don't replace) the usual system lib dirs so any bundled copy
+    // still takes precedence.
+    let extra_libs = ["/usr/lib64", "/usr/lib/x86_64-linux-gnu", "/usr/lib"];
+    let existing: Vec<String> = std::env::var("LD_LIBRARY_PATH")
+        .unwrap_or_default()
+        .split(':')
+        .filter(|s| !s.is_empty())
+        .map(|s| s.to_string())
+        .collect();
+    let needs: Vec<&str> = extra_libs
+        .iter()
+        .copied()
+        .filter(|d| Path::new(d).exists() && !existing.iter().any(|p| p == *d))
+        .collect();
+    if !needs.is_empty() {
+        let mut paths = existing;
+        paths.extend(needs.iter().map(|s| s.to_string()));
+        unsafe {
+            std::env::set_var("LD_LIBRARY_PATH", paths.join(":"));
+        }
+    }
+
+    if std::env::var_os("WEBKIT_EXEC_PATH").is_none() {
+        warn!(
+            "WebKit-Webprozesse nicht gefunden (WEBKIT_EXEC_PATH). Ist webkit2gtk4.1 installiert? \
+             Unter Fedora z.B. 'sudo dnf install webkit2gtk4.1'."
+        );
+    }
+}
+
 fn main() {
     // Wayland compatibility: WebKit's DMABUF renderer crashes/white-screens
     // under several Wayland compositors (e.g. "Error 71 dispatching to Wayland
@@ -1342,6 +1409,10 @@ fn main() {
             std::env::set_var("WEBKIT_FORCE_COMPOSITING_MODE", "1");
         }
     }
+
+    // AppImage: wire up the host's WebKit (Fedora etc.) so the webview doesn't
+    // white-screen. Must run before GTK/WebKit initializes.
+    setup_webkit_appimage_env();
 
     let data_dir = match ProjectDirs::from("dev", "kollegen", "KollegenClient") {
         Some(dir) => dir.data_dir().to_path_buf(),
