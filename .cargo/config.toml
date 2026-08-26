@@ -1,0 +1,12 @@
+# On some distros (notably Fedora) the Tauri AppImage does not bundle a
+# working WebKitGTK, or the user extracts the AppImage and runs the binary
+# directly. In both cases the dynamic linker must be able to find the host's
+# libwebkit2gtk at *exec time* (it is a direct NEEDED dependency, resolved
+# before main() runs), so setting LD_LIBRARY_PATH from Rust is too late.
+#
+# Baking the common system lib dirs into the binary's RPATH (as DT_RPATH, so it
+# also applies to WebKit's transitive deps) makes the launcher find the host's
+# WebKit automatically. Nonexistent dirs are simply ignored, so this is safe on
+# distros where WebKit lives elsewhere or is bundled.
+[target.x86_64-unknown-linux-gnu]
+rustflags = ["-C", "link-args=-Wl,--disable-new-dtags,--rpath,/usr/lib64:/usr/lib/x86_64-linux-gnu:/usr/lib"]

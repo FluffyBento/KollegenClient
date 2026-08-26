@@ -1308,21 +1308,18 @@ async fn install_app_update(app: tauri::AppHandle) -> Result<(), String> {
     crate::app_updates::install(&app).await
 }
 
-/// Configures WebKitGTK's runtime location for the AppImage. The AppImage is
-/// not fully self-contained for WebKit on every distro (notably Fedora), where
-/// webkit2gtk4.1 is provided by the host. Without `WEBKIT_EXEC_PATH` the WebKit
-/// web/network processes can't be found and the window stays blank (white
-/// screen); without the host lib dirs on `LD_LIBRARY_PATH` the spawned web
-/// process may fail to load libwebkit.
+/// Configures WebKitGTK's runtime location. The AppImage is not fully
+/// self-contained for WebKit on every distro (notably Fedora), where
+/// webkit2gtk4.1 is provided by the host – and the same applies when the user
+/// extracts the AppImage and runs the binary directly. Without
+/// `WEBKIT_EXEC_PATH` the WebKit web/network processes can't be found and the
+/// window stays blank (white screen); without the host lib dirs on
+/// `LD_LIBRARY_PATH` the spawned web process may fail to load libwebkit.
 ///
-/// We only touch the environment inside an AppImage – distro packages (rpm/deb)
-/// and from-source builds already have a working WebKit and keep their own
-/// layout. Must run before GTK/WebKit initializes.
+/// (The main binary's libwebkit is resolved by the dynamic linker at exec time,
+/// which is handled separately via the RPATH baked into the binary at link
+/// time – see `.cargo/config.toml`.) Must run before GTK/WebKit initializes.
 fn setup_webkit_appimage_env() {
-    if std::env::var_os("APPIMAGE").is_none() {
-        return;
-    }
-
     // Point WebKit at the host's web-process helpers if present.
     if std::env::var_os("WEBKIT_EXEC_PATH").is_none() {
         for dir in [
