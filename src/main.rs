@@ -1406,6 +1406,16 @@ fn main() {
                 std::env::set_var("WEBKIT_DISABLE_COMPOSITING_MODE", "1");
             }
         }
+        // On Wayland the EGL/GPU path can silently fail to draw any frame
+        // (GNOME-Shell: "frame counter but no frame drawn time"), leaving a
+        // white window – most often on NVIDIA + Mesa. Forcing Mesa's software
+        // rasterizer routes all GL/EGL through llvmpipe, which reliably renders
+        // under Wayland. Lower performance, but correct output takes priority.
+        if std::env::var_os("LIBGL_ALWAYS_SOFTWARE").is_none() {
+            unsafe {
+                std::env::set_var("LIBGL_ALWAYS_SOFTWARE", "1");
+            }
+        }
         // KDE Wayland: WebKit's native path can crash/white-screen; prefer the
         // X11 backend (XWayland ships with KDE). GNOME + the rest keep native
         // Wayland, which renders correctly once DMABUF/compositing are off.
