@@ -14,7 +14,7 @@ finish-args:
   - --talk-name=org.freedesktop.portal.*
   - --talk-name=org.kde.StatusNotifierWatcher
   - --env=WEBKIT_DISABLE_DMABUF_RENDERER=1
-  - --env=WEBKIT_FORCE_COMPOSITING_MODE=1
+  - --env=WEBKIT_DISABLE_COMPOSITING_MODE=1
 build-options:
   env:
     CARGO_HOME: /run/build/kollegen-client/cargo

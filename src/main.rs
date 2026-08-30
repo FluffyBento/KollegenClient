@@ -1383,25 +1383,39 @@ fn main() {
         }
     }
 
-    // Fedora KDE (and other Wayland sessions) commonly show a white/blank
-    // webview because WebKitGTK's native Wayland rendering path fails to paint.
-    // Prefer the X11 GDK backend (via XWayland, installed by default on Fedora
-    // KDE); fall back to Wayland only if X11 is unavailable. This must be set
-    // before GTK initializes, so it lives here in main().
-    if std::env::var_os("WAYLAND_DISPLAY").is_some()
-        && std::env::var_os("GDK_BACKEND").is_none()
-    {
-        unsafe {
-            std::env::set_var("GDK_BACKEND", "x11,wayland");
-        }
-    }
+    // Adaptive session handling: pick WebKit/GTK settings that render
+    // correctly on the session the user actually runs.
+    //   * X11 session          -> GPU compositing for smooth scrolling.
+    //   * Wayland + GNOME      -> native Wayland with DMABUF + compositing off
+    //                             (forcing XWayland here white-screens).
+    //   * Wayland + KDE/Plasma -> prefer the X11 backend (KDE's native Wayland
+    //                             path historically white-screens/crashes).
+    // These must be set before GTK/WebKit initializes, so they live in main().
+    let is_wayland = std::env::var_os("WAYLAND_DISPLAY").is_some();
+    let desktop = std::env::var("XDG_CURRENT_DESKTOP")
+        .or_else(|_| std::env::var("XDG_SESSION_DESKTOP"))
+        .unwrap_or_default()
+        .to_uppercase();
+    let is_kde = desktop.contains("KDE") || desktop.contains("PLASMA");
 
-    // GPU compositing improves scrolling in the Modrinth browser, but forcing
-    // it under Wayland can itself trigger a white screen on some compositors.
-    // Only enable it on X11 sessions, where it is safe and beneficial.
-    if std::env::var_os("WAYLAND_DISPLAY").is_none()
-        && std::env::var_os("WEBKIT_FORCE_COMPOSITING_MODE").is_none()
-    {
+    if is_wayland {
+        // GPU compositing frequently paints a blank/white webview on Wayland
+        // compositors; disable it there regardless of the backend we pick.
+        if std::env::var_os("WEBKIT_DISABLE_COMPOSITING_MODE").is_none() {
+            unsafe {
+                std::env::set_var("WEBKIT_DISABLE_COMPOSITING_MODE", "1");
+            }
+        }
+        // KDE Wayland: WebKit's native path can crash/white-screen; prefer the
+        // X11 backend (XWayland ships with KDE). GNOME + the rest keep native
+        // Wayland, which renders correctly once DMABUF/compositing are off.
+        if is_kde && std::env::var_os("GDK_BACKEND").is_none() {
+            unsafe {
+                std::env::set_var("GDK_BACKEND", "x11");
+            }
+        }
+    } else if std::env::var_os("WEBKIT_FORCE_COMPOSITING_MODE").is_none() {
+        // X11: force GPU compositing for smooth scrolling.
         unsafe {
             std::env::set_var("WEBKIT_FORCE_COMPOSITING_MODE", "1");
         }
