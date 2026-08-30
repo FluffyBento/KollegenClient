@@ -1509,7 +1509,10 @@ fn main() {
             open_logs_folder,
         ])
         .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .unwrap_or_else(|e| {
+            eprintln!("Kollegen Client failed to start: {e:?}");
+            std::process::exit(1);
+        });
 }
 
 
