@@ -1383,49 +1383,17 @@ fn main() {
         }
     }
 
-    // Adaptive session handling: pick WebKit/GTK settings that render
-    // correctly on the session the user actually runs.
-    //   * X11 session          -> GPU compositing for smooth scrolling.
-    //   * Wayland + GNOME      -> native Wayland with DMABUF + compositing off
-    //                             (forcing XWayland here white-screens).
-    //   * Wayland + KDE/Plasma -> prefer the X11 backend (KDE's native Wayland
-    //                             path historically white-screens/crashes).
-    // These must be set before GTK/WebKit initializes, so they live in main().
-    let is_wayland = std::env::var_os("WAYLAND_DISPLAY").is_some();
-    let desktop = std::env::var("XDG_CURRENT_DESKTOP")
-        .or_else(|_| std::env::var("XDG_SESSION_DESKTOP"))
-        .unwrap_or_default()
-        .to_uppercase();
-    let is_kde = desktop.contains("KDE") || desktop.contains("PLASMA");
-
-    if is_wayland {
-        // GPU compositing frequently paints a blank/white webview on Wayland
-        // compositors; disable it there regardless of the backend we pick.
-        if std::env::var_os("WEBKIT_DISABLE_COMPOSITING_MODE").is_none() {
-            unsafe {
-                std::env::set_var("WEBKIT_DISABLE_COMPOSITING_MODE", "1");
-            }
-        }
-        // On Wayland the EGL/GPU path can silently fail to draw any frame
-        // (GNOME-Shell: "frame counter but no frame drawn time"), leaving a
-        // white window – most often on NVIDIA + Mesa. Forcing Mesa's software
-        // rasterizer routes all GL/EGL through llvmpipe, which reliably renders
-        // under Wayland. Lower performance, but correct output takes priority.
-        if std::env::var_os("LIBGL_ALWAYS_SOFTWARE").is_none() {
-            unsafe {
-                std::env::set_var("LIBGL_ALWAYS_SOFTWARE", "1");
-            }
-        }
-        // KDE Wayland: WebKit's native path can crash/white-screen; prefer the
-        // X11 backend (XWayland ships with KDE). GNOME + the rest keep native
-        // Wayland, which renders correctly once DMABUF/compositing are off.
-        if is_kde && std::env::var_os("GDK_BACKEND").is_none() {
-            unsafe {
-                std::env::set_var("GDK_BACKEND", "x11");
-            }
-        }
-    } else if std::env::var_os("WEBKIT_FORCE_COMPOSITING_MODE").is_none() {
-        // X11: force GPU compositing for smooth scrolling.
+    // Render-config variant selection (empirical, user-driven):
+    //   * Wayland is handled exactly like v1.9.8  – DMABUF off + GPU
+    //     compositing forced, NO GDK_BACKEND override.
+    //   * X11     is handled exactly like v1.9.11 – same: DMABUF off + GPU
+    //     compositing forced.
+    // Both boil down to the same minimal, session-independent config, which is
+    // what actually rendered correctly (rather than the session-adaptive
+    // GDK_BACKEND/compositing-off experiments in 1.9.9–1.9.13, all of which
+    // white-screened for the reporter). Must run before GTK/WebKit initializes.
+    // Force WebKitGTK's GPU compositing mode (harmless/no-op if no GPU present).
+    if std::env::var_os("WEBKIT_FORCE_COMPOSITING_MODE").is_none() {
         unsafe {
             std::env::set_var("WEBKIT_FORCE_COMPOSITING_MODE", "1");
         }
