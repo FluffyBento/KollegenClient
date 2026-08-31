@@ -1401,6 +1401,19 @@ fn setup_webkit_appimage_env() {
         }
     }
 
+    // Diagnostic: show what WEBKIT_EXEC_PATH was resolved to (or that nothing
+    // matched), so we can confirm whether the WebKit child-process lookup fix
+    // is active in the running binary.
+    match std::env::var_os("WEBKIT_EXEC_PATH") {
+        Some(p) => eprintln!(
+            "[kollegen] WEBKIT_EXEC_PATH = {}",
+            p.to_string_lossy()
+        ),
+        None => eprintln!(
+            "[kollegen] WEBKIT_EXEC_PATH NOT SET - no WebKit helper process dir found!"
+        ),
+    }
+
     // Make the host's webkit libraries discoverable for the spawned web process.
     // Append (don't replace) the usual system lib dirs so any bundled copy
     // still takes precedence.
