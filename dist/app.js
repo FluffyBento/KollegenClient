@@ -553,22 +553,23 @@ async function refreshLogs() {
 
   // ── Skin-Bibliothek + Cape-Wechsler im Profil ──
   function loadSkinChanger() {
+    // Capes IMMER laden – unabhängig von der Skin-Bibliothek, damit sie auch
+    // dann erscheinen, wenn `skin_list` fehlschlägt oder leer ist.
+    invoke("skin_mc_profile").then(renderCapes).catch(() => renderCapes({}));
+
     invoke("skin_list").then(list => {
       renderSkinLibrary(list);
       const active = (list.skins || []).find(s => s.name === list.active);
       if (active && active.url) {
         showSkin(active.url);
-        invoke("skin_mc_profile").then(renderCapes).catch(() => renderCapes({}));
       } else {
         // Kein lokaler aktiver Skin: Minecraft-Profil-Textur (CORS-fähig) bevorzugen
         invoke("skin_mc_profile").then(prof => {
-          renderCapes(prof);
           const skins = (prof && prof.skins) || [];
           const s = skins.find(x => x.state === "ACTIVE") || skins[0];
           if (s && s.url) showSkin(s.url);
           else if (socialMe && socialMe.mc_name) showSkinFromName(socialMe.mc_name);
         }).catch(() => {
-          renderCapes({});
           if (socialMe && socialMe.mc_name) showSkinFromName(socialMe.mc_name);
         });
       }
@@ -987,17 +988,20 @@ pushTheme();
 // ─=== Settings (Verbindungen / Themes / Importieren) ===
 
 // Farbschemata je Theme (reine Farbpaletten, kein Hell/Dunkel-Modus mehr).
+// `head` = Minecraft-Kopf (PNG in dist/heads) links neben dem Theme.
 const THEMES = {
-  Kollegen:    { bg:"#0a0c10", panel:"#12141d", panel2:"#161922", accent:"#ffaa00", accent2:"#f5c518", text:"#ededed", muted:"#9ca3af", border:"#282d3d", danger:"#ff5b6e" },
-  Limit_Los:   { bg:"#1a0d0d", panel:"#241313", panel2:"#2e1717", accent:"#e6332a", accent2:"#b71c1c", text:"#f3e9e9", muted:"#c9a9a9", border:"#3a2222", danger:"#ff5b6e" },
-  FluffyBento: { bg:"#0f1410", panel:"#16201a", panel2:"#1d2a22", accent:"#3ba55d", accent2:"#b65cff", text:"#eaf7ee", muted:"#9fc4ab", border:"#29402f", danger:"#ff7aa2" },
-  Annanastv:   { bg:"#1a1605", panel:"#221d08", panel2:"#2b250c", accent:"#f1c40f", accent2:"#d4ac0d", text:"#fbf7e6", muted:"#cabf8e", border:"#3a3211", danger:"#ff7a59" },
-  T_son_:      { bg:"#0c1410", panel:"#112019", panel2:"#16271e", accent:"#2ecc71", accent2:"#239b56", text:"#e8f5ee", muted:"#9bc2ac", border:"#244234", danger:"#ff5b6e" },
-  zSpicyyy:    { bg:"#0a1218", panel:"#0f1a22", panel2:"#14222c", accent:"#3498db", accent2:"#2471a3", text:"#e6f1f8", muted:"#9bbccc", border:"#223a48", danger:"#ff7a59" },
-  Irongirl:    { bg:"#14171a", panel:"#1c2024", panel2:"#24292e", accent:"#bdc3c7", accent2:"#95a5a6", text:"#f0f3f5", muted:"#aab4ba", border:"#2e343a", danger:"#ff5b6e" },
-  Notschie_:   { bg:"#0c0810", panel:"#140e1a", panel2:"#1c1426", accent:"#9b59b6", accent2:"#71368a", text:"#f1eaf6", muted:"#b69cc6", border:"#2c2040", danger:"#ff6b9d" },
-  SMPNico:     { bg:"#081418", panel:"#0d1c20", panel2:"#122a2f", accent:"#1abc9c", accent2:"#138d75", text:"#e3f4f1", muted:"#8fc2b8", border:"#20434a", danger:"#ff7a59" },
-  LetsLennyy:  { bg:"#140a0a", panel:"#1d0f0f", panel2:"#271414", accent:"#FF0000", accent2:"#cc0000", text:"#f3e9e9", muted:"#c39b9b", border:"#600000", danger:"#ff5b6e" },
+  Kollegen:    { bg:"#0a0c10", panel:"#12141d", panel2:"#161922", accent:"#ffaa00", accent2:"#f5c518", text:"#ededed", muted:"#9ca3af", border:"#282d3d", danger:"#ff5b6e", head:"Kollegen.png" },
+  Limit_Los:   { bg:"#140a0a", panel:"#1d0f0f", panel2:"#271414", accent:"#FF0000", accent2:"#cc0000", text:"#f3e9e9", muted:"#c39b9b", border:"#600000", danger:"#ff5b6e", head:"heads/Limit_Los.png" },
+  FluffyBento: { bg:"#0d0912", panel:"#160f1e", panel2:"#1e1524", accent:"#b054d8", accent2:"#86e14a", text:"#f6ecfa", muted:"#c2a8d4", border:"#332050", danger:"#ff6b9d", head:"heads/FluffyBento.png" },
+  Annanastv:   { bg:"#1a1605", panel:"#221d08", panel2:"#2b250c", accent:"#f1c40f", accent2:"#d4ac0d", text:"#fbf7e6", muted:"#cabf8e", border:"#3a3211", danger:"#ff7a59", head:"heads/Annanastv_.png" },
+  T_son_:      { bg:"#0c1410", panel:"#112019", panel2:"#16271e", accent:"#2ecc71", accent2:"#239b56", text:"#e8f5ee", muted:"#9bc2ac", border:"#244234", danger:"#ff5b6e", head:"heads/T_son_.png" },
+  zSpicyyy:    { bg:"#0a1218", panel:"#0f1a22", panel2:"#14222c", accent:"#3498db", accent2:"#2471a3", text:"#e6f1f8", muted:"#9bbccc", border:"#223a48", danger:"#ff7a59", head:"heads/zSpicyy.png" },
+  Irongirl:    { bg:"#14171a", panel:"#1c2024", panel2:"#24292e", accent:"#bdc3c7", accent2:"#95a5a6", text:"#f0f3f5", muted:"#aab4ba", border:"#2e343a", danger:"#ff5b6e", head:"heads/Irongirl_.png" },
+  SMPNico:     { bg:"#081418", panel:"#0d1c20", panel2:"#122a2f", accent:"#1abc9c", accent2:"#138d75", text:"#e3f4f1", muted:"#8fc2b8", border:"#20434a", danger:"#ff7a59", head:"heads/SMPNico.png" },
+  LetsLennyy:  { bg:"#1a0d0d", panel:"#241313", panel2:"#2e1717", accent:"#e6332a", accent2:"#b71c1c", text:"#f3e9e9", muted:"#c9a9a9", border:"#3a2222", danger:"#ff5b6e", head:"heads/LetsLennyy.png" },
+  Machtarchiv: { bg:"#1a0000", panel:"#260a0a", panel2:"#300f0f", accent:"#e22626", accent2:"#ffffff", text:"#ffffff", muted:"#d9b3b3", border:"#4a1414", danger:"#ff5252", head:"heads/Machtarchiv.png" },
+  Zerocraft77: { bg:"#050505", panel:"#0a0a0a", panel2:"#101010", accent:"#b0b0b0", accent2:"#6e6e6e", text:"#e6e6e6", muted:"#8a8a8a", border:"#1f1f1f", danger:"#ff5252", head:"heads/Zerocraft77.png" },
+  Erhaltunq:   { bg:"#1c1610", panel:"#241c14", panel2:"#2c2118", accent:"#d4b482", accent2:"#a98c55", text:"#f3ecdf", muted:"#c9b79a", border:"#3a2d1e", danger:"#ff6b5e", head:"heads/Erhaltunq.png" },
 };
 
 let currentSettings = null;
@@ -1044,16 +1048,34 @@ async function saveTheme(name) {
 }
 
 // ─=== Settings panel wiring ===
+
+// Öffnet ein Settings-Panel deterministisch: Tab-Active-Klasse setzen, nur das
+// passende Panel anzeigen und dessen Inhalt (neu) rendern. Ein einziger Pfad für
+// Öffnen und Tab-Klick verhindert, dass Panels leer/unsichtbar bleiben, bis man
+// einmal weg- und wieder zurückwechselt (bekannter "leeres Panel"-Bug).
+function showSettingsTab(t) {
+  document.querySelectorAll(".settings-tab").forEach((el) => {
+    el.classList.toggle("active", el.dataset.tab === t);
+  });
+  $("settingsConnections").style.display = t === "connections" ? "" : "none";
+  $("settingsThemes").style.display = t === "themes" ? "" : "none";
+  $("settingsImport").style.display = t === "import" ? "" : "none";
+  $("settingsUpdates").style.display = t === "updates" ? "" : "none";
+  if (t === "themes") { renderThemeList(); renderLayoutOptions(); }
+  if (t === "connections") { refreshSettingsAccounts(); }
+}
+
+const settingsModalEl = $("settingsModal");
 $("settingsBtn").onclick = async () => {
-  $("settingsModal").style.display = "flex";
+  settingsModalEl.style.display = "flex";
   await loadSettingsOnce();
-  await refreshSettingsAccounts();
-  renderThemeList();
-  renderLayoutOptions();
   const cmt = $("companionModToggle");
   if (cmt && currentSettings) cmt.checked = !!currentSettings.companion_mod;
   const pmt = $("perfModsToggle");
   if (pmt && currentSettings) pmt.checked = currentSettings.perf_mods !== false;
+  // Immer auf den Verbindungen-Tab zurücksetzen, damit der Startzustand
+  // reproduzierbar ist und alle Panels korrekt (neu) gerendert werden.
+  showSettingsTab("connections");
 };
 
 const companionModToggle = $("companionModToggle");
@@ -1073,23 +1095,11 @@ if (perfModsToggle) {
   };
 }
 $("settingsClose").onclick = () => {
-  $("settingsModal").style.display = "none";
+  settingsModalEl.style.display = "none";
 };
 
 document.querySelectorAll(".settings-tab").forEach((tab) => {
-  tab.onclick = () => {
-    document.querySelectorAll(".settings-tab").forEach((t) => t.classList.remove("active"));
-    tab.classList.add("active");
-    const t = tab.dataset.tab;
-    $("settingsConnections").style.display = t === "connections" ? "" : "none";
-    $("settingsThemes").style.display = t === "themes" ? "" : "none";
-    $("settingsImport").style.display = t === "import" ? "" : "none";
-    $("settingsUpdates").style.display = t === "updates" ? "" : "none";
-    // Inhalte erst (neu) rendern, wenn der jeweilige Tab wirklich sichtbar ist,
-    // sonst erscheinen sie erst nach einem Tab-Wechsel (leere Panels).
-    if (t === "themes") { renderThemeList(); renderLayoutOptions(); }
-    if (t === "connections") { refreshSettingsAccounts(); }
-  };
+  tab.onclick = () => showSettingsTab(tab.dataset.tab);
 });
 
 // ─ Updates (manual check + install) ─
@@ -1228,12 +1238,13 @@ function renderThemeList() {
   for (const [name, pal] of Object.entries(THEMES)) {
     const card = document.createElement("button");
     card.className = "theme-card" + (name === s.theme ? " active" : "");
-    const dot = document.createElement("span");
-    dot.className = "theme-dot";
-    dot.style.background = pal.accent;
+    const head = document.createElement("img");
+    head.className = "theme-head";
+    head.src = pal.head || "";
+    head.alt = "";
     const label = document.createElement("span");
     label.textContent = name;
-    card.append(dot, label);
+    card.append(head, label);
     card.onclick = () => saveTheme(name);
     list.append(card);
   }

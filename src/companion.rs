@@ -301,7 +301,7 @@ fn version_major_minor(version: &str) -> Option<(u32, u32)> {
 /// `COMPANION_TARGET_MC_VERSION`'s intermediary, so it can only load on that
 /// line (e.g. any `1.21.x`); other lines (e.g. `26.2`) crash at runtime with
 /// `NoClassDefFoundError`. We therefore refuse them before injecting anything.
-fn is_compatible_version(version: &str) -> bool {
+pub fn is_compatible_version(version: &str) -> bool {
     match (
         version_major_minor(version),
         version_major_minor(COMPANION_TARGET_MC_VERSION),
@@ -344,6 +344,24 @@ pub fn install_companion_mod(data_dir: &Path, instance_name: &str, version: &str
             t = COMPANION_TARGET_MC_VERSION,
             line = line
         );
+        // Auch eine ggf. aus einer früheren 1.21.x-Konfiguration übrig gebliebene
+        // Companion-Jar entfernen, sobald die Instanz auf eine andere Linie
+        // (z.B. 26.2) wechselt – sonst lädt der Loader die alte Mod und stürzt
+        // mit NoClassDefFoundError ab. So heilt sich die Instanz von selbst.
+        let mods_dir = crate::utils::instance_dir(data_dir, instance_name).join("mods");
+        if let Ok(entries) = std::fs::read_dir(&mods_dir) {
+            for e in entries.flatten() {
+                let p = e.path();
+                if !p.is_file() {
+                    continue;
+                }
+                let name = p.file_name().to_string_lossy().to_lowercase();
+                if is_companion_mod_name(&name) {
+                    info!("Entferne inkompatible (1.21.x) Kollegen-Client-Mod aus Instanz '{}': {}", instance_name, name);
+                    let _ = std::fs::remove_file(&p);
+                }
+            }
+        }
         return;
     }
 

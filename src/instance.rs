@@ -907,15 +907,55 @@ fn read_bundle_flags(mods_dir: &Path) -> Value {
     flags
 }
 
+/// Entfernt alle vom Launcher deployten Integrations-Bundle-Jars (aktiv UND
+/// `.disabled`) aus `mods/`. Wird nur auf Instanzen aufgerufen, deren
+/// Minecraft-Version außerhalb der 1.21.x-Linie liegt, für die die Bundles
+/// kompiliert sind – deren 1.21.x-Jars würden den Fabric-Loader sonst zum
+/// "incompatible mods"-Absturz bringen. Nadelt gezielt `kollegen-bundle-`.
+fn remove_bundle_jars(mods_dir: &Path) {
+    let Ok(entries) = fs::read_dir(mods_dir) else {
+        return;
+    };
+    for e in entries.flatten() {
+        let p = e.path();
+        if !p.is_file() {
+            continue;
+        }
+        let name = e.file_name().to_string_lossy().to_lowercase();
+        if name.starts_with("kollegen-bundle-") {
+            info!("Entferne 1.21.x-Bundle aus inkompatibler Instanz: {}", name);
+            let _ = fs::remove_file(&p);
+        }
+    }
+}
+
 /// Deployt die aus der Begleit-Mod eingebetteten Integrations-Bundles nach
 /// mods/, entfernt sie bei deaktiviertem Flag und räumt Standalone-Kopien
 /// derselben Mods weg. Läuft ausschließlich VOR dem Spielstart – im laufenden
 /// Spiel werden niemals Jars angefasst (bereits geladene Klassen wären sonst
 /// nicht mehr nachladbar). Die In-Game-Toggles schreiben nur die Flag-Datei;
 /// hier ist der Zwei-Wege-Sync.
-pub(crate) fn enforce_bundled_mods(mods_dir: &Path, companion_jar: Option<&Path>) {
+pub(crate) fn enforce_bundled_mods(mods_dir: &Path, mc_version: &str, companion_jar: Option<&Path>) {
     if let Err(e) = fs::create_dir_all(mods_dir) {
         warn!("mods-Verzeichnis {} nicht erstellbar: {}", mods_dir.display(), e);
+        return;
+    }
+
+    // Die gebündelten Integrations-Jars (Spotify Overlay, ChatHeads, Fabric API,
+    // ModMenu, Silk, …) sind in der Begleit-Mod für MC 1.21.x kompiliert und
+    // lassen sich nicht auf eine andere Hauptlinie (z.B. 26.2) entkoppeln.
+    // Deployt man sie dort, bricht der Fabric-Loader mit "incompatible mods"
+    // (fabric-api 0.141.6+1.21.11 vs. 26.2, Silk 1.11.5 braucht 1.21.x, …) ab.
+    // Deshalb: auf inkompatiblen Versionen NICHT deployen und bereits deployte
+    // Bundle-Jars entfernen – so heilt sich eine falsch eingerichtete Instanz
+    // (z.B. eine auf 26.2 aktualisierte) beim nächsten Start von selbst.
+    if !crate::companion::is_compatible_version(mc_version) {
+        warn!(
+            "Integrations-Bundles bei MC {} übersprungen: sie sind nur mit {} (1.21.x) kompatibel. \
+             Lade keine 1.21.x-Jars in diese Instanz.",
+            mc_version, crate::companion::COMPANION_TARGET_MC_VERSION
+        );
+        remove_bundle_jars(mods_dir);
         return;
     }
     let flags = read_bundle_flags(mods_dir);
@@ -1112,7 +1152,7 @@ pub fn launch(
     // aufräumen – siehe enforce_bundled_mods (Zwei-Wege-Sync über
     // mods/.kollegen-bundles.json).
     let companion_jar = crate::companion::companion_jar(data_dir);
-    enforce_bundled_mods(&mods_dir, companion_jar.as_deref());
+    enforce_bundled_mods(&mods_dir, &inst.version, companion_jar.as_deref());
     // Fresh launcher log per launch (avoids stale crash lines triggering the
     // auto-resolver again on the next manual launch).
     if let Ok(mut logs) = state.logs.lock() {

@@ -1010,22 +1010,28 @@ body.reduce-motion *::after { transition: none !important; animation: none !impo
 
 /* Profil-Modal */
 .profile-modal {
-  display: flex; gap: 1.2rem; align-items: flex-start; flex-wrap: wrap;
-  width: min(560px, 95vw);
-  max-width: 560px;
+  display: flex; gap: 1.2rem; align-items: stretch;
+  width: min(760px, 96vw); max-width: 760px;
+  max-height: 90vh; overflow: hidden;
 }
 .profile-skin {
-  width: 200px; flex: 0 0 auto;
+  width: 190px; flex: 0 0 auto;
   background: #0e0e14; border-radius: 10px; overflow: hidden;
   display: flex; justify-content: center; align-items: flex-start;
+  border: 1px solid var(--border);
 }
-.profile-skin canvas { width: 200px; height: 400px; }
-@media (max-width: 540px) {
-  .profile-skin { width: 100%; }
-  .profile-skin canvas { width: 100%; height: auto; max-height: 360px; }
+.profile-skin canvas { width: 190px; height: 380px; display: block; }
+@media (max-width: 640px) {
+  .profile-modal { flex-wrap: wrap; overflow-y: auto; }
+  .profile-skin { width: 100%; max-height: 320px; }
+  .profile-skin canvas { width: 100%; height: auto; max-height: 320px; }
 }
 .profile-skin canvas, .profile-skin img.skin-fallback { display: block; }
-.profile-side { flex: 1; min-width: 0; }
+.profile-side {
+  flex: 1; min-width: 0;
+  max-height: calc(90vh - 4.4rem); overflow-y: auto;
+  padding-right: 0.25rem;
+}
 .profile-modal h2 { margin: 0 0 0.2rem; }
 .profile-discord { color: var(--muted); margin-bottom: 0.8rem; }
 .profile-code {
@@ -1176,15 +1182,26 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 
 /* Theme-Auswahl */
 .theme-list {
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   gap: 0.7rem; margin-top: 0.6rem;
 }
 .theme-card {
   border: 1px solid var(--border); border-radius: 12px; padding: 0.7rem;
   cursor: pointer; background: var(--panel); transition: all 0.15s ease;
+  display: flex; align-items: center; gap: 0.6rem; text-align: left;
+  font-family: "Inter", sans-serif;
 }
 .theme-card:hover { border-color: var(--accent); transform: translateY(-2px); }
 .theme-card.active { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(255,170,0,0.3); }
+.theme-head {
+  width: 34px; height: 34px; border-radius: 6px; object-fit: cover;
+  border: 1px solid var(--border); flex: 0 0 auto; background: var(--panel-2);
+  image-rendering: pixelated;
+}
+.theme-card span {
+  font-size: 0.85rem; font-weight: 700; color: var(--text); min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
 .theme-swatch { height: 30px; border-radius: 8px; margin-bottom: 0.5rem; border: 1px solid rgba(255,255,255,0.08); }
 .theme-name { font-size: 0.85rem; font-weight: 600; color: var(--text); }
 .mode-toggle { display: flex; gap: 0.5rem; margin-top: 0.4rem; }
@@ -1264,7 +1281,7 @@ ul#instanceList li {
 }
 
 /* ── Skin-/Cape-Changer im Profil ── */
-.profile-modal { max-height: 90vh; overflow-y: auto; }
+/* Profil-Modal: Scrollen passiert in .profile-side; das Modal selbst bleibt fix. */
 .skin-changer, .cape-changer { margin-top: 1rem; }
 .skin-actions { display: flex; gap: 0.5rem; margin-bottom: 0.6rem; }
 .skin-library {
@@ -1289,3 +1306,24 @@ ul#instanceList li {
 .cape-item span { flex: 1; font-size: 0.95rem; font-weight: 600; color: var(--text); }
 .cape-item button { background: var(--accent); color: #111; border: none; border-radius: 8px; padding: 0.4rem 0.8rem; font-weight: 700; cursor: pointer; }
 .cape-item button:disabled { background: var(--panel); color: var(--muted); cursor: default; }
+
+/* ── Flüssigere UI: sanfte Übergänge & Fade-Ins ── */
+@keyframes kc-modal-in {
+  from { opacity: 0; transform: translateY(10px) scale(0.985); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.modal[style*="flex"] > .modal-content { animation: kc-modal-in 0.18s ease-out; }
+
+@keyframes kc-panel-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.tab-panel.active { animation: kc-panel-in 0.18s ease-out; }
+
+.theme-card { transition: border-color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease; }
+
+/* Themenwechsel weich über die Hauptflächen einblenden */
+body { transition: background-color 0.25s ease; }
+.panel, main, nav.sidebar { transition: border-color 0.25s ease, background-color 0.25s ease; }
+
+body.reduce-motion * { animation-duration: 0.01s !important; transition-duration: 0.01s !important; }
