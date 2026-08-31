@@ -355,7 +355,7 @@ pub fn install_companion_mod(data_dir: &Path, instance_name: &str, version: &str
                 if !p.is_file() {
                     continue;
                 }
-                let name = p.file_name().to_string_lossy().to_lowercase();
+                let name = e.file_name().to_string_lossy().to_lowercase();
                 if is_companion_mod_name(&name) {
                     info!("Entferne inkompatible (1.21.x) Kollegen-Client-Mod aus Instanz '{}': {}", instance_name, name);
                     let _ = std::fs::remove_file(&p);
