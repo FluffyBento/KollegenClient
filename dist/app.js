@@ -545,12 +545,12 @@ async function refreshLogs() {
         canvas.style.display = "";
         const fb = canvas.parentElement.querySelector("img.skin-fallback");
         if (fb) fb.remove();
-        skinViewer = new sv3d.SkinViewer({ canvas: canvas, width: 200, height: 400 });
+        skinViewer = new sv3d.SkinViewer({ canvas: canvas, width: 240, height: 480 });
         // Dieser skinview3d-Build wertet die `skin`-Option nicht aus – die
         // Textur muss explizit via loadSkin() geladen werden.
         const p = skinViewer.loadSkin(url);
-        if (p && typeof p.catch === "function") {
-          p.catch((e) => console.warn("Skin-Textur konnte nicht geladen werden:", e));
+        if (p && typeof p.then === "function") {
+          p.then(() => applyCapeToViewer()).catch(() => applyCapeToViewer());
         }
         skinViewer.animation = new sv3d.IdleAnimation();
         applyCapeToViewer();
