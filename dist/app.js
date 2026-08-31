@@ -646,13 +646,14 @@ async function refreshLogs() {
       el.className = "cape-item" + (c.state === "ACTIVE" ? " active" : "");
       const img = document.createElement("img");
       img.src = c.url;
-      img.alt = c.name || "Cape";
+      const capName = c.alias || c.capeName || c.name || "Cape";
+      img.alt = capName;
       img.loading = "lazy";
       // Bricht das Bild fehl (z. B. CORS), zeigen wir nur den Namen, damit
       // die Capes weiterhin unterscheidbar bleiben.
       img.onerror = () => { img.style.visibility = "hidden"; };
       const name = document.createElement("span");
-      name.textContent = c.name || "Cape";
+      name.textContent = capName;
       const btn = document.createElement("button");
       btn.textContent = c.state === "ACTIVE" ? "Aktiv" : "Ausrüsten";
       btn.disabled = c.state === "ACTIVE";
