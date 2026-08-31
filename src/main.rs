@@ -1320,21 +1320,81 @@ async fn install_app_update(app: tauri::AppHandle) -> Result<(), String> {
 /// which is handled separately via the RPATH baked into the binary at link
 /// time – see `.cargo/config.toml`.) Must run before GTK/WebKit initializes.
 fn setup_webkit_appimage_env() {
-    // Point WebKit at the host's web-process helpers if present.
+    // Collect candidate dirs that may contain the WebKit helper processes
+    // (WebKitWebProcess / WebKitNetworkProcess). WebKit spawns these as child
+    // processes; if `WEBKIT_EXEC_PATH` isn't set to a valid, *absolute* dir the
+    // webkit process falls back to a path relative to the current prefix and
+    // fails ("Unable to spawn a new child process: .../WebKitNetworkProcess" /
+    // "Datei oder Verzeichnis nicht gefunden"), which aborts startup with a
+    // white screen + SIGABRT. This happened for users who extract the AppImage
+    // and run the bundled binary directly.
+    let mut candidates: Vec<PathBuf> = Vec::new();
+
+    // 1) Host system webkit dirs (most distros, incl. Fedora webkit2gtk4.1).
+    for dir in [
+        "/usr/libexec/webkit2gtk-4.1",
+        "/usr/libexec/webkit2gtk-4.0",
+        "/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1",
+        "/usr/lib/x86_64-linux-gnu/webkit2gtk-4.0",
+        "/usr/lib/webkit2gtk-4.1",
+        "/usr/lib/webkit2gtk-4.0",
+        "/usr/lib64/webkit2gtk-4.1",
+        "/usr/lib64/webkit2gtk-4.0",
+    ] {
+        candidates.push(PathBuf::from(dir));
+    }
+
+    // 2) Bundled webkit shipped inside the AppImage / extracted squashfs-root.
+    // The process runs from <root>/usr/bin/kollegen-client, so the webkit
+    // helpers live at <root>/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1 etc.
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(bindir) = exe.parent() {
+            for rel in [
+                "../lib/x86_64-linux-gnu/webkit2gtk-4.1",
+                "../lib64/webkit2gtk-4.1",
+                "../lib/webkit2gtk-4.1",
+                "../lib/x86_64-linux-gnu/webkit2gtk-4.0",
+                "../lib64/webkit2gtk-4.0",
+                "../../usr/lib/x86_64-linux-gnu/webkit2gtk-4.1",
+                "../../usr/lib64/webkit2gtk-4.1",
+                "../../lib/x86_64-linux-gnu/webkit2gtk-4.1",
+                "lib/x86_64-linux-gnu/webkit2gtk-4.1",
+            ] {
+                let p = bindir.join(rel);
+                candidates.push(if p.is_absolute() {
+                    p
+                } else {
+                    std::env::current_dir()
+                        .map(|c| c.join(&p))
+                        .unwrap_or(p)
+                });
+            }
+        }
+    }
+
+    // 3) AppImage run-time mount dir (APPIMAGE env points at the .AppImage;
+    //    AppImage's own runtime exposes the webkit dir under /tmp/.mount_*).
+    if let Ok(ai) = std::env::var("APPIMAGE") {
+        let ai = PathBuf::from(ai.trim());
+        if let Some(parent) = ai.parent() {
+            candidates.push(parent.join("usr/lib/x86_64-linux-gnu/webkit2gtk-4.1"));
+        }
+    }
+
     if std::env::var_os("WEBKIT_EXEC_PATH").is_none() {
-        for dir in [
-            "/usr/libexec/webkit2gtk-4.1",
-            "/usr/libexec/webkit2gtk-4.0",
-            "/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1",
-            "/usr/lib/x86_64-linux-gnu/webkit2gtk-4.0",
-            "/usr/lib/webkit2gtk-4.1",
-            "/usr/lib/webkit2gtk-4.0",
-            "/usr/lib64/webkit2gtk-4.1",
-            "/usr/lib64/webkit2gtk-4.0",
-        ] {
-            if Path::new(dir).join("WebKitWebProcess").exists() {
+        for dir in candidates {
+            if dir.join("WebKitWebProcess").exists()
+                || dir.join("WebKitNetworkProcess").exists()
+            {
+                let abs = if dir.is_absolute() {
+                    dir
+                } else {
+                    std::env::current_dir()
+                        .map(|c| c.join(&dir))
+                        .unwrap_or(dir)
+                };
                 unsafe {
-                    std::env::set_var("WEBKIT_EXEC_PATH", dir);
+                    std::env::set_var("WEBKIT_EXEC_PATH", abs);
                 }
                 break;
             }
