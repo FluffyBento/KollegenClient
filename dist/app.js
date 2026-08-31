@@ -999,7 +999,7 @@ const THEMES = {
   Irongirl:    { bg:"#14171a", panel:"#1c2024", panel2:"#24292e", accent:"#bdc3c7", accent2:"#95a5a6", text:"#f0f3f5", muted:"#aab4ba", border:"#2e343a", danger:"#ff5b6e", head:"heads/Irongirl_.png" },
   SMPNico:     { bg:"#081418", panel:"#0d1c20", panel2:"#122a2f", accent:"#1abc9c", accent2:"#138d75", text:"#e3f4f1", muted:"#8fc2b8", border:"#20434a", danger:"#ff7a59", head:"heads/SMPNico.png" },
   LetsLennyy:  { bg:"#1a0d0d", panel:"#241313", panel2:"#2e1717", accent:"#e6332a", accent2:"#b71c1c", text:"#f3e9e9", muted:"#c9a9a9", border:"#3a2222", danger:"#ff5b6e", head:"heads/LetsLennyy.png" },
-  Machtarchiv: { bg:"#1a0000", panel:"#260a0a", panel2:"#300f0f", accent:"#e22626", accent2:"#ffffff", text:"#ffffff", muted:"#d9b3b3", border:"#4a1414", danger:"#ff5252", head:"heads/Machtarchiv.png" },
+  Machtarchiv: { bg:"#1a0000", panel:"#260a0a", panel2:"#300f0f", accent:"#e22626", accent2:"#ff8a8a", accent3:"#ffffff", text:"#ffffff", muted:"#d9b3b3", border:"#4a1414", danger:"#ff5252", head:"heads/Machtarchiv.png" },
   Zerocraft77: { bg:"#050505", panel:"#0a0a0a", panel2:"#101010", accent:"#b0b0b0", accent2:"#6e6e6e", text:"#e6e6e6", muted:"#8a8a8a", border:"#1f1f1f", danger:"#ff5252", head:"heads/Zerocraft77.png" },
   Erhaltunq:   { bg:"#1c1610", panel:"#241c14", panel2:"#2c2118", accent:"#d4b482", accent2:"#a98c55", text:"#f3ecdf", muted:"#c9b79a", border:"#3a2d1e", danger:"#ff6b5e", head:"heads/Erhaltunq.png" },
 };
