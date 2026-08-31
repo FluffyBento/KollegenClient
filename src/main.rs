@@ -1419,7 +1419,17 @@ fn main() {
     presence::start(data_dir.clone());
     // Profil + Freundesliste sofort schreiben (falls bereits mit Discord
     // angemeldet), damit die Begleit-Mod im Spiel direkt Daten hat.
-    presence::sync_social(&data_dir);
+    // Läuft auf einem eigenen Thread: `sync_social` macht einen (jetzt mit
+    // kurzem Timeout versehenen) Netzwerk-Call zum Presence-Backend. Auf dem
+    // Hauptthread ausgeführt, blockiert das den kompletten Tauri-/WebKit-Start
+    // (Weißschirm/"lädt 20–30 Min"), solange das Backend nicht erreichbar ist.
+    {
+        let dd = data_dir.clone();
+        std::thread::Builder::new()
+            .name("kollegen-social-sync".into())
+            .spawn(move || presence::sync_social(&dd))
+            .ok();
+    }
     // Initial "in launcher" presence (only shows if Discord is running).
     let _ = discord.tx.send(discord::RpcMessage::Set {
         details: "Kollegen Client".to_string(),

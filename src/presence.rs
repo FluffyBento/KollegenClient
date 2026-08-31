@@ -185,13 +185,25 @@ fn ensure_session(
 }
 
 /// Authentifizierte Anfrage-Hilfe für die sozialen Endpunkte (Directory/Freunde).
+///
+/// Wichtig: Der hier erzeugte Client MUSS ein kurzes Connect/Total-Timeout tragen.
+/// Früher stand hier `Client::new()` (= kein Timeout). Wird das Backend
+/// (`5.175.192.69:8080` etc.) nicht erreicht, hängt der `POST /auth` dann bis zum
+/// OS-Connect-Timeout – und da `sync_social`/`kollegen_me` auf dem Hauptthread
+/// laufen können, friert der komplette Launcher-Start (Weißschirm, "lädt 20–30
+/// Minuten") ein. Mit begrenztem Timeout schlägt der Versuch in Sekunden fehl.
 fn authed_request(
     data_dir: &PathBuf,
 ) -> Option<(reqwest::blocking::Client, String, String)> {
     let backend = backend_url(data_dir)?;
     let discord_token = discord_access_token(data_dir)?;
-    let session = ensure_session(&reqwest::blocking::Client::new(), &backend, &discord_token, data_dir)?;
-    Some((reqwest::blocking::Client::new(), backend, session))
+    let client = reqwest::blocking::Client::builder()
+        .timeout(Duration::from_secs(3))
+        .connect_timeout(Duration::from_secs(3))
+        .build()
+        .ok()?;
+    let session = ensure_session(&client, &backend, &discord_token, data_dir)?;
+    Some((client, backend, session))
 }
 
 /// Holt das eigene Profil (GET /me) und schreibt Profil + Freundesliste
@@ -416,6 +428,7 @@ fn run(data_dir: PathBuf) {
 
     let client = match reqwest::blocking::Client::builder()
         .timeout(Duration::from_secs(5))
+        .connect_timeout(Duration::from_secs(3))
         .build()
     {
         Ok(c) => c,
@@ -428,9 +441,19 @@ fn run(data_dir: PathBuf) {
     let mut last_reported: Option<PresenceEntry> = None;
     let mut last_heartbeat: u64 = 0;
     let mut last_social: u64 = 0;
+    let mut auth_failures: u32 = 0;
 
     loop {
         std::thread::sleep(Duration::from_millis(POLL_MS));
+
+        // Backoff: ist das Backend nicht erreichbar, hämmert der Loop sonst im
+        // Sekundentakt auf die tote IP (5.175.192.69) und blockiert die
+        // Presence-Network-Arbeit. Bei wiederholtem Fehlschlag warten wir
+        // zunehmend länger (bis ~30 s), statt permanent zu raten.
+        if auth_failures > 0 {
+            let backoff = std::cmp::min(auth_failures, 15) as u64;
+            std::thread::sleep(Duration::from_secs(backoff));
+        }
 
         let backend = match backend_url(&data_dir) {
             Some(b) => b,
@@ -451,8 +474,12 @@ fn run(data_dir: PathBuf) {
         };
 
         let session = match ensure_session(&client, &backend, &discord_token, &data_dir) {
-            Some(s) => s,
+            Some(s) => {
+                auth_failures = 0;
+                s
+            }
             None => {
+                auth_failures = auth_failures.saturating_add(1);
                 last_reported = None;
                 continue;
             }
