@@ -206,14 +206,14 @@ fn authed_request(
     Some((client, backend, session))
 }
 
-/// Holt das eigene Profil (GET /me) und schreibt Profil + Freundesliste
-/// nach ~/.kollegen/social.json, damit die Mod sie im Spiel anzeigen kann.
+/// Holt das eigene Profil (GET /me).
+///
+/// Die Freundesliste + social.json für die Mod schreibt der Hintergrund-
+/// Presence-Loop periodisch selbst (sync_social); hier wird sie NICHT noch
+/// einmal nachgezogen, sonst machten wir beim Öffnen des Socials-Tabs mehrere
+/// redundante Blocking-HTTP-Calls in Serie (früher: /me + /me + /friends).
 pub fn kollegen_me(data_dir: &PathBuf) -> serde_json::Value {
-    let me = me_value(data_dir);
-    if me.get("error").is_none() {
-        sync_social(data_dir);
-    }
-    me
+    me_value(data_dir)
 }
 
 fn me_value(data_dir: &PathBuf) -> serde_json::Value {

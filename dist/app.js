@@ -330,8 +330,27 @@ async function refreshLogs() {
   // geschrieben. Freunde werden ausschließlich über den Freundes-Code hinzugefügt.
   let socialMe = null;
   let socialFriends = [];
+  let lastSocialFetch = 0;
+  const SOCIAL_STALE_MS = 30000;
 
-  async function refreshSocial() {
+  function renderSocialAll() {
+    renderProfileWidget();
+    renderFriendsWidget();
+    renderSocialPanel();
+  }
+
+  async function refreshSocial(force) {
+    // Bei frischen Daten sofort aus dem Cache rendern statt erneut zu laden –
+    // dann öffnet der Socials-Tab ohne Netz-Wartezeit (kein Lag/Blinken).
+    if (
+      !force &&
+      socialMe !== null &&
+      lastSocialFetch &&
+      Date.now() - lastSocialFetch < SOCIAL_STALE_MS
+    ) {
+      renderSocialAll();
+      return;
+    }
     try {
       const [me, friends] = await Promise.all([
         invoke("kollegen_me"),
@@ -339,9 +358,8 @@ async function refreshLogs() {
       ]);
       socialMe = me && !me.error ? normalizeProfile(me) : null;
       socialFriends = (friends && !friends.error ? friends : []).map(normalizeFriend);
-      renderProfileWidget();
-      renderFriendsWidget();
-      renderSocialPanel();
+      lastSocialFetch = Date.now();
+      renderSocialAll();
     } catch (e) {
       console.error(e);
     }
@@ -473,7 +491,7 @@ async function refreshLogs() {
         btn.textContent = "Entfernen";
         btn.onclick = async () => {
           await invoke("kollegen_friend_remove", { targetId: u.id });
-          refreshSocial();
+          refreshSocial(true);
         };
         li.append(btn);
       }
@@ -1438,7 +1456,12 @@ applySavedTheme().then(applyLayout);
     document.querySelectorAll(".tab-panel[data-tab]").forEach((p) => {
       p.classList.toggle("active", p.dataset.tab === name);
     });
-    if (name === "socials") refreshSocial();
+    if (name === "socials") {
+      // Erst sofort aus dem Cache rendern (kein leeres/Lag-Fenster), dann im
+      // Hintergrund frisch laden.
+      renderSocialAll();
+      refreshSocial();
+    }
   }
   document.querySelectorAll(".sidebar-link[data-tab]").forEach((l) => {
     l.addEventListener("click", (e) => {
@@ -1499,7 +1522,7 @@ $("friendCodeAdd").onclick = async () => {
     $("friendCodeInput").value = "";
     if (res && res.error) toast("Fehler: " + res.error, "error");
     else toast("Freund hinzugefügt", "ok");
-    refreshSocial();
+    refreshSocial(true);
   } catch (e) {
     toast("Freund konnte nicht hinzugefügt werden: " + e, "error");
   }

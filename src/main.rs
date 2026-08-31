@@ -1236,22 +1236,22 @@ fn import_pack(state: State<'_, AppState>, path: String) -> Result<types::Instan
 }
 
 #[tauri::command]
-fn kollegen_me(state: State<'_, AppState>) -> serde_json::Value {
+async fn kollegen_me(state: State<'_, AppState>) -> serde_json::Value {
     crate::presence::kollegen_me(&state.data_dir)
 }
 
 #[tauri::command]
-fn kollegen_friends(state: State<'_, AppState>) -> serde_json::Value {
+async fn kollegen_friends(state: State<'_, AppState>) -> serde_json::Value {
     crate::presence::kollegen_friends(&state.data_dir)
 }
 
 #[tauri::command]
-fn kollegen_friend_add(state: State<'_, AppState>, target_id: String) -> serde_json::Value {
+async fn kollegen_friend_add(state: State<'_, AppState>, target_id: String) -> serde_json::Value {
     crate::presence::kollegen_friend_add(&state.data_dir, &target_id)
 }
 
 #[tauri::command]
-fn kollegen_friend_remove(state: State<'_, AppState>, target_id: String) -> serde_json::Value {
+async fn kollegen_friend_remove(state: State<'_, AppState>, target_id: String) -> serde_json::Value {
     crate::presence::kollegen_friend_remove(&state.data_dir, &target_id)
 }
 

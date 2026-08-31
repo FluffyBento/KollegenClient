@@ -681,6 +681,7 @@ pre {
   background: color-mix(in srgb, var(--accent) 22%, transparent);
   color: var(--text);
   border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
+  box-shadow: inset 3px 0 0 var(--accent3);
 }
 .side-ico {
   flex: 0 0 22px;
@@ -705,7 +706,7 @@ pre {
 }
 
 .socials-logo {
-  color: var(--accent);
+  color: var(--accent3);
   display: inline-flex;
   align-items: center;
   margin-right: 0.1rem;
