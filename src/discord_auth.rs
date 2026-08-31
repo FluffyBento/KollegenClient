@@ -124,6 +124,20 @@ lazy_static! {
 /// presence). Network/permission failures degrade gracefully to an empty list.
 /// Results are cached for 60s so the Socials tab can poll without hammering
 /// the Discord API.
+/// Blocking HTTP client with a short connect/total timeout.
+///
+/// These helper fetches (friends, per-friend mutual-guild profiles, guilds)
+/// must never hang for the OS-level TCP connect timeout (~2 min) when an
+/// endpoint is slow/reachable-DNS-but-unreachable. Without this, the Socials
+/// tab (which calls `fetch_friends`) froze for minutes on one bad profile call.
+fn blocking_http_client() -> reqwest::blocking::Client {
+    reqwest::blocking::Client::builder()
+        .timeout(Duration::from_secs(5))
+        .connect_timeout(Duration::from_secs(3))
+        .build()
+        .unwrap_or_else(|_| reqwest::blocking::Client::new())
+}
+
 pub fn fetch_friends(data_dir: &Path) -> Vec<serde_json::Value> {
     {
         let cache = OAUTH_FRIENDS_CACHE.lock().unwrap();
@@ -146,7 +160,7 @@ pub fn fetch_friends(data_dir: &Path) -> Vec<serde_json::Value> {
         Option<String>,
         bool,
     )> = Vec::new();
-    if let Ok(resp) = reqwest::blocking::Client::new()
+    if let Ok(resp) = blocking_http_client()
         .get(RELATIONSHIPS_ENDPOINT)
         .bearer_auth(&token.access_token)
         .send()
@@ -213,7 +227,7 @@ pub fn fetch_friends(data_dir: &Path) -> Vec<serde_json::Value> {
     // labels. Missing names (scope not granted / fetch failed) are tolerated.
     let mut guild_names: std::collections::HashMap<String, String> =
         std::collections::HashMap::new();
-    if let Ok(resp) = reqwest::blocking::Client::new()
+    if let Ok(resp) = blocking_http_client()
         .get("https://discord.com/api/v10/users/@me/guilds")
         .bearer_auth(&token.access_token)
         .send()
@@ -234,7 +248,7 @@ pub fn fetch_friends(data_dir: &Path) -> Vec<serde_json::Value> {
     // per-user profile endpoint, whose response carries a top-level
     // `mutual_guilds` array of `{ id, nick }`. We fetch it per friend. The whole
     // result is cached 60s at the call site to limit the number of requests.
-    let client = reqwest::blocking::Client::new();
+    let client = blocking_http_client();
     let mut result: Vec<serde_json::Value> = Vec::new();
     for (id, username, global_name, avatar_url, status, game, presence_known) in base {
         let mut mutual: Vec<String> = Vec::new();
@@ -315,7 +329,7 @@ fn pkce_challenge(verifier: &str) -> String {
 }
 
 fn fetch_user(access_token: &str) -> Result<DiscordUser, String> {
-    let client = reqwest::blocking::Client::new();
+    let client = blocking_http_client();
     let resp = client
         .get(USER_ENDPOINT)
         .bearer_auth(access_token)
@@ -328,7 +342,7 @@ fn fetch_user(access_token: &str) -> Result<DiscordUser, String> {
 }
 
 fn exchange_token(code: &str, verifier: &str, data_dir: &Path) -> Result<(), String> {
-    let client = reqwest::blocking::Client::new();
+    let client = blocking_http_client();
     let params: Vec<(&str, &str)> = vec![
         ("client_id", crate::discord_client_id()),
         ("grant_type", "authorization_code"),
