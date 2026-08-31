@@ -1236,23 +1236,27 @@ fn import_pack(state: State<'_, AppState>, path: String) -> Result<types::Instan
 }
 
 #[tauri::command]
-async fn kollegen_me(state: State<'_, AppState>) -> serde_json::Value {
-    crate::presence::kollegen_me(&state.data_dir)
+async fn kollegen_me(app: tauri::AppHandle) -> Result<serde_json::Value, String> {
+    let data_dir = app.state::<AppState>().data_dir.clone();
+    Ok(crate::presence::kollegen_me(&data_dir))
 }
 
 #[tauri::command]
-async fn kollegen_friends(state: State<'_, AppState>) -> serde_json::Value {
-    crate::presence::kollegen_friends(&state.data_dir)
+async fn kollegen_friends(app: tauri::AppHandle) -> Result<serde_json::Value, String> {
+    let data_dir = app.state::<AppState>().data_dir.clone();
+    Ok(crate::presence::kollegen_friends(&data_dir))
 }
 
 #[tauri::command]
-async fn kollegen_friend_add(state: State<'_, AppState>, target_id: String) -> serde_json::Value {
-    crate::presence::kollegen_friend_add(&state.data_dir, &target_id)
+async fn kollegen_friend_add(app: tauri::AppHandle, target_id: String) -> Result<serde_json::Value, String> {
+    let data_dir = app.state::<AppState>().data_dir.clone();
+    Ok(crate::presence::kollegen_friend_add(&data_dir, &target_id))
 }
 
 #[tauri::command]
-async fn kollegen_friend_remove(state: State<'_, AppState>, target_id: String) -> serde_json::Value {
-    crate::presence::kollegen_friend_remove(&state.data_dir, &target_id)
+async fn kollegen_friend_remove(app: tauri::AppHandle, target_id: String) -> Result<serde_json::Value, String> {
+    let data_dir = app.state::<AppState>().data_dir.clone();
+    Ok(crate::presence::kollegen_friend_remove(&data_dir, &target_id))
 }
 
 // ─=== Skin / Cape Changer ===
