@@ -1011,10 +1011,14 @@ body.reduce-motion *::after { transition: none !important; animation: none !impo
 }
 
 /* Profil-Modal */
-.profile-modal {
+/* Bewusst mit .modal-content.prefix (höhere Spezifität): die Basis-Regel
+   .modal-content setzt overflow-y:auto + width:720px (gewinnt sonst auf
+   gleicher Spezifität). So bleibt dieses Modal fix und nur .profile-side
+   scrollt intern. */
+.modal-content.profile-modal {
   display: flex; gap: 1.2rem; align-items: stretch;
   width: min(760px, 96vw); max-width: 760px;
-  max-height: 90vh; overflow: hidden;
+  max-height: 86vh; overflow: hidden;
 }
 .profile-skin {
   width: 190px; flex: 0 0 auto;
@@ -1024,14 +1028,14 @@ body.reduce-motion *::after { transition: none !important; animation: none !impo
 }
 .profile-skin canvas { width: 190px; height: 380px; display: block; }
 @media (max-width: 640px) {
-  .profile-modal { flex-wrap: wrap; overflow-y: auto; }
+  .modal-content.profile-modal { flex-wrap: wrap; overflow-y: auto; }
   .profile-skin { width: 100%; max-height: 320px; }
   .profile-skin canvas { width: 100%; height: auto; max-height: 320px; }
 }
 .profile-skin canvas, .profile-skin img.skin-fallback { display: block; }
 .profile-side {
   flex: 1; min-width: 0;
-  max-height: calc(90vh - 4.4rem); overflow-y: auto;
+  max-height: calc(86vh - 4.4rem); overflow-y: auto;
   padding-right: 0.25rem;
 }
 .profile-modal h2 { margin: 0 0 0.2rem; }
