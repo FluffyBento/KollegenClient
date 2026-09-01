@@ -545,7 +545,7 @@ async function refreshLogs() {
         canvas.style.display = "";
         const fb = canvas.parentElement.querySelector("img.skin-fallback");
         if (fb) fb.remove();
-        skinViewer = new sv3d.SkinViewer({ canvas: canvas, width: 240, height: 480 });
+        skinViewer = new sv3d.SkinViewer({ canvas: canvas, width: 300, height: 600 });
         // Dieser skinview3d-Build wertet die `skin`-Option nicht aus – die
         // Textur muss explizit via loadSkin() geladen werden.
         const p = skinViewer.loadSkin(url);
