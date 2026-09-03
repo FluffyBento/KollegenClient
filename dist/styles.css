@@ -1542,11 +1542,25 @@ body.console-mode .ps5-dock {
   gap: 16px;
   padding: 12px 18px;
   border-radius: 32px;
-  background: rgba(20, 22, 30, 0.85);
+  background: rgba(22, 24, 34, 0.96);
   border: 1px solid rgba(255, 255, 255, 0.1);
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(14px);
   z-index: 60;
+}
+body.console-mode .ps5-hint {
+  position: fixed;
+  left: 50%;
+  bottom: 96px;
+  transform: translateX(-50%);
+  z-index: 61;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 13px;
+  letter-spacing: 0.03em;
+  background: rgba(22, 24, 34, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 7px 16px;
+  border-radius: 999px;
+  white-space: nowrap;
 }
 body.console-mode .ps5-dock-btn {
   display: flex;

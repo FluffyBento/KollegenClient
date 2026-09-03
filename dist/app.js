@@ -1133,6 +1133,8 @@ function restoreDesktopHome() {
   document.body.classList.remove("ps5-ready");
   const dock = document.getElementById("ps5Dock");
   if (dock) dock.remove();
+  const hint = document.getElementById("ps5Hint");
+  if (hint) hint.remove();
   const panel = $("homePanel");
   if (panel) {
     panel.innerHTML = '<h2>Home</h2><ul id="instanceList"></ul>';
@@ -1202,6 +1204,11 @@ function ensureConsoleDock() {
     mk("settings", "⚙", "Einst.")
   );
   document.body.appendChild(dock);
+  const hint = document.createElement("div");
+  hint.id = "ps5Hint";
+  hint.className = "ps5-hint";
+  hint.textContent = "A Auswählen · B Starten · Y Verwalten · Start Einstellungen · Select Zurück";
+  document.body.appendChild(hint);
   setTimeout(() => document.body.classList.add("ps5-ready"), 30);
 }
 
@@ -1228,6 +1235,7 @@ function renderConsoleHome() {
     const hero = instances[0];
     const heroEl = document.createElement("div");
     heroEl.className = "ps5-hero";
+    heroEl.dataset.inst = hero.name;
     const heroMeta = document.createElement("div");
     heroMeta.className = "ps5-hero-kicker";
     heroMeta.textContent = "AUSGEWÄHLT · INSTANZEN";
@@ -1278,6 +1286,7 @@ function renderConsoleHome() {
     instances.forEach((inst) => {
       const tile = document.createElement("div");
       tile.className = "ps5-tile";
+      tile.dataset.inst = inst.name;
       const icon = document.createElement("div");
       icon.className = "ps5-tile-icon";
       icon.textContent = (inst.name || "?").charAt(0).toUpperCase();
@@ -1417,6 +1426,59 @@ function consoleCloseModal() {
   return true;
 }
 
+// ── Gamepad-/Tastatur-Shortcuts (statt nur Auswahl über Buttons) ──
+// Standard-Gamepad-Mapping (Web Gamepad API): 0=A 1=B 2=X 3=Y 8=Select 9=Start
+// A = Aktivieren, B = Instanz starten, Y = Instanz verwalten, X = Menü-Aktion,
+// Start = Einstellungen, Select = Zurück/Modal schließen.
+function consoleFocusedEl() {
+  return consoleFocusables[consoleFocusIndex] || null;
+}
+
+function consoleFocusedInstance() {
+  const el = consoleFocusedEl();
+  if (!el) return null;
+  let n = el.closest && el.closest("[data-inst]");
+  if (!n && el.parentElement) n = el.parentElement.closest && el.parentElement.closest("[data-inst]");
+  if (!n || !(instancesCache)) return null;
+  const name = n.dataset.inst;
+  return instancesCache.find((i) => i.name === name) || null;
+}
+
+function consoleDoStart() {
+  if (consoleCloseModal()) return;
+  const inst = consoleFocusedInstance();
+  const el = consoleFocusedEl();
+  if (inst) { launchGame(inst.name); return; }
+  if (el && el.closest && el.closest(".ps5-hero")) {
+    const hv = el.closest(".ps5-hero");
+    const hvInst = instancesCache && instancesCache[0];
+    if (hvInst) launchGame(hvInst.name);
+    return;
+  }
+  if (el && el.tagName === "BUTTON") { el.click(); }
+}
+
+function consoleDoManage() {
+  const inst = consoleFocusedInstance();
+  if (inst) { openManage(inst); return; }
+  const el = consoleFocusedEl();
+  if (el && el.closest && el.closest(".ps5-tile")) {
+    const tile = el.closest(".ps5-tile");
+    const b = tile.querySelector(".ps5-tile-manage");
+    if (b) b.click();
+  } else if (el && el.closest && el.closest(".ps5-hero")) {
+    const inst0 = instancesCache && instancesCache[0];
+    if (inst0) openManage(inst0);
+  }
+}
+
+function consoleOpenSettings() {
+  const s = $("settingsBtn");
+  if (s) s.click();
+  if (consoleNavActive) refreshConsoleFocusables();
+}
+
+
 function consoleNavKey(e) {
   const k = e.key;
   const arrows = k === "ArrowUp" || k === "ArrowDown" || k === "ArrowLeft" || k === "ArrowRight";
@@ -1480,12 +1542,23 @@ function setupConsoleNavigation(on) {
       window.__consoleNavLastDir = JSON.stringify([ax, ay, dpad]);
       return;
     }
-    const aBtn = pad.buttons && pad.buttons[0] ? pad.buttons[0].value > 0.5 : false;
-    if (aBtn && !window.__consoleNavAPressed) { activateConsoleFocus(); window.__consoleNavAPressed = true; return; }
-    if (pad.buttons && pad.buttons[0] && pad.buttons[0].value < 0.5) window.__consoleNavAPressed = false;
-    const bBtn = pad.buttons && pad.buttons[1] ? pad.buttons[1].value > 0.5 : false;
-    if (bBtn && !window.__consoleNavBPressed) { consoleCloseModal(); window.__consoleNavBPressed = true; return; }
-    if (pad.buttons && pad.buttons[1] && pad.buttons[1].value < 0.5) window.__consoleNavBPressed = false;
+    // Edge-Trigger für Aktionen (A/B/X/Y/Start/Select) mit Entprellung.
+    const btns = pad.buttons || [];
+    if (!window.__consoleNavBtns) window.__consoleNavBtns = {};
+    const map = { 0: "A", 1: "B", 2: "X", 3: "Y", 8: "SELECT", 9: "START" };
+    for (const idx in map) {
+      const down = btns[idx] ? btns[idx].value > 0.5 : false;
+      const was = !!window.__consoleNavBtns[map[idx]];
+      if (down && !was) {
+        window.__consoleNavBtns[map[idx]] = true;
+        if (map[idx] === "A") { activateConsoleFocus(); return; }
+        if (map[idx] === "B") { consoleDoStart(); return; }
+        if (map[idx] === "Y") { consoleDoManage(); return; }
+        if (map[idx] === "SELECT") { consoleCloseModal(); return; }
+        if (map[idx] === "START") { consoleOpenSettings(); return; }
+      }
+      if (!down && was) window.__consoleNavBtns[map[idx]] = false;
+    }
   }, 80);
   // Fokusliste nach UI-Änderungen aktualisieren
   if (!window.__consoleNavRescan) {
