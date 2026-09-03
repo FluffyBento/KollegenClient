@@ -52,6 +52,10 @@ async function refreshInstances() {
   try {
     const instances = await invoke("get_instances");
     instancesCache = instances;
+    if (document.body.classList.contains("console-mode")) {
+      renderConsoleHome();
+      return;
+    }
     const list = $("instanceList");
     list.innerHTML = "";
     if (instances.length === 0) {
@@ -1080,8 +1084,10 @@ function showSettingsTab(t) {
   $("settingsThemes").style.display = t === "themes" ? "" : "none";
   $("settingsImport").style.display = t === "import" ? "" : "none";
   $("settingsUpdates").style.display = t === "updates" ? "" : "none";
+  $("settingsSteamDeck").style.display = t === "steamdeck" ? "" : "none";
   if (t === "themes") { renderThemeList(); renderLayoutOptions(); }
   if (t === "connections") { refreshSettingsAccounts(); }
+  if (t === "steamdeck") { initSteamDeckTab(); }
 }
 
 const settingsModalEl = $("settingsModal");
@@ -1112,6 +1118,71 @@ if (perfModsToggle) {
     s.perf_mods = perfModsToggle.checked;
     try { await invoke("save_settings", { settings: s }); } catch (e) {}
   };
+}
+// ─ SteamDeck / Konsolen-Modus ─
+// Schaltet den TV/Controller-optimierten "Konsolen"-Look um und sorgt dafür,
+// dass der Controller-Modus im Kollegen-Begleit-Mod automatisch aktiviert wird.
+const steamdeckToggle = $("steamdeckToggle");
+function initSteamDeckTab() {
+  if (!steamdeckToggle) return;
+  const s = currentSettings || {};
+  steamdeckToggle.checked = !!s.steamdeck_mode;
+}
+async function applyConsoleMode() {
+  const s = await loadSettingsOnce();
+  const on = !!s.steamdeck_mode;
+  document.body.classList.toggle("console-mode", on);
+  // Controller-Modus im Begleit-Mod sofort (ohne Neustart) aktivieren.
+  try { await invoke("set_console_mode", { on }); } catch (e) {}
+  if (on) { renderConsoleHome(); } else { refreshInstances(); }
+}
+if (steamdeckToggle) {
+  steamdeckToggle.onchange = async () => {
+    const s = await loadSettingsOnce();
+    s.steamdeck_mode = steamdeckToggle.checked;
+    try { await invoke("save_settings", { settings: s }); } catch (e) {}
+    await applyConsoleMode();
+  };
+}
+// Rendert das Konsolen-Startmenü (PS5-artiges Kachel-Raster) für den
+// SteamDeck-/Konsolen-Modus. Die Theme-Farben werden dabei weiterhin genutzt.
+function renderConsoleHome() {
+  const list = $("instanceList");
+  if (!list) return;
+  list.innerHTML = "";
+  const instances = instancesCache || [];
+  if (instances.length === 0) {
+    const empty = document.createElement("li");
+    empty.className = "console-empty";
+    const span = document.createElement("span");
+    span.textContent = "Keine Instanzen vorhanden – erstelle eine im Tab „Erstellen“.";
+    empty.append(span);
+    list.append(empty);
+    return;
+  }
+  for (const inst of instances) {
+    const tile = document.createElement("li");
+    tile.className = "console-tile";
+    const title = document.createElement("div");
+    title.className = "console-tile-title";
+    title.textContent = inst.name;
+    const meta = document.createElement("div");
+    meta.className = "console-tile-meta";
+    meta.textContent = `${inst.version} · ${inst.loader}`;
+    const act = document.createElement("div");
+    act.className = "console-tile-actions";
+    const play = document.createElement("button");
+    play.className = "console-play";
+    play.textContent = "Start";
+    play.onclick = () => launchGame(inst.name);
+    const manageBtn = document.createElement("button");
+    manageBtn.className = "console-manage";
+    manageBtn.textContent = "Verwalten";
+    manageBtn.onclick = () => openManage(inst);
+    act.append(play, manageBtn);
+    tile.append(title, meta, act);
+    list.append(tile);
+  }
 }
 $("settingsClose").onclick = () => {
   settingsModalEl.style.display = "none";
@@ -1445,8 +1516,11 @@ async function doImport(launcherId, dirName, dispName) {
   }
 }
 
-// Beim Start das gespeicherte Theme + Layout anwenden.
-applySavedTheme().then(applyLayout);
+// Beim Start das gespeicherte Theme + Layout anwenden. Danach den SteamDeck-/
+// Konsolen-Modus anwenden (aktiviert die Konsolen-UI und den Controller-Modus).
+applySavedTheme()
+  .then(applyLayout)
+  .then(applyConsoleMode);
 
   // Tab-System (Sidebar: Home / Erstellen / Soziales).
   function switchTab(name) {
@@ -1461,6 +1535,9 @@ applySavedTheme().then(applyLayout);
       // Hintergrund frisch laden.
       renderSocialAll();
       refreshSocial();
+    }
+    if (name === "home" && document.body.classList.contains("console-mode")) {
+      renderConsoleHome();
     }
   }
   document.querySelectorAll(".sidebar-link[data-tab]").forEach((l) => {

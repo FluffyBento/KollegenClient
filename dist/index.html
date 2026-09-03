@@ -209,6 +209,7 @@
         <button class="settings-tab" data-tab="themes">Themes</button>
         <button class="settings-tab" data-tab="import">Importieren</button>
         <button class="settings-tab" data-tab="updates">Updates</button>
+        <button class="settings-tab" data-tab="steamdeck">SteamDeck</button>
       </div>
       <div class="settings-body">
         <section id="settingsConnections" class="settings-section">
@@ -248,6 +249,15 @@
           <button id="updateCheckBtn" class="settings-action">Jetzt auf Updates prüfen</button>
           <div id="updateStatus" class="socials-hint"></div>
           <button id="updateInstallBtn" class="settings-action" style="display:none;">Update installieren</button>
+        </section>
+        <section id="settingsSteamDeck" class="settings-section" style="display:none;">
+          <h3>SteamDeck / Konsolen-Modus</h3>
+          <label class="settings-check">
+            <input type="checkbox" id="steamdeckToggle" />
+            <span>SteamDeck-Kompatibilität aktivieren</span>
+          </label>
+          <p class="socials-hint">Optimiert den Launcher für das Zocken am Fernseher/Konsole: Konsolen-Startmenü, große Schaltflächen und ein komplett an Konsole angepasstes Layout. Der Controller-Modus im Kollegen-Begleit-Mod wird dabei automatisch aktiviert.</p>
+          <p class="socials-hint">Die ausgewählten Themes funktionieren im Konsolen-Modus weiterhin – sie bestimmen dort die Farbe der Kacheln und des Startbildschirms.</p>
         </section>
       </div>
     </div>

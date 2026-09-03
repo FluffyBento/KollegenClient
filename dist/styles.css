@@ -1340,3 +1340,93 @@ body { transition: background-color 0.25s ease; }
 .panel, main, nav.sidebar { transition: border-color 0.25s ease, background-color 0.25s ease; }
 
 body.reduce-motion * { animation-duration: 0.01s !important; transition-duration: 0.01s !important; }
+
+/* ─== SteamDeck / Konsolen-Modus (PS5-artiges TV/Controller-Layout) ==──
+   Wird über body.console-mode aktiviert. Die Theme-Farben (--accent, --panel,
+   --bg, …) werden weiterhin genutzt – das Theme bestimmt die Kachel-/Start-
+   Farben. Größere Schriften/Buttons, breitere Konsolen-Rail, Hero-Titel und
+   ein großes Kachel-Raster für das Startmenü, optimiert fürs Zocken am
+   Fernseher/Konsole auf Abstand. */
+body.console-mode {
+  --sidebar-w: 230px;
+  font-size: clamp(15px, calc(0.5vw + 0.5vh + 7px), 21px);
+  letter-spacing: 0;
+}
+body.console-mode header {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--bg) 86%, var(--accent) 10%), rgba(14, 16, 23, 0.22));
+  border-bottom: 1px solid var(--border);
+  padding: 1.1rem 1.6rem;
+}
+body.console-mode header h1 { font-size: 1.55rem; letter-spacing: -0.03em; }
+body.console-mode header button,
+body.console-mode header .icon-btn { font-size: 1.1rem; padding: 0.7rem 1.2rem; }
+body.console-mode header .icon-btn.settings-btn { font-size: 1.4rem; }
+body.console-mode .sidebar {
+  width: var(--sidebar-w);
+  padding: 1.2rem 0.9rem;
+  gap: 0.7rem;
+  background: linear-gradient(180deg,
+    color-mix(in srgb, var(--panel) 90%, var(--accent) 6%),
+    rgba(16, 16, 22, 0.75));
+}
+body.console-mode .sidebar-link {
+  font-size: 1.15rem;
+  padding: 1.05rem 1.15rem;
+  gap: 1rem;
+  border-radius: 17px;
+}
+body.console-mode .side-ico { font-size: 1.55rem; flex-basis: 30px; }
+body.console-mode .sidebar-link.active {
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  color: #0b0b10;
+  border-color: transparent;
+  box-shadow: 0 12px 28px color-mix(in srgb, var(--accent) 42%, transparent);
+}
+body.console-mode .sidebar-link.active .side-ico { color: inherit; }
+/* Konsolen-Startmenü: Hero-Titel + großes Kachel-Raster */
+body.console-mode .panel {
+  border-radius: 24px;
+  background: color-mix(in srgb, var(--panel) 90%, var(--bg) 10%);
+  border-color: color-mix(in srgb, var(--accent) 24%, var(--border));
+}
+body.console-mode .panel h2 {
+  font-size: 2.1rem;
+  margin-bottom: 0.4rem;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+body.console-mode ul#instanceList {
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 1.4rem;
+  margin-top: 1rem;
+}
+body.console-mode ul#instanceList li { border-radius: 21px; padding: 1.7rem; }
+body.console-mode .console-tile-title { font-size: 1.55rem; font-weight: 900; color: var(--text); }
+body.console-mode .console-tile-meta { font-size: 1rem; color: var(--muted); margin-top: 0.25rem; }
+body.console-mode .console-tile-actions { display: flex; gap: 0.9rem; margin-top: 1.2rem; width: 100%; }
+body.console-mode .console-play {
+  flex: 1; font-size: 1.25rem; font-weight: 800; padding: 0.95rem 1.6rem;
+  border-radius: 18px; border: none; cursor: pointer;
+  color: #0b0b10;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  box-shadow: 0 12px 30px color-mix(in srgb, var(--accent) 40%, transparent);
+  transition: transform 0.14s ease, filter 0.14s ease;
+}
+body.console-mode .console-play:hover { transform: translateY(-2px); filter: brightness(1.07); }
+body.console-mode .console-manage {
+  font-size: 1rem; font-weight: 700; padding: 0.85rem 1.5rem;
+  border-radius: 17px; cursor: pointer; color: var(--text);
+  background: color-mix(in srgb, var(--panel-2) 82%, var(--accent) 12%);
+  border: 1px solid var(--border);
+}
+body.console-mode .console-empty {
+  grid-column: 1 / -1; justify-content: center; align-items: center;
+  padding: 3rem; font-size: 1.3rem; color: var(--muted); text-align: center;
+}
+/* Größere Bedienelemente im gesamten Konsolen-Modus (TV auf Abstand) */
+body.console-mode button,
+body.console-mode select,
+body.console-mode input { font-size: 1.05rem; }

@@ -78,6 +78,10 @@ pub struct Settings {
     /// installieren (Sodium, Lithium, FerriteCore, EntityCulling, …).
     #[serde(default = "default_true")]
     pub perf_mods: bool,
+    /// SteamDeck-/Konsolen-Modus: TV/Controller-optimierte Launcher-Oberfläche
+    /// und automatisch aktivierter Controller-Modus im Kollegen-Begleit-Mod.
+    #[serde(default = "default_false")]
+    pub steamdeck_mode: bool,
 }
 
 fn default_density() -> String {
@@ -86,6 +90,10 @@ fn default_density() -> String {
 
 fn default_true() -> bool {
     true
+}
+
+fn default_false() -> bool {
+    false
 }
 
 impl Default for Settings {
@@ -108,6 +116,7 @@ impl Default for Settings {
             sidebar_visible: true,
             animations: true,
             perf_mods: true,
+            steamdeck_mode: false,
         }
     }
 }

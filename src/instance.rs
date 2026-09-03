@@ -790,6 +790,22 @@ pub(crate) fn read_renderer_state(mods_dir: &Path) -> Option<bool> {
     }
 }
 
+/// Path to the shared controller-mode state file the companion mod reads to
+/// decide whether its gamepad/controller mode is active. Written by the launcher
+/// from the `steamdeck_mode` setting before every launch (and on toggle).
+fn controller_state_path(mods_dir: &Path) -> PathBuf {
+    mods_dir.join(".kollegen-controller")
+}
+
+/// Writes the desired controller-mode state ("on"/"off") so the in-game
+/// companion mod can read it. Mirrors the renderer-state pattern.
+pub(crate) fn enforce_controller_state(mods_dir: &Path, on: bool) {
+    if !mods_dir.exists() {
+        let _ = std::fs::create_dir_all(mods_dir);
+    }
+    let _ = fs::write(controller_state_path(mods_dir), if on { "on" } else { "off" });
+}
+
 /// Enforces renderer exclusivity on the instance's `mods/` folder WITHOUT
 /// downloading or deploying any mod binaries — the companion mod embeds and
 /// deploys them at runtime. It only guarantees the on-disk `.disabled` state
@@ -1136,7 +1152,7 @@ pub fn launch(
     data_dir: &Path,
     inst: &Instance,
     java_path: &str,
-    _settings: &Settings,
+    settings: &Settings,
 ) -> Result<String> {
     let inst_dir = crate::utils::instance_dir(data_dir, &inst.name);
     // Begleit-Mod bei jedem Start erneut sicherstellen (1.21.x – 1.26.x).
@@ -1147,6 +1163,9 @@ pub fn launch(
     // (.kollegen-renderer) und stimmt die .disabled-State ab.
     let mods_dir = inst_dir.join("mods");
     enforce_renderer_consistency(&mods_dir, inst.vulkan_enabled);
+    // SteamDeck-/Konsolen-Modus: den Controller-Modus im Begleit-Mod über die
+    // shared State-Datei .kollegen-controller aktivieren (from the setting).
+    enforce_controller_state(&mods_dir, settings.steamdeck_mode);
     // Integrations-Bundles (Spotify Overlay, ChatHeads + Dependencies) aus der
     // Begleit-Mod deployen/entfernen und Standalone-Kopien derselben Mods
     // aufräumen – siehe enforce_bundled_mods (Zwei-Wege-Sync über

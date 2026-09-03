@@ -812,6 +812,24 @@ fn launch_game(
     }
 }
 
+/// Aktualisiert sofort (ohne Neustart) den Controller-Modus des Begleit-Mods in
+/// allen bestehenden Instanzen – z. B. wenn der Nutzer den SteamDeck-Modus in
+/// den Einstellungen umschaltet. Der Mod wird den Zustand beim nächsten Start
+/// zusätzlich selbst aus der Shared-State-Datei übernehmen.
+#[tauri::command]
+fn set_console_mode(state: State<'_, AppState>, on: bool) -> Result<(), String> {
+    let data_dir = state.data_dir.clone();
+    let instances = utils::load_json::<Vec<types::Instance>>(
+        &utils::instances_file(&data_dir),
+        vec![],
+    );
+    for inst in &instances {
+        let mods_dir = utils::instance_dir(&data_dir, &inst.name).join("mods");
+        instance::enforce_controller_state(&mods_dir, on);
+    }
+    Ok(())
+}
+
 // ─=== Auth Commands ===
 
 #[tauri::command]
@@ -1540,6 +1558,7 @@ fn main() {
             get_accounts,
             get_settings,
             save_settings,
+            set_console_mode,
             create_instance,
             delete_instance,
             get_logs,
