@@ -136,42 +136,37 @@ jobs:
           # updater signature for the AppImage
           cp target/release/bundle/appimage/*.AppImage.sig release_artifacts/KollegenClient.AppImage.sig || true
 
+      # DAU-freundlicher Vertrieb für SteamDeck/SteamOS. Das Flatpak bündelt das
+      # bereits gebaute Binary + Resources und läuft gegen die GNOME-Runtime
+      # (inkl. WebKitGTK), womit der Whitescreen (fehlendes webkit2gtk-4.1) auf
+      # SteamOS behoben wird. Keine manuell installierten Abhängigkeiten nötig.
+      # Bewusst im linux-Job (mit Netzwerk) gebaut statt isoliert zu kompilieren,
+      # da die Flatpak-Build-Sandbox kein Netz hat und kein Rust-Toolchain mitbringt.
+      - name: Install Flatpak build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y flatpak flatpak-builder
+          flatpak remote-add --if-not-exists --user flathub https://flathub.org/repo/flathub.flatpakrepo
+
+      - name: Stage package sources
+        run: |
+          mkdir -p _fpkg/resources
+          install -m755 target/release/kollegen-client _fpkg/kollegen-client
+          install -m644 resources/kollegen-client-mod.jar _fpkg/resources/kollegen-client-mod.jar
+
+      - name: Build Flatpak bundle
+        run: |
+          flatpak install -y --noninteractive --user flathub org.gnome.Platform//49 org.gnome.Sdk//49
+          flatpak-builder --force-clean --user --repo=flatpak-repo --install-deps-from=flathub flatpak-build-dir com.kollegen.Client.pkg.yaml
+          flatpak build-bundle flatpak-repo dev.kollegen.Client.flatpak dev.kollegen.client
+          ls -la dev.kollegen.Client.flatpak
+
       - name: Publish to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: "release_artifacts/*"
-
-  flatpak:
-    # DAU-freundlicher Vertrieb für SteamDeck/SteamOS: Das Flatpak bündelt die
-    # GNOME-Runtime (inkl. WebKitGTK) und setzt die Whitescreen-Workarounds als
-    # Env-Variablen. Keine manuell installierten Abhängigkeiten nötig.
-    needs: [create-release]
-    runs-on: ubuntu-latest
-    container:
-      image: ghcr.io/flathub-infra/flatpak-github-actions:gnome-49
-      options: --privileged
-    strategy:
-      matrix:
-        arch: [x86_64]
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          submodules: recursive
-
-      - name: Build and export Flatpak
-        uses: flatpak/flatpak-github-actions/flatpak-builder@v6
-        with:
-          bundle: dev.kollegen.Client.flatpak
-          manifest-path: com.kollegen.Client.yaml
-          cache-key: flatpak-builder-${{ github.sha }}
-
-      - name: Publish Flatpak to GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: "dev.kollegen.Client.flatpak"
-
-  windows:
+          files: |
+            release_artifacts/*
+            dev.kollegen.Client.flatpak
     needs: [create-release]
     runs-on: windows-latest
     env:

@@ -1,9 +1,15 @@
+# Package-only Flatpak manifest: bündelt das bereits gebaute Kollegen-Client-Binary
+# (target/release/kollegen-client) mitsamt der mitgelieferten Resources, anstatt im
+# abgeschotteten Build-Sandbox neu zu kompilieren. Der Binary wird im linux-CI-Job
+# (mit Netzwerkzugriff) gebaut und hier nur noch verpackt. Die GNOME-Runtime liefert
+# WebKitGTK, gegen das der Tauri-Client linkt — dadurch wird der Whitescreen auf
+# SteamDeck/SteamOS (fehlendes webkit2gtk-4.1) behoben.
+#
+# Die referenzierten Quellen werden von der CI vor dem Build in `_fpkg/` gestaged.
 app-id: dev.kollegen.client
 runtime: org.gnome.Platform
 runtime-version: '49'
 sdk: org.gnome.Sdk
-sdk-extensions:
-  - org.freedesktop.Sdk.Extension.rust-stable
 command: kollegen-client
 finish-args:
   - --share=network
@@ -20,22 +26,13 @@ finish-args:
 modules:
   - name: kollegen-client
     buildsystem: simple
-    sources:
-      - type: dir
-        path: .
-        skip:
-          - target
-          - node_modules
-          - .git
-    build-options:
-      env:
-        CARGO_HOME: /run/build/kollegen-client/cargo
-        RUSTUP_HOME: /run/build/kollegen-client/rustup
-        PATH: /run/build/kollegen-client/cargo/bin:/usr/bin:/bin
     build-commands:
-      - /usr/lib/sdk/rust-stable/install.sh
-      - cargo build --release --offline
-      - install -Dm755 target/release/kollegen-client /app/bin/kollegen-client
+      - install -Dm755 _fpkg/kollegen-client /app/bin/kollegen-client
+      - install -Dm644 _fpkg/resources/kollegen-client-mod.jar /app/bin/resources/kollegen-client-mod.jar
       - install -Dm644 icons/icon.png /app/share/icons/hicolor/512x512/apps/dev.kollegen.client.png
       - install -Dm644 dev.kollegen.client.desktop /app/share/applications/dev.kollegen.client.desktop
       - install -Dm644 dev.kollegen.client.metainfo.xml /app/share/metainfo/dev.kollegen.client.metainfo.xml
+    sources:
+      - type: dir
+        path: _fpkg
+        dest: _fpkg
