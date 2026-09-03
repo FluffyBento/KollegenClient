@@ -1341,252 +1341,385 @@ body { transition: background-color 0.25s ease; }
 
 body.reduce-motion * { animation-duration: 0.01s !important; transition-duration: 0.01s !important; }
 
-/* ─== SteamDeck / Konsolen-Modus (PS5-artiges TV/Controller-Layout) ==──
-   Aktiv über body.console-mode. Die Theme-Farben (--accent, --panel, --bg, …)
-   werden weiterhin genutzt – das Theme bestimmt die Kachel-/Start-Farben.
-   Komplett konsolenartig: immersiv-dunkel, großes Hero-Banner, Kachel-Raster,
-   breite Konsolen-Rail mit Farbverlauf. Bewusst OHNE color-mix(), damit alles
-   auch auf älterem SteamOS-WebKitGTK sauber rendert (kein Effektverlust). */
+/* ══════════ Konsolen-Modus "PS5" (dunkel, schlank, horizontal) ══════════
+   Wird über body.console-mode aktiviert. Ersetzt Desktop-Header/Sidebar durch
+   einen PS5-artigen Launcher: große horizontale Hero-Leiste, horizontale Reihen
+   runder Kacheln, eigene Icon-Dock-Leiste unten und Vollbild-Ansichten pro Tab.
+   Theme-Farben (--accent, --bg, --panel, …) steuern weiterhin die Akzentfarbe.
+   Bewusst ohne color-mix(), für älteres SteamOS-WebKitGTK. */
 body.console-mode {
-  --sidebar-w: 258px;
-  font-size: clamp(17px, calc(0.55vw + 0.55vh + 8px), 23px);
+  --sidebar-w: 0px;
+  font-size: clamp(16px, calc(0.55vw + 0.55vh + 8px), 22px);
   letter-spacing: 0;
   background:
-    radial-gradient(80% 60% at 50% 0%, rgba(22, 24, 32, 0.55), transparent 62%),
-    var(--bg);
+    radial-gradient(90% 70% at 85% -10%, rgba(90, 60, 255, 0.16), transparent 55%),
+    radial-gradient(60% 50% at 10% 110%, rgba(255, 60, 120, 0.12), transparent 55%),
+    #0b0d12;
+  color: #f4f4f6;
 }
-/* Konsolen-Headerleiste */
-body.console-mode header {
-  background: linear-gradient(180deg, rgba(10, 12, 18, 0.92), rgba(10, 12, 18, 0.4));
-  border-bottom: 1px solid var(--border);
-  padding: 1.2rem 1.8rem;
-}
-body.console-mode header h1 { font-size: 1.6rem; letter-spacing: -0.03em; }
-body.console-mode header h1 .brand-logo { height: 1.7rem; }
-body.console-mode header button,
-body.console-mode header .icon-btn { font-size: 1.1rem; padding: 0.7rem 1.3rem; border-radius: 12px; }
-body.console-mode header .icon-btn.settings-btn { font-size: 1.5rem; }
-/* Konsolen-Rail (breite Sidebar, große Pills) */
-body.console-mode .sidebar {
-  width: var(--sidebar-w);
-  padding: 1.4rem 1rem;
-  gap: 0.9rem;
-  background: linear-gradient(180deg, var(--panel), rgba(10, 12, 16, 0.86));
-  border-right: 1px solid var(--border);
-}
-body.console-mode .sidebar-brand-img { width: 64px; height: 64px; border-radius: 18px; }
-body.console-mode .sidebar-link {
-  font-size: 1.2rem;
-  padding: 1.1rem 1.3rem;
-  gap: 1.1rem;
-  border-radius: 18px;
-  font-weight: 700;
-}
-body.console-mode .side-ico { font-size: 1.7rem; flex-basis: 34px; }
-body.console-mode .sidebar-link.active {
-  background: linear-gradient(135deg, var(--accent), var(--accent2));
-  color: #0b0b10;
-  border-color: transparent;
-  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.38);
-}
-body.console-mode .sidebar-link.active .side-ico { color: inherit; }
-/* Konsolen-Panel: immersiv, großzügig, themenfarbig */
-body.console-mode .panel {
-  border-radius: 26px;
-  background: var(--panel);
-  border-color: var(--border);
-  box-shadow: 0 26px 64px rgba(0, 0, 0, 0.38);
-}
-body.console-mode .panel h2 {
-  font-size: 2.3rem;
-  margin: 0 0 0.6rem;
-  color: var(--accent);
-  letter-spacing: -0.02em;
-}
-/* Konsolen-Startmenü: Kachel-Raster */
-body.console-mode ul#instanceList {
-  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
-  gap: 1.5rem;
-  margin-top: 1.2rem;
-}
-body.console-mode ul#instanceList li {
-  border-radius: 22px;
-  padding: 1.8rem;
-  border: 1px solid var(--border);
-  background: var(--panel-2);
-}
-/* Featured-Hero: große hervorgehobene Instanz (volle Breite) */
-body.console-mode .console-hero {
-  grid-column: 1 / -1;
-  border-radius: 26px;
-  padding: 2.5rem;
-  background: linear-gradient(135deg, var(--accent), var(--accent2));
-  color: #0b0b10;
-  border: none;
-  box-shadow: 0 28px 64px rgba(0, 0, 0, 0.42);
-  position: relative;
+/* Desktop-Chrome ausblenden – ersetzt durch Konsolen-Chrome */
+body.console-mode header,
+body.console-mode .sidebar { display: none; }
+body.console-mode main {
+  padding: 0;
   overflow: hidden;
+}
+/* Die vier Panels werden zu Vollbild-Konsolen-Ansichten */
+body.console-mode .panel:not(.active) { display: none; }
+body.console-mode .panel.active {
+  position: relative;
+  min-height: 100vh;
+  border-radius: 0;
+  background: transparent;
+  border: none;
+  box-shadow: none;
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  gap: 0.9rem;
 }
-body.console-mode .console-hero::after {
+body.console-mode .panel h2 { display: none; }
+
+/* ── PS5-Statuszeile oben ── */
+body.ps5-ready .ps5-top {
+  display: flex;
+  justify-content: flex-end;
+  padding: 26px 40px 0;
+}
+.ps5-top-clock {
+  font-size: 1rem;
+  letter-spacing: 0.35em;
+  color: rgba(255, 255, 255, 0.55);
+  font-weight: 600;
+}
+
+/* ── Hero (großes horizontales Feature) ── */
+.ps5-hero-wrap {
+  margin-top: 34px;
+  padding: 0 40px;
+}
+.ps5-hero {
+  position: relative;
+  overflow: hidden;
+  min-height: 300px;
+  border-radius: 30px;
+  padding: 40px 48px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 10px;
+  background:
+    radial-gradient(120% 130% at 100% 0%, rgba(255, 255, 255, 0.22), transparent 55%),
+    linear-gradient(120deg, var(--accent), var(--accent2));
+  box-shadow: 0 40px 90px rgba(0, 0, 0, 0.55);
+}
+.ps5-hero::after {
   content: "";
   position: absolute;
   inset: 0;
-  background: radial-gradient(70% 90% at 85% 0%, rgba(255, 255, 255, 0.28), transparent 60%);
+  background: radial-gradient(60% 100% at 100% 0%, rgba(0, 0, 0, 0.28), transparent 60%);
   pointer-events: none;
 }
-body.console-mode .console-hero-title { font-size: 2.7rem; font-weight: 900; position: relative; z-index: 1; }
-body.console-mode .console-hero-meta { font-size: 1.2rem; position: relative; z-index: 1; opacity: 0.85; }
-body.console-mode .console-hero-play {
-  align-self: flex-start;
-  margin-top: 0.5rem;
-  font-size: 1.5rem;
-  font-weight: 900;
-  padding: 1rem 2.4rem;
-  border-radius: 20px;
+.ps5-hero-kicker {
+  font-size: 1rem;
+  letter-spacing: 0.3em;
+  font-weight: 700;
+  color: rgba(0, 0, 0, 0.6);
+}
+.ps5-hero-title {
+  font-size: clamp(2.6rem, 5vw, 4.6rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #0b0d12;
+  line-height: 1;
+}
+.ps5-hero-sub {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.7);
+}
+.ps5-hero-actions { margin-top: 22px; }
+.ps5-hero-play {
+  font-size: 1.35rem;
+  font-weight: 800;
+  padding: 16px 40px;
+  border-radius: 999px;
   border: none;
   cursor: pointer;
-  color: var(--accent);
-  background: #0b0b10;
-  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.35);
-  position: relative;
-  z-index: 1;
-  transition: transform 0.14s ease;
-}
-body.console-mode .console-hero-play:hover { transform: translateY(-2px); }
-/* Normale Kacheln */
-body.console-mode .console-tile-title { font-size: 1.6rem; font-weight: 900; color: var(--text); }
-body.console-mode .console-tile-meta { font-size: 1.05rem; color: var(--muted); margin-top: 0.3rem; }
-body.console-mode .console-tile-actions { display: flex; gap: 1rem; margin-top: 1.3rem; width: 100%; }
-body.console-mode .console-play {
-  flex: 1; font-size: 1.3rem; font-weight: 800; padding: 1rem 1.8rem;
-  border-radius: 18px; border: none; cursor: pointer;
-  color: #0b0b10;
-  background: linear-gradient(135deg, var(--accent), var(--accent2));
-  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.32);
+  background: #0b0d12;
+  color: #ffffff;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.4);
   transition: transform 0.14s ease, filter 0.14s ease;
 }
-body.console-mode .console-play:hover { transform: translateY(-2px); filter: brightness(1.07); }
-body.console-mode .console-manage {
-  font-size: 1.05rem; font-weight: 700; padding: 0.9rem 1.6rem;
-  border-radius: 16px; cursor: pointer; color: var(--text);
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid var(--border);
-}
-body.console-mode .console-empty {
-  grid-column: 1 / -1; justify-content: center; align-items: center;
-  padding: 3.5rem; font-size: 1.4rem; color: var(--muted); text-align: center;
-}
-/* Größere Bedienelemente im gesamten Konsolen-Modus (TV auf Abstand) */
-body.console-mode button,
-body.console-mode select,
-body.console-mode input { font-size: 1.05rem; }
+.ps5-hero-play:hover { transform: translateY(-2px); filter: brightness(1.15); }
+.ps5-hero-empty { justify-content: center; }
 
-/* ─== Konsolen-UI komplett (alle Tabs + Modals) ==──
-   Erweitert den Konsolen-Modus auf das gesamte Launcher-Paket: Erstellen,
-   Soziales, Logs sowie alle Modals (Einstellungen, Verwalten, Profil). */
-body.console-mode select,
-body.console-mode input[type="text"],
-body.console-mode input:not([type]) {
-  background: var(--panel-2);
-  color: var(--text);
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: 0.9rem 1.1rem;
-  font-size: 1.15rem;
+/* ── Reihen (horizontale, scrollbare Kacheln) ── */
+.ps5-row-wrap { padding: 40px 40px 130px; display: flex; flex-direction: column; gap: 16px; }
+.ps5-row-head {
+  font-size: 1.3rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: rgba(255, 255, 255, 0.9);
 }
-body.console-mode label { font-size: 1.1rem; }
-/* Fokus-Ring für die Keyboard/Controller-Navigation */
-body.console-nav .cfocus {
-  outline: 4px solid var(--accent);
-  outline-offset: 3px;
-  box-shadow: 0 0 0 8px rgba(0, 0, 0, 0.35), 0 16px 40px rgba(0, 0, 0, 0.4);
+.ps5-row {
+  display: flex;
+  gap: 20px;
+  overflow-x: auto;
+  padding: 8px 4px 20px;
+  scrollbar-width: thin;
 }
-/* Erstellen-Tab */
-body.console-mode #createPanel label { display: block; margin: 1.1rem 0 0.4rem; color: var(--muted); }
-body.console-mode #createPanel input,
-body.console-mode #createPanel select { width: 100%; box-sizing: border-box; }
-body.console-mode #createBtn {
-  font-size: 1.35rem; font-weight: 900; padding: 1rem 2.4rem;
-  border-radius: 18px; border: none; cursor: pointer;
-  color: #0b0b10;
+.ps5-tile {
+  flex: 0 0 auto;
+  width: 210px;
+  border-radius: 22px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: transform 0.14s ease, background 0.14s ease;
+}
+.ps5-tile:hover { transform: translateY(-4px); background: rgba(255, 255, 255, 0.09); }
+.ps5-tile-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2.2rem;
+  font-weight: 800;
+  color: #0b0d12;
   background: linear-gradient(135deg, var(--accent), var(--accent2));
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 12px 26px rgba(0, 0, 0, 0.4);
 }
-/* Logs-Tab */
-body.console-mode #logsPanel .logs-view {
-  background: #0a0c10;
-  color: #cfe8d2;
-  border: 1px solid var(--border);
+.ps5-tile-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #f5f5f7;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ps5-tile-meta {
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.5);
+}
+.ps5-tile-actions { display: flex; gap: 8px; margin-top: auto; }
+.ps5-tile-play {
+  flex: 1;
+  font-size: 0.95rem;
+  font-weight: 700;
+  padding: 10px 0;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  color: #0b0d12;
+  background: var(--accent);
+}
+.ps5-tile-manage {
+  width: 42px;
+  font-size: 1.1rem;
+  font-weight: 700;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.06);
+  color: #f5f5f7;
+}
+.ps5-empty {
+  padding: 60px 0;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 1.3rem;
+}
+
+/* ── Icon-Dock-Leiste (unten, wie ein Spiel-Dock) ── */
+body.console-mode .ps5-dock {
+  position: fixed;
+  left: 50%;
+  bottom: 26px;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 16px;
+  padding: 12px 18px;
+  border-radius: 32px;
+  background: rgba(20, 22, 30, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(14px);
+  z-index: 60;
+}
+body.console-mode .ps5-dock-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 76px;
+  padding: 10px 6px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.75);
+  border-radius: 18px;
+}
+body.console-mode .ps5-dock-btn:hover { color: #fff; }
+body.console-mode .ps5-dock-ico {
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.9rem;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  color: #0b0d12;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.45);
+}
+body.console-mode .ps5-dock-btn[data-tab="home"] .ps5-dock-ico,
+body.console-mode .ps5-dock-btn[data-tab="settings"] .ps5-dock-ico {
+  background: radial-gradient(circle at 30% 30%, #ffffff55, transparent 60%), linear-gradient(135deg, #3a3f52, #22252f);
+}
+body.console-mode .ps5-dock-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+body.console-mode .ps5-dock-btn.active .ps5-dock-label { color: var(--accent); }
+
+/* ── Vollbild-Ansichten der übrigen Tabs ── */
+body.console-mode #createPanel,
+body.console-mode #socialsPanel,
+body.console-mode #logsPanel {
+  padding: 120px 60px 160px;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+body.console-mode #createPanel > *,
+body.console-mode #socialsPanel > *,
+body.console-mode #logsPanel > * { max-width: 100%; }
+body.console-mode #createPanel label { display: block; margin: 30px 0 10px; color: rgba(255,255,255,0.6); font-size: 1.1rem; }
+body.console-mode #createPanel input,
+body.console-mode #createPanel select {
+  width: 100%;
+  box-sizing: border-box;
+  background: rgba(255, 255, 255, 0.06);
+  color: #f5f5f7;
+  border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 16px;
-  padding: 1.2rem;
+  padding: 18px 22px;
+  font-size: 1.3rem;
+}
+body.console-mode #createPanel input:focus,
+body.console-mode #createPanel select:focus { border-color: var(--accent); outline: none; }
+body.console-mode #createBtn {
+  margin-top: 34px;
+  font-size: 1.4rem;
+  font-weight: 800;
+  padding: 18px 44px;
+  border-radius: 999px;
+  border: none;
+  cursor: pointer;
+  color: #0b0d12;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+}
+body.console-mode #logsPanel .logs-view {
+  background: rgba(0, 0, 0, 0.4);
+  color: #cfe8d2;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 18px;
+  padding: 22px;
   font-size: 1rem;
-  line-height: 1.5;
-  max-height: 60vh;
+  line-height: 1.6;
+  max-height: 62vh;
 }
-body.console-mode #logsPanel .logs-header { gap: 1rem; }
-body.console-mode #logsPanel .icon-btn { font-size: 1.3rem; padding: 0.7rem 1.1rem; border-radius: 12px; }
-body.console-mode #logsPanel .update-row {
-  gap: 0.8rem; padding: 0.5rem 0; font-size: 1.05rem; flex-wrap: wrap;
+body.console-mode #logsPanel .logs-header .icon-btn,
+body.console-mode #logsPanel .small-btn {
+  background: rgba(255, 255, 255, 0.08);
+  color: #f5f5f7;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  padding: 12px 18px;
+  font-size: 1.1rem;
 }
-body.console-mode #logsPanel .small-btn { font-size: 1.05rem; padding: 0.75rem 1.4rem; border-radius: 12px; }
-/* Soziales-Tab */
-body.console-mode #socialsPanel .socials-header { gap: 1rem; }
+body.console-mode #logsPanel .update-row { gap: 16px; padding: 14px 0; font-size: 1.1rem; flex-wrap: wrap; }
 body.console-mode #socialsPanel .socials-profile-btn,
 body.console-mode #socialsPanel .add-friend button,
-body.console-mode #socialsPanel .invite-launcher-btn {
-  font-size: 1.1rem; font-weight: 800; padding: 0.85rem 1.6rem;
-  border-radius: 14px; border: none; cursor: pointer; color: #0b0b10;
+body.console-mode #socialsPanel .invite-launcher-btn,
+body.console-mode #socialsPanel #discordLoginBtn {
+  font-size: 1.2rem;
+  font-weight: 700;
+  padding: 14px 26px;
+  border-radius: 999px;
+  border: none;
+  cursor: pointer;
+  color: #0b0d12;
   background: linear-gradient(135deg, var(--accent), var(--accent2));
 }
-body.console-mode #socialsPanel input[type="text"] { width: 280px; max-width: 100%; }
+body.console-mode #socialsPanel input[type="text"] {
+  background: rgba(255, 255, 255, 0.06);
+  color: #f5f5f7;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  padding: 14px 18px;
+  font-size: 1.15rem;
+  width: 300px;
+  max-width: 100%;
+}
 body.console-mode #socialsPanel .friend-list li,
 body.console-mode #socialsPanel .invite-list li {
-  padding: 1rem; font-size: 1.1rem; border-radius: 14px;
-  background: var(--panel-2); border: 1px solid var(--border);
+  padding: 18px;
+  font-size: 1.15rem;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
-/* Modals (Einstellungen, Verwalten, Profil) im Konsolen-Stil */
+
+/* ── Konsolen-Fokus-Ring ── */
+body.console-nav .cfocus {
+  outline: 4px solid var(--accent);
+  outline-offset: 4px;
+  box-shadow: 0 0 0 6px rgba(0, 0, 0, 0.4);
+}
+
+/* ── Modals im Konsolen-Modus (Vollbild-PS5-Settings) ── */
 body.console-mode .modal .modal-content {
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: 22px;
-  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55);
+  background: #12141a;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 26px;
+  box-shadow: 0 40px 100px rgba(0, 0, 0, 0.6);
+  max-width: 780px;
 }
-body.console-mode .modal .modal-header { gap: 1rem; }
-body.console-mode .modal h3 { font-size: 1.3rem; color: var(--accent); }
-body.console-mode .settings-content .settings-tabs .settings-tab {
-  font-size: 1.05rem; padding: 0.8rem 1.4rem; border-radius: 12px;
+body.console-mode .modal .modal-header h2 { display: block; font-size: 1.7rem; color: #f5f5f7; }
+body.console-mode .modal h3 { font-size: 1.35rem; color: var(--accent); margin-top: 30px; }
+body.console-mode .modal .modal-header button,
+body.console-mode .modal .modal-content button {
+  background: rgba(255, 255, 255, 0.08);
+  color: #f5f5f7;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  padding: 12px 20px;
+  font-size: 1.1rem;
+  cursor: pointer;
 }
-body.console-mode .settings-content .settings-tabs .settings-tab.active {
-  background: linear-gradient(135deg, var(--accent), var(--accent2));
-  color: #0b0b10;
-}
-body.console-mode .settings-section { padding: 0.4rem 0; }
-body.console-mode .settings-section .settings-action,
-body.console-mode .settings-section button.settings-action {
-  font-size: 1.1rem; font-weight: 800; padding: 0.85rem 1.5rem;
-  border-radius: 13px; border: none; cursor: pointer;
-  background: var(--panel-2); color: var(--text);
-  border: 1px solid var(--border);
-}
-body.console-mode .settings-section .settings-action.primary {
-  color: #0b0b10; background: linear-gradient(135deg, var(--accent), var(--accent2));
-}
-body.console-mode .settings-check { font-size: 1.15rem; }
-body.console-mode .settings-check input { transform: scale(1.5); margin-right: 0.8rem; }
-body.console-mode .modal .tabs .tab,
-body.console-mode .manage-search button {
-  font-size: 1.05rem; padding: 0.8rem 1.4rem; border-radius: 12px;
-}
+body.console-mode .settings-tabs .settings-tab.active,
 body.console-mode .modal .tabs .tab.active {
   background: linear-gradient(135deg, var(--accent), var(--accent2));
-  color: #0b0b10;
+  color: #0b0d12;
 }
+body.console-mode .settings-check { font-size: 1.2rem; }
+body.console-mode .settings-check input { transform: scale(1.6); margin-right: 16px; }
 body.console-mode .modal .cards .card {
-  border-radius: 16px; background: var(--panel-2);
-  border: 1px solid var(--border); padding: 1.2rem;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 18px;
 }
-body.console-mode .modal button { border-radius: 12px; }
+body.console-mode .manage-search input {
+  background: rgba(255, 255, 255, 0.06);
+  color: #f5f5f7;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  padding: 14px 18px;
+  font-size: 1.15rem;
+}

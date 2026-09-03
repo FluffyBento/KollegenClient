@@ -1146,61 +1146,154 @@ if (steamdeckToggle) {
     await applyConsoleMode();
   };
 }
-// Rendert das Konsolen-Startmenü (PS5-artiges Kachel-Raster) für den
-// SteamDeck-/Konsolen-Modus. Die Theme-Farben werden dabei weiterhin genutzt.
-function renderConsoleHome() {
-  const list = $("instanceList");
-  if (!list) return;
-  list.innerHTML = "";
-  const instances = instancesCache || [];
-  if (instances.length === 0) {
-    const empty = document.createElement("li");
-    empty.className = "console-empty";
-    const span = document.createElement("span");
-    span.textContent = "Keine Instanzen vorhanden – erstelle eine im Tab „Erstellen“.";
-    empty.append(span);
-    list.append(empty);
-    return;
-  }
-  const hero = instances[0];
-  const heroTile = document.createElement("li");
-  heroTile.className = "console-hero";
-  const ht = document.createElement("div");
-  ht.className = "console-hero-title";
-  ht.textContent = hero.name;
-  const hm = document.createElement("div");
-  hm.className = "console-hero-meta";
-  hm.textContent = `${hero.version} · ${hero.loader}`;
-  const hplay = document.createElement("button");
-  hplay.className = "console-hero-play";
-  hplay.textContent = "▶  Starten";
-  hplay.onclick = () => launchGame(hero.name);
-  heroTile.append(ht, hm, hplay);
-  list.append(heroTile);
+// Rendert das Konsolen-Startmenü (PS5-artig, dunkel/schlank): ein großes
+// horizontales Hero oben, darunter horizontale Reihen runder Kacheln und eine
+// eigene Icon-Dock-Leiste unten. Die Theme-Farben werden weiterhin genutzt.
+function ensureConsoleDock() {
+  if (document.getElementById("ps5Dock")) return;
+  const dock = document.createElement("div");
+  dock.id = "ps5Dock";
+  dock.className = "ps5-dock";
+  const mk = (tab, ico, label) => {
+    const b = document.createElement("button");
+    b.className = "ps5-dock-btn";
+    b.dataset.tab = tab;
+    const i = document.createElement("span");
+    i.className = "ps5-dock-ico";
+    i.textContent = ico;
+    b.append(i);
+    if (label) {
+      const l = document.createElement("span");
+      l.className = "ps5-dock-label";
+      l.textContent = label;
+      b.append(l);
+    }
+    b.onclick = (e) => {
+      e.preventDefault();
+      if (tab === "settings") {
+        $("settingsBtn").click();
+      } else {
+        switchTab(tab);
+      }
+      if (consoleNavActive) refreshConsoleFocusables();
+    };
+    return b;
+  };
+  dock.append(
+    mk("home", "▦", "Home"),
+    mk("create", "＋", "Erstellen"),
+    mk("socials", "⌂", "Sozial"),
+    mk("logs", "☰", "Logs"),
+    mk("settings", "⚙", "Einst.")
+  );
+  document.body.appendChild(dock);
+  setTimeout(() => document.body.classList.add("ps5-ready"), 30);
+}
 
-  for (let i = 1; i < instances.length; i++) {
-    const inst = instances[i];
-    const tile = document.createElement("li");
-    tile.className = "console-tile";
-    const title = document.createElement("div");
-    title.className = "console-tile-title";
-    title.textContent = inst.name;
-    const meta = document.createElement("div");
-    meta.className = "console-tile-meta";
-    meta.textContent = `${inst.version} · ${inst.loader}`;
-    const act = document.createElement("div");
-    act.className = "console-tile-actions";
-    const play = document.createElement("button");
-    play.className = "console-play";
-    play.textContent = "Start";
-    play.onclick = () => launchGame(inst.name);
-    const manageBtn = document.createElement("button");
-    manageBtn.className = "console-manage";
-    manageBtn.textContent = "Verwalten";
-    manageBtn.onclick = () => openManage(inst);
-    act.append(play, manageBtn);
-    tile.append(title, meta, act);
-    list.append(tile);
+function renderConsoleHome() {
+  ensureConsoleDock();
+  const panel = $("homePanel");
+  if (!panel) return;
+  panel.innerHTML = "";
+  const instances = instancesCache || [];
+
+  // PS5-Statuszeile oben
+  const top = document.createElement("div");
+  top.className = "ps5-top";
+  const tc = document.createElement("div");
+  tc.className = "ps5-top-clock";
+  tc.textContent = "KONSOLE";
+  top.append(tc);
+  panel.append(top);
+
+  // ── Hero (großes horizontales Feature) ──
+  const heroContainer = document.createElement("div");
+  heroContainer.className = "ps5-hero-wrap";
+  if (instances.length > 0) {
+    const hero = instances[0];
+    const heroEl = document.createElement("div");
+    heroEl.className = "ps5-hero";
+    const heroMeta = document.createElement("div");
+    heroMeta.className = "ps5-hero-kicker";
+    heroMeta.textContent = "AUSGEWÄHLT · INSTANZEN";
+    const heroTitle = document.createElement("div");
+    heroTitle.className = "ps5-hero-title";
+    heroTitle.textContent = hero.name;
+    const heroSub = document.createElement("div");
+    heroSub.className = "ps5-hero-sub";
+    heroSub.textContent = `${hero.version} · ${hero.loader}`;
+    const heroPlay = document.createElement("button");
+    heroPlay.className = "ps5-hero-play";
+    heroPlay.textContent = "▶ Starten";
+    heroPlay.onclick = () => launchGame(hero.name);
+    const heroActions = document.createElement("div");
+    heroActions.className = "ps5-hero-actions";
+    heroActions.append(heroPlay);
+    heroEl.append(heroMeta, heroTitle, heroSub, heroActions);
+    heroContainer.append(heroEl);
+  } else {
+    const heroEl = document.createElement("div");
+    heroEl.className = "ps5-hero ps5-hero-empty";
+    const heroMeta = document.createElement("div");
+    heroMeta.className = "ps5-hero-kicker";
+    heroMeta.textContent = "AUSGEWÄHLT · INSTANZEN";
+    const heroTitle = document.createElement("div");
+    heroTitle.className = "ps5-hero-title";
+    heroTitle.textContent = "Keine Instanzen";
+    heroEl.append(heroMeta, heroTitle);
+    heroContainer.append(heroEl);
+  }
+  panel.append(heroContainer);
+
+  // ── Reihen (horizontale Kacheln) ──
+  const rowWrap = document.createElement("div");
+  rowWrap.className = "ps5-row-wrap";
+
+  if (instances.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "ps5-empty";
+    empty.textContent = "Erstelle eine Instanz über den Tab „Erstellen“.";
+    rowWrap.append(empty);
+  } else {
+    const firstRowHead = document.createElement("div");
+    firstRowHead.className = "ps5-row-head";
+    firstRowHead.textContent = "Instanzen";
+    const firstRow = document.createElement("div");
+    firstRow.className = "ps5-row";
+    instances.forEach((inst) => {
+      const tile = document.createElement("div");
+      tile.className = "ps5-tile";
+      const icon = document.createElement("div");
+      icon.className = "ps5-tile-icon";
+      icon.textContent = (inst.name || "?").charAt(0).toUpperCase();
+      const ttitle = document.createElement("div");
+      ttitle.className = "ps5-tile-title";
+      ttitle.textContent = inst.name;
+      const tmeta = document.createElement("div");
+      tmeta.className = "ps5-tile-meta";
+      tmeta.textContent = `${inst.version} · ${inst.loader}`;
+      const tplay = document.createElement("button");
+      tplay.className = "ps5-tile-play";
+      tplay.textContent = "Start";
+      tplay.onclick = () => launchGame(inst.name);
+      const tmanage = document.createElement("button");
+      tmanage.className = "ps5-tile-manage";
+      tmanage.textContent = "…";
+      tmanage.onclick = () => openManage(inst);
+      const tactions = document.createElement("div");
+      tactions.className = "ps5-tile-actions";
+      tactions.append(tplay, tmanage);
+      tile.append(icon, ttitle, tmeta, tactions);
+      firstRow.append(tile);
+    });
+    rowWrap.append(firstRowHead, firstRow);
+  }
+  panel.append(rowWrap);
+  const dock = document.getElementById("ps5Dock");
+  if (dock) {
+    dock.querySelectorAll(".ps5-dock-btn").forEach((b) => {
+      b.classList.toggle("active", b.dataset.tab === "home");
+    });
   }
 }
 // ─ Konsolen-/Controller-Navigation ─
@@ -1735,9 +1828,15 @@ applySavedTheme()
     document.querySelectorAll(".tab-panel[data-tab]").forEach((p) => {
       p.classList.toggle("active", p.dataset.tab === name);
     });
+    if (document.body.classList.contains("console-mode")) {
+      const dock = document.getElementById("ps5Dock");
+      if (dock) {
+        dock.querySelectorAll(".ps5-dock-btn").forEach((b) => {
+          b.classList.toggle("active", b.dataset.tab === name);
+        });
+      }
+    }
     if (name === "socials") {
-      // Erst sofort aus dem Cache rendern (kein leeres/Lag-Fenster), dann im
-      // Hintergrund frisch laden.
       renderSocialAll();
       refreshSocial();
     }
