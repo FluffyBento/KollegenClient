@@ -1101,6 +1101,7 @@ $("settingsBtn").onclick = async () => {
   // Immer auf den Verbindungen-Tab zurücksetzen, damit der Startzustand
   // reproduzierbar ist und alle Panels korrekt (neu) gerendert werden.
   showSettingsTab("connections");
+  if (consoleNavActive) refreshConsoleFocusables();
 };
 
 const companionModToggle = $("companionModToggle");
@@ -1132,6 +1133,7 @@ async function applyConsoleMode() {
   const s = await loadSettingsOnce();
   const on = !!s.steamdeck_mode;
   document.body.classList.toggle("console-mode", on);
+  setupConsoleNavigation(on);
   // Controller-Modus im Begleit-Mod sofort (ohne Neustart) aktivieren.
   try { await invoke("set_console_mode", { on }); } catch (e) {}
   if (on) { renderConsoleHome(); } else { refreshInstances(); }
@@ -1201,8 +1203,194 @@ function renderConsoleHome() {
     list.append(tile);
   }
 }
+// ─ Konsolen-/Controller-Navigation ─
+// Im Konsolen-Modus kannst du per Pfeiltasten, WASD und Gamepad (D-Pad/Stick +
+// A) durch den Launcher navigieren. "A" aktiviert, "B"/Esc schließt Modals.
+let consoleFocusables = [];
+let consoleFocusIndex = -1;
+let consoleNavActive = false;
+
+function computeConsoleFocusables() {
+  const list = [];
+  // Sichtbares Modal zuerst (sonst Sidebar/Panel)
+  const modals = Array.from(document.querySelectorAll(".modal"));
+  const openModal = modals.find((m) => m.style.display && m.style.display !== "none");
+  const root = openModal || document.body;
+  const sel = "a.sidebar-link, button, select, input[type=checkbox], input[type=text], " +
+    "input:not([type]), textarea, [tabindex], .console-manage, .console-play, .console-hero-play, " +
+    "label.settings-check";
+  root.querySelectorAll(sel).forEach((el) => {
+    const r = el.getBoundingClientRect();
+    if (r.width === 0 && r.height === 0) return;
+    const cs = getComputedStyle(el);
+    if (cs.visibility === "hidden" || cs.display === "none") return;
+    if (el.disabled) return;
+    if (!openModal && !isVisibleAtAll(el)) return;
+    list.push(el);
+  });
+  return list;
+}
+
+function isVisibleAtAll(el) {
+  let n = el;
+  while (n && n !== document.body) {
+    const stale = n.style && n.style.display;
+    if (stale === "none") return false;
+    n = n.parentElement;
+  }
+  return true;
+}
+
+function refreshConsoleFocusables() {
+  consoleFocusables = computeConsoleFocusables();
+  consoleFocusables.forEach((el, i) => el.classList.toggle("cfocus", i === consoleFocusIndex));
+}
+
+function setConsoleFocus(index) {
+  if (!consoleFocusables.length) return;
+  if (index < 0) index = consoleFocusables.length - 1;
+  if (index >= consoleFocusables.length) index = 0;
+  consoleFocusIndex = index;
+  consoleFocusables.forEach((el, i) => el.classList.toggle("cfocus", i === index));
+  const el = consoleFocusables[index];
+  try { el.scrollIntoView({ block: "nearest" }); } catch (e) {}
+  const r = el.getBoundingClientRect();
+  let cx = r.left + r.width / 2;
+  let cy = r.top + r.height / 2;
+  if (typeof window.__consoleNavCursor === "function") window.__consoleNavCursor(cx, cy);
+}
+
+function moveConsoleFocus(dx, dy) {
+  if (!consoleFocusables.length) return;
+  const cur = consoleFocusables[Math.max(0, consoleFocusIndex)];
+  const c = cur ? cur.getBoundingClientRect() : { left: 0, top: 0, width: 0, height: 0 };
+  const ccx = c.left + c.width / 2;
+  const ccy = c.top + c.height / 2;
+  let best = null;
+  let bestScore = Infinity;
+  const allowed = (dx !== 0 ? dx > 0 ? 1 : -1 : 0);
+  const allowedY = (dy !== 0 ? dy > 0 ? 1 : -1 : 0);
+  consoleFocusables.forEach((el, i) => {
+    if (i === consoleFocusIndex) return;
+    const r = el.getBoundingClientRect();
+    const ex = r.left + r.width / 2;
+    const ey = r.top + r.height / 2;
+    let relX = ex - ccx;
+    let relY = ey - ccy;
+    if (dx !== 0 && Math.sign(relX) !== allowed) return;
+    if (dy !== 0 && Math.sign(relY) !== allowedY) return;
+    const dist = Math.hypot(relX, relY);
+    // Bevorzuge gleichgerichtete Bewegungen stark
+    const penal = (dx !== 0 ? Math.abs(relY) * 1.6 : 0) + (dy !== 0 ? Math.abs(relX) * 1.6 : 0);
+    const score = dist + penal;
+    if (score < bestScore) { bestScore = score; best = i; }
+  });
+  if (best != null) setConsoleFocus(best);
+}
+
+function activateConsoleFocus() {
+  const el = consoleFocusables[consoleFocusIndex];
+  if (!el) return;
+  if (el.tagName === "A" || el.tagName === "BUTTON" || el.tagName === "SELECT") {
+    el.click();
+  } else if (el.type === "checkbox") {
+    el.checked = !el.checked;
+    el.dispatchEvent(new Event("change"));
+  } else if (el.tagName === "INPUT" || el.tagName === "TEXTAREA") {
+    el.focus();
+  }
+}
+
+function consoleCloseModal() {
+  const modals = Array.from(document.querySelectorAll(".modal"));
+  const open = modals.find((m) => m.style.display && m.style.display !== "none");
+  if (!open) return false;
+  open.style.display = "none";
+  refreshConsoleFocusables();
+  return true;
+}
+
+function consoleNavKey(e) {
+  const k = e.key;
+  const arrows = k === "ArrowUp" || k === "ArrowDown" || k === "ArrowLeft" || k === "ArrowRight";
+  const wasd = k === "w" || k === "s" || k === "a" || k === "d";
+  if (arrows || wasd) {
+    const tag = (e.target && e.target.tagName) || "";
+    const isField = /INPUT|TEXTAREA/.test(tag);
+    // In Textfeldern typst du normal: WASD soll nicht kapern; nur mit den
+    // Pfeiltasten wechselst du zum nächsten Feld.
+    if (isField && wasd) return;
+    e.preventDefault();
+    const dx = (k === "ArrowRight" || k === "d") ? 1 : (k === "ArrowLeft" || k === "a") ? -1 : 0;
+    const dy = (k === "ArrowDown" || k === "s") ? 1 : (k === "ArrowUp" || k === "w") ? -1 : 0;
+    moveConsoleFocus(dx, dy);
+    return;
+  }
+  if (k === "Enter") { e.preventDefault(); activateConsoleFocus(); return; }
+  if (k === "Escape") { e.preventDefault(); consoleCloseModal(); return; }
+}
+
+function setupConsoleNavigation(on) {
+  consoleNavActive = on;
+  document.body.classList.toggle("console-nav", on);
+  if (!on) {
+    consoleFocusables.forEach((el) => el.classList.remove("cfocus", "console-nav"));
+    document.onkeydown = null;
+    if (window.__consoleNavLoop) { clearInterval(window.__consoleNavLoop); window.__consoleNavLoop = null; }
+    return;
+  }
+  // Tastatur
+  document.onkeydown = consoleNavKey;
+  // Ersten Fokus setzen
+  refreshConsoleFocusables();
+  setConsoleFocus(0);
+  // Gamepad-Polling (D-Pad/Stick + A)
+  window.__consoleNavLoop = setInterval(() => {
+    const gp = navigator.getGamepads && navigator.getGamepads();
+    if (!gp) return;
+    const pad = Array.from(gp).find((p) => p && p.connected);
+    if (!pad) return;
+    const ax = pad.axes ? pad.axes[0] || 0 : 0;
+    const ay = pad.axes ? pad.axes[1] || 0 : 0;
+    const dpad = (pad.buttons && pad.buttons.length) ? [
+      pad.buttons[12]?.value, // up
+      pad.buttons[13]?.value, // down
+      pad.buttons[14]?.value, // left
+      pad.buttons[15]?.value  // right
+    ] : null;
+    const repeat = (window.__consoleNavLastDir === (JSON.stringify([ax, ay, dpad]))) ? 1 : 0;
+    const now = Date.now() - (window.__consoleNavLastT || 0);
+    if (now < (repeat ? 320 : 0)) return;
+    const up = (dpad && dpad[0] > 0.5) || ay < -0.5;
+    const down = (dpad && dpad[1] > 0.5) || ay > 0.5;
+    const left = (dpad && dpad[2] > 0.5) || ax < -0.5;
+    const right = (dpad && dpad[3] > 0.5) || ax > 0.5;
+    let dx = right ? 1 : left ? -1 : 0;
+    let dy = down ? 1 : up ? -1 : 0;
+    if (dx || dy) {
+      moveConsoleFocus(dx, dy);
+      window.__consoleNavLastT = Date.now();
+      window.__consoleNavLastDir = JSON.stringify([ax, ay, dpad]);
+      return;
+    }
+    const aBtn = pad.buttons && pad.buttons[0] ? pad.buttons[0].value > 0.5 : false;
+    if (aBtn && !window.__consoleNavAPressed) { activateConsoleFocus(); window.__consoleNavAPressed = true; return; }
+    if (pad.buttons && pad.buttons[0] && pad.buttons[0].value < 0.5) window.__consoleNavAPressed = false;
+    const bBtn = pad.buttons && pad.buttons[1] ? pad.buttons[1].value > 0.5 : false;
+    if (bBtn && !window.__consoleNavBPressed) { consoleCloseModal(); window.__consoleNavBPressed = true; return; }
+    if (pad.buttons && pad.buttons[1] && pad.buttons[1].value < 0.5) window.__consoleNavBPressed = false;
+  }, 80);
+  // Fokusliste nach UI-Änderungen aktualisieren
+  if (!window.__consoleNavRescan) {
+    window.__consoleNavRescan = setInterval(() => {
+      if (document.body.classList.contains("console-mode")) refreshConsoleFocusables();
+    }, 500);
+  }
+}
+
 $("settingsClose").onclick = () => {
   settingsModalEl.style.display = "none";
+  if (consoleNavActive) refreshConsoleFocusables();
 };
 
 document.querySelectorAll(".settings-tab").forEach((tab) => {
@@ -1556,6 +1744,7 @@ applySavedTheme()
     if (name === "home" && document.body.classList.contains("console-mode")) {
       renderConsoleHome();
     }
+    if (consoleNavActive) refreshConsoleFocusables();
   }
   document.querySelectorAll(".sidebar-link[data-tab]").forEach((l) => {
     l.addEventListener("click", (e) => {

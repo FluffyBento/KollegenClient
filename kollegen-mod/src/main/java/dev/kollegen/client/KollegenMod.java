@@ -40,7 +40,8 @@ public class KollegenMod implements ClientModInitializer {
         ModuleManager.registerAll(); // lädt Config + ruft onEnable für aktive Module
         // Renderer-Gruppen (VulkanMod+Beryl vs. Sodium+Iris) anhand des vom
         // Launcher geschriebenen State-Files abstimmen – genau eine Gruppe aktiv.
-        dev.kollegen.client.mods.modules.RendererManager.apply();
+        dev.kollegen.client.mods.modules.        RendererManager.apply();
+        dev.kollegen.client.input.ControllerMode.init(); // SteamDeck-Controller-Modus (State-Datei des Launchers)
         KollegenRPC.start(); // Rich Presence läuft ab sofort (ohne extra Setting)
         LOGGER.info("Kollegen Client Mod initialisiert (Rechts-Shift = Menü).");
     }
@@ -48,6 +49,9 @@ public class KollegenMod implements ClientModInitializer {
     public static void onTick() {
         Minecraft mc = Minecraft.getInstance();
         if (mc == null) return;
+
+        // ── SteamDeck-Controller-Cursor (Bewegung + Klicks) ──
+        dev.kollegen.client.input.ControllerMode.tick(mc);
 
         // ── Rechts-Shift → Menü (mit Entprellung) ──
         boolean shiftDown = dev.kollegen.client.input.KollegenKeybind.isRightShiftHeld();
