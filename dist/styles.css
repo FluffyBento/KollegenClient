@@ -1695,6 +1695,78 @@ body.console-nav .cfocus {
   box-shadow: 0 0 0 6px rgba(0, 0, 0, 0.4);
 }
 
+/* ── Vertikale Instanzenliste (PlayStation-Home-Stil) ── */
+body.console-mode .ps5-clist-wrap {
+  padding: 20px 40px 140px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-width: 980px;
+  margin: 0 auto;
+  width: 100%;
+  box-sizing: border-box;
+}
+body.console-mode .ps5-clist-head {
+  font-size: 0.8rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.55);
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+body.console-mode .ps5-clist {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+body.console-mode .ps5-crow {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 18px 24px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 18px;
+  cursor: pointer;
+}
+body.console-mode .ps5-crow .ps5-crow-icon {
+  width: 52px; height: 52px;
+  flex: 0 0 52px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.5rem; font-weight: 700;
+  color: #0b0d12;
+  background: linear-gradient(135deg, var(--accent), #7fb2ff);
+  border-radius: 14px;
+}
+body.console-mode .ps5-crow-body {
+  display: flex; flex-direction: column; gap: 4px;
+  flex: 1 1 auto; min-width: 0;
+}
+body.console-mode .ps5-crow-title {
+  font-size: 1.25rem; font-weight: 700; color: #f5f5f7;
+}
+body.console-mode .ps5-crow-meta {
+  font-size: 0.95rem; color: rgba(255, 255, 255, 0.55);
+}
+body.console-mode .ps5-crow-badge {
+  flex: 0 0 auto;
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.6);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  padding: 6px 14px;
+  white-space: nowrap;
+}
+body.console-nav .ps5-crow.cfocus {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: var(--accent);
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4);
+}
+body.console-mode .ps5-crow:focus-visible { outline: none; }
+
 /* ── Modals im Konsolen-Modus (Vollbild-PS5-Settings) ── */
 body.console-mode .modal .modal-content {
   background: #12141a;

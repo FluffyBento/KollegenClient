@@ -1217,9 +1217,7 @@ function renderConsoleHome() {
   const panel = $("homePanel");
   if (!panel) return;
   panel.innerHTML = "";
-  const instances = instancesCache || [];
 
-  // PS5-Statuszeile oben
   const top = document.createElement("div");
   top.className = "ps5-top";
   const tc = document.createElement("div");
@@ -1228,91 +1226,54 @@ function renderConsoleHome() {
   top.append(tc);
   panel.append(top);
 
-  // ── Hero (großes horizontales Feature) ──
-  const heroContainer = document.createElement("div");
-  heroContainer.className = "ps5-hero-wrap";
-  if (instances.length > 0) {
-    const hero = instances[0];
-    const heroEl = document.createElement("div");
-    heroEl.className = "ps5-hero";
-    heroEl.dataset.inst = hero.name;
-    const heroMeta = document.createElement("div");
-    heroMeta.className = "ps5-hero-kicker";
-    heroMeta.textContent = "AUSGEWÄHLT · INSTANZEN";
-    const heroTitle = document.createElement("div");
-    heroTitle.className = "ps5-hero-title";
-    heroTitle.textContent = hero.name;
-    const heroSub = document.createElement("div");
-    heroSub.className = "ps5-hero-sub";
-    heroSub.textContent = `${hero.version} · ${hero.loader}`;
-    const heroPlay = document.createElement("button");
-    heroPlay.className = "ps5-hero-play";
-    heroPlay.textContent = "▶ Starten";
-    heroPlay.onclick = () => launchGame(hero.name);
-    const heroActions = document.createElement("div");
-    heroActions.className = "ps5-hero-actions";
-    heroActions.append(heroPlay);
-    heroEl.append(heroMeta, heroTitle, heroSub, heroActions);
-    heroContainer.append(heroEl);
-  } else {
-    const heroEl = document.createElement("div");
-    heroEl.className = "ps5-hero ps5-hero-empty";
-    const heroMeta = document.createElement("div");
-    heroMeta.className = "ps5-hero-kicker";
-    heroMeta.textContent = "AUSGEWÄHLT · INSTANZEN";
-    const heroTitle = document.createElement("div");
-    heroTitle.className = "ps5-hero-title";
-    heroTitle.textContent = "Keine Instanzen";
-    heroEl.append(heroMeta, heroTitle);
-    heroContainer.append(heroEl);
-  }
-  panel.append(heroContainer);
+  // Vertikale Instanzenliste (PlayStation-Home-Stil). Jede Zeile ist eine
+  // einzige fokussierbare Einheit – es gibt keine separaten Mini-Buttons.
+  // Die Aktionen kommen von den Controller-/Tastatur-Buttons:
+  //   A = Starten · X = Verwalten · Y = Erstellen · B = Zurück · Start = Einstellungen
+  const listWrap = document.createElement("div");
+  listWrap.className = "ps5-clist-wrap";
+  const head = document.createElement("div");
+  head.className = "ps5-clist-head";
+  head.textContent = "Instanzen";
+  listWrap.append(head);
 
-  // ── Reihen (horizontale Kacheln) ──
-  const rowWrap = document.createElement("div");
-  rowWrap.className = "ps5-row-wrap";
-
+  const list = document.createElement("div");
+  list.className = "ps5-clist";
+  const instances = instancesCache || [];
   if (instances.length === 0) {
     const empty = document.createElement("div");
     empty.className = "ps5-empty";
-    empty.textContent = "Erstelle eine Instanz über den Tab „Erstellen“.";
-    rowWrap.append(empty);
+    empty.textContent = "Keine Instanzen. Drücke Y, um eine neue zu erstellen.";
+    list.append(empty);
   } else {
-    const firstRowHead = document.createElement("div");
-    firstRowHead.className = "ps5-row-head";
-    firstRowHead.textContent = "Instanzen";
-    const firstRow = document.createElement("div");
-    firstRow.className = "ps5-row";
     instances.forEach((inst) => {
-      const tile = document.createElement("div");
-      tile.className = "ps5-tile";
-      tile.dataset.inst = inst.name;
+      const row = document.createElement("div");
+      row.className = "ps5-crow";
+      row.dataset.inst = inst.name;
+      row.tabIndex = 0;
+      row.setAttribute("role", "button");
       const icon = document.createElement("div");
-      icon.className = "ps5-tile-icon";
+      icon.className = "ps5-crow-icon";
       icon.textContent = (inst.name || "?").charAt(0).toUpperCase();
+      const body = document.createElement("div");
+      body.className = "ps5-crow-body";
       const ttitle = document.createElement("div");
-      ttitle.className = "ps5-tile-title";
+      ttitle.className = "ps5-crow-title";
       ttitle.textContent = inst.name;
       const tmeta = document.createElement("div");
-      tmeta.className = "ps5-tile-meta";
+      tmeta.className = "ps5-crow-meta";
       tmeta.textContent = `${inst.version} · ${inst.loader}`;
-      const tplay = document.createElement("button");
-      tplay.className = "ps5-tile-play";
-      tplay.textContent = "Start";
-      tplay.onclick = () => launchGame(inst.name);
-      const tmanage = document.createElement("button");
-      tmanage.className = "ps5-tile-manage";
-      tmanage.textContent = "…";
-      tmanage.onclick = () => openManage(inst);
-      const tactions = document.createElement("div");
-      tactions.className = "ps5-tile-actions";
-      tactions.append(tplay, tmanage);
-      tile.append(icon, ttitle, tmeta, tactions);
-      firstRow.append(tile);
+      body.append(ttitle, tmeta);
+      const badge = document.createElement("div");
+      badge.className = "ps5-crow-badge";
+      badge.textContent = "A Starten · X Verwalten";
+      row.append(icon, body, badge);
+      list.append(row);
     });
-    rowWrap.append(firstRowHead, firstRow);
   }
-  panel.append(rowWrap);
+  listWrap.append(list);
+  panel.append(listWrap);
+
   const dock = document.getElementById("ps5Dock");
   if (dock) {
     dock.querySelectorAll(".ps5-dock-btn").forEach((b) => {
@@ -1447,29 +1408,14 @@ function consoleFocusedInstance() {
 function consoleDoStart() {
   if (consoleCloseModal()) return;
   const inst = consoleFocusedInstance();
-  const el = consoleFocusedEl();
   if (inst) { launchGame(inst.name); return; }
-  if (el && el.closest && el.closest(".ps5-hero")) {
-    const hv = el.closest(".ps5-hero");
-    const hvInst = instancesCache && instancesCache[0];
-    if (hvInst) launchGame(hvInst.name);
-    return;
-  }
+  const el = consoleFocusedEl();
   if (el && el.tagName === "BUTTON") { el.click(); }
 }
 
 function consoleDoManage() {
   const inst = consoleFocusedInstance();
   if (inst) { openManage(inst); return; }
-  const el = consoleFocusedEl();
-  if (el && el.closest && el.closest(".ps5-tile")) {
-    const tile = el.closest(".ps5-tile");
-    const b = tile.querySelector(".ps5-tile-manage");
-    if (b) b.click();
-  } else if (el && el.closest && el.closest(".ps5-hero")) {
-    const inst0 = instancesCache && instancesCache[0];
-    if (inst0) openManage(inst0);
-  }
 }
 
 function consoleOpenSettings() {
@@ -1495,8 +1441,14 @@ function consoleNavKey(e) {
     moveConsoleFocus(dx, dy);
     return;
   }
-  if (k === "Enter") { e.preventDefault(); activateConsoleFocus(); return; }
+  if (k === "Enter") { e.preventDefault(); consoleDoStart(); return; }
   if (k === "Escape") { e.preventDefault(); consoleCloseModal(); return; }
+  const tag = (e.target && e.target.tagName) || "";
+  const isField = /INPUT|TEXTAREA/.test(tag);
+  if (!isField) {
+    if (k === "x" || k === "X") { e.preventDefault(); consoleDoManage(); return; }
+    if (k === "y" || k === "Y") { e.preventDefault(); try { switchTab("create"); } catch (err) {} return; }
+  }
 }
 
 function setupConsoleNavigation(on) {
@@ -1551,9 +1503,10 @@ function setupConsoleNavigation(on) {
       const was = !!window.__consoleNavBtns[map[idx]];
       if (down && !was) {
         window.__consoleNavBtns[map[idx]] = true;
-        if (map[idx] === "A") { activateConsoleFocus(); return; }
-        if (map[idx] === "B") { consoleDoStart(); return; }
-        if (map[idx] === "Y") { consoleDoManage(); return; }
+        if (map[idx] === "A") { consoleDoStart(); return; }
+        if (map[idx] === "X") { consoleDoManage(); return; }
+        if (map[idx] === "Y") { try { switchTab("create"); } catch (e) {} return; }
+        if (map[idx] === "B") { consoleCloseModal(); return; }
         if (map[idx] === "SELECT") { consoleCloseModal(); return; }
         if (map[idx] === "START") { consoleOpenSettings(); return; }
       }
