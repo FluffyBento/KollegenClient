@@ -1218,61 +1218,56 @@ function renderConsoleHome() {
   if (!panel) return;
   panel.innerHTML = "";
 
-  const top = document.createElement("div");
-  top.className = "ps5-top";
-  const tc = document.createElement("div");
-  tc.className = "ps5-top-clock";
-  tc.textContent = "KONSOLE";
-  top.append(tc);
-  panel.append(top);
+  // Kopfzeile mit Logo (Switch-Hauptmenü-Stil: Marke links oben)
+  const topbar = document.createElement("div");
+  topbar.className = "ps5-topbar";
+  const logo = document.createElement("img");
+  logo.className = "ps5-logo";
+  logo.src = "Kollegen.png";
+  logo.alt = "Kollegen Client";
+  const brand = document.createElement("div");
+  brand.className = "ps5-brand";
+  brand.textContent = "Kollegen Client";
+  topbar.append(logo, brand);
+  panel.append(topbar);
 
-  // Vertikale Instanzenliste (PlayStation-Home-Stil). Jede Zeile ist eine
-  // einzige fokussierbare Einheit – es gibt keine separaten Mini-Buttons.
-  // Die Aktionen kommen von den Controller-/Tastatur-Buttons:
-  //   A = Starten · X = Verwalten · Y = Erstellen · B = Zurück · Start = Einstellungen
-  const listWrap = document.createElement("div");
-  listWrap.className = "ps5-clist-wrap";
-  const head = document.createElement("div");
-  head.className = "ps5-clist-head";
-  head.textContent = "Instanzen";
-  listWrap.append(head);
-
-  const list = document.createElement("div");
-  list.className = "ps5-clist";
+  // Horizontale Reihe grosser Hero-Karten (eine pro Instanz), wie Spiele-Tiles
+  // im Switch-Hauptmenü. Links/Rechts (D-Pad/Stick/WASD) wählt die Karte.
   const instances = instancesCache || [];
+  const heroRow = document.createElement("div");
+  heroRow.className = "ps5-hero-row";
   if (instances.length === 0) {
     const empty = document.createElement("div");
     empty.className = "ps5-empty";
     empty.textContent = "Keine Instanzen. Drücke Y, um eine neue zu erstellen.";
-    list.append(empty);
+    heroRow.append(empty);
   } else {
-    instances.forEach((inst) => {
-      const row = document.createElement("div");
-      row.className = "ps5-crow";
-      row.dataset.inst = inst.name;
-      row.tabIndex = 0;
-      row.setAttribute("role", "button");
-      const icon = document.createElement("div");
-      icon.className = "ps5-crow-icon";
-      icon.textContent = (inst.name || "?").charAt(0).toUpperCase();
-      const body = document.createElement("div");
-      body.className = "ps5-crow-body";
-      const ttitle = document.createElement("div");
-      ttitle.className = "ps5-crow-title";
-      ttitle.textContent = inst.name;
-      const tmeta = document.createElement("div");
-      tmeta.className = "ps5-crow-meta";
-      tmeta.textContent = `${inst.version} · ${inst.loader}`;
-      body.append(ttitle, tmeta);
-      const badge = document.createElement("div");
-      badge.className = "ps5-crow-badge";
-      badge.textContent = "A Starten · X Verwalten";
-      row.append(icon, body, badge);
-      list.append(row);
+    instances.forEach((inst, idx) => {
+      const card = document.createElement("div");
+      card.className = "ps5-hcard" + (idx === 0 ? " ps5-hcard-first" : "");
+      card.dataset.inst = inst.name;
+      card.tabIndex = 0;
+      card.setAttribute("role", "button");
+      const cicon = document.createElement("div");
+      cicon.className = "ps5-hcard-icon";
+      cicon.textContent = (inst.name || "?").charAt(0).toUpperCase();
+      const cbody = document.createElement("div");
+      cbody.className = "ps5-hcard-body";
+      const ctitle = document.createElement("div");
+      ctitle.className = "ps5-hcard-title";
+      ctitle.textContent = inst.name;
+      const cmeta = document.createElement("div");
+      cmeta.className = "ps5-hcard-meta";
+      cmeta.textContent = `${inst.version} · ${inst.loader}`;
+      const chint = document.createElement("div");
+      chint.className = "ps5-hcard-hint";
+      chint.textContent = "A Starten · X Verwalten";
+      cbody.append(ctitle, cmeta, chint);
+      card.append(cicon, cbody);
+      heroRow.append(card);
     });
   }
-  listWrap.append(list);
-  panel.append(listWrap);
+  panel.append(heroRow);
 
   const dock = document.getElementById("ps5Dock");
   if (dock) {

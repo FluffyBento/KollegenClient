@@ -1377,18 +1377,94 @@ body.console-mode .panel.active {
 }
 body.console-mode .panel h2 { display: none; }
 
-/* ── PS5-Statuszeile oben ── */
-body.console-mode body.ps5-ready .ps5-top {
+/* ── Konsolen-Kopfzeile (Marke, Switch-Hauptmenü-Stil) ── */
+body.console-mode .ps5-topbar {
   display: flex;
-  justify-content: flex-end;
-  padding: 26px 40px 0;
+  align-items: center;
+  gap: 16px;
+  padding: 34px 44px 0;
 }
-body.console-mode .ps5-top-clock {
+body.console-mode .ps5-logo {
+  width: 62px;
+  height: 62px;
+  object-fit: contain;
+  filter: drop-shadow(0 6px 18px rgba(0, 0, 0, 0.5));
+}
+body.console-mode .ps5-brand {
+  font-size: 2rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: #f5f5f7;
+  text-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+}
+
+/* ── Hero-Reihe (Switch-Hauptmenü: grosse Spiele-Kacheln) ── */
+body.console-mode .ps5-hero-row {
+  display: flex;
+  gap: 26px;
+  overflow-x: auto;
+  padding: 30px 44px 40px;
+  scrollbar-width: thin;
+}
+body.console-mode .ps5-hcard {
+  flex: 0 0 auto;
+  width: 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 28px;
+  border-radius: 28px;
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03));
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 22px 50px rgba(0, 0, 0, 0.45);
+  cursor: pointer;
+}
+body.console-mode .ps5-hcard-first {
+  width: 360px;
+  background:
+    radial-gradient(120% 130% at 100% 0%, rgba(255, 255, 255, 0.18), transparent 55%),
+    linear-gradient(160deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.03));
+}
+body.console-mode .ps5-hcard-icon {
+  width: 120px;
+  height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 3.4rem;
+  font-weight: 800;
+  color: #0b0d12;
+  background: linear-gradient(135deg, var(--accent), #7fb2ff);
+  border-radius: 26px;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.4);
+}
+body.console-mode .ps5-hcard-title {
+  font-size: 1.8rem;
+  font-weight: 800;
+  color: #f5f5f7;
+  line-height: 1.1;
+}
+body.console-mode .ps5-hcard-meta {
   font-size: 1rem;
-  letter-spacing: 0.35em;
   color: rgba(255, 255, 255, 0.55);
-  font-weight: 600;
 }
+body.console-mode .ps5-hcard-hint {
+  margin-top: 6px;
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.6);
+  letter-spacing: 0.03em;
+}
+body.console-nav .ps5-hcard.cfocus {
+  background:
+    radial-gradient(120% 130% at 100% 0%, rgba(255, 255, 255, 0.2), transparent 60%),
+    linear-gradient(160deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.05));
+  border-color: var(--accent);
+  outline: 3px solid var(--accent);
+  outline-offset: 4px;
+  box-shadow: 0 26px 60px rgba(0, 0, 0, 0.55);
+  transform: translateY(-4px);
+}
+body.console-mode .ps5-hcard:focus-visible { outline: none; }
 
 /* ── Hero (großes horizontales Feature) ── */
 body.console-mode .ps5-hero-wrap {
@@ -1686,6 +1762,108 @@ body.console-mode #socialsPanel .invite-list li {
   border-radius: 16px;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* ── Sozial-/Profil-Tab TV-optimiert (Konsolenmodus) ── */
+body.console-mode #socialsPanel {
+  padding: 40px 60px 150px;
+  max-width: 1100px;
+  margin: 0 auto;
+  width: 100%;
+  box-sizing: border-box;
+}
+body.console-mode #socialsPanel .socials-header h2 {
+  display: inline-block;
+  font-size: 2.2rem;
+  color: #f5f5f7;
+}
+body.console-mode #socialsPanel .socials-subhead {
+  font-size: 1.5rem;
+  color: var(--accent);
+  margin: 44px 0 16px;
+  letter-spacing: 0.05em;
+}
+body.console-mode #socialsPanel .socials-hint,
+body.console-mode #socialsPanel .discord-status,
+body.console-mode #socialsPanel .discord-server {
+  font-size: 1.15rem;
+  color: rgba(255, 255, 255, 0.65);
+}
+body.console-mode #socialsPanel .socials-profile {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 24px;
+  padding: 24px;
+}
+body.console-mode #socialsPanel .socials-profile-avatar {
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+body.console-mode #socialsPanel .socials-profile-name {
+  font-size: 1.9rem;
+}
+body.console-mode #socialsPanel .socials-profile-sub {
+  font-size: 1.2rem;
+}
+body.console-mode #socialsPanel .friend-list, 
+body.console-mode #socialsPanel .invite-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+body.console-mode #socialsPanel .friend-list li,
+body.console-mode #socialsPanel .invite-list li {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  font-size: 1.3rem;
+  padding: 20px 24px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+}
+body.console-mode #socialsPanel .friend-list .friend-avatar,
+body.console-mode #socialsPanel .invite-list .friend-avatar {
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+body.console-mode #socialsPanel .friend-list .friend-name,
+body.console-mode #socialsPanel .invite-list .friend-name {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #f5f5f7;
+}
+body.console-mode #socialsPanel .friend-list .friend-sub,
+body.console-mode #socialsPanel .invite-list .friend-sub {
+  font-size: 1.05rem;
+  color: rgba(255, 255, 255, 0.55);
+}
+/* Profil-Modal TV-optimiert (groß, klar, fokussierbar) */
+body.console-mode .modal-content.profile-modal h2 {
+  font-size: 2.4rem;
+}
+body.console-mode .modal-content.profile-modal h4 {
+  font-size: 1.4rem;
+}
+body.console-mode .modal-content.profile-modal .profile-code,
+body.console-mode .modal-content.profile-modal .profile-discord,
+body.console-mode .modal-content.profile-modal .account-chip {
+  font-size: 1.2rem;
+}
+body.console-mode .modal-content.profile-modal .skin-actions button,
+body.console-mode .modal-content.profile-modal .cape-list button {
+  font-size: 1.2rem;
+  font-weight: 700;
+  padding: 14px 26px;
+  border-radius: 999px;
+  border: none;
+  cursor: pointer;
+  color: #0b0d12;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
 }
 
 /* ── Konsolen-Fokus-Ring ── */

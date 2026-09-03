@@ -141,6 +141,36 @@ jobs:
         with:
           files: "release_artifacts/*"
 
+  flatpak:
+    # DAU-freundlicher Vertrieb für SteamDeck/SteamOS: Das Flatpak bündelt die
+    # GNOME-Runtime (inkl. WebKitGTK) und setzt die Whitescreen-Workarounds als
+    # Env-Variablen. Keine manuell installierten Abhängigkeiten nötig.
+    needs: [create-release]
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/flathub/flatpak-github-actions:gnome-46
+      options: --privileged
+    strategy:
+      matrix:
+        arch: [x86_64]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Build and export Flatpak
+        uses: flathub/actions/flatpak-builder@master
+        with:
+          bundle: dev.kollegen.Client.flatpak
+          manifest: com.kollegen.Client.yaml
+          cache-key: flatpak-builder-${{ github.sha }}
+
+      - name: Publish Flatpak to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: "dev.kollegen.Client.flatpak"
+
   windows:
     needs: [create-release]
     runs-on: windows-latest
