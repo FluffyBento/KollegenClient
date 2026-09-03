@@ -167,6 +167,8 @@ jobs:
           files: |
             release_artifacts/*
             dev.kollegen.Client.flatpak
+
+  windows:
     needs: [create-release]
     runs-on: windows-latest
     env:
