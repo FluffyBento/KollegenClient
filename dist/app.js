@@ -1129,6 +1129,16 @@ function initSteamDeckTab() {
   const s = currentSettings || {};
   steamdeckToggle.checked = !!s.steamdeck_mode;
 }
+function restoreDesktopHome() {
+  document.body.classList.remove("ps5-ready");
+  const dock = document.getElementById("ps5Dock");
+  if (dock) dock.remove();
+  const panel = $("homePanel");
+  if (panel) {
+    panel.innerHTML = '<h2>Home</h2><ul id="instanceList"></ul>';
+  }
+}
+
 async function applyConsoleMode() {
   const s = await loadSettingsOnce();
   const on = !!s.steamdeck_mode;
@@ -1136,7 +1146,12 @@ async function applyConsoleMode() {
   setupConsoleNavigation(on);
   // Controller-Modus im Begleit-Mod sofort (ohne Neustart) aktivieren.
   try { await invoke("set_console_mode", { on }); } catch (e) {}
-  if (on) { renderConsoleHome(); } else { refreshInstances(); }
+  if (on) {
+    renderConsoleHome();
+  } else {
+    restoreDesktopHome();
+    refreshInstances();
+  }
 }
 if (steamdeckToggle) {
   steamdeckToggle.onchange = async () => {
@@ -1310,8 +1325,7 @@ function computeConsoleFocusables() {
   const openModal = modals.find((m) => m.style.display && m.style.display !== "none");
   const root = openModal || document.body;
   const sel = "a.sidebar-link, button, select, input[type=checkbox], input[type=text], " +
-    "input:not([type]), textarea, [tabindex], .console-manage, .console-play, .console-hero-play, " +
-    "label.settings-check";
+    "input:not([type]), textarea, [tabindex], label.settings-check";
   root.querySelectorAll(sel).forEach((el) => {
     const r = el.getBoundingClientRect();
     if (r.width === 0 && r.height === 0) return;

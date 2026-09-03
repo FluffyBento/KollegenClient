@@ -1362,7 +1362,6 @@ body.console-mode header,
 body.console-mode .sidebar { display: none; }
 body.console-mode main {
   padding: 0;
-  overflow: hidden;
 }
 /* Die vier Panels werden zu Vollbild-Konsolen-Ansichten */
 body.console-mode .panel:not(.active) { display: none; }
@@ -1379,12 +1378,12 @@ body.console-mode .panel.active {
 body.console-mode .panel h2 { display: none; }
 
 /* ── PS5-Statuszeile oben ── */
-body.ps5-ready .ps5-top {
+body.console-mode body.ps5-ready .ps5-top {
   display: flex;
   justify-content: flex-end;
   padding: 26px 40px 0;
 }
-.ps5-top-clock {
+body.console-mode .ps5-top-clock {
   font-size: 1rem;
   letter-spacing: 0.35em;
   color: rgba(255, 255, 255, 0.55);
@@ -1392,11 +1391,11 @@ body.ps5-ready .ps5-top {
 }
 
 /* ── Hero (großes horizontales Feature) ── */
-.ps5-hero-wrap {
+body.console-mode .ps5-hero-wrap {
   margin-top: 34px;
   padding: 0 40px;
 }
-.ps5-hero {
+body.console-mode .ps5-hero {
   position: relative;
   overflow: hidden;
   min-height: 300px;
@@ -1411,33 +1410,33 @@ body.ps5-ready .ps5-top {
     linear-gradient(120deg, var(--accent), var(--accent2));
   box-shadow: 0 40px 90px rgba(0, 0, 0, 0.55);
 }
-.ps5-hero::after {
+body.console-mode .ps5-hero::after {
   content: "";
   position: absolute;
   inset: 0;
   background: radial-gradient(60% 100% at 100% 0%, rgba(0, 0, 0, 0.28), transparent 60%);
   pointer-events: none;
 }
-.ps5-hero-kicker {
+body.console-mode .ps5-hero-kicker {
   font-size: 1rem;
   letter-spacing: 0.3em;
   font-weight: 700;
   color: rgba(0, 0, 0, 0.6);
 }
-.ps5-hero-title {
+body.console-mode .ps5-hero-title {
   font-size: clamp(2.6rem, 5vw, 4.6rem);
   font-weight: 800;
   letter-spacing: -0.02em;
   color: #0b0d12;
   line-height: 1;
 }
-.ps5-hero-sub {
+body.console-mode .ps5-hero-sub {
   font-size: 1.25rem;
   font-weight: 600;
   color: rgba(0, 0, 0, 0.7);
 }
-.ps5-hero-actions { margin-top: 22px; }
-.ps5-hero-play {
+body.console-mode .ps5-hero-actions { margin-top: 22px; }
+body.console-mode .ps5-hero-play {
   font-size: 1.35rem;
   font-weight: 800;
   padding: 16px 40px;
@@ -1449,25 +1448,25 @@ body.ps5-ready .ps5-top {
   box-shadow: 0 18px 40px rgba(0, 0, 0, 0.4);
   transition: transform 0.14s ease, filter 0.14s ease;
 }
-.ps5-hero-play:hover { transform: translateY(-2px); filter: brightness(1.15); }
-.ps5-hero-empty { justify-content: center; }
+body.console-mode .ps5-hero-play:hover { transform: translateY(-2px); filter: brightness(1.15); }
+body.console-mode .ps5-hero-empty { justify-content: center; }
 
 /* ── Reihen (horizontale, scrollbare Kacheln) ── */
-.ps5-row-wrap { padding: 40px 40px 130px; display: flex; flex-direction: column; gap: 16px; }
-.ps5-row-head {
+body.console-mode .ps5-row-wrap { padding: 40px 40px 130px; display: flex; flex-direction: column; gap: 16px; }
+body.console-mode .ps5-row-head {
   font-size: 1.3rem;
   font-weight: 700;
   letter-spacing: 0.02em;
   color: rgba(255, 255, 255, 0.9);
 }
-.ps5-row {
+body.console-mode .ps5-row {
   display: flex;
   gap: 20px;
   overflow-x: auto;
   padding: 8px 4px 20px;
   scrollbar-width: thin;
 }
-.ps5-tile {
+body.console-mode .ps5-tile {
   flex: 0 0 auto;
   width: 210px;
   border-radius: 22px;
@@ -1479,8 +1478,8 @@ body.ps5-ready .ps5-top {
   border: 1px solid rgba(255, 255, 255, 0.08);
   transition: transform 0.14s ease, background 0.14s ease;
 }
-.ps5-tile:hover { transform: translateY(-4px); background: rgba(255, 255, 255, 0.09); }
-.ps5-tile-icon {
+body.console-mode .ps5-tile:hover { transform: translateY(-4px); background: rgba(255, 255, 255, 0.09); }
+body.console-mode .ps5-tile-icon {
   width: 64px;
   height: 64px;
   border-radius: 18px;
@@ -1493,7 +1492,7 @@ body.ps5-ready .ps5-top {
   background: linear-gradient(135deg, var(--accent), var(--accent2));
   box-shadow: 0 12px 26px rgba(0, 0, 0, 0.4);
 }
-.ps5-tile-title {
+body.console-mode .ps5-tile-title {
   font-size: 1.1rem;
   font-weight: 700;
   color: #f5f5f7;
@@ -1501,12 +1500,12 @@ body.ps5-ready .ps5-top {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.ps5-tile-meta {
+body.console-mode .ps5-tile-meta {
   font-size: 0.9rem;
   color: rgba(255, 255, 255, 0.5);
 }
-.ps5-tile-actions { display: flex; gap: 8px; margin-top: auto; }
-.ps5-tile-play {
+body.console-mode .ps5-tile-actions { display: flex; gap: 8px; margin-top: auto; }
+body.console-mode .ps5-tile-play {
   flex: 1;
   font-size: 0.95rem;
   font-weight: 700;
@@ -1517,7 +1516,7 @@ body.ps5-ready .ps5-top {
   color: #0b0d12;
   background: var(--accent);
 }
-.ps5-tile-manage {
+body.console-mode .ps5-tile-manage {
   width: 42px;
   font-size: 1.1rem;
   font-weight: 700;
@@ -1527,7 +1526,7 @@ body.ps5-ready .ps5-top {
   background: rgba(255, 255, 255, 0.06);
   color: #f5f5f7;
 }
-.ps5-empty {
+body.console-mode .ps5-empty {
   padding: 60px 0;
   color: rgba(255, 255, 255, 0.5);
   font-size: 1.3rem;
