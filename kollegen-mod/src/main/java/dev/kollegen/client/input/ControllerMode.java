@@ -17,7 +17,8 @@ import java.nio.file.Path;
  * wird ein virtueller Cursor eingeschaltet, der sich per Gamepad (linker Stick
  * oder D-Pad) bewegen und mit der A-Taste klicken lässt. Das funktioniert in
  * jedem Screen – auch in normalen Minecraft-Menüs vom Spiel – weil wir den
- * echten OS-Cursor bewegen und Klicks über {@link MouseHandler} einspeisen.
+ * echten OS-Cursor bewegen und Klicks über einen MouseHandler-Accessor
+ * einspeisen.
  * <p>
  * Bewusst im Stil des Mods gehalten (GLFW direkt, ohne fabric-api): wie
  * {@link KollegenKeybind} und das Renderer-State-File in RendererManager.
@@ -25,7 +26,6 @@ import java.nio.file.Path;
 public final class ControllerMode {
 
     private static boolean active = false;
-    private static boolean initialized = false;
 
     private static double cursorX = 0, cursorY = 0;
     private static boolean firstTick = true;
@@ -54,7 +54,6 @@ public final class ControllerMode {
             KollegenMod.LOGGER.error("Konnte Controller-Zustand nicht lesen", t);
             active = false;
         }
-        initialized = true;
     }
 
     public static boolean isActive() {
@@ -84,7 +83,7 @@ public final class ControllerMode {
                     && GLFW.glfwJoystickIsGamepad(jid)
                     && GLFW.glfwGetGamepadState(jid, GAMEPAD)) {
                 padOk = true;
-                applyGamepad(mc, window, jid);
+                applyGamepad(mc, window);
                 break;
             }
         }
@@ -93,7 +92,7 @@ public final class ControllerMode {
         if (!padOk) return;
     }
 
-    private static void applyGamepad(Minecraft mc, long window, int jid) {
+    private static void applyGamepad(Minecraft mc, long window) {
         float lx = GAMEPAD.axes(GLFW.GLFW_GAMEPAD_AXIS_LEFT_X);
         float ly = GAMEPAD.axes(GLFW.GLFW_GAMEPAD_AXIS_LEFT_Y);
         // Toter Bereich, damit Stick-Drift nicht den Cursor wandern lässt
@@ -121,14 +120,10 @@ public final class ControllerMode {
             cursorX = Math.max(0, Math.min(w - 1, cursorX));
             cursorY = Math.max(0, Math.min(h - 1, cursorY));
 
-            // OS-Cursor bewegen → Minecraft's onMove (Hover) feuert natürlich.
+            // OS-Cursor bewegen → Minecraft's onMove (Hover) feuert über das
+            // normale GLFW-Polling der nächsten Frames von selbst.
             try {
                 GLFW.glfwSetCursorPos(window, cursorX, cursorY);
-            } catch (Throwable ignored) {
-            }
-            // Internen Zustand zusätzlich synchron halten
-            try {
-                mc.mouseHandler.onMove(window, cursorX, cursorY);
             } catch (Throwable ignored) {
             }
         }
@@ -160,18 +155,19 @@ public final class ControllerMode {
             // damit der Klick an der richtigen Stelle ankommt.
             try {
                 GLFW.glfwSetCursorPos(window, cursorX, cursorY);
-                mc.mouseHandler.onMove(window, cursorX, cursorY);
             } catch (Throwable ignored) {
             }
             try {
-                mc.mouseHandler.onPress(window, clickButton, GLFW.GLFW_PRESS, 0);
+                ((dev.kollegen.client.mixin.MouseHandlerAccessor) mc.mouseHandler)
+                        .kollegen$click(window, clickButton, GLFW.GLFW_PRESS, 0);
             } catch (Throwable ignored) {
             }
             clickPressed = true;
             releaseAfter = now + 80;
         } else if (now >= releaseAfter) {
             try {
-                mc.mouseHandler.onPress(window, clickButton, GLFW.GLFW_RELEASE, 0);
+                ((dev.kollegen.client.mixin.MouseHandlerAccessor) mc.mouseHandler)
+                        .kollegen$click(window, clickButton, GLFW.GLFW_RELEASE, 0);
             } catch (Throwable ignored) {
             }
             clickQueued = false;
