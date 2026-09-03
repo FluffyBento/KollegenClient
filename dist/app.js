@@ -1160,7 +1160,24 @@ function renderConsoleHome() {
     list.append(empty);
     return;
   }
-  for (const inst of instances) {
+  const hero = instances[0];
+  const heroTile = document.createElement("li");
+  heroTile.className = "console-hero";
+  const ht = document.createElement("div");
+  ht.className = "console-hero-title";
+  ht.textContent = hero.name;
+  const hm = document.createElement("div");
+  hm.className = "console-hero-meta";
+  hm.textContent = `${hero.version} · ${hero.loader}`;
+  const hplay = document.createElement("button");
+  hplay.className = "console-hero-play";
+  hplay.textContent = "▶  Starten";
+  hplay.onclick = () => launchGame(hero.name);
+  heroTile.append(ht, hm, hplay);
+  list.append(heroTile);
+
+  for (let i = 1; i < instances.length; i++) {
+    const inst = instances[i];
     const tile = document.createElement("li");
     tile.className = "console-tile";
     const title = document.createElement("div");
