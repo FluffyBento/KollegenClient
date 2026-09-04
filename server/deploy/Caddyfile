@@ -1,0 +1,19 @@
+kollegen.me {
+  encode gzip
+
+  # Reverse-proxy all API endpoints to the local Node backend
+  reverse_proxy /health* 127.0.0.1:8080
+  reverse_proxy /auth* 127.0.0.1:8080
+  reverse_proxy /me* 127.0.0.1:8080
+  reverse_proxy /friends* 127.0.0.1:8080
+  reverse_proxy /profile* 127.0.0.1:8080
+  reverse_proxy /presence* 127.0.0.1:8080
+  reverse_proxy /profiles* 127.0.0.1:8080
+
+  # Fallback: proxy everything to the backend (static assets can be served
+  # separately if desired).
+  reverse_proxy 127.0.0.1:8080
+
+  # Email for ACME registration; change to the operator address.
+  tls admin@kollegen.me
+}

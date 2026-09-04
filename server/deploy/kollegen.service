@@ -1,0 +1,19 @@
+[Unit]
+Description=Kollegen Client Backend
+After=network.target
+
+[Service]
+# Bitte auf dem Server einen dedizierten Benutzer erstellen (empfohlen) und
+# hier angeben (z.B. User=kollegen). Der Default ist root falls nicht gesetzt.
+User=kollegen
+WorkingDirectory=/opt/kollegenclient
+ExecStart=/usr/bin/node /opt/kollegenclient/server/index.js
+Restart=on-failure
+RestartSec=5s
+Environment=PORT=8080
+Environment=KOLLEGEN_DATA_DIR=/var/lib/kollegenclient/data
+Environment=PRESENCE_TTL_MS=90000
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target
