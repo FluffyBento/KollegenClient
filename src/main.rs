@@ -25,6 +25,7 @@ use serde_json::Value;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
+use tauri::Emitter;
 use tauri::Manager;
 use tauri::State;
 
@@ -1605,7 +1606,7 @@ fn main() {
         .manage(state)
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
-        .setup(|app| {
+        .setup(move |app| {
             app_updates::spawn(app.handle().clone());
             let gpad_console_on = console_on.clone();
             spawn_gamepad_loop(app.handle().clone(), gpad_console_on);
