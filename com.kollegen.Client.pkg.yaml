@@ -31,7 +31,6 @@ modules:
       - install -Dm644 _fpkg/resources/kollegen-client-mod.jar /app/bin/resources/kollegen-client-mod.jar
       - install -Dm644 _fpkg/icon.png /app/share/icons/hicolor/512x512/apps/dev.kollegen.client.png
       - install -Dm644 _fpkg/dev.kollegen.client.desktop /app/share/applications/dev.kollegen.client.desktop
-      - install -Dm644 _fpkg/dev.kollegen.client.metainfo.xml /app/share/metainfo/dev.kollegen.client.metainfo.xml
     sources:
       - type: dir
         path: _fpkg
