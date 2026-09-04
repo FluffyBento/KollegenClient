@@ -35,14 +35,17 @@ fetch() { # $1=url $2=dest
 }
 
 LDAI="$TOOLS/linuxdeploy-$ARCH.AppImage"
-PLUGIN="$TOOLS/linuxdeploy-plugin-gtk-$ARCH.AppImage"
+PLUGIN="$TOOLS/linuxdeploy-plugin-gtk"
 IMGTOOL="$TOOLS/appimagetool-$ARCH.AppImage"
 
 fetch "https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-$ARCH.AppImage" "$LDAI"
-fetch "https://github.com/linuxdeploy/linuxdeploy-plugin-gtk/releases/download/continuous/linuxdeploy-plugin-gtk-$ARCH.AppImage" "$PLUGIN"
+# linuxdeploy-plugin-gtk ist heutzutage ein Bash-Script (kein AppImage-Build mehr).
+# linuxdeploy sucht es per PATH unter 'linuxdeploy-plugin-gtk'.
+curl -fsSL -o "$PLUGIN" "https://raw.githubusercontent.com/linuxdeploy/linuxdeploy-plugin-gtk/master/linuxdeploy-plugin-gtk.sh"
+chmod +x "$PLUGIN"
 fetch "https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-$ARCH.AppImage" "$IMGTOOL"
 
-# linuxdeploy sucht '--plugin gtk' per PATH nach linuxdeploy-plugin-gtk-<arch>.
+# linuxdeploy sucht '--plugin gtk' per PATH nach linuxdeploy-plugin-gtk.
 export PATH="$TOOLS:$PATH"
 
 # WebKit-Helper-Verzeichnis auf dem Build-Host (CI: Ubuntu mit libwebkit2gtk-4.1-dev).

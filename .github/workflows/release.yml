@@ -100,7 +100,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libssl-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev rpm libudev-dev imagemagick desktop-file-utils squashfs-tools zsync
+          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libssl-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev rpm libudev-dev imagemagick desktop-file-utils squashfs-tools zsync libglib2.0-dev-bin libgdk-pixbuf2.0-bin
 
       - name: Install yarn
         run: npm install -g yarn
