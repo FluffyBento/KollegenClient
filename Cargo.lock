@@ -2442,7 +2442,7 @@ dependencies = [
 
 [[package]]
 name = "kollegen-client"
-version = "1.10.13"
+version = "1.10.14"
 dependencies = [
  "anyhow",
  "async-trait",

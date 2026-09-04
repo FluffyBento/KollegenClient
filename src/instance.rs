@@ -673,6 +673,7 @@ fn ensure_fabric(data_dir: &Path, inst: &Instance, java_path: &str) -> Result<St
     }
 
     let mut fab_cmd = Command::new(java_path);
+    crate::java::sanitize_java_env(&mut fab_cmd);
     // Hide the briefly flashing console window on Windows.
     #[cfg(windows)]
     {
@@ -1311,6 +1312,7 @@ pub fn launch(
 
     // Build the command
     let mut cmd = std::process::Command::new(java_path);
+    crate::java::sanitize_java_env(&mut cmd);
     // On Windows a GUI parent spawns a visible console window for java.exe; hide
     // it (logs are still captured via the piped stdout/stderr below).
     #[cfg(windows)]

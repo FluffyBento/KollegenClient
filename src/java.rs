@@ -12,6 +12,15 @@ fn java_exe() -> &'static str {
     if cfg!(target_os = "windows") { "java.exe" } else { "java" }
 }
 
+/// Strips loader variables the launcher inherited from the AppImage/AppRun
+/// (LD_LIBRARY_PATH points at the bundled WebKit libs). A spawned `java` would
+/// otherwise load those bundled libs, crash on `-version` and be reported as
+/// "Java X nicht gefunden". The JRE ships its own libs, so clearing them is safe.
+pub fn sanitize_java_env(cmd: &mut Command) {
+    cmd.env_remove("LD_LIBRARY_PATH");
+    cmd.env_remove("LD_PRELOAD");
+}
+
 /// Finds a Java executable matching the required major version.
 /// Prefers an exact match (versioned bundled JRE, JAVA_HOME, generic bundled
 /// JRE, system PATH), then falls back to any available JRE whose major version
@@ -246,7 +255,9 @@ fn find_java_bin(dir: &Path) -> Option<PathBuf> {
 
 /// Returns the major version of a java executable (e.g. 21, 17, 8).
 fn java_major(java_path: &Path) -> Option<u32> {
-    let output = Command::new(java_path).arg("-version").output().ok()?;
+    let mut cmd = Command::new(java_path);
+    sanitize_java_env(&mut cmd);
+    let output = cmd.arg("-version").output().ok()?;
     let text = String::from_utf8_lossy(&output.stderr);
     let line = text.lines().next()?;
     let ver = line.split('"').nth(1)?;
