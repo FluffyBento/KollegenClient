@@ -1482,7 +1482,7 @@ fn spawn_gamepad_loop(app: tauri::AppHandle, console_on: Arc<AtomicBool>) {
         .name("kollegen-gamepad".into())
         .spawn(move || {
             use gilrs::{Button, EventType, Gilrs};
-            let gilrs = match Gilrs::new() {
+            let mut gilrs = match Gilrs::new() {
                 Ok(g) => g,
                 Err(e) => {
                     eprintln!("[gamepad] Gilrs-Init fehlgeschlagen: {e}");
