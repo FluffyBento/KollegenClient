@@ -1,0 +1,110 @@
+#!/usr/bin/env bash
+# ---------------------------------------------------------------------------
+# Kollegen Client – selbst-enthaltendes AppImage mit gebündeltem WebKitGTK.
+#
+# Hintergrund: SteamOS/SteamDeck bringt kein system-webkit2gtk-4.1 mit (und
+# kann es wegen des immutable RootFS nicht installieren). Nur ein AppImage,
+# das libwebkit2gtk-4.1 + die WebKit-Tochterprozesse mitführt, läuft dort
+# whitescreen-frei. Der Tauri-`appimage`-Bundler tut das nicht, daher bauen
+# wir das AppDir hier selbst (linuxdeploy + gtk-Plugin + WebKit-Helpers +
+# custom AppRun) und assemblen mit appimagetool.
+#
+# Aufruf:  scripts/build-appimage-webkit.sh <release-binary> <out.AppImage>
+# ---------------------------------------------------------------------------
+set -euo pipefail
+
+BIN="${1:?usage: build-appimage-webkit.sh <binary> <out>}"
+OUT="${2:?usage: build-appimage-webkit.sh <binary> <out>}"
+PRODUCT="kollegen-client"
+APPNAME="KollegenClient"
+APPDIR="$(pwd)/AppDir"
+
+ARCH="x86_64"
+TOOLS="$(pwd)/.appimage-tools"
+mkdir -p "$TOOLS"
+
+# AppImage-Laufzeit in CI ohne FUSE: alle Tool-AppImages extrahieren statt moun­ten.
+export APPIMAGE_EXTRACT_AND_RUN=1
+
+fetch() { # $1=url $2=dest
+  if [ ! -x "$2" ]; then
+    echo "  -> lade $(basename "$2")"
+    curl -fsSL -o "$2" "$1"
+    chmod +x "$2"
+  fi
+}
+
+LDAI="$TOOLS/linuxdeploy-$ARCH.AppImage"
+PLUGIN="$TOOLS/linuxdeploy-plugin-gtk-$ARCH.AppImage"
+IMGTOOL="$TOOLS/appimagetool-$ARCH.AppImage"
+
+fetch "https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-$ARCH.AppImage" "$LDAI"
+fetch "https://github.com/linuxdeploy/linuxdeploy-plugin-gtk/releases/download/continuous/linuxdeploy-plugin-gtk-$ARCH.AppImage" "$PLUGIN"
+fetch "https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-$ARCH.AppImage" "$IMGTOOL"
+
+# linuxdeploy sucht '--plugin gtk' per PATH nach linuxdeploy-plugin-gtk-<arch>.
+export PATH="$TOOLS:$PATH"
+
+# WebKit-Helper-Verzeichnis auf dem Build-Host (CI: Ubuntu mit libwebkit2gtk-4.1-dev).
+WEBKIT_DIR="/usr/lib/${MULTIARCH:-x86_64-linux-gnu}/webkit2gtk-4.1"
+if [ ! -d "$WEBKIT_DIR" ] || [ ! -x "$WEBKIT_DIR/WebKitWebProcess" ]; then
+  echo "FEHLER: WebKit-Helfer nicht gefunden unter $WEBKIT_DIR" >&2
+  exit 1
+fi
+
+rm -rf "$APPDIR"
+mkdir -p "$APPDIR/usr/bin" "$APPDIR/usr/lib"
+
+echo "==> linuxdeploy: Binary + libs + WebKit-Helpers in AppDir"
+"$LDAI" \
+  --appdir "$APPDIR" \
+  --executable "$BIN" \
+  --executable "$WEBKIT_DIR/WebKitWebProcess" \
+  --executable "$WEBKIT_DIR/WebKitNetworkProcess" \
+  --desktop-file dev.kollegen.client.desktop \
+  --icon-file icons/icon.png \
+  --plugin gtk
+
+echo "==> WebKit-Helper in WEBKIT_EXEC_PATH-Verzeichnis platzieren"
+mkdir -p "$APPDIR/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1"
+for p in WebKitWebProcess WebKitNetworkProcess; do
+  if [ -f "$APPDIR/usr/bin/$p" ]; then
+    mv -f "$APPDIR/usr/bin/$p" "$APPDIR/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1/$p"
+  fi
+done
+
+echo "==> Resources (gebündelte Mod-JAR u.ä.) neben das Binary"
+if [ -d resources ] && ls resources/* >/dev/null 2>&1; then
+  mkdir -p "$APPDIR/usr/bin/resources"
+  cp -r resources/* "$APPDIR/usr/bin/resources/"
+fi
+
+echo "==> Icons"
+mkdir -p "$APPDIR/usr/share/icons/hicolor/512x512/apps"
+cp icons/icon.png "$APPDIR/usr/share/icons/hicolor/512x512/apps/dev.kollegen.client.png" 2>/dev/null || true
+
+echo "==> AppRun"
+cat > "$APPDIR/AppRun" <<'EORUN'
+#!/usr/bin/env bash
+# AppRun: AppDir-Pfade für WebKit + GTK setzen, dann Binary starten.
+HERE="$(dirname "$(readlink -f "$0")")"
+export LD_LIBRARY_PATH="$HERE/usr/lib:$HERE/usr/lib/x86_64-linux-gnu:$HERE/usr/lib64:$HERE/lib:$HERE/lib/x86_64-linux-gnu${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+# WebKit-Tochterprozesse liegen im AppDir (nicht im Host, der fehlt auf SteamOS).
+export WEBKIT_EXEC_PATH="$HERE/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1"
+export WEBKIT_FRAMEWORK_DIR="$HERE/usr/lib/x86_64-linux-gnu"
+# Single-Web-Process: umgeht das AppImage-Mount-Lifetime-Problem der
+# WebKit-Tochterprozesse vollständig (Inhalt läuft im Mainprozess).
+export WEBKIT_USE_SINGLE_WEB_PROCESS="${WEBKIT_USE_SINGLE_WEB_PROCESS:-1}"
+# GTK-Laufzeit (pixbuf-Loader, GIO-Module) aus dem AppDir.
+export GDK_PIXBUF_MODULE_FILE="$HERE/usr/lib/x86_64-linux-gnu/gdk-pixbuf-2.0/2.10.0/loaders.cache"
+export GIO_EXTRA_MODULES="$HERE/usr/lib/x86_64-linux-gnu/gio/modules"
+export GST_PLUGIN_SYSTEM_PATH_1_0="$HERE/usr/lib/x86_64-linux-gnu/gstreamer-1.0"
+# Stabiler Pfad statt flüchtigem FUSE-Mount (hilft zuverlässige Subprozesse).
+export APPIMAGE_EXTRACT_AND_RUN="${APPIMAGE_EXTRACT_AND_RUN:-1}"
+exec "$HERE/usr/bin/kollegen-client" "$@"
+EORUN
+chmod +x "$APPDIR/AppRun"
+
+echo "==> appimagetool assemble"
+ARCH="$ARCH" "$IMGTOOL" "$APPDIR" "$OUT"
+ls -la "$OUT"
