@@ -1491,11 +1491,30 @@ fn spawn_gamepad_loop(app: tauri::AppHandle, console_on: Arc<AtomicBool>) {
                 }
             };
             eprintln!("[gamepad] Controller-Thread aktiv.");
+            use std::time::{Duration, Instant};
+            let mut last_move = Instant::now() - Duration::from_secs(1);
+            const MOVE_COOLDOWN: Duration = Duration::from_millis(280);
             loop {
                 if console_on.load(Ordering::Relaxed) {
                     while let Some(ev) = gilrs.next_event() {
                         match ev.event {
                             EventType::ButtonPressed(b, _) => {
+                                let is_dir = matches!(
+                                    b,
+                                    Button::DPadUp
+                                        | Button::DPadDown
+                                        | Button::DPadLeft
+                                        | Button::DPadRight
+                                );
+                                if is_dir {
+                                    // D-Pad: ein Druck = ein Schritt (mit Cooldown,
+                                    // damit schnelles/gehaltenes Drücken nicht mehrere
+                                    // Tabs auf einmal wechselt).
+                                    if last_move.elapsed() < MOVE_COOLDOWN {
+                                        continue;
+                                    }
+                                    last_move = Instant::now();
+                                }
                                 let action = match b {
                                     Button::South => "A",
                                     Button::East => "B",
@@ -1514,11 +1533,25 @@ fn spawn_gamepad_loop(app: tauri::AppHandle, console_on: Arc<AtomicBool>) {
                             EventType::ButtonReleased(Button::South, _) => {
                                 let _ = app.emit("console-input", "A-UP");
                             }
+                            EventType::AxisChanged(gilrs::Axis::LeftStickY, v, _) if v.abs() > 0.5 => {
+                                if last_move.elapsed() >= MOVE_COOLDOWN {
+                                    last_move = Instant::now();
+                                    let act = if v < 0.0 { "UP" } else { "DOWN" };
+                                    let _ = app.emit("console-input", act);
+                                }
+                            }
+                            EventType::AxisChanged(gilrs::Axis::LeftStickX, v, _) if v.abs() > 0.5 => {
+                                if last_move.elapsed() >= MOVE_COOLDOWN {
+                                    last_move = Instant::now();
+                                    let act = if v < 0.0 { "LEFT" } else { "RIGHT" };
+                                    let _ = app.emit("console-input", act);
+                                }
+                            }
                             _ => {}
                         }
                     }
                 }
-                std::thread::sleep(std::time::Duration::from_millis(16));
+                std::thread::sleep(Duration::from_millis(16));
             }
         })
         .ok();

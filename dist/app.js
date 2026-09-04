@@ -922,6 +922,14 @@ async function deleteInstance(name, id) {
 $("iVersion").onchange = updateLoaderVersions;
 $("iLoader").onchange = updateLoaderVersions;
 
+function showLoginQr(url) {
+  const wrap = $("loginQrWrap");
+  const img = $("loginQr");
+  if (!wrap || !img) return;
+  img.src = "https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=8&data=" + encodeURIComponent(url);
+  wrap.style.display = "flex";
+}
+
 $("authBtn").onclick = async () => {
   try {
     const res = await invoke("auth_start");
@@ -929,9 +937,10 @@ $("authBtn").onclick = async () => {
       const loginUrl = `${res.verification_uri}?otc=${res.user_code}`;
       $("loginUrl").value = loginUrl;
       $("loginInfo").style.display = "flex";
-      window.open(loginUrl, '_blank');
+      try { window.open(loginUrl, '_blank'); } catch (e) {}
       copyText(loginUrl);
-      alert(`Microsoft Login:\n\nBrowser wurde geöffnet.\nDer Link steht oben zum Kopieren bereit.`);
+      showLoginQr(loginUrl);
+      alert(`Microsoft Login:\n\nBrowser wurde geöffnet.\nDu kannst den QR-Code auch mit dem Handy scannen.`);
     }
     refreshAuth();
   } catch (e) {
@@ -1287,8 +1296,16 @@ let consoleNavActive = false;
 // JS-Gamepad-API praktisch nicht, deshalb liest der Rust-Thread den Controller
 // und sendet `console-input`-Events. Diese Funktion mappt sie auf die gleichen
 // Aktionen wie die Tastatur (siehe consoleNavKey / Gamepad-Polling weiter unten).
+let __consoleNavDirCooldown = 0;
 function consoleInputAction(action) {
   if (!consoleNavActive) return;
+  // Richtungs-Cooldown (280ms): verhindert, dass ein kurzer DPad-Druck oder ein
+  // Event-Burst gleich mehrere Schritte/Tabs auslöst.
+  if (action === "UP" || action === "DOWN" || action === "LEFT" || action === "RIGHT") {
+    const now = Date.now();
+    if (now < __consoleNavDirCooldown) return;
+    __consoleNavDirCooldown = now + 280;
+  }
   switch (action) {
     case "A": consoleDoStart(); break;
     case "X": consoleDoManage(); break;
@@ -1487,8 +1504,14 @@ function setupConsoleNavigation(on) {
   // Ersten Fokus setzen
   refreshConsoleFocusables();
   setConsoleFocus(0);
-  // Gamepad-Polling (D-Pad/Stick + A)
+  // Gamepad-Polling (D-Pad/Stick + A). Seit v1.10.6 ist das Backend (gilrs) die
+  // zuverlässige, alleinige Eingabequelle — WebKitGTK kann die Web-Gamepad-API
+  // auf Linux praktisch nicht, und ein aktives Web-Polling würde doppelt
+  // navigieren (→ mehrere Tabs bei kurzer Bewegung). Daher hier nur ein Pflicht-
+  // leerer Guard: die eigentliche Steuerung kommt als `console-input`-Events aus
+  // dem Rust-Gamepad-Thread (siehe consoleInputAction).
   window.__consoleNavLoop = setInterval(() => {
+    if (window.__TAURI__) return; // Backend übernimmt die Steuerung
     const gp = navigator.getGamepads && navigator.getGamepads();
     if (!gp) return;
     const pad = Array.from(gp).find((p) => p && p.connected);
@@ -1664,9 +1687,11 @@ $("msAddBtn").onclick = async () => {
     const res = await invoke("auth_start");
     if (res.user_code && res.verification_uri) {
       const loginUrl = `${res.verification_uri}?otc=${res.user_code}`;
-      window.open(loginUrl, "_blank");
+      try { window.open(loginUrl, "_blank"); } catch (e) {}
       copyText(loginUrl);
-      alert("Microsoft Login:\n\nBrowser wurde geöffnet. Der Link steht in der Zwischenablage.");
+      showLoginQr(loginUrl);
+      $("loginInfo").style.display = "flex";
+      alert("Microsoft Login:\n\nBrowser wurde geöffnet. Du kannst den QR-Code auch mit dem Handy scannen.");
     }
     refreshAuth();
     await refreshSettingsAccounts();

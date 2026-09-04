@@ -1679,9 +1679,18 @@ body.console-mode .ps5-dock-btn.active .ps5-dock-label { color: var(--accent); }
 body.console-mode #createPanel,
 body.console-mode #socialsPanel,
 body.console-mode #logsPanel {
-  padding: 120px 60px 110px;
+  padding: 40px 60px 130px;
   max-width: 1100px;
   margin: 0 auto;
+}
+/* Erstellen-Formular: eigenes Scrollfeld mit Dock-freiem Bodenradius, damit der
+   #createBtn immer über die fixe Dock-Leiste scrollbar bleibt (das Panel ist in
+   console-mode flex-column + min-height:100vh, sonst landet der Button in der
+   Dock-verdeckten Zone mit keinem Scrollraum). */
+body.console-mode #createPanel {
+  height: 100vh;
+  overflow-y: auto;
+  box-sizing: border-box;
 }
 body.console-mode #createPanel > *,
 body.console-mode #socialsPanel > *,
