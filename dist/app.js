@@ -170,6 +170,11 @@ async function refreshLogs() {
       if (status.state === "done") {
         $("loginInfo").style.display = "none";
         $("authBtn").style.display = "none";
+        const qrModal = $("loginQrModal");
+        if (qrModal && qrModal.style.display !== "none") {
+          qrModal.style.display = "none";
+          if (consoleNavActive && typeof refreshConsoleFocusables === "function") refreshConsoleFocusables();
+        }
       } else {
         $("authBtn").style.display = "";
       }
@@ -923,6 +928,21 @@ $("iVersion").onchange = updateLoaderVersions;
 $("iLoader").onchange = updateLoaderVersions;
 
 function showLoginQr(url) {
+  const modal = $("loginQrModal");
+  const modalImg = $("loginQrModalImg");
+  // Im Konsolenmodus ist der Header (wo sonst der QR sitzt) ausgeblendet:
+  // den QR als großes Popup anzeigen, damit man ihn vom Sofa scannen kann.
+  if (consoleNavActive && modal && modalImg) {
+    // Darunterliegendes Modal (z. B. Einstellungen) schließen, damit B/SELECT
+    // später das QR-Popup schließt und der Fokus dort landet.
+    if (typeof consoleCloseModal === "function") consoleCloseModal();
+    modalImg.src = "https://api.qrserver.com/v1/create-qr-code/?size=460x460&margin=8&data=" + encodeURIComponent(url);
+    const code = (url.match(/[?&]otc=([^&]+)/) || [])[1] || "";
+    const codeEl = $("loginQrCode");
+    if (codeEl) codeEl.textContent = code;
+    modal.style.display = "flex";
+    return;
+  }
   const wrap = $("loginQrWrap");
   const img = $("loginQr");
   if (!wrap || !img) return;
@@ -930,17 +950,28 @@ function showLoginQr(url) {
   wrap.style.display = "flex";
 }
 
+$("loginQrClose").onclick = () => {
+  const modal = $("loginQrModal");
+  if (modal) modal.style.display = "none";
+  if (consoleNavActive && typeof refreshConsoleFocusables === "function") refreshConsoleFocusables();
+};
+
 $("authBtn").onclick = async () => {
   try {
     const res = await invoke("auth_start");
     if (res.user_code && res.verification_uri) {
       const loginUrl = `${res.verification_uri}?otc=${res.user_code}`;
-      $("loginUrl").value = loginUrl;
-      $("loginInfo").style.display = "flex";
-      try { window.open(loginUrl, '_blank'); } catch (e) {}
-      copyText(loginUrl);
-      showLoginQr(loginUrl);
-      alert(`Microsoft Login:\n\nBrowser wurde geöffnet.\nDu kannst den QR-Code auch mit dem Handy scannen.`);
+      if (consoleNavActive) {
+        showLoginQr(loginUrl);
+        refreshConsoleFocusables();
+      } else {
+        $("loginUrl").value = loginUrl;
+        $("loginInfo").style.display = "flex";
+        try { window.open(loginUrl, '_blank'); } catch (e) {}
+        copyText(loginUrl);
+        showLoginQr(loginUrl);
+        alert(`Microsoft Login:\n\nBrowser wurde geöffnet.\nDu kannst den QR-Code auch mit dem Handy scannen.`);
+      }
     }
     refreshAuth();
   } catch (e) {
@@ -1683,11 +1714,16 @@ $("msAddBtn").onclick = async () => {
     const res = await invoke("auth_start");
     if (res.user_code && res.verification_uri) {
       const loginUrl = `${res.verification_uri}?otc=${res.user_code}`;
-      try { window.open(loginUrl, "_blank"); } catch (e) {}
-      copyText(loginUrl);
-      showLoginQr(loginUrl);
-      $("loginInfo").style.display = "flex";
-      alert("Microsoft Login:\n\nBrowser wurde geöffnet. Du kannst den QR-Code auch mit dem Handy scannen.");
+      if (consoleNavActive) {
+        showLoginQr(loginUrl);
+        refreshConsoleFocusables();
+      } else {
+        try { window.open(loginUrl, "_blank"); } catch (e) {}
+        copyText(loginUrl);
+        showLoginQr(loginUrl);
+        $("loginInfo").style.display = "flex";
+        alert("Microsoft Login:\n\nBrowser wurde geöffnet. Du kannst den QR-Code auch mit dem Handy scannen.");
+      }
     }
     refreshAuth();
     await refreshSettingsAccounts();

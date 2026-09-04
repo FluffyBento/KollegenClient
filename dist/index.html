@@ -325,6 +325,22 @@
 
   <div id="toast" class="toast"></div>
 
+  <!-- QR-Login als Popup (im Konsolenmodus, da dort der Header ausgeblendet ist) -->
+  <div id="loginQrModal" class="modal" style="display:none;">
+    <div class="modal-content login-qr-content">
+      <div class="modal-header">
+        <h2>Mit dem Handy anmelden</h2>
+        <button id="loginQrClose" class="icon-btn" title="Schließen">✕</button>
+      </div>
+      <img id="loginQrModalImg" class="qr-img" alt="QR-Code zum Scannen" />
+      <div class="login-qr-code">
+        <span>Code:</span>
+        <code id="loginQrCode"></code>
+      </div>
+      <p class="socials-hint" style="max-width:34rem;">Öffne <b>aka.ms/remoteconnect</b> auf dem Handy und gib dort den Code ein – oder scanne einfach den QR-Code. Die Anmeldung läuft automatisch weiter, sobald du sie auf dem Handy bestätigt hast.</p>
+    </div>
+  </div>
+
   <script src="app.js"></script>
   <script>
     (function () {

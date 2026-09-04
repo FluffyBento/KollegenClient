@@ -1160,6 +1160,40 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 }
 .modal-header h2 { margin: 0; color: var(--accent); }
 
+/* QR-Login-Popup (Konsolenmodus) */
+#loginQrModal .login-qr-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  text-align: center;
+  width: min(560px, 94vw);
+}
+#loginQrModal .qr-img {
+  width: min(72vw, 400px);
+  height: auto;
+  aspect-ratio: 1;
+  image-rendering: pixelated;
+  background: #fff;
+  padding: 12px;
+  border-radius: 12px;
+}
+#loginQrModal .login-qr-code {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 1.15rem;
+}
+#loginQrModal .login-qr-code code {
+  font-size: 1.6rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--accent);
+  background: rgba(255, 255, 255, 0.06);
+  padding: 0.35rem 0.85rem;
+  border-radius: 10px;
+}
+
 /* Settings-Layout */
 .settings-content { display: block; }
 .settings-tabs {
