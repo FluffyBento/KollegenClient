@@ -18,6 +18,7 @@ finish-args:
   - --socket=wayland
   - --socket=pulseaudio
   - --device=dri
+  - --device=all
   - --filesystem=home
   - --talk-name=org.freedesktop.portal.*
   - --talk-name=org.kde.StatusNotifierWatcher

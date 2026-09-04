@@ -23,6 +23,7 @@ use directories::ProjectDirs;
 use log::warn;
 use serde_json::Value;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use tauri::Manager;
 use tauri::State;
@@ -119,6 +120,9 @@ pub struct AppState {
     pub data_dir: PathBuf,
     pub logs: Arc<Mutex<Vec<String>>>,
     pub discord: discord::DiscordHandle,
+    /// SteamDeck-/Konsolenmodus an? Der Gamepad-Thread liest dieses Flag jedes
+    /// Paket und sendet nur bei aktivem Modus Tastenevents an die UI.
+    pub console_on: Arc<AtomicBool>,
 }
 
 // ─=== Tauri Commands ===
@@ -818,6 +822,7 @@ fn launch_game(
 /// zusätzlich selbst aus der Shared-State-Datei übernehmen.
 #[tauri::command]
 fn set_console_mode(state: State<'_, AppState>, on: bool) -> Result<(), String> {
+    state.console_on.store(on, Ordering::Relaxed);
     let data_dir = state.data_dir.clone();
     let instances = utils::load_json::<Vec<types::Instance>>(
         &utils::instances_file(&data_dir),
@@ -1467,6 +1472,56 @@ fn setup_webkit_appimage_env() {
     }
 }
 
+/// Ständig laufender Thread, der den physischen Controller (gilrs) ausliest,
+/// sobald der SteamDeck-/Konsolenmodus aktiv ist. WebKitGTK implementiert die
+/// JS-Gamepad-API auf Linux praktisch nicht, daher wird der Controller hier im
+/// Backend gelesen und als `console-input`-Tauri-Event an die UI geschickt.
+fn spawn_gamepad_loop(app: tauri::AppHandle, console_on: Arc<AtomicBool>) {
+    std::thread::Builder::new()
+        .name("kollegen-gamepad".into())
+        .spawn(move || {
+            use gilrs::{Button, EventType, Gilrs};
+            let gilrs = match Gilrs::new() {
+                Ok(g) => g,
+                Err(e) => {
+                    eprintln!("[gamepad] Gilrs-Init fehlgeschlagen: {e}");
+                    return;
+                }
+            };
+            eprintln!("[gamepad] Controller-Thread aktiv.");
+            loop {
+                if console_on.load(Ordering::Relaxed) {
+                    while let Some(ev) = gilrs.next_event() {
+                        match ev.event {
+                            EventType::ButtonPressed(b, _) => {
+                                let action = match b {
+                                    Button::South => "A",
+                                    Button::East => "B",
+                                    Button::West => "X",
+                                    Button::North => "Y",
+                                    Button::Start => "START",
+                                    Button::Select => "SELECT",
+                                    Button::DPadUp => "UP",
+                                    Button::DPadDown => "DOWN",
+                                    Button::DPadLeft => "LEFT",
+                                    Button::DPadRight => "RIGHT",
+                                    _ => continue,
+                                };
+                                let _ = app.emit("console-input", action);
+                            }
+                            EventType::ButtonReleased(Button::South, _) => {
+                                let _ = app.emit("console-input", "A-UP");
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+                std::thread::sleep(std::time::Duration::from_millis(16));
+            }
+        })
+        .ok();
+}
+
 fn main() {
     // Wayland compatibility: WebKit's DMABUF renderer crashes/white-screens
     // under several Wayland compositors (e.g. "Error 71 dispatching to Wayland
@@ -1534,12 +1589,14 @@ fn main() {
         players: None,
     });
 
+    let console_on = Arc::new(AtomicBool::new(false));
     let state = AppState {
         instances: Mutex::new(vec![]),
         accounts: Mutex::new(vec![]),
         data_dir: data_dir.clone(),
         logs: Arc::new(Mutex::new(vec![])),
         discord,
+        console_on: console_on.clone(),
     };
 
     utils::init_logging(&data_dir);
@@ -1550,6 +1607,8 @@ fn main() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
             app_updates::spawn(app.handle().clone());
+            let gpad_console_on = console_on.clone();
+            spawn_gamepad_loop(app.handle().clone(), gpad_console_on);
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

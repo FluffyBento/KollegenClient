@@ -1283,6 +1283,33 @@ let consoleFocusables = [];
 let consoleFocusIndex = -1;
 let consoleNavActive = false;
 
+// Backend-Gamepad (gilrs) → Konsolenaktion. WebKitGTK kann auf Linux die
+// JS-Gamepad-API praktisch nicht, deshalb liest der Rust-Thread den Controller
+// und sendet `console-input`-Events. Diese Funktion mappt sie auf die gleichen
+// Aktionen wie die Tastatur (siehe consoleNavKey / Gamepad-Polling weiter unten).
+function consoleInputAction(action) {
+  if (!consoleNavActive) return;
+  switch (action) {
+    case "A": consoleDoStart(); break;
+    case "X": consoleDoManage(); break;
+    case "Y": try { switchTab("create"); } catch (e) {} break;
+    case "B":
+    case "SELECT": consoleCloseModal(); break;
+    case "START": consoleOpenSettings(); break;
+    case "UP": moveConsoleFocus(0, -1); break;
+    case "DOWN": moveConsoleFocus(0, 1); break;
+    case "LEFT": moveConsoleFocus(-1, 0); break;
+    case "RIGHT": moveConsoleFocus(1, 0); break;
+  }
+}
+if (window.__TAURI__?.event?.listen && !window.__consoleNavTauriSub) {
+  window.__consoleNavTauriSub = true;
+  window.__TAURI__.event.listen("console-input", (e) => {
+    consoleInputAction(String(e?.payload || ""));
+  });
+}
+
+
 function computeConsoleFocusables() {
   const list = [];
   // Sichtbares Modal zuerst (sonst Sidebar/Panel)
