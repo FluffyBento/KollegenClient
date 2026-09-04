@@ -1168,7 +1168,7 @@ $("settingsBtn").onclick = async () => {
   // Immer auf den Verbindungen-Tab zurücksetzen, damit der Startzustand
   // reproduzierbar ist und alle Panels korrekt (neu) gerendert werden.
   showSettingsTab("connections");
-  if (consoleNavActive) refreshConsoleFocusables();
+  if (consoleNavActive) setConsoleFocusFirstNonIcon();
 };
 
 const companionModToggle = $("companionModToggle");
@@ -1395,6 +1395,9 @@ function computeConsoleFocusables() {
     const cs = getComputedStyle(el);
     if (cs.visibility === "hidden" || cs.display === "none") return;
     if (el.disabled) return;
+    // Checkboxen in "Settings-Check"-Zeilen überspringen: das umgebende Label
+    // ist der Fokuspunkt (sonst doppelte Einträge → nervige Navigation).
+    if (el.type === "checkbox" && el.closest && el.closest("label.settings-check")) return;
     if (!openModal && !isVisibleAtAll(el)) return;
     list.push(el);
   });
@@ -1416,6 +1419,15 @@ function refreshConsoleFocusables() {
   consoleFocusables.forEach((el, i) => el.classList.toggle("cfocus", i === consoleFocusIndex));
 }
 
+// Fokus nach Tab-/Modal-Wechsel auf das erste "echte" Bedienelement setzen
+// (überspringt Kopf-Schließ-Buttons .icon-btn, damit nicht der ✕ am Anfang landet).
+function setConsoleFocusFirstNonIcon() {
+  refreshConsoleFocusables();
+  let i = consoleFocusables.findIndex((el) => !el.classList.contains("icon-btn"));
+  if (i < 0) i = 0;
+  setConsoleFocus(i);
+}
+
 function setConsoleFocus(index) {
   if (!consoleFocusables.length) return;
   if (index < 0) index = consoleFocusables.length - 1;
@@ -1432,6 +1444,9 @@ function setConsoleFocus(index) {
 
 function moveConsoleFocus(dx, dy) {
   if (!consoleFocusables.length) return;
+  // Im Konsolenmodus ändert ←/→ direkt die Auswahl eines Dropdowns; ↑/↓ bleibt
+  // Fokus-Navigation.
+  if (dx !== 0 && changeConsoleSelect(dx)) return;
   const cur = consoleFocusables[Math.max(0, consoleFocusIndex)];
   const c = cur ? cur.getBoundingClientRect() : { left: 0, top: 0, width: 0, height: 0 };
   const ccx = c.left + c.width / 2;
@@ -1461,17 +1476,22 @@ function moveConsoleFocus(dx, dy) {
 function activateConsoleFocus() {
   const el = consoleFocusables[consoleFocusIndex];
   if (!el) return;
-  if (el.tagName === "A" || el.tagName === "BUTTON" || el.tagName === "SELECT") {
-    el.click();
-  } else if (el.type === "checkbox") {
+  if (el.type === "checkbox") {
     el.checked = !el.checked;
     el.dispatchEvent(new Event("change"));
+  } else if (el.tagName === "SELECT") {
+    openConsolePicker(el);
+  } else if (el.tagName === "A" || el.tagName === "BUTTON" || el.tagName === "LABEL") {
+    // LABEL: die Settings-Checkboxen sind <label class=settings-check> mit
+    // verstecktem <input> – ein Klick auf das Label schaltet sie um.
+    el.click();
   } else if (el.tagName === "INPUT" || el.tagName === "TEXTAREA") {
     el.focus();
   }
 }
 
 function consoleCloseModal() {
+  if (closeConsolePicker()) return true;
   const modals = Array.from(document.querySelectorAll(".modal"));
   const open = modals.find((m) => m.style.display && m.style.display !== "none");
   if (!open) return false;
@@ -1498,12 +1518,89 @@ function consoleFocusedInstance() {
   return instancesCache.find((i) => i.name === name) || null;
 }
 
+let consolePickerTarget = null;
+
+// Durchblättern eines fokussierten <select> per ←/→: Das native WebKitGTK-Dropdown
+// ist im Konsolenmodus nicht mit dem D-Pad bedienbar, deshalb ändern wir die
+// Auswahl direkt und feuern `change` (kaskadiert z. B. Loader-Versionen).
+function changeConsoleSelect(step) {
+  const el = consoleFocusedEl();
+  if (!el || el.tagName !== "SELECT") return false;
+  const opts = Array.from(el.options).filter((o) => !o.disabled);
+  if (!opts.length) return true;
+  const sel = el.selectedOptions[0];
+  let idx = opts.indexOf(sel);
+  if (idx < 0) idx = 0;
+  idx = (idx + step + opts.length) % opts.length;
+  try { el.value = opts[idx].value; el.selectedIndex = opts[idx].index; } catch (e) { return true; }
+  el.dispatchEvent(new Event("change", { bubbles: true }));
+  return true;
+}
+
+// Auswahl-Popup für Dropdowns: A öffnet eine echte Liste; D-Pad scrollt, A wählt.
+function openConsolePicker(select) {
+  const modal = $("pickModal");
+  const list = $("pickList");
+  if (!modal || !list) { try { select.click(); } catch (e) {} return; }
+  const opts = Array.from(select.options).filter((o) => !o.disabled);
+  if (!opts.length) return;
+  consolePickerTarget = select;
+  $("pickTitle").textContent = select.getAttribute("aria-label") || select.title || "Auswahl";
+  list.innerHTML = "";
+  let startIdx = 0;
+  opts.forEach((o, i) => {
+    if (o.selected) startIdx = i;
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "picker-option" + (o.selected ? " picked" : "");
+    b.textContent = o.textContent.trim();
+    b.onclick = () => pickConsoleOption(select, o);
+    list.append(b);
+  });
+  modal.style.display = "flex";
+  if (consoleNavActive) {
+    refreshConsoleFocusables();
+    // Der ✕-Header-Button steht in der Fokusliste vor den Optionen – daher den
+    // Listen-Versatz ermitteln, statt stumpf Index = Option zu setzen.
+    const optsStart = consoleFocusables.findIndex((el) => el.classList.contains("picker-option"));
+    const i = optsStart >= 0 ? optsStart + startIdx : startIdx;
+    setConsoleFocus(Math.min(consoleFocusables.length - 1, i));
+  }
+}
+
+function pickConsoleOption(select, option) {
+  try { select.value = option.value; select.selectedIndex = option.index; } catch (e) {}
+  select.dispatchEvent(new Event("change", { bubbles: true }));
+  closeConsolePicker();
+}
+
+function closeConsolePicker() {
+  const modal = $("pickModal");
+  if (!modal || modal.style.display === "none") return false;
+  modal.style.display = "none";
+  if (consoleNavActive) {
+    refreshConsoleFocusables();
+    const i = consoleFocusables.indexOf(consolePickerTarget);
+    if (i >= 0) setConsoleFocus(i);
+  }
+  consolePickerTarget = null;
+  return true;
+}
+
 function consoleDoStart() {
-  if (consoleCloseModal()) return;
+  // Zuerst das fokussierte, auslösbare Element aktivieren – v. a. wenn ein Modal
+  // offen ist: "A" muss Buttons/Checkboxen darin auslösen, nicht das Modal schließen.
+  const el = consoleFocusedEl();
+  if (el) {
+    const tag = el.tagName;
+    if (el.type === "checkbox") { el.checked = !el.checked; el.dispatchEvent(new Event("change")); return; }
+    if (tag === "SELECT") { openConsolePicker(el); return; }
+    if (tag === "BUTTON" || tag === "A" || tag === "LABEL") { el.click(); return; }
+  }
   const inst = consoleFocusedInstance();
   if (inst) { launchGame(inst.name); return; }
-  const el = consoleFocusedEl();
-  if (el && el.tagName === "BUTTON") { el.click(); }
+  // Nichts Sinnvolles fokussiert → offenes Modal schließen ("A" als Abbrechen).
+  if (consoleCloseModal()) return;
 }
 
 function consoleDoManage() {
@@ -1512,6 +1609,7 @@ function consoleDoManage() {
 }
 
 function consoleOpenSettings() {
+  closeConsolePicker();
   const s = $("settingsBtn");
   if (s) s.click();
   if (consoleNavActive) refreshConsoleFocusables();
@@ -1620,13 +1718,18 @@ function setupConsoleNavigation(on) {
   }
 }
 
+$("pickClose").onclick = () => closeConsolePicker();
+
 $("settingsClose").onclick = () => {
   settingsModalEl.style.display = "none";
   if (consoleNavActive) refreshConsoleFocusables();
 };
 
 document.querySelectorAll(".settings-tab").forEach((tab) => {
-  tab.onclick = () => showSettingsTab(tab.dataset.tab);
+  tab.onclick = () => {
+    showSettingsTab(tab.dataset.tab);
+    if (consoleNavActive) setConsoleFocusFirstNonIcon();
+  };
 });
 
 // ─ Updates (manual check + install) ─
@@ -1994,7 +2097,7 @@ applySavedTheme()
     if (name === "home" && document.body.classList.contains("console-mode")) {
       renderConsoleHome();
     }
-    if (consoleNavActive) refreshConsoleFocusables();
+    if (consoleNavActive) setConsoleFocusFirstNonIcon();
   }
   document.querySelectorAll(".sidebar-link[data-tab]").forEach((l) => {
     l.addEventListener("click", (e) => {

@@ -77,10 +77,10 @@
       <input id="iName" placeholder="Instanz Name" />
 
       <label>Minecraft Version</label>
-      <select id="iVersion"></select>
+      <select id="iVersion" aria-label="Minecraft Version"></select>
 
       <label>Mod Loader</label>
-      <select id="iLoader">
+      <select id="iLoader" aria-label="Mod Loader">
         <option value="vanilla">Vanilla</option>
         <option value="fabric">Fabric</option>
         <option value="forge">Forge</option>
@@ -88,7 +88,7 @@
       </select>
 
       <label>Loader-Version</label>
-      <select id="iLoaderVer">
+      <select id="iLoaderVer" aria-label="Loader-Version">
         <option value="">(Standard / Neueste)</option>
       </select>
 
@@ -338,6 +338,17 @@
         <code id="loginQrCode"></code>
       </div>
       <p class="socials-hint" style="max-width:34rem;">Öffne <b>aka.ms/remoteconnect</b> auf dem Handy und gib dort den Code ein – oder scanne einfach den QR-Code. Die Anmeldung läuft automatisch weiter, sobald du sie auf dem Handy bestätigt hast.</p>
+    </div>
+  </div>
+
+  <!-- Auswahl-Popup für Dropdowns (Konsolenmodus: D-Pad scrollt, A wählt) -->
+  <div id="pickModal" class="modal" style="display:none;">
+    <div class="modal-content picker-content">
+      <div class="modal-header">
+        <h2 id="pickTitle">Auswahl</h2>
+        <button id="pickClose" class="icon-btn" title="Schließen">✕</button>
+      </div>
+      <div id="pickList"></div>
     </div>
   </div>
 

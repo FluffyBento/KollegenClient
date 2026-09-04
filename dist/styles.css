@@ -1194,6 +1194,26 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
   border-radius: 10px;
 }
 
+/* Auswahl-Popup für Dropdowns (Konsolenmodus) */
+#pickModal .modal-content.picker-content { width: min(640px, 94vw); }
+#pickList { max-height: 70vh; overflow-y: auto; }
+.picker-option {
+  display: block;
+  width: 100%;
+  text-align: left;
+  font-size: 1.25rem;
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  padding: 16px 22px;
+  margin: 8px 0;
+  cursor: pointer;
+}
+.picker-option:hover { background: rgba(255, 255, 255, 0.1); }
+.picker-option.picked { border-color: var(--accent); background: rgba(255, 255, 255, 0.12); }
+body.console-mode #pickModal .picker-option { font-size: 1.4rem; padding: 20px 26px; }
+
 /* Settings-Layout */
 .settings-content { display: block; }
 .settings-tabs {
