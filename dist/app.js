@@ -927,7 +927,34 @@ async function deleteInstance(name, id) {
 $("iVersion").onchange = updateLoaderVersions;
 $("iLoader").onchange = updateLoaderVersions;
 
-function showLoginQr(url) {
+function qrDataUrl(text) {
+  try {
+    if (typeof qrcodegen === "undefined" || !qrcodegen.QrCode) return "";
+    const qr = qrcodegen.QrCode.encodeText(text, qrcodegen.QrCode.Ecc.MEDIUM);
+    const border = 4;
+    const scale = 8;
+    const n = qr.size + 2 * border;
+    const canvas = document.createElement("canvas");
+    canvas.width = n * scale;
+    canvas.height = n * scale;
+    const ctx = canvas.getContext("2d");
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = "#000000";
+    for (let y = 0; y < qr.size; y++) {
+      for (let x = 0; x < qr.size; x++) {
+        if (qr.getModule(x, y)) ctx.fillRect((x + border) * scale, (y + border) * scale, scale, scale);
+      }
+    }
+    return canvas.toDataURL("image/png");
+  } catch (e) {
+    return "";
+  }
+}
+
+async function showLoginQr(url) {
+  const local = qrDataUrl(url);
+  const src = local || "https://api.qrserver.com/v1/create-qr-code/?size=460x460&margin=8&data=" + encodeURIComponent(url);
   const modal = $("loginQrModal");
   const modalImg = $("loginQrModalImg");
   // Im Konsolenmodus ist der Header (wo sonst der QR sitzt) ausgeblendet:
@@ -936,7 +963,7 @@ function showLoginQr(url) {
     // Darunterliegendes Modal (z. B. Einstellungen) schließen, damit B/SELECT
     // später das QR-Popup schließt und der Fokus dort landet.
     if (typeof consoleCloseModal === "function") consoleCloseModal();
-    modalImg.src = "https://api.qrserver.com/v1/create-qr-code/?size=460x460&margin=8&data=" + encodeURIComponent(url);
+    modalImg.src = src;
     const code = (url.match(/[?&]otc=([^&]+)/) || [])[1] || "";
     const codeEl = $("loginQrCode");
     if (codeEl) codeEl.textContent = code;
@@ -946,7 +973,7 @@ function showLoginQr(url) {
   const wrap = $("loginQrWrap");
   const img = $("loginQr");
   if (!wrap || !img) return;
-  img.src = "https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=8&data=" + encodeURIComponent(url);
+  img.src = src;
   wrap.style.display = "flex";
 }
 
@@ -969,7 +996,7 @@ $("authBtn").onclick = async () => {
         $("loginInfo").style.display = "flex";
         try { window.open(loginUrl, '_blank'); } catch (e) {}
         copyText(loginUrl);
-        showLoginQr(loginUrl);
+        await showLoginQr(loginUrl);
         alert(`Microsoft Login:\n\nBrowser wurde geöffnet.\nDu kannst den QR-Code auch mit dem Handy scannen.`);
       }
     }
@@ -1715,12 +1742,12 @@ $("msAddBtn").onclick = async () => {
     if (res.user_code && res.verification_uri) {
       const loginUrl = `${res.verification_uri}?otc=${res.user_code}`;
       if (consoleNavActive) {
-        showLoginQr(loginUrl);
+        await showLoginQr(loginUrl);
         refreshConsoleFocusables();
       } else {
         try { window.open(loginUrl, "_blank"); } catch (e) {}
         copyText(loginUrl);
-        showLoginQr(loginUrl);
+        await showLoginQr(loginUrl);
         $("loginInfo").style.display = "flex";
         alert("Microsoft Login:\n\nBrowser wurde geöffnet. Du kannst den QR-Code auch mit dem Handy scannen.");
       }
