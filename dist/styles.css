@@ -1615,9 +1615,9 @@ body.console-mode .ps5-dock {
   bottom: 26px;
   transform: translateX(-50%);
   display: flex;
-  gap: 16px;
-  padding: 12px 18px;
-  border-radius: 32px;
+  gap: 8px;
+  padding: 9px 12px;
+  border-radius: 26px;
   background: rgba(22, 24, 34, 0.96);
   border: 1px solid rgba(255, 255, 255, 0.1);
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
@@ -1630,11 +1630,11 @@ body.console-mode .ps5-hint {
   transform: translateX(-50%);
   z-index: 61;
   color: rgba(255, 255, 255, 0.55);
-  font-size: 13px;
+  font-size: 12px;
   letter-spacing: 0.03em;
   background: rgba(22, 24, 34, 0.92);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  padding: 7px 16px;
+  padding: 6px 14px;
   border-radius: 999px;
   white-space: nowrap;
 }
@@ -1642,24 +1642,24 @@ body.console-mode .ps5-dock-btn {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
-  width: 76px;
-  padding: 10px 6px;
+  gap: 4px;
+  width: 52px;
+  padding: 6px 4px;
   background: transparent;
   border: none;
   cursor: pointer;
   color: rgba(255, 255, 255, 0.75);
-  border-radius: 18px;
+  border-radius: 14px;
 }
 body.console-mode .ps5-dock-btn:hover { color: #fff; }
 body.console-mode .ps5-dock-ico {
-  width: 58px;
-  height: 58px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.9rem;
+  font-size: 1.35rem;
   background: linear-gradient(135deg, var(--accent), var(--accent2));
   color: #0b0d12;
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.45);
@@ -1669,7 +1669,7 @@ body.console-mode .ps5-dock-btn[data-tab="settings"] .ps5-dock-ico {
   background: radial-gradient(circle at 30% 30%, #ffffff55, transparent 60%), linear-gradient(135deg, #3a3f52, #22252f);
 }
 body.console-mode .ps5-dock-label {
-  font-size: 0.85rem;
+  font-size: 0.72rem;
   font-weight: 600;
   letter-spacing: 0.02em;
 }
@@ -1679,7 +1679,7 @@ body.console-mode .ps5-dock-btn.active .ps5-dock-label { color: var(--accent); }
 body.console-mode #createPanel,
 body.console-mode #socialsPanel,
 body.console-mode #logsPanel {
-  padding: 120px 60px 160px;
+  padding: 120px 60px 110px;
   max-width: 1100px;
   margin: 0 auto;
 }

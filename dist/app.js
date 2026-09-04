@@ -1207,7 +1207,7 @@ function ensureConsoleDock() {
   const hint = document.createElement("div");
   hint.id = "ps5Hint";
   hint.className = "ps5-hint";
-  hint.textContent = "A Auswählen · B Starten · Y Verwalten · Start Einstellungen · Select Zurück";
+  hint.textContent = "A Starten · X Verwalten · Y Erstellen · B Zurück · Start Einstellungen · Select Zurück";
   document.body.appendChild(hint);
   setTimeout(() => document.body.classList.add("ps5-ready"), 30);
 }
@@ -1554,6 +1554,7 @@ document.querySelectorAll(".settings-tab").forEach((tab) => {
 
 // ─ Updates (manual check + install) ─
 let pendingCanInstall = false;
+let pendingInstallFormat = "deb-rpm";
 const UPDATE_RELEASE_URL = "https://github.com/FluffyBento/KollegenClient/releases/latest";
 $("updateCheckBtn").onclick = async () => {
   const status = $("updateStatus");
@@ -1564,9 +1565,13 @@ $("updateCheckBtn").onclick = async () => {
     const update = await invoke("check_app_update");
     if (update) {
       pendingCanInstall = !!update.can_install;
+      pendingInstallFormat = update.format || "deb-rpm";
       if (pendingCanInstall) {
         status.textContent = "Update verfügbar: Version " + update.version + (update.notes ? "\n" + update.notes : "");
         installBtn.textContent = "Update installieren";
+      } else if (pendingInstallFormat === "flatpak") {
+        status.textContent = "Update verfügbar: Version " + update.version + "\n\nDiese Installation ist ein Flatpak. Zum Aktualisieren bitte die neue Version herunterladen und installieren:\n\n   flatpak install --user ./dev.kollegen.Client.flatpak\n\n(falls ein Fehler 'bereits installiert' erscheint: zuerst 'flatpak uninstall dev.kollegen.client'.)" + (update.notes ? "\n\n" + update.notes : "");
+        installBtn.textContent = "Flatpak-Download öffnen";
       } else {
         status.textContent = "Update verfügbar: Version " + update.version + " – kann aus diesem Installationsformat (.deb/.rpm) nicht direkt installiert werden. Bitte manuell von GitHub laden." + (update.notes ? "\n" + update.notes : "");
         installBtn.textContent = "Download auf GitHub öffnen";

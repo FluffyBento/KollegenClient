@@ -51,6 +51,53 @@ pub fn can_self_install() -> bool {
     }
 }
 
+/// Human-readable install format for the current running build. Used by the
+/// Settings UI to pick the right update flow and the right hint text.
+pub fn install_format() -> &'static str {
+    #[cfg(target_os = "windows")]
+    {
+        "nsis"
+    }
+    #[cfg(target_os = "macos")]
+    {
+        "dmg"
+    }
+    #[cfg(target_os = "linux")]
+    {
+        if is_flatpak() {
+            "flatpak"
+        } else if std::env::var("APPIMAGE").is_ok() {
+            "appimage"
+        } else {
+            "deb-rpm"
+        }
+    }
+    #[cfg(not(any(target_os = "windows", target_os = "linux", target_os = "macos")))]
+    {
+        "unknown"
+    }
+}
+
+/// True when the app was installed as a Flatpak. Flatpak always runs the app
+/// from inside the immutable `/app` prefix, so this is a reliable check. The
+/// Flatpak has no in-place updater (it's a local bundle, not a Flathub remote),
+/// so updates funnel the user to the released `.flatpak` bundle.
+pub fn is_flatpak() -> bool {
+    #[cfg(target_os = "linux")]
+    {
+        if std::env::var("FLATPAK_ID").is_ok() {
+            return true;
+        }
+        std::env::current_exe()
+            .map(|p| p.starts_with("/app/"))
+            .unwrap_or(false)
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        false
+    }
+}
+
 /// Spawns the background update-checker loop. Safe to call once during setup.
 pub fn spawn(app: tauri::AppHandle) {
     tauri::async_runtime::spawn(async move {
@@ -207,12 +254,20 @@ async fn check_and_prompt(app: &tauri::AppHandle) -> tauri_plugin_updater::Resul
         app.restart();
         Ok(())
     } else {
-        // Notification-only: .deb/.rpm can't self-update, point the user to GitHub.
+        // Notification-only: local/package installs that can't self-update.
+        // Point the user to the right download for their install format.
         let (tx, rx) = std::sync::mpsc::channel::<bool>();
-        app.dialog()
-            .message(format!(
+        let body = if is_flatpak() {
+            format!(
+                "Update verfügbar\n\nEine neue Version {version} des Kollegen Clients ist verfügbar.\n\n{notes}\n\nDa diese Installation ein Flatpak ist, kann sie nicht direkt aktualisiert werden. Die neue Version herunterladen (Flatpak-Bundle) und danach installieren:\n\n  flatpak install --user ./dev.kollegen.Client.flatpak"
+            )
+        } else {
+            format!(
                 "Update verfügbar\n\nEine neue Version {version} des Kollegen Clients ist verfügbar.\n\n{notes}\n\nDa diese Installation über einen Paketmanager (.deb/.rpm) erfolgte, kann sie nicht direkt aktualisiert werden. Die neue Version auf GitHub öffnen?"
-            ))
+            )
+        };
+        app.dialog()
+            .message(body)
             .buttons(tauri_plugin_dialog::MessageDialogButtons::OkCancelCustom(
                 "Download öffnen".to_string(),
                 "Später".to_string(),

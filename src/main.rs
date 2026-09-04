@@ -1325,6 +1325,7 @@ async fn check_app_update(app: tauri::AppHandle) -> Result<Option<Value>, String
             "version": version,
             "notes": notes,
             "can_install": crate::app_updates::can_self_install(),
+            "format": crate::app_updates::install_format(),
         }))),
         Ok(None) => Ok(None),
         Err(e) => Err(e),
