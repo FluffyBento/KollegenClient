@@ -1,6 +1,10 @@
 target/
 node_modules/
 *.log
+
+# AppImage-Tooling (bei CI-Build frisch heruntergeladen)
+.appimage-tools/
+AppDir/
 instances.json
 accounts.json
 settings.json

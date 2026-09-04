@@ -9,6 +9,13 @@
 # wir das AppDir hier selbst (linuxdeploy + gtk-Plugin + WebKit-Helpers +
 # custom AppRun) und assemblen mit appimagetool.
 #
+# WICHTIG (v1.10.9): WebKitGTK ignoriert WEBKIT_EXEC_PATH vollständig – die
+# Helfer-/Bundle-Pfade sind in libwebkit2gtk-4.1.so.0 hart kompiliert
+# (/usr/lib/.../webkit2gtk-4.1). Fehlt das Systemverzeichnis, crasht die App
+# überall ("Unable to spawn a new child process"). Fix: den kompilierten
+# Pfad per ELF-Patch auf /tmp/klgn-webkit/ umschreiben; AppRun legt dort pro
+# Start Symlinks zu den gebündelten Helfern/Bundles an.
+#
 # Aufruf:  scripts/build-appimage-webkit.sh <release-binary> <out.AppImage>
 # ---------------------------------------------------------------------------
 set -euo pipefail
@@ -81,6 +88,53 @@ for p in WebKitWebProcess WebKitNetworkProcess; do
   fi
 done
 
+echo "==> Zusätzliche WebKit-Bestandteile bündeln (linuxdeploy räumt sie nicht mit)"
+# libwebkit2gtkinjectedbundle.so wird per dlopen geladen (keine ELF-Dependency)
+# und WebKitResources enthält WebKits JS-/Daten-Dateien – beides fehlt
+# sonst im AppDir und verursacht zur Laufzeit Fehler/Warnungen.
+if [ -f "$WEBKIT_DIR/libwebkit2gtkinjectedbundle.so" ]; then
+  cp -a "$WEBKIT_DIR/libwebkit2gtkinjectedbundle.so" "$APPDIR/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1/"
+else
+  echo "WARNUNG: libwebkit2gtkinjectedbundle.so nicht unter $WEBKIT_DIR gefunden" >&2
+fi
+if [ -d "$WEBKIT_DIR/WebKitResources" ]; then
+  cp -a "$WEBKIT_DIR/WebKitResources" "$APPDIR/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1/"
+else
+  echo "WARNUNG: WebKitResources unter $WEBKIT_DIR nicht gefunden" >&2
+fi
+
+echo "==> ELF-Patch: kompilierten WebKit-Helferpfad auf /tmp/klgn-webkit/ umschreiben"
+python3 - "$APPDIR" <<'PY'
+import os, sys
+root = sys.argv[1]
+old = b"/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1"
+new = b"/tmp/klgn-webkit/"
+assert len(new) <= len(old), "Ersatzpfad länger als Original!"
+targets = [
+    "usr/lib/libwebkit2gtk-4.1.so.0",
+    "usr/lib/libjavascriptcoregtk-4.1.so.0",
+    "usr/lib/x86_64-linux-gnu/webkit2gtk-4.1/WebKitWebProcess",
+    "usr/lib/x86_64-linux-gnu/webkit2gtk-4.1/WebKitNetworkProcess",
+]
+seen = 0
+for rel in targets:
+    p = os.path.join(root, rel)
+    if not os.path.exists(p):
+        continue
+    data = open(p, "rb").read()
+    n = data.count(old)
+    if n == 0:
+        continue
+    data = data.replace(old, new + b"\x00" * (len(old) - len(new)))
+    open(p, "wb").write(data)
+    print(f"  patched {rel}: {n} Vorkommen")
+    seen += n
+if seen == 0:
+    print("FEHLER: WebKit-Pfad nicht in den Binaries gefunden –", old.decode(),
+          "– WebKit-Update geändert? Build abbrechen.", file=sys.stderr)
+    sys.exit(1)
+PY
+
 echo "==> Resources (gebündelte Mod-JAR u.ä.) neben das Binary"
 if [ -d resources ] && ls resources/* >/dev/null 2>&1; then
   mkdir -p "$APPDIR/usr/bin/resources"
@@ -105,6 +159,22 @@ export GIO_EXTRA_MODULES="$HERE/usr/lib/x86_64-linux-gnu/gio/modules"
 export GST_PLUGIN_SYSTEM_PATH_1_0="$HERE/usr/lib/x86_64-linux-gnu/gstreamer-1.0"
 # Stabiler Pfad statt flüchtigem FUSE-Mount (hilft zuverlässige Subprozesse).
 export APPIMAGE_EXTRACT_AND_RUN="${APPIMAGE_EXTRACT_AND_RUN:-1}"
+# WebKitGTK ignoriert WEBKIT_EXEC_PATH: die Helfer-/Bundle-Pfade sind in der
+# Lib hart kompiliert und wurden beim Build per ELF-Patch auf /tmp/klgn-webkit/
+# umgeschrieben. Symlinks dort pro Start anlegen (laufende Instanz nicht stören):
+WEBKIT_TMP=/tmp/klgn-webkit
+mkdir -p "$WEBKIT_TMP"
+ensure_wk_link() {
+  if [ -L "$WEBKIT_TMP/$1" ] && [ -e "$WEBKIT_TMP/$1" ]; then return; fi
+  ln -sfn "$HERE/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1/$1" "$WEBKIT_TMP/$1"
+}
+for w in WebKitWebProcess WebKitNetworkProcess libwebkit2gtkinjectedbundle.so; do
+  ensure_wk_link "$w"
+done
+if [ -d "$HERE/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1/WebKitResources" ] && \
+   { [ ! -e "$WEBKIT_TMP/WebKitResources" ] || [ ! -d "$WEBKIT_TMP/WebKitResources" ]; }; then
+  ln -sfn "$HERE/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1/WebKitResources" "$WEBKIT_TMP/WebKitResources"
+fi
 exec "$HERE/usr/bin/kollegen-client" "$@"
 EORUN
 chmod +x "$APPDIR/AppRun"
