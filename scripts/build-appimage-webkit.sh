@@ -58,6 +58,11 @@ fi
 rm -rf "$APPDIR"
 mkdir -p "$APPDIR/usr/bin" "$APPDIR/usr/lib"
 
+# Icon VOR linuxdeploy mit dem Namen platzieren, der zu Icon=dev.kollegen.client
+# in der .desktop-Datei passt (linuxdeploy schlägt sonst beim Icon-Lookup fehl).
+mkdir -p "$APPDIR/usr/share/icons/hicolor/512x512/apps"
+cp icons/icon.png "$APPDIR/usr/share/icons/hicolor/512x512/apps/dev.kollegen.client.png"
+
 echo "==> linuxdeploy: Binary + libs + WebKit-Helpers in AppDir"
 "$LDAI" \
   --appdir "$APPDIR" \
@@ -81,10 +86,6 @@ if [ -d resources ] && ls resources/* >/dev/null 2>&1; then
   mkdir -p "$APPDIR/usr/bin/resources"
   cp -r resources/* "$APPDIR/usr/bin/resources/"
 fi
-
-echo "==> Icons"
-mkdir -p "$APPDIR/usr/share/icons/hicolor/512x512/apps"
-cp icons/icon.png "$APPDIR/usr/share/icons/hicolor/512x512/apps/dev.kollegen.client.png" 2>/dev/null || true
 
 echo "==> AppRun"
 cat > "$APPDIR/AppRun" <<'EORUN'
