@@ -1482,7 +1482,7 @@ fn spawn_gamepad_loop(app: tauri::AppHandle, console_on: Arc<AtomicBool>) {
     std::thread::Builder::new()
         .name("kollegen-gamepad".into())
         .spawn(move || {
-            use gilrs::{Button, EventType, Gilrs};
+            use gilrs::{Axis, Button, EventType, Gilrs};
             let mut gilrs = match Gilrs::new() {
                 Ok(g) => g,
                 Err(e) => {
@@ -1492,29 +1492,44 @@ fn spawn_gamepad_loop(app: tauri::AppHandle, console_on: Arc<AtomicBool>) {
             };
             eprintln!("[gamepad] Controller-Thread aktiv.");
             use std::time::{Duration, Instant};
-            let mut last_move = Instant::now() - Duration::from_secs(1);
-            const MOVE_COOLDOWN: Duration = Duration::from_millis(280);
+            // v1.10.9: kein 280ms-Cooldown mehr (der war mit dem Analogstick
+            // geteilt – Stick-Schwankungen um die Schwelle haben so schnelle
+            // D-Pad-Drucke verschluckt, man musste oft doppelt drücken).
+            // Frischer D-Pad-Druck = sofort genau ein Schritt; gehaltene
+            // Richtungen wiederholen sich im REPEAT_DELAY-Rhythmus.
+            const REPEAT_DELAY: Duration = Duration::from_millis(270);
+            let mut last_emit = Instant::now() - Duration::from_secs(1);
+            let mut held_dir: Option<&'static str> = None;
+            // Analogstick mit Hysterese: scharf ab 0.6, entschärft unter 0.3.
+            // Zittern um die Schwelle löst so nicht wiederholt aus und der
+            // geteilte Cooldown entfällt komplett.
+            let (mut stick_x, mut stick_y) = (0.0f32, 0.0f32);
+            let (mut arm_up, mut arm_down, mut arm_left, mut arm_right) = (false, false, false, false);
+            let mut send = |action: &'static str, force: bool| {
+                if force || last_emit.elapsed() >= REPEAT_DELAY {
+                    last_emit = Instant::now();
+                    let _ = app.emit("console-input", action);
+                }
+            };
+            let mut console_was_on = false;
             loop {
-                if console_on.load(Ordering::Relaxed) {
+                let console_on_now = console_on.load(Ordering::Relaxed);
+                if console_on_now {
+                    // Zustände beim (Re-)Aktivieren zurücksetzen, damit beim
+                    // erneuten Betreten kein Geister-Schritt gesendet wird.
+                    if !console_was_on {
+                        held_dir = None;
+                        stick_x = 0.0;
+                        stick_y = 0.0;
+                        arm_up = false;
+                        arm_down = false;
+                        arm_left = false;
+                        arm_right = false;
+                    }
+                    console_was_on = true;
                     while let Some(ev) = gilrs.next_event() {
                         match ev.event {
                             EventType::ButtonPressed(b, _) => {
-                                let is_dir = matches!(
-                                    b,
-                                    Button::DPadUp
-                                        | Button::DPadDown
-                                        | Button::DPadLeft
-                                        | Button::DPadRight
-                                );
-                                if is_dir {
-                                    // D-Pad: ein Druck = ein Schritt (mit Cooldown,
-                                    // damit schnelles/gehaltenes Drücken nicht mehrere
-                                    // Tabs auf einmal wechselt).
-                                    if last_move.elapsed() < MOVE_COOLDOWN {
-                                        continue;
-                                    }
-                                    last_move = Instant::now();
-                                }
                                 let action = match b {
                                     Button::South => "A",
                                     Button::East => "B",
@@ -1522,34 +1537,61 @@ fn spawn_gamepad_loop(app: tauri::AppHandle, console_on: Arc<AtomicBool>) {
                                     Button::North => "Y",
                                     Button::Start => "START",
                                     Button::Select => "SELECT",
-                                    Button::DPadUp => "UP",
-                                    Button::DPadDown => "DOWN",
-                                    Button::DPadLeft => "LEFT",
-                                    Button::DPadRight => "RIGHT",
+                                    Button::DPadUp => { held_dir = Some("UP"); "UP" }
+                                    Button::DPadDown => { held_dir = Some("DOWN"); "DOWN" }
+                                    Button::DPadLeft => { held_dir = Some("LEFT"); "LEFT" }
+                                    Button::DPadRight => { held_dir = Some("RIGHT"); "RIGHT" }
                                     _ => continue,
                                 };
-                                let _ = app.emit("console-input", action);
+                                // D-Pad: sofort auslösen, ein Druck = ein Schritt.
+                                send(action, true);
                             }
-                            EventType::ButtonReleased(Button::South, _) => {
-                                let _ = app.emit("console-input", "A-UP");
-                            }
-                            EventType::AxisChanged(gilrs::Axis::LeftStickY, v, _) if v.abs() > 0.5 => {
-                                if last_move.elapsed() >= MOVE_COOLDOWN {
-                                    last_move = Instant::now();
-                                    let act = if v < 0.0 { "UP" } else { "DOWN" };
-                                    let _ = app.emit("console-input", act);
+                            EventType::ButtonReleased(b, _) => {
+                                if matches!(
+                                    b,
+                                    Button::DPadUp | Button::DPadDown | Button::DPadLeft | Button::DPadRight
+                                ) {
+                                    held_dir = None;
+                                } else if b == Button::South {
+                                    let _ = app.emit("console-input", "A-UP");
                                 }
                             }
-                            EventType::AxisChanged(gilrs::Axis::LeftStickX, v, _) if v.abs() > 0.5 => {
-                                if last_move.elapsed() >= MOVE_COOLDOWN {
-                                    last_move = Instant::now();
-                                    let act = if v < 0.0 { "LEFT" } else { "RIGHT" };
-                                    let _ = app.emit("console-input", act);
-                                }
-                            }
+                            EventType::AxisChanged(axis, v, _) => match axis {
+                                Axis::LeftStickY => stick_y = v,
+                                Axis::LeftStickX => stick_x = v,
+                                _ => {}
+                            },
                             _ => {}
                         }
                     }
+                    // Analogstick-Auslösung einmal pro erneutem Überschreiten.
+                    if stick_y <= -0.60 && !arm_up { arm_up = true; send("UP", true); }
+                    if stick_y >= -0.30 && arm_up { arm_up = false; }
+                    if stick_y >= 0.60 && !arm_down { arm_down = true; send("DOWN", true); }
+                    if stick_y <= 0.30 && arm_down { arm_down = false; }
+                    if stick_x <= -0.60 && !arm_left { arm_left = true; send("LEFT", true); }
+                    if stick_x >= -0.30 && arm_left { arm_left = false; }
+                    if stick_x >= 0.60 && !arm_right { arm_right = true; send("RIGHT", true); }
+                    if stick_x <= 0.30 && arm_right { arm_right = false; }
+                    // Auto-Wiederholung solange eine Richtung gehalten wird.
+                    let held = held_dir.or_else(|| {
+                        Some(if arm_up {
+                            "UP"
+                        } else if arm_down {
+                            "DOWN"
+                        } else if arm_left {
+                            "LEFT"
+                        } else if arm_right {
+                            "RIGHT"
+                        } else {
+                            return None;
+                        })
+                    });
+                    if let Some(d) = held {
+                        send(d, false);
+                    }
+                } else {
+                    console_was_on = false;
                 }
                 std::thread::sleep(Duration::from_millis(16));
             }

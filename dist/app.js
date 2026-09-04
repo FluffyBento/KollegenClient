@@ -1296,16 +1296,12 @@ let consoleNavActive = false;
 // JS-Gamepad-API praktisch nicht, deshalb liest der Rust-Thread den Controller
 // und sendet `console-input`-Events. Diese Funktion mappt sie auf die gleichen
 // Aktionen wie die Tastatur (siehe consoleNavKey / Gamepad-Polling weiter unten).
-let __consoleNavDirCooldown = 0;
 function consoleInputAction(action) {
   if (!consoleNavActive) return;
-  // Richtungs-Cooldown (280ms): verhindert, dass ein kurzer DPad-Druck oder ein
-  // Event-Burst gleich mehrere Schritte/Tabs auslöst.
-  if (action === "UP" || action === "DOWN" || action === "LEFT" || action === "RIGHT") {
-    const now = Date.now();
-    if (now < __consoleNavDirCooldown) return;
-    __consoleNavDirCooldown = now + 280;
-  }
+  // v1.10.9: kein 280ms-Richtungs-Cooldown mehr – das Backend (gilrs) liefert
+  // pro Drücker genau ein Event und regelt die Wiederholung beim Halten selbst.
+  // Der alte Cooldown hier hat schnell aufeinanderfolgende D-Pad-Drucke
+  // verschluckt (man musste bei jedem zweiten Schritt doppelt drücken).
   switch (action) {
     case "A": consoleDoStart(); break;
     case "X": consoleDoManage(); break;
