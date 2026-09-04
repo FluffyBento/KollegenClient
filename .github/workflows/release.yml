@@ -153,6 +153,9 @@ jobs:
           mkdir -p _fpkg/resources
           install -m755 target/release/kollegen-client _fpkg/kollegen-client
           install -m644 resources/kollegen-client-mod.jar _fpkg/resources/kollegen-client-mod.jar
+          install -m644 icons/icon.png _fpkg/icon.png
+          install -m644 dev.kollegen.client.desktop _fpkg/dev.kollegen.client.desktop
+          install -m644 dev.kollegen.client.metainfo.xml _fpkg/dev.kollegen.client.metainfo.xml
 
       - name: Build Flatpak bundle
         run: |

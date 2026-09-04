@@ -29,9 +29,9 @@ modules:
     build-commands:
       - install -Dm755 _fpkg/kollegen-client /app/bin/kollegen-client
       - install -Dm644 _fpkg/resources/kollegen-client-mod.jar /app/bin/resources/kollegen-client-mod.jar
-      - install -Dm644 icons/icon.png /app/share/icons/hicolor/512x512/apps/dev.kollegen.client.png
-      - install -Dm644 dev.kollegen.client.desktop /app/share/applications/dev.kollegen.client.desktop
-      - install -Dm644 dev.kollegen.client.metainfo.xml /app/share/metainfo/dev.kollegen.client.metainfo.xml
+      - install -Dm644 _fpkg/icon.png /app/share/icons/hicolor/512x512/apps/dev.kollegen.client.png
+      - install -Dm644 _fpkg/dev.kollegen.client.desktop /app/share/applications/dev.kollegen.client.desktop
+      - install -Dm644 _fpkg/dev.kollegen.client.metainfo.xml /app/share/metainfo/dev.kollegen.client.metainfo.xml
     sources:
       - type: dir
         path: _fpkg
