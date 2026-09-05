@@ -128,7 +128,9 @@ fn refresh_discord_token(refresh: &str, data_dir: &PathBuf) -> Option<String> {
 
 /// Standard-Backend-URL des Kollegen-Servers. Nutzer müssen nichts konfigurieren –
 /// Presence/Freunde funktionieren out-of-the-box. Env/Setting überschreiben das.
-const DEFAULT_PRESENCE_BACKEND: &str = "http://5.175.192.69:8080";
+// Default presence backend: use the public standard domain. This can be overridden
+// by the environment variable KOLLEGEN_PRESENCE_BACKEND or the user's settings.
+const DEFAULT_PRESENCE_BACKEND: &str = "https://kollegen.me";
 
 /// Liefert die konfigurierte Backend-URL (Env > Setting > Default).
 fn backend_url(data_dir: &PathBuf) -> Option<String> {
