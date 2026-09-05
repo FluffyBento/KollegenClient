@@ -89,6 +89,14 @@ const CATALOG = [
   { id: 'banner_ember', category: 'banner', name: 'Glut', desc: 'Feuer und Gold.', price: 800, rarity: 'rare', data: { gradient: 'linear-gradient(135deg,#f12711,#f5af19)' } },
   { id: 'banner_ocean', category: 'banner', name: 'Ozean', desc: 'Blau wie die offene See.', price: 1500, rarity: 'epic', data: { gradient: 'linear-gradient(135deg,#2193b0,#6dd5ed)' } },
   { id: 'banner_onyx', category: 'banner', name: 'Onyx Gold', desc: 'Elegant, dunkel, teuer.', price: 2400, rarity: 'legendary', featured: true, data: { gradient: 'linear-gradient(135deg,#232526,#414345,#b8860b)' } },
+  // Profil-Stil (Akzentfarbe + Typografie deiner Profilseite)
+  { id: 'stil_klassisch', category: 'profil_stil', name: 'Klassisch Gold', desc: 'Warme Gold-Akzente, seri\u00f6s.', price: 350, rarity: 'common', data: { accent: '#D4AF37', font: 'Outfit' } },
+  { id: 'stil_cyan', category: 'profil_stil', name: 'Eisblau', desc: 'Klare Cyan-Akzente mit Tech-Feeling.', price: 500, rarity: 'rare', data: { accent: '#4deeea', font: 'Inter' } },
+  { id: 'stil_aura', category: 'profil_stil', name: 'Aura', desc: 'Sanftes Lila f\u00fcr mystische Profile.', price: 600, rarity: 'rare', data: { accent: '#c77dff', font: 'Outfit' } },
+  { id: 'stil_wald', category: 'profil_stil', name: 'Wald', desc: 'Erdige Gr\u00fcnt\u00f6ne f\u00fcr Naturen.', price: 700, rarity: 'epic', data: { accent: '#7ee787', font: 'Outfit' } },
+  { id: 'stil_gluth', category: 'profil_stil', name: 'Glut', desc: 'Feuriges Rot \u2013 hei\u00df und selbstbewusst.', price: 800, rarity: 'epic', data: { accent: '#f85149', font: 'Inter' } },
+  { id: 'stil_ozean', category: 'profil_stil', name: 'Ozean', desc: 'K\u00f6nigsblau mit Tiefe.', price: 1000, rarity: 'epic', data: { accent: '#3b82f6', font: 'Outfit' } },
+  { id: 'stil_onyx', category: 'profil_stil', name: 'Onyx Schwarzgold', desc: 'Dunkel mit edlem Gold-Glanz.', price: 2200, rarity: 'legendary', featured: true, data: { accent: '#e6c96b', font: 'Outfit' } },
 ];
 
 function catById(id) {
@@ -132,7 +140,7 @@ function socialView(u) {
 }
 
 // ── Persistenz ────────────────────────────────────────────────────────────
-let store = { users: {}, sessions: {}, codes: {}, presence: {}, seq: 1, catalog: CATALOG };
+let store = { users: {}, sessions: {}, codes: {}, presence: {}, dms: {}, seq: 1, catalog: CATALOG };
 let saveTimer = null;
 
 function loadStore() {
@@ -684,6 +692,122 @@ if (pathname === '/internal/friend-remove' && method === 'POST') {
   return sendJson(res, 200, { ok: true });
 }
 
+// GET /internal/profile-view?code=... | ?id=... → Profil anderer Nutzer ansehen.
+// Liefert Kosmetik/Equip/Online ohne private Daten. Friend/Bio nur für Freunde,
+// den Eigentümer selbst oder öffentliche Profile (viewer_id = aktuelle discordId).
+if (pathname === '/internal/profile-view' && method === 'GET') {
+  if (!internalAuthorized(req)) return sendJson(res, 403, { error: 'forbidden' });
+  const code = (url.searchParams.get('code') || '').toUpperCase();
+  const id = url.searchParams.get('id');
+  const viewerId = url.searchParams.get('viewer_id');
+  let u = null;
+  if (code) u = store.users[store.codes[code]];
+  else if (id) u = resolveUser(id);
+  if (!u) return sendJson(res, 404, { error: 'not_found' });
+  ensureUserExtras(u);
+  const eq = u.equipped || {};
+  const equippedData = {};
+  for (const cat of Object.keys(eq)) {
+    const it = eq[cat] ? catById(eq[cat]) : null;
+    equippedData[cat] = it ? { id: it.id, category: it.category, data: it.data || null } : null;
+  }
+  const owned = (u.cosmetics || [])
+    .map((c) => {
+      const idStr = c && c.id ? String(c.id) : String(c);
+      const it = catById(idStr);
+      return { id: idStr, category: it ? it.category : 'title' };
+    });
+  const p = u.profile && typeof u.profile === 'object' ? u.profile : {};
+  const isViewer = viewerId && String(viewerId) === String(u.discordId);
+  const isFriend = viewerId && Array.isArray(u.friends) && u.friends.includes(String(viewerId));
+  const showFull = isViewer || isFriend || !!p.public;
+  const pr = store.presence[u.discordId];
+  const online = !!(pr && Date.now() - (pr.timestamp || 0) <= PRESENCE_TTL_MS);
+  return sendJson(res, 200, {
+    id: u.id,
+    discordId: u.discordId,
+    name: u.name || u.discordName,
+    uuid: u.uuid || null,
+    code: u.code,
+    online,
+    server: online && pr ? pr.server : null,
+    level: levelOf(u),
+    equipped: equippedData,
+    owned,
+    bio: showFull ? p.bio || null : null,
+    avatar_data_url: showFull ? p.avatar_data_url || null : null,
+    banner_data_url: showFull ? p.banner_data_url || null : null,
+    avatar_choice: p.avatar_choice || 'discord',
+    isFriend,
+    isViewer,
+  });
+}
+
+// ── Direct Messages (privater Chat) ──
+function dmKey(a, b) {
+  return [String(a), String(b)].sort().join(':');
+}
+
+// POST /internal/dm/send {from_id, to_id, text} → Nachricht senden (nur Freunde)
+if (pathname === '/internal/dm/send' && method === 'POST') {
+  if (!internalAuthorized(req)) return sendJson(res, 403, { error: 'forbidden' });
+  const body = await readBody(req);
+  const fromId = String(body.from_id || '');
+  const toId = String(body.to_id || '');
+  const from = fromId ? store.users[fromId] : null;
+  const to = toId ? store.users[toId] : null;
+  if (!from || !to) return sendJson(res, 404, { error: 'user_not_found' });
+  if (from.discordId === to.discordId) return sendJson(res, 400, { error: 'cannot_dm_self' });
+  if (!Array.isArray(from.friends) || !from.friends.includes(to.discordId)) return sendJson(res, 403, { error: 'not_friends' });
+  const text = String(body.text || '').trim().slice(0, 2000);
+  if (!text) return sendJson(res, 400, { error: 'text_required' });
+  store.dms = store.dms || {};
+  const key = dmKey(from.discordId, to.discordId);
+  store.dms[key] = store.dms[key] || [];
+  const msg = { from: from.discordId, to: to.discordId, text, ts: Date.now() };
+  store.dms[key].push(msg);
+  if (store.dms[key].length > 500) store.dms[key] = store.dms[key].slice(-500);
+  saveStore();
+  return sendJson(res, 200, { ok: true, message: msg });
+}
+
+// GET /internal/dm/conversations?discordId=... → Liste der Chats (neueste zuerst)
+if (pathname === '/internal/dm/conversations' && method === 'GET') {
+  if (!internalAuthorized(req)) return sendJson(res, 403, { error: 'forbidden' });
+  const me = url.searchParams.get('discordId');
+  const myUser = me ? store.users[me] : null;
+  if (!myUser) return sendJson(res, 404, { error: 'user_not_found' });
+  const out = [];
+  for (const key of Object.keys(store.dms || {})) {
+    const parts = key.split(':');
+    if (!parts.includes(myUser.discordId)) continue;
+    const otherDid = parts[0] === myUser.discordId ? parts[1] : parts[0];
+    const other = store.users[otherDid];
+    if (!other) continue;
+    const msgs = store.dms[key];
+    const last = msgs[msgs.length - 1];
+    out.push({
+      user: Object.assign(publicFriend(other), { discordId: other.discordId }),
+      last: last || null,
+    });
+  }
+  out.sort((a, b) => ((b.last && b.last.ts) || 0) - ((a.last && a.last.ts) || 0));
+  return sendJson(res, 200, out);
+}
+
+// GET /internal/dm/messages?me=...&other=... → letzte Nachrichten (max 100)
+if (pathname === '/internal/dm/messages' && method === 'GET') {
+  if (!internalAuthorized(req)) return sendJson(res, 403, { error: 'forbidden' });
+  const me = url.searchParams.get('me');
+  const other = url.searchParams.get('other');
+  const myUser = me ? store.users[me] : null;
+  const otherUser = other ? store.users[other] : null;
+  if (!myUser || !otherUser) return sendJson(res, 404, { error: 'user_not_found' });
+  const key = dmKey(myUser.discordId, otherUser.discordId);
+  const msgs = (store.dms[key] || []).slice(-100);
+  return sendJson(res, 200, msgs);
+}
+
 // GET /internal/users?search= → Admin: Nutzerliste mit Punkten/Kosmetik/Level
 if (pathname === '/internal/users' && method === 'GET') {
   if (!internalAuthorized(req)) return sendJson(res, 403, { error: 'forbidden' });
@@ -793,6 +917,102 @@ if (pathname === '/internal/reset' && method === 'POST') {
       }
       saveStore();
       return sendJson(res, 200, { ok: true });
+    }
+
+    // ── Profil ansehen (Launcher/Website, Bearer optional) ──
+    if (pathname === '/profile-view' && method === 'GET') {
+      const viewer = bearerUser(req);
+      const code = (url.searchParams.get('code') || '').toUpperCase();
+      const target = code ? store.users[store.codes[code]] : null;
+      if (!target) return sendJson(res, 404, { error: 'not_found' });
+      ensureUserExtras(target);
+      const eq = target.equipped || {};
+      const equippedData = {};
+      for (const cat of Object.keys(eq)) {
+        const it = eq[cat] ? catById(eq[cat]) : null;
+        equippedData[cat] = it ? { id: it.id, category: it.category, data: it.data || null } : null;
+      }
+      const p = target.profile && typeof target.profile === 'object' ? target.profile : {};
+      const isViewer = viewer && String(viewer.discordId) === String(target.discordId);
+      const isFriend = viewer && Array.isArray(target.friends) && target.friends.includes(String(viewer.discordId));
+      const showFull = isViewer || isFriend || !!p.public;
+      const pr = store.presence[target.discordId];
+      const online = !!(pr && Date.now() - (pr.timestamp || 0) <= PRESENCE_TTL_MS);
+      return sendJson(res, 200, {
+        id: target.id,
+        discordId: target.discordId,
+        name: target.name || target.discordName,
+        uuid: target.uuid || null,
+        code: target.code,
+        online,
+        server: online && pr ? pr.server : null,
+        level: levelOf(target),
+        equipped: equippedData,
+        owned: (target.cosmetics || []).map((c) => {
+          const idStr = c && c.id ? String(c.id) : String(c);
+          const it = catById(idStr);
+          return { id: idStr, category: it ? it.category : 'title' };
+        }),
+        bio: showFull ? p.bio || null : null,
+        avatar_data_url: showFull ? p.avatar_data_url || null : null,
+        banner_data_url: showFull ? p.banner_data_url || null : null,
+        avatar_choice: p.avatar_choice || 'discord',
+        isFriend,
+        isViewer,
+      });
+    }
+
+    // ── DMs (Launcher/Website, Bearer) ──
+    if (pathname === '/dm/conversations' && method === 'GET') {
+      const me = bearerUser(req);
+      if (!me) return sendJson(res, 401, { error: 'not_authenticated' });
+      const out = [];
+      for (const key of Object.keys(store.dms || {})) {
+        const parts = key.split(':');
+        if (!parts.includes(me.discordId)) continue;
+        const otherDid = parts[0] === me.discordId ? parts[1] : parts[0];
+        const other = store.users[otherDid];
+        if (!other) continue;
+        const msgs = store.dms[key];
+        const last = msgs[msgs.length - 1];
+        out.push({
+          user: Object.assign(publicFriend(other), { discordId: other.discordId }),
+          last: last || null,
+        });
+      }
+      out.sort((a, b) => ((b.last && b.last.ts) || 0) - ((a.last && a.last.ts) || 0));
+      return sendJson(res, 200, out);
+    }
+
+    if (pathname === '/dm/messages' && method === 'GET') {
+      const me = bearerUser(req);
+      if (!me) return sendJson(res, 401, { error: 'not_authenticated' });
+      const other = url.searchParams.get('other');
+      const otherUser = other ? store.users[String(other)] : null;
+      if (!otherUser) return sendJson(res, 404, { error: 'user_not_found' });
+      const key = dmKey(me.discordId, otherUser.discordId);
+      return sendJson(res, 200, (store.dms[key] || []).slice(-100));
+    }
+
+    if (pathname === '/dm/send' && method === 'POST') {
+      const me = bearerUser(req);
+      if (!me) return sendJson(res, 401, { error: 'not_authenticated' });
+      const body = await readBody(req);
+      const toId = String(body.to_id || '');
+      const to = toId ? store.users[toId] : null;
+      if (!to) return sendJson(res, 404, { error: 'user_not_found' });
+      if (me.discordId === to.discordId) return sendJson(res, 400, { error: 'cannot_dm_self' });
+      if (!Array.isArray(me.friends) || !me.friends.includes(to.discordId)) return sendJson(res, 403, { error: 'not_friends' });
+      const text = String(body.text || '').trim().slice(0, 2000);
+      if (!text) return sendJson(res, 400, { error: 'text_required' });
+      store.dms = store.dms || {};
+      const key = dmKey(me.discordId, to.discordId);
+      store.dms[key] = store.dms[key] || [];
+      const msg = { from: me.discordId, to: to.discordId, text, ts: Date.now() };
+      store.dms[key].push(msg);
+      if (store.dms[key].length > 500) store.dms[key] = store.dms[key].slice(-500);
+      saveStore();
+      return sendJson(res, 200, { ok: true, message: msg });
     }
 
     // ── Presence ──

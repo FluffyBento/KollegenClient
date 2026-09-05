@@ -81,7 +81,12 @@ const KM_TOP_CSS =
   '.km-topbar a.km-logout{color:#c7cfdd;font:600 12px/1 Inter,sans-serif;padding:8px 10px;text-decoration:none;' +
   'flex:none;opacity:.8;transition:opacity .15s,color .15s;}' +
   '.km-topbar a.km-logout:hover{opacity:1;color:#fff;}' +
-  '@media (max-width:860px){.km-topbar a.km-link.km-hide-sm{display:none;}}';
+  '.km-topbar .km-group{display:inline-flex;align-items:center;gap:2px;flex:none;}' +
+  '.km-topbar .km-group-label{font:800 9.5px/1 Outfit,sans-serif;color:#77809a;letter-spacing:.16em;' +
+  'text-transform:uppercase;margin-right:5px;padding-left:2px;text-shadow:0 1px 2px rgba(0,0,0,.5);}' +
+  '.km-topbar .km-gsep{width:1px;height:24px;background:linear-gradient(180deg,transparent,rgba(255,255,255,.22),transparent);' +
+  'margin:0 10px;flex:none;}' +
+  '@media (max-width:860px){.km-topbar a.km-link.km-hide-sm{display:none;}.km-topbar .km-group-label{display:none;}}';
 
 function topBarHtml(current) {
   function a(href, label, active, hideSm) {
@@ -89,19 +94,32 @@ function topBarHtml(current) {
     const hs = hideSm ? ' km-hide-sm' : '';
     return '<a class="km-link' + on + hs + '" href="' + href + '">' + label + '</a>';
   }
-  const pages = [
-    { href: '/minecraft', label: 'Minecraft' },
-    { href: '/clicker', label: 'Clicker' },
-    { href: '/chat', label: 'Chat' },
-    { href: '/kollegenawards', label: 'Awards', hideSm: true },
-    { href: '/ueber-uns', label: '\u00dcber uns', hideSm: true },
-    { href: '/projekte', label: 'Projekte', hideSm: true },
-    { href: '/profil', label: 'Profil' },
-    { href: '/store', label: 'Store' },
-    { href: '/freunde', label: 'Freunde' },
+  // Gruppen-Navigation: „Spielen" · „Community" · „Deine Welt"
+  const groups = [
+    { label: 'Spielen', pages: [
+      { href: '/minecraft', label: 'Minecraft' },
+      { href: '/clicker', label: 'Clicker' },
+      { href: '/chat', label: 'Chat', badge: true },
+    ] },
+    { label: 'Community', pages: [
+      { href: '/kollegenawards', label: 'Awards', hideSm: true },
+      { href: '/ueber-uns', label: '\u00dcber uns', hideSm: true },
+      { href: '/projekte', label: 'Projekte', hideSm: true },
+    ] },
+    { label: 'Deine Welt', pages: [
+      { href: '/profil', label: 'Profil' },
+      { href: '/store', label: 'Store' },
+      { href: '/freunde', label: 'Freunde' },
+    ] },
   ];
   let links = '';
-  for (const p of pages) links += a(p.href, p.label, current, p.hideSm);
+  for (let gi = 0; gi < groups.length; gi++) {
+    if (gi > 0) links += '<span class="km-gsep"></span>';
+    const g = groups[gi];
+    links += '<span class="km-group"><span class="km-group-label">' + g.label + '</span>';
+    for (const p of g.pages) links += a(p.href, p.label, current, p.hideSm);
+    links += '</span>';
+  }
   return (
     '<header class="km-topbar" id="kmTopbar">' +
     '<a class="km-brand" href="/"><img src="/images/logo.png" alt=""/>kollegen.me</a>' +
@@ -325,6 +343,50 @@ module.exports = function registerProfilModule(app, getSession) {
     return res.json(r.data);
   });
 
+  // Profil eines Kollegen ansehen (öffentlich / Freund / eigene)
+  app.get('/api/profil/profile-view', async (req, res) => {
+    const session = (typeof getSession === 'function') ? getSession(req) : null;
+    const viewer = session ? String(session.id) : '';
+    const code = String(req.query.code || '').toUpperCase();
+    const qs = '?viewer_id=' + encodeURIComponent(viewer) + '&code=' + encodeURIComponent(code);
+    const r = await backendInternal('GET', '/internal/profile-view' + qs);
+    if (!r.ok) return res.status(r.error === 'not_found' ? 404 : 500).json({ error: r.error });
+    return res.json(r.data);
+  });
+
+  // ── DMs (privater Chat zwischen Freunden) ──
+  app.get('/api/profil/dm/conversations', async (req, res) => {
+    const session = (typeof getSession === 'function') ? getSession(req) : null;
+    if (!session) return res.status(401).json({ error: 'not_authenticated' });
+    const r = await backendInternal('GET', '/internal/dm/conversations?discordId=' + encodeURIComponent(String(session.id)));
+    if (!r.ok) return res.status(500).json({ error: r.error });
+    return res.json(Array.isArray(r.data) ? r.data : []);
+  });
+
+  app.get('/api/profil/dm/messages', async (req, res) => {
+    const session = (typeof getSession === 'function') ? getSession(req) : null;
+    if (!session) return res.status(401).json({ error: 'not_authenticated' });
+    const other = String(req.query.other || '');
+    if (!other) return res.status(400).json({ error: 'other_required' });
+    const qs = '?me=' + encodeURIComponent(String(session.id)) + '&other=' + encodeURIComponent(other);
+    const r = await backendInternal('GET', '/internal/dm/messages' + qs);
+    if (!r.ok) return res.status(500).json({ error: r.error });
+    return res.json(Array.isArray(r.data) ? r.data : []);
+  });
+
+  app.post('/api/profil/dm/send', async (req, res) => {
+    const session = (typeof getSession === 'function') ? getSession(req) : null;
+    if (!session) return res.status(401).json({ error: 'not_authenticated' });
+    const body = req.body && typeof req.body === 'object' ? req.body : {};
+    const r = await backendInternal('POST', '/internal/dm/send', {
+      from_id: String(session.id),
+      to_id: String(body.other || ''),
+      text: String(body.text || ''),
+    });
+    if (!r.ok) return res.status(400).json({ error: r.error });
+    return res.json(r.data);
+  });
+
   // ── Admin (nur für Admins) ──
   app.get('/api/profil/admin/users', async (req, res) => {
     const session = (typeof getSession === 'function') ? getSession(req) : null;
@@ -376,28 +438,33 @@ module.exports = function registerProfilModule(app, getSession) {
     '/profil': buildProfilPage(),
     '/store': buildStorePage(),
     '/freunde': buildFreundePage(),
+    '/dm': buildDmPage(),
   };
 
   // ── SPA: alte Toolbar ausblenden + neue Topbar injizieren ──
-  let cachedIndex = null;
-  function injectedIndex() {
-    if (cachedIndex) return cachedIndex;
-    let html;
-    try {
-      html = fs.readFileSync(INDEX_PATH, 'utf8');
-    } catch (_) {
-      return null;
+  // Route-abhängig: /chat bekommt zusätzlich das Social-Widget (Freunde + DMs).
+  const indexCache = {};
+  let baseIndexHtml = null;
+  function injectedIndex(route) {
+    if (indexCache[route]) return indexCache[route];
+    if (baseIndexHtml === null) {
+      try {
+        baseIndexHtml = fs.readFileSync(INDEX_PATH, 'utf8');
+      } catch (_) {
+        return null;
+      }
     }
-    const top =
+    let html = baseIndexHtml;
+    let top =
       '<style>' + KM_TOP_CSS +
       // Alte React-Toolbar (fixed top-0 z-50) unsichtbar machen.
       'nav[class*="top-0"][class*="z-50"]{display:none !important;}' +
       '</style>' +
-      topBarHtml('') +
+      topBarHtml(route) +
       '<script>' + KM_TOP_SCRIPT + '</' + 'script>';
-    // Direkt nach dem <body>-Tag einfügen → in-flow oben, kein Overlap.
+    if (route === '/chat') top += CHAT_WIDGET_HTML;
     html = html.replace(/<body[^>]*>/, function (m) { return m + top; });
-    cachedIndex = html;
+    indexCache[route] = html;
     return html;
   }
 
@@ -411,12 +478,19 @@ module.exports = function registerProfilModule(app, getSession) {
       return res.send(PAGES[urlPath]);
     }
 
+    // Öffentliche Kollegen-Profile: /u/<Code>
+    const um = /^\/u\/([A-Za-z0-9]{1,20})$/.exec(urlPath);
+    if (um) {
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      return res.send(buildUserPage(String(um[1]).toUpperCase()));
+    }
+
     const ext = path.extname(urlPath).toLowerCase();
     if (ext && ext !== '.html') return next();
     if (urlPath.startsWith('/api/')) return next();
     const acceptsHtml = (req.headers.accept || '').includes('text/html');
     if (urlPath === '/' || ext === '.html' || acceptsHtml) {
-      const injected = injectedIndex();
+      const injected = injectedIndex(urlPath);
       if (injected) {
         res.setHeader('Content-Type', 'text/html; charset=utf-8');
         return res.send(injected);
@@ -470,7 +544,8 @@ function pageShell(title, cssExtra, bodyInner) {
 function pagePathForTitle(title) {
   if (title === 'Profil') return '/profil';
   if (title === 'Store') return '/store';
-  return '/freunde';
+  if (title === 'Freunde') return '/freunde';
+  return '';
 }
 
 // ── Profilseite ─────────────────────────────────────────────────────────────
@@ -488,7 +563,23 @@ function buildProfilPage() {
     '.equipItem{display:flex;align-items:center;gap:.5rem;background:#0d1420;border:1px solid #26344a;' +
     'border-radius:10px;padding:.45rem .7rem;font-size:.85rem;color:#e3e9f2;}' +
     '.equipItem .swatch{width:18px;height:18px;border-radius:5px;flex:none;text-align:center;line-height:18px;font-size:11px;}' +
-    '.progressLabel{display:flex;justify-content:space-between;font-size:.75rem;color:#8f9aab;margin-top:.25rem;}';
+    '.progressLabel{display:flex;justify-content:space-between;font-size:.75rem;color:#8f9aab;margin-top:.25rem;}' +
+    // Profil-Editor
+    '.editPreview{display:flex;align-items:center;gap:.9rem;padding:.8rem;border:1px dashed #2c3b57;border-radius:12px;' +
+    'margin-top:.4rem;background:#0d1420;}' +
+    '.editPreview img{width:64px;height:64px;border-radius:12px;object-fit:cover;background:#151d2b;flex:none;}' +
+    '.editPreview .epMeta{flex:1;min-width:0;}' +
+    '.editPreview .epName{font-weight:800;color:#ffd75f;font-family:Outfit,sans-serif;font-size:1.05rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}' +
+    '.editPreview .epSub{color:#8f9aab;font-size:.78rem;}' +
+    '.editGroup{margin-top:1rem;}' +
+    '.editGroup .egTitle{font:800 11px/1 Outfit,sans-serif;color:#77809a;letter-spacing:.12em;text-transform:uppercase;margin-bottom:.5rem;}' +
+    '.editChips{display:flex;flex-wrap:wrap;gap:.45rem;}' +
+    '.editChip{border:1px solid #2c3b57;background:#16203a;color:#c7cfdd;border-radius:999px;padding:.4rem .7rem;font-size:.8rem;' +
+    'cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:.4rem;user-select:none;}' +
+    '.editChip:hover{border-color:#D4AF37;color:#fff;}' +
+    '.editChip.eq{border-color:#ffd75f;background:linear-gradient(135deg,rgba(212,175,55,.28),rgba(255,215,95,.14));color:#ffd75f;font-weight:700;}' +
+    '.editChip .sw{width:15px;height:15px;border-radius:4px;background:#333;flex:none;border:1px solid #000;' +
+    'text-align:center;line-height:15px;font-size:10px;}';
 
   const html =
     '<div id="wrap">' +
@@ -525,7 +616,14 @@ function buildProfilPage() {
     '<h1 style="font-size:1.1rem;">Ausger\u00fcstete Kosmetik</h1>' +
     '<p class="muted">Diese Items siehst du in Profilen und der Freunde-Liste. Ausr\u00fcsten/ablegen kannst du im Store.</p>' +
     '<div class="equipList" id="equipList"></div>' +
-    '<a href="/store"><button type="button" class="ghost">Im Store anpassen</button></a>' +
+    '</div>' +
+    '<div class="card" id="editCard" style="display:none;">' +
+    '<h1 style="font-size:1.1rem;">Profil anpassen</h1>' +
+    '<p class="muted">W\u00e4hle deine eigenen Kosmetik-Items \u2013 klick auf einen Chip, um es auszur\u00fcsten. Neue Items gibt\u2019s im Store.</p>' +
+    '<div class="editPreview" id="editPreview"></div>' +
+    '<div class="editGroups" id="editGroups"></div>' +
+    '<div class="muted" id="editHint" style="margin-top:.6rem;"></div>' +
+    '<a href="/store"><button type="button" class="ghost">Mehr im Store</button></a>' +
     '</div>' +
     '<p class="sub" style="margin-top:1.2rem;">Hinweis: Der direkte Minecraft-Login (Microsoft/OAuth) ben\u00f6tigt eine eigene App-Registrierung \u2013 bis dahin wird dein Skin \u00fcber den Namen geladen. Gemeinsame Freunde im Launcher \u00fcbernehmen den Skin automatisch.</p>' +
     '</div>' +
@@ -575,6 +673,9 @@ function buildProfilPage() {
     'else{strip.style.display="none";}' +
     'var pf=byId(eq.profile_frame);var wr=$("wrap");' +
     'if(pf&&pf.data&&pf.data.color1){wr.style.border="2px solid "+pf.data.color1;wr.style.boxShadow="0 0 30px "+pf.data.color1+"44, 0 12px 44px rgba(0,0,0,.45)";}' +
+    'var st=byId(eq.profil_stil);var hs=document.querySelectorAll("h1");' +
+    'if(st&&st.data&&st.data.accent){for(var h=0;h<hs.length;h++){hs[h].style.color=st.data.accent;}}' +
+    'else{for(var h2=0;h2<hs.length;h2++){hs[h2].style.color="";}}' +
     '}' +
     'function renderPts(p){' +
     'var w=$("ptsWrap");w.innerHTML="";' +
@@ -585,6 +686,61 @@ function buildProfilPage() {
     'prog.innerHTML="<div class=\\"bar\\"><div style=\\"width:"+(((t-1)%300)+1)+"%;\\"></div></div>"+"<div class=\\"progressLabel\\"><span>"+p.level+" \u2192 "+(p.level+1)+"</span><span>"+next+" Punkte bis Level "+(p.level+1)+"</span></div>";' +
     'w.append(c,l,prog);' +
     'renderEquip(p);' +
+    'renderEditor(p);' +
+    '}' +
+    'function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}' +
+    'function renderEditor(p){' +
+    'var card=$("editCard");if(!card)return;' +
+    'card.style.display="block";' +
+    'var eq=p.equipped||{};' +
+    'var prev=$("editPreview");prev.innerHTML="";' +
+    'var head=document.createElement("img");' +
+    'if(p.mcName){head.src="https://mc-heads.net/avatar/"+encodeURIComponent(p.mcName).replace(/%20/g,"_")+"/128";}' +
+    'else if(p.user&&p.user.avatarUrl){head.src=p.user.avatarUrl;}else{head.style.display="none";}' +
+    'head.alt="";head.onerror=function(){head.style.display="none";};' +
+    'var meta=document.createElement("div");meta.className="epMeta";' +
+    'var ti=byId(eq.title);var titleTxt=(ti&&ti.data)?ti.data.text+" ":"";' +
+    'var ba=byId(eq.badge);var baHtml="";' +
+    'if(ba&&ba.data){baHtml="<span style=\\"color:"+esc(ba.data.color)+"\\">"+esc(ba.data.icon)+"</span> ";}' +
+    'var nm=esc(p.mcName||((p.user&&(p.user.global_name||p.user.username))||"Du"));' +
+    'meta.innerHTML="<div class=\\"epName\\">"+baHtml+esc(titleTxt)+nm+"</div><div class=\\"epSub\\">Level "+esc(p.level)+"</div>";' +
+    'prev.append(head,meta);' +
+    'var groups=$("editGroups");groups.innerHTML="";' +
+    'var order=["title","badge","avatar_theme","avatar_frame","profile_bg","profile_frame","banner","profil_stil"];' +
+    'var catNames={title:"Titel",badge:"Abzeichen",avatar_theme:"Avatar-Hintergrund",avatar_frame:"Avatar-Rahmen",profile_bg:"Profil-Hintergrund",profile_frame:"Profil-Rahmen",banner:"Banner",profil_stil:"Profilstil"};' +
+    'var owned=p.cosmetics||[];' +
+    'for(var oi=0;oi<order.length;oi++){' +
+    'var cat=order[oi];' +
+    'var mine=owned.filter(function(c){var it=byId(c&&c.id)?byId(c.id):(typeof c==="string"?byId(c):null);return it&&it.category===cat;});' +
+    'if(!mine.length)continue;' +
+    'var g=document.createElement("div");g.className="editGroup";' +
+    'g.innerHTML="<div class=\\"egTitle\\">"+catNames[cat]+"</div><div class=\\"editChips\\"></div>";' +
+    'var wrap=g.querySelector(".editChips");' +
+    'var none=document.createElement("span");none.className="editChip"+(eq[cat]?"":" eq");none.textContent="Keins";' +
+    'none.addEventListener("click",function(){doEquip(cat,null);});' +
+    'wrap.append(none);' +
+    'mine.forEach(function(c){' +
+    'var it=byId(c&&c.id?c.id:c);if(!it)return;' +
+    'var ch=document.createElement("span");ch.className="editChip"+(eq[cat]===it.id?" eq":"");' +
+    'var sw=document.createElement("span");sw.className="sw";' +
+    'if(it.data&&it.data.color1){sw.style.background=it.data.color1;}' +
+    'else if(it.data&&it.data.gradient){sw.style.background=it.data.gradient;}' +
+    'else if(it.data&&it.data.accent){sw.style.background=it.data.accent;}' +
+    'else if(it.data&&it.data.text){sw.textContent=it.data.text;sw.style.background="#3a3f4e";}' +
+    'else if(it.data&&it.data.icon){sw.textContent=it.data.icon;sw.style.color=it.data.color;}' +
+    'ch.append(sw);ch.append(document.createTextNode(it.name));' +
+    'ch.addEventListener("click",function(){doEquip(cat,it.id);});' +
+    'wrap.append(ch);' +
+    '});' +
+    'groups.append(g);' +
+    '}' +
+    'function doEquip(cat,id){' +
+    'fetch("/api/profil/equip",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({category:cat,all:false,item_id:id})})' +
+    '.then(function(r){return r.json();}).then(function(j){' +
+    'if(j&&j.ok){location.reload();}' +
+    'else{$("editHint").textContent="Fehler: "+((j&&j.error)||"?");}' +
+    '}).catch(function(){$("editHint").textContent="Netzwerkfehler";});' +
+    '}' +
     '}' +
     'function renderEquip(p){' +
     'var list=$("equipList");if(!list)return;' +
@@ -594,6 +750,7 @@ function buildProfilPage() {
     'var sw=document.createElement("span");sw.className="swatch";' +
     'if(it.data&&it.data.color1){sw.style.background=it.data.color1;}' +
     'else if(it.data&&it.data.gradient){sw.style.background=it.data.gradient;}' +
+    'else if(it.data&&it.data.accent){sw.style.background=it.data.accent;}' +
     'else if(it.category==="title"&&it.data){sw.textContent=it.data.text;sw.style.background="#3a3f4e";}' +
     'else if(it.category==="badge"&&it.data){sw.textContent=it.data.icon;sw.style.background="#0d1420";sw.style.color=it.data.color;}' +
     'el.append(sw);el.append(document.createTextNode(it.name));' +
@@ -767,6 +924,7 @@ function buildStorePage() {
     '<button type="button" class="tab" data-f="profile_frame">Profil-Rahmen</button>' +
     '<button type="button" class="tab" data-f="profile_bg">Profil-Hintergrund</button>' +
     '<button type="button" class="tab" data-f="banner">Banner</button>' +
+    '<button type="button" class="tab" data-f="profil_stil">Profilstil</button>' +
     '</div>' +
     '<div class="grid" id="grid"><div class="muted" id="gridMsg">Lade Store\u2026</div></div>' +
     '<div class="note card"><span style="font-size:1.2rem;">&#9432;</span>' +
@@ -890,6 +1048,7 @@ function buildStorePage() {
     'if(item.category==="banner"){return "<div style=\\"width:88%;height:58px;border-radius:10px;display:flex;align-items:center;justify-content:center;color:#0a0d13;font:800 12px/1 Outfit,sans-serif;background:"+esc(item.data.gradient)+"\\">Banner</div>";}' +
     'if(item.category==="profile_bg"){return "<div style=\\"width:88%;height:78px;border-radius:10px;display:flex;align-items:center;justify-content:center;color:#c9d4e3;font:700 11px/1 Inter,sans-serif;background:"+esc(item.data.gradient)+"\\"><img class=\\"pvHead\\" style=\\"width:34px;height:34px;\\" src=\\""+av+"\\"/></div>";}' +
     'if(item.category==="profile_frame"){return "<div class=\\"pvMini\\" style=\\"border:4px solid "+esc(item.data.color1)+";box-shadow:0 0 12px "+esc(item.data.color1)+"44;background:#0d1420;\\"><img class=\\"pvHead\\" style=\\"width:40px;height:40px;\\" src=\\""+av+"\\"/></div>";}' +
+    'if(item.category==="profil_stil"){return "<div class=\\"pvMini\\" style=\\"border:2px solid "+esc(item.data.accent)+";background:#0d1420;\\"><span style=\\"color:"+esc(item.data.accent)+";font:800 22px/1 Outfit,sans-serif;\\">Aa</span> <span style=\\"color:#c9d4e3;font-size:11px;font-weight:600;\\">"+esc(item.data.font)+"</span></div>";}' +
     'var border="",shadow="";' +
     'if(item.category==="avatar_frame"&&item.data.color1){border="border:"+(item.data.width||3)+"px solid "+item.data.color1+";";shadow="box-shadow:0 0 14px "+item.data.color1+"55;";}' +
     'return "<img class=\\"pvHead\\" style=\\""+border+shadow+"border-radius:14px;\\" src=\\""+av+"\\"/>";' +
@@ -1077,7 +1236,12 @@ function buildFreundePage() {
     '.empty{padding:2rem 0;text-align:center;color:#8f9aab;}' +
     '.codeBox{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;}' +
     '.codeBox .code{font:800 18px/1 "Courier New",monospace;color:#ffd75f;letter-spacing:.12em;}' +
-    '.badgeGlyph{margin-right:5px;font-weight:800;}';
+    '.badgeGlyph{margin-right:5px;font-weight:800;}' +
+    '.frBtns{display:flex;gap:.4rem;flex:none;align-items:center;}' +
+    '.frBtns .btn-sm{margin:0;font-size:.78rem;padding:.42rem .7rem;}' +
+    '.frBtns a.linkBtn{display:inline-flex;align-items:center;text-decoration:none;background:#1c2740;color:#c7cfdd;' +
+    'border:1px solid #2c3b57;border-radius:8px;font-weight:600;transition:background .15s,color .15s;}' +
+    '.frBtns a.linkBtn:hover{background:#26355a;color:#fff;}';
 
   const html =
     '<div id="wrap">' +
@@ -1111,6 +1275,7 @@ function buildFreundePage() {
     'function byId(id){var c=cat||[];for(var i=0;i<c.length;i++){if(c[i].id===id)return c[i];}return null;}' +
     'function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}' +
     'function avFor(f){return "https://mc-heads.net/head/"+encodeURIComponent(f.name||"MHF_Steve").replace(/%20/g,"_")+"/128";}' +
+    'function enc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}' +
     'fetch("/api/auth/me").then(function(r){return r.json();}).then(function(j){' +
     'if(!j||!j.user){login.style.display="block";return;}' +
     'me.style.display="block";' +
@@ -1142,13 +1307,16 @@ function buildFreundePage() {
     'var sub=document.createElement("div");sub.className="frSub";' +
     'sub.innerHTML="<span class=\\"dot "+(f.online?"on":"off")+"\\"></span>"+gl+"Level "+esc(f.level)+"\\u00b7 "+esc(f.server||"Offline")+" \\u00b7 Code "+esc(f.code);' +
     'info.append(nm,sub);' +
+    'var btns=document.createElement("div");btns.className="frBtns";' +
+    'btns.innerHTML="<a class=\\"btn-sm linkBtn\\" href=\\"/u/"+encodeURIComponent(f.code||"")+"\\">Profil</a>"+' +
+    '"<a class=\\"btn-sm linkBtn\\" href=\\"/dm?to="+encodeURIComponent(f.code||"")+"\\">Nachricht</a>";' +
     'var rem=document.createElement("button");rem.className="secondary btn-sm";rem.textContent="Entfernen";' +
     'rem.addEventListener("click",function(){' +
     'if(!confirm("Freund entfernen?"))return;' +
     'fetch("/api/profil/friend-remove",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({target_id:f.id})})' +
     '.then(function(r){return r.json();}).then(function(x){load();}).catch(function(){});' +
     '});' +
-    'row.append(av,info,rem);' +
+    'row.append(av,info,btns,rem);' +
     'wrap.append(row);' +
     '});' +
     '}).catch(function(){ $("listWrap").innerHTML="<div class=\\"empty\\">Freunde-Liste tempor\u00e4r nicht erreichbar.</div>"; });' +
@@ -1177,3 +1345,357 @@ function buildFreundePage() {
 
   return pageShell('Freunde', css, html);
 }
+
+// ── Öffentliches Kollegen-Profil: /u/<Code> ─────────────────────────────────
+function buildUserPage(code) {
+  const css =
+    '#wrap{border:1px solid rgba(255,255,255,.06);border-radius:18px;background:rgba(9,11,18,.66);box-shadow:0 12px 44px rgba(0,0,0,.45);}' +
+    '.ubBanner{display:none;height:120px;border-radius:14px;margin-bottom:1.1rem;position:relative;overflow:hidden;background-size:cover;background-position:center;}' +
+    '.ubBanner .bl{position:absolute;left:12px;bottom:10px;color:#0a0d13;font:800 13px/1 Outfit,Inter,sans-serif;background:rgba(255,255,255,.72);padding:4px 10px;border-radius:999px;}' +
+    '.ubRow{display:flex;gap:1.1rem;align-items:flex-start;flex-wrap:wrap;}' +
+    '.ubAvatar{width:110px;height:110px;border-radius:22px;object-fit:cover;background:#151d2b;flex:none;}' +
+    '.ubMeta{flex:1;min-width:220px;}' +
+    '.ubName{font:800 24px/1.1 Outfit,Inter,sans-serif;color:#ffd75f;}' +
+    '.ubBadge{font-size:20px;margin-right:6px;}' +
+    '.ubChips{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.7rem;}' +
+    '.ubBio{margin-top:1rem;padding:1rem;border-radius:12px;background:#0d1420;border:1px solid #1c2636;color:#c9d4e3;line-height:1.5;}' +
+    '.ubActions{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.9rem;}' +
+    '.ubActions a,.ubActions button{margin:0;text-decoration:none;}' +
+    '.ubP{color:#8f9aab;font-size:.82rem;margin-top:1rem;}' +
+    '.errBig{padding:2.5rem 0;text-align:center;color:#8f9aab;font-size:1.1rem;}';
+
+  const html =
+    '<div id="wrap">' +
+    '<div class="ubBanner" id="ubBanner"><span class="bl" id="ubBannerLabel"></span></div>' +
+    '<h1 id="ubTitle">Kollegen-Profil</h1>' +
+    '<div class="sub">Lade Profil f\u00fcr Code ' + code + '\u2026</div>' +
+    '<div class="card"><div class="ubRow">' +
+    '<img class="ubAvatar" id="ubAvatar" alt=""/>' +
+    '<div class="ubMeta">' +
+    '<div class="ubName" id="ubName"></div>' +
+    '<div class="ubChips" id="ubChips"></div>' +
+    '<div class="muted" id="ubSub"></div>' +
+    '<div class="ubBio" id="ubBio" style="display:none;"></div>' +
+    '<div class="ubActions" id="ubActions"></div>' +
+    '<div class="ubP" id="ubP"></div>' +
+    '</div></div></div>' +
+    '<a class="backLink" href="/">\u2190 Zur Startseite</a>' +
+    '</div>' +
+    '<script>' + KM_TOP_SCRIPT +
+    '(function(){' +
+    'function $(i){return document.getElementById(i);}' +
+    'function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}' +
+    'var CODE="' + code + '";var CURRENT=null;' +
+    'function headUrl(u,d){' +
+    'if(d&&d.avatar_data_url){return d.avatar_data_url;}' +
+    'if(u){return "https://mc-heads.net/head/"+u+"/256";}' +
+    'return "https://mc-heads.net/head/MHF_Steve/256";}' +
+    'function load(){' +
+    'fetch("/api/profil/profile-view?code="+encodeURIComponent(CODE)).then(function(r){' +
+    'if(r.status===404){$("ubTitle").textContent="Nicht gefunden";' +
+    '$("ubTitle").parentElement.querySelector(".sub").innerHTML="<div class=\\"errBig\\">Kein Kollege mit diesem Code. Code pr\u00fcfen oder in Steam befreunden.</div>";return;}return r.json();' +
+    '}).then(function(p){' +
+    'if(!p)return;CURRENT=p;render(p);' +
+    '}).catch(function(){$("ubTitle").textContent="Fehler";$("ubTitle").parentElement.querySelector(".sub").textContent="Profil tempor\u00e4r nicht erreichbar.";});' +
+    '}' +
+    'function chips(p){' +
+    'var eq=p.equipped||{};' +
+    'var all=p.owned||[];' +
+    'function it(id){for(var i=0;i<all.length;i++){if(all[i].id===id)return all[i];}return null;}' +
+    'var fr=it(eq.avatar_frame),th=it(eq.avatar_theme),bd=it(eq.badge),ti=it(eq.title),st=it(eq.profil_stil);' +
+    'var av=$("ubAvatar");' +
+    'var bdCss="",sh="",bg="";' +
+    'if(fr&&fr.data&&fr.data.color1){bdCss="border:"+((fr.data.width||4))+"px solid "+fr.data.color1+";";sh="box-shadow:0 0 22px "+fr.data.color1+"66;";}' +
+    'if(th&&th.data&&th.data.gradient){bg="background:"+th.data.gradient+";";}' +
+    'av.style.cssText=bdCss+sh+bg+"border-radius:22px;";' +
+    'av.src=headUrl(p.uuid,p);' +
+    'av.alt="";av.onerror=function(){av.src="https://mc-heads.net/head/MHF_Steve/256";};' +
+    'var name=(ti&&ti.data)?ti.data.text+" \u00b7 ":" ";' +
+    'var badge=(bd&&bd.data)?"<span class=\\"ubBadge\\" style=\\"color:"+esc(bd.data.color)+"\\">"+esc(bd.data.icon)+"</span>":"";' +
+    'var accent=st&&st.data&&st.data.accent?st.data.accent:"#ffd75f";' +
+    '$("ubName").innerHTML=badge+"<span style=\\"color:"+esc(accent)+"\\">"+esc(name)+"</span>"+esc(p.name||("User #"+p.id));' +
+    'var cw=$("ubChips");cw.innerHTML="";' +
+    'function chip(cls,txt){var d=document.createElement("span");d.className=cls;d.textContent=txt;cw.append(d);}' +
+    'chip("ptsChip","\u2605 Level "+p.level);' +
+    'var sp=p.online?p.server:null;' +
+    'chip("lvlChip","<dot>");cw.lastChild.innerHTML="<span style=\\"color:"+(p.online?"#3fb950":"#4b5563")+";\\">\u25cf</span> "+(p.online?"Online \u00b7 "+esc(sp||"Server"):"Offline");' +
+    'chip("lvlChip","Code "+esc(p.code));' +
+    'if(p.isFriend)chip("lvlChip","\u2605 Freund");' +
+    '$("ubSub").textContent="Freundes-Code "+esc(p.code)+(p.isFriend?" \u00b7 Du bist mit ihm befreundet":"");' +
+    'initActions(p);' +
+    'initCosmetics(p);' +
+    '}' +
+    'function stc(){var p=CURRENT||{};var cs=p.equipped||{};var it=p.owned||[];' +
+    'function find(id){for(var i=0;i<it.length;i++){if(it[i].id===id)return it[i].data||null;}return null;}' +
+    'var st=find(cs.profil_stil);' +
+    'document.documentElement.style.setProperty("--ubAccent",(st&&st.accent)||"#ffd75f");' +
+    'var hs=document.querySelectorAll("h1");for(var i=0;i<hs.length;i++){hs[i].style.color=(st&&st.accent)||"#D4AF37";}' +
+    'var bg=find(cs.profile_bg);if(bg&&bg.gradient){document.body.style.background=bg.gradient+" fixed";}' +
+    'var bn=find(cs.banner);var strip=$("ubBanner");' +
+    'if(bn&&bn.gradient){strip.style.background=bn.gradient;strip.style.display="block";$("ubBannerLabel").textContent="Banner";}' +
+    'else if(p.banner_data_url){strip.style.backgroundImage="url("+p.banner_data_url+")";strip.style.display="block";$("ubBannerLabel").textContent="Profil-Banner";}' +
+    'else{strip.style.display="none";}' +
+    'var pf=find(cs.profile_frame);var wr=$("wrap");' +
+    'if(pf&&pf.color1){wr.style.border="2px solid "+pf.color1;wr.style.boxShadow="0 0 30px "+pf.color1+"44,0 12px 44px rgba(0,0,0,.45)";}' +
+    '}' +
+    'function initCosmetics(p){stc();' +
+    'if(p.bio){$("ubBio").style.display="block";$("ubBio").textContent=p.bio;}' +
+    'else if(!p.isViewer){$("ubP").textContent="Dieses Profil ist privat \u2013 Bio nur f\u00fcr Freunde sichtbar.";}' +
+    '}' +
+    'function initActions(p){' +
+    'var box=$("ubActions");box.innerHTML="";' +
+    'if(p.isViewer){' +
+    'var a=document.createElement("a");a.href="/profil";a.innerHTML="<button type=\\"button\\">Zu deinem Profil</button>";box.append(a);return;}' +
+    'if(logged()){' +
+    'if(p.isFriend){' +
+    'var dm=document.createElement("a");dm.href="/dm?to="+encodeURIComponent(p.code)+"&n="+encodeURIComponent(p.name);dm.innerHTML="<button type=\\"button\\">Nachricht senden</button>";box.append(dm);' +
+    'var rm=document.createElement("button");rm.type="button";rm.className="secondary";rm.textContent="Freund entfernen";' +
+    'rm.addEventListener("click",function(){' +
+    'if(!confirm("Freund entfernen?"))return;' +
+    'fetch("/api/profil/friend-remove",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({target_id:p.id})})' +
+    '.then(function(r){return r.json();}).then(function(){load();}).catch(function(){});});box.append(rm);' +
+    '}' +
+    'else{' +
+    'var ad=document.createElement("button");ad.type="button";ad.textContent="Freund hinzuf\u00fcgen";' +
+    'ad.addEventListener("click",function(){' +
+    'fetch("/api/profil/friend-add",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({code:p.code})})' +
+    '.then(function(r){return r.json();}).then(function(j){if(j&&j.ok){load();}else{alert("Fehler: "+((j&&j.error)||"?"));}}).catch(function(){alert("Netzwerkfehler");});});box.append(ad);' +
+    '}}' +
+    'else{' +
+    'var l=document.createElement("a");l.href="/api/auth/discord/login";l.innerHTML="<button type=\\"button\\">Anmelden zum Befreunden</button>";box.append(l);' +
+    '}' +
+    '}' +
+    'function logged(){var el=document.getElementById("kmLogin");return el&&el.style.display==="none";}' +
+    'load();' +
+    '})();' +
+    '</script>';
+
+  return pageShell('Profil von ' + code, css, html);
+}
+
+// ── Nachrichten (DMs): /dm ───────────────────────────────────────────────────
+function buildDmPage() {
+  const css =
+    '#wrap{border:0;background:transparent;box-shadow:none;}' +
+    '.dmCols{display:grid;grid-template-columns:260px 1fr;gap:1rem;align-items:start;margin-top:.6rem;}' +
+    '@media(max-width:760px){.dmCols{grid-template-columns:1fr;}}' +
+    '.convCard{padding:0;overflow:hidden;}' +
+    '.convHead{padding:.8rem 1rem;border-bottom:1px solid #1c2636;font-weight:800;color:#ffd75f;}' +
+    '.conv{padding:.6rem .9rem;border-bottom:1px solid #141c2a;cursor:pointer;display:flex;gap:.7rem;align-items:center;transition:background .15s;}' +
+    '.conv:hover{background:#16203a;}' +
+    '.conv.on{background:#1c2740;}' +
+    '.convAv{width:40px;height:40px;border-radius:10px;object-fit:cover;background:#151d2b;flex:none;}' +
+    '.convInfo{flex:1;min-width:0;}' +
+    '.convName{font-weight:700;font-size:.9rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}' +
+    '.convLast{color:#8f9aab;font-size:.75rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;}' +
+    '.dmMsgs{display:flex;flex-direction:column;gap:.5rem;padding:1rem;max-height:460px;overflow-y:auto;min-height:260px;}' +
+    '.dmB{max-width:75%;padding:.6rem .9rem;border-radius:14px;font-size:.9rem;line-height:1.45;word-break:break-word;}' +
+    '.dmB.me{background:linear-gradient(135deg,#D4AF37,#b8860b);color:#0a0d13;align-self:flex-end;border-bottom-right-radius:4px;}' +
+    '.dmB.oth{background:#1c2740;color:#e3e9f2;align-self:flex-start;border-bottom-left-radius:4px;}' +
+    '.dmT{font-size:.7rem;color:#8f9aab;margin:.35rem 0 0;text-align:right;}' +
+    '.dmInput{display:flex;gap:.5rem;padding:.8rem;border-top:1px solid #141c2a;}' +
+    '.dmInput input{flex:1;width:auto;}' +
+    '.dmInput button{margin:0;}' +
+    '.dmEmpty{text-align:center;color:#8f9aab;padding:2.5rem 1rem;}' +
+    '.dmThreadHead{display:flex;align-items:center;gap:.7rem;padding:.8rem 1rem;border-bottom:1px solid #1c2636;}' +
+    '.dmThreadHead img{width:36px;height:36px;border-radius:9px;object-fit:cover;background:#151d2b;}' +
+    '.dmThreadHead .tname{font-weight:800;flex:1;min-width:0;}' +
+    '.dmThreadHead a{font-size:.78rem;font-weight:600;}';
+
+  const html =
+    '<div id="wrap">' +
+    '<h1>Nachrichten</h1>' +
+    '<div class="sub">Privater Chat mit deinen Freunden\u2026</div>' +
+    '<div class="card loginCard" id="loginCard">' +
+    '<p style="margin:0 0 .4rem;">Melde dich mit Discord an, um Nachrichten zu lesen und zu schreiben.</p>' +
+    '<a href="/api/auth/discord/login"><button type="button">Mit Discord anmelden</button></a>' +
+    '</div>' +
+    '<div class="dmCols" id="dmCols" style="display:none;">' +
+    '<div class="card convCard">' +
+    '<div class="convHead">Chats</div>' +
+    '<div id="convList"><div class="dmEmpty">Keine Chats.</div></div>' +
+    '<div style="padding:.8rem 1rem;border-top:1px solid #141c2a;">' +
+    '<div class="muted" style="margin-bottom:.3rem;">Ziel-Code \u00f6ffnen</div>' +
+    '<input id="convCode" placeholder="z. B. C8B99EC051" style="text-transform:uppercase;"/>' +
+    '</div></div>' +
+    '<div class="card" id="threadCard">' +
+    '<div class="dmThreadHead">' +
+    '<img id="thAv" alt=""/>' +
+    '<div class="tname" id="thName">W\u00e4hle einen Chat</div>' +
+    '<a id="thProf" href="#" style="display:none;">Profil</a>' +
+    '</div>' +
+    '<div class="dmMsgs" id="dmMsgs"><div class="dmEmpty">Kein Chat ausgew\u00e4hlt. Tipp: \u00d6ffne das Profil eines Freundes oder f\u00fcge oben links rechts einen Code ein.</div></div>' +
+    '<div class="dmInput" id="dmInputBox" style="display:none;">' +
+    '<input id="dmText" placeholder="Nachricht \u2026" maxlength="2000"/>' +
+    '<button type="button" id="dmSend">Senden</button>' +
+    '</div>' +
+    '</div>' +
+    '</div>' +
+    '</div>' +
+    '<script>' + KM_TOP_SCRIPT +
+    '(function(){' +
+    'function $(i){return document.getElementById(i);}' +
+    'function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}' +
+    'var me=null,meDid="",current=null,pollTimer=null;' +
+    'function maybe(obj){return obj||{};}' +
+    'function tstr(ts){if(!ts)return "";var d=new Date(ts);' +
+    'var pad=function(n){return((""+n).length<2?"0"+n:""+n);};' +
+    'return pad(d.getHours())+":"+pad(d.getMinutes());}' +
+    'fetch("/api/auth/me").then(function(r){return r.json();}).then(function(j){' +
+    'if(!j||!j.user){$("loginCard").style.display="block";return;}' +
+    'me=j.user;meDid=String(me.id);' +
+    '$("dmCols").style.display="grid";' +
+    'loadConvs();' +
+    'var to=new URLSearchParams(location.search).get("to");' +
+    'if(to){openByCode(String(to).toUpperCase());}' +
+    '}).catch(function(){ $("loginCard").style.display="block"; });' +
+    'function loadConvs(){' +
+    'fetch("/api/profil/dm/conversations").then(function(r){return r.json();}).then(function(list){' +
+    'var wrap=$("convList");wrap.innerHTML="";' +
+    'if(!list||!list.length){wrap.innerHTML="<div class=\\"dmEmpty\\">Keine Chats. Schreib einem Freund: \u00d6ffne sein Profil und klick \u201eNachricht senden\u201c.</div>";return;}' +
+    'list.forEach(function(c){' +
+    'var u=c.user||{};' +
+    'var row=document.createElement("div");row.className="conv";' +
+    'if(current&&current===u.discordId)row.className+=" on";' +
+    'var av=document.createElement("img");av.className="convAv";' +
+    'av.src=u.profile&&u.profile.avatar_data_url?u.profile.avatar_data_url:"https://mc-heads.net/head/MHF_Steve/128";' +
+    'av.alt="";av.onerror=function(){av.src="https://mc-heads.net/head/MHF_Steve/128";};' +
+    'var ui=document.createElement("div");ui.className="convInfo";' +
+    'var nm=document.createElement("div");nm.className="convName";' +
+    'nm.innerHTML="<span style=\\"color:"+(u.online?"#3fb950":"#4b5563")+";\\">\u25cf</span> "+esc(u.name||("User "+u.id));' +
+    'var last=document.createElement("div");last.className="convLast";' +
+    'var l=c.last||{};' +
+    'last.textContent=(l.text?((l.from===meDid?"Du: ":"")+l.text):"")+" "+(l.ts?"\u00b7 "+tstr(l.ts):"");' +
+    'ui.append(nm,last);' +
+    'row.append(av,ui);' +
+    'row.addEventListener("click",function(){openOther(u.discordId,u.name||("User "+u.id));});' +
+    'wrap.append(row);' +
+    '});' +
+    '}).catch(function(){});' +
+    '}' +
+    'function openByCode(code){' +
+    'fetch("/api/profil/profile-view?code="+encodeURIComponent(code)).then(function(r){return r.json();}).then(function(p){' +
+    'if(!p){return;}' +
+    'if(!p.isFriend){$("dmMsgs").innerHTML="<div class=\\"dmEmpty\\">Du bist mit \\""+esc(p.name)+"\\" noch nicht befreundet. F\u00fcge den Code im Freunde-Tab hinzu.</div>";return;}' +
+    'openOther(p.discordId,p.name);' +
+    '}).catch(function(){});' +
+    '}' +
+    'function openOther(did,name){' +
+    'current=did;' +
+    '$("thName").textContent=name;' +
+    '$("thAv").src="https://mc-heads.net/head/MHF_Steve/128";' +
+    'var q=document.querySelectorAll(".conv.on");for(var i=0;i<q.length;i++)q[i].classList.remove("on");' +
+    'loadConvs();' +
+    '$("dmInputBox").style.display="flex";' +
+    'loadMsgs();' +
+    'if(pollTimer)clearInterval(pollTimer);' +
+    'pollTimer=setInterval(function(){if(current)loadMsgs(true);},4000);' +
+    '}' +
+    'function loadMsgs(silent){' +
+    'fetch("/api/profil/dm/messages?other="+encodeURIComponent(current)).then(function(r){return r.json();}).then(function(list){' +
+    'var pb=$("dmMsgs");' +
+    'var wasBottom=(pb.scrollHeight-pb.scrollTop-pb.clientHeight<40);' +
+    'pb.innerHTML="";' +
+    'if(!list||!list.length){pb.innerHTML="<div class=\\"dmEmpty\\">Noch keine Nachrichten. Starte den Chat!</div>";return;}' +
+    'list.forEach(function(m){' +
+    'var d=document.createElement("div");d.className="dmB "+(m.from===meDid?"me":"oth");' +
+    'd.textContent=m.text;' +
+    'var t=document.createElement("div");t.className="dmT";t.textContent=tstr(m.ts);' +
+    'var w=document.createElement("div");' +
+    'w.append(d,t);' +
+    'pb.append(w);' +
+    '});' +
+    'if(list.length&&wasBottom)pb.scrollTop=pb.scrollHeight;' +
+    '}).catch(function(){});' +
+    '}' +
+    '$("dmSend").addEventListener("click",send);' +
+    '$("dmText").addEventListener("keydown",function(e){if(e.key==="Enter")send();});' +
+    'function send(){' +
+    'var t=$("dmText").value.trim();' +
+    'if(!t||!current)return;' +
+    '$("dmText").value="";' +
+    'fetch("/api/profil/dm/send",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({other:current,text:t})})' +
+    '.then(function(r){return r.json();}).then(function(j){if(!j||!j.ok){$("dmText").value=t;alert("Fehler: "+((j&&j.error)||"?"));}else{loadMsgs();loadConvs();}})' +
+    '.catch(function(){$("dmText").value=t;alert("Netzwerkfehler");});' +
+    '}' +
+    '$("convCode").addEventListener("keydown",function(e){if(e.key==="Enter"){var c=$("convCode").value.trim().toUpperCase();if(c){$("convCode").value="";openByCode(c);}}});' +
+    'window.addEventListener("beforeunload",function(){if(pollTimer)clearInterval(pollTimer);});' +
+    '})();' +
+    '</script>';
+
+  return pageShell('Nachrichten', css, html);
+}
+
+// ── Chat-Widget für die SPA (/chat): Freunde & DMs ──────────────────────────
+const CHAT_WIDGET_HTML =
+  '<div id="kmSocial">' +
+  '<style>' +
+  '#kmSocial{position:fixed;right:16px;bottom:16px;z-index:10001;font-family:Inter,"Segoe UI",Arial,sans-serif;}' +
+  '#kmSocial .kmSbtn{display:flex;align-items:center;gap:8px;background:linear-gradient(135deg,#D4AF37,#b8860b);color:#0a0d13;' +
+  'font:800 13px/1 Inter,sans-serif;border:0;padding:12px 16px;border-radius:999px;cursor:pointer;' +
+  'box-shadow:0 6px 22px rgba(0,0,0,.45);transition:transform .15s,filter .15s;}' +
+  '#kmSocial .kmSbtn:hover{transform:translateY(-2px);filter:brightness(1.08);}' +
+  '#kmSocial .kmSpin{width:360px;max-width:calc(100vw - 40px);background:#0f1522;border:1px solid #26334a;border-radius:16px;' +
+  'box-shadow:0 18px 50px rgba(0,0,0,.6);margin-bottom:10px;overflow:hidden;display:none;}' +
+  '#kmSocial .kmSpin.on{display:block;}' +
+  '#kmSocial .kmShead{display:flex;justify-content:space-between;align-items:center;padding:.7rem 1rem;border-bottom:1px solid #1c2636;' +
+  'font:800 13px/1 Outfit,sans-serif;color:#ffd75f;}' +
+  '#kmSocial .kmShead a{color:#8ab4ff;font-size:.75rem;font-weight:600;text-decoration:none;}' +
+  '#kmSocial .kmSbody{max-height:400px;overflow-y:auto;padding:.5rem;}' +
+  '#kmSocial .kmEdit{display:flex;gap:.4rem;padding:.6rem;border-top:1px solid #1c2636;}' +
+  '#kmSocial .kmEdit input{flex:1;width:auto;background:#0d1420;border:1px solid #2a3749;color:#f2f3f5;padding:.5rem;border-radius:8px;font-size:.8rem;}' +
+  '#kmSocial .kmEdit button{margin:0;padding:.5rem .8rem;font-size:.78rem;}' +
+  '#kmSocial .kmFr{display:flex;gap:.6rem;align-items:center;padding:.5rem;border-radius:10px;}' +
+  '#kmSocial .kmFr:hover{background:#16203a;}' +
+  '#kmSocial .kmFr img{width:38px;height:38px;border-radius:9px;object-fit:cover;background:#151d2b;flex:none;}' +
+  '#kmSocial .kmFr .kmFi{flex:1;min-width:0;}' +
+  '#kmSocial .kmFr .kmFn{font-weight:700;font-size:.85rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}' +
+  '#kmSocial .kmFr .kmFs{color:#8f9aab;font-size:.72rem;}' +
+  '#kmSocial .kmFr a{font-size:.75rem;font-weight:700;color:#ffd75f;text-decoration:none;}' +
+  '#kmSocial .kmEmpty{padding:1.5rem 1rem;text-align:center;color:#8f9aab;font-size:.85rem;}' +
+  '</style>' +
+  '<div class="kmSpin" id="kmSspin"><div class="kmShead">Freunde &amp; DMs <a href="/dm">Alle Nachrichten \u2192</a></div>' +
+  '<div class="kmSbody" id="kmSbody"></div>' +
+  '<div class="kmEdit"><input id="kmAddCode" placeholder="Freundes-Code"/>' +
+  '<button type="button" id="kmAddBtn">Hinzuf\u00fcgen</button></div></div>' +
+  '<button type="button" class="kmSbtn" id="kmSbtn">&#9993; Freunde &amp; DMs</button>' +
+  '</div>' +
+  '<scr' + 'ipt>' +
+  '(function(){' +
+  'function es(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}' +
+  'var open=false;' +
+  'var btn=document.getElementById("kmSbtn");var spin=document.getElementById("kmSspin");' +
+  'var body=document.getElementById("kmSbody");' +
+  'if(!btn)return;' +
+  'btn.addEventListener("click",function(){open=!open;spin.classList.toggle("on",open);if(open)load();});' +
+  'function av(u){' +
+  'if(u&&u.profile&&u.profile.avatar_data_url)return u.profile.avatar_data_url;' +
+  'return "https://mc-heads.net/head/MHF_Steve/96";}' +
+  'function load(){' +
+  'fetch("/api/profil/friends").then(function(r){return r.json();}).then(function(list){' +
+  'body.innerHTML="";' +
+  'if(!list||!list.length){body.innerHTML="<div class=\\"kmEmpty\\">Noch keine Freunde. F\u00fcge unten einen Code hinzu oder teile deinen.<br/>Freunde-Code: siehst du im <a href=\\"/profil\\" style=\\"color:#ffd75f\\">Profil</a>.</div>";return;}' +
+  'list.forEach(function(f){' +
+  'var eq=f.equipped||{};var ti=(eq.title)?null:null;' +
+  'var row=document.createElement("div");row.className="kmFr";' +
+  'var img=document.createElement("img");img.src=av(f);img.alt="";img.onerror=function(){img.src="https://mc-heads.net/head/MHF_Steve/96";};' +
+  'var info=document.createElement("div");info.className="kmFi";' +
+  'var n=document.createElement("div");n.className="kmFn";n.textContent=f.name||("User "+f.id);' +
+  'var s=document.createElement("div");s.className="kmFs";' +
+  's.innerHTML="<span style=\\"color:"+(f.online?"#3fb950":"#4b5563")+";\\">\u25cf</span> Level "+es(f.level)+" \u00b7 "+es(f.server||"Offline");'; +
+  'info.append(n,s);' +
+  'var pr=document.createElement("a");pr.href="/u/"+encodeURIComponent(f.code||"");pr.textContent="Profil";pr.target="_blank";' +
+  'var dm=document.createElement("a");dm.href="/dm?to="+encodeURIComponent(f.code||"");dm.textContent="\u2709";dm.style.marginLeft=".5rem";' +
+  'row.append(img,info,pr,dm);' +
+  'body.append(row);' +
+  '});' +
+  '}).catch(function(){body.innerHTML="<div class=\\"kmEmpty\\">Nicht erreichbar.</div>";});' +
+  '}' +
+  'document.getElementById("kmAddBtn").addEventListener("click",function(){' +
+  'var code=document.getElementById("kmAddCode").value.trim().toUpperCase();' +
+  'if(!code)return;' +
+  'fetch("/api/profil/friend-add",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({code:code})})' +
+  '.then(function(r){return r.json();}).then(function(j){if(j&&j.ok){document.getElementById("kmAddCode").value="";load();}else{alert("Fehler: "+((j&&j.error)||"?"));}}).catch(function(){alert("Netzwerkfehler");});' +
+  '});' +
+  '})();' +
+  '</scr' + 'ipt>';
