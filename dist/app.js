@@ -456,6 +456,41 @@ async function refreshLogs() {
     }
   }
 
+// Wire profile UI controls (save/edit/view)
+(function wireProfileUI(){
+  const editBtn = $("profileEditToggle");
+  const saveBtn = $("profileSaveBtn");
+  const cancelBtn = $("profileCancelBtn");
+  const bannerInput = $("profileBannerInput");
+  const avatarChoice = $("profileAvatarChoice");
+  const avatarUpload = $("profileAvatarUpload");
+  const publishBtn = $("profilePublishBtn");
+
+  if (editBtn) editBtn.onclick = () => { setProfileEditMode(true); };
+  if (saveBtn) saveBtn.onclick = () => saveProfileCustomization();
+  if (cancelBtn) cancelBtn.onclick = () => cancelProfileEdits();
+  if (publishBtn) publishBtn.onclick = () => publishProfileToServer();
+
+  if (bannerInput) bannerInput.onchange = (e) => {
+    const f = e.target.files && e.target.files[0];
+    if (!f) return; const r = new FileReader(); r.onload = (ev) => { $("profileBannerPreview").src = ev.target.result; $("profileBannerPreview").style.display = ""; }; r.readAsDataURL(f);
+  };
+
+  if (avatarChoice) avatarChoice.onchange = () => {
+    const v = avatarChoice.value;
+    if (v === 'upload') { avatarUpload.style.display = ''; } else { avatarUpload.style.display = 'none'; }
+    if (v === 'minecraft' && socialMe && socialMe.mc_name) showSkinFromName(socialMe.mc_name);
+    // discord avatar handled by preview when opening modal
+  };
+
+  if (avatarUpload) avatarUpload.onchange = (e) => {
+    const f = e.target.files && e.target.files[0]; if (!f) return; const r = new FileReader(); r.onload = (ev) => { $("profileAvatarPreview").src = ev.target.result; $("profileAvatarPreview").style.display = ""; }; r.readAsDataURL(f);
+  };
+
+  const viewBtn = $("viewProfileBtn"); if (viewBtn) viewBtn.onclick = () => viewProfileByName();
+  const viewInput = $("viewProfileName"); if (viewInput) viewInput.onkeyup = (e) => { if (e.key === 'Enter') viewProfileByName(); };
+})();
+
   function renderFriendsWidget() {
     renderFriendsList("fwList", socialFriends, false);
   }
@@ -515,6 +550,25 @@ async function refreshLogs() {
     // Skin + Capes laden – das funktioniert unabhängig von socialMe
     // (Microsoft-Konto reicht), darf also NICHT hinter dem socialMe-Guard hängen.
     loadSkinChanger();
+
+    // Load profile customization from settings
+    try {
+      invoke("get_settings").then(s => {
+        const prof = (s && s.profile) ? s.profile : {};
+        $("profileBio").value = prof.bio || "";
+        if (prof.banner_data_url) {
+          $("profileBannerPreview").src = prof.banner_data_url; $("profileBannerPreview").style.display = "";
+        } else { $("profileBannerPreview").style.display = "none"; }
+        $("profileAvatarChoice").value = prof.avatar_choice || "discord";
+        if (prof.avatar_data_url) { $("profileAvatarPreview").src = prof.avatar_data_url; $("profileAvatarPreview").style.display = ""; }
+        $("profilePublicToggle").checked = !!prof.public;
+        $("profileServerUrl").value = prof.server_url || 'https://kollegen.me';
+        $("profileServerToken").value = prof.server_token || '';
+        // initial state: editing off
+        setProfileEditMode(false);
+      }).catch(()=>{});
+    } catch (e) {}
+
     if (!socialMe) return;
     $("pmName").textContent = socialMe.mc_name || socialMe.username || "—";
     $("pmDiscord").textContent = "Discord: " + (socialMe.global_name || socialMe.username || "—");
@@ -528,6 +582,149 @@ async function refreshLogs() {
       acc.append(d);
     });
     if (socialMe.mc_name) showSkinFromName(socialMe.mc_name);
+  }
+
+  // Profile editing helpers
+  function setProfileEditMode(on) {
+    const editBtn = $("profileEditToggle");
+    const saveBtn = $("profileSaveBtn");
+    const cancelBtn = $("profileCancelBtn");
+    const inputs = ["profileBio","profileBannerInput","profileAvatarChoice","profileAvatarUpload","profilePublicToggle","viewProfileName","viewProfileBtn"];
+    if (on) {
+      editBtn.textContent = "Bearbeiten (An)";
+      saveBtn.style.display = "inline-block";
+      cancelBtn.style.display = "inline-block";
+      inputs.forEach(i => { const el=$(i); if (el) el.removeAttribute('disabled'); });
+    } else {
+      editBtn.textContent = "Bearbeiten";
+      saveBtn.style.display = "none";
+      cancelBtn.style.display = "none";
+      inputs.forEach(i => { const el=$(i); if (el) el.setAttribute('disabled', 'disabled'); });
+    }
+  }
+
+  // Save profile customization to settings
+  async function saveProfileCustomization() {
+    try {
+      const s = await invoke('get_settings');
+      const profile = (s && s.profile) ? s.profile : {};
+      profile.bio = $("profileBio").value.trim();
+      profile.public = !!$("profilePublicToggle").checked;
+      profile.avatar_choice = $("profileAvatarChoice").value;
+      if ($("profileBannerPreview").src) profile.banner_data_url = $("profileBannerPreview").src;
+      if ($("profileAvatarPreview").src) profile.avatar_data_url = $("profileAvatarPreview").src;
+      profile.server_url = $("profileServerUrl").value.trim() || "";
+      profile.server_token = $("profileServerToken").value.trim() || "";
+      s.profile = profile;
+      await invoke('save_settings', { settings: s });
+      toast('Profil gespeichert', 'ok');
+      setProfileEditMode(false);
+    } catch (e) { toast('Speichern fehlgeschlagen: '+e, 'error'); }
+  }
+
+  // Publish profile to a remote Kolleg-en backend (requires server_url and token)
+  async function publishProfileToServer() {
+    const serverUrl = $("profileServerUrl").value.trim();
+    const token = $("profileServerToken").value.trim();
+    if (!serverUrl) return alert('Bitte eine Backend-URL angeben.');
+    if (!token) return alert('Bitte einen gültigen Server-Token angeben. (Du kannst dich einmal auf dem Server /auth registrieren lassen und den zurückgegebenen token hier eintragen.)');
+
+    const profile = {
+      uuid: socialMe && socialMe.uuid ? socialMe.uuid : null,
+      name: socialMe && socialMe.mc_name ? socialMe.mc_name : (socialMe && socialMe.username ? socialMe.username : null),
+      accounts: socialMe && socialMe.accounts ? socialMe.accounts : [],
+      profile: {
+        bio: $("profileBio").value.trim(),
+        banner_data_url: $("profileBannerPreview").src || null,
+        avatar_data_url: $("profileAvatarPreview").src || null,
+        avatar_choice: $("profileAvatarChoice").value,
+        public: !!$("profilePublicToggle").checked,
+      }
+    };
+
+    try {
+      const res = await fetch(serverUrl.replace(/\/$/, '') + '/profile', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + token,
+        },
+        body: JSON.stringify(profile),
+      });
+      const j = await res.json();
+      if (res.ok) {
+        toast('Profil veröffentlicht', 'ok');
+      } else {
+        toast('Publish fehlgeschlagen: ' + (j.error || res.status), 'error');
+      }
+    } catch (e) { toast('Verbindung zum Server fehlgeschlagen: ' + e, 'error'); }
+  }
+
+  // Browse public profiles on the provided server
+  async function browsePublicProfiles(search) {
+    const serverUrl = $("profileServerUrl").value.trim();
+    if (!serverUrl) return alert('Bitte eine Backend-URL angeben, um öffentliche Profile zu durchsuchen.');
+    const q = new URL(serverUrl.replace(/\/$/, '') + '/profiles');
+    if (search) q.searchParams.set('search', search);
+    try {
+      const res = await fetch(q.toString());
+      const j = await res.json();
+      if (!res.ok) return alert('Fehler beim Laden: ' + (j.error || res.status));
+      const wrap = $("viewProfileResult");
+      wrap.innerHTML = '';
+      if (!j.items || !j.items.length) { wrap.textContent = 'Keine Profile gefunden.'; return; }
+      for (const p of j.items) {
+        const el = document.createElement('div'); el.className='view-profile-result';
+        const hdr = document.createElement('div'); hdr.style.display='flex'; hdr.style.alignItems='center'; hdr.style.gap='0.6rem';
+        const img = document.createElement('img'); img.src = p.avatar_data_url || ''; img.style.width='48px'; img.style.height='48px'; img.style.borderRadius='8px'; img.onerror = ()=>{ img.style.display='none'; };
+        const name = document.createElement('div'); name.textContent = p.name || '—'; name.style.fontWeight='700';
+        hdr.append(img, name);
+        const bio = document.createElement('div'); bio.textContent = p.bio || ''; bio.style.marginTop='0.25rem'; bio.style.color='var(--muted)';
+        el.append(hdr, bio);
+        const btns = document.createElement('div'); btns.style.marginTop='0.4rem'; btns.style.display='flex'; btns.style.gap='0.4rem';
+        const viewBtn = document.createElement('button'); viewBtn.textContent = 'Öffnen'; viewBtn.onclick = ()=>{ window.open(serverUrl.replace(/\/$/, '') + '/profiles/' + p.id, '_blank'); };
+        btns.append(viewBtn);
+        el.append(btns);
+        wrap.append(el);
+      }
+    } catch (e) { alert('Fehler: ' + e); }
+  }
+
+  // Cancel edits: reload from settings
+  function cancelProfileEdits() {
+    invoke('get_settings').then(s => {
+      const prof = (s && s.profile) ? s.profile : {};
+      $("profileBio").value = prof.bio || "";
+      if (prof.banner_data_url) { $("profileBannerPreview").src = prof.banner_data_url; $("profileBannerPreview").style.display = ""; } else { $("profileBannerPreview").style.display = "none"; }
+      $("profileAvatarChoice").value = prof.avatar_choice || "discord";
+      if (prof.avatar_data_url) { $("profileAvatarPreview").src = prof.avatar_data_url; $("profileAvatarPreview").style.display = ""; }
+      $("profilePublicToggle").checked = !!prof.public;
+      setProfileEditMode(false);
+    }).catch(()=>{});
+  }
+
+  // View other profile by name (uses new Tauri command)
+  async function viewProfileByName() {
+    const name = $("viewProfileName").value.trim();
+    if (!name) return;
+    const resWrap = $("viewProfileResult");
+    resWrap.textContent = 'Lade…';
+    try {
+      const res = await invoke('get_minecraft_profile_by_name', { name });
+      if (res && res.error) { resWrap.textContent = 'Fehler: ' + res.error; return; }
+      // show basic info + skin preview
+      resWrap.innerHTML = '';
+      const title = document.createElement('div'); title.textContent = `${res.name} · ${res.uuid}`; resWrap.append(title);
+      if (res.skin_data_url) {
+        const img = document.createElement('img'); img.src = res.skin_data_url; img.style.maxWidth = '140px'; img.style.borderRadius='6px'; resWrap.append(img);
+        showSkin(res.skin_data_url);
+      } else if (res.skin_url) {
+        const img = document.createElement('img'); img.src = res.skin_url; img.style.maxWidth = '140px'; img.style.borderRadius='6px'; resWrap.append(img);
+        showSkin(res.skin_url);
+      }
+      if (res.cape_data_url) { const c = document.createElement('img'); c.src = res.cape_data_url; c.style.maxWidth='160px'; resWrap.append(c); }
+      const raw = document.createElement('pre'); raw.style.maxHeight='8rem'; raw.style.overflow='auto'; raw.textContent = JSON.stringify(res.raw_textures || {}, null, 2); resWrap.append(raw);
+    } catch (e) { resWrap.textContent = 'Fehler: ' + e; }
   }
 
   let skinViewer = null;
