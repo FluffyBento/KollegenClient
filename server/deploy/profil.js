@@ -128,7 +128,7 @@ const KM_TOP_SCRIPT =
   'var lo=document.getElementById("kmLogout");' +
   'fetch("/api/auth/me").then(function(r){return r.json();}).then(function(j){' +
   'if(j&&j.user){' +
-  'if(lg)lg.style.display="none";if(dg)dg.style.display="none";' +
+  'if(lg)lg.style.display="none";' +
   'if(pts)pts.style.display="";if(av)av.style.display="";' +
   'if(lo){lo.style.display="";lo.addEventListener("click",function(e){e.preventDefault();' +
   'fetch("/api/auth/logout",{method:"POST"}).then(function(){location.href="/";}).catch(function(){location.href="/";});});}' +
@@ -958,8 +958,7 @@ function buildStorePage() {
     'return fetch(url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)}).then(function(r){return r.json();});' +
     '}' +
     'function buy(id){doAct("buy",id).then(function(j){' +
-    'if(j&&j.ok){$("walletPts").textContent="\u2605 "+j.points;"+' +
-    'if(myDid===adminTarget){}' +
+    'if(j&&j.ok){$("walletPts").textContent="\u2605 "+j.points;' +
     'closeModal();load();}' +
     'else{alert("Kauf fehlgeschlagen: "+((j&&j.error)||"unbekannt"));}' +
     '}).catch(function(){alert("Netzwerkfehler beim Kauf.");});' +
