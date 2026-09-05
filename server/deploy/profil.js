@@ -90,7 +90,6 @@ function topBarHtml(current) {
     return '<a class="km-link' + on + hs + '" href="' + href + '">' + label + '</a>';
   }
   const pages = [
-    { href: '/', label: 'Startseite' },
     { href: '/minecraft', label: 'Minecraft' },
     { href: '/clicker', label: 'Clicker' },
     { href: '/chat', label: 'Chat' },
@@ -111,7 +110,7 @@ function topBarHtml(current) {
     '<span class="km-pts" id="kmNavPts" style="display:none;"><span class="km-star">&#9733;</span> <span id="kmNavPtsVal">0</span></span>' +
     '<img class="km-avatar" id="kmNavAvatar" alt="" style="display:none;"/>' +
     '<a class="km-login" id="kmLogin" href="/api/auth/discord/login" style="display:none;">Anmelden</a>' +
-    '<a class="km-discord" id="kmDiscord" href="' + DISCORD_INVITE + '" target="_blank" rel="noopener" style="display:none;">Discord</a>' +
+    '<a class="km-discord" id="kmDiscord" href="' + DISCORD_INVITE + '" target="_blank" rel="noopener">Discord</a>' +
     '<a class="km-logout" id="kmLogout" href="#" style="display:none;">Abmelden</a>' +
     '</div>' +
     '</header>'
@@ -920,7 +919,7 @@ function buildStorePage() {
     'else if(owned){btn.textContent="Ausr\u00fcsten";btn.className+=" secondary";btn.setAttribute("data-act","equip");btn.setAttribute("data-item",item.id);}' +
     'else if(!logged){btn.textContent="Anmelden zum Kaufen";btn.className+=" ghost";btn.disabled=true;}' +
     'else{btn.textContent="Kaufen \u00b7 \u2605 "+item.price;if(item.price>st.points){btn.className+=" ghost";btn.disabled=true;}btn.setAttribute("data-act","buy");btn.setAttribute("data-item",item.id);}' +
-    'btn.addEventListener("click",function(e){e.stopPropagation();});' +
+    'btn.addEventListener("click",function(e){e.stopPropagation();var act=btn.getAttribute("data-act");var it=btn.getAttribute("data-item");if(act==="buy"){buy(it);}else if(act==="equip"){equip(it);}});' +
     'card.append(btn);' +
     'card.addEventListener("click",function(){openModal(item);});' +
     'grid.append(card);' +
@@ -979,13 +978,6 @@ function buildStorePage() {
     'c.classList.add("on");rar=c.getAttribute("data-r");render();' +
     '});' +
     '$("sortSel").addEventListener("change",function(){sort=$("sortSel").value;render();});' +
-    '$("grid").addEventListener("click",function(e){' +
-    'var b=e.target.closest("[data-act]");if(!b)return;' +
-    'var id=b.getAttribute("data-item");var act=b.getAttribute("data-act");' +
-    'b.disabled=true;' +
-    'if(act==="buy"){buy(id);b.disabled=false;}' +
-    'else if(act==="equip"){equip(id);b.disabled=false;}' +
-    '});' +
     '$("kmModalX").addEventListener("click",closeModal);' +
     '$("kmModal").addEventListener("click",function(e){if(e.target===$("kmModal"))closeModal();});' +
     'document.addEventListener("keydown",function(e){if(e.key==="Escape")closeModal();});' +
