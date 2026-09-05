@@ -74,6 +74,21 @@ const CATALOG = [
   { id: 'badge_diamant', category: 'badge', name: 'Diamant-Abzeichen', desc: 'Wertvoll wie ein Diamant.', price: 350, rarity: 'rare', data: { icon: '◆', color: '#4deeea' } },
   { id: 'badge_netherit', category: 'badge', name: 'Netherit-Abzeichen', desc: 'Unzerstörbar und dunkel.', price: 700, rarity: 'epic', data: { icon: '⬢', color: '#d4c9c0' } },
   { id: 'badge_drache', category: 'badge', name: 'Enderdrache-Abzeichen', desc: 'Bezwing den Drachen.', price: 1200, rarity: 'legendary', data: { icon: '★', color: '#c77dff' } },
+  // Profil-Rahmen (um deine Profil-Karte, Steam-style)
+  { id: 'pframe_emerald', category: 'profile_frame', name: 'Smaragd-Rahmen', desc: 'Grüner Glanz um dein Profil.', price: 500, rarity: 'rare', data: { color1: '#2ea043', color2: '#0f6b32' } },
+  { id: 'pframe_ruby', category: 'profile_frame', name: 'Rubin-Rahmen', desc: 'Edler roter Rahmen.', price: 900, rarity: 'epic', data: { color1: '#f85149', color2: '#a32127' } },
+  { id: 'pframe_royal', category: 'profile_frame', name: 'Königsblau-Rahmen', desc: 'Royal blau strahlend.', price: 1400, rarity: 'epic', data: { color1: '#3b82f6', color2: '#1e3a8a' } },
+  { id: 'pframe_onyx', category: 'profile_frame', name: 'Onyx-Gold-Rahmen', desc: 'Schwarz mit Gold-Akzenten.', price: 2200, rarity: 'legendary', data: { color1: '#e6c96b', color2: '#374151' } },
+  // Profil-Hintergrund (Seiten-Hintergrund deiner Profilseite)
+  { id: 'pbg_dusk', category: 'profile_bg', name: 'Zwielicht', desc: 'Ruhiges, dunkles Dämmerlicht.', price: 300, rarity: 'common', data: { gradient: 'linear-gradient(135deg,#1a1b2e,#0b0d14)' } },
+  { id: 'pbg_lava', category: 'profile_bg', name: 'Lavastrom', desc: 'Glühende Lava unter deinem Profil.', price: 700, rarity: 'rare', data: { gradient: 'linear-gradient(135deg,#7a2200,#120404)' } },
+  { id: 'pbg_aurora', category: 'profile_bg', name: 'Aurora', desc: 'Polarlichter über dunkler See.', price: 1400, rarity: 'epic', data: { gradient: 'linear-gradient(135deg,#0f2027,#203a43,#2c5364)' } },
+  { id: 'pbg_ender', category: 'profile_bg', name: 'Das Ende', desc: 'Würde dem Enderdrachen gefallen.', price: 2400, rarity: 'legendary', data: { gradient: 'linear-gradient(135deg,#0f0c29,#302b63,#24243e)' } },
+  // Profil-Banner (Zierleiste oben auf der Profilseite, Steam-style)
+  { id: 'banner_dawn', category: 'banner', name: 'Morgenröte', desc: 'Warme Töne für deinen Banner.', price: 400, rarity: 'common', data: { gradient: 'linear-gradient(135deg,#f6d365,#fda085)' } },
+  { id: 'banner_ember', category: 'banner', name: 'Glut', desc: 'Feuer und Gold.', price: 800, rarity: 'rare', data: { gradient: 'linear-gradient(135deg,#f12711,#f5af19)' } },
+  { id: 'banner_ocean', category: 'banner', name: 'Ozean', desc: 'Blau wie die offene See.', price: 1500, rarity: 'epic', data: { gradient: 'linear-gradient(135deg,#2193b0,#6dd5ed)' } },
+  { id: 'banner_onyx', category: 'banner', name: 'Onyx Gold', desc: 'Elegant, dunkel, teuer.', price: 2400, rarity: 'legendary', data: { gradient: 'linear-gradient(135deg,#232526,#414345,#b8860b)' } },
 ];
 
 function catById(id) {
@@ -131,7 +146,12 @@ function loadStore() {
     console.error('Konnte store.json nicht laden:', e.message);
   }
   // Migration: neue Felder (Punkte/Kosmetik) für Bestandsnutzer ergänzen.
-  store.catalog = Array.isArray(store.catalog) && store.catalog.length ? store.catalog : CATALOG;
+  // Katalog-Seed: neue Items per id in den bereits persistierten Katalog mergen,
+  // damit Katalog-Erweiterungen auch bei Bestandesinstallationen ankommen.
+  const curCat = Array.isArray(store.catalog) ? store.catalog : [];
+  const byId = {};
+  for (const c of curCat) if (c && c.id) byId[c.id] = c;
+  store.catalog = CATALOG.map((c) => Object.assign({}, c, byId[c.id] || {}));
   for (const key of Object.keys(store.users || {})) {
     const u = store.users[key];
     if (u && typeof u === 'object') ensureUserExtras(u);

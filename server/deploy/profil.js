@@ -12,15 +12,16 @@
 //   POST /api/profil/friend-add, /api/profil/friend-remove
 //   GET  /api/profil/uuid?name=… – MC-Name → UUID Proxy (CORS-sauber)
 //   POST /api/profil/save    – Profil + MC-Identität ins Backend-Bridge schreiben
-// und injiziert in der SPA oben eine Steam-artige Navigations-Leiste
-// (kollegen.me · Profil · Store · Freunde) inklusive Points-Chip.
+//
+// In der SPA wird die alte (React-)Toolbar ausgeblendet und durch eine
+// Steam-artige Topbar ersetzt, die beide Link-Sets vereint (Startseite,
+// Minecraft, Clicker, Chat, Awards, Über uns, Projekte + Profil, Store,
+// Freunde) inklusive Avatar- und Points-Chip und Discord-Button.
 //
 // Einbindung in server.js VOR den statischen/SPA-Fallbacks:
 //   require(path.join(__dirname, 'profil.js'))(app, getSession);
-// (getSession ist die bestehende Website-Session-Funktion aus server.js.)
 //
-// Auth zum Backend läuft Server-zu-Server über KOLLEGEN_INTERNAL_SECRET
-// (muss per Umgebung/EnvironmentFile auf Website- UND Backend-Prozess stehen).
+// Auth zum Backend läuft Server-zu-Server über KOLLEGEN_INTERNAL_SECRET.
 
 'use strict';
 
@@ -37,48 +38,77 @@ function loadInternalSecret() {
   return '';
 }
 
-// ── Gestaltung (Steam-angelehnt) ───────────────────────────────────────────
-const NAV_CSS =
-  '.km-nav{position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:9999;display:flex;' +
-  'align-items:center;gap:4px;background:rgba(11,13,20,.85);border:1px solid rgba(212,175,55,.35);' +
-  'border-radius:999px;padding:5px 8px;backdrop-filter:blur(8px);box-shadow:0 6px 24px rgba(0,0,0,.55);' +
-  'white-space:nowrap;max-width:94vw;overflow-x:auto;scrollbar-width:none;}' +
-  '.km-nav::-webkit-scrollbar{display:none;}' +
-  '.km-nav a{color:#f2f3f5;text-decoration:none;font:600 13px/1 Inter,Outfit,sans-serif;' +
-  'padding:7px 12px;border-radius:999px;transition:background .15s,color .15s;flex:none;}' +
-  '.km-nav a.on{background:rgba(212,175,55,.24);color:#ffd75f;}' +
-  '.km-nav a:hover{background:rgba(255,255,255,.09);}' +
-  '.km-nav .km-avatar{width:26px;height:26px;border-radius:50%;object-fit:cover;background:#222;' +
-  'vertical-align:middle;margin-right:4px;}' +
-  '.km-nav .km-pts{display:inline-flex;align-items:center;gap:6px;color:#ffd75f;' +
-  'font:800 13px/1 Inter,sans-serif;padding:7px 12px;flex:none;border-left:1px solid rgba(255,255,255,.12);}' +
-  '@media (max-width:640px){.km-nav a span.km-lbl{display:none;}}';
+// ── Topbar (Steam-angelehnt, ersetzt die alte React-Toolbar) ────────────────
+const DISCORD_INVITE = 'https://discord.gg/P5kzdms8bx';
 
-function navHtml(current) {
-  function a(href, label, active, extra) {
-    const on = active ? ' on' : '';
-    return '<a class="km-link' + on + '" href="' + href + '"' + (extra || '') + '>' + label + '</a>';
+const KM_TOP_CSS =
+  '.km-topbar{position:sticky;top:0;z-index:9999;display:flex;align-items:center;gap:6px;' +
+  'background:linear-gradient(180deg,#141827,#0b0e16 85%);border-bottom:1px solid #232c40;' +
+  'box-shadow:0 3px 20px rgba(0,0,0,.5);padding:9px 16px;overflow-x:auto;white-space:nowrap;' +
+  'scrollbar-width:none;width:100%;box-sizing:border-box;}' +
+  '.km-topbar::-webkit-scrollbar{display:none;}' +
+  '.km-topbar .km-brand{display:flex;align-items:center;gap:9px;color:#ffd75f;' +
+  'font:800 15px/1 Outfit,Inter,sans-serif;text-decoration:none;letter-spacing:.02em;' +
+  'flex:none;margin-right:10px;}' +
+  '.km-topbar .km-brand img{width:30px;height:30px;border-radius:9px;object-fit:contain;' +
+  'filter:drop-shadow(0 2px 6px rgba(212,175,55,.45));}' +
+  '.km-topbar a.km-link{color:#c7cfdd;text-decoration:none;font:600 13px/1 Inter,sans-serif;' +
+  'padding:8px 11px;border-radius:8px;flex:none;transition:background .15s,color .15s;}' +
+  '.km-topbar a.km-link:hover{background:rgba(255,255,255,.07);color:#fff;}' +
+  '.km-topbar a.km-link.on{color:#ffd75f;background:rgba(212,175,55,.14);}' +
+  '.km-topbar .km-right{margin-left:auto;display:flex;align-items:center;gap:8px;flex:none;}' +
+  '.km-topbar .km-avatar{width:28px;height:28px;border-radius:50%;object-fit:cover;background:#222;flex:none;}' +
+  '.km-topbar .km-pts{display:inline-flex;align-items:center;gap:6px;color:#ffd75f;' +
+  'font:800 13px/1 Inter,sans-serif;padding:7px 10px;border:1px solid #4a4124;border-radius:999px;' +
+  'background:#161410;}' +
+  '.km-topbar .km-discord{background:#5865F2;color:#fff;font:700 13px/1 Inter,sans-serif;' +
+  'padding:9px 14px;border-radius:8px;text-decoration:none;flex:none;transition:filter .15s;}' +
+  '.km-topbar .km-discord:hover{filter:brightness(1.12);}' +
+  '@media (max-width:860px){.km-topbar a.km-link.km-hide-sm{display:none;}}';
+
+function topBarHtml(current) {
+  function a(href, label, active, hideSm) {
+    const on = active === href ? ' on' : '';
+    const hs = hideSm ? ' km-hide-sm' : '';
+    return '<a class="km-link' + on + hs + '" href="' + href + '">' + label + '</a>';
   }
+  const pages = [
+    { href: '/', label: 'Startseite' },
+    { href: '/minecraft', label: 'Minecraft' },
+    { href: '/clicker', label: 'Clicker' },
+    { href: '/chat', label: 'Chat' },
+    { href: '/kollegenawards', label: 'Awards', hideSm: true },
+    { href: '/ueber-uns', label: '\u00dcber uns', hideSm: true },
+    { href: '/projekte', label: 'Projekte', hideSm: true },
+    { href: '/profil', label: 'Profil' },
+    { href: '/store', label: 'Store' },
+    { href: '/freunde', label: 'Freunde' },
+  ];
+  let links = '';
+  for (const p of pages) links += a(p.href, p.label, current, p.hideSm);
   return (
-    '<nav class="km-nav" id="kmNav">' +
-    a('/', '&#9656; kollegen.me', current === '/') +
-    a('/profil', '<img class="km-avatar" id="kmNavAvatar" alt="" />' + '<span class="km-lbl">Profil</span>', current === '/profil') +
-    a('/store', '<span class="km-lbl">Store</span>', current === '/store') +
-    a('/freunde', '<span class="km-lbl">Freunde</span>', current === '/freunde') +
+    '<header class="km-topbar" id="kmTopbar">' +
+    '<a class="km-brand" href="/"><img src="/images/logo.png" alt=""/>kollegen.me</a>' +
+    links +
+    '<div class="km-right">' +
     '<span class="km-pts" id="kmNavPts" style="display:none;">&#9733; <span id="kmNavPtsVal">0</span></span>' +
-    '</nav>'
+    '<img class="km-avatar" id="kmNavAvatar" alt="" style="display:none;"/>' +
+    '<a class="km-discord" href="' + DISCORD_INVITE + '" target="_blank" rel="noopener">Discord</a>' +
+    '</div>' +
+    '</header>'
   );
 }
 
-const NAV_SCRIPT =
+const KM_TOP_SCRIPT =
   '(function(){' +
   'function kmReady(fn){if(document.readyState!=="loading")fn();else document.addEventListener("DOMContentLoaded",fn);}' +
   'kmReady(function(){' +
   'var pts=document.getElementById("kmNavPts");var pv=document.getElementById("kmNavPtsVal");' +
   'var av=document.getElementById("kmNavAvatar");' +
   'fetch("/api/auth/me").then(function(r){return r.json();}).then(function(j){' +
-  'if(!j||!j.user){if(av)av.style.display="none";return;}' +
+  'if(!j||!j.user){return;}' +
   'if(pts)pts.style.display="";' +
+  'if(av)av.style.display="";' +
   'fetch("/api/profil/me").then(function(r){return r.json();}).then(function(p){' +
   'if(!p)return;' +
   'if(pv&&typeof p.points==="number")pv.textContent=p.points;' +
@@ -91,15 +121,6 @@ const NAV_SCRIPT =
   '}).catch(function(){});' +
   '});' +
   '})();';
-
-function pageShell(title, cssExtra, bodyInner) {
-  return (
-    '<!DOCTYPE html><html lang="de"><head><meta charset="utf-8"/>' +
-    '<meta name="viewport" content="width=device-width,initial-scale=1"/>' +
-    '<title>' + title + ' &middot; kollegen.me</title>' +
-    '<style>' + NAV_CSS + cssExtra + '</style></head><body>' + bodyInner + '</body></html>'
-  );
-}
 
 module.exports = function registerProfilModule(app, getSession) {
   const BACKEND = process.env.KOLLEGEN_BACKEND_URL || 'http://127.0.0.1:8080';
@@ -279,7 +300,7 @@ module.exports = function registerProfilModule(app, getSession) {
     '/freunde': buildFreundePage(),
   };
 
-  // ── SPA: Navigations-Leiste injizieren ──
+  // ── SPA: alte Toolbar ausblenden + neue Topbar injizieren ──
   let cachedIndex = null;
   function injectedIndex() {
     if (cachedIndex) return cachedIndex;
@@ -289,10 +310,15 @@ module.exports = function registerProfilModule(app, getSession) {
     } catch (_) {
       return null;
     }
-    const nav =
-      '<style>' + NAV_CSS + '</style>' + navHtml('') +
-      '<script>' + NAV_SCRIPT + '</' + 'script>';
-    html = html.replace('</body>', nav + '</body>');
+    const top =
+      '<style>' + KM_TOP_CSS +
+      // Alte React-Toolbar (fixed top-0 z-50) unsichtbar machen.
+      'nav[class*="top-0"][class*="z-50"]{display:none !important;}' +
+      '</style>' +
+      topBarHtml('') +
+      '<script>' + KM_TOP_SCRIPT + '</' + 'script>';
+    // Direkt nach dem <body>-Tag einfügen → in-flow oben, kein Overlap.
+    html = html.replace(/<body[^>]*>/, function (m) { return m + top; });
     cachedIndex = html;
     return html;
   }
@@ -322,11 +348,11 @@ module.exports = function registerProfilModule(app, getSession) {
   });
 };
 
-// ── Gemeinsame Hilfen für die inline-Seiten-Skripte ─────────────────────────
+// ── Gemeinsame Basis für die inline-Seiten ──────────────────────────────────
 const SHARED_CSS =
   'body{background:#0a0d13;color:#f2f3f5;font-family:Inter,"Segoe UI",Arial,sans-serif;' +
-  'margin:0;padding:5.2rem 1rem 3rem;display:flex;justify-content:center;min-height:100vh;box-sizing:border-box;}' +
-  '#wrap{max-width:860px;width:100%;}' +
+  'margin:0;padding:0;display:flex;flex-direction:column;align-items:center;min-height:100vh;box-sizing:border-box;}' +
+  '#wrap{max-width:880px;width:100%;box-sizing:border-box;margin:1.6rem auto 3rem;padding:1.4rem;}' +
   'h1{font-family:Outfit,Inter,sans-serif;color:#D4AF37;margin:0 0 .2rem;font-size:1.6rem;}' +
   '.sub{color:#9aa3af;font-size:.9rem;margin-bottom:1.2rem;}' +
   '.card{background:#121826;border:1px solid #232e42;border-radius:14px;padding:1.2rem;margin-top:1rem;}' +
@@ -350,32 +376,48 @@ const SHARED_CSS =
   '.lvlChip{display:inline-flex;align-items:center;gap:6px;background:#1a2333;border:1px solid #2f3d55;' +
   'color:#c9d4e3;font:700 13px/1 Inter,sans-serif;padding:8px 12px;border-radius:999px;}';
 
+function pageShell(title, cssExtra, bodyInner) {
+  return (
+    '<!DOCTYPE html><html lang="de"><head><meta charset="utf-8"/>' +
+    '<meta name="viewport" content="width=device-width,initial-scale=1"/>' +
+    '<title>' + title + ' &middot; kollegen.me</title>' +
+    '<style>' + KM_TOP_CSS + SHARED_CSS + cssExtra + '</style></head>' +
+    '<body>' + topBarHtml(pagePathForTitle(title)) + bodyInner + '</body></html>'
+  );
+}
+
+function pagePathForTitle(title) {
+  if (title === 'Profil') return '/profil';
+  if (title === 'Store') return '/store';
+  return '/freunde';
+}
+
 // ── Profilseite ─────────────────────────────────────────────────────────────
 function buildProfilPage() {
-  const css = SHARED_CSS +
+  const css =
+    '#wrap{border:1px solid rgba(255,255,255,.06);border-radius:18px;background:rgba(9,11,18,.66);' +
+    'box-shadow:0 12px 44px rgba(0,0,0,.45);}' +
+    '.bannerStrip{display:none;height:96px;border-radius:14px;margin-bottom:1.1rem;position:relative;overflow:hidden;' +
+    'background-size:cover;background-position:center;}' +
+    '.bannerStrip .bl{position:absolute;left:12px;bottom:10px;color:#0a0d13;font:800 13px/1 Outfit,Inter,sans-serif;' +
+    'background:rgba(255,255,255,.72);padding:4px 10px;border-radius:999px;}' +
     '.profileRow{display:flex;gap:1rem;align-items:center;}' +
     '.headImg{width:84px;height:84px;border-radius:16px;object-fit:cover;background:#222;flex:none;}' +
     '.equipList{display:flex;flex-wrap:wrap;gap:.6rem;margin-top:.3rem;}' +
     '.equipItem{display:flex;align-items:center;gap:.5rem;background:#0d1420;border:1px solid #26344a;' +
     'border-radius:10px;padding:.45rem .7rem;font-size:.85rem;color:#e3e9f2;}' +
-    '.equipItem .swatch{width:18px;height:18px;border-radius:5px;flex:none;}' +
+    '.equipItem .swatch{width:18px;height:18px;border-radius:5px;flex:none;text-align:center;line-height:18px;font-size:11px;}' +
     '.bar{height:8px;border-radius:999px;background:#1a2333;overflow:hidden;margin-top:.4rem;}' +
     '.bar > div{height:100%;background:linear-gradient(90deg,#D4AF37,#ffd75f);border-radius:999px;}' +
     '.progressLabel{display:flex;justify-content:space-between;font-size:.75rem;color:#8f9aab;margin-top:.25rem;}';
 
   const html =
-    '<nav class="km-nav" id="kmNav">' +
-    '<a class="km-link" href="/">&#9656; kollegen.me</a>' +
-    '<a class="km-link on" href="/profil"><img class="km-avatar" id="kmNavAvatar" alt="" /><span class="km-lbl">Profil</span></a>' +
-    '<a class="km-link" href="/store"><span class="km-lbl">Store</span></a>' +
-    '<a class="km-link" href="/freunde"><span class="km-lbl">Freunde</span></a>' +
-    '<span class="km-pts" id="kmNavPts" style="display:none;">&#9733; <span id="kmNavPtsVal">0</span></span>' +
-    '</nav>' +
     '<div id="wrap">' +
+    '<div class="bannerStrip" id="bannerStrip"><span class="bl" id="bannerLabel"></span></div>' +
     '<h1>Profil &amp; Minecraft</h1>' +
-    '<div class="sub">Dein öffentliches Kollegen-Profil – mit Sternen-Store und Skins.</div>' +
+    '<div class="sub">Dein \u00f6ffentliches Kollegen-Profil \u2013 mit Sternen-Store, Skins und Kosmetik.</div>' +
     '<div class="card loginCard" id="loginCard">' +
-    '<p style="margin:0 0 .4rem;">Melde dich mit Discord an – dein Minecraft-Profil wird automatisch übernommen, sobald du im Kollegen-Launcher angemeldet bist.</p>' +
+    '<p style="margin:0 0 .4rem;">Melde dich mit Discord an \u2013 dein Minecraft-Profil wird automatisch \u00fcbernommen, sobald du im Kollegen-Launcher angemeldet bist.</p>' +
     '<a href="/api/auth/discord/login"><button type="button">Mit Discord anmelden</button></a>' +
     '</div>' +
     '<div class="card" id="meCard" style="display:none;">' +
@@ -388,27 +430,27 @@ function buildProfilPage() {
     '</div>' +
     '<div id="ptsWrap" style="display:flex;flex-direction:column;gap:.5rem;align-items:flex-end;"></div>' +
     '</div>' +
-    '<label for="mcName">Minecraft-Name (verknüpfen)</label>' +
+    '<label for="mcName">Minecraft-Name (verkn\u00fcpfen)</label>' +
     '<div class="row"><input id="mcName" placeholder="z. B. FluffyBento" style="flex:1;width:auto;"/><button type="button" class="secondary" id="lookupBtn">Skin laden</button></div>' +
     '<div id="skinPreview" style="margin-top:.6rem;"></div>' +
     '<label for="avatarChoice">Avatar</label>' +
     '<select id="avatarChoice"><option value="discord">Discord-Avatar</option><option value="minecraft">Minecraft-Head</option></select>' +
     '<label for="bioValue">Bio</label><textarea id="bioValue" placeholder="Beschreibe dich in ein paar Worten..."></textarea>' +
-    '<label for="bannerValue">Banner-URL (optional)</label><input id="bannerValue" placeholder="https://…/banner.png"/>' +
-    '<label style="display:flex;align-items:center;gap:.5rem;"><input type="checkbox" id="pubToggle" style="width:auto;"/> Öffentliches Profil (für andere sichtbar)</label>' +
+    '<label for="bannerValue">Banner-Bild-URL (optional)</label><input id="bannerValue" placeholder="https://\u2026/banner.png"/>' +
+    '<label style="display:flex;align-items:center;gap:.5rem;"><input type="checkbox" id="pubToggle" style="width:auto;"/> \u00d6ffentliches Profil (f\u00fcr andere sichtbar)</label>' +
     '<div class="muted" id="saveHint" style="margin-top:.6rem;"></div>' +
     '<div class="row"><button type="button" id="saveBtn">Speichern</button>' +
-    '<a href="/store"><button type="button" class="ghost">Zum Kosmetik-Store</button></a></div>' +
+    '<a href="/store"><button type="button" class="ghost">Kosmetik &amp; Store</button></a></div>' +
     '</div>' +
     '<div class="card" id="equipCard" style="display:none;">' +
-    '<h1 style="font-size:1.1rem;">Ausgerüstete Kosmetik</h1>' +
-    '<p class="muted">Diese Items siehst du in Profilen und der Freunde-Liste. Ausrüsten/ablegen kannst du im Store.</p>' +
+    '<h1 style="font-size:1.1rem;">Ausger\u00fcstete Kosmetik</h1>' +
+    '<p class="muted">Diese Items siehst du in Profilen und der Freunde-Liste. Ausr\u00fcsten/ablegen kannst du im Store.</p>' +
     '<div class="equipList" id="equipList"></div>' +
     '<a href="/store"><button type="button" class="ghost">Im Store anpassen</button></a>' +
     '</div>' +
-    '<p class="sub" style="margin-top:1.2rem;">Hinweis: Der direkte Minecraft-Login (Microsoft/OAuth) benötigt eine eigene App-Registrierung – bis dahin wird dein Skin über den Namen geladen. Gemeinsame Freunde im Launcher übernehmen den Skin automatisch.</p>' +
+    '<p class="sub" style="margin-top:1.2rem;">Hinweis: Der direkte Minecraft-Login (Microsoft/OAuth) ben\u00f6tigt eine eigene App-Registrierung \u2013 bis dahin wird dein Skin \u00fcber den Namen geladen. Gemeinsame Freunde im Launcher \u00fcbernehmen den Skin automatisch.</p>' +
     '</div>' +
-    '<script>' + NAV_SCRIPT +
+    '<script>' + KM_TOP_SCRIPT +
     '(function(){' +
     'function $(i){return document.getElementById(i);}' +
     'var me=$("meCard"),login=$("loginCard");' +
@@ -420,6 +462,11 @@ function buildProfilPage() {
     'me.style.display="block";' +
     'fetch("/api/profil/me").then(function(r){return r.json();}).then(function(p){' +
     'if(p&&p.code){$("meCode").textContent="Freundes-Code: "+p.code;}' +
+    'fetch("/api/profil/store").then(function(r){return r.json();}).then(function(st){' +
+    'window._kmCat=(st&&st.catalog)||[];' +
+    'if(p&&typeof p.points==="number"){renderPts(p);}' +
+    'applyCosmetics(p);' +
+    '}).catch(function(){ if(p&&typeof p.points==="number"){renderPts(p);} });' +
     'if(p&&p.mcName){' +
     '$("mcName").value=p.mcName;window._mcName=p.mcName;window._mcUuid=p.uuid||null;' +
     '$("headImg").src="https://mc-heads.net/head/"+encodeURIComponent(p.mcName).replace(/%20/g,"_")+"/256";' +
@@ -436,37 +483,45 @@ function buildProfilPage() {
     'if(pr.avatar_choice)$("avatarChoice").value=pr.avatar_choice;' +
     'if(pr.public)$("pubToggle").checked=true;' +
     '}' +
-    'if(p&&typeof p.points==="number"){renderPts(p);}' +
     '}).catch(function(){});' +
     '}).catch(function(){login.style.display="block";});' +
+    'function byId(id){var c=window._kmCat||[];for(var i=0;i<c.length;i++){if(c[i].id===id)return c[i];}return null;}' +
+    'function applyCosmetics(p){' +
+    'var eq=p.equipped||{};' +
+    'var pb=byId(eq.profile_bg);' +
+    'if(pb&&pb.data&&pb.data.gradient){document.body.style.background=pb.data.gradient+" fixed";}' +
+    'var bn=byId(eq.banner);var strip=$("bannerStrip"),lab=$("bannerLabel");' +
+    'if(bn&&bn.data&&bn.data.gradient){strip.style.background=bn.data.gradient;strip.style.display="block";if(lab)lab.textContent=bn.name;}' +
+    'else if(p.profile&&p.profile.banner_data_url){strip.style.backgroundImage="url("+p.profile.banner_data_url+")";strip.style.display="block";if(lab)lab.textContent="Profil-Banner";}' +
+    'else{strip.style.display="none";}' +
+    'var pf=byId(eq.profile_frame);var wr=$("wrap");' +
+    'if(pf&&pf.data&&pf.data.color1){wr.style.border="2px solid "+pf.data.color1;wr.style.boxShadow="0 0 30px "+pf.data.color1+"44, 0 12px 44px rgba(0,0,0,.45)";}' +
+    '}' +
     'function renderPts(p){' +
     'var w=$("ptsWrap");w.innerHTML="";' +
     'var c=document.createElement("div");c.className="ptsChip";c.textContent="\u2605 "+p.points;' +
     'var l=document.createElement("div");l.className="lvlChip";l.textContent="Level "+p.level;' +
     'var t=(typeof p.points_total==="number")?p.points_total:0;var next=300-((t-1)%300)-1;' +
     'var prog=document.createElement("div");' +
-    'prog.innerHTML="<div class=\\"bar\\"><div style=\\"width:"+(((t-1)%300)+1)+"%;\\"></div></div>"+' +
-    '"<div class=\\"progressLabel\\"><span>"+p.level+" \u2192 "+(p.level+1)+"</span><span>"+next+" Punkte bis Level "+(p.level+1)+"</span></div>";' +
+    'prog.innerHTML="<div class=\\"bar\\"><div style=\\"width:"+(((t-1)%300)+1)+"%;\\"></div></div>"+"<div class=\\"progressLabel\\"><span>"+p.level+" \u2192 "+(p.level+1)+"</span><span>"+next+" Punkte bis Level "+(p.level+1)+"</span></div>";' +
     'w.append(c,l,prog);' +
     'renderEquip(p);' +
     '}' +
-    'function byId(id){var c=window._kmCat||[];for(var i=0;i<c.length;i++){if(c[i].id===id)return c[i];}return null;}' +
     'function renderEquip(p){' +
     'var list=$("equipList");if(!list)return;' +
-    'fetch("/api/profil/store").then(function(r){return r.json();}).then(function(st){' +
-    'window._kmCat=st.catalog||[];' +
-    'var eq=p.equipped||{};var names=[];' +
+    'var eq=p.equipped||{};' +
     'for(var k in eq){if(!eq[k])continue;var it=byId(eq[k]);if(it){' +
     'var el=document.createElement("div");el.className="equipItem";' +
     'var sw=document.createElement("span");sw.className="swatch";' +
-    'if(it.category==="avatar_frame"&&it.data.color1){sw.style.background=it.data.color1;}' +
-    'else if(it.category==="title"){sw.style.background="#3a3f4e";sw.textContent=it.data.text;}else if(it.category==="avatar_theme"){sw.style.background="linear-gradient(135deg,#3a4a6b,#1c1c28)";}' +
+    'if(it.data&&it.data.color1){sw.style.background=it.data.color1;}' +
+    'else if(it.data&&it.data.gradient){sw.style.background=it.data.gradient;}' +
+    'else if(it.category==="title"&&it.data){sw.textContent=it.data.text;sw.style.background="#3a3f4e";}' +
+    'else if(it.category==="badge"&&it.data){sw.textContent=it.data.icon;sw.style.background="#0d1420";sw.style.color=it.data.color;}' +
     'el.append(sw);el.append(document.createTextNode(it.name));' +
     'list.append(el);' +
     '}'+
     '}'+
     '$("equipCard").style.display="block";' +
-    '}).catch(function(){});' +
     '}' +
     'function loadBody(nm){' +
     'var wrap=$("skinPreview");wrap.innerHTML="";' +
@@ -518,7 +573,7 @@ function buildStorePage() {
     '.tab{background:#121826;border:1px solid #26334a;color:#c6cfdb;font:600 13px/1 Inter,sans-serif;' +
     'padding:7px 14px;border-radius:999px;cursor:pointer;transition:all .15s;}' +
     '.tab.on{background:#D4AF37;border-color:#D4AF37;color:#0a0d13;}' +
-    '.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:1rem;margin-top:1rem;}' +
+    '.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(176px,1fr));gap:1rem;margin-top:1rem;}' +
     '.card{display:flex;flex-direction:column;margin:0;position:relative;transition:transform .15s,border-color .15s;}' +
     '.card:hover{transform:translateY(-2px);border-color:#3c4a63;}' +
     '.card.equipped{border-color:#6b5627;}' +
@@ -528,6 +583,8 @@ function buildStorePage() {
     '.pvHead{width:64px;height:64px;border-radius:14px;object-fit:cover;background:#151d2b;}' +
     '.pvTitle{font:800 15px/1 Outfit,Inter,sans-serif;color:#ffd75f;}' +
     '.pvBadgeTxt{color:#0a0d13;font-weight:800;}' +
+    '.pvMini{width:78%;height:64px;border-radius:10px;display:flex;align-items:center;justify-content:center;' +
+    'color:#c9d4e3;font:700 11px/1 Inter,sans-serif;}' +
     '.rar{position:absolute;top:10px;right:10px;}' +
     '.r-common{background:#2b3547;color:#b8c2d0;}.r-rare{background:#123a5c;color:#5aa9ff;}' +
     '.r-epic{background:#3b1e5c;color:#c96bff;}.r-legendary{background:#5c3e12;color:#ffb64d;}' +
@@ -538,40 +595,37 @@ function buildStorePage() {
     '.cardBtn{width:100%;text-align:center;margin-top:.55rem;padding:.5rem;}' +
     '.ownedTag{color:#7ee787;font-weight:800;font-size:.82rem;text-align:center;margin-top:.55rem;}' +
     '.note{display:flex;gap:.5rem;align-items:flex-start;margin:1rem 0 0;}' +
-    '.backLink{margin-top:1.4rem;display:inline-block;font-size:.85rem;}';
+    '.backLink{margin-top:1.4rem;display:inline-block;font-size:.85rem;}' +
+    '#wrap{border:0;background:transparent;box-shadow:none;}';
 
   const html =
-    '<nav class="km-nav" id="kmNav">' +
-    '<a class="km-link" href="/">&#9656; kollegen.me</a>' +
-    '<a class="km-link" href="/profil"><img class="km-avatar" id="kmNavAvatar" alt="" /><span class="km-lbl">Profil</span></a>' +
-    '<a class="km-link on" href="/store"><span class="km-lbl">Store</span></a>' +
-    '<a class="km-link" href="/freunde"><span class="km-lbl">Freunde</span></a>' +
-    '<span class="km-pts" id="kmNavPts" style="display:none;">&#9733; <span id="kmNavPtsVal">0</span></span>' +
-    '</nav>' +
     '<div id="wrap">' +
     '<div class="storeHead">' +
     '<div><h1>Kosmetik-Store</h1>' +
-    '<div class="sub">Austattung für dein Profil – gekauft mit Kollegen-Points (später eintauschbar).</div></div>' +
+    '<div class="sub">Austattung f\u00fcr dein Profil \u2013 gekauft mit Kollegen-Points (sp\u00e4ter eintauschbar).</div></div>' +
     '<div class="row" id="walletRow"><span class="ptsChip" id="walletPts" style="display:none;">&#9733; 0</span>' +
     '<span class="lvlChip" id="walletLvl" style="display:none;">Level 1</span></div>' +
     '</div>' +
     '<div class="card loginCard" id="loginCard">' +
-    '<p style="margin:0 0 .4rem;">Melde dich an, um Kosmetik zu kaufen und auszurüsten. Bereits im Launcher angemeldet? Dann bist du automatisch auch hier angemeldet.</p>' +
+    '<p style="margin:0 0 .4rem;">Melde dich an, um Kosmetik zu kaufen und auszur\u00fcsten. Bereits im Launcher angemeldet? Dann bist du automatisch auch hier angemeldet.</p>' +
     '<a href="/api/auth/discord/login"><button type="button">Mit Discord anmelden</button></a>' +
     '</div>' +
     '<div class="tabs" id="tabs">' +
     '<button type="button" class="tab on" data-f="alle">Alle</button>' +
     '<button type="button" class="tab" data-f="title">Titel</button>' +
-    '<button type="button" class="tab" data-f="avatar_frame">Rahmen</button>' +
-    '<button type="button" class="tab" data-f="avatar_theme">Hintergründe</button>' +
+    '<button type="button" class="tab" data-f="avatar_frame">Avatar-Rahmen</button>' +
+    '<button type="button" class="tab" data-f="avatar_theme">Avatar-Hintergrund</button>' +
     '<button type="button" class="tab" data-f="badge">Abzeichen</button>' +
+    '<button type="button" class="tab" data-f="profile_frame">Profil-Rahmen</button>' +
+    '<button type="button" class="tab" data-f="profile_bg">Profil-Hintergrund</button>' +
+    '<button type="button" class="tab" data-f="banner">Banner</button>' +
     '</div>' +
-    '<div class="grid" id="grid"><div class="muted" id="gridMsg">Lade Store…</div></div>' +
+    '<div class="grid" id="grid"><div class="muted" id="gridMsg">Lade Store\u2026</div></div>' +
     '<div class="note card"><span style="font-size:1.2rem;">&#9432;</span>' +
-    '<span class="muted">Kollegen-Points bekommst du als Startguthaben und später durch Aktivität dazu. Der Punkte-Tausch (Redeem) in echte Vorteile ist geplant – aktuell kannst du mit deinen Punkten ausschließlich Kosmetik kaufen.</span></div>' +
-    '<a class="backLink" href="/">&#8592; Zur Startseite</a>' +
+    '<span class="muted">Kollegen-Points bekommst du als Startguthaben und sp\u00e4ter durch Aktivit\u00e4t dazu. Der Punkte-Tausch (Redeem) in echte Vorteile ist geplant \u2013 aktuell kannst du mit deinen Punkten ausschlie\u00dflich Kosmetik kaufen.</span></div>' +
+    '<a class="backLink" href="/">\u2190 Zur Startseite</a>' +
     '</div>' +
-    '<script>' + NAV_SCRIPT +
+    '<script>' + KM_TOP_SCRIPT +
     '(function(){' +
     'function $(i){return document.getElementById(i);}' +
     'var st=null,filter="alle";' +
@@ -602,6 +656,9 @@ function buildStorePage() {
     'if(item.category==="title"){return "<span class=\\"pvTitle\\">"+esc(item.data.text)+"</span>";}' +
     'if(item.category==="badge"){return "<span class=\\"pvBadgeTxt\\" style=\\"font-size:30px;color:"+esc(item.data.color)+"\\">"+esc(item.data.icon)+"</span>";}' +
     'if(item.category==="avatar_theme"){return "<div style=\\"width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:"+esc(item.data.gradient)+"\\"><img class=\\"pvHead\\" src=\\""+av+"\\"/></div>";}' +
+    'if(item.category==="banner"){return "<div style=\\"width:88%;height:58px;border-radius:10px;display:flex;align-items:center;justify-content:center;color:#0a0d13;font:800 12px/1 Outfit,sans-serif;background:"+esc(item.data.gradient)+"\\">Banner</div>";}' +
+    'if(item.category==="profile_bg"){return "<div style=\\"width:88%;height:78px;border-radius:10px;display:flex;align-items:center;justify-content:center;color:#c9d4e3;font:700 11px/1 Inter,sans-serif;background:"+esc(item.data.gradient)+"\\"><img class=\\"pvHead\\" style=\\"width:34px;height:34px;\\" src=\\""+av+"\\"/></div>";}' +
+    'if(item.category==="profile_frame"){return "<div class=\\"pvMini\\" style=\\"border:4px solid "+esc(item.data.color1)+";box-shadow:0 0 12px "+esc(item.data.color1)+"44;background:#0d1420;\\"><img class=\\"pvHead\\" style=\\"width:40px;height:40px;\\" src=\\""+av+"\\"/></div>";}' +
     'var border="",shadow="";' +
     'if(item.category==="avatar_frame"&&item.data.color1){border="border:"+(item.data.width||3)+"px solid "+item.data.color1+";";shadow="box-shadow:0 0 14px "+item.data.color1+"55;";}' +
     'return "<img class=\\"pvHead\\" style=\\""+border+shadow+"border-radius:14px;\\" src=\\""+av+"\\"/>";' +
@@ -678,40 +735,34 @@ function buildFreundePage() {
     '.codeBox{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;}' +
     '.codeBox .code{font:800 18px/1 "Courier New",monospace;color:#ffd75f;letter-spacing:.12em;}' +
     '.btn-sm{padding:.4rem .9rem;font-size:.8rem;margin:0;}' +
-    '.badgeGlyph{margin-right:5px;font-weight:800;}';
+    '.badgeGlyph{margin-right:5px;font-weight:800;}' +
+    '#wrap{border:0;background:transparent;box-shadow:none;}';
 
   const html =
-    '<nav class="km-nav" id="kmNav">' +
-    '<a class="km-link" href="/">&#9656; kollegen.me</a>' +
-    '<a class="km-link" href="/profil"><img class="km-avatar" id="kmNavAvatar" alt="" /><span class="km-lbl">Profil</span></a>' +
-    '<a class="km-link" href="/store"><span class="km-lbl">Store</span></a>' +
-    '<a class="km-link on" href="/freunde"><span class="km-lbl">Freunde</span></a>' +
-    '<span class="km-pts" id="kmNavPts" style="display:none;">&#9733; <span id="kmNavPtsVal">0</span></span>' +
-    '</nav>' +
     '<div id="wrap">' +
     '<h1>Freunde</h1>' +
-    '<div class="sub">Dein Kollegen-Netzwerk – online auf einem Joint-Server, in Steam-Profil-Optik.</div>' +
+    '<div class="sub">Dein Kollegen-Netzwerk \u2013 online auf einem Joint-Server, in Steam-Profil-Optik.</div>' +
     '<div class="card loginCard" id="loginCard">' +
-    '<p style="margin:0 0 .4rem;">Melde dich mit Discord an, um Freunde zu sehen und hinzuzufügen.</p>' +
+    '<p style="margin:0 0 .4rem;">Melde dich mit Discord an, um Freunde zu sehen und hinzuzuf\u00fcgen.</p>' +
     '<a href="/api/auth/discord/login"><button type="button">Mit Discord anmelden</button></a>' +
     '</div>' +
     '<div class="card" id="meCard" style="display:none;">' +
     '<label>Dein Freundes-Code</label>' +
-    '<div class="codeBox"><span class="code" id="myCode">–</span>' +
+    '<div class="codeBox"><span class="code" id="myCode">\u2013</span>' +
     '<button type="button" class="secondary btn-sm" id="copyBtn">Kopieren</button></div>' +
-    '<label>Freund hinzufügen (per Code)</label>' +
+    '<label>Freund hinzuf\u00fcgen (per Code)</label>' +
     '<div class="row"><input id="addCode" placeholder="z. B. C8B99EC051" style="flex:1;width:auto;text-transform:uppercase;"/>' +
-    '<button type="button" class="secondary" id="addBtn">Hinzufügen</button></div>' +
+    '<button type="button" class="secondary" id="addBtn">Hinzuf\u00fcgen</button></div>' +
     '<div class="muted" id="addHint" style="margin-top:.5rem;"></div>' +
     '</div>' +
     '<div class="card" id="listCard" style="display:none;">' +
     '<div id="listHeader" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.4rem;">' +
     '<strong id="listTitle"></strong><span class="muted" id="listCount"></span></div>' +
-    '<div id="listWrap"><div class="empty">Lade Freunde…</div></div>' +
+    '<div id="listWrap"><div class="empty">Lade Freunde\u2026</div></div>' +
     '</div>' +
-    '<a class="backLink" href="/">&#8592; Zur Startseite</a>' +
+    '<a class="backLink" href="/">\u2190 Zur Startseite</a>' +
     '</div>' +
-    '<script>' + NAV_SCRIPT +
+    '<script>' + KM_TOP_SCRIPT +
     '(function(){' +
     'function $(i){return document.getElementById(i);}' +
     'var me=$("meCard"),login=$("loginCard"),listCard=$("listCard");' +
@@ -734,13 +785,18 @@ function buildFreundePage() {
     '$("listTitle").textContent="Deine Kollegen";' +
     '$("listCount").textContent=list.length+" Freund"+(list.length===1?"":"e");' +
     'var wrap=$("listWrap");wrap.innerHTML="";' +
-    'if(!list.length){wrap.innerHTML="<div class=\\"empty\\">Noch keine Freunde. Teile deinen Code (oben) oder füge einen Code hinzu.</div>";return;}' +
+    'if(!list.length){wrap.innerHTML="<div class=\\"empty\\">Noch keine Freunde. Teile deinen Code (oben) oder f\u00fcge einen Code hinzu.</div>";return;}' +
     'list.forEach(function(f){' +
     'var row=document.createElement("div");row.className="frRow";' +
     'var av=document.createElement("img");av.className="frAv";av.src=avFor(f);av.alt="";av.onerror=function(){av.src="https://mc-heads.net/head/MHF_Steve/128";};' +
+    'var eq=f.equipped||{};' +
+    'var frame=byId(eq.avatar_frame);' +
+    'if(frame&&frame.data&&frame.data.color1){av.style.border="3px solid "+frame.data.color1;av.style.boxShadow="0 0 12px "+frame.data.color1+"66";}' +
     'var info=document.createElement("div");info.className="frInfo";' +
-    'var nm=document.createElement("div");nm.className="frName";nm.textContent=f.name||("User #"+f.id);' +
-    'var eq=f.equipped||{};var gl="";' +
+    'var nm=document.createElement("div");nm.className="frName";' +
+    'var titleTxt="";var ti=byId(eq.title);if(ti&&ti.data)titleTxt=ti.data.text+" \u00b7 ";' +
+    'nm.textContent=titleTxt+(f.name||("User #"+f.id));' +
+    'var gl="";' +
     'if(eq.badge){var b=byId(eq.badge);if(b)gl="<span class=\\"badgeGlyph\\" style=\\"color:"+esc(b.data.color||"#fff")+"\\">"+esc(b.data.icon)+"</span>";}' +
     'var sub=document.createElement("div");sub.className="frSub";' +
     'sub.innerHTML="<span class=\\"dot "+(f.online?"on":"off")+"\\"></span>"+gl+"Level "+esc(f.level)+"\\u00b7 "+esc(f.server||"Offline")+" \\u00b7 Code "+esc(f.code);' +
@@ -754,7 +810,7 @@ function buildFreundePage() {
     'row.append(av,info,rem);' +
     'wrap.append(row);' +
     '});' +
-    '}).catch(function(){ $("listWrap").innerHTML="<div class=\\"empty\\">Freunde-Liste temporär nicht erreichbar.</div>"; });' +
+    '}).catch(function(){ $("listWrap").innerHTML="<div class=\\"empty\\">Freunde-Liste tempor\u00e4r nicht erreichbar.</div>"; });' +
     '}' +
     '$("copyBtn").addEventListener("click",function(){' +
     'var c=$("myCode").textContent;if(!c||c==="\u2013")return;' +
@@ -764,10 +820,10 @@ function buildFreundePage() {
     '$("addBtn").addEventListener("click",function(){' +
     'var code=$("addCode").value.trim().toUpperCase();' +
     'if(!code){$("addHint").textContent="Bitte Code eingeben.";return;}' +
-    '$("addHint").textContent="Füge hinzu…";' +
+    '$("addHint").textContent="F\u00fcge hinzu\u2026";' +
     'fetch("/api/profil/friend-add",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({code:code})})' +
     '.then(function(r){return r.json();}).then(function(j){' +
-    'if(j&&j.ok){$("addHint").textContent="Freund hinzugefügt! (Grün = online)";$("addCode").value="";load();}' +
+    'if(j&&j.ok){$("addHint").textContent="Freund hinzugef\u00fcgt! (Gr\u00fcn = online)";$("addCode").value="";load();}' +
     'else{var m=(j&&j.error)||"unbekannt";' +
     'if(m==="cannot_friend_self")m="Das bist du selbst.";' +
     'else if(m==="target_not_found")m="Kein Kollege mit diesem Code.";' +
