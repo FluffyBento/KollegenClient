@@ -279,7 +279,72 @@ const server = http.createServer(async (req, res) => {
       }
     }
 
-    // ── Freunde ──
+    // ── Interne Bridge (nur Website-Server → Backend) ─────────────────────────
+// Authentifiziert über das Shared Secret in KOLLEGEN_INTERNAL_SECRET
+// (Umgebung/EnvironmentFile). Die Website (kollegen.me server.js) ruft diese
+// Endpoints mit demselben Secret auf, um Profil + MC-Identität abzugleichen –
+// ohne dass Nutzereingaben durch die Website-Sessions hindurchtoken müssen.
+function internalAuthorized(req) {
+  const expect = process.env.KOLLEGEN_INTERNAL_SECRET || '';
+  if (!expect) return false;
+  const h = req.headers['x-kollegen-internal'] || '';
+  return h === expect;
+}
+
+// GET /internal/user?discordId=... | ?id=... → öffentliche Profildaten des Users
+if (pathname === '/internal/user' && method === 'GET') {
+  if (!internalAuthorized(req)) return sendJson(res, 403, { error: 'forbidden' });
+  const discordId = url.searchParams.get('discordId');
+  const id = url.searchParams.get('id');
+  let u = null;
+  if (discordId) u = store.users[discordId];
+  else if (id) u = Object.values(store.users || {}).find(x => x && x.id === String(id)) || null;
+  if (!u) return sendJson(res, 404, { error: 'not_found' });
+  return sendJson(res, 200, {
+    id: u.id,
+    discordId: u.discordId,
+    name: u.name || u.discordName,
+    uuid: u.uuid || null,
+    code: u.code,
+    profile: u.profile || null,
+    mc_name: u.name || null,
+  });
+}
+
+// POST /internal/profile → Legt Profil + MC-Identität an/aktualisiert (Server-to-Server)
+if (pathname === '/internal/profile' && method === 'POST') {
+  if (!internalAuthorized(req)) return sendJson(res, 403, { error: 'forbidden' });
+  const body = await readBody(req);
+  const discordId = String(body.discordId || '');
+  if (!discordId) return sendJson(res, 400, { error: 'discordId_required' });
+  const user = store.users[discordId] || (store.users[discordId] = {
+    discordId,
+    discordName: String(body.discordName || 'Discord-Nutzer'),
+    uuid: null,
+    name: null,
+    accounts: [],
+    code: genCode(),
+    friends: [],
+    id: String(store.seq++),
+  });
+  if (body.mcName) user.name = String(body.mcName);
+  if (body.uuid) user.uuid = String(body.uuid);
+  if (body.discordName) user.discordName = String(body.discordName);
+  if (body.profile && typeof body.profile === 'object') {
+    user.profile = user.profile || {};
+    const p = body.profile;
+    if (typeof p.bio === 'string') user.profile.bio = p.bio;
+    if (typeof p.banner_data_url === 'string') user.profile.banner_data_url = p.banner_data_url;
+    if (typeof p.avatar_data_url === 'string') user.profile.avatar_data_url = p.avatar_data_url;
+    if (typeof p.avatar_choice === 'string') user.profile.avatar_choice = p.avatar_choice;
+    if (typeof p.public === 'boolean') user.profile.public = p.public;
+  }
+  store.codes[user.code] = user.discordId;
+  saveStore();
+  return sendJson(res, 200, { ok: true, user: { id: user.id, code: user.code } });
+}
+
+// ── Freunde ──
     if (pathname === '/friends' && method === 'GET') {
       const user = bearerUser(req);
       if (!user) return sendJson(res, 401, { error: 'not_authenticated' });

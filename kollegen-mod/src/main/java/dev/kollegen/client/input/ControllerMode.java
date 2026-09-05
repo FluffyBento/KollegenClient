@@ -151,7 +151,9 @@ public final class ControllerMode {
                             scrollAmount = amount * 3.0; // empirischer Faktor
                         }
                         if (scrollAmount != 0.0) {
-                            mc.screen.mouseScrolled(guiX, guiY, scrollAmount);
+                            // Seit 1.20.5 hat Screen.mouseScrolled 4 Parameter:
+                            // (x, y, horizontal, vertical). Nur vertikal scrollen.
+                            mc.screen.mouseScrolled(guiX, guiY, 0.0, scrollAmount);
                             lastScrollAt = now;
                         }
                     }

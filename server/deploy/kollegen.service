@@ -13,6 +13,9 @@ RestartSec=5s
 Environment=PORT=8080
 Environment=KOLLEGEN_DATA_DIR=/var/lib/kollegenclient/data
 Environment=PRESENCE_TTL_MS=90000
+# Shared Secret für die Website→Backend-Bridge (/internal/*). Datei wird
+# beim Setup auf dem Server erzeugt (chmod 600, nie committen).
+EnvironmentFile=/etc/kollegen_internal.env
 LimitNOFILE=65536
 
 [Install]
