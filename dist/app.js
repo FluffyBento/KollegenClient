@@ -339,6 +339,7 @@ async function refreshLogs() {
   // geschrieben. Freunde werden ausschließlich über den Freundes-Code hinzugefügt.
   let socialMe = null;
   let socialFriends = [];
+  let socialRequests = [];
   let lastSocialFetch = 0;
   const SOCIAL_STALE_MS = 30000;
 
@@ -361,12 +362,14 @@ async function refreshLogs() {
       return;
     }
     try {
-      const [me, friends] = await Promise.all([
+      const [me, friends, requests] = await Promise.all([
         invoke("kollegen_me"),
         invoke("kollegen_friends"),
+        invoke("kollegen_friend_requests").catch(() => ({ error: true })),
       ]);
       socialMe = me && !me.error ? normalizeProfile(me) : null;
       socialFriends = (friends && !friends.error ? friends : []).map(normalizeFriend);
+      socialRequests = requests && !requests.error ? requests : [];
       lastSocialFetch = Date.now();
       renderSocialAll();
     } catch (e) {
@@ -519,7 +522,57 @@ async function refreshLogs() {
   }
 
   function renderSocialPanel() {
+    renderKollegenRequests();
     renderFriendsList("kollegenFriends", socialFriends, true);
+  }
+
+  // Eingehende Freundesanfragen (Anfrage → Annehmen/Ablehnen), neueste zuerst.
+  function renderKollegenRequests() {
+    const wrap = $("kollegenRequestsWrap");
+    const list = $("kollegenRequests");
+    if (!wrap || !list) return;
+    const arr = Array.isArray(socialRequests) ? socialRequests : [];
+    if (!arr.length) { wrap.style.display = "none"; return; }
+    wrap.style.display = "";
+    list.innerHTML = "";
+    for (const it of arr) {
+      const req = it.request || {};
+      const u = normalizeFriend(it.user || {});
+      const fromId = req.from || u.id || "";
+      const li = document.createElement("li");
+      const img = document.createElement("img");
+      img.className = "friend-avatar";
+      const url = avatarUrl(u);
+      if (url) img.src = url; else img.style.display = "none";
+      li.append(img);
+      const meta = document.createElement("div");
+      meta.className = "friend-meta";
+      const name = document.createElement("div");
+      name.className = "friend-name";
+      name.textContent = u.mc_name || u.global_name || u.username || "—";
+      const sub = document.createElement("div");
+      sub.className = "friend-sub";
+      sub.textContent = u.friend_code ? "Code: " + u.friend_code : "Anfrage offen";
+      meta.append(name, sub);
+      li.append(meta);
+      const acc = document.createElement("button");
+      acc.textContent = "Annehmen";
+      acc.onclick = async () => {
+        acc.disabled = true;
+        await invoke("kollegen_friend_accept", { fromId }).catch(() => null);
+        refreshSocial(true);
+      };
+      li.append(acc);
+      const dec = document.createElement("button");
+      dec.textContent = "Ablehnen";
+      dec.onclick = async () => {
+        dec.disabled = true;
+        await invoke("kollegen_friend_decline", { fromId }).catch(() => null);
+        refreshSocial(true);
+      };
+      li.append(dec);
+      list.append(li);
+    }
   }
 
   function renderFriendsList(elId, arr, withRemove) {
@@ -2504,6 +2557,9 @@ $("friendCodeAdd").onclick = async () => {
     const res = await invoke("kollegen_friend_add", { targetId: code });
     $("friendCodeInput").value = "";
     if (res && res.error) toast("Fehler: " + res.error, "error");
+    else if (res && res.pending) toast("Anfrage gesendet – wartet auf Bestätigung", "ok");
+    else if (res && res.accepted) toast("Ihr seid jetzt Freunde!", "ok");
+    else if (res && res.already) toast("Bereits Freunde", "ok");
     else toast("Freund hinzugefügt", "ok");
     refreshSocial(true);
   } catch (e) {
@@ -3293,7 +3349,13 @@ startBackgroundIntervals();
     if (add) add.onclick = async () => {
       try {
         const r = await invoke("kollegen_friend_add", { targetId: p.code });
-        res.innerHTML = r && r.ok ? `<div style="color:#7ee787;padding:0.4rem 0;">Freund hinzugef\u00fcgt \u2713</div>` : `<div style="color:#f85149;padding:0.4rem 0;">Fehler: ${esc((r && r.error) || "?")}</div>`;
+        let msg;
+        if (r && r.pending) msg = "Anfrage gesendet – wartet auf Bestätigung ✓";
+        else if (r && r.accepted) msg = "Ihr seid jetzt Freunde! ✓";
+        else if (r && r.already) msg = "Bereits Freunde";
+        else if (r && r.ok) msg = "Freund hinzugefügt ✓";
+        else msg = `Fehler: ${esc((r && r.error) || "?")}`;
+        res.innerHTML = r && r.ok ? `<div style="color:#7ee787;padding:0.4rem 0;">${esc(msg)}</div>` : `<div style="color:#f85149;padding:0.4rem 0;">${esc(msg)}</div>`;
       } catch (e) { res.innerHTML = `<div style="color:#f85149;">Fehler: ${esc(e)}</div>`; }
     };
     const dm = $("kmProfilDm");

@@ -305,7 +305,7 @@ pub fn add_friend_by_code(data_dir: &PathBuf, code: &str) -> serde_json::Value {
         .json(&serde_json::json!({ "code": code }))
         .send()
     {
-        Ok(r) if r.status().is_success() => serde_json::json!({ "ok": true }),
+        Ok(r) if r.status().is_success() => r.json().unwrap_or(serde_json::json!({ "ok": true })),
         Ok(r) if r.status() == 401 => {
             *SESSION.lock().unwrap() = None;
             serde_json::json!({ "error": "not_authenticated" })
@@ -339,6 +339,59 @@ pub fn kollegen_friend_remove(data_dir: &PathBuf, target_id: &str) -> serde_json
         .send()
     {
         Ok(r) if r.status().is_success() => serde_json::json!({ "ok": true }),
+        Ok(r) if r.status() == 401 => {
+            *SESSION.lock().unwrap() = None;
+            serde_json::json!({ "error": "not_authenticated" })
+        }
+        Ok(r) => serde_json::json!({ "error": format!("HTTP {}", r.status()) }),
+        Err(e) => serde_json::json!({ "error": e.to_string() }),
+    }
+}
+
+/// Eingehende Freundesanfragen (Liste; wer darf mich anfragen + Status).
+pub fn kollegen_friend_requests(data_dir: &PathBuf) -> serde_json::Value {
+    let (client, backend, session) = match authed_request(data_dir) {
+        Some(x) => x,
+        None => return serde_json::json!({ "error": "not_authenticated" }),
+    };
+    let url = format!("{}/friend/requests", backend);
+    match client
+        .get(&url)
+        .header("Authorization", format!("Bearer {}", session))
+        .send()
+    {
+        Ok(r) if r.status().is_success() => r.json().unwrap_or(serde_json::json!([])),
+        Ok(r) if r.status() == 401 => {
+            *SESSION.lock().unwrap() = None;
+            serde_json::json!({ "error": "not_authenticated" })
+        }
+        _ => serde_json::json!({ "error": "request_failed" }),
+    }
+}
+
+/// Nimmt eine Freundesanfrage an (from_id = Discord-ID des Anfragenden).
+pub fn kollegen_friend_accept(data_dir: &PathBuf, from_id: &str) -> serde_json::Value {
+    friend_request_act(data_dir, "/friend/accept", from_id)
+}
+
+/// Lehnt eine Freundesanfrage ab (from_id = Discord-ID des Anfragenden).
+pub fn kollegen_friend_decline(data_dir: &PathBuf, from_id: &str) -> serde_json::Value {
+    friend_request_act(data_dir, "/friend/decline", from_id)
+}
+
+fn friend_request_act(data_dir: &PathBuf, path: &str, from_id: &str) -> serde_json::Value {
+    let (client, backend, session) = match authed_request(data_dir) {
+        Some(x) => x,
+        None => return serde_json::json!({ "error": "not_authenticated" }),
+    };
+    let url = format!("{}{}", backend, path);
+    match client
+        .post(&url)
+        .header("Authorization", format!("Bearer {}", session))
+        .json(&serde_json::json!({ "from_id": from_id }))
+        .send()
+    {
+        Ok(r) if r.status().is_success() => r.json().unwrap_or(serde_json::json!({ "ok": true })),
         Ok(r) if r.status() == 401 => {
             *SESSION.lock().unwrap() = None;
             serde_json::json!({ "error": "not_authenticated" })

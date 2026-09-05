@@ -1294,6 +1294,24 @@ async fn kollegen_friend_remove(app: tauri::AppHandle, target_id: String) -> Res
 }
 
 #[tauri::command]
+async fn kollegen_friend_requests(app: tauri::AppHandle) -> Result<serde_json::Value, String> {
+    let data_dir = app.state::<AppState>().data_dir.clone();
+    Ok(crate::presence::kollegen_friend_requests(&data_dir))
+}
+
+#[tauri::command]
+async fn kollegen_friend_accept(app: tauri::AppHandle, from_id: String) -> Result<serde_json::Value, String> {
+    let data_dir = app.state::<AppState>().data_dir.clone();
+    Ok(crate::presence::kollegen_friend_accept(&data_dir, &from_id))
+}
+
+#[tauri::command]
+async fn kollegen_friend_decline(app: tauri::AppHandle, from_id: String) -> Result<serde_json::Value, String> {
+    let data_dir = app.state::<AppState>().data_dir.clone();
+    Ok(crate::presence::kollegen_friend_decline(&data_dir, &from_id))
+}
+
+#[tauri::command]
 async fn kollegen_browse_profiles(app: tauri::AppHandle, search: Option<String>) -> Result<serde_json::Value, String> {
     let data_dir = app.state::<AppState>().data_dir.clone();
     Ok(crate::presence::browse_profiles(&data_dir, search.unwrap_or_default().as_str()))
@@ -1799,6 +1817,9 @@ fn main() {
             kollegen_friends,
             kollegen_friend_add,
             kollegen_friend_remove,
+            kollegen_friend_requests,
+            kollegen_friend_accept,
+            kollegen_friend_decline,
             kollegen_browse_profiles,
             kollegen_publish_profile,
             kollegen_profile_view,
