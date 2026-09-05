@@ -305,6 +305,57 @@
       <h4>Verbundene Accounts</h4>
       <div id="pmAccounts" class="profile-accounts"></div>
 
+      <!-- Neues Profilediting: Bio, Banner, Avatar, Öffentlich -->
+      <div class="profile-customize">
+        <h4>Profil anpassen</h4>
+        <label for="profileBio">Bio</label>
+        <textarea id="profileBio" placeholder="Beschreibe dich in ein paar Worten..." rows="3"></textarea>
+
+        <label>Banner (optional)</label>
+        <div class="banner-picker">
+          <input id="profileBannerInput" type="file" accept="image/*" />
+          <div id="profileBannerPreviewWrap"><img id="profileBannerPreview" alt="Banner Vorschau" style="display:none; max-width:100%; border-radius:6px;" /></div>
+        </div>
+
+        <label>Avatar</label>
+        <div class="avatar-options">
+          <select id="profileAvatarChoice">
+            <option value="discord">Discord-Avatar</option>
+            <option value="minecraft">Minecraft-Head (Aktueller Skin)</option>
+            <option value="upload">Hochladen</option>
+          </select>
+          <input id="profileAvatarUpload" type="file" accept="image/*" style="display:none;" />
+          <div id="profileAvatarPreviewWrap"><img id="profileAvatarPreview" alt="Avatar Vorschau" style="display:none; width:64px; height:64px; border-radius:8px;" /></div>
+        </div>
+
+        <label class="settings-check"><input type="checkbox" id="profilePublicToggle" /> Öffentliches Profil (sichtbar für andere)</label>
+
+        <div style="margin-top:0.5rem; display:flex; gap:0.5rem; align-items:center;">
+          <button id="profileEditToggle">Bearbeiten</button>
+          <button id="profileSaveBtn" style="display:none;">Speichern</button>
+          <button id="profileCancelBtn" style="display:none;">Abbrechen</button>
+          <button id="profilePublishBtn" style="display:inline-block; margin-left:auto;">Publizieren</button>
+        </div>
+
+        <div style="margin-top:0.5rem; display:flex; gap:0.5rem; align-items:center;">
+          <input id="profileServerUrl" placeholder="Backend-URL (z. B. https://kollegen.example.com)" style="flex:1;" />
+          <input id="profileServerToken" placeholder="Server-Token (optional)" style="width:220px;" />
+        </div>
+      </div>
+
+      <div style="margin-top:1rem;">
+        <h4>Profil anderer ansehen</h4>
+        <div style="display:flex; gap:0.5rem; align-items:center;">
+          <input id="viewProfileName" placeholder="Minecraft-Name" />
+          <button id="viewProfileBtn">Anzeigen</button>
+        </div>
+        <div style="display:flex; gap:0.5rem; align-items:center; margin-top:0.4rem;">
+          <input id="browseProfileSearch" placeholder="Server-Durchsuchung (Code oder Name)" style="flex:1;" />
+          <button id="browseProfileBtn">Öffentliche durchsuchen</button>
+        </div>
+        <div id="viewProfileResult" style="margin-top:0.5rem;"></div>
+      </div>
+
       <div class="skin-changer">
         <h4>Skin wechseln</h4>
         <div class="skin-actions">

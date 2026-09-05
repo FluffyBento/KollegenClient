@@ -479,8 +479,15 @@ async function refreshLogs() {
   if (avatarChoice) avatarChoice.onchange = () => {
     const v = avatarChoice.value;
     if (v === 'upload') { avatarUpload.style.display = ''; } else { avatarUpload.style.display = 'none'; }
-    if (v === 'minecraft' && socialMe && socialMe.mc_name) showSkinFromName(socialMe.mc_name);
-    // discord avatar handled by preview when opening modal
+    if (v === 'minecraft') {
+      // Standard-Avatar: eigener Kopf aus dem aktuellen Skin.
+      const nm = (socialMe && socialMe.mc_name) || "";
+      if (nm) {
+        const head = `https://mc-heads.net/avatar/${encodeURIComponent(nm).replace(/%20/g, "_")}/128`;
+        const av = $("profileAvatarPreview");
+        if (av) { av.src = head; av.style.display = ""; }
+      }
+    }
   };
 
   if (avatarUpload) avatarUpload.onchange = (e) => {
@@ -489,6 +496,12 @@ async function refreshLogs() {
 
   const viewBtn = $("viewProfileBtn"); if (viewBtn) viewBtn.onclick = () => viewProfileByName();
   const viewInput = $("viewProfileName"); if (viewInput) viewInput.onkeyup = (e) => { if (e.key === 'Enter') viewProfileByName(); };
+
+  const browseBtn = $("browseProfileBtn");
+  const browseInput = $("browseProfileSearch");
+  const doBrowse = () => browsePublicProfiles((browseInput && browseInput.value.trim()) || "");
+  if (browseBtn) browseBtn.onclick = doBrowse;
+  if (browseInput) browseInput.onkeyup = (e) => { if (e.key === 'Enter') doBrowse(); };
 })();
 
   function renderFriendsWidget() {
@@ -745,7 +758,15 @@ async function refreshLogs() {
     if (!canvas || !url) return;
     currentSkinUrl = url;
     const sv3d = window.skinview3d;
-    if (sv3d && sv3d.SkinViewer && sv3d.IdleAnimation) {
+    // WebGL-Verfügbarkeit prüfen (SteamDeck/WebKit ohne GPU-Kontext → direkt
+    // auf das 2D-Fallback-Bild gehen statt auf einen leeren Canvas zu warten).
+    let webglOk = false;
+    try {
+      const probeCanvas = document.createElement("canvas");
+      const probe = probeCanvas.getContext("webgl2") || probeCanvas.getContext("webgl");
+      webglOk = !!(probe && probe.getParameter);
+    } catch (_) {}
+    if (sv3d && sv3d.SkinViewer && sv3d.IdleAnimation && webglOk) {
       try {
         if (skinViewer) { try { skinViewer.dispose && skinViewer.dispose(); } catch (_) {} skinViewer = null; }
         canvas.style.display = "";
@@ -786,17 +807,29 @@ async function refreshLogs() {
       const active = (list.skins || []).find(s => s.name === list.active);
       if (active && active.url) {
         showSkin(active.url);
-      } else {
-        // Kein lokaler aktiver Skin: Minecraft-Profil-Textur (CORS-fähig) bevorzugen
-        invoke("skin_mc_profile").then(prof => {
-          const skins = (prof && prof.skins) || [];
-          const s = skins.find(x => x.state === "ACTIVE") || skins[0];
-          if (s && s.url) showSkin(s.url);
-          else if (socialMe && socialMe.mc_name) showSkinFromName(socialMe.mc_name);
-        }).catch(() => {
-          if (socialMe && socialMe.mc_name) showSkinFromName(socialMe.mc_name);
-        });
+        return;
       }
+      // Kein lokaler aktiver Skin: automatisch vom Minecraft-Namen ziehen
+      // (funktioniert ohne Microsoft-Login über das öffentliche Mojang-Profil).
+      const fromMcProfile = (prof) => {
+        const skins = (prof && prof.skins) || [];
+        const s = skins.find(x => x.state === "ACTIVE") || skins[0];
+        if (s && s.url) { showSkin(s.url); return; }
+        if (socialMe && socialMe.mc_name) showSkinFromName(socialMe.mc_name);
+      };
+      const fromName = () => {
+        if (socialMe && socialMe.mc_name) {
+          invoke("get_minecraft_profile_by_name", { name: socialMe.mc_name }).then(res => {
+            if (res && !res.error && (res.skin_data_url || res.skin_url)) showSkin(res.skin_data_url || res.skin_url);
+            else invoke("skin_mc_profile").then(fromMcProfile).catch(() => showSkinFromName(socialMe.mc_name));
+          }).catch(() => {
+            invoke("skin_mc_profile").then(fromMcProfile).catch(() => showSkinFromName(socialMe.mc_name));
+          });
+        } else {
+          invoke("skin_mc_profile").then(fromMcProfile).catch(() => {});
+        }
+      };
+      fromName();
     }).catch(() => {});
   }
 

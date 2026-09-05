@@ -314,3 +314,98 @@ pub fn equip_cape(data_dir: &Path, cape_id: &str) -> Value {
         Err(e) => serde_json::json!({ "error": e.to_string() }),
     }
 }
+
+/// Holt das öffentliche Minecraft-Profil (aktueller Skin) eines Spielers per
+/// Minecraft-Name (kein Login erforderlich). Liefert Skin- und Cape-URLs sowie
+/// Data-URLs (base64) für direkte Anzeige in der UI.
+pub fn minecraft_profile_by_name(_data_dir: &Path, name: &str) -> Value {
+    // 1) Name → UUID
+    let lookup = format!("https://api.mojang.com/users/profiles/minecraft/{}", name);
+    let id_resp = match reqwest::blocking::get(&lookup) {
+        Ok(r) if r.status().is_success() => match r.json::<Value>() {
+            Ok(v) => v,
+            Err(e) => return serde_json::json!({ "error": format!("JSON parse: {}", e) }),
+        },
+        Ok(r) => return serde_json::json!({ "error": format!("Name lookup HTTP {}", r.status()) }),
+        Err(e) => return serde_json::json!({ "error": format!("Name lookup failed: {}", e) }),
+    };
+    let uuid = match id_resp.get("id").and_then(|v| v.as_str()) {
+        Some(s) => s,
+        None => return serde_json::json!({ "error": "UUID not found for name" }),
+    };
+
+    // 2) Session profile → textures
+    let sess_url = format!("https://sessionserver.mojang.com/session/minecraft/profile/{}", uuid);
+    let sess = match reqwest::blocking::get(&sess_url) {
+        Ok(r) if r.status().is_success() => match r.json::<Value>() {
+            Ok(v) => v,
+            Err(e) => return serde_json::json!({ "error": format!("Profile JSON parse: {}", e) }),
+        },
+        Ok(r) => return serde_json::json!({ "error": format!("Profile HTTP {}", r.status()) }),
+        Err(e) => return serde_json::json!({ "error": format!("Profile fetch failed: {}", e) }),
+    };
+
+    // Extract textures property (base64)
+    let props = sess.get("properties").and_then(|p| p.as_array()).cloned().unwrap_or_default();
+    let mut textures_b64: Option<String> = None;
+    for p in props {
+        if p.get("name").and_then(|n| n.as_str()) == Some("textures") {
+            textures_b64 = p.get("value").and_then(|v| v.as_str()).map(|s| s.to_string());
+            break;
+        }
+    }
+    let textures = if let Some(tb) = textures_b64 {
+        match base64::engine::general_purpose::STANDARD.decode(tb) {
+            Ok(b) => match String::from_utf8(b) {
+                Ok(s) => match serde_json::from_str::<Value>(&s) {
+                    Ok(v) => v,
+                    Err(_) => serde_json::json!({}),
+                },
+                Err(_) => serde_json::json!({}),
+            },
+            Err(_) => serde_json::json!({}),
+        }
+    } else {
+        serde_json::json!({})
+    };
+
+    let skin_url = textures
+        .get("textures")
+        .and_then(|t| t.get("SKIN"))
+        .and_then(|s| s.get("url"))
+        .and_then(|u| u.as_str())
+        .map(|s| s.to_string());
+    let cape_url = textures
+        .get("textures")
+        .and_then(|t| t.get("CAPE"))
+        .and_then(|s| s.get("url"))
+        .and_then(|u| u.as_str())
+        .map(|s| s.to_string());
+
+    // Try to fetch skin bytes and produce data URL if possible
+    let skin_data_url = skin_url.as_ref().and_then(|url| match reqwest::blocking::get(url) {
+        Ok(r) if r.status().is_success() => match r.bytes() {
+            Ok(b) => Some(format!("data:image/png;base64,{}", base64::engine::general_purpose::STANDARD.encode(&b))),
+            Err(_) => None,
+        },
+        _ => None,
+    });
+
+    let cape_data_url = cape_url.as_ref().and_then(|url| match reqwest::blocking::get(url) {
+        Ok(r) if r.status().is_success() => match r.bytes() {
+            Ok(b) => Some(format!("data:image/png;base64,{}", base64::engine::general_purpose::STANDARD.encode(&b))),
+            Err(_) => None,
+        },
+        _ => None,
+    });
+
+    serde_json::json!({
+        "name": name,
+        "uuid": uuid,
+        "skin_url": skin_url,
+        "skin_data_url": skin_data_url,
+        "cape_url": cape_url,
+        "cape_data_url": cape_data_url,
+        "raw_textures": textures
+    })
+}

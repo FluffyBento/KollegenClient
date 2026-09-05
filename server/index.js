@@ -202,6 +202,18 @@ const server = http.createServer(async (req, res) => {
       if (body.uuid) user.uuid = String(body.uuid);
       if (body.name) user.name = String(body.name);
       if (Array.isArray(body.accounts)) user.accounts = body.accounts;
+
+      // Optional: profile customizations for public profile directory
+      user.profile = user.profile || {};
+      if (body.profile && typeof body.profile === 'object') {
+        const p = body.profile;
+        if (typeof p.bio === 'string') user.profile.bio = p.bio;
+        if (typeof p.banner_data_url === 'string') user.profile.banner_data_url = p.banner_data_url;
+        if (typeof p.avatar_data_url === 'string') user.profile.avatar_data_url = p.avatar_data_url;
+        if (typeof p.avatar_choice === 'string') user.profile.avatar_choice = p.avatar_choice;
+        if (typeof p.public === 'boolean') user.profile.public = p.public;
+      }
+
       saveStore();
       return sendJson(res, 200, { ok: true });
     }
@@ -216,7 +228,55 @@ const server = http.createServer(async (req, res) => {
         uuid: user.uuid,
         code: user.code,
         accounts: user.accounts,
+        profile: user.profile || null,
       });
+    }
+
+    // ── Öffentliches Profil-Listing / Suche ──
+    if (pathname === '/profiles' && method === 'GET') {
+      // query: search, limit, offset
+      const search = (url.searchParams.get('search') || '').toLowerCase();
+      const limit = parseInt(url.searchParams.get('limit') || '50', 10);
+      const offset = parseInt(url.searchParams.get('offset') || '0', 10);
+
+      const all = Object.values(store.users || {})
+        .filter(u => u && u.profile && u.profile.public)
+        .map(u => ({
+          id: u.id,
+          name: u.name || u.discordName,
+          uuid: u.uuid || null,
+          code: u.code,
+          avatar_data_url: (u.profile && u.profile.avatar_data_url) || null,
+          banner_data_url: (u.profile && u.profile.banner_data_url) || null,
+          bio: (u.profile && u.profile.bio) || null,
+        }));
+
+      const filtered = search
+        ? all.filter(p => (p.name || '').toLowerCase().includes(search) || (p.code || '').toLowerCase().includes(search))
+        : all;
+
+      const slice = filtered.slice(offset, offset + Math.min(limit, 200));
+      return sendJson(res, 200, { total: filtered.length, items: slice });
+    }
+
+    // ── Einzelnes öffentliches Profil ──
+    if (pathname.startsWith('/profiles/') && method === 'GET') {
+      const parts = pathname.split('/').filter(Boolean);
+      // /profiles/:id
+      if (parts.length === 2) {
+        const id = parts[1];
+        const u = Object.values(store.users || {}).find(x => x && (x.id === id || x.code === id));
+        if (!u || !u.profile || !u.profile.public) return sendJson(res, 404, { error: 'not_found' });
+        return sendJson(res, 200, {
+          id: u.id,
+          name: u.name || u.discordName,
+          uuid: u.uuid || null,
+          code: u.code,
+          avatar_data_url: (u.profile && u.profile.avatar_data_url) || null,
+          banner_data_url: (u.profile && u.profile.banner_data_url) || null,
+          bio: (u.profile && u.profile.bio) || null,
+        });
+      }
     }
 
     // ── Freunde ──

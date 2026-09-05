@@ -10,9 +10,8 @@ kollegen.me {
   reverse_proxy /presence* 127.0.0.1:8080
   reverse_proxy /profiles* 127.0.0.1:8080
 
-  # Fallback: proxy everything to the backend (static assets can be served
-  # separately if desired).
-  reverse_proxy 127.0.0.1:8080
+  # Fallback: the public website (React-SPA) on port 3001.
+  reverse_proxy 127.0.0.1:3001
 
   # Email for ACME registration; change to the operator address.
   tls admin@kollegen.me

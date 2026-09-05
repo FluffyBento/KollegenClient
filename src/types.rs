@@ -82,6 +82,29 @@ pub struct Settings {
     /// und automatisch aktivierter Controller-Modus im Kollegen-Begleit-Mod.
     #[serde(default = "default_false")]
     pub steamdeck_mode: bool,
+    /// Eigene Profilanpassungen für das öffentliche Profil (Bio, Banner, Avatar).
+    /// Wird vom Frontend über `save_settings` persistiert und über das
+    /// Presence-Backend (`POST /profile`) mit anderen geteilt.
+    #[serde(default)]
+    pub profile: Option<ProfileSettings>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct ProfileSettings {
+    #[serde(default)]
+    pub bio: String,
+    #[serde(default)]
+    pub banner_data_url: String,
+    #[serde(default)]
+    pub avatar_data_url: String,
+    #[serde(default)]
+    pub avatar_choice: String,
+    #[serde(default)]
+    pub public: bool,
+    #[serde(default)]
+    pub server_url: String,
+    #[serde(default)]
+    pub server_token: String,
 }
 
 fn default_density() -> String {
@@ -117,6 +140,7 @@ impl Default for Settings {
             animations: true,
             perf_mods: true,
             steamdeck_mode: false,
+            profile: None,
         }
     }
 }

@@ -30,6 +30,10 @@ public final class ControllerMode {
     private static double cursorX = 0, cursorY = 0;
     private static boolean firstTick = true;
 
+    // Scroll-Rate-Limit (Millisekunden zwischen synthetischen Scroll-Events)
+    private static long lastScrollAt = 0;
+    private static final long SCROLL_INTERVAL_MS = 120;
+
     // A-Taste: Klick mit Press + Release (mit kurzem Abstand), damit Buttons/Toggles
     // zuverlässig auslösen. GLFW kann selbst keine Klicks erzeugen, daher hier.
     private static boolean clickQueued = false;
@@ -124,6 +128,34 @@ public final class ControllerMode {
             // normale GLFW-Polling der nächsten Frames von selbst.
             try {
                 GLFW.glfwSetCursorPos(window, cursorX, cursorY);
+            } catch (Throwable ignored) {
+            }
+
+            // Wenn vertikale Stick-Bewegung vorhanden, scrollen (für Menüs)
+            try {
+                if (mc.screen != null) {
+                    // GUI-Koordinaten berechnen (Skalierung wie in HudModule)
+                    int sw = mc.getWindow().getScreenWidth();
+                    int gw = mc.getWindow().getGuiScaledWidth();
+                    double guiX = cursorX * gw / sw;
+                    double guiY = cursorY * gw / sw;
+
+                    long now = System.currentTimeMillis();
+                    // kleines Rate-Limit, damit Scrolls nicht zu schnell auslösen
+                    if (now - lastScrollAt >= SCROLL_INTERVAL_MS) {
+                        // ly ist -1..1, scroll-Richtung invertieren für natürliches Verhalten
+                        double amount = -ny; // pos = down
+                        // Bei analogem Stick skaliert scroll-Geschwindigkeit
+                        double scrollAmount = 0.0;
+                        if (Math.abs(amount) > 0.2) {
+                            scrollAmount = amount * 3.0; // empirischer Faktor
+                        }
+                        if (scrollAmount != 0.0) {
+                            mc.screen.mouseScrolled(guiX, guiY, scrollAmount);
+                            lastScrollAt = now;
+                        }
+                    }
+                }
             } catch (Throwable ignored) {
             }
         }

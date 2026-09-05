@@ -161,6 +161,16 @@ fn get_settings(state: State<'_, AppState>) -> Result<types::Settings, String> {
     Ok(settings)
 }
 
+/// Holt öffentliches Minecraft-Profil (Skin + Cape) für einen gegebenen Namen.
+#[tauri::command]
+fn get_minecraft_profile_by_name(
+    state: State<'_, AppState>,
+    name: String,
+) -> Result<Value, String> {
+    let v = skins::minecraft_profile_by_name(&state.data_dir, &name);
+    Ok(v)
+}
+
 #[tauri::command]
 fn save_settings(
     state: State<'_, AppState>,
@@ -1748,6 +1758,7 @@ fn main() {
             skin_upload,
             skin_mc_profile,
             cape_equip,
+            get_minecraft_profile_by_name,
             open_logs_folder,
         ])
         .run(tauri::generate_context!())
