@@ -222,7 +222,17 @@ module.exports = function registerProfilModule(app, getSession) {
   app.get('/api/profil/me', async (req, res) => {
     const session = (typeof getSession === 'function') ? getSession(req) : null;
     if (!session) return res.json({ user: null });
-    const r = await backendInternal('GET', '/internal/user?discordId=' + encodeURIComponent(String(session.id)));
+    let r = await backendInternal('GET', '/internal/user?discordId=' + encodeURIComponent(String(session.id)));
+    // Neu-Registrierung: Ein Discord-Login legt den Backend-User erst an, wenn er
+    // im Profil-Editor gespeichert wird → bis dahin 404 + keine Starter-Points.
+    // Hier legen wir den User deshalb beim ersten Zugriff automatisch an.
+    if (!r.ok && /404/.test(r.error || '')) {
+      const reg = await backendInternal('POST', '/internal/profile', {
+        discordId: String(session.id),
+        discordName: session.global_name || session.username || 'Discord-Nutzer',
+      });
+      if (reg.ok) r = await backendInternal('GET', '/internal/user?discordId=' + encodeURIComponent(String(session.id)));
+    }
     const data = r.ok && r.data ? r.data : {};
     return res.json({
       user: {
