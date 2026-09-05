@@ -242,6 +242,12 @@ function publicFriend(u) {
   ensureUserExtras(u);
   const p = store.presence[u.discordId];
   const online = !!(p && Date.now() - (p.timestamp || 0) <= PRESENCE_TTL_MS);
+  const eq = u.equipped || {};
+  const equippedData = {};
+  for (const cat of Object.keys(eq)) {
+    const it = eq[cat] ? catById(eq[cat]) : null;
+    equippedData[cat] = it ? { id: it.id, category: it.category, data: it.data || null } : null;
+  }
   return {
     id: u.id,
     name: u.name || u.discordName,
@@ -250,7 +256,7 @@ function publicFriend(u) {
     server: online && p ? p.server : null,
     online,
     level: levelOf(u),
-    equipped: u.equipped || {},
+    equipped: equippedData,
     // Profil-Zusammenfassung (nur für Freunde sichtbar, egal ob public).
     profile:
       u.profile && typeof u.profile === 'object'

@@ -3170,8 +3170,18 @@ startBackgroundIntervals();
   function esc(s) {
     return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
   }
-  window.kmTitleOf = (u) => byId(u && u.equipped && u.equipped.title);
-  window.kmBadge = (u) => byId(u && u.equipped && u.equipped.badge);
+  window.kmTitleOf = (u) => {
+    const t = u && u.equipped && u.equipped.title;
+    if (!t) return null;
+    if (t.data) return t;
+    return byId(t.id) || null;
+  };
+  window.kmBadge = (u) => {
+    const b = u && u.equipped && u.equipped.badge;
+    if (!b) return null;
+    if (b.data) return b;
+    return byId(b.id) || null;
+  };
   window.kmCat = null;
 
   async function loadStore() {
@@ -3297,6 +3307,10 @@ startBackgroundIntervals();
     const eq = p.equipped || {};
     const find = (id) => {
       if (!id) return null;
+      for (const k in eq) {
+        const e = eq[k];
+        if (e && e.id === id) return e.data || null;
+      }
       if (kmCat) for (const it of kmCat) if (it.id === id) return it.data || null;
       for (const it of (p.owned || [])) if (it.id === id) return it.data || null;
       return null;

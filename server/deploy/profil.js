@@ -1483,13 +1483,13 @@ function buildUserPage(code) {
     'if(r.status===404){$("ubTitle").textContent="Nicht gefunden";' +
     '$("ubTitle").parentElement.querySelector(".sub").innerHTML="<div class=\\"errBig\\">Kein Kollege mit diesem Code. Code pr\u00fcfen oder in Steam befreunden.</div>";return;}return r.json();' +
     '}).then(function(p){' +
-    'if(!p)return;CURRENT=p;render(p);' +
+    'if(!p)return;CURRENT=p;chips(p);' +
     '}).catch(function(){$("ubTitle").textContent="Fehler";$("ubTitle").parentElement.querySelector(".sub").textContent="Profil tempor\u00e4r nicht erreichbar.";});' +
     '}' +
     'function chips(p){' +
     'var eq=p.equipped||{};' +
     'var all=p.owned||[];' +
-    'function it(id){for(var i=0;i<all.length;i++){if(all[i].id===id)return all[i];}return null;}' +
+    'function it(id){for(var k in eq){var e=eq[k];if(e&&e.id===id)return {id:id,data:(e.data||null)};}for(var i=0;i<all.length;i++){if(all[i].id===id)return {id:id,data:(all[i].data||null)};}return null;}' +
     'var fr=it(eq.avatar_frame),th=it(eq.avatar_theme),bd=it(eq.badge),ti=it(eq.title),st=it(eq.profil_stil);' +
     'var av=$("ubAvatar");' +
     'var bdCss="",sh="",bg="";' +
@@ -1514,7 +1514,7 @@ function buildUserPage(code) {
     'initCosmetics(p);' +
     '}' +
     'function stc(){var p=CURRENT||{};var cs=p.equipped||{};var it=p.owned||[];' +
-    'function find(id){for(var i=0;i<it.length;i++){if(it[i].id===id)return it[i].data||null;}return null;}' +
+    'function find(id){for(var k in cs){var e=cs[k];if(e&&e.id===id)return e.data||null;}for(var i=0;i<it.length;i++){if(it[i].id===id)return it[i].data||null;}return null;}' +
     'var st=find(cs.profil_stil);' +
     'document.documentElement.style.setProperty("--ubAccent",(st&&st.accent)||"#ffd75f");' +
     'var hs=document.querySelectorAll("h1");for(var i=0;i<hs.length;i++){hs[i].style.color=(st&&st.accent)||"#D4AF37";}' +
