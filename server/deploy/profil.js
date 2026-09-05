@@ -1452,11 +1452,13 @@ function buildFreundePage() {
 // ── Öffentliches Kollegen-Profil: /u/<Code> ─────────────────────────────────
 function buildUserPage(code) {
   const css =
-    '#wrap{border:1px solid rgba(255,255,255,.06);border-radius:18px;background:rgba(9,11,18,.66);box-shadow:0 12px 44px rgba(0,0,0,.45);}' +
-    '.ubBanner{display:none;height:120px;border-radius:14px;margin-bottom:1.1rem;position:relative;overflow:hidden;background-size:cover;background-position:center;}' +
+    '#wrap{border:1px solid rgba(255,255,255,.06);border-radius:18px;background:var(--ubCardBg,rgba(9,11,18,.66));box-shadow:0 12px 44px rgba(0,0,0,.45);}' +
+    '.ubBanner{display:none;height:150px;border-radius:14px;margin-bottom:1.1rem;position:relative;overflow:hidden;background-size:cover;background-position:center;}' +
     '.ubBanner .bl{position:absolute;left:12px;bottom:10px;color:#0a0d13;font:800 13px/1 Outfit,Inter,sans-serif;background:rgba(255,255,255,.72);padding:4px 10px;border-radius:999px;}' +
     '.ubRow{display:flex;gap:1.1rem;align-items:flex-start;flex-wrap:wrap;}' +
-    '.ubAvatar{width:110px;height:110px;border-radius:22px;object-fit:cover;background:#151d2b;flex:none;}' +
+    '.ubAvatarWrap{position:relative;flex:none;}' +
+    '.ubAvatar{width:110px;height:110px;border-radius:22px;object-fit:cover;background:#151d2b;display:block;}' +
+    '.ubStick{position:absolute;right:-8px;bottom:-6px;width:36px;height:36px;border-radius:50%;background:#0a0d13;border:2px solid rgba(255,255,255,.16);display:flex;align-items:center;justify-content:center;font-size:18px;z-index:2;}' +
     '.ubMeta{flex:1;min-width:220px;}' +
     '.ubName{font:800 32px/1.1 Outfit,Inter,sans-serif;color:#ffd75f;letter-spacing:.01em;}' +
     '.ubBadge{font-size:22px;margin-right:6px;vertical-align:1px;}' +
@@ -1465,8 +1467,11 @@ function buildUserPage(code) {
     '.ubBio{margin-top:1rem;padding:1rem;border-radius:12px;background:#0d1420;border:1px solid #1c2636;border-left:3px solid color-mix(in srgb,var(--ubAccent,#ffd75f) 60%,transparent);color:#c9d4e3;line-height:1.5;}' +
     '.ubActions button{border-color:color-mix(in srgb,var(--ubAccent,#ffd75f) 60%,transparent);}' +
     '#ubTitle{color:var(--ubAccent,#D4AF37);}' +
-    '.ubEquips{display:grid;grid-template-columns:1fr 1fr;gap:.55rem;margin-top:1.1rem;}@media(max-width:560px){.ubEquips{grid-template-columns:1fr;}}' +
+    '.ubEquips{display:grid;grid-template-columns:1fr 1fr;gap:.55rem;margin-top:.7rem;}@media(max-width:560px){.ubEquips{grid-template-columns:1fr;}}' +
     '.ueTile{border-radius:9px;overflow:hidden;min-width:0;border:1px solid rgba(255,255,255,.06);}' +
+    '.ubShow{display:none;align-items:center;gap:.6rem;margin-top:1.1rem;' +
+    'color:#8f9aab;font-size:.78rem;font-weight:700;letter-spacing:.09em;text-transform:uppercase;}' +
+    '.ubShow:before,.ubShow:after{content:"";height:1px;flex:1;background:rgba(255,255,255,.12);}' +
     '.ubActions{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.9rem;}' +
     '.ubActions a,.ubActions button{margin:0;text-decoration:none;}' +
     '.ubP{color:#8f9aab;font-size:.82rem;margin-top:1rem;}' +
@@ -1478,12 +1483,13 @@ function buildUserPage(code) {
     '<h1 id="ubTitle">Kollegen-Profil</h1>' +
     '<div class="sub">Lade Profil f\u00fcr Code ' + code + '\u2026</div>' +
     '<div class="card"><div class="ubRow">' +
-    '<img class="ubAvatar" id="ubAvatar" alt=""/>' +
+    '<div class="ubAvatarWrap"><img class="ubAvatar" id="ubAvatar" alt=""/><span class="ubStick" id="ubStick" style="display:none;"></span></div>' +
     '<div class="ubMeta">' +
     '<div class="ubName" id="ubName"></div>' +
     '<div class="ubChips" id="ubChips"></div>' +
     '<div class="muted" id="ubSub"></div>' +
     '<div class="ubBio" id="ubBio" style="display:none;"></div>' +
+    '<div class="ubShow" id="ubShowTitle">Showcase \u00b7 Ausger\u00fcstet</div>' +
     '<div class="ubEquips" id="ubEquips" style="display:none;"></div>' +
     '<div class="ubActions" id="ubActions"></div>' +
     '<div class="ubP" id="ubP"></div>' +
@@ -1514,11 +1520,17 @@ function buildUserPage(code) {
     'var fr=it(eq.avatar_frame),th=it(eq.avatar_theme),bd=it(eq.badge),ti=it(eq.title),st=it(eq.profil_stil),nc=it(eq.name_color),sk=it(eq.sticker),fn=it(eq.font);' +
     'var av=$("ubAvatar");' +
     'var bdCss="",sh="",bg="";' +
-    'if(fr&&fr.data&&fr.data.color1){bdCss="border:"+((fr.data.width||4))+"px solid "+fr.data.color1+";";sh="box-shadow:0 0 22px "+fr.data.color1+"66;";}' +
+    'var frW=fr&&fr.data&&fr.data.width?fr.data.width:4;' +
+    'if(fr&&fr.data&&fr.data.color1){bdCss="border:"+frW+"px solid "+fr.data.color1+";";sh="box-shadow:0 0 22px "+fr.data.color1+"66;";}' +
     'if(th&&th.data&&th.data.gradient){bg="background:"+th.data.gradient+";";}' +
+    'if(th&&th.data&&th.data.color1&&!th.data.gradient){bg="background:linear-gradient(135deg,"+th.data.color1+","+((th.data.color2||th.data.color1))+");";}' +
     'av.style.cssText=bdCss+sh+bg+"border-radius:22px;";' +
     'av.src=headUrl(p.uuid,p);' +
     'av.alt="";av.onerror=function(){av.src="https://mc-heads.net/head/MHF_Steve/256";};' +
+    'var skst=$("ubStick");' +
+    'if(sk&&sk.data&&sk.data.icon){skst.textContent=sk.data.icon;' +
+    'skst.style.color=sk.data.color||"#fff";skst.style.display="flex";}' +
+    'else{skst.style.display="none";}' +
     'var nameCmp=(ti&&ti.data)?ti.data.text+" \\u00b7 ":" ";' +
     'var badge=(bd&&bd.data)?"<span class=\\"ubBadge\\" style=\\"color:"+esc(bd.data.color)+"\\">"+esc(bd.data.icon)+"</span>":"";' +
     'var stick=(sk&&sk.data)?"<span class=\\"ubBadge\\" style=\\"color:"+esc(sk.data.color)+"\\">"+esc(sk.data.icon)+"</span>":"";' +
@@ -1558,13 +1570,17 @@ function buildUserPage(code) {
     'box.append(tile);shown++;' +
     '}' +
     'box.style.display=shown?"grid":"none";' +
+    '$("ubShowTitle").style.display=shown?"flex":"none";' +
     '}' +
     'function stc(){var p=CURRENT||{};var cs=p.equipped||{};var it=p.owned||[];' +
     'function find(id){for(var k in cs){var e=cs[k];if(e&&e.id===id)return e.data||null;}for(var i=0;i<it.length;i++){if(it[i].id===id)return it[i].data||null;}return null;}' +
     'var st=find(cs.profil_stil);' +
     'document.documentElement.style.setProperty("--ubAccent",(st&&st.accent)||"#ffd75f");' +
     'var hs=document.querySelectorAll("h1");for(var i=0;i<hs.length;i++){hs[i].style.color=(st&&st.accent)||"#D4AF37";}' +
-    'var bg=find(cs.profile_bg);if(bg&&bg.gradient){document.body.style.background=bg.gradient+" fixed";}' +
+    'var bg=find(cs.profile_bg);' +
+    'if(bg&&bg.gradient){document.body.style.background=bg.gradient+" fixed";' +
+    'document.documentElement.style.setProperty("--ubCardBg","linear-gradient(rgba(7,9,16,.62),rgba(7,9,16,.62)),"+bg.gradient);}' +
+    'else{document.documentElement.style.setProperty("--ubCardBg","");}' +
     'var bn=find(cs.banner);var strip=$("ubBanner");' +
     'if(bn&&bn.gradient){strip.style.background=bn.gradient;strip.style.display="block";$("ubBannerLabel").textContent="Banner";}' +
     'else if(p.banner_data_url){strip.style.backgroundImage="url("+p.banner_data_url+")";strip.style.display="block";$("ubBannerLabel").textContent="Profil-Banner";}' +

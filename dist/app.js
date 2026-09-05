@@ -644,6 +644,7 @@ async function refreshLogs() {
 
   // Freundes-Profil im Viewer anzeigen (Daten kommen mit /friends mit).
   function showFriendProfile(u) {
+    pmSetView(true);
     const wrap = $("viewProfileResult");
     if (!wrap) return;
     wrap.innerHTML = "";
@@ -677,6 +678,7 @@ async function refreshLogs() {
     const m = $("profileModal");
     if (!m) return;
     m.style.display = "flex";
+    pmSetView(false);
     // Skin + Capes laden – das funktioniert unabhängig von socialMe
     // (Microsoft-Konto reicht), darf also NICHT hinter dem socialMe-Guard hängen.
     loadSkinChanger();
@@ -712,6 +714,17 @@ async function refreshLogs() {
       acc.append(d);
     });
     if (socialMe.mc_name) showSkinFromName(socialMe.mc_name);
+  }
+
+  // Profil-Modal: eigene Bearbeitung vs. Fremdansicht
+  function pmSetView(foreign) {
+    const mode = foreign ? "none" : "";
+    ["profileSkinCol", "pmOwnHead", "profileCustomize", "kosmetBox", "skinChanger", "capeChanger"].forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) el.style.display = mode;
+    });
+    const wr = document.getElementById("viewProfileResult");
+    if (wr) wr.style.display = foreign ? "block" : "";
   }
 
   // Profile editing helpers
@@ -3365,6 +3378,7 @@ startBackgroundIntervals();
     const res = $("viewProfileResult");
     const pm = $("profileModal");
     if (pm) pm.style.display = "flex";
+    pmSetView(true);
     if (!res) return;
     res.innerHTML = `<div style="color:var(--muted);padding:0.5rem 0;">Lade Profil…</div>`;
     let p;
@@ -3373,6 +3387,7 @@ startBackgroundIntervals();
       res.innerHTML = `<div style="color:#f85149;padding:0.5rem 0;">Profil nicht gefunden: ${esc((p && p.error) || "?")}</div>`;
       return;
     }
+    pmSetView(!p.isViewer);
     const eq = p.equipped || {};
     const find = (id) => {
       if (!id) return null;

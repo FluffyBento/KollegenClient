@@ -317,22 +317,24 @@
   <div id="profileModal" class="modal" style="display:none;">
     <div class="modal-content profile-modal">
       <button id="profileClose" class="icon-btn">✕</button>
-      <div class="profile-skin">
+      <div class="profile-skin" id="profileSkinCol">
         <canvas id="skinCanvas" width="200" height="400"></canvas>
       </div>
       <div class="profile-side">
-        <h2 id="pmName">—</h2>
-        <div id="pmDiscord" class="profile-discord"></div>
-        <div class="profile-code">
-          <span>Freundes-Code:</span>
-          <code id="pmCode"></code>
-          <button id="pmCopy">Kopieren</button>
+        <div id="pmOwnHead">
+          <h2 id="pmName">—</h2>
+          <div id="pmDiscord" class="profile-discord"></div>
+          <div class="profile-code">
+            <span>Freundes-Code:</span>
+            <code id="pmCode"></code>
+            <button id="pmCopy">Kopieren</button>
+          </div>
+          <h4>Verbundene Accounts</h4>
+          <div id="pmAccounts" class="profile-accounts"></div>
         </div>
-      <h4>Verbundene Accounts</h4>
-      <div id="pmAccounts" class="profile-accounts"></div>
 
       <!-- Neues Profilediting: Bio, Banner, Avatar, Öffentlich -->
-      <div class="profile-customize">
+      <div class="profile-customize" id="profileCustomize">
         <h4>Profil anpassen</h4>
         <label for="profileBio">Bio</label>
         <textarea id="profileBio" placeholder="Beschreibe dich in ein paar Worten..." rows="3"></textarea>
@@ -369,7 +371,7 @@
         </div>
       </div>
 
-      <div style="margin-top:1rem;" class="kosmet-box">
+      <div style="margin-top:1rem;" class="kosmet-box" id="kosmetBox">
         <h4>Kosmetik (Profil ausrüsten)</h4>
         <div class="kosmet-preview" id="kosmetPreview"></div>
         <div id="kosmetGroups"></div>
@@ -391,7 +393,7 @@
         <div id="viewProfileResult" style="margin-top:0.5rem;"></div>
       </div>
 
-      <div class="skin-changer">
+      <div class="skin-changer" id="skinChanger">
         <h4>Skin wechseln</h4>
         <div class="skin-actions">
           <button id="skinDownloadBtn">Download</button>
@@ -401,7 +403,7 @@
         <div id="skinLibrary" class="skin-library"></div>
       </div>
 
-      <div class="cape-changer">
+      <div class="cape-changer" id="capeChanger">
         <h4>Capes</h4>
         <div id="capeList" class="cape-list"></div>
       </div>
