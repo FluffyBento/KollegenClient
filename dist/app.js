@@ -3391,6 +3391,7 @@ startBackgroundIntervals();
     const eq = p.equipped || {};
     const find = (id) => {
       if (!id) return null;
+      if (id && id.id) id = id.id;
       for (const k in eq) {
         const e = eq[k];
         if (e && e.id === id) return e.data || null;
