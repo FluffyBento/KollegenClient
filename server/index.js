@@ -58,12 +58,12 @@ const CATALOG = [
   { id: 'title_erkunder', category: 'title', name: 'Erkunder', desc: 'Zeig deinen Entdeckermut.', price: 120, rarity: 'common', data: { text: 'Erkunder' } },
   { id: 'title_veteran', category: 'title', name: 'Veteran', desc: 'Viele Stunden im Nether überlebt.', price: 450, rarity: 'rare', data: { text: 'Veteran' } },
   { id: 'title_champion', category: 'title', name: 'Champion', desc: 'Unbesiegt in deiner Arena.', price: 900, rarity: 'epic', data: { text: 'Champion' } },
-  { id: 'title_legende', category: 'title', name: 'Legende', desc: 'Eine Legende unter den Kollegen.', price: 1600, rarity: 'legendary', data: { text: 'Legende' } },
+  { id: 'title_legende', category: 'title', name: 'Legende', desc: 'Eine Legende unter den Kollegen.', price: 1600, rarity: 'legendary', featured: true, data: { text: 'Legende' } },
   // Avatar-Rahmen
   { id: 'frame_bronze', category: 'avatar_frame', name: 'Bronzen', desc: 'Bronzefarbener Avatar-Rahmen.', price: 200, rarity: 'common', data: { color1: '#cd7f32', color2: '#7a5630' } },
   { id: 'frame_silber', category: 'avatar_frame', name: 'Silbern', desc: 'Silberner Avatar-Rahmen.', price: 500, rarity: 'rare', data: { color1: '#c0c0c0', color2: '#7f7f8a' } },
   { id: 'frame_gold', category: 'avatar_frame', name: 'Golden', desc: 'Goldener Avatar-Rahmen.', price: 1000, rarity: 'epic', data: { color1: '#ffd700', color2: '#b8860b' } },
-  { id: 'frame_regenbogen', category: 'avatar_frame', name: 'Regenbogen', desc: 'Schimmernder Regenbogen-Rahmen.', price: 2500, rarity: 'legendary', data: { color1: '#ff6b6b', color2: '#6b5bff' } },
+  { id: 'frame_regenbogen', category: 'avatar_frame', name: 'Regenbogen', desc: 'Schimmernder Regenbogen-Rahmen.', price: 2500, rarity: 'legendary', featured: true, data: { color1: '#ff6b6b', color2: '#6b5bff' } },
   // Avatar-Hintergrund (Theme)
   { id: 'theme_nebel', category: 'avatar_theme', name: 'Nebel', desc: 'Ruhiger Nebel-Hintergrund.', price: 250, rarity: 'common', data: { gradient: 'linear-gradient(135deg,#3a4a6b,#1c1c28)' } },
   { id: 'theme_lava', category: 'avatar_theme', name: 'Lava', desc: 'Glühende Lava.', price: 600, rarity: 'rare', data: { gradient: 'linear-gradient(135deg,#ff8c00,#3a1212)' } },
@@ -83,12 +83,12 @@ const CATALOG = [
   { id: 'pbg_dusk', category: 'profile_bg', name: 'Zwielicht', desc: 'Ruhiges, dunkles Dämmerlicht.', price: 300, rarity: 'common', data: { gradient: 'linear-gradient(135deg,#1a1b2e,#0b0d14)' } },
   { id: 'pbg_lava', category: 'profile_bg', name: 'Lavastrom', desc: 'Glühende Lava unter deinem Profil.', price: 700, rarity: 'rare', data: { gradient: 'linear-gradient(135deg,#7a2200,#120404)' } },
   { id: 'pbg_aurora', category: 'profile_bg', name: 'Aurora', desc: 'Polarlichter über dunkler See.', price: 1400, rarity: 'epic', data: { gradient: 'linear-gradient(135deg,#0f2027,#203a43,#2c5364)' } },
-  { id: 'pbg_ender', category: 'profile_bg', name: 'Das Ende', desc: 'Würde dem Enderdrachen gefallen.', price: 2400, rarity: 'legendary', data: { gradient: 'linear-gradient(135deg,#0f0c29,#302b63,#24243e)' } },
+  { id: 'pbg_ender', category: 'profile_bg', name: 'Das Ende', desc: 'Würde dem Enderdrachen gefallen.', price: 2400, rarity: 'legendary', featured: true, data: { gradient: 'linear-gradient(135deg,#0f0c29,#302b63,#24243e)' } },
   // Profil-Banner (Zierleiste oben auf der Profilseite, Steam-style)
   { id: 'banner_dawn', category: 'banner', name: 'Morgenröte', desc: 'Warme Töne für deinen Banner.', price: 400, rarity: 'common', data: { gradient: 'linear-gradient(135deg,#f6d365,#fda085)' } },
   { id: 'banner_ember', category: 'banner', name: 'Glut', desc: 'Feuer und Gold.', price: 800, rarity: 'rare', data: { gradient: 'linear-gradient(135deg,#f12711,#f5af19)' } },
   { id: 'banner_ocean', category: 'banner', name: 'Ozean', desc: 'Blau wie die offene See.', price: 1500, rarity: 'epic', data: { gradient: 'linear-gradient(135deg,#2193b0,#6dd5ed)' } },
-  { id: 'banner_onyx', category: 'banner', name: 'Onyx Gold', desc: 'Elegant, dunkel, teuer.', price: 2400, rarity: 'legendary', data: { gradient: 'linear-gradient(135deg,#232526,#414345,#b8860b)' } },
+  { id: 'banner_onyx', category: 'banner', name: 'Onyx Gold', desc: 'Elegant, dunkel, teuer.', price: 2400, rarity: 'legendary', featured: true, data: { gradient: 'linear-gradient(135deg,#232526,#414345,#b8860b)' } },
 ];
 
 function catById(id) {
@@ -151,7 +151,7 @@ function loadStore() {
   const curCat = Array.isArray(store.catalog) ? store.catalog : [];
   const byId = {};
   for (const c of curCat) if (c && c.id) byId[c.id] = c;
-  store.catalog = CATALOG.map((c) => Object.assign({}, c, byId[c.id] || {}));
+  store.catalog = CATALOG.map((c) => Object.assign({}, byId[c.id] || {}, c));
   for (const key of Object.keys(store.users || {})) {
     const u = store.users[key];
     if (u && typeof u === 'object') ensureUserExtras(u);
@@ -682,6 +682,70 @@ if (pathname === '/internal/friend-remove' && method === 'POST') {
   }
   saveStore();
   return sendJson(res, 200, { ok: true });
+}
+
+// GET /internal/users?search= → Admin: Nutzerliste mit Punkten/Kosmetik/Level
+if (pathname === '/internal/users' && method === 'GET') {
+  if (!internalAuthorized(req)) return sendJson(res, 403, { error: 'forbidden' });
+  const search = (url.searchParams.get('search') || '').toLowerCase();
+  const all = Object.values(store.users || {})
+    .filter(Boolean)
+    .filter((u) => {
+      if (!search) return true;
+      const h = [u.name, u.discordName, u.code, u.id, u.discordId, u.uuid]
+        .map((x) => String(x || '').toLowerCase())
+        .join(' ');
+      return h.includes(search);
+    })
+    .map(socialView)
+    .sort((a, b) => (a.name || '').toLowerCase().localeCompare((b.name || '').toLowerCase()) || String(a.discordId).localeCompare(String(b.discordId)));
+  return sendJson(res, 200, all);
+}
+
+// POST /internal/points {discordId, delta} → Punkte geben/abziehen (Admin)
+if (pathname === '/internal/points' && method === 'POST') {
+  if (!internalAuthorized(req)) return sendJson(res, 403, { error: 'forbidden' });
+  const body = await readBody(req);
+  const user = resolveUser(body.discordId);
+  if (!user) return sendJson(res, 404, { error: 'user_not_found' });
+  ensureUserExtras(user);
+  const delta = Math.round(Number(body.delta) || 0);
+  user.points = Math.max(0, user.points + delta);
+  user.points_total = Math.max(0, user.points_total + delta);
+  saveStore();
+  return sendJson(res, 200, { ok: true, points: user.points, points_total: user.points_total, level: levelOf(user) });
+}
+
+// POST /internal/grant {discordId, item_id} → Kosmetik kostenlos schenken (Admin)
+if (pathname === '/internal/grant' && method === 'POST') {
+  if (!internalAuthorized(req)) return sendJson(res, 403, { error: 'forbidden' });
+  const body = await readBody(req);
+  const user = resolveUser(body.discordId);
+  if (!user) return sendJson(res, 404, { error: 'user_not_found' });
+  const itemId = String(body.item_id || '').trim();
+  const item = catById(itemId);
+  if (!item) return sendJson(res, 404, { error: 'item_not_found' });
+  ensureUserExtras(user);
+  if (!user.cosmetics.some((x) => x && x.id === itemId)) {
+    user.cosmetics.push({ id: itemId, boughtAt: Date.now(), granted: true });
+  }
+  if (body.equip !== false && !user.equipped[item.category]) user.equipped[item.category] = itemId;
+  saveStore();
+  return sendJson(res, 200, { ok: true, items: user.cosmetics.length, equipped: user.equipped });
+}
+
+// POST /internal/reset {discordId} → Punkte/Level zurücksetzen, Equip leeren (Admin)
+if (pathname === '/internal/reset' && method === 'POST') {
+  if (!internalAuthorized(req)) return sendJson(res, 403, { error: 'forbidden' });
+  const body = await readBody(req);
+  const user = resolveUser(body.discordId);
+  if (!user) return sendJson(res, 404, { error: 'user_not_found' });
+  ensureUserExtras(user);
+  user.points = START_POINTS;
+  user.points_total = START_POINTS;
+  user.equipped = {};
+  saveStore();
+  return sendJson(res, 200, { ok: true, points: user.points, level: levelOf(user) });
 }
 
 // ── Freunde ──

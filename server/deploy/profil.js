@@ -4,24 +4,23 @@
 //   GET  /profil             – self-contained Profil-Seite (HTML, Steam-inspiriert)
 //   GET  /store              – self-contained Kosmetik-Store (Kollegen-Points)
 //   GET  /freunde            – self-contained Freunde-Seite
-//   GET  /api/profil/me      – eigene Profil-/MC-Daten ({ user, mcName, uuid, code, profile, points, level, equipped, cosmetics })
+//   GET  /api/profil/me      – eigene Profil-/MC-Daten
 //   GET  /api/profil/store   – Katalog + eigener Kontostand/Owned/Equipped
 //   POST /api/profil/buy     – Kosmetik kaufen (Points abziehen)
 //   POST /api/profil/equip   – Kosmetik ausrüsten/ablegen
-//   GET  /api/profil/friends – eigene Freundesliste
-//   POST /api/profil/friend-add, /api/profil/friend-remove
-//   GET  /api/profil/uuid?name=… – MC-Name → UUID Proxy (CORS-sauber)
+//   GET  /api/profil/friends, POST /api/profil/friend-add/-remove
+//   GET  /api/profil/uuid?name=… – MC-Name → UUID Proxy
 //   POST /api/profil/save    – Profil + MC-Identität ins Backend-Bridge schreiben
+//   Admin (nur session.isAdmin):
+//   GET  /api/profil/admin/users, POST /api/profil/admin/points,
+//        /api/profil/admin/grant, /api/profil/admin/reset
 //
 // In der SPA wird die alte (React-)Toolbar ausgeblendet und durch eine
-// Steam-artige Topbar ersetzt, die beide Link-Sets vereint (Startseite,
-// Minecraft, Clicker, Chat, Awards, Über uns, Projekte + Profil, Store,
-// Freunde) inklusive Avatar- und Points-Chip und Discord-Button.
+// Steam-artige Topbar ersetzt (beide Link-Sets), mit Points-Chip, Avatar,
+// Discord/Anmelden (ausgeloggt) bzw. Abmelden (eingeloggt).
 //
 // Einbindung in server.js VOR den statischen/SPA-Fallbacks:
 //   require(path.join(__dirname, 'profil.js'))(app, getSession);
-//
-// Auth zum Backend läuft Server-zu-Server über KOLLEGEN_INTERNAL_SECRET.
 
 'use strict';
 
@@ -38,32 +37,50 @@ function loadInternalSecret() {
   return '';
 }
 
-// ── Topbar (Steam-angelehnt, ersetzt die alte React-Toolbar) ────────────────
+// ── Topbar (Steam-angelehnt) ────────────────────────────────────────────────
 const DISCORD_INVITE = 'https://discord.gg/P5kzdms8bx';
 
 const KM_TOP_CSS =
-  '.km-topbar{position:sticky;top:0;z-index:9999;display:flex;align-items:center;gap:6px;' +
-  'background:linear-gradient(180deg,#141827,#0b0e16 85%);border-bottom:1px solid #232c40;' +
-  'box-shadow:0 3px 20px rgba(0,0,0,.5);padding:9px 16px;overflow-x:auto;white-space:nowrap;' +
-  'scrollbar-width:none;width:100%;box-sizing:border-box;}' +
+  '.km-topbar{position:sticky;top:0;z-index:9999;display:flex;align-items:center;gap:6px;width:100%;box-sizing:border-box;' +
+  'background:linear-gradient(180deg,#191f31 0%,#10141f 55%,#0a0d16 100%);' +
+  'border-bottom:1px solid rgba(212,175,55,.28);' +
+  'box-shadow:0 6px 28px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.04);' +
+  'padding:10px 18px;overflow-x:auto;white-space:nowrap;scrollbar-width:none;position:relative;}' +
   '.km-topbar::-webkit-scrollbar{display:none;}' +
-  '.km-topbar .km-brand{display:flex;align-items:center;gap:9px;color:#ffd75f;' +
-  'font:800 15px/1 Outfit,Inter,sans-serif;text-decoration:none;letter-spacing:.02em;' +
-  'flex:none;margin-right:10px;}' +
-  '.km-topbar .km-brand img{width:30px;height:30px;border-radius:9px;object-fit:contain;' +
-  'filter:drop-shadow(0 2px 6px rgba(212,175,55,.45));}' +
-  '.km-topbar a.km-link{color:#c7cfdd;text-decoration:none;font:600 13px/1 Inter,sans-serif;' +
-  'padding:8px 11px;border-radius:8px;flex:none;transition:background .15s,color .15s;}' +
-  '.km-topbar a.km-link:hover{background:rgba(255,255,255,.07);color:#fff;}' +
-  '.km-topbar a.km-link.on{color:#ffd75f;background:rgba(212,175,55,.14);}' +
+  '.km-topbar::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;' +
+  'background:linear-gradient(90deg,transparent,#D4AF37 30%,#ffd75f 50%,#D4AF37 70%,transparent);' +
+  'background-size:200% 100%;animation:kmShine 6s linear infinite;}' +
+  '@keyframes kmShine{0%{background-position:200% 0}100%{background-position:-200% 0}}' +
+  '.km-topbar .km-brand{display:flex;align-items:center;gap:10px;color:#ffd75f;' +
+  'font:800 15px/1 Outfit,Inter,sans-serif;text-decoration:none;letter-spacing:.03em;flex:none;margin-right:12px;' +
+  'text-shadow:0 0 14px rgba(212,175,55,.35);}' +
+  '.km-topbar .km-brand img{width:32px;height:32px;border-radius:9px;object-fit:contain;' +
+  'animation:kmPulse 3s ease-in-out infinite;}' +
+  '@keyframes kmPulse{0%,100%{filter:drop-shadow(0 2px 6px rgba(212,175,55,.35));transform:scale(1)}' +
+  '50%{filter:drop-shadow(0 2px 12px rgba(255,215,95,.7));transform:scale(1.05)}}' +
+  '.km-topbar a.km-link{color:#c7cfdd;text-decoration:none;font:600 12.5px/1 Inter,sans-serif;letter-spacing:.02em;' +
+  'padding:9px 12px;border-radius:9px;flex:none;transition:background .18s,color .18s,transform .18s,box-shadow .18s;}' +
+  '.km-topbar a.km-link:hover{background:rgba(255,255,255,.08);color:#fff;transform:translateY(-1px);' +
+  'box-shadow:0 4px 12px rgba(0,0,0,.35);}' +
+  '.km-topbar a.km-link.on{color:#0a0d13;background:linear-gradient(135deg,#D4AF37,#ffd75f);font-weight:800;' +
+  'box-shadow:0 2px 12px rgba(212,175,55,.45), inset 0 1px 0 rgba(255,255,255,.4);}' +
   '.km-topbar .km-right{margin-left:auto;display:flex;align-items:center;gap:8px;flex:none;}' +
-  '.km-topbar .km-avatar{width:28px;height:28px;border-radius:50%;object-fit:cover;background:#222;flex:none;}' +
-  '.km-topbar .km-pts{display:inline-flex;align-items:center;gap:6px;color:#ffd75f;' +
-  'font:800 13px/1 Inter,sans-serif;padding:7px 10px;border:1px solid #4a4124;border-radius:999px;' +
-  'background:#161410;}' +
-  '.km-topbar .km-discord{background:#5865F2;color:#fff;font:700 13px/1 Inter,sans-serif;' +
-  'padding:9px 14px;border-radius:8px;text-decoration:none;flex:none;transition:filter .15s;}' +
-  '.km-topbar .km-discord:hover{filter:brightness(1.12);}' +
+  '.km-topbar .km-avatar{width:30px;height:30px;border-radius:50%;object-fit:cover;background:#222;flex:none;' +
+  'border:2px solid rgba(212,175,55,.65);box-shadow:0 0 8px rgba(212,175,55,.3);}' +
+  '.km-topbar .km-pts{display:inline-flex;align-items:center;gap:6px;color:#ffd75f;font:800 13px/1 Inter,sans-serif;' +
+  'padding:8px 12px;border:1px solid #5a4d22;border-radius:999px;background:linear-gradient(180deg,#1d1a10,#141208);' +
+  'box-shadow:inset 0 1px 0 rgba(255,255,255,.06);}' +
+  '.km-topbar .km-pts .km-star{animation:kmPulse 2.4s ease-in-out infinite;}' +
+  '.km-topbar a.km-login{color:#ffd75f;font:700 13px/1 Inter,sans-serif;padding:9px 14px;border-radius:9px;' +
+  'border:1px solid rgba(212,175,55,.55);text-decoration:none;flex:none;transition:background .15s;}' +
+  '.km-topbar a.km-login:hover{background:rgba(212,175,55,.14);}' +
+  '.km-topbar a.km-discord{background:linear-gradient(135deg,#6a76f5,#5865F2);color:#fff;' +
+  'font:700 13px/1 Inter,sans-serif;padding:9px 14px;border-radius:9px;text-decoration:none;flex:none;' +
+  'box-shadow:0 2px 10px rgba(88,101,242,.4);transition:filter .15s,transform .15s;}' +
+  '.km-topbar a.km-discord:hover{filter:brightness(1.12);transform:translateY(-1px);}' +
+  '.km-topbar a.km-logout{color:#c7cfdd;font:600 12px/1 Inter,sans-serif;padding:8px 10px;text-decoration:none;' +
+  'flex:none;opacity:.8;transition:opacity .15s,color .15s;}' +
+  '.km-topbar a.km-logout:hover{opacity:1;color:#fff;}' +
   '@media (max-width:860px){.km-topbar a.km-link.km-hide-sm{display:none;}}';
 
 function topBarHtml(current) {
@@ -91,9 +108,11 @@ function topBarHtml(current) {
     '<a class="km-brand" href="/"><img src="/images/logo.png" alt=""/>kollegen.me</a>' +
     links +
     '<div class="km-right">' +
-    '<span class="km-pts" id="kmNavPts" style="display:none;">&#9733; <span id="kmNavPtsVal">0</span></span>' +
+    '<span class="km-pts" id="kmNavPts" style="display:none;"><span class="km-star">&#9733;</span> <span id="kmNavPtsVal">0</span></span>' +
     '<img class="km-avatar" id="kmNavAvatar" alt="" style="display:none;"/>' +
-    '<a class="km-discord" href="' + DISCORD_INVITE + '" target="_blank" rel="noopener">Discord</a>' +
+    '<a class="km-login" id="kmLogin" href="/api/auth/discord/login" style="display:none;">Anmelden</a>' +
+    '<a class="km-discord" id="kmDiscord" href="' + DISCORD_INVITE + '" target="_blank" rel="noopener" style="display:none;">Discord</a>' +
+    '<a class="km-logout" id="kmLogout" href="#" style="display:none;">Abmelden</a>' +
     '</div>' +
     '</header>'
   );
@@ -105,10 +124,14 @@ const KM_TOP_SCRIPT =
   'kmReady(function(){' +
   'var pts=document.getElementById("kmNavPts");var pv=document.getElementById("kmNavPtsVal");' +
   'var av=document.getElementById("kmNavAvatar");' +
+  'var lg=document.getElementById("kmLogin");var dg=document.getElementById("kmDiscord");' +
+  'var lo=document.getElementById("kmLogout");' +
   'fetch("/api/auth/me").then(function(r){return r.json();}).then(function(j){' +
-  'if(!j||!j.user){return;}' +
-  'if(pts)pts.style.display="";' +
-  'if(av)av.style.display="";' +
+  'if(j&&j.user){' +
+  'if(lg)lg.style.display="none";if(dg)dg.style.display="none";' +
+  'if(pts)pts.style.display="";if(av)av.style.display="";' +
+  'if(lo){lo.style.display="";lo.addEventListener("click",function(e){e.preventDefault();' +
+  'fetch("/api/auth/logout",{method:"POST"}).then(function(){location.href="/";}).catch(function(){location.href="/";});});}' +
   'fetch("/api/profil/me").then(function(r){return r.json();}).then(function(p){' +
   'if(!p)return;' +
   'if(pv&&typeof p.points==="number")pv.textContent=p.points;' +
@@ -118,7 +141,12 @@ const KM_TOP_SCRIPT =
   'if(head){av.src=head;}else{av.style.display="none";}' +
   '}' +
   '}).catch(function(){});' +
-  '}).catch(function(){});' +
+  '}else{' +
+  'if(lo)lo.style.display="none";if(av)av.style.display="none";if(pts)pts.style.display="none";' +
+  'if(lg)lg.style.display="";if(dg)dg.style.display="";' +
+  '}' +
+  '}).catch(function(){if(lo)lo.style.display="none";if(av)av.style.display="none";if(pts)pts.style.display="none";' +
+  'if(lg)lg.style.display="";if(dg)dg.style.display="";});' +
   '});' +
   '})();';
 
@@ -152,6 +180,10 @@ module.exports = function registerProfilModule(app, getSession) {
     }
   }
 
+  function isAdmin(session) {
+    return !!session && session.isAdmin === true;
+  }
+
   // MC-Name → UUID (Browser-Proxy)
   app.get('/api/profil/uuid', async (req, res) => {
     const name = String(req.query.name || '').trim();
@@ -181,6 +213,7 @@ module.exports = function registerProfilModule(app, getSession) {
         username: session.username || '',
         global_name: session.global_name || session.username || '',
         avatarUrl: session.avatarUrl || '',
+        isAdmin: isAdmin(session),
       },
       discordId: String(session.id),
       mcName: data.mc_name || null,
@@ -293,6 +326,52 @@ module.exports = function registerProfilModule(app, getSession) {
     return res.json(r.data);
   });
 
+  // ── Admin (nur für Admins) ──
+  app.get('/api/profil/admin/users', async (req, res) => {
+    const session = (typeof getSession === 'function') ? getSession(req) : null;
+    if (!isAdmin(session)) return res.status(403).json({ error: 'forbidden' });
+    const search = String(req.query.search || '');
+    const r = await backendInternal('GET', '/internal/users?search=' + encodeURIComponent(search));
+    if (!r.ok) return res.status(500).json({ error: r.error });
+    return res.json(r.data);
+  });
+
+  app.post('/api/profil/admin/points', async (req, res) => {
+    const session = (typeof getSession === 'function') ? getSession(req) : null;
+    if (!isAdmin(session)) return res.status(403).json({ error: 'forbidden' });
+    const body = req.body && typeof req.body === 'object' ? req.body : {};
+    const r = await backendInternal('POST', '/internal/points', {
+      discordId: String(body.discordId || ''),
+      delta: Math.round(Number(body.delta) || 0),
+    });
+    if (!r.ok) return res.status(400).json({ error: r.error });
+    return res.json(r.data);
+  });
+
+  app.post('/api/profil/admin/grant', async (req, res) => {
+    const session = (typeof getSession === 'function') ? getSession(req) : null;
+    if (!isAdmin(session)) return res.status(403).json({ error: 'forbidden' });
+    const body = req.body && typeof req.body === 'object' ? req.body : {};
+    const r = await backendInternal('POST', '/internal/grant', {
+      discordId: String(body.discordId || ''),
+      item_id: String(body.item_id || ''),
+      equip: body.equip !== false,
+    });
+    if (!r.ok) return res.status(400).json({ error: r.error });
+    return res.json(r.data);
+  });
+
+  app.post('/api/profil/admin/reset', async (req, res) => {
+    const session = (typeof getSession === 'function') ? getSession(req) : null;
+    if (!isAdmin(session)) return res.status(403).json({ error: 'forbidden' });
+    const body = req.body && typeof req.body === 'object' ? req.body : {};
+    const r = await backendInternal('POST', '/internal/reset', {
+      discordId: String(body.discordId || ''),
+    });
+    if (!r.ok) return res.status(400).json({ error: r.error });
+    return res.json(r.data);
+  });
+
   // ── Seiten ──
   const PAGES = {
     '/profil': buildProfilPage(),
@@ -348,7 +427,7 @@ module.exports = function registerProfilModule(app, getSession) {
   });
 };
 
-// ── Gemeinsame Basis für die inline-Seiten ──────────────────────────────────
+// ── Gemeinsame Basis ────────────────────────────────────────────────────────
 const SHARED_CSS =
   'body{background:#0a0d13;color:#f2f3f5;font-family:Inter,"Segoe UI",Arial,sans-serif;' +
   'margin:0;padding:0;display:flex;flex-direction:column;align-items:center;min-height:100vh;box-sizing:border-box;}' +
@@ -365,6 +444,7 @@ const SHARED_CSS =
   'button:hover{filter:brightness(1.1);}' +
   'button.secondary{background:#2a3749;color:#f2f3f5;margin-left:.5rem;}' +
   'button.ghost{background:transparent;border:1px solid #3c4a60;color:#d7dee8;}' +
+  '.btn-sm{padding:.45rem .9rem;font-size:.8rem;margin:0;}' +
   '.row{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;}' +
   '.muted{color:#8f9aab;font-size:.85rem;} .good{color:#7ee787;} .bad{color:#f85149;}' +
   'a{color:#8ab4ff;text-decoration:none;} a:hover{text-decoration:underline;}' +
@@ -374,7 +454,9 @@ const SHARED_CSS =
   '.ptsChip{display:inline-flex;align-items:center;gap:6px;background:linear-gradient(135deg,#3a3020,#241c10);' +
   'border:1px solid #6b5627;color:#ffd75f;font:800 14px/1 Inter,sans-serif;padding:8px 14px;border-radius:999px;}' +
   '.lvlChip{display:inline-flex;align-items:center;gap:6px;background:#1a2333;border:1px solid #2f3d55;' +
-  'color:#c9d4e3;font:700 13px/1 Inter,sans-serif;padding:8px 12px;border-radius:999px;}';
+  'color:#c9d4e3;font:700 13px/1 Inter,sans-serif;padding:8px 12px;border-radius:999px;}' +
+  '.bar{height:8px;border-radius:999px;background:#1a2333;overflow:hidden;}' +
+  '.bar>div{height:100%;background:linear-gradient(90deg,#D4AF37,#ffd75f);border-radius:999px;}';
 
 function pageShell(title, cssExtra, bodyInner) {
   return (
@@ -407,8 +489,6 @@ function buildProfilPage() {
     '.equipItem{display:flex;align-items:center;gap:.5rem;background:#0d1420;border:1px solid #26344a;' +
     'border-radius:10px;padding:.45rem .7rem;font-size:.85rem;color:#e3e9f2;}' +
     '.equipItem .swatch{width:18px;height:18px;border-radius:5px;flex:none;text-align:center;line-height:18px;font-size:11px;}' +
-    '.bar{height:8px;border-radius:999px;background:#1a2333;overflow:hidden;margin-top:.4rem;}' +
-    '.bar > div{height:100%;background:linear-gradient(90deg,#D4AF37,#ffd75f);border-radius:999px;}' +
     '.progressLabel{display:flex;justify-content:space-between;font-size:.75rem;color:#8f9aab;margin-top:.25rem;}';
 
   const html =
@@ -565,19 +645,42 @@ function buildProfilPage() {
   return pageShell('Profil', css, html);
 }
 
-// ── Store-Seite (Kollegen-Points) ───────────────────────────────────────────
+// ── Store-Seite (Steam-inspiriert + Admin-Panel) ────────────────────────────
 function buildStorePage() {
   const css = SHARED_CSS +
+    '#wrap{border:0;background:transparent;box-shadow:none;}' +
     '.storeHead{display:flex;align-items:center;gap:.8rem;flex-wrap:wrap;justify-content:space-between;}' +
-    '.tabs{display:flex;gap:.4rem;flex-wrap:wrap;margin:1rem 0 .4rem;}' +
+    // Showcase (Steam-Profil-Vorschau)
+    '.showCard{margin-top:1rem;overflow:hidden;padding:0;}' +
+    '.showBanner{height:72px;background-size:cover;background-position:center;}' +
+    '.showRow{display:flex;gap:1rem;align-items:center;padding:1rem 1.2rem 1.1rem;}' +
+    '.showAvWrap{position:relative;flex:none;}' +
+    '.showAv{width:74px;height:74px;border-radius:16px;object-fit:cover;background:#151d2b;}' +
+    '.showInfo{flex:1;min-width:0;}' +
+    '.showName{font:800 16px/1 Outfit,Inter,sans-serif;color:#ffd75f;}' +
+    '.showSub{color:#9aa3af;font-size:.83rem;margin:.25rem 0 .55rem;}' +
+    '.showCollTxt{display:flex;justify-content:space-between;font-size:.75rem;color:#8f9aab;margin-bottom:.25rem;}' +
+    // Filter + Sortierung
+    '.toolRow{display:flex;gap:.6rem;align-items:center;flex-wrap:wrap;margin:1rem 0 .3rem;}' +
+    '.rarChips{display:flex;gap:.35rem;flex-wrap:wrap;}' +
+    '.chip{background:#121826;border:1px solid #26334a;color:#b8c2d0;font:600 12px/1 Inter,sans-serif;' +
+    'padding:6px 12px;border-radius:999px;cursor:pointer;transition:all .15s;margin:0;}' +
+    '.chip.on{background:#D4AF37;border-color:#D4AF37;color:#0a0d13;}' +
+    '.sortSel{width:auto;background:#0d1420;border:1px solid #2a3749;color:#b8c2d0;border-radius:9px;padding:.45rem .6rem;font-size:.82rem;}' +
+    // Tabs
+    '.tabs{display:flex;gap:.4rem;flex-wrap:wrap;margin:.6rem 0 .4rem;}' +
     '.tab{background:#121826;border:1px solid #26334a;color:#c6cfdb;font:600 13px/1 Inter,sans-serif;' +
-    'padding:7px 14px;border-radius:999px;cursor:pointer;transition:all .15s;}' +
+    'padding:7px 14px;border-radius:999px;cursor:pointer;transition:all .15s;margin:0;}' +
     '.tab.on{background:#D4AF37;border-color:#D4AF37;color:#0a0d13;}' +
-    '.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(176px,1fr));gap:1rem;margin-top:1rem;}' +
-    '.card{display:flex;flex-direction:column;margin:0;position:relative;transition:transform .15s,border-color .15s;}' +
-    '.card:hover{transform:translateY(-2px);border-color:#3c4a63;}' +
+    // Grid + Karten
+    '.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(176px,1fr));gap:1rem;margin-top:.9rem;}' +
+    '.card{display:flex;flex-direction:column;margin:0;position:relative;transition:transform .15s,border-color .15s;cursor:pointer;}' +
+    '.card:hover{transform:translateY(-3px);border-color:#3c4a63;box-shadow:0 8px 22px rgba(0,0,0,.35);}' +
     '.card.equipped{border-color:#6b5627;}' +
     '.card.owned{opacity:.92;}' +
+    '.ribbon{position:absolute;top:10px;left:-2px;z-index:3;background:linear-gradient(90deg,#f7b733,#fc4a1a);' +
+    'color:#fff;font:800 10px/1 Inter,sans-serif;letter-spacing:.05em;padding:4px 10px 4px 8px;border-radius:0 8px 8px 0;' +
+    'box-shadow:0 2px 8px rgba(0,0,0,.4);}' +
     '.pv{height:112px;border-radius:10px;display:flex;align-items:center;justify-content:center;' +
     'background:#0d1420;border:1px solid #1c2636;overflow:hidden;}' +
     '.pvHead{width:64px;height:64px;border-radius:14px;object-fit:cover;background:#151d2b;}' +
@@ -585,7 +688,7 @@ function buildStorePage() {
     '.pvBadgeTxt{color:#0a0d13;font-weight:800;}' +
     '.pvMini{width:78%;height:64px;border-radius:10px;display:flex;align-items:center;justify-content:center;' +
     'color:#c9d4e3;font:700 11px/1 Inter,sans-serif;}' +
-    '.rar{position:absolute;top:10px;right:10px;}' +
+    '.rar{position:absolute;top:12px;right:10px;z-index:3;}' +
     '.r-common{background:#2b3547;color:#b8c2d0;}.r-rare{background:#123a5c;color:#5aa9ff;}' +
     '.r-epic{background:#3b1e5c;color:#c96bff;}.r-legendary{background:#5c3e12;color:#ffb64d;}' +
     '.cardBody{padding:.7rem .2rem 0;flex:1;display:flex;flex-direction:column;}' +
@@ -593,10 +696,30 @@ function buildStorePage() {
     '.cardDesc{color:#8f9aab;font-size:.8rem;margin:.25rem 0 .5rem;flex:1;}' +
     '.price{display:flex;align-items:center;gap:5px;color:#ffd75f;font-weight:800;}' +
     '.cardBtn{width:100%;text-align:center;margin-top:.55rem;padding:.5rem;}' +
-    '.ownedTag{color:#7ee787;font-weight:800;font-size:.82rem;text-align:center;margin-top:.55rem;}' +
+    // Admin
+    '.adminCard{border:1px dashed #6b5627;background:#15131B;}' +
+    '.adminCard>div:first-child{margin-top:0;}' +
+    '.adminUsers{max-height:220px;overflow:auto;border:1px solid #26344a;border-radius:10px;margin-top:.4rem;}' +
+    '.adminU{display:flex;align-items:center;gap:.6rem;padding:.45rem .7rem;cursor:pointer;border-bottom:1px solid #1c2636;transition:background .15s;}' +
+    '.adminU:hover{background:rgba(255,255,255,.05);}' +
+    '.adminU.on{background:rgba(212,175,55,.14);}' +
+    '.adminU .auName{font-weight:700;font-size:.88rem;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}' +
+    '.adminU .auPts{color:#ffd75f;font-weight:800;font-size:.8rem;}' +
+    '.adminTarget{border:1px solid #2e3a52;border-radius:12px;padding:.8rem;margin-top:.6rem;background:#0d1420;}' +
+    '.adminNote{color:#8f9aab;font-size:.78rem;margin-top:.5rem;}' +
+    // Modal
+    '.kmModal{position:fixed;inset:0;z-index:10000;background:rgba(4,6,10,.72);display:flex;align-items:center;justify-content:center;padding:1rem;}' +
+    '.kmModalCard{background:#121826;border:1px solid #3a4a63;border-radius:16px;max-width:440px;width:100%;position:relative;padding:1.2rem;' +
+    'box-shadow:0 18px 60px rgba(0,0,0,.6),0 0 30px rgba(212,175,55,.12);}' +
+    '.kmModalX{position:absolute;top:10px;right:14px;font:600 22px/1 Inter;color:#8f9aab;cursor:pointer;background:none;border:0;padding:4px;margin:0;}' +
+    '.kmModalX:hover{color:#fff;}' +
+    '.kmModalCard .pv{height:190px;margin-top:1rem;border-radius:12px;}' +
+    '.mmTitle{font:800 19px/1 Outfit,Inter,sans-serif;color:#ffd75f;margin-top:.9rem;}' +
+    '.mmRar{display:inline-block;margin-top:.5rem;}' +
+    '.mmDesc{color:#a9b3c0;font-size:.9rem;margin-top:.6rem;}' +
+    '.mmPrice{margin-top:.6rem;}' +
     '.note{display:flex;gap:.5rem;align-items:flex-start;margin:1rem 0 0;}' +
-    '.backLink{margin-top:1.4rem;display:inline-block;font-size:.85rem;}' +
-    '#wrap{border:0;background:transparent;box-shadow:none;}';
+    '.backLink{margin-top:1.4rem;display:inline-block;font-size:.85rem;}';
 
   const html =
     '<div id="wrap">' +
@@ -607,8 +730,34 @@ function buildStorePage() {
     '<span class="lvlChip" id="walletLvl" style="display:none;">Level 1</span></div>' +
     '</div>' +
     '<div class="card loginCard" id="loginCard">' +
-    '<p style="margin:0 0 .4rem;">Melde dich an, um Kosmetik zu kaufen und auszur\u00fcsten. Bereits im Launcher angemeldet? Dann bist du automatisch auch hier angemeldet.</p>' +
+    '<p style="margin:0 0 .4rem;">Melde dich an, um Kosmetik zu kaufen, auszur\u00fcsten und deine Sammlung zu sehen. Bereits im Launcher angemeldet? Dann bist du automatisch auch hier angemeldet.</p>' +
     '<a href="/api/auth/discord/login"><button type="button">Mit Discord anmelden</button></a>' +
+    '</div>' +
+    '<div class="card showCard" id="showCard" style="display:none;">' +
+    '<div class="showBanner" id="showBanner"></div>' +
+    '<div class="showRow">' +
+    '<div class="showAvWrap"><img id="showAv" class="showAv" alt=""/></div>' +
+    '<div class="showInfo">' +
+    '<div class="showName" id="showName"></div>' +
+    '<div class="showSub" id="showSub"></div>' +
+    '<div class="bar"><div id="showCollBar" style="width:0%;"></div></div>' +
+    '<div class="showCollTxt"><span id="showCollTxt">0 gesammelt</span><span id="showCollPct">0%</span></div>' +
+    '</div></div>' +
+    '</div>' +
+    '<div class="toolRow">' +
+    '<div class="rarChips" id="rarChips">' +
+    '<button type="button" class="chip on" data-r="alle">Alle Rarit\u00e4ten</button>' +
+    '<button type="button" class="chip" data-r="common">Gew\u00f6hnlich</button>' +
+    '<button type="button" class="chip" data-r="rare">Selten</button>' +
+    '<button type="button" class="chip" data-r="epic">Episch</button>' +
+    '<button type="button" class="chip" data-r="legendary">Legend\u00e4r</button>' +
+    '</div>' +
+    '<select class="sortSel" id="sortSel">' +
+    '<option value="price-asc">Preis \u2191</option>' +
+    '<option value="price-desc">Preis \u2193</option>' +
+    '<option value="rarity">Seltenheit</option>' +
+    '<option value="name">Name</option>' +
+    '</select>' +
     '</div>' +
     '<div class="tabs" id="tabs">' +
     '<button type="button" class="tab on" data-f="alle">Alle</button>' +
@@ -623,20 +772,63 @@ function buildStorePage() {
     '<div class="grid" id="grid"><div class="muted" id="gridMsg">Lade Store\u2026</div></div>' +
     '<div class="note card"><span style="font-size:1.2rem;">&#9432;</span>' +
     '<span class="muted">Kollegen-Points bekommst du als Startguthaben und sp\u00e4ter durch Aktivit\u00e4t dazu. Der Punkte-Tausch (Redeem) in echte Vorteile ist geplant \u2013 aktuell kannst du mit deinen Punkten ausschlie\u00dflich Kosmetik kaufen.</span></div>' +
+    '<div class="card adminCard" id="adminCard" style="display:none;">' +
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:0;">' +
+    '<strong style="color:#ffd75f;">ADMIN \u00b7 Store-Management</strong>' +
+    '<button type="button" class="ghost btn-sm" id="adminToggle">Einklappen</button></div>' +
+    '<div id="adminBody">' +
+    '<label>Nutzer suchen (Name / Code / ID)</label>' +
+    '<input id="adminSearch" placeholder="z. B. FluffyBento oder C8B99EC051"/>' +
+    '<div class="adminUsers" id="adminUsers"></div>' +
+    '<div class="adminTarget" id="adminTarget" style="display:none;">' +
+    '<div class="row"><strong id="adminTgtName"></strong><span class="muted" id="adminTgtCode"></span></div>' +
+    '<div class="row" style="margin-top:.4rem;"><span class="ptsChip" id="adminTgtPts"></span><span class="lvlChip" id="adminTgtLvl"></span></div>' +
+    '<div class="muted" id="adminTgtOwned" style="margin-top:.4rem;"></div>' +
+    '<label>Punkte ver\u00e4ndern</label>' +
+    '<div class="row">' +
+    '<button type="button" class="secondary btn-sm" data-pts="100">+100</button>' +
+    '<button type="button" class="secondary btn-sm" data-pts="500">+500</button>' +
+    '<button type="button" class="secondary btn-sm" data-pts="1000">+1000</button>' +
+    '<button type="button" class="secondary btn-sm" data-pts="-100">-100</button>' +
+    '<input id="adminDelta" placeholder="+/- Punkte" style="flex:1;width:auto;min-width:90px;"/>' +
+    '<button type="button" class="secondary btn-sm" id="adminDeltaBtn">Anwenden</button>' +
+    '<button type="button" class="ghost btn-sm" id="adminResetBtn">Reset (250)</button>' +
+    '</div>' +
+    '<label>Kosmetik schenken</label>' +
+    '<div class="row">' +
+    '<select id="adminItem" style="flex:1;width:auto;"></select>' +
+    '<button type="button" class="secondary btn-sm" id="adminGrantBtn">Schenken &amp; ausr\u00fcsten</button>' +
+    '</div>' +
+    '<div class="adminNote">Tipp: Klick auf einen Nutzer w\u00e4hlt ihn als Ziel. \u201eReset\u201c setzt Punkte auf 250 und leert die Ausr\u00fcstung.</div>' +
+    '</div>' +
+    '</div>' +
+    '</div>' +
     '<a class="backLink" href="/">\u2190 Zur Startseite</a>' +
     '</div>' +
+    '<div class="kmModal" id="kmModal" style="display:none;">' +
+    '<div class="kmModalCard">' +
+    '<button type="button" class="kmModalX" id="kmModalX">&times;</button>' +
+    '<div id="kmModalBody"></div>' +
+    '</div></div>' +
     '<script>' + KM_TOP_SCRIPT +
     '(function(){' +
     'function $(i){return document.getElementById(i);}' +
-    'var st=null,filter="alle";' +
+    'var st=null,filter="alle",rar="alle",sort="price-asc";' +
+    'var myDid=null;var admin=null,adminTarget=null;' +
     'var RAR={common:["Gew\u00f6hnlich","r-common"],rare:["Selten","r-rare"],epic:["Episch","r-epic"],legendary:["Legend\u00e4r","r-legendary"]};' +
+    'var RANK={common:0,rare:1,epic:2,legendary:3};' +
     'function byId(id){var c=(st&&st.catalog)||[];for(var i=0;i<c.length;i++){if(c[i].id===id)return c[i];}return null;}' +
     'function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}' +
+    'function avUrlPlain(name){return "https://mc-heads.net/avatar/"+encodeURIComponent(name||"MHF_Steve").replace(/%20/g,"_")+"/96";}' +
+    'function headUrlPlain(name){return "https://mc-heads.net/head/"+encodeURIComponent(name||"MHF_Steve").replace(/%20/g,"_")+"/128";}' +
     'fetch("/api/auth/me").then(function(r){return r.json();}).then(function(j){' +
     'window._av="https://mc-heads.net/avatar/MHF_Steve/64";' +
-    'if(j&&j.user){fetch("/api/profil/me").then(function(r){return r.json();}).then(function(p){' +
-    'if(p&&p.mcName){window._av="https://mc-heads.net/avatar/"+encodeURIComponent(p.mcName).replace(/%20/g,"_")+"/96";}' +
-    'else if(j.user&&j.user.avatarUrl){window._av=j.user.avatarUrl;}' +
+    'if(j&&j.user){' +
+    'myDid=j.user.id;' +
+    'if(j.user.isAdmin){initAdmin();}' +
+    'fetch("/api/profil/me").then(function(r){return r.json();}).then(function(p){' +
+    'if(p&&p.mcName){window._av=avUrlPlain(p.mcName);window._head=headUrlPlain(p.mcName);}' +
+    'else if(j.user&&j.user.avatarUrl){window._av=j.user.avatarUrl;window._head=j.user.avatarUrl;}' +
     'load();' +
     '}).catch(function(){load();});}' +
     'else{load();}' +
@@ -645,11 +837,51 @@ function buildStorePage() {
     'fetch("/api/profil/store").then(function(r){return r.json();}).then(function(d){' +
     'if(d.error){$("gridMsg").textContent="Store-Tempor\u00e4r nicht erreichbar. Bitte gleich nochmal versuchen.";return;}' +
     'st=d;' +
-    'if(d.needsAuth){$("loginCard").style.display="block";}' +
-    'else{$("walletPts").style.display="";$("walletPts").textContent="\u2605 "+d.points;' +
-    'if(typeof d.level==="number"){$("walletLvl").style.display="";$("walletLvl").textContent="Level "+d.level;}}' +
+    'if(d.needsAuth){$("loginCard").style.display="block";$("showCard").style.display="none";}' +
+    'else{' +
+    '$("walletPts").style.display="";$("walletPts").textContent="\u2605 "+d.points;' +
+    'if(typeof d.level==="number"){$("walletLvl").style.display="";$("walletLvl").textContent="Level "+d.level;}' +
+    'var pv=document.getElementById("kmNavPtsVal");if(pv)pv.textContent=d.points;' +
+    'renderShowcase();' +
+    '}' +
+    'fillAdminItems();' +
     'render();' +
     '}).catch(function(){ $("gridMsg").textContent="Store-Tempor\u00e4r nicht erreichbar."; });' +
+    '}' +
+    'function renderShowcase(){' +
+    'var eq=st.equipped||{};var owned=(st.catalog||[]).filter(function(c){return c.owned;}).length;' +
+    'var total=(st.catalog||[]).length;' +
+    'var bn=byId(eq.banner);' +
+    'var banner=$("showBanner");banner.style.background=bn&&bn.data&&bn.data.gradient?bn.data.gradient:"linear-gradient(90deg,#1a2234,#0d1420)";' +
+    'var av=$("showAv");' +
+    'var fr=byId(eq.avatar_frame),th=byId(eq.avatar_theme);' +
+    'if(fr&&fr.data&&fr.data.color1){av.style.border="3px solid "+fr.data.color1;av.style.boxShadow="0 0 14px "+fr.data.color1+"66";}' +
+    'else{av.style.border="0";av.style.boxShadow="none";}' +
+    'if(th&&th.data&&th.data.gradient){av.style.background=th.data.gradient;}' +
+    'av.src=window._head||window._av||"https://mc-heads.net/avatar/MHF_Steve/96";' +
+    'var ti=byId(eq.title),bd=byId(eq.badge);' +
+    'var name="Dein Profil";if(ti&&ti.data)name=ti.data.text+" \u00b7 "+(st.name||"Dein Profil");' +
+    '$("showName").textContent=name;' +
+    'var sub="Level "+st.level;' +
+    'if(bd&&bd.data)sub+=" \u00b7 Abzeichen "+bd.data.icon;' +
+    'sub+=" \u00b7 Code "+(st.code||"-");' +
+    '$("showSub").textContent=sub;' +
+    'var pct=total?Math.round(owned/total*100):0;' +
+    '$("showCollBar").style.width=pct+"%";' +
+    '$("showCollTxt").textContent=owned+" von "+total+" gesammelt";' +
+    '$("showCollPct").textContent=pct+"%";' +
+    '$("showCard").style.display="block";' +
+    '}' +
+    'function filtered(){' +
+    'var items=(st.catalog||[]).filter(function(i){return (filter==="alle"||i.category===filter)&&(rar==="alle"||i.rarity===rar);});' +
+    'var rk=RANK||{};' +
+    'items.sort(function(a,b){' +
+    'if(sort==="price-asc")return a.price-b.price;' +
+    'if(sort==="price-desc")return b.price-a.price;' +
+    'if(sort==="rarity"){var d=(rk[b.rarity]||-1)-(rk[a.rarity]||-1);return d||a.price-b.price;}' +
+    'if(sort==="name")return (a.name||"").localeCompare(b.name||"");' +
+    'return 0;});' +
+    'return items;' +
     '}' +
     'function preview(item){' +
     'var av=window._av||"https://mc-heads.net/avatar/MHF_Steve/64";' +
@@ -665,18 +897,20 @@ function buildStorePage() {
     '}' +
     'function render(){' +
     'var grid=$("grid");grid.innerHTML="";' +
-    'var items=(st.catalog||[]).filter(function(i){return filter==="alle"||i.category===filter;});' +
-    'if(!items.length){grid.innerHTML="<div class=\\"muted\\">Keine Items in dieser Kategorie.</div>";return;}' +
+    'var items=filtered();' +
+    'if(!items.length){grid.innerHTML="<div class=\\"muted\\">Keine Items in dieser Auswahl.</div>";return;}' +
     'var logged=!st.needsAuth;' +
     'items.forEach(function(item){' +
     'var card=document.createElement("div");card.className="card";' +
-    'var rar=RAR[item.rarity]||["","r-common"];' +
+    'var rarArr=RAR[item.rarity]||["","r-common"];' +
     'var owned=logged&&item.owned?1:0;' +
     'var equipped=logged&&item.equippedCategory?1:0;' +
     'if(equipped)card.className+=" equipped";if(owned)card.className+=" owned";' +
+    'var ribbon=item.featured?"<span class=\\"ribbon\\">&#9733; Highlight</span>":"";' +
     'var html="";' +
+    'html+=ribbon;' +
     'html+="<div class=\\"pv\\">"+preview(item)+"</div>";' +
-    'html+="<span class=\\"badge-medal rar "+rar[1]+"\\">"+rar[0]+"</span>";' +
+    'html+="<span class=\\"badge-medal rar "+rarArr[1]+"\\">"+rarArr[0]+"</span>";' +
     'html+="<div class=\\"cardBody\\"><div class=\\"cardTitle\\">"+esc(item.name)+"</div>";' +
     'html+="<div class=\\"cardDesc\\">"+esc(item.desc)+"</div>";' +
     'html+="<div class=\\"price\\">&#9733; "+item.price+"</div>";' +
@@ -686,34 +920,151 @@ function buildStorePage() {
     'else if(owned){btn.textContent="Ausr\u00fcsten";btn.className+=" secondary";btn.setAttribute("data-act","equip");btn.setAttribute("data-item",item.id);}' +
     'else if(!logged){btn.textContent="Anmelden zum Kaufen";btn.className+=" ghost";btn.disabled=true;}' +
     'else{btn.textContent="Kaufen \u00b7 \u2605 "+item.price;if(item.price>st.points){btn.className+=" ghost";btn.disabled=true;}btn.setAttribute("data-act","buy");btn.setAttribute("data-item",item.id);}' +
+    'btn.addEventListener("click",function(e){e.stopPropagation();});' +
     'card.append(btn);' +
+    'card.addEventListener("click",function(){openModal(item);});' +
     'grid.append(card);' +
     '});' +
+    '}' +
+    'function openModal(item){' +
+    'var logged=!st.needsAuth;' +
+    'var rarArr=RAR[item.rarity]||["","r-common"];' +
+    'var h="";' +
+    'if(item.featured)h+="<span class=\\"ribbon\\">&#9733; Highlight</span>";' +
+    'h+="<div class=\\"pv\\">"+preview(item)+"</div>";' +
+    'h+="<div class=\\"mmRar\\"><span class=\\"badge-medal "+rarArr[1]+"\\">"+rarArr[0]+"</span></div>";' +
+    'h+="<div class=\\"mmTitle\\">"+esc(item.name)+"</div>";' +
+    'h+="<div class=\\"mmDesc\\">"+esc(item.desc)+"</div>";' +
+    'h+="<div class=\\"mmPrice price\\">&#9733; "+item.price+"</div>";' +
+    'var owned=logged&&item.owned?1:0;var equipped=logged&&item.equippedCategory?1:0;' +
+    'var btn="";' +
+    'if(equipped){btn="<button class=\\"cardBtn\\" disabled>Ausger\u00fcstet \u2713</button>";}' +
+    'else if(owned){btn="<button class=\\"cardBtn secondary\\" id=\\"mmBtn\\" data-mact=\\"equip\\">Ausr\u00fcsten</button>";}' +
+    'else if(!logged){btn="<button class=\\"cardBtn ghost\\" disabled>Anmelden zum Kaufen</button>";}' +
+    'else{btn="<button class=\\"cardBtn\\" id=\\"mmBtn\\" data-mact=\\"buy\\">Kaufen \u00b7 &#9733; "+item.price+"</button>";' +
+    'if(item.price>st.points){btn="<button class=\\"cardBtn ghost\\" id=\\"mmBtn\\" disabled>Nicht genug &#9733; ("+st.points+")</button>";}}' +
+    '$("kmModalBody").innerHTML=h+btn;' +
+    'var mb=document.getElementById("mmBtn");' +
+    'if(mb&&!mb.disabled){mb.addEventListener("click",function(){' +
+    'var act=mb.getAttribute("data-mact");' +
+    'if(act==="buy")buy(item.id);else if(act==="equip")equip(item.id);' +
+    '});}' +
+    '$("kmModal").style.display="flex";' +
+    '}' +
+    'function closeModal(){$("kmModal").style.display="none";}' +
+    'function doAct(act,id){' +
+    'var url=act==="buy"?"/api/profil/buy":"/api/profil/equip";' +
+    'var body={};if(act==="buy"){body.item_id=id;}else{body.item_id=id;}' +
+    'return fetch(url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)}).then(function(r){return r.json();});' +
+    '}' +
+    'function buy(id){doAct("buy",id).then(function(j){' +
+    'if(j&&j.ok){$("walletPts").textContent="\u2605 "+j.points;"+' +
+    'if(myDid===adminTarget){}' +
+    'closeModal();load();}' +
+    'else{alert("Kauf fehlgeschlagen: "+((j&&j.error)||"unbekannt"));}' +
+    '}).catch(function(){alert("Netzwerkfehler beim Kauf.");});' +
+    '}' +
+    'function equip(id){doAct("equip",id).then(function(j){' +
+    'if(j&&j.ok){closeModal();load();}' +
+    'else{alert("Ausr\u00fcsten fehlgeschlagen: "+((j&&j.error)||"unbekannt"));}' +
+    '}).catch(function(){alert("Netzwerkfehler.");});' +
     '}' +
     '$("tabs").addEventListener("click",function(e){' +
     'var t=e.target.closest(".tab");if(!t)return;' +
     'document.querySelectorAll("#tabs .tab").forEach(function(x){x.classList.remove("on");});' +
     't.classList.add("on");filter=t.getAttribute("data-f");render();' +
     '});' +
+    '$("rarChips").addEventListener("click",function(e){' +
+    'var c=e.target.closest(".chip");if(!c)return;' +
+    'document.querySelectorAll("#rarChips .chip").forEach(function(x){x.classList.remove("on");});' +
+    'c.classList.add("on");rar=c.getAttribute("data-r");render();' +
+    '});' +
+    '$("sortSel").addEventListener("change",function(){sort=$("sortSel").value;render();});' +
     '$("grid").addEventListener("click",function(e){' +
     'var b=e.target.closest("[data-act]");if(!b)return;' +
     'var id=b.getAttribute("data-item");var act=b.getAttribute("data-act");' +
     'b.disabled=true;' +
-    'if(act==="buy"){' +
-    'fetch("/api/profil/buy",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({item_id:id})})' +
-    '.then(function(r){return r.json();}).then(function(j){' +
-    'if(j&&j.ok){$("walletPts").textContent="\u2605 "+j.points;load();}' +
-    'else{b.disabled=false;alert("Kauf fehlgeschlagen: "+((j&&j.error)||"unbekannt"));}' +
-    '}).catch(function(){b.disabled=false;alert("Netzwerkfehler beim Kauf.");});' +
-    '}' +
-    'else if(act==="equip"){' +
-    'fetch("/api/profil/equip",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({item_id:id})})' +
-    '.then(function(r){return r.json();}).then(function(j){' +
-    'if(j&&j.ok){load();}' +
-    'else{b.disabled=false;alert("Ausr\u00fcsten fehlgeschlagen: "+((j&&j.error)||"unbekannt"));}' +
-    '}).catch(function(){b.disabled=false;alert("Netzwerkfehler.");});' +
-    '}' +
+    'if(act==="buy"){buy(id);b.disabled=false;}' +
+    'else if(act==="equip"){equip(id);b.disabled=false;}' +
     '});' +
+    '$("kmModalX").addEventListener("click",closeModal);' +
+    '$("kmModal").addEventListener("click",function(e){if(e.target===$("kmModal"))closeModal();});' +
+    'document.addEventListener("keydown",function(e){if(e.key==="Escape")closeModal();});' +
+    'function initAdmin(){fetch("/api/profil/admin/users").then(function(r){return r.json();}).then(function(u){' +
+    '$("adminCard").style.display="block";admin=Array.isArray(u)?u:[];renderAdmin();fillAdminItems();' +
+    '}).catch(function(){});}' +
+    'function fillAdminItems(){' +
+    'var sel=$("adminItem");if(!sel||!st)return;' +
+    'sel.innerHTML="";' +
+    '(st.catalog||[]).forEach(function(item){' +
+    'var o=document.createElement("option");o.value=item.id;o.textContent=item.name+" ("+item.category+")";sel.append(o);' +
+    '});' +
+    '}' +
+    'function renderAdmin(){' +
+    'var q=($("adminSearch").value||"").toLowerCase();' +
+    'var wrap=$("adminUsers");wrap.innerHTML="";' +
+    'var list=(admin||[]).filter(function(u){' +
+    'if(!q)return true;' +
+    'var h=[u.name,u.discordName,u.code,u.id].map(function(x){return String(x||"").toLowerCase();}).join(" ");return h.indexOf(q)>=0;' +
+    '});' +
+    'if(!list.length){wrap.innerHTML="<div class=\\"adminNote\\">Keine Treffer.</div>";return;}' +
+    'list.forEach(function(u){' +
+    'var r=document.createElement("div");r.className="adminU";if(adminTarget===u.discordId)r.className+=" on";' +
+    'var n=document.createElement("span");n.className="auName";n.textContent=(u.name||u.discordName||("User #"+u.id))+(u.discordId===myDid?" (du)":"");' +
+    'var c=document.createElement("span");c.className="muted";c.textContent=u.code;' +
+    'var p=document.createElement("span");p.className="auPts";p.textContent="\u2605 "+u.points;' +
+    'r.append(n,c,p);' +
+    'r.addEventListener("click",function(){"use strict"?"":"";selectTarget(u.discordId);});' +
+    'wrap.append(r);' +
+    '});' +
+    'if(adminTarget){showTarget();}' +
+    '}' +
+    'function selectTarget(did){adminTarget=did;renderAdmin();showTarget();}' +
+    'function showTarget(){' +
+    'var u=null;for(var i=0;admin&&i<admin.length;i++){if(admin[i].discordId===adminTarget){u=admin[i];break;}}' +
+    'if(!u){$("adminTarget").style.display="none";return;}' +
+    '$("adminTarget").style.display="block";' +
+    '$("adminTgtName").textContent=(u.name||u.discordName)+((u.discordId===myDid)?" (du)":"");' +
+    '$("adminTgtCode").textContent="Code "+u.code;' +
+    '$("adminTgtPts").textContent="\u2605 "+u.points;' +
+    '$("adminTgtLvl").textContent="Level "+u.level;' +
+    '$("adminTgtOwned").textContent=(u.cosmetics?u.cosmetics.length:0)+" Items im Inventar";' +
+    '}' +
+    '$("adminSearch").addEventListener("input",renderAdmin);' +
+    '$("adminToggle").addEventListener("click",function(){' +
+    'var b=$("adminBody");var hidden=b.style.display==="none";' +
+    'b.style.display=hidden?"block":"none";' +
+    '$("adminToggle").textContent=hidden?"Einklappen":"Aufklappen";' +
+    '});' +
+    '$("adminUsers").addEventListener("click",function(e){' +
+    'var r=e.target.closest(".adminU");if(!r)return;' +
+    'var i=Array.prototype.indexOf.call(r.parentNode.children,r);' +
+    'var q=($("adminSearch").value||"").toLowerCase();var list=(admin||[]).filter(function(u){' +
+    'if(!q)return true;var h=[u.name,u.discordName,u.code,u.id].map(function(x){return String(x||"").toLowerCase();}).join(" ");return h.indexOf(q)>=0;});' +
+    'var u=list[i];' +
+    'if(u){if(u.discordId===adminTarget)adminTarget=null;else selectTarget(u.discordId);}' +
+    '});' +
+    'function applyPts(delta){' +
+    'if(!adminTarget)return;fetch("/api/profil/admin/points",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({discordId:adminTarget,delta:delta})})' +
+    '.then(function(r){return r.json();}).then(function(j){if(j&&j.ok){refreshAdmin();load();}else{alert("Fehler: "+((j&&j.error)||"?"));}}).catch(function(){alert("Netzwerkfehler");});' +
+    '}' +
+    'document.querySelectorAll(".adminTarget [data-pts]").forEach(function(btn){' +
+    'btn.addEventListener("click",function(){applyPts(Number(btn.getAttribute("data-pts")));});' +
+    '});' +
+    '$("adminDeltaBtn").addEventListener("click",function(){' +
+    'var d=Number($("adminDelta").value);if(!(d&&isFinite(d)))return;applyPts(Math.round(d));$("adminDelta").value="";' +
+    '});' +
+    '$("adminResetBtn").addEventListener("click",function(){' +
+    'if(!adminTarget)return;if(!confirm("Punkte auf 250 setzen und Ausr\u00fcstung leeren?"))return;' +
+    'fetch("/api/profil/admin/reset",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({discordId:adminTarget})})' +
+    '.then(function(r){return r.json();}).then(function(j){if(j&&j.ok){refreshAdmin();load();}else{alert("Fehler: "+((j&&j.error)||"?"));}}).catch(function(){alert("Netzwerkfehler");});' +
+    '});' +
+    '$("adminGrantBtn").addEventListener("click",function(){' +
+    'if(!adminTarget)return;var itemId=$("adminItem").value;if(!itemId)return;' +
+    'fetch("/api/profil/admin/grant",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({discordId:adminTarget,item_id:itemId})})' +
+    '.then(function(r){return r.json();}).then(function(j){if(j&&j.ok){refreshAdmin();load();}else{alert("Fehler: "+((j&&j.error)||"?"));}}).catch(function(){alert("Netzwerkfehler");});' +
+    '});' +
+    'function refreshAdmin(){fetch("/api/profil/admin/users").then(function(r){return r.json();}).then(function(u){admin=Array.isArray(u)?u:[];renderAdmin();}).catch(function(){});}' +
     '})();' +
     '</script>';
 
@@ -723,6 +1074,7 @@ function buildStorePage() {
 // ── Freunde-Seite ───────────────────────────────────────────────────────────
 function buildFreundePage() {
   const css = SHARED_CSS +
+    '#wrap{border:0;background:transparent;box-shadow:none;}' +
     '.frRow{display:flex;align-items:center;gap:.9rem;padding:.75rem .2rem;border-bottom:1px solid #1c2636;}' +
     '.frRow:last-child{border-bottom:0;}' +
     '.frAv{width:48px;height:48px;border-radius:12px;object-fit:cover;background:#151d2b;flex:none;}' +
@@ -734,9 +1086,7 @@ function buildFreundePage() {
     '.empty{padding:2rem 0;text-align:center;color:#8f9aab;}' +
     '.codeBox{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;}' +
     '.codeBox .code{font:800 18px/1 "Courier New",monospace;color:#ffd75f;letter-spacing:.12em;}' +
-    '.btn-sm{padding:.4rem .9rem;font-size:.8rem;margin:0;}' +
-    '.badgeGlyph{margin-right:5px;font-weight:800;}' +
-    '#wrap{border:0;background:transparent;box-shadow:none;}';
+    '.badgeGlyph{margin-right:5px;font-weight:800;}';
 
   const html =
     '<div id="wrap">' +
