@@ -616,6 +616,10 @@ function buildProfilPage() {
     '.editPreview .epMeta{flex:1;min-width:0;}' +
     '.editPreview .epName{font-weight:800;color:#ffd75f;font-family:Outfit,sans-serif;font-size:1.05rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}' +
     '.editPreview .epSub{color:#8f9aab;font-size:.78rem;}' +
+    '.pubPreview{margin-top:1rem;}' +
+    '.pubPreview .ppHead{display:flex;align-items:center;justify-content:space-between;gap:.6rem;margin-bottom:.5rem;}' +
+    '.pubPreview .ppHead>span{color:#8f9aab;font-size:.8rem;letter-spacing:.04em;font-weight:600;text-transform:uppercase;}' +
+    '.pubPreview .pvFrame{width:100%;height:340px;border:1px solid #26354f;border-radius:12px;background:#0a0d13;}' +
     '.editGroup{margin-top:1rem;}' +
     '.editGroup .egTitle{font:800 11px/1 Outfit,sans-serif;color:#77809a;letter-spacing:.12em;text-transform:uppercase;margin-bottom:.5rem;}' +
     '.editChips{display:flex;flex-wrap:wrap;gap:.45rem;}' +
@@ -666,6 +670,7 @@ function buildProfilPage() {
     '<h1 style="font-size:1.1rem;">Profil anpassen</h1>' +
     '<p class="muted">W\u00e4hle deine eigenen Kosmetik-Items \u2013 klick auf einen Chip, um es auszur\u00fcsten. Neue Items gibt\u2019s im Store.</p>' +
     '<div class="editPreview" id="editPreview"></div>' +
+    '<div class="pubPreview" id="pubPreview" style="display:none;"></div>' +
     '<div class="editGroups" id="editGroups"></div>' +
     '<div class="muted" id="editHint" style="margin-top:.6rem;"></div>' +
     '<a href="/store"><button type="button" class="ghost">Mehr im Store</button></a>' +
@@ -750,6 +755,13 @@ function buildProfilPage() {
     'var nm=esc(p.mcName||((p.user&&(p.user.global_name||p.user.username))||"Du"));' +
     'meta.innerHTML="<div class=\\"epName\\">"+baHtml+esc(titleTxt)+nm+"</div><div class=\\"epSub\\">Level "+esc(p.level)+"</div>";' +
     'prev.append(head,meta);' +
+    'var pv=$("pubPreview");' +
+    'if(pv){' +
+    'if(p.code){' +
+    'pv.style.display="block";' +
+    'pv.innerHTML="<div class=\\"ppHead\\"><span>So sehen Andere dein Profil</span><a class=\\"btn-sm linkBtn\\" target=\\"_blank\\" rel=\\"noopener\\" href=\\"/u/"+encodeURIComponent(p.code)+"\\">Profil \u00f6ffnen</a></div>"+"<iframe class=\\"pvFrame\\" src=\\"/u/"+encodeURIComponent(p.code)+"\\" loading=\\"lazy\\"></iframe>";' +
+    '}else{pv.style.display="none";}' +
+    '}' +
     'var groups=$("editGroups");groups.innerHTML="";' +
     'var order=["title","badge","avatar_theme","avatar_frame","profile_bg","profile_frame","banner","sticker","name_color","font","profil_stil"];' +
     'var catNames={title:"Titel",badge:"Abzeichen",avatar_theme:"Avatar-Hintergrund",avatar_frame:"Avatar-Rahmen",profile_bg:"Profil-Hintergrund",profile_frame:"Profil-Rahmen",banner:"Banner",sticker:"Aufkleber",name_color:"Namensfarbe",font:"Schriftart",profil_stil:"Profilstil"};' +
@@ -1449,7 +1461,10 @@ function buildUserPage(code) {
     '.ubName{font:800 32px/1.1 Outfit,Inter,sans-serif;color:#ffd75f;letter-spacing:.01em;}' +
     '.ubBadge{font-size:22px;margin-right:6px;vertical-align:1px;}' +
     '.ubChips{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.7rem;}' +
-    '.ubBio{margin-top:1rem;padding:1rem;border-radius:12px;background:#0d1420;border:1px solid #1c2636;color:#c9d4e3;line-height:1.5;}' +
+    '.ubChips>span{border-color:color-mix(in srgb,var(--ubAccent,#ffd75f) 32%,transparent)!important;}' +
+    '.ubBio{margin-top:1rem;padding:1rem;border-radius:12px;background:#0d1420;border:1px solid #1c2636;border-left:3px solid color-mix(in srgb,var(--ubAccent,#ffd75f) 60%,transparent);color:#c9d4e3;line-height:1.5;}' +
+    '.ubActions button{border-color:color-mix(in srgb,var(--ubAccent,#ffd75f) 60%,transparent);}' +
+    '#ubTitle{color:var(--ubAccent,#D4AF37);}' +
     '.ubEquips{display:grid;grid-template-columns:1fr 1fr;gap:.55rem;margin-top:1.1rem;}@media(max-width:560px){.ubEquips{grid-template-columns:1fr;}}' +
     '.ueTile{border-radius:9px;overflow:hidden;min-width:0;border:1px solid rgba(255,255,255,.06);}' +
     '.ubActions{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.9rem;}' +

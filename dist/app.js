@@ -3250,28 +3250,60 @@ startBackgroundIntervals();
     const eq = st.equipped || {};
     groups.innerHTML = "";
     save.innerHTML = "";
-    const av = document.createElement("img");
-    const au = previewAvatar();
-    if (au) av.src = au;
-    else av.style.display = "none";
-    const mt = document.createElement("div");
-    mt.className = "kp-meta";
     const eqVal = (cat) => { const v = eq[cat]; return typeof v === "string" ? byId(v) : (v && v.id ? byId(v.id) : null); };
     const ti = eqVal("title");
     const bd = eqVal("badge");
     const nc = eqVal("name_color");
     const sk = eqVal("sticker");
     const fn = eqVal("font");
+    const bn = eqVal("banner");
+    const aFrame = eqVal("avatar_frame");
+    const aTheme = eqVal("avatar_theme");
+    const stil = eqVal("profil_stil");
     const nm = (kmMe && (kmMe.mc_name || kmMe.global_name || kmMe.username)) || "Du";
+    const accent = (nc && nc.data && nc.data.accent) || (stil && stil.data && stil.data.accent) || "#f1c40f";
+    const font = (fn && fn.data && fn.data.font) || "";
+    const av = document.createElement("img");
+    const au = previewAvatar();
+    if (au) av.src = au; else av.style.display = "none";
+    let avStyle = "border-radius:12px;width:56px;height:56px;object-fit:cover;";
+    if (aFrame && aFrame.data && aFrame.data.color1) avStyle += `border:${(aFrame.data.width || 3)}px solid ${esc(aFrame.data.color1)};`;
+    if (aTheme && aTheme.data && aTheme.data.gradient) avStyle += `background:${esc(aTheme.data.gradient)};`;
+    av.setAttribute("style", avStyle);
     let nameHtml = esc(nm);
-    if (ti && ti.data && ti.data.text) nameHtml = esc(ti.data.text) + " \u00b7 " + nameHtml;
-    if (bd && bd.data) nameHtml = `<span style="color:${esc(bd.data.color)}">${esc(bd.data.icon)}</span> ` + nameHtml;
+    if (ti && ti.data && ti.data.text) nameHtml = `${esc(ti.data.text)} \u00b7 ${nameHtml}`;
+    if (bd && bd.data) nameHtml = `<span style="color:${esc(bd.data.color)}">${esc(bd.data.icon)}</span> ${nameHtml}`;
     if (sk && sk.data && sk.data.icon) nameHtml += ` <span style="color:${esc(sk.data.color)}">${esc(sk.data.icon)}</span>`;
-    let nstyle = "";
-    if (nc && nc.data && nc.data.accent) nstyle += `color:${esc(nc.data.accent)};`;
-    if (fn && fn.data && fn.data.font) nstyle += `font-family:${esc(fn.data.font)};`;
-    mt.innerHTML = `<div class="kp-name"${nstyle ? ` style="${nstyle}"` : ""}>${nameHtml}</div><div class="kp-sub">Level ${esc(st.level || 1)}</div>`;
-    save.append(av, mt);
+    let ph = "";
+    if (bn && bn.data && bn.data.gradient) ph += `<div style="height:52px;border-radius:10px;margin-bottom:0.6rem;background:${esc(bn.data.gradient)};border:1px solid rgba(255,255,255,0.08);"></div>`;
+    const nmStyle = `color:${esc(accent)};font-weight:800;${font ? `font-family:${esc(font)};` : ""}`;
+    save.innerHTML = ph + `<div style="display:flex;gap:0.7rem;align-items:center;"><div style="flex:1;min-width:0;"><div class="kp-name" style="${nmStyle}">${nameHtml}</div><div class="kp-sub">Level ${esc(st.level || 1)}</div></div></div>`;
+    save.append(av);
+    const PREQ = [["name_color", "Namensfarbe"], ["font", "Schriftart"], ["sticker", "Aufkleber"], ["profil_stil", "Profilstil"], ["banner", "Banner"], ["profile_bg", "Hintergrund"], ["profile_frame", "Profil-Rahmen"], ["avatar_frame", "Avatar-Rahmen"]];
+    let rows = "";
+    for (const c of PREQ) {
+      const item = eqVal(c[0]);
+      if (!item || !item.data) continue;
+      const d = item.data;
+      const nmIt = item.name || d.text || "";
+      if (!nmIt) continue;
+      let band = "", ic = "", icS = "";
+      if (d.gradient) band = `background:${esc(d.gradient)};`;
+      else if (d.color1) band = `background:linear-gradient(135deg,${esc(d.color1)},${esc(d.color2 || d.color1)});`;
+      else if (d.accent) band = `background:${esc(d.accent)};`;
+      else if (d.icon) { ic = esc(d.icon); icS = `color:${esc(d.color)};`; }
+      else if (d.font) { ic = "Aa"; icS = `font-family:${esc(d.font)};`; }
+      const top = ic ? `<div style="height:28px;background:rgba(255,255,255,0.07);display:flex;align-items:center;justify-content:center;font-size:14px;${icS}">${ic}</div>` : `<div style="height:28px;${band || "background:rgba(255,255,255,0.07);"}"></div>`;
+      rows += `<div style="border-radius:8px;overflow:hidden;border:1px solid rgba(255,255,255,0.06);">${top}<div style="background:rgba(255,255,255,0.03);color:#8b95a5;font-size:0.58rem;padding:0.25rem 0.4rem;text-transform:uppercase;letter-spacing:0.04em;">${esc(CATNAMES[c[0]] || c[1])}</div></div>`;
+    }
+    if (rows) save.insertAdjacentHTML("beforeend", `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.4rem;margin-top:0.55rem;">${rows}</div>`);
+    const kv = $("kosmetViewBtn");
+    if (kv && !kv.dataset.bound) {
+      kv.dataset.bound = "1";
+      kv.onclick = async () => {
+        try { if (kmMe && kmMe.code && window.kmShowProfile) window.kmShowProfile(kmMe.code); } catch (e) {}
+      };
+    }
     if (typeof st.points === "number") pts.textContent = "\u2605 " + st.points + " Kollegen-Points";
     else pts.textContent = "Nicht angemeldet – keine Kollegen-Points sichtbar.";
 
