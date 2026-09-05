@@ -327,7 +327,7 @@ module.exports = function registerProfilModule(app, getSession) {
     return res.json(Array.isArray(r.data) ? r.data : []);
   });
 
-  // Freund per Code hinzufügen
+  // Freund per Code hinzufügen (legt eine Anfrage an, Gegner bestätigt)
   app.post('/api/profil/friend-add', async (req, res) => {
     const session = (typeof getSession === 'function') ? getSession(req) : null;
     if (!session) return res.status(401).json({ error: 'not_authenticated' });
@@ -335,6 +335,41 @@ module.exports = function registerProfilModule(app, getSession) {
     const r = await backendInternal('POST', '/internal/friend-add', {
       discordId: String(session.id),
       code: String(body.code || '').trim().toUpperCase(),
+    });
+    if (!r.ok) return res.status(400).json({ error: r.error });
+    return res.json(r.data);
+  });
+
+  // Eingehende Freundesanfragen
+  app.get('/api/profil/friend-requests', async (req, res) => {
+    const session = (typeof getSession === 'function') ? getSession(req) : null;
+    if (!session) return res.status(401).json({ error: 'not_authenticated' });
+    const r = await backendInternal('GET', '/internal/friend-requests?discordId=' + encodeURIComponent(String(session.id)));
+    if (!r.ok) return res.status(500).json({ error: r.error });
+    return res.json(Array.isArray(r.data) ? r.data : []);
+  });
+
+  // Freundesanfrage annehmen
+  app.post('/api/profil/friend-accept', async (req, res) => {
+    const session = (typeof getSession === 'function') ? getSession(req) : null;
+    if (!session) return res.status(401).json({ error: 'not_authenticated' });
+    const body = req.body && typeof req.body === 'object' ? req.body : {};
+    const r = await backendInternal('POST', '/internal/friend-accept', {
+      discordId: String(session.id),
+      from_id: String(body.from_id || ''),
+    });
+    if (!r.ok) return res.status(400).json({ error: r.error });
+    return res.json(r.data);
+  });
+
+  // Freundesanfrage ablehnen
+  app.post('/api/profil/friend-decline', async (req, res) => {
+    const session = (typeof getSession === 'function') ? getSession(req) : null;
+    if (!session) return res.status(401).json({ error: 'not_authenticated' });
+    const body = req.body && typeof req.body === 'object' ? req.body : {};
+    const r = await backendInternal('POST', '/internal/friend-decline', {
+      discordId: String(session.id),
+      from_id: String(body.from_id || ''),
     });
     if (!r.ok) return res.status(400).json({ error: r.error });
     return res.json(r.data);
@@ -1270,6 +1305,11 @@ function buildFreundePage() {
     '<button type="button" class="secondary" id="addBtn">Hinzuf\u00fcgen</button></div>' +
     '<div class="muted" id="addHint" style="margin-top:.5rem;"></div>' +
     '</div>' +
+    '<div class="card" id="reqCard" style="display:none;">' +
+    '<strong style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.55rem;">' +
+    'Freundesanfragen <span class="muted" id="reqCount" style="font-size:.8rem;"></span></strong>' +
+    '<div id="reqWrap"></div>' +
+    '</div>' +
     '<div class="card" id="listCard" style="display:none;">' +
     '<div id="listHeader" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.4rem;">' +
     '<strong id="listTitle"></strong><span class="muted" id="listCount"></span></div>' +
@@ -1296,6 +1336,7 @@ function buildFreundePage() {
     'load();' +
     '}).catch(function(){login.style.display="block";});' +
     'function load(){' +
+    'loadRequests();' +
     'fetch("/api/profil/friends").then(function(r){return r.json();}).then(function(list){' +
     'listCard.style.display="block";' +
     '$("listTitle").textContent="Deine Kollegen";' +
@@ -1331,6 +1372,40 @@ function buildFreundePage() {
     '});' +
     '}).catch(function(){ $("listWrap").innerHTML="<div class=\\"empty\\">Freunde-Liste tempor\u00e4r nicht erreichbar.</div>"; });' +
     '}' +
+    'function loadRequests(){' +
+    'var card=$("reqCard");if(!card)return;' +
+    'fetch("/api/profil/friend-requests").then(function(r){return r.json();}).then(function(reqs){' +
+    'reqs=Array.isArray(reqs)?reqs:[];' +
+    'var wrap=$("reqWrap");wrap.innerHTML="";' +
+    'if(!reqs.length){card.style.display="none";return;}' +
+    'card.style.display="block";' +
+    '$("reqCount").textContent=reqs.length+" neu"+(reqs.length===1?"":"e");' +
+    'reqs.forEach(function(it){' +
+    'var f=it.user||{};' +
+    'var row=document.createElement("div");row.className="frRow";' +
+    'var av=document.createElement("img");av.className="frAv";av.src=avFor(f);av.alt="";av.onerror=function(){av.src="https://mc-heads.net/head/MHF_Steve/128";};' +
+    'var info=document.createElement("div");info.className="frInfo";' +
+    'var nm=document.createElement("div");nm.className="frName";nm.textContent=f.name||("User #"+(f.id||""));' +
+    'var sub=document.createElement("div");sub.className="frSub";' +
+    'sub.innerHTML="<span class=\\"dot "+(f.online?"on":"off")+"\\"></span>"+esc(f.server||(f.online?"Online":"Offline"))+" \\u00b7 Code "+esc(f.code||"");' +
+    'info.append(nm,sub);' +
+    'var btns=document.createElement("div");btns.className="frBtns";' +
+    'var ok=document.createElement("button");ok.className="btn-sm";ok.textContent="Annehmen";' +
+    'ok.addEventListener("click",function(){' +
+    'fetch("/api/profil/friend-accept",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({from_id:it.request.from})})' +
+    '.then(function(r){return r.json();}).then(function(x){if(x&&x.ok){load();}else{sub.textContent="Fehler: "+((x&&x.error)||"?");}}).catch(function(){sub.textContent="Netzwerkfehler.";});' +
+    '});' +
+    'var no=document.createElement("button");no.className="secondary btn-sm";no.textContent="Ablehnen";' +
+    'no.addEventListener("click",function(){' +
+    'fetch("/api/profil/friend-decline",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({from_id:it.request.from})})' +
+    '.then(function(r){return r.json();}).then(function(){load();}).catch(function(){sub.textContent="Netzwerkfehler.";});' +
+    '});' +
+    'btns.append(ok,no);' +
+    'row.append(av,info,btns);' +
+    'wrap.append(row);' +
+    '});' +
+    '}).catch(function(){});' +
+    '}' +
     '$("copyBtn").addEventListener("click",function(){' +
     'var c=$("myCode").textContent;if(!c||c==="\u2013")return;' +
     'if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(c).catch(function(){});}' +
@@ -1342,7 +1417,10 @@ function buildFreundePage() {
     '$("addHint").textContent="F\u00fcge hinzu\u2026";' +
     'fetch("/api/profil/friend-add",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({code:code})})' +
     '.then(function(r){return r.json();}).then(function(j){' +
-    'if(j&&j.ok){$("addHint").textContent="Freund hinzugef\u00fcgt! (Gr\u00fcn = online)";$("addCode").value="";load();}' +
+    'if(j&&j.ok){' +
+    'if(j.accepted){$("addHint").textContent="Ihr seid jetzt Freunde! (Gr\u00fcn = online)";}' +
+    'else{$("addHint").textContent="Anfrage gesendet \u2013 wartet auf Best\u00e4tigung.";}' +
+    '$("addCode").value="";load();}' +
     'else{var m=(j&&j.error)||"unbekannt";' +
     'if(m==="cannot_friend_self")m="Das bist du selbst.";' +
     'else if(m==="target_not_found")m="Kein Kollege mit diesem Code.";' +
@@ -1468,8 +1546,12 @@ function buildUserPage(code) {
     'else{' +
     'var ad=document.createElement("button");ad.type="button";ad.textContent="Freund hinzuf\u00fcgen";' +
     'ad.addEventListener("click",function(){' +
+    'ad.disabled=true;ad.textContent="Sende\u2026";' +
     'fetch("/api/profil/friend-add",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({code:p.code})})' +
-    '.then(function(r){return r.json();}).then(function(j){if(j&&j.ok){load();}else{alert("Fehler: "+((j&&j.error)||"?"));}}).catch(function(){alert("Netzwerkfehler");});});box.append(ad);' +
+    '.then(function(r){return r.json();}).then(function(j){' +
+    'if(j&&j.ok){if(j.accepted){ad.textContent="Ihr seid jetzt Freunde!";setTimeout(load,1200);}else{ad.textContent="Anfrage gesendet \u2713";}}' +
+    'else{ad.disabled=false;ad.textContent="Freund hinzuf\u00fcgen";alert("Fehler: "+((j&&j.error)||"?"));}' +
+    '}).catch(function(){ad.disabled=false;ad.textContent="Freund hinzuf\u00fcgen";alert("Netzwerkfehler");});});box.append(ad);' +
     '}}' +
     'else{' +
     'var l=document.createElement("a");l.href="/api/auth/discord/login";l.innerHTML="<button type=\\"button\\">Anmelden zum Befreunden</button>";box.append(l);' +
@@ -1665,7 +1747,7 @@ const CHAT_WIDGET_HTML =
   '#kmSocial .kmEmpty{padding:1.5rem 1rem;text-align:center;color:#8f9aab;font-size:.85rem;}' +
   '</style>' +
   '<div class="kmSpin" id="kmSspin"><div class="kmShead">Freunde &amp; DMs <a href="/dm">Alle Nachrichten \u2192</a></div>' +
-  '<div class="kmSbody" id="kmSbody"></div>' +
+  '<div class="kmSbody"><div id="kmReqs"></div><div id="kmFlist"></div></div>' +
   '<div class="kmEdit"><input id="kmAddCode" placeholder="Freundes-Code"/>' +
   '<button type="button" id="kmAddBtn">Hinzuf\u00fcgen</button></div></div>' +
   '<button type="button" class="kmSbtn" id="kmSbtn">&#9993; Freunde &amp; DMs</button>' +
@@ -1675,16 +1757,40 @@ const CHAT_WIDGET_HTML =
   'function es(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}' +
   'var open=false;' +
   'var btn=document.getElementById("kmSbtn");var spin=document.getElementById("kmSspin");' +
-  'var body=document.getElementById("kmSbody");' +
   'if(!btn)return;' +
   'btn.addEventListener("click",function(){open=!open;spin.classList.toggle("on",open);if(open)load();});' +
   'function av(u){' +
   'if(u&&u.profile&&u.profile.avatar_data_url)return u.profile.avatar_data_url;' +
   'return "https://mc-heads.net/head/MHF_Steve/96";}' +
+  'function renderReqs(rq,reqs){' +
+  'if(!rq)return;rq.innerHTML="";reqs=Array.isArray(reqs)?reqs:[];' +
+  'if(!reqs.length)return;' +
+  'var h="<div style=\\"padding:.45rem .6rem;font:800 11px/1 Outfit,sans-serif;color:#ffd75f;text-transform:uppercase;letter-spacing:.06em;\\">Freundesanfragen ("+reqs.length+")</div>";' +
+  'reqs.forEach(function(it){var f=it.user||{};' +
+  'h+="<div class=\\"kmFr\\"><img src=\\""+av(f)+"\\" data-fb=\\"https://mc-heads.net/head/MHF_Steve/96\\" onerror=\\"if(this.dataset.fb)this.src=this.dataset.fb;\\" alt=\\"\\"/>";' +
+  'h+="<div class=\\"kmFi\\"><div class=\\"kmFn\\">"+es(f.name||("User "+(f.id||"")))+"</div>";' +
+  'h+="<div class=\\"kmFs\\">"+es(f.code||"")+"</div></div>";' +
+  'h+="<button type=\\"button\\" data-a=\\""+encodeURIComponent(it.request.from)+"\\" title=\\"Annehmen\\">\u2713</button>";' +
+  'h+="<button type=\\"button\\" data-d=\\""+encodeURIComponent(it.request.from)+"\\" title=\\"Ablehnen\\" style=\\"opacity:.65\\">\u2715</button>";' +
+  'h+="</div>";' +
+  '});' +
+  'rq.innerHTML=h;' +
+  'rq.querySelectorAll("[data-a]").forEach(function(b){' +
+  'b.addEventListener("click",function(){' +
+  'fetch("/api/profil/friend-accept",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({from_id:decodeURIComponent(b.getAttribute("data-a"))})})' +
+  '.then(function(r){return r.json();}).then(function(){load();}).catch(function(){});});});' +
+  'rq.querySelectorAll("[data-d]").forEach(function(b){' +
+  'b.addEventListener("click",function(){' +
+  'fetch("/api/profil/friend-decline",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({from_id:decodeURIComponent(b.getAttribute("data-d"))})})' +
+  '.then(function(r){return r.json();}).then(function(){load();}).catch(function(){});});});' +
+  '}' +
   'function load(){' +
+  'var fl=document.getElementById("kmFlist");var rq=document.getElementById("kmReqs");' +
+  'if(fl)fl.innerHTML="";renderReqs(rq,[]);' +
+  'fetch("/api/profil/friend-requests").then(function(r){return r.json();}).then(function(reqs){renderReqs(rq,reqs);}).catch(function(){});' +
   'fetch("/api/profil/friends").then(function(r){return r.json();}).then(function(list){' +
-  'body.innerHTML="";' +
-  'if(!list||!list.length){body.innerHTML="<div class=\\"kmEmpty\\">Noch keine Freunde. F\u00fcge unten einen Code hinzu oder teile deinen.<br/>Freunde-Code: siehst du im <a href=\\"/profil\\" style=\\"color:#ffd75f\\">Profil</a>.</div>";return;}' +
+  'if(!fl)return;' +
+  'if(!list||!list.length){fl.innerHTML="<div class=\\"kmEmpty\\">Noch keine Freunde. F\u00fcge unten einen Code hinzu oder teile deinen.<br/>Freunde-Code: siehst du im <a href=\\"/profil\\" style=\\"color:#ffd75f\\">Profil</a>.</div>";return;}' +
   'list.forEach(function(f){' +
   'var eq=f.equipped||{};var ti=(eq.title)?null:null;' +
   'var row=document.createElement("div");row.className="kmFr";' +
@@ -1697,15 +1803,18 @@ const CHAT_WIDGET_HTML =
   'var pr=document.createElement("a");pr.href="/u/"+encodeURIComponent(f.code||"");pr.textContent="Profil";pr.target="_blank";' +
   'var dm=document.createElement("a");dm.href="/dm?to="+encodeURIComponent(f.code||"");dm.textContent="\u2709";dm.style.marginLeft=".5rem";' +
   'row.append(img,info,pr,dm);' +
-  'body.append(row);' +
+  'fl.append(row);' +
   '});' +
-  '}).catch(function(){body.innerHTML="<div class=\\"kmEmpty\\">Nicht erreichbar.</div>";});' +
+  '}).catch(function(){if(fl)fl.innerHTML="<div class=\\"kmEmpty\\">Nicht erreichbar.</div>";});' +
   '}' +
   'document.getElementById("kmAddBtn").addEventListener("click",function(){' +
   'var code=document.getElementById("kmAddCode").value.trim().toUpperCase();' +
   'if(!code)return;' +
   'fetch("/api/profil/friend-add",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({code:code})})' +
-  '.then(function(r){return r.json();}).then(function(j){if(j&&j.ok){document.getElementById("kmAddCode").value="";load();}else{alert("Fehler: "+((j&&j.error)||"?"));}}).catch(function(){alert("Netzwerkfehler");});' +
+  '.then(function(r){return r.json();}).then(function(j){' +
+  'if(j&&j.ok){document.getElementById("kmAddCode").value="";' +
+  'if(j.accepted){alert("Ihr seid jetzt Freunde!");}else{alert("Anfrage gesendet \u2013 wartet auf Best\u00e4tigung.");}' +
+  'load();}else{alert("Fehler: "+((j&&j.error)||"?"));}}).catch(function(){alert("Netzwerkfehler");});' +
   '});' +
   '})();' +
   '</scr' + 'ipt>';

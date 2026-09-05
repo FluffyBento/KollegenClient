@@ -109,6 +109,7 @@ function ensureUserExtras(u) {
   if (typeof u.points_total !== 'number') u.points_total = typeof u.points === 'number' ? u.points : START_POINTS;
   if (!Array.isArray(u.cosmetics)) u.cosmetics = [];
   if (!u.equipped || typeof u.equipped !== 'object') u.equipped = {};
+  if (!Array.isArray(u.friend_requests)) u.friend_requests = [];
   return u;
 }
 
@@ -262,6 +263,63 @@ function publicFriend(u) {
           }
         : null,
   };
+}
+
+// ── Freundesanfragen (Anfrage → Annehmen/Ablehnen) ──────────────────────────
+function addFriendByCode(me, target) {
+  // Liefert {ok:true, already:true} | {ok:true, accepted:true} | {ok:true, pending:true}
+  me.friends = me.friends || [];
+  target.friends = target.friends || [];
+  target.friend_requests = target.friend_requests || [];
+  me.friend_requests = me.friend_requests || [];
+  if (me.friends.includes(target.discordId)) return { ok: true, already: true };
+  const mutual = target.friend_requests.findIndex((r) => r && r.from === me.discordId);
+  if (mutual >= 0) {
+    target.friend_requests.splice(mutual, 1);
+    if (!me.friends.includes(target.discordId)) me.friends.push(target.discordId);
+    if (!target.friends.includes(me.discordId)) target.friends.push(me.discordId);
+    saveStore();
+    return { ok: true, accepted: true };
+  }
+  const mine = me.friend_requests.findIndex((r) => r && r.from === target.discordId);
+  if (mine >= 0) return { ok: true, pending: true };
+  target.friend_requests.push({ from: me.discordId, at: Date.now() });
+  saveStore();
+  return { ok: true, pending: true };
+}
+
+function acceptFriendRequest(me, fromId) {
+  me.friends = me.friends || [];
+  const from = fromId ? store.users[fromId] : null;
+  if (!from) return { error: 'user_not_found' };
+  const idx = (me.friend_requests || []).findIndex((r) => r && r.from === fromId);
+  if (idx < 0) return { error: 'request_not_found' };
+  me.friend_requests.splice(idx, 1);
+  from.friends = from.friends || [];
+  if (!me.friends.includes(fromId)) me.friends.push(fromId);
+  if (!from.friends.includes(me.discordId)) from.friends.push(me.discordId);
+  saveStore();
+  return { ok: true };
+}
+
+function declineFriendRequest(me, fromId) {
+  const idx = (me.friend_requests || []).findIndex((r) => r && r.from === fromId);
+  if (idx >= 0) me.friend_requests.splice(idx, 1);
+  saveStore();
+  return { ok: true };
+}
+
+function incomingRequests(user) {
+  if (!user) return [];
+  const out = (user.friend_requests || [])
+    .map((r) => {
+      const from = r && r.from ? store.users[r.from] : null;
+      if (!from) return null;
+      return { request: { from: r.from, at: r.at || 0 }, user: publicFriend(from) };
+    })
+    .filter(Boolean)
+    .sort((a, b) => (b.request.at || 0) - (a.request.at || 0));
+  return out;
 }
 
 // ── Discord-Token validieren ─────────────────────────────────────────────────
@@ -656,7 +714,7 @@ if (pathname === '/internal/friends' && method === 'GET') {
   return sendJson(res, 200, list);
 }
 
-// POST /internal/friend-add {discordId, code} → Freund hinzufügen (Server-to-Server)
+// POST /internal/friend-add {discordId, code} → Freund hinzufügen (Anfrage/Verknüpfen)
 if (pathname === '/internal/friend-add' && method === 'POST') {
   if (!internalAuthorized(req)) return sendJson(res, 403, { error: 'forbidden' });
   const body = await readBody(req);
@@ -667,12 +725,9 @@ if (pathname === '/internal/friend-add' && method === 'POST') {
   const target = targetId ? resolveUser(targetId) : null;
   if (!target) return sendJson(res, 404, { error: 'target_not_found' });
   if (target.discordId === user.discordId) return sendJson(res, 400, { error: 'cannot_friend_self' });
-  user.friends = user.friends || [];
-  target.friends = target.friends || [];
-  if (!user.friends.includes(target.discordId)) user.friends.push(target.discordId);
-  if (!target.friends.includes(user.discordId)) target.friends.push(user.discordId);
-  saveStore();
-  return sendJson(res, 200, { ok: true });
+  const r = addFriendByCode(user, target);
+  if (r.error) return sendJson(res, 400, { error: r.error });
+  return sendJson(res, 200, r);
 }
 
 // POST /internal/friend-remove {discordId, target_id} → Freund entfernen (Server-to-Server)
@@ -690,6 +745,36 @@ if (pathname === '/internal/friend-remove' && method === 'POST') {
   }
   saveStore();
   return sendJson(res, 200, { ok: true });
+}
+
+// GET /internal/friend-requests?discordId=... → eingehende Freundesanfragen
+if (pathname === '/internal/friend-requests' && method === 'GET') {
+  if (!internalAuthorized(req)) return sendJson(res, 403, { error: 'forbidden' });
+  const discordId = url.searchParams.get('discordId');
+  const user = discordId ? store.users[discordId] : null;
+  if (!user) return sendJson(res, 404, { error: 'user_not_found' });
+  return sendJson(res, 200, incomingRequests(user));
+}
+
+// POST /internal/friend-accept {discordId, from_id} → Anfrage annehmen
+if (pathname === '/internal/friend-accept' && method === 'POST') {
+  if (!internalAuthorized(req)) return sendJson(res, 403, { error: 'forbidden' });
+  const body = await readBody(req);
+  const user = body.discordId ? store.users[String(body.discordId)] : null;
+  if (!user) return sendJson(res, 404, { error: 'user_not_found' });
+  const r = acceptFriendRequest(user, String(body.from_id || ''));
+  if (r.error) return sendJson(res, 400, { error: r.error });
+  return sendJson(res, 200, r);
+}
+
+// POST /internal/friend-decline {discordId, from_id} → Anfrage ablehnen
+if (pathname === '/internal/friend-decline' && method === 'POST') {
+  if (!internalAuthorized(req)) return sendJson(res, 403, { error: 'forbidden' });
+  const body = await readBody(req);
+  const user = body.discordId ? store.users[String(body.discordId)] : null;
+  if (!user) return sendJson(res, 404, { error: 'user_not_found' });
+  const r = declineFriendRequest(user, String(body.from_id || ''));
+  return sendJson(res, 200, r);
 }
 
 // GET /internal/profile-view?code=... | ?id=... → Profil anderer Nutzer ansehen.
@@ -896,13 +981,32 @@ if (pathname === '/internal/reset' && method === 'POST') {
       if (!target) return sendJson(res, 404, { error: 'target_not_found' });
       if (target.discordId === user.discordId) return sendJson(res, 400, { error: 'cannot_friend_self' });
 
-      user.friends = user.friends || [];
-      target.friends = target.friends || [];
-      if (!user.friends.includes(target.discordId)) user.friends.push(target.discordId);
-      if (!target.friends.includes(user.discordId)) target.friends.push(user.discordId);
+      const r = addFriendByCode(user, target);
+      if (r.error) return sendJson(res, 400, { error: r.error });
+      return sendJson(res, 200, r);
+    }
 
-      saveStore();
-      return sendJson(res, 200, { ok: true });
+    if (pathname === '/friend/requests' && method === 'GET') {
+      const user = bearerUser(req);
+      if (!user) return sendJson(res, 401, { error: 'not_authenticated' });
+      return sendJson(res, 200, incomingRequests(user));
+    }
+
+    if (pathname === '/friend/accept' && method === 'POST') {
+      const user = bearerUser(req);
+      if (!user) return sendJson(res, 401, { error: 'not_authenticated' });
+      const body = await readBody(req);
+      const r = acceptFriendRequest(user, String(body.from_id || ''));
+      if (r.error) return sendJson(res, 400, { error: r.error });
+      return sendJson(res, 200, r);
+    }
+
+    if (pathname === '/friend/decline' && method === 'POST') {
+      const user = bearerUser(req);
+      if (!user) return sendJson(res, 401, { error: 'not_authenticated' });
+      const body = await readBody(req);
+      const r = declineFriendRequest(user, String(body.from_id || ''));
+      return sendJson(res, 200, r);
     }
 
     if (pathname === '/friends' && method === 'DELETE') {
