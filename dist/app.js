@@ -594,10 +594,18 @@ async function refreshLogs() {
       meta.className = "friend-meta";
       const name = document.createElement("div");
       name.className = "friend-name";
-      const ti = (window.kmTitleOf && window.kmTitleOf(u)) || null;
+      const ti = (window.kmPref && window.kmPref(u)) || {};
       const visible = u.mc_name || u.global_name || u.username || "—";
-      if (ti && ti.data && ti.data.text) name.append(ti.data.text + " \u00b7 ");
+      if (ti.title && ti.title.data && ti.title.data.text) name.append(ti.title.data.text + " \u00b7 ");
       name.append(visible);
+      if (ti.accent) name.style.color = ti.accent;
+      if (ti.font) name.style.fontFamily = ti.font;
+      if (ti.sticker && ti.sticker.icon) {
+        const st = document.createElement("span");
+        st.style.color = ti.sticker.color || "#fff";
+        st.textContent = " " + ti.sticker.icon;
+        name.append(st);
+      }
       const dot = document.createElement("span");
       dot.className = "status-dot " + (u.online ? "online" : "offline");
       dot.title = u.online ? "Online" : "Offline";
@@ -3182,6 +3190,26 @@ startBackgroundIntervals();
     if (b.data) return b;
     return byId(b.id) || null;
   };
+  window.kmPref = (u) => {
+    const eq = (u && u.equipped) || {};
+    const val = (k) => {
+      const e = eq[k];
+      if (!e) return null;
+      if (e.data) return { id: e.id, name: e.name, data: e.data };
+      const it = byId(e && e.id ? e.id : e);
+      return it ? { id: it.id, name: it.name, data: it.data } : null;
+    };
+    const nc = val("name_color");
+    const sk = val("sticker");
+    const fn = val("font");
+    return {
+      title: val("title"),
+      badge: val("badge"),
+      accent: (nc && nc.data && nc.data.accent) || null,
+      sticker: sk && sk.data ? sk.data : null,
+      font: (fn && fn.data && fn.data.font) || null,
+    };
+  };
   window.kmCat = null;
 
   async function loadStore() {
@@ -3209,8 +3237,8 @@ startBackgroundIntervals();
   }
 
   // ── Kosmetik-Editor (im Profil-Modal) ──
-  const ORDER = ["title", "badge", "avatar_theme", "avatar_frame", "profile_bg", "profile_frame", "banner", "profil_stil"];
-  const CATNAMES = { title: "Titel", badge: "Abzeichen", avatar_theme: "Avatar-Hintergrund", avatar_frame: "Avatar-Rahmen", profile_bg: "Profil-Hintergrund", profile_frame: "Profil-Rahmen", banner: "Banner", profil_stil: "Profilstil" };
+  const ORDER = ["title", "badge", "avatar_theme", "avatar_frame", "profile_bg", "profile_frame", "banner", "sticker", "name_color", "font", "profil_stil"];
+  const CATNAMES = { title: "Titel", badge: "Abzeichen", avatar_theme: "Avatar-Hintergrund", avatar_frame: "Avatar-Rahmen", profile_bg: "Profil-Hintergrund", profile_frame: "Profil-Rahmen", banner: "Banner", sticker: "Aufkleber", name_color: "Namensfarbe", font: "Schriftart", profil_stil: "Profilstil" };
 
   function renderKosmet() {
     const groups = $("kosmetGroups");
@@ -3228,13 +3256,21 @@ startBackgroundIntervals();
     else av.style.display = "none";
     const mt = document.createElement("div");
     mt.className = "kp-meta";
-    const ti = byId(eq.title);
-    const bd = byId(eq.badge);
+    const eqVal = (cat) => { const v = eq[cat]; return typeof v === "string" ? byId(v) : (v && v.id ? byId(v.id) : null); };
+    const ti = eqVal("title");
+    const bd = eqVal("badge");
+    const nc = eqVal("name_color");
+    const sk = eqVal("sticker");
+    const fn = eqVal("font");
     const nm = (kmMe && (kmMe.mc_name || kmMe.global_name || kmMe.username)) || "Du";
     let nameHtml = esc(nm);
     if (ti && ti.data && ti.data.text) nameHtml = esc(ti.data.text) + " \u00b7 " + nameHtml;
     if (bd && bd.data) nameHtml = `<span style="color:${esc(bd.data.color)}">${esc(bd.data.icon)}</span> ` + nameHtml;
-    mt.innerHTML = `<div class="kp-name">${nameHtml}</div><div class="kp-sub">Level ${esc(st.level || 1)}</div>`;
+    if (sk && sk.data && sk.data.icon) nameHtml += ` <span style="color:${esc(sk.data.color)}">${esc(sk.data.icon)}</span>`;
+    let nstyle = "";
+    if (nc && nc.data && nc.data.accent) nstyle += `color:${esc(nc.data.accent)};`;
+    if (fn && fn.data && fn.data.font) nstyle += `font-family:${esc(fn.data.font)};`;
+    mt.innerHTML = `<div class="kp-name"${nstyle ? ` style="${nstyle}"` : ""}>${nameHtml}</div><div class="kp-sub">Level ${esc(st.level || 1)}</div>`;
     save.append(av, mt);
     if (typeof st.points === "number") pts.textContent = "\u2605 " + st.points + " Kollegen-Points";
     else pts.textContent = "Nicht angemeldet – keine Kollegen-Points sichtbar.";
@@ -3264,6 +3300,7 @@ startBackgroundIntervals();
         else if (it.data && it.data.accent) sw.style.background = it.data.accent;
         else if (it.data && it.data.text) { sw.textContent = it.data.text; sw.style.background = "#3a3f4e"; }
         else if (it.data && it.data.icon) { sw.textContent = it.data.icon; sw.style.color = it.data.color; }
+        else if (it.data && it.data.font) { sw.textContent = "Aa"; sw.style.background = "#3a3f4e"; }
         ch.append(sw);
         ch.append(" " + it.name);
         ch.onclick = () => doEquip(cat, it.id);
@@ -3323,7 +3360,10 @@ startBackgroundIntervals();
     const ti = find(eq.title);
     const bd = find(eq.badge);
     const stil = find(eq.profil_stil);
-    const accent = (stil && stil.accent) || "#f1c40f";
+    const nc = find(eq.name_color);
+    const sk = find(eq.sticker);
+    const fn = find(eq.font);
+    const accent = (nc && nc.accent) || (stil && stil.accent) || "#f1c40f";
     const head = (() => {
       if (p.uuid) return `https://mc-heads.net/head/${p.uuid}/256`;
       if (p.avatar_data_url) return p.avatar_data_url;
@@ -3341,9 +3381,28 @@ startBackgroundIntervals();
     h += `<div style="display:flex;gap:0.8rem;align-items:center;">`;
     h += `<img src="${esc(head)}" style="width:64px;height:64px;border-radius:14px;object-fit:cover;${frm}${thm}" onerror="this.style.display='none';" alt=""/>`;
     h += `<div style="flex:1;min-width:0;">`;
-    h += `<div style="font-weight:800;font-size:1.05rem;color:${esc(accent)}">${bd && bd.icon ? `<span style="color:${esc(bd.color)}">${esc(bd.icon)}</span> ` : ""}${esc(name)}</div>`;
+    h += `<div style="font-weight:800;font-size:1.05rem;color:${esc(accent)}${fn && fn.font ? `;font-family:${esc(fn.font)}` : ""}">${bd && bd.icon ? `<span style="color:${esc(bd.color)}">${esc(bd.icon)}</span> ` : ""}${esc(name)}${sk && sk.icon ? `<span style="color:${esc(sk.color)}"> ${esc(sk.icon)}</span>` : ""}</div>`;
     h += `<div style="color:var(--muted);font-size:0.8rem;">${status} \u00b7 Level ${esc(p.level)} \u00b7 Code ${esc(p.code)}</div>`;
     h += `</div></div>`;
+    const EQCATS = [["title", "Titel"], ["badge", "Abzeichen"], ["avatar_theme", "Avatar-Hintergrund"], ["avatar_frame", "Avatar-Rahmen"], ["profile_bg", "Profil-Hintergrund"], ["profile_frame", "Profil-Rahmen"], ["banner", "Banner"], ["sticker", "Sticker"], ["name_color", "Namensfarbe"], ["font", "Schrift"], ["profil_stil", "Profil-Stil"]];
+    let eqRows = "";
+    for (const c of EQCATS) {
+      const entry = eq[c[0]];
+      if (!entry) continue;
+      const d = entry.data || {};
+      const nmItem = entry.name || d.text || "";
+      if (!nmItem) continue;
+      let swatch = "";
+      if (d.gradient) swatch = `background:${esc(d.gradient)};`;
+      else if (d.color1) swatch = `background:linear-gradient(135deg,${esc(d.color1)},${esc(d.color2 || d.color1)});`;
+      else if (d.accent) swatch = `background:${esc(d.accent)};`;
+      eqRows += `<div style="display:flex;align-items:center;gap:0.45rem;padding:0.4rem 0.55rem;background:rgba(255,255,255,0.05);border-radius:8px;min-width:0;">`;
+      eqRows += `<span style="flex:none;width:24px;height:24px;border-radius:6px;${swatch || (d.icon ? `background:rgba(255,255,255,0.07);color:${esc(d.color)};display:inline-flex;align-items:center;justify-content:center;` : "background:rgba(255,255,255,0.07);")}">${d.icon ? esc(d.icon) : ""}</span>`;
+      eqRows += `<span style="color:#8b95a5;font-size:0.68rem;flex:none;text-transform:uppercase;letter-spacing:0.04em;">${esc(c[1])}</span>`;
+      eqRows += `<span style="color:#e6ecf5;font-weight:600;font-size:0.8rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;">${esc(nmItem)}</span>`;
+      eqRows += `</div>`;
+    }
+    if (eqRows) h += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.45rem;margin-top:0.7rem;">${eqRows}</div>`;
     if (p.bio) h += `<div style="margin-top:0.6rem;padding:0.6rem;background:rgba(255,255,255,0.05);border-radius:10px;font-size:0.85rem;">${esc(p.bio)}</div>`;
     h += `<div style="margin-top:0.7rem;display:flex;gap:0.5rem;flex-wrap:wrap;">`;
     if (p.isViewer) h += `<span style="color:var(--muted);font-size:0.8rem;">Das ist dein eigenes Profil.</span>`;

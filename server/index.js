@@ -97,10 +97,29 @@ const CATALOG = [
   { id: 'stil_gluth', category: 'profil_stil', name: 'Glut', desc: 'Feuriges Rot \u2013 hei\u00df und selbstbewusst.', price: 800, rarity: 'epic', data: { accent: '#f85149', font: 'Inter' } },
   { id: 'stil_ozean', category: 'profil_stil', name: 'Ozean', desc: 'K\u00f6nigsblau mit Tiefe.', price: 1000, rarity: 'epic', data: { accent: '#3b82f6', font: 'Outfit' } },
   { id: 'stil_onyx', category: 'profil_stil', name: 'Onyx Schwarzgold', desc: 'Dunkel mit edlem Gold-Glanz.', price: 2200, rarity: 'legendary', featured: true, data: { accent: '#e6c96b', font: 'Outfit' } },
+  // Namensfarbe (Farbe deines Profilnamens)
+  { id: 'name_bernstein', category: 'name_color', name: 'Bernstein', desc: 'Warm wie Bernstein.', price: 150, rarity: 'common', data: { accent: '#ffb454' } },
+  { id: 'name_karmesin', category: 'name_color', name: 'Karmesin', desc: 'Feuriges Rot für deinen Namen.', price: 400, rarity: 'rare', data: { accent: '#ff5f56' } },
+  { id: 'name_tuerkis', category: 'name_color', name: 'Türkis', desc: 'Frisch wie eine Lagune.', price: 700, rarity: 'epic', data: { accent: '#39d7ff' } },
+  { id: 'name_violett', category: 'name_color', name: 'Neonviolett', desc: 'Kräftiges Violett mit Glow.', price: 1400, rarity: 'epic', data: { accent: '#c77dff' } },
+  { id: 'name_onyxgold', category: 'name_color', name: 'Onyxgold', desc: 'Schwarz und Gold für den Namen.', price: 2200, rarity: 'legendary', featured: true, data: { accent: '#e6c96b' } },
+  // Sticker (Aufkleber neben dem Namen)
+  { id: 'sticker_herz', category: 'sticker', name: 'Herz-Sticker', desc: 'Zeig deine Zuneigung.', price: 120, rarity: 'common', data: { icon: '❤', color: '#ff6b6b' } },
+  { id: 'sticker_glueck', category: 'sticker', name: 'Glücksklee', desc: 'Grün wie Freude.', price: 350, rarity: 'rare', data: { icon: '🍀', color: '#7ee787' } },
+  { id: 'sticker_stern', category: 'sticker', name: 'Goldstern', desc: 'Strahl wie ein Star.', price: 650, rarity: 'epic', data: { icon: '⭐', color: '#ffd700' } },
+  { id: 'sticker_blitz', category: 'sticker', name: 'Blitz', desc: 'Schnell und elektrisierend.', price: 800, rarity: 'epic', data: { icon: '⚡', color: '#ffd23f' } },
+  { id: 'sticker_drache', category: 'sticker', name: 'Drachen-Sticker', desc: 'Der Enderdrache grüßt.', price: 1200, rarity: 'legendary', data: { icon: '🐉', color: '#c77dff' } },
+  // Font (Schriftart des Profilnamens)
+  { id: 'font_rund', category: 'font', name: 'Rund und freundlich', desc: 'Weiche, freundliche Schrift.', price: 100, rarity: 'common', data: { font: '"Verdana","Segoe UI",sans-serif' } },
+  { id: 'font_serif', category: 'font', name: 'Klassische Buchstaben', desc: 'Serifen für die Ewigkeit.', price: 250, rarity: 'rare', data: { font: '"Georgia","Times New Roman",serif' } },
+  { id: 'font_typewriter', category: 'font', name: 'Typewriter', desc: 'Wie auf einer Schreibmaschine.', price: 600, rarity: 'epic', data: { font: '"Courier New",monospace' } },
+  { id: 'font_banner', category: 'font', name: 'Banner-Bliter', desc: 'Groß, fett, auffällig.', price: 1600, rarity: 'legendary', data: { font: 'Impact,"Arial Narrow Bold",sans-serif' } },
 ];
 
 function catById(id) {
-  return CATALOG.find((c) => c.id === id) || (store.catalog || []).find((c) => c.id === id);
+  const i = typeof id === 'string' ? id : id && id.id ? id.id : null;
+  if (!i) return null;
+  return CATALOG.find((c) => c.id === i) || (store.catalog || []).find((c) => c.id === i);
 }
 
 function ensureUserExtras(u) {
@@ -246,7 +265,7 @@ function publicFriend(u) {
   const equippedData = {};
   for (const cat of Object.keys(eq)) {
     const it = eq[cat] ? catById(eq[cat]) : null;
-    equippedData[cat] = it ? { id: it.id, category: it.category, data: it.data || null } : null;
+    equippedData[cat] = it ? { id: it.id, category: it.category, name: it.name || null, data: it.data || null } : null;
   }
   return {
     id: u.id,
@@ -800,7 +819,7 @@ if (pathname === '/internal/profile-view' && method === 'GET') {
   const equippedData = {};
   for (const cat of Object.keys(eq)) {
     const it = eq[cat] ? catById(eq[cat]) : null;
-    equippedData[cat] = it ? { id: it.id, category: it.category, data: it.data || null } : null;
+    equippedData[cat] = it ? { id: it.id, category: it.category, name: it.name || null, data: it.data || null } : null;
   }
   const owned = (u.cosmetics || [])
     .map((c) => {
@@ -1040,7 +1059,7 @@ if (pathname === '/internal/reset' && method === 'POST') {
       const equippedData = {};
       for (const cat of Object.keys(eq)) {
         const it = eq[cat] ? catById(eq[cat]) : null;
-        equippedData[cat] = it ? { id: it.id, category: it.category, data: it.data || null } : null;
+        equippedData[cat] = it ? { id: it.id, category: it.category, name: it.name || null, data: it.data || null } : null;
       }
       const p = target.profile && typeof target.profile === 'object' ? target.profile : {};
       const isViewer = viewer && String(viewer.discordId) === String(target.discordId);

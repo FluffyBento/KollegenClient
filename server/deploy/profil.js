@@ -751,8 +751,8 @@ function buildProfilPage() {
     'meta.innerHTML="<div class=\\"epName\\">"+baHtml+esc(titleTxt)+nm+"</div><div class=\\"epSub\\">Level "+esc(p.level)+"</div>";' +
     'prev.append(head,meta);' +
     'var groups=$("editGroups");groups.innerHTML="";' +
-    'var order=["title","badge","avatar_theme","avatar_frame","profile_bg","profile_frame","banner","profil_stil"];' +
-    'var catNames={title:"Titel",badge:"Abzeichen",avatar_theme:"Avatar-Hintergrund",avatar_frame:"Avatar-Rahmen",profile_bg:"Profil-Hintergrund",profile_frame:"Profil-Rahmen",banner:"Banner",profil_stil:"Profilstil"};' +
+    'var order=["title","badge","avatar_theme","avatar_frame","profile_bg","profile_frame","banner","sticker","name_color","font","profil_stil"];' +
+    'var catNames={title:"Titel",badge:"Abzeichen",avatar_theme:"Avatar-Hintergrund",avatar_frame:"Avatar-Rahmen",profile_bg:"Profil-Hintergrund",profile_frame:"Profil-Rahmen",banner:"Banner",sticker:"Aufkleber",name_color:"Namensfarbe",font:"Schriftart",profil_stil:"Profilstil"};' +
     'var owned=p.cosmetics||[];' +
     'for(var oi=0;oi<order.length;oi++){' +
     'var cat=order[oi];' +
@@ -772,6 +772,7 @@ function buildProfilPage() {
     'else if(it.data&&it.data.gradient){sw.style.background=it.data.gradient;}' +
     'else if(it.data&&it.data.accent){sw.style.background=it.data.accent;}' +
     'else if(it.data&&it.data.text){sw.textContent=it.data.text;sw.style.background="#3a3f4e";}' +
+    'else if(it.data&&it.data.font){sw.textContent="Aa";sw.style.background="#3a3f4e";}' +
     'else if(it.data&&it.data.icon){sw.textContent=it.data.icon;sw.style.color=it.data.color;}' +
     'ch.append(sw);ch.append(document.createTextNode(it.name));' +
     'ch.addEventListener("click",function(){doEquip(cat,it.id);});' +
@@ -798,6 +799,8 @@ function buildProfilPage() {
     'else if(it.data&&it.data.accent){sw.style.background=it.data.accent;}' +
     'else if(it.category==="title"&&it.data){sw.textContent=it.data.text;sw.style.background="#3a3f4e";}' +
     'else if(it.category==="badge"&&it.data){sw.textContent=it.data.icon;sw.style.background="#0d1420";sw.style.color=it.data.color;}' +
+    'else if(it.category==="sticker"&&it.data){sw.textContent=it.data.icon;sw.style.background="#0d1420";sw.style.color=it.data.color;}' +
+    'else if(it.category==="font"&&it.data){sw.textContent="Aa";sw.style.background="#3a3f4e";}' +
     'el.append(sw);el.append(document.createTextNode(it.name));' +
     'list.append(el);' +
     '}'+
@@ -1443,10 +1446,15 @@ function buildUserPage(code) {
     '.ubRow{display:flex;gap:1.1rem;align-items:flex-start;flex-wrap:wrap;}' +
     '.ubAvatar{width:110px;height:110px;border-radius:22px;object-fit:cover;background:#151d2b;flex:none;}' +
     '.ubMeta{flex:1;min-width:220px;}' +
-    '.ubName{font:800 24px/1.1 Outfit,Inter,sans-serif;color:#ffd75f;}' +
-    '.ubBadge{font-size:20px;margin-right:6px;}' +
+    '.ubName{font:800 32px/1.1 Outfit,Inter,sans-serif;color:#ffd75f;letter-spacing:.01em;}' +
+    '.ubBadge{font-size:22px;margin-right:6px;vertical-align:1px;}' +
     '.ubChips{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.7rem;}' +
     '.ubBio{margin-top:1rem;padding:1rem;border-radius:12px;background:#0d1420;border:1px solid #1c2636;color:#c9d4e3;line-height:1.5;}' +
+    '.ubEquips{display:grid;grid-template-columns:1fr 1fr;gap:.55rem;margin-top:1.1rem;}@media(max-width:560px){.ubEquips{grid-template-columns:1fr;}}' +
+    '.ueRow{display:flex;align-items:center;gap:.55rem;padding:.55rem .7rem;border-radius:10px;background:#0d1420;border:1px solid #1c2636;min-width:0;}' +
+    '.ueSw{flex:none;width:26px;height:26px;border-radius:7px;display:inline-flex;align-items:center;justify-content:center;font-size:15px;color:#0a0d13;}' +
+    '.ueLabel{color:#8f9aab;font-size:.75rem;letter-spacing:.05em;flex:none;text-transform:uppercase;}' +
+    '.ueVal{color:#e6ecf5;font-weight:600;font-size:.9rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;}' +
     '.ubActions{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.9rem;}' +
     '.ubActions a,.ubActions button{margin:0;text-decoration:none;}' +
     '.ubP{color:#8f9aab;font-size:.82rem;margin-top:1rem;}' +
@@ -1464,6 +1472,7 @@ function buildUserPage(code) {
     '<div class="ubChips" id="ubChips"></div>' +
     '<div class="muted" id="ubSub"></div>' +
     '<div class="ubBio" id="ubBio" style="display:none;"></div>' +
+    '<div class="ubEquips" id="ubEquips" style="display:none;"></div>' +
     '<div class="ubActions" id="ubActions"></div>' +
     '<div class="ubP" id="ubP"></div>' +
     '</div></div></div>' +
@@ -1486,11 +1495,11 @@ function buildUserPage(code) {
     'if(!p)return;CURRENT=p;chips(p);' +
     '}).catch(function(){$("ubTitle").textContent="Fehler";$("ubTitle").parentElement.querySelector(".sub").textContent="Profil tempor\u00e4r nicht erreichbar.";});' +
     '}' +
-    'function chips(p){' +
+'function chips(p){' +
     'var eq=p.equipped||{};' +
     'var all=p.owned||[];' +
     'function it(id){for(var k in eq){var e=eq[k];if(e&&e.id===id)return {id:id,data:(e.data||null)};}for(var i=0;i<all.length;i++){if(all[i].id===id)return {id:id,data:(all[i].data||null)};}return null;}' +
-    'var fr=it(eq.avatar_frame),th=it(eq.avatar_theme),bd=it(eq.badge),ti=it(eq.title),st=it(eq.profil_stil);' +
+    'var fr=it(eq.avatar_frame),th=it(eq.avatar_theme),bd=it(eq.badge),ti=it(eq.title),st=it(eq.profil_stil),nc=it(eq.name_color),sk=it(eq.sticker),fn=it(eq.font);' +
     'var av=$("ubAvatar");' +
     'var bdCss="",sh="",bg="";' +
     'if(fr&&fr.data&&fr.data.color1){bdCss="border:"+((fr.data.width||4))+"px solid "+fr.data.color1+";";sh="box-shadow:0 0 22px "+fr.data.color1+"66;";}' +
@@ -1498,20 +1507,45 @@ function buildUserPage(code) {
     'av.style.cssText=bdCss+sh+bg+"border-radius:22px;";' +
     'av.src=headUrl(p.uuid,p);' +
     'av.alt="";av.onerror=function(){av.src="https://mc-heads.net/head/MHF_Steve/256";};' +
-    'var name=(ti&&ti.data)?ti.data.text+" \u00b7 ":" ";' +
+    'var nameCmp=(ti&&ti.data)?ti.data.text+" \\u00b7 ":" ";' +
     'var badge=(bd&&bd.data)?"<span class=\\"ubBadge\\" style=\\"color:"+esc(bd.data.color)+"\\">"+esc(bd.data.icon)+"</span>":"";' +
-    'var accent=st&&st.data&&st.data.accent?st.data.accent:"#ffd75f";' +
-    '$("ubName").innerHTML=badge+"<span style=\\"color:"+esc(accent)+"\\">"+esc(name)+"</span>"+esc(p.name||("User #"+p.id));' +
+    'var stick=(sk&&sk.data)?"<span class=\\"ubBadge\\" style=\\"color:"+esc(sk.data.color)+"\\">"+esc(sk.data.icon)+"</span>":"";' +
+    'var accent=nc&&nc.data&&nc.data.accent?nc.data.accent:(st&&st.data&&st.data.accent?st.data.accent:"#ffd75f");' +
+    'var nmEl=$("ubName");' +
+    'nmEl.innerHTML=badge+"<span style=\\"color:"+esc(accent)+"\\">"+esc(nameCmp)+"</span>"+esc(p.name||("User #"+p.id))+stick;' +
+    'if(fn&&fn.data&&fn.data.font){nmEl.style.fontFamily=fn.data.font;}' +
     'var cw=$("ubChips");cw.innerHTML="";' +
     'function chip(cls,txt){var d=document.createElement("span");d.className=cls;d.textContent=txt;cw.append(d);}' +
-    'chip("ptsChip","\u2605 Level "+p.level);' +
+    'chip("ptsChip","\\u2605 Level "+p.level);' +
     'var sp=p.online?p.server:null;' +
-    'chip("lvlChip","<dot>");cw.lastChild.innerHTML="<span style=\\"color:"+(p.online?"#3fb950":"#4b5563")+";\\">\u25cf</span> "+(p.online?"Online \u00b7 "+esc(sp||"Server"):"Offline");' +
+    'chip("lvlChip","<dot>");cw.lastChild.innerHTML="<span style=\\"color:"+(p.online?"#3fb950":"#4b5563")+";\\">\\u25cf</span> "+(p.online?"Online \\u00b7 "+esc(sp||"Server"):"Offline");' +
     'chip("lvlChip","Code "+esc(p.code));' +
-    'if(p.isFriend)chip("lvlChip","\u2605 Freund");' +
-    '$("ubSub").textContent="Freundes-Code "+esc(p.code)+(p.isFriend?" \u00b7 Du bist mit ihm befreundet":"");' +
+    'if(p.isFriend)chip("lvlChip","\\u2605 Freund");' +
+    '$("ubSub").textContent="Freundes-Code "+esc(p.code)+(p.isFriend?" \\u00b7 Du bist mit ihm befreundet":"");' +
     'initActions(p);' +
     'initCosmetics(p);' +
+    'renderEquips(p);' +
+    '}' +
+    'function renderEquips(p){' +
+    'var box=$("ubEquips");box.innerHTML="";' +
+    'var cs=p.equipped||{};' +
+    'var CATS=[["title","Titel"],["badge","Abzeichen"],["avatar_theme","Avatar-Hintergrund"],["avatar_frame","Avatar-Rahmen"],["profile_bg","Profil-Hintergrund"],["profile_frame","Profil-Rahmen"],["banner","Banner"],["sticker","Sticker"],["name_color","Namensfarbe"],["font","Schrift"],["profil_stil","Profil-Stil"]];' +
+    'var shown=0;' +
+    'for(var i=0;i<CATS.length;i++){' +
+    'var e=cs[CATS[i][0]];if(!e)continue;var d=e.data||{};' +
+    'var nm=(e.name&&e.name.concat?e.name:"")||(d.text||"");if(!nm)continue;' +
+    'var row=document.createElement("div");row.className="ueRow";' +
+    'var sw=document.createElement("span");sw.className="ueSw";' +
+    'if(d.gradient){sw.style.background=d.gradient;}' +
+    'else if(d.color1){sw.style.background="linear-gradient(135deg,"+esc(d.color1)+","+esc(d.color2||d.color1)+")";}' +
+    'else if(d.accent){sw.style.background=d.accent;}' +
+    'else if(d.icon){sw.textContent=d.icon;sw.style.background="rgba(255,255,255,.07)";}' +
+    'else{sw.style.background="rgba(255,255,255,.07)";sw.textContent="\\u25cf";}' +
+    'var lb=document.createElement("span");lb.className="ueLabel";lb.textContent=CATS[i][1];' +
+    'var vl=document.createElement("span");vl.className="ueVal";vl.textContent=nm;' +
+    'row.append(sw,lb,vl);box.append(row);shown++;' +
+    '}' +
+    'box.style.display=shown?"grid":"none";' +
     '}' +
     'function stc(){var p=CURRENT||{};var cs=p.equipped||{};var it=p.owned||[];' +
     'function find(id){for(var k in cs){var e=cs[k];if(e&&e.id===id)return e.data||null;}for(var i=0;i<it.length;i++){if(it[i].id===id)return it[i].data||null;}return null;}' +
