@@ -407,8 +407,12 @@ async function refreshLogs() {
       username: name,
       global_name: name,
       uuid: f.uuid || null,
+      friend_code: f.code || f.friend_code || "",
+      code: f.code || f.friend_code || "",
       server: f.server || null,
       online: !!f.online,
+      level: typeof f.level === "number" ? f.level : null,
+      equipped: f.equipped && typeof f.equipped === "object" ? f.equipped : {},
       avatar,
       accounts: accts,
       // Profil-Zusammenfassung (kommt seit v1.11.5 vom Backend mit).
@@ -537,19 +541,34 @@ async function refreshLogs() {
       meta.className = "friend-meta";
       const name = document.createElement("div");
       name.className = "friend-name";
-      name.textContent = u.mc_name || u.global_name || u.username || "—";
+      const ti = (window.kmTitleOf && window.kmTitleOf(u)) || null;
+      const visible = u.mc_name || u.global_name || u.username || "—";
+      if (ti && ti.data && ti.data.text) name.append(ti.data.text + " \u00b7 ");
+      name.append(visible);
       const dot = document.createElement("span");
       dot.className = "status-dot " + (u.online ? "online" : "offline");
       dot.title = u.online ? "Online" : "Offline";
       name.append(" ", dot);
       const sub = document.createElement("div");
       sub.className = "friend-sub";
-      sub.textContent = u.online
+      const onlineTxt = u.online
         ? (u.server ? `Online auf ${u.server}` : "Online")
-        : "Offline" + (u.server ? ` · zuletzt ${u.server}` : "");
+        : ("Offline" + (u.server ? ` \u00b7 zuletzt ${u.server}` : ""));
+      const bb = (window.kmBadge && window.kmBadge(u)) || null;
+      let subHtml = escapeHtml(onlineTxt) + (u.level ? ` \u00b7 Level ${u.level}` : "");
+      if (bb && bb.data) subHtml += ` <span style="color:${escapeHtml(bb.data.color)}">${escapeHtml(bb.data.icon)}</span>`;
+      sub.innerHTML = subHtml;
       meta.append(name, sub);
       li.append(meta);
       if (withRemove) {
+        const pbtn = document.createElement("button");
+        pbtn.textContent = "Profil";
+        pbtn.onclick = () => (window.kmShowProfile ? window.kmShowProfile(u.friend_code) : showFriendProfile(u));
+        li.append(pbtn);
+        const dmbtn = document.createElement("button");
+        dmbtn.textContent = "Nachricht";
+        dmbtn.onclick = () => window.kmOpenDm && window.kmOpenDm(u.friend_code);
+        li.append(dmbtn);
         const btn = document.createElement("button");
         btn.textContent = "Entfernen";
         btn.onclick = async () => {
@@ -557,10 +576,6 @@ async function refreshLogs() {
           refreshSocial(true);
         };
         li.append(btn);
-        const pbtn = document.createElement("button");
-        pbtn.textContent = "Profil";
-        pbtn.onclick = () => showFriendProfile(u);
-        li.append(pbtn);
       }
       list.append(li);
     }
@@ -3053,7 +3068,7 @@ loadVersions();
 // Defensive: alle Overlays beim Start schließen, damit nach Update/Neuinstall
 // nicht versehentlich mehrere Menüs gleichzeitig offen sind.
 function closeAllOverlays() {
-  ["settingsModal", "manageModal", "joinFriendModal", "profileModal"].forEach((id) => {
+  ["settingsModal", "manageModal", "joinFriendModal", "profileModal", "dmModal"].forEach((id) => {
     const el = $(id);
     if (el) el.style.display = "none";
   });
@@ -3082,3 +3097,346 @@ refreshDiscord();
 refreshDiscordLogin();
 refreshSocial();
 startBackgroundIntervals();
+
+// ─── Kollegen-Sozial-Modul v2: Kosmetik-Editor, Profil-Viewer, DMs ───────────
+(function () {
+  let kmCat = null;
+  let kmState = null;
+  let kmMe = null;
+  let dmCurrent = null;
+  let dmPoll = null;
+
+  function byId(id) {
+    if (!kmCat || !id) return null;
+    for (const it of kmCat) if (it.id === id) return it;
+    return null;
+  }
+  function esc(s) {
+    return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  }
+  window.kmTitleOf = (u) => byId(u && u.equipped && u.equipped.title);
+  window.kmBadge = (u) => byId(u && u.equipped && u.equipped.badge);
+  window.kmCat = null;
+
+  async function loadStore() {
+    if (!kmCat) {
+      try {
+        const d = await invoke("kollegen_store");
+        if (d && Array.isArray(d.catalog)) {
+          kmCat = d.catalog;
+          window.kmCat = kmCat;
+          kmState = d;
+        }
+      } catch (e) {}
+    }
+    if (!kmMe) {
+      try { kmMe = await invoke("kollegen_me"); } catch (e) {}
+    }
+    return kmState;
+  }
+
+  function previewAvatar() {
+    const nm = (kmMe && (kmMe.mc_name || kmMe.name)) || "";
+    if (nm) return `https://mc-heads.net/avatar/${encodeURIComponent(nm).replace(/%20/g, "_")}/96`;
+    if (kmMe && kmMe.avatar && /^https?:\/\//.test(kmMe.avatar)) return kmMe.avatar;
+    return "";
+  }
+
+  // ── Kosmetik-Editor (im Profil-Modal) ──
+  const ORDER = ["title", "badge", "avatar_theme", "avatar_frame", "profile_bg", "profile_frame", "banner", "profil_stil"];
+  const CATNAMES = { title: "Titel", badge: "Abzeichen", avatar_theme: "Avatar-Hintergrund", avatar_frame: "Avatar-Rahmen", profile_bg: "Profil-Hintergrund", profile_frame: "Profil-Rahmen", banner: "Banner", profil_stil: "Profilstil" };
+
+  function renderKosmet() {
+    const groups = $("kosmetGroups");
+    const save = $("kosmetPreview");
+    const pts = $("kosmetPts");
+    const hint = $("kosmetHint");
+    if (!groups || !kmCat) return;
+    const st = kmState || {};
+    const eq = st.equipped || {};
+    groups.innerHTML = "";
+    save.innerHTML = "";
+    const av = document.createElement("img");
+    const au = previewAvatar();
+    if (au) av.src = au;
+    else av.style.display = "none";
+    const mt = document.createElement("div");
+    mt.className = "kp-meta";
+    const ti = byId(eq.title);
+    const bd = byId(eq.badge);
+    const nm = (kmMe && (kmMe.mc_name || kmMe.global_name || kmMe.username)) || "Du";
+    let nameHtml = esc(nm);
+    if (ti && ti.data && ti.data.text) nameHtml = esc(ti.data.text) + " \u00b7 " + nameHtml;
+    if (bd && bd.data) nameHtml = `<span style="color:${esc(bd.data.color)}">${esc(bd.data.icon)}</span> ` + nameHtml;
+    mt.innerHTML = `<div class="kp-name">${nameHtml}</div><div class="kp-sub">Level ${esc(st.level || 1)}</div>`;
+    save.append(av, mt);
+    if (typeof st.points === "number") pts.textContent = "\u2605 " + st.points + " Kollegen-Points";
+    else pts.textContent = "Nicht angemeldet – keine Kollegen-Points sichtbar.";
+
+    const owned = kmCat.filter((it) => it.owned);
+    let anyGroup = false;
+    for (const cat of ORDER) {
+      const mine = owned.filter((it) => it.category === cat);
+      if (!mine.length) continue;
+      anyGroup = true;
+      const g = document.createElement("div");
+      g.className = "kosmet-group";
+      g.innerHTML = `<div class="kg-title">${CATNAMES[cat] || cat}</div><div class="kosmet-chips"></div>`;
+      const chips = g.querySelector(".kosmet-chips");
+      const none = document.createElement("span");
+      none.className = "kosmet-chip" + (eq[cat] ? "" : " eq");
+      none.textContent = "Keins";
+      none.onclick = () => doEquip(cat, "");
+      chips.append(none);
+      for (const it of mine) {
+        const ch = document.createElement("span");
+        ch.className = "kosmet-chip" + (eq[cat] === it.id ? " eq" : "");
+        const sw = document.createElement("span");
+        sw.className = "sw";
+        if (it.data && it.data.color1) sw.style.background = it.data.color1;
+        else if (it.data && it.data.gradient) sw.style.background = it.data.gradient;
+        else if (it.data && it.data.accent) sw.style.background = it.data.accent;
+        else if (it.data && it.data.text) { sw.textContent = it.data.text; sw.style.background = "#3a3f4e"; }
+        else if (it.data && it.data.icon) { sw.textContent = it.data.icon; sw.style.color = it.data.color; }
+        ch.append(sw);
+        ch.append(" " + it.name);
+        ch.onclick = () => doEquip(cat, it.id);
+        chips.append(ch);
+      }
+      groups.append(g);
+    }
+    if (!anyGroup) hint.textContent = "Noch keine Kosmetik. Nimm im Store teil – Items triffst du unter kollegen.me/store.";
+    else hint.textContent = "Klick auf einen Chip, um es auszur\u00fcsten. Store: kollegen.me/store";
+  }
+
+  async function doEquip(cat, itemId) {
+    const hint = $("kosmetHint");
+    try {
+      const r = await invoke("kollegen_store_equip", { itemId, category: cat });
+      if (r && (r.ok || r.equipped)) {
+        kmState.equipped = r.equipped || kmState.equipped;
+        renderKosmet();
+      } else {
+        hint.textContent = "Fehler: " + ((r && r.error) || "?");
+      }
+    } catch (e) {
+      hint.textContent = "Fehler: " + e;
+    }
+  }
+
+  // ── Profil-Viewer (kollegen.me/u/<Code> als Modal) ──
+  window.kmShowProfile = async function (code) {
+    if (!code) return;
+    const res = $("viewProfileResult");
+    const pm = $("profileModal");
+    if (pm) pm.style.display = "flex";
+    if (!res) return;
+    res.innerHTML = `<div style="color:var(--muted);padding:0.5rem 0;">Lade Profil…</div>`;
+    let p;
+    try { p = await invoke("kollegen_profile_view", { code }); } catch (e) { p = { error: String(e) }; }
+    if (!p || p.error) {
+      res.innerHTML = `<div style="color:#f85149;padding:0.5rem 0;">Profil nicht gefunden: ${esc((p && p.error) || "?")}</div>`;
+      return;
+    }
+    const eq = p.equipped || {};
+    const find = (id) => {
+      if (!id) return null;
+      if (kmCat) for (const it of kmCat) if (it.id === id) return it.data || null;
+      for (const it of (p.owned || [])) if (it.id === id) return it.data || null;
+      return null;
+    };
+    const banner = find(eq.banner);
+    const frame = find(eq.profile_frame);
+    const bg = find(eq.profile_bg);
+    const frameData = find(eq.avatar_frame);
+    const themeData = find(eq.avatar_theme);
+    const ti = find(eq.title);
+    const bd = find(eq.badge);
+    const stil = find(eq.profil_stil);
+    const accent = (stil && stil.accent) || "#f1c40f";
+    const head = (() => {
+      if (p.uuid) return `https://mc-heads.net/head/${p.uuid}/256`;
+      if (p.avatar_data_url) return p.avatar_data_url;
+      return "https://mc-heads.net/head/MHF_Steve/256";
+    })();
+    const name = (ti && ti.text ? ti.text + " \u00b7 " : "") + (p.name || "User " + p.id);
+    const status = p.online ? `<span style="color:#3fb950;">\u25cf</span> ${esc(p.server || "Online")}` : `<span style="color:#555;">\u25cf</span> Offline`;
+    let h = "";
+    if (banner && banner.gradient) h += `<div style="height:70px;border-radius:10px;margin-bottom:0.6rem;background:${esc(banner.gradient)};"></div>`;
+    else if (p.banner_data_url) h += `<div style="height:70px;border-radius:10px;margin-bottom:0.6rem;background:url(${esc(p.banner_data_url)}) center/cover;"></div>`;
+    let frm = "";
+    if (frameData && frameData.color1) frm = `border:${(frameData.width || 3)}px solid ${esc(frameData.color1)};box-shadow:0 0 16px ${esc(frameData.color1)}66;`;
+    let thm = "";
+    if (themeData && themeData.gradient) thm = `background:${esc(themeData.gradient)};`;
+    h += `<div style="display:flex;gap:0.8rem;align-items:center;">`;
+    h += `<img src="${esc(head)}" style="width:64px;height:64px;border-radius:14px;object-fit:cover;${frm}${thm}" onerror="this.style.display='none';" alt=""/>`;
+    h += `<div style="flex:1;min-width:0;">`;
+    h += `<div style="font-weight:800;font-size:1.05rem;color:${esc(accent)}">${bd && bd.icon ? `<span style="color:${esc(bd.color)}">${esc(bd.icon)}</span> ` : ""}${esc(name)}</div>`;
+    h += `<div style="color:var(--muted);font-size:0.8rem;">${status} \u00b7 Level ${esc(p.level)} \u00b7 Code ${esc(p.code)}</div>`;
+    h += `</div></div>`;
+    if (p.bio) h += `<div style="margin-top:0.6rem;padding:0.6rem;background:rgba(255,255,255,0.05);border-radius:10px;font-size:0.85rem;">${esc(p.bio)}</div>`;
+    h += `<div style="margin-top:0.7rem;display:flex;gap:0.5rem;flex-wrap:wrap;">`;
+    if (p.isViewer) h += `<span style="color:var(--muted);font-size:0.8rem;">Das ist dein eigenes Profil.</span>`;
+    else {
+      if (p.isFriend) h += `<button id="kmProfilDm">Nachricht senden</button>`;
+      else h += `<button id="kmProfilAdd">Freund hinzuf\u00fcgen</button>`;
+    }
+    h += `</div>`;
+    if (frame && frame.color1) res.style.border = `2px solid ${esc(frame.color1)}`;
+    else res.style.border = "";
+    if (bg && bg.gradient) res.style.background = esc(bg.gradient);
+    else res.style.background = "";
+    res.style.padding = "0.8rem";
+    res.style.borderRadius = "12px";
+    res.innerHTML = h;
+    const add = $("kmProfilAdd");
+    if (add) add.onclick = async () => {
+      try {
+        const r = await invoke("kollegen_friend_add", { targetId: p.code });
+        res.innerHTML = r && r.ok ? `<div style="color:#7ee787;padding:0.4rem 0;">Freund hinzugef\u00fcgt \u2713</div>` : `<div style="color:#f85149;padding:0.4rem 0;">Fehler: ${esc((r && r.error) || "?")}</div>`;
+      } catch (e) { res.innerHTML = `<div style="color:#f85149;">Fehler: ${esc(e)}</div>`; }
+    };
+    const dm = $("kmProfilDm");
+    if (dm) dm.onclick = () => window.kmOpenDm && window.kmOpenDm(p.code);
+  };
+
+  // ── DM-Modal ──
+  function closeDm() {
+    if (dmPoll) clearInterval(dmPoll);
+    dmPoll = null;
+    dmCurrent = null;
+  }
+  $("dmClose").onclick = () => { closeDm(); $("dmModal").style.display = "none"; };
+  $("dmSend").onclick = () => sendDm();
+  $("dmText").addEventListener("keydown", (e) => { if (e.key === "Enter") sendDm(); });
+  $("dmConvCode").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      const c = $("dmConvCode").value.trim().toUpperCase();
+      if (c) { $("dmConvCode").value = ""; openDmByCode(c); }
+    }
+  });
+  new MutationObserver(() => {
+    const m = $("dmModal");
+    if (m && m.style.display === "none") closeDm();
+  }).observe($("dmModal"), { attributes: true, attributeFilter: ["style"] });
+
+  function timeStr(ts) {
+    if (!ts) return "";
+    const d = new Date(ts);
+    const pad = (n) => (("" + n).length < 2 ? "0" + n : "" + n);
+    return pad(d.getHours()) + ":" + pad(d.getMinutes());
+  }
+
+  async function loadConvs() {
+    const listEl = $("dmConvList");
+    let list;
+    try { list = await invoke("kollegen_dm_conversations"); } catch (e) { list = []; }
+    list = Array.isArray(list) ? list : [];
+    listEl.innerHTML = "";
+    if (!list.length) {
+      listEl.innerHTML = `<div class="dm-empty">Keine Chats. \u00d6ffne das Profil eines Freundes und klick auf \u201eNachricht\u201c.</div>`;
+      return;
+    }
+    for (const c of list) {
+      const u = c.user || {};
+      const row = document.createElement("div");
+      row.className = "dm-conv" + (dmCurrent && dmCurrent === u.discordId ? " on" : "");
+      const img = document.createElement("img");
+      img.src = (u.profile && u.profile.avatar_data_url) || (u.uuid ? `https://mc-heads.net/head/${u.uuid}/96` : "https://mc-heads.net/head/MHF_Steve/96");
+      img.onerror = () => { img.src = "https://mc-heads.net/head/MHF_Steve/96"; };
+      const info = document.createElement("div");
+      info.className = "dm-ci";
+      const n = document.createElement("div");
+      n.className = "dm-cn";
+      n.textContent = u.name || "User " + u.id;
+      const last = document.createElement("div");
+      last.className = "dm-cl";
+      const l = c.last || {};
+      last.textContent = (l.from === dmMeId ? "Du: " : "") + (l.text || "") + (l.ts ? " \u00b7 " + timeStr(l.ts) : "");
+      info.append(n, last);
+      row.append(img, info);
+      row.onclick = () => openOther(u.discordId, u.name || "User " + u.id);
+      listEl.append(row);
+    }
+  }
+
+  window.kmOpenDm = openDmByCode;
+  async function openDmByCode(code) {
+    const m = $("dmModal");
+    if (m) m.style.display = "flex";
+    try {
+      const p = await invoke("kollegen_profile_view", { code });
+      if (!p || p.error) { alert("Kein Kollege mit diesem Code."); return; }
+      if (!p.isFriend) { alert("Du bist mit \u201e" + (p.name || "ihm") + "\u201c noch nicht befreundet. F\u00fcge den Code zuerst hinzu."); return; }
+      openOther(p.discordId, p.name);
+      loadConvs();
+    } catch (e) { alert("Fehler: " + e); }
+  }
+
+  function openOther(did, name) {
+    dmCurrent = did;
+    const head = $("dmThreadHead");
+    if (head) head.textContent = name;
+    $("dmInputBox").style.display = "flex";
+    document.querySelectorAll(".dm-conv.on").forEach((x) => x.classList.remove("on"));
+    loadConvs();
+    loadMsgs();
+    if (dmPoll) clearInterval(dmPoll);
+    dmPoll = setInterval(() => { if (dmCurrent) loadMsgs(true); }, 4000);
+  }
+
+  async function loadMsgs(silent) {
+    if (!dmCurrent) return;
+    const box = $("dmMsgList");
+    let list;
+    try { list = await invoke("kollegen_dm_messages", { other: dmCurrent }); } catch (e) { list = []; }
+    list = Array.isArray(list) ? list : [];
+    const wasBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 40;
+    box.innerHTML = "";
+    if (!list.length) { box.innerHTML = `<div class="dm-empty">Noch keine Nachrichten. Starte den Chat!</div>`; return; }
+    for (const m of list) {
+      const me = m.from === dmMeId;
+      const b = document.createElement("div");
+      b.className = "dm-b" + (me ? "" : " oth");
+      b.textContent = m.text;
+      const t = document.createElement("div");
+      t.className = "dm-t";
+      t.textContent = timeStr(m.ts);
+      b.append(t);
+      box.append(b);
+    }
+    if (!silent || wasBottom) box.scrollTop = box.scrollHeight;
+  }
+
+  async function sendDm() {
+    const inp = $("dmText");
+    const t = (inp.value || "").trim();
+    if (!t || !dmCurrent) return;
+    inp.value = "";
+    try {
+      const r = await invoke("kollegen_dm_send", { toId: dmCurrent, text: t });
+      if (r && r.ok !== false) { loadMsgs(); loadConvs(); }
+      else inp.value = t;
+    } catch (e) { inp.value = t; alert("Fehler: " + e); }
+  }
+
+  let dmMeId = "";
+  (async function init() {
+    await loadStore();
+    try {
+      const me = await invoke("kollegen_me");
+      const accts = (me && me.accounts) || [];
+      const disc = accts.find((a) => (a.type || "").toLowerCase().indexOf("discord") >= 0);
+      if (disc && disc.id) dmMeId = String(disc.id);
+    } catch (e) {}
+    const pm = $("profileModal");
+    if (pm) {
+      new MutationObserver(() => {
+        if (pm.style.display !== "none") renderKosmet();
+      }).observe(pm, { attributes: true, attributeFilter: ["style"] });
+      renderKosmet();
+    }
+    // Freundes-Zeilen aktualisieren, falls schon gerendert.
+    if (window.refreshSocial) { try { window.refreshSocial(true); } catch (e) {} }
+  })();
+})();

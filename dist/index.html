@@ -288,6 +288,28 @@
   </div>
 
   <!-- Profil-Modal -->
+  <div id="dmModal" class="modal" style="display:none;">
+    <div class="modal-content dm-modal">
+      <button id="dmClose" class="icon-btn" title="Schließen">✕</button>
+      <h2 style="margin-top:0;">Nachrichten</h2>
+      <div class="dm-cols">
+        <div class="dm-convs">
+          <div class="dm-convs-head">Chats</div>
+          <div id="dmConvList" class="dm-conv-list"><div class="dm-empty">Keine Chats.</div></div>
+          <input id="dmConvCode" placeholder="Freundes-Code öffnen" autocomplete="off" />
+        </div>
+        <div class="dm-thread">
+          <div class="dm-thread-head" id="dmThreadHead" style="color:var(--muted);">Konversation wählen</div>
+          <div id="dmMsgList" class="dm-msgs"><div class="dm-empty">Wähle links einen Chat oder öffne einen Freundes-Code.</div></div>
+          <div class="dm-input" id="dmInputBox" style="display:none;">
+            <input id="dmText" placeholder="Nachricht …" maxlength="2000" autocomplete="off" />
+            <button id="dmSend">Senden</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div id="profileModal" class="modal" style="display:none;">
     <div class="modal-content profile-modal">
       <button id="profileClose" class="icon-btn">✕</button>
@@ -341,6 +363,14 @@
           <input id="profileServerUrl" placeholder="Backend-URL (z. B. https://kollegen.example.com)" style="flex:1;" />
           <input id="profileServerToken" placeholder="Server-Token (optional)" style="width:220px;" />
         </div>
+      </div>
+
+      <div style="margin-top:1rem;" class="kosmet-box">
+        <h4>Kosmetik (Profil ausrüsten)</h4>
+        <div class="kosmet-preview" id="kosmetPreview"></div>
+        <div id="kosmetGroups"></div>
+        <div class="kosmet-pts" id="kosmetPts"></div>
+        <div class="kosmet-hint" id="kosmetHint"></div>
       </div>
 
       <div style="margin-top:1rem;">

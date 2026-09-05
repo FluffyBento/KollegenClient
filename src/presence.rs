@@ -348,6 +348,156 @@ pub fn kollegen_friend_remove(data_dir: &PathBuf, target_id: &str) -> serde_json
     }
 }
 
+/// Öffentliches Profil eines Kollegen ansehen (per Freundes-Code).
+pub fn kollegen_profile_view(data_dir: &PathBuf, code: &str) -> serde_json::Value {
+    let (client, backend, session) = match authed_request(data_dir) {
+        Some(x) => x,
+        None => return serde_json::json!({ "error": "not_authenticated" }),
+    };
+    let url = format!("{}/profile-view?code={}", backend, urlencode(code));
+    match client
+        .get(&url)
+        .header("Authorization", format!("Bearer {}", session))
+        .send()
+    {
+        Ok(r) if r.status().is_success() => r.json().unwrap_or(serde_json::json!({})),
+        Ok(r) if r.status() == 401 => {
+            *SESSION.lock().unwrap() = None;
+            serde_json::json!({ "error": "not_authenticated" })
+        }
+        Ok(r) => serde_json::json!({ "error": format!("HTTP {}", r.status()) }),
+        Err(e) => serde_json::json!({ "error": e.to_string() }),
+    }
+}
+
+/// Liste der DM-Konversationen (neueste zuerst).
+pub fn kollegen_dm_conversations(data_dir: &PathBuf) -> serde_json::Value {
+    let (client, backend, session) = match authed_request(data_dir) {
+        Some(x) => x,
+        None => return serde_json::json!({ "error": "not_authenticated" }),
+    };
+    let url = format!("{}/dm/conversations", backend);
+    match client
+        .get(&url)
+        .header("Authorization", format!("Bearer {}", session))
+        .send()
+    {
+        Ok(r) if r.status().is_success() => r.json().unwrap_or(serde_json::json!([])),
+        Ok(r) if r.status() == 401 => {
+            *SESSION.lock().unwrap() = None;
+            serde_json::json!({ "error": "not_authenticated" })
+        }
+        Ok(r) => serde_json::json!({ "error": format!("HTTP {}", r.status()) }),
+        Err(e) => serde_json::json!({ "error": e.to_string() }),
+    }
+}
+
+/// Nachrichten mit einem bestimmten Kollegen (per discordId).
+pub fn kollegen_dm_messages(data_dir: &PathBuf, other: &str) -> serde_json::Value {
+    let (client, backend, session) = match authed_request(data_dir) {
+        Some(x) => x,
+        None => return serde_json::json!({ "error": "not_authenticated" }),
+    };
+    let url = format!("{}/dm/messages?other={}", backend, urlencode(other));
+    match client
+        .get(&url)
+        .header("Authorization", format!("Bearer {}", session))
+        .send()
+    {
+        Ok(r) if r.status().is_success() => r.json().unwrap_or(serde_json::json!([])),
+        Ok(r) if r.status() == 401 => {
+            *SESSION.lock().unwrap() = None;
+            serde_json::json!({ "error": "not_authenticated" })
+        }
+        Ok(r) => serde_json::json!({ "error": format!("HTTP {}", r.status()) }),
+        Err(e) => serde_json::json!({ "error": e.to_string() }),
+    }
+}
+
+/// Sendet eine DM an einen Kollegen (nur Freunde).
+pub fn kollegen_dm_send(data_dir: &PathBuf, to_id: &str, text: &str) -> serde_json::Value {
+    let (client, backend, session) = match authed_request(data_dir) {
+        Some(x) => x,
+        None => return serde_json::json!({ "error": "not_authenticated" }),
+    };
+    let url = format!("{}/dm/send", backend);
+    match client
+        .post(&url)
+        .header("Authorization", format!("Bearer {}", session))
+        .json(&serde_json::json!({ "to_id": to_id, "text": text }))
+        .send()
+    {
+        Ok(r) if r.status().is_success() => serde_json::json!({ "ok": true }),
+        Ok(r) if r.status() == 401 => {
+            *SESSION.lock().unwrap() = None;
+            serde_json::json!({ "error": "not_authenticated" })
+        }
+        Ok(r) => serde_json::json!({ "error": format!("HTTP {}", r.status()) }),
+        Err(e) => serde_json::json!({ "error": e.to_string() }),
+    }
+}
+
+/// Kosmetik-Store: eigener Katalog inkl. Kontostand, Owned & Equipped.
+pub fn kollegen_store(data_dir: &PathBuf) -> serde_json::Value {
+    let (client, backend, session) = match authed_request(data_dir) {
+        Some(x) => x,
+        None => return serde_json::json!({ "error": "not_authenticated" }),
+    };
+    let url = format!("{}/store", backend);
+    match client
+        .get(&url)
+        .header("Authorization", format!("Bearer {}", session))
+        .send()
+    {
+        Ok(r) if r.status().is_success() => r.json().unwrap_or(serde_json::json!({})),
+        Ok(r) if r.status() == 401 => {
+            *SESSION.lock().unwrap() = None;
+            serde_json::json!({ "error": "not_authenticated" })
+        }
+        Ok(r) => serde_json::json!({ "error": format!("HTTP {}", r.status()) }),
+        Err(e) => serde_json::json!({ "error": e.to_string() }),
+    }
+}
+
+/// Rüstet ein eigenes Kosmetik-Item aus (oder legt es mit item_id="" ab).
+pub fn kollegen_store_equip(data_dir: &PathBuf, item_id: &str, category: &str) -> serde_json::Value {
+    let (client, backend, session) = match authed_request(data_dir) {
+        Some(x) => x,
+        None => return serde_json::json!({ "error": "not_authenticated" }),
+    };
+    let url = format!("{}/store/equip", backend);
+    let body = if item_id.is_empty() {
+        serde_json::json!({ "category": category })
+    } else {
+        serde_json::json!({ "item_id": item_id })
+    };
+    match client
+        .post(&url)
+        .header("Authorization", format!("Bearer {}", session))
+        .json(&body)
+        .send()
+    {
+        Ok(r) if r.status().is_success() => r.json().unwrap_or(serde_json::json!({ "ok": true })),
+        Ok(r) if r.status() == 401 => {
+            *SESSION.lock().unwrap() = None;
+            serde_json::json!({ "error": "not_authenticated" })
+        }
+        Ok(r) => serde_json::json!({ "error": format!("HTTP {}", r.status()) }),
+        Err(e) => serde_json::json!({ "error": e.to_string() }),
+    }
+}
+    let mut out = String::new();
+    for b in s.bytes() {
+        match b {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
+                out.push(b as char)
+            }
+            _ => out.push_str(&format!("%{:02X}", b)),
+        }
+    }
+    out
+}
+
 /// Öffentliche Profile auf dem Backend durchsuchen (Paket {backend}/profiles).
 /// Nutzt den konfigurierten Backend (Presence-Default), kein Login nötig.
 pub fn browse_profiles(data_dir: &PathBuf, search: &str) -> serde_json::Value {

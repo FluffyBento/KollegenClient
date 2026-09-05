@@ -1305,6 +1305,42 @@ async fn kollegen_publish_profile(app: tauri::AppHandle, profile: serde_json::Va
     Ok(crate::presence::publish_profile(&data_dir, &profile))
 }
 
+#[tauri::command]
+async fn kollegen_profile_view(app: tauri::AppHandle, code: String) -> Result<serde_json::Value, String> {
+    let data_dir = app.state::<AppState>().data_dir.clone();
+    Ok(crate::presence::kollegen_profile_view(&data_dir, &code))
+}
+
+#[tauri::command]
+async fn kollegen_dm_conversations(app: tauri::AppHandle) -> Result<serde_json::Value, String> {
+    let data_dir = app.state::<AppState>().data_dir.clone();
+    Ok(crate::presence::kollegen_dm_conversations(&data_dir))
+}
+
+#[tauri::command]
+async fn kollegen_dm_messages(app: tauri::AppHandle, other: String) -> Result<serde_json::Value, String> {
+    let data_dir = app.state::<AppState>().data_dir.clone();
+    Ok(crate::presence::kollegen_dm_messages(&data_dir, &other))
+}
+
+#[tauri::command]
+async fn kollegen_dm_send(app: tauri::AppHandle, to_id: String, text: String) -> Result<serde_json::Value, String> {
+    let data_dir = app.state::<AppState>().data_dir.clone();
+    Ok(crate::presence::kollegen_dm_send(&data_dir, &to_id, &text))
+}
+
+#[tauri::command]
+async fn kollegen_store(app: tauri::AppHandle) -> Result<serde_json::Value, String> {
+    let data_dir = app.state::<AppState>().data_dir.clone();
+    Ok(crate::presence::kollegen_store(&data_dir))
+}
+
+#[tauri::command]
+async fn kollegen_store_equip(app: tauri::AppHandle, item_id: String, category: String) -> Result<serde_json::Value, String> {
+    let data_dir = app.state::<AppState>().data_dir.clone();
+    Ok(crate::presence::kollegen_store_equip(&data_dir, &item_id, &category))
+}
+
 // ─=== Skin / Cape Changer ===
 #[tauri::command]
 fn skin_list(state: State<'_, AppState>) -> Value {
@@ -1765,6 +1801,12 @@ fn main() {
             kollegen_friend_remove,
             kollegen_browse_profiles,
             kollegen_publish_profile,
+            kollegen_profile_view,
+            kollegen_dm_conversations,
+            kollegen_dm_messages,
+            kollegen_dm_send,
+            kollegen_store,
+            kollegen_store_equip,
             skin_list,
             skin_set_active,
             skin_delete,
