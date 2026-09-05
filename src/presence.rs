@@ -539,6 +539,9 @@ pub fn kollegen_store_equip(data_dir: &PathBuf, item_id: &str, category: &str) -
         Err(e) => serde_json::json!({ "error": e.to_string() }),
     }
 }
+
+/// URL-Kodierung für Query-Werte (RFC 3986, außer ~ . - _).
+fn urlencode(s: &str) -> String {
     let mut out = String::new();
     for b in s.bytes() {
         match b {
