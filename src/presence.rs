@@ -348,6 +348,61 @@ pub fn kollegen_friend_remove(data_dir: &PathBuf, target_id: &str) -> serde_json
     }
 }
 
+/// Öffentliche Profile auf dem Backend durchsuchen (Paket {backend}/profiles).
+/// Nutzt den konfigurierten Backend (Presence-Default), kein Login nötig.
+pub fn browse_profiles(data_dir: &PathBuf, search: &str) -> serde_json::Value {
+    let backend = match backend_url(data_dir) {
+        Some(b) => b,
+        None => return serde_json::json!({ "error": "no_backend" }),
+    };
+    let client = match reqwest::blocking::Client::builder()
+        .timeout(Duration::from_secs(6))
+        .connect_timeout(Duration::from_secs(3))
+        .build()
+    {
+        Ok(c) => c,
+        Err(_) => return serde_json::json!({ "error": "client_failed" }),
+    };
+    let mut url = match reqwest::Url::parse(&format!("{}/profiles", backend)) {
+        Ok(u) => u,
+        Err(_) => return serde_json::json!({ "error": "bad_backend" }),
+    };
+    if !search.trim().is_empty() {
+        url.query_pairs_mut().append_pair("search", search.trim());
+    }
+    match client.get(url).send() {
+        Ok(r) if r.status().is_success() => {
+            r.json().unwrap_or(serde_json::json!({ "items": [], "total": 0 }))
+        }
+        Ok(r) => serde_json::json!({ "error": format!("HTTP {}", r.status()) }),
+        Err(e) => serde_json::json!({ "error": e.to_string() }),
+    }
+}
+
+/// Veröffentlicht das lokale Profil auf dem Backend. Authentifiziert wird über
+/// die gespeicherte Discord-Session – es ist KEIN manuelles Token nötig.
+pub fn publish_profile(data_dir: &PathBuf, profile: &serde_json::Value) -> serde_json::Value {
+    let (client, backend, session) = match authed_request(data_dir) {
+        Some(x) => x,
+        None => return serde_json::json!({ "error": "not_authenticated" }),
+    };
+    let url = format!("{}/profile", backend);
+    match client
+        .post(&url)
+        .header("Authorization", format!("Bearer {}", session))
+        .json(profile)
+        .send()
+    {
+        Ok(r) if r.status().is_success() => serde_json::json!({ "ok": true }),
+        Ok(r) if r.status() == 401 => {
+            *SESSION.lock().unwrap() = None;
+            serde_json::json!({ "error": "not_authenticated" })
+        }
+        Ok(r) => serde_json::json!({ "error": format!("HTTP {}", r.status()) }),
+        Err(e) => serde_json::json!({ "error": e.to_string() }),
+    }
+}
+
 fn read_entry(path: &PathBuf) -> Option<PresenceEntry> {
     let text = std::fs::read_to_string(path).ok()?;
     let v: serde_json::Value = serde_json::from_str(&text).ok()?;

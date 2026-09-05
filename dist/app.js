@@ -411,6 +411,12 @@ async function refreshLogs() {
       online: !!f.online,
       avatar,
       accounts: accts,
+      // Profil-Zusammenfassung (kommt seit v1.11.5 vom Backend mit).
+      bio: (f.profile && f.profile.bio) || null,
+      avatar_data_url: (f.profile && f.profile.avatar_data_url) || null,
+      banner_data_url: (f.profile && f.profile.banner_data_url) || null,
+      avatar_choice: (f.profile && f.profile.avatar_choice) || "discord",
+      profile_public: !!(f.profile && f.profile.public),
     };
   }
 
@@ -551,9 +557,44 @@ async function refreshLogs() {
           refreshSocial(true);
         };
         li.append(btn);
+        const pbtn = document.createElement("button");
+        pbtn.textContent = "Profil";
+        pbtn.onclick = () => showFriendProfile(u);
+        li.append(pbtn);
       }
       list.append(li);
     }
+  }
+
+  // Freundes-Profil im Viewer anzeigen (Daten kommen mit /friends mit).
+  function showFriendProfile(u) {
+    const wrap = $("viewProfileResult");
+    if (!wrap) return;
+    wrap.innerHTML = "";
+    const card = document.createElement("div");
+    card.className = "view-profile-result";
+    const hdr = document.createElement("div");
+    hdr.style.display = "flex"; hdr.style.alignItems = "center"; hdr.style.gap = "0.7rem";
+    const head = document.createElement("img");
+    head.style.width = "56px"; head.style.height = "56px"; head.style.borderRadius = "10px"; head.style.objectFit = "cover"; head.style.background = "#222";
+    const nm = u.mc_name || u.global_name || u.username || "";
+    if (nm) head.src = `https://mc-heads.net/head/${encodeURIComponent(nm).replace(/%20/g, "_")}/256`;
+    else if (u.avatar) head.src = u.avatar;
+    else head.style.display = "none";
+    head.onerror = () => { head.style.display = "none"; };
+    hdr.append(head);
+    const info = document.createElement("div");
+    info.style.flex = "1"; info.style.minWidth = "0";
+    let html = `<div style="font-weight:700;font-size:1.05rem;">${escapeHtml(nm || "—")} <span class="status-dot ${u.online ? "online" : "offline"}"></span></div>`;
+    html += `<div style="color:var(--muted);font-size:.85rem;">${u.online ? (u.server ? `Online auf ${escapeHtml(u.server)}` : "Online") : "Offline"}</div>`;
+    if (u.friend_code) html += `<div style="color:var(--muted);font-size:.85rem;">Code: ${escapeHtml(u.friend_code)}</div>`;
+    if (u.uuid) html += `<div style="color:var(--muted);font-size:.75rem;">UUID ${escapeHtml(String(u.uuid).slice(0, 8))}…</div>`;
+    if (u.banner_data_url) html += `<div style="margin-top:.5rem;"><img src="${escapeHtml(u.banner_data_url)}" style="max-width:100%;border-radius:8px;"/></div>`;
+    if (u.bio) html += `<div style="margin-top:.5rem;">${escapeHtml(u.bio)}</div>`;
+    info.innerHTML = html;
+    hdr.append(info);
+    card.append(hdr);
+    wrap.append(card);
   }
 
   function openProfileModal() {
@@ -635,12 +676,10 @@ async function refreshLogs() {
     } catch (e) { toast('Speichern fehlgeschlagen: '+e, 'error'); }
   }
 
-  // Publish profile to a remote Kolleg-en backend (requires server_url and token)
+  // Publish profile to the Kollegen-Cloud (default) or a custom backend.
   async function publishProfileToServer() {
     const serverUrl = $("profileServerUrl").value.trim();
     const token = $("profileServerToken").value.trim();
-    if (!serverUrl) return alert('Bitte eine Backend-URL angeben.');
-    if (!token) return alert('Bitte einen gültigen Server-Token angeben. (Du kannst dich einmal auf dem Server /auth registrieren lassen und den zurückgegebenen token hier eintragen.)');
 
     const profile = {
       uuid: socialMe && socialMe.uuid ? socialMe.uuid : null,
@@ -654,6 +693,19 @@ async function refreshLogs() {
         public: !!$("profilePublicToggle").checked,
       }
     };
+
+    // Kein eigenes Backend/Token hinterlegt → Kollegen-Cloud via Launcher-
+    // Discord-Session (kein manuelles Token nötig).
+    if (!serverUrl || !token) {
+      const j = await invoke("kollegen_publish_profile", { profile });
+      if (j && j.ok) {
+        toast('Profil veröffentlicht (Kollegen-Cloud)', 'ok');
+        refreshSocial(true);
+      } else {
+        toast('Publish fehlgeschlagen: ' + ((j && j.error) || 'unbekannt'), 'error');
+      }
+      return;
+    }
 
     try {
       const res = await fetch(serverUrl.replace(/\/$/, '') + '/profile', {
@@ -676,31 +728,81 @@ async function refreshLogs() {
   // Browse public profiles on the provided server
   async function browsePublicProfiles(search) {
     const serverUrl = $("profileServerUrl").value.trim();
-    if (!serverUrl) return alert('Bitte eine Backend-URL angeben, um öffentliche Profile zu durchsuchen.');
+    const wrap = $("viewProfileResult");
+    wrap.innerHTML = "";
+    if (!serverUrl) {
+      // Default: Kollegen-Cloud (https://kollegen.me) via Launcher-Backend.
+      const j = await invoke("kollegen_browse_profiles", { search: search || "" });
+      if (j && j.error) return alert('Fehler beim Laden: ' + j.error);
+      renderProfileItems(j && j.items ? j.items : [], wrap, true);
+      return;
+    }
     const q = new URL(serverUrl.replace(/\/$/, '') + '/profiles');
     if (search) q.searchParams.set('search', search);
     try {
       const res = await fetch(q.toString());
       const j = await res.json();
       if (!res.ok) return alert('Fehler beim Laden: ' + (j.error || res.status));
-      const wrap = $("viewProfileResult");
-      wrap.innerHTML = '';
-      if (!j.items || !j.items.length) { wrap.textContent = 'Keine Profile gefunden.'; return; }
-      for (const p of j.items) {
-        const el = document.createElement('div'); el.className='view-profile-result';
-        const hdr = document.createElement('div'); hdr.style.display='flex'; hdr.style.alignItems='center'; hdr.style.gap='0.6rem';
-        const img = document.createElement('img'); img.src = p.avatar_data_url || ''; img.style.width='48px'; img.style.height='48px'; img.style.borderRadius='8px'; img.onerror = ()=>{ img.style.display='none'; };
-        const name = document.createElement('div'); name.textContent = p.name || '—'; name.style.fontWeight='700';
-        hdr.append(img, name);
-        const bio = document.createElement('div'); bio.textContent = p.bio || ''; bio.style.marginTop='0.25rem'; bio.style.color='var(--muted)';
-        el.append(hdr, bio);
-        const btns = document.createElement('div'); btns.style.marginTop='0.4rem'; btns.style.display='flex'; btns.style.gap='0.4rem';
-        const viewBtn = document.createElement('button'); viewBtn.textContent = 'Öffnen'; viewBtn.onclick = ()=>{ window.open(serverUrl.replace(/\/$/, '') + '/profiles/' + p.id, '_blank'); };
-        btns.append(viewBtn);
-        el.append(btns);
-        wrap.append(el);
-      }
+      renderProfileItems(j.items || [], wrap, false);
     } catch (e) { alert('Fehler: ' + e); }
+  }
+
+  function renderProfileItems(items, wrap, isCloud) {
+    if (!items.length) { wrap.textContent = 'Keine Profile gefunden.'; return; }
+    for (const p of items) {
+      const el = document.createElement('div'); el.className = 'view-profile-result';
+      const hdr = document.createElement('div'); hdr.style.display = 'flex'; hdr.style.alignItems = 'center'; hdr.style.gap = '0.6rem';
+      const img = document.createElement('img');
+      const nm = p.name || p.mc_name || '';
+      img.src = p.avatar_data_url || (nm ? `https://mc-heads.net/head/${encodeURIComponent(nm).replace(/%20/g, "_")}/256` : '');
+      img.style.width = '48px'; img.style.height = '48px'; img.style.borderRadius = '8px'; img.style.background = '#222'; img.onerror = () => { img.style.display = 'none'; };
+      const name = document.createElement('div'); name.textContent = p.name || '—'; name.style.fontWeight = '700';
+      hdr.append(img, name);
+      const bio = document.createElement('div'); bio.textContent = p.bio || ''; bio.style.marginTop = '0.25rem'; bio.style.color = 'var(--muted)';
+      el.append(hdr, bio);
+      const btns = document.createElement('div'); btns.style.marginTop = '0.4rem'; btns.style.display = 'flex'; btns.style.gap = '0.4rem';
+      const viewBtn = document.createElement('button');
+      viewBtn.textContent = 'Öffnen';
+      if (isCloud) {
+        // In der App öffnen statt im Browser tab
+        viewBtn.onclick = () => showCloudProfile(p);
+      } else {
+        const b = $("profileServerUrl").value.trim().replace(/\/$/, '');
+        viewBtn.onclick = () => { window.open(b + '/profiles/' + p.id, '_blank'); };
+      }
+      btns.append(viewBtn);
+      el.append(btns);
+      wrap.append(el);
+    }
+  }
+
+  // Öffentliches Cloud-Profil im Viewer öffnen (egal ob in Browse-Liste).
+  function showCloudProfile(p) {
+    const wrap = $("viewProfileResult");
+    if (!wrap) return;
+    wrap.innerHTML = "";
+    const card = document.createElement("div");
+    card.className = "view-profile-result";
+    const hdr = document.createElement("div");
+    hdr.style.display = "flex"; hdr.style.alignItems = "center"; hdr.style.gap = "0.7rem";
+    const head = document.createElement("img");
+    head.style.width = "56px"; head.style.height = "56px"; head.style.borderRadius = "10px"; head.style.objectFit = "cover"; head.style.background = "#222";
+    const nm = p.name || p.mc_name || "";
+    if (nm) head.src = `https://mc-heads.net/head/${encodeURIComponent(nm).replace(/%20/g, "_")}/256`;
+    else if (p.avatar_data_url) head.src = p.avatar_data_url;
+    else head.style.display = "none";
+    head.onerror = () => { head.style.display = "none"; };
+    hdr.append(head);
+    const info = document.createElement("div");
+    info.style.flex = "1"; info.style.minWidth = "0";
+    let html = `<div style="font-weight:700;font-size:1.05rem;">${escapeHtml(nm || p.name || "—")}</div>`;
+    if (p.code) html += `<div style="color:var(--muted);font-size:.85rem;">Code: ${escapeHtml(p.code)}</div>`;
+    if (p.banner_data_url) html += `<div style="margin-top:.5rem;"><img src="${escapeHtml(p.banner_data_url)}" style="max-width:100%;border-radius:8px;"/></div>`;
+    if (p.bio) html += `<div style="margin-top:.5rem;">${escapeHtml(p.bio)}</div>`;
+    info.innerHTML = html;
+    hdr.append(info);
+    card.append(hdr);
+    wrap.append(card);
   }
 
   // Cancel edits: reload from settings

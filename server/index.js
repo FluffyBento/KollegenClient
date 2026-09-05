@@ -126,6 +126,17 @@ function publicFriend(u) {
     code: u.code,
     server: online && p ? p.server : null,
     online,
+    // Profil-Zusammenfassung (nur für Freunde sichtbar, egal ob public).
+    profile:
+      u.profile && typeof u.profile === 'object'
+        ? {
+            bio: u.profile.bio || null,
+            avatar_data_url: u.profile.avatar_data_url || null,
+            banner_data_url: u.profile.banner_data_url || null,
+            avatar_choice: u.profile.avatar_choice || 'discord',
+            public: !!u.profile.public,
+          }
+        : null,
   };
 }
 

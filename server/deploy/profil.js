@@ -246,7 +246,7 @@ function buildPage() {
     'fetch("/api/auth/me").then(function(r){return r.json();}).then(function(j){' +
     'if(!j||!j.user){login.style.display="block";return;}' +
     'var u=j.user;' +
-    '$("meName").textContent=u.global_name||u.username;"' +
+    '$("meName").textContent=u.global_name||u.username;' +
     '$("meDiscord").textContent=u.username+" (Discord)";' +
     'me.style.display="block";' +
     'fetch("/api/profil/me").then(function(r){return r.json();}).then(function(p){' +
