@@ -143,6 +143,11 @@ const KM_TOP_SCRIPT =
   'var av=document.getElementById("kmNavAvatar");' +
   'var lg=document.getElementById("kmLogin");var dg=document.getElementById("kmDiscord");' +
   'var lo=document.getElementById("kmLogout");' +
+  '// Ensure any login links include a safe redirect back to the current path
+  ' +
+  'try{var current = (location && location.pathname) ? location.pathname : "/"; document.querySelectorAll("a[href^=\"/api/auth/discord/login\"]").forEach(function(a){
+    try{ if (a) a.href = "/api/auth/discord/login?redirect=" + encodeURIComponent(current); }catch(e){}
+  }); }catch(e){}' +
   'fetch("/api/auth/me").then(function(r){return r.json();}).then(function(j){' +
   'if(j&&j.user){' +
   'if(lg)lg.style.display="none";' +
