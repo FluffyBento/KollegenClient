@@ -9,6 +9,8 @@
     "HudMixin",
     "MouseHandlerMixin",
     "MouseHandlerAccessor",
+    "KeyboardInputMixin",
+    "ClientInputAccessor",
     "NametagMixin",
     "BiomeMixin",
     "LogoRendererMixin",

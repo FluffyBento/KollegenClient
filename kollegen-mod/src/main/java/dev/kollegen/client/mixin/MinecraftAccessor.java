@@ -16,4 +16,12 @@ public interface MinecraftAccessor {
 
     @Invoker("getCurrentServer")
     ServerData kollegen$getCurrentServer();
+
+    /** startAttack() ist privat; benötigt für den SteamDeck-Angriffs-Button (RT). */
+    @Invoker("startAttack")
+    boolean kollegen$startAttack();
+
+    /** startUseItem() ist privat; benötigt für den SteamDeck-Benutzen-Button (LT). */
+    @Invoker("startUseItem")
+    void kollegen$startUseItem();
 }

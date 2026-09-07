@@ -18,4 +18,14 @@ public class MinecraftClientMixin {
     private void kollegen_client$onTick(CallbackInfo ci) {
         KollegenMod.onTick();
     }
+
+    /**
+     * Frame-Hook (render-loop) OHNE fabric-api: wird von Minecraft.runTick pro
+     * Frame aufgerufen. Für die glatte Gamepad-Kamera (rechter Stick), die sonst
+     * im 20-TPS-Client-Tick ruckeln würde.
+     */
+    @Inject(method = "runTick", at = @At("TAIL"))
+    private void kollegen_client$onFrame(boolean tickIn, CallbackInfo ci) {
+        KollegenMod.onFrame();
+    }
 }

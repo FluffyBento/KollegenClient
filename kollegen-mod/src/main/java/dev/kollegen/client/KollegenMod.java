@@ -52,6 +52,8 @@ public class KollegenMod implements ClientModInitializer {
 
         // ── SteamDeck-Controller-Cursor (Bewegung + Klicks) ──
         dev.kollegen.client.input.ControllerMode.tick(mc);
+        // ── SteamDeck-Gameplay-Controller (in-game, wie Controlify) ──
+        dev.kollegen.client.input.GamepadInput.tick(mc);
 
         // ── Rechts-Shift → Menü (mit Entprellung) ──
         boolean shiftDown = dev.kollegen.client.input.KollegenKeybind.isRightShiftHeld();
@@ -105,6 +107,16 @@ public class KollegenMod implements ClientModInitializer {
         if (connected && !wasConnected) dev.kollegen.client.presence.KollegenPresence.join(mc);
         else if (!connected && wasConnected) dev.kollegen.client.presence.KollegenPresence.leave();
         wasConnected = connected;
+    }
+
+    /**
+     * Pro Render-Frame aufgerufen (aus MinecraftClientMixin.runTick-Hook).
+     * Nur für Dinge, die per-Frame glatt laufen müssen (Gamepad-Kamera).
+     */
+    public static void onFrame() {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc == null || mc.player == null || mc.level == null) return;
+        dev.kollegen.client.input.GamepadInput.onFrame(mc);
     }
 
     private static boolean isKeyDown(int key) {
