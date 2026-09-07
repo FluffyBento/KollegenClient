@@ -1427,9 +1427,9 @@ pub fn launch(
         if let Some(rp) = &report_path {
             extra = format!(" (Bericht: {})", rp.display());
         }
-        return Err(format!(
-            "Java ist nicht startbar ({}/java):{}{}",
-            java_path.display(),
+        return Err(anyhow!(
+            "Java ist nicht startbar ({}):{}{}",
+            java_path,
             if java_version_note.is_empty() {
                 String::new()
             } else {
@@ -1439,7 +1439,7 @@ pub fn launch(
         ));
     }
 
-    let cmdline = std::iter::once(java_path.to_string_lossy().into_owned())
+    let cmdline = std::iter::once(java_path.to_string())
         .chain(cmd.get_args().map(|a| a.to_string_lossy().into_owned()))
         .collect::<Vec<_>>()
         .join(" ");
@@ -1453,7 +1453,7 @@ pub fn launch(
             "Instanz: {} ({} / {})\n",
             inst.name, inst.version, inst.loader
         ));
-        txt.push_str(&format!("java-Binary: {}\n", java_path.display()));
+        txt.push_str(&format!("java-Binary: {}\n", java_path));
         txt.push_str(&format!("java -version:\n{}\n", java_version_note));
         txt.push_str("Umgebung (relevant):\n");
         for key in [
