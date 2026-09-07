@@ -966,9 +966,23 @@ pub(crate) fn enforce_bundled_mods(mods_dir: &Path, mc_version: &str, companion_
     // Deshalb: auf inkompatiblen Versionen NICHT deployen und bereits deployte
     // Bundle-Jars entfernen – so heilt sich eine falsch eingerichtete Instanz
     // (z.B. eine auf 26.2 aktualisierte) beim nächsten Start von selbst.
-    if !crate::companion::is_compatible_version(mc_version) {
+    //
+    // WICHTIG (Steam-Deck-Fix): `is_compatible_version` (gleiche major.minor-
+    // Linie) reicht für die Bundles NICHT. Die Bündel behalten ihre echten
+    // `depends.minecraft`-Constraints (fabric-api >=1.21.11- <1.21.12-,
+    // ModMenu >=1.21.11, ChatHeads ==1.21.11, …) und sind exakt auf
+    // COMPANION_TARGET_MC_VERSION remapped. Eine 1.21.1-Instanz (z.B. auf dem
+    // SteamDeck) liegt zwar in der 1.21.x-Linie, schluckt die 1.21.11-Jars aber
+    // nicht – der Loader bricht ab mit "Incompatible mods found! … only the
+    // wrong version is present 1.21.1!". Deshalb wird nur gedeployt, wenn die
+    // laufende Version exakt unterstützt ist; sonst werden die (ggf. noch von
+    // einem früheren Stand vorhandenen) Bundle-Jars entfernt und die Instanz
+    // heilt sich beim nächsten Start von selbst. Die Begleit-Mod selbst wird
+    // weiterhin injiziert (via is_compatible_version, dort wird die
+    // MC-Sperre ja auf >=1.21 relaxiert) – Kern-Features funktionieren trotzdem.
+    if !crate::companion::bundles_compatible(mc_version) {
         warn!(
-            "Integrations-Bundles bei MC {} übersprungen: sie sind nur mit {} (1.21.x) kompatibel. \
+            "Integrations-Bundles bei MC {} übersprungen: die gebündelten Jars sind exakt für {} kompiliert/remapped. \
              Lade keine 1.21.x-Jars in diese Instanz.",
             mc_version, crate::companion::COMPANION_TARGET_MC_VERSION
         );

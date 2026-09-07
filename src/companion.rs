@@ -311,6 +311,20 @@ pub fn is_compatible_version(version: &str) -> bool {
     }
 }
 
+/// True when the instance's Minecraft version is one the *bundled integration
+/// jars* (`enforce_bundled_mods`) are actually built/remapped for. Unlike the
+/// companion mod (relaxed to `>=1.21` at install time, see
+/// `relax_companion_constraints`), the bundled jars keep their real
+/// `depends.minecraft` constraints: fabric-api `>=1.21.11- <1.21.12-`,
+/// ModMenu `>=1.21.11`, Spotify Overlay `>=1.21.11`, ChatHeads `==1.21.11`,
+/// Cloth Config `>=1.21.9-`. On any other 1.21.x minor (e.g. 1.21.1) the
+/// Fabric-Loader refuses to boot with "Incompatible mods found!". Bundles may
+/// therefore only be deployed when the running version is exactly supported;
+/// otherwise the launcher must remove them so such an instance self-heals.
+pub fn bundles_compatible(version: &str) -> bool {
+    version == COMPANION_TARGET_MC_VERSION
+}
+
 /// Injects the companion mod into an instance's `mods/` folder. The file name
 /// is the fixed `kollegen-client-mod.jar` so `list_content`/`delete_content`
 /// can hide/protect it. Skipped for vanilla servers (nothing would load it)
