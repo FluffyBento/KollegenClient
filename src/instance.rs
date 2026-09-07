@@ -12,6 +12,7 @@ use std::process::{Command, Stdio};
 use std::io::Write;
 use std::io::Read;
 use std::sync::{Arc, Mutex};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::thread;
 use std::time::Duration;
 
@@ -1372,27 +1373,18 @@ pub fn launch(
     // Working directory
     cmd.current_dir(&inst_dir);
 
-    // Capture the game's output: stderr -> file, stdout -> piped so we can also
-    // stream it into the in-memory launcher log. That log is polled by the UI
-    // and used to auto-detect crashes (e.g. Fabric mod-incompatibility errors)
-    // and resolve them.
+    // Capture the game's output: stdout UND stderr werden gepiped, damit beide
+    // in das In-Memory-Launcher-Log UND in logs/latest.log gestreamt werden
+    // (vorher ging stderr nur in die Datei → JVM-/Loader-Fehler waren in der UI
+    // unsichtbar, z.B. beim stillen Startabbruch auf dem SteamDeck). Die beiden
+    // Reader-Threads unten drainen beide Pipes.
     let log_path = inst_dir.join("logs").join("latest.log");
     if let Some(parent) = log_path.parent() {
         let _ = fs::create_dir_all(parent);
     }
-    match fs::File::create(&log_path) {
-        Ok(f) => {
-            let stderr = match f.try_clone() {
-                Ok(c) => Stdio::from(c),
-                Err(_) => Stdio::null(),
-            };
-            cmd.stderr(stderr);
-        }
-        Err(_) => {
-            cmd.stderr(Stdio::null());
-        }
-    }
+    let _ = fs::File::create(&log_path);
     cmd.stdout(Stdio::piped());
+    cmd.stderr(Stdio::piped());
 
     // Install + enable the resource pack that replaces the in-game
     // "Minecraft Java Edition" title logo with Logo.png.
@@ -1401,6 +1393,12 @@ pub fn launch(
     info!("Starting Minecraft process...");
     let mut child = cmd.spawn()?;
     let pid = child.id();
+
+    // Gemeinsames Signal "letzter Log-Output" (Unix-Millis). Beide Reader
+    // aktualisieren es; der Watchdog unten erkennt so einen Prozess, der noch
+    // lebt, aber nichts mehr schreibt (= stilles Hängen), statt weiter ruhig
+    // auf dessen Ende zu warten.
+    let last_activity = Arc::new(AtomicU64::new(0));
 
     // Stream stdout (game log) into the in-memory launcher log and the file.
     // The same stream is also scanned for server connect/disconnect so the
@@ -1413,6 +1411,7 @@ pub fn launch(
     if let Some(mut out) = child.stdout.take() {
         let logs_arc = Arc::clone(&state.logs);
         let log_path2 = log_path.clone();
+        let last_activity2 = Arc::clone(&last_activity);
         thread::spawn(move || {
             use std::io::Read;
             let mut buf = [0u8; 4096];
@@ -1462,6 +1461,13 @@ pub fn launch(
                                         logs.remove(0);
                                     }
                                 }
+                                last_activity2.store(
+                                    std::time::SystemTime::now()
+                                        .duration_since(std::time::UNIX_EPOCH)
+                                        .map(|d| d.as_millis() as u64)
+                                        .unwrap_or(0),
+                                    Ordering::Relaxed,
+                                );
                             }
                         }
                     }
@@ -1479,12 +1485,145 @@ pub fn launch(
         });
     }
 
-    // When the game exits, reset the rich presence to "Im Launcher" and clear
-    // the current-server display – otherwise it stays stuck showing
-    // "Spielt Minecraft" even after the game is closed.
+    // Stderr (JVM-/Loader-Fehler wie Fabric-Abstürze, OOM, GLFW/GL-Probleme)
+    // in UI-Log + latest.log spiegeln – sonst "verschwinden" Fehler spurlos.
+    if let Some(mut err) = child.stderr.take() {
+        let logs_arc = Arc::clone(&state.logs);
+        let log_path2 = log_path.clone();
+        let last_activity2 = Arc::clone(&last_activity);
+        thread::spawn(move || {
+            use std::io::Read;
+            let mut buf = [0u8; 4096];
+            let mut file = fs::OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(&log_path2)
+                .ok();
+            let mut carry = String::new();
+            loop {
+                match err.read(&mut buf) {
+                    Ok(0) => break,
+                    Ok(n) => {
+                        let chunk = String::from_utf8_lossy(&buf[..n]);
+                        if let Some(f) = file.as_mut() {
+                            let _ = f.write_all(chunk.as_bytes());
+                        }
+                        carry.push_str(&chunk);
+                        while let Some(idx) = carry.find('\n') {
+                            let line = carry[..idx].trim_end().to_string();
+                            carry.replace_range(..=idx, "");
+                            if !line.is_empty() {
+                                if let Ok(mut logs) = logs_arc.lock() {
+                                    logs.push(line);
+                                    if logs.len() > crate::MAX_LOG_LINES {
+                                        logs.remove(0);
+                                    }
+                                }
+                            }
+                        }
+                        last_activity2.store(
+                            std::time::SystemTime::now()
+                                .duration_since(std::time::UNIX_EPOCH)
+                                .map(|d| d.as_millis() as u64)
+                                .unwrap_or(0),
+                            Ordering::Relaxed,
+                        );
+                    }
+                    Err(_) => break,
+                }
+            }
+        });
+    }
+
+    // Process-Watcher: wartet mit Watchdog auf das Spielende, erkennt einen
+    // leeren Absturz (Exit-Code ungleich 0, sehr kurze Laufzeit, ohne dass je
+    // ein Fehlerfenster auftaucht – genau das SteamDeck-Symptom) und einen
+    // Hänger (Prozess lebt, schreibt aber nichts mehr). Beide Meldungen landen
+    // im Launcher-Log samt letzter Log-Zeilen, damit kein Start mehr still
+    // scheitert. Danach Discord-Presence auf "Im Launcher" zurücksetzen.
     let discord_tx = state.discord.tx.clone();
+    let logs_arc = Arc::clone(&state.logs);
+    let log_path2 = log_path.clone();
+    let data_dir2 = state.data_dir.clone();
     thread::spawn(move || {
-        let _ = child.wait();
+        let t0 = std::time::Instant::now();
+        let mut exit_code: Option<i32> = None;
+        let mut signalled = false;
+        let mut last_silent_warn = 0u64;
+        loop {
+            match child.try_wait() {
+                Ok(Some(status)) => {
+                    match status.code() {
+                        Some(c) => exit_code = Some(c),
+                        None => signalled = true,
+                    }
+                    break;
+                }
+                Ok(None) => {
+                    // Lebt der Prozess noch, aber kommt seit 60s kein Log-Output
+                    // → wahrscheinlich hängt das Spiel (z.B. Renderer/OpenAL/
+                    // Vulkan-Init). Einmalig laut melden.
+                    let last = last_activity.load(Ordering::Relaxed);
+                    if last != 0 && t0.elapsed().as_secs() > 10 {
+                        let now_ms = std::time::SystemTime::now()
+                            .duration_since(std::time::UNIX_EPOCH)
+                            .map(|d| d.as_millis() as u64)
+                            .unwrap_or(0);
+                        let silent = now_ms.saturating_sub(last);
+                        if silent > 60_000 && last != last_silent_warn {
+                            last_silent_warn = last;
+                            let warn = format!(
+                                "WARNUNG: Minecraft läuft (PID {}), schreibt aber seit {}s keinen Output mehr – das Spiel hängt vermutlich (Renderer/OpenAL/Vulkan?).",
+                                pid, silent / 1000
+                            );
+                            if let Ok(mut logs) = logs_arc.lock() {
+                                logs.push(warn);
+                                if logs.len() > crate::MAX_LOG_LINES {
+                                    logs.remove(0);
+                                }
+                            }
+                        }
+                    }
+                    thread::sleep(Duration::from_millis(2000));
+                }
+                Err(_) => {
+                    signalled = true;
+                    break;
+                }
+            }
+        }
+        let runtime = t0.elapsed().as_secs_f64();
+        let mut line = format!("Minecraft-Prozess beendet ({:.0}s).", runtime);
+        match exit_code {
+            Some(0) => {}
+            Some(c) => line.push_str(&format!(" Exit-Code: {}.", c)),
+            None => line.push_str(if signalled { " Vom Signal beendet (Absturz?)." } else { "" }),
+        }
+        if runtime < 20.0 {
+            line.push_str(" Sehr kurze Laufzeit – vermutlich Startabsturz.");
+        }
+        if let Ok(mut logs) = logs_arc.lock() {
+            logs.push(line.clone());
+            if logs.len() > crate::MAX_LOG_LINES {
+                logs.remove(0);
+            }
+        }
+        let lf = crate::utils::log_file(&data_dir2);
+        if let Ok(mut f) = fs::OpenOptions::new().create(true).append(true).open(lf) {
+            let ts = chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
+            let _ = std::writeln!(f, "[{}] {}", ts, line);
+        }
+        // Letzter Stand von latest.log als Kontext anhängen (falls der Absturz
+        // gar nichts nach stdout/stderr geschrieben hat).
+        let log_tail = crate::read_log_tail(&log_path2, 16 * 1024);
+        if !log_tail.trim().is_empty() {
+            if let Ok(mut logs) = logs_arc.lock() {
+                logs.push("── Letzte Log-Zeilen vor dem Ende ──".to_string());
+                for l in log_tail.lines().rev().take(8) {
+                    logs.push(l.trim_end().to_string());
+                }
+            }
+        }
         let _ = discord_tx.send(crate::discord::RpcMessage::Set {
             details: "Kollegen Client".to_string(),
             state: "Im Launcher".to_string(),

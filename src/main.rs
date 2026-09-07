@@ -316,7 +316,7 @@ fn get_game_log(state: State<'_, AppState>, instance_name: String) -> String {
 /// Reads at most the last `max_bytes` of a file. Used for `latest.log` so we
 /// never ship a multi-hundred-MB string over IPC / into the DOM on every poll
 /// (that unbounded transfer is what ballooned the webview's memory).
-fn read_log_tail(path: &Path, max_bytes: usize) -> String {
+pub fn read_log_tail(path: &Path, max_bytes: usize) -> String {
     use std::io::{Read, Seek, SeekFrom};
     let mut f = match std::fs::File::open(path) {
         Ok(f) => f,
@@ -764,6 +764,18 @@ fn launch_game(
     // rich presence + join). Best-effort; no-op if the project id is empty or
     // the instance is vanilla.
     ensure_companion_mod(&state.data_dir, &inst.name, &inst.version, &inst.loader);
+
+    // Presence/Sozial-Basis-URL für die Mod bereitstellen. Die Mod liest
+    // `config/kollegen-server.txt` (getConfigDir) und ruft darüber das
+    // Backend auf — ohne diese Datei zeigt sie auf eine Platzhalter-Domain.
+    {
+        let cfg = utils::instance_dir(&state.data_dir, &inst.name).join("config");
+        let _ = std::fs::create_dir_all(&cfg);
+        let _ = std::fs::write(
+            cfg.join("kollegen-server.txt"),
+            format!("{}\n", crate::presence::mod_backend_url(&state.data_dir)),
+        );
+    }
 
     // Determine the required Java version. We read every version JSON in the
     // instance's version dir (the Mojang one AND the Fabric-merged one) and take
@@ -1359,6 +1371,96 @@ async fn kollegen_store_equip(app: tauri::AppHandle, item_id: String, category: 
     Ok(crate::presence::kollegen_store_equip(&data_dir, &item_id, &category))
 }
 
+#[tauri::command]
+async fn kollegen_groups(app: tauri::AppHandle) -> Result<serde_json::Value, String> {
+    let data_dir = app.state::<AppState>().data_dir.clone();
+    Ok(crate::presence::kollegen_groups(&data_dir))
+}
+
+#[tauri::command]
+async fn kollegen_group_create(app: tauri::AppHandle, name: String, member_ids: Vec<String>) -> Result<serde_json::Value, String> {
+    let data_dir = app.state::<AppState>().data_dir.clone();
+    Ok(crate::presence::kollegen_group_create(&data_dir, &name, member_ids))
+}
+
+#[tauri::command]
+async fn kollegen_group_view(app: tauri::AppHandle, group_id: String) -> Result<serde_json::Value, String> {
+    let data_dir = app.state::<AppState>().data_dir.clone();
+    Ok(crate::presence::kollegen_group_view(&data_dir, &group_id))
+}
+
+#[tauri::command]
+async fn kollegen_group_add_member(app: tauri::AppHandle, group_id: String, member_id: String) -> Result<serde_json::Value, String> {
+    let data_dir = app.state::<AppState>().data_dir.clone();
+    Ok(crate::presence::kollegen_group_add_member(&data_dir, &group_id, &member_id))
+}
+
+#[tauri::command]
+async fn kollegen_group_leave(app: tauri::AppHandle, group_id: String) -> Result<serde_json::Value, String> {
+    let data_dir = app.state::<AppState>().data_dir.clone();
+    Ok(crate::presence::kollegen_group_leave(&data_dir, &group_id))
+}
+
+#[tauri::command]
+async fn kollegen_group_delete(app: tauri::AppHandle, group_id: String) -> Result<serde_json::Value, String> {
+    let data_dir = app.state::<AppState>().data_dir.clone();
+    Ok(crate::presence::kollegen_group_delete(&data_dir, &group_id))
+}
+
+#[tauri::command]
+async fn kollegen_group_poll(app: tauri::AppHandle, group_id: String, since_msg: u64, since_sig: u64) -> Result<serde_json::Value, String> {
+    let data_dir = app.state::<AppState>().data_dir.clone();
+    Ok(crate::presence::kollegen_group_poll(&data_dir, &group_id, since_msg, since_sig))
+}
+
+#[tauri::command]
+async fn kollegen_group_send(app: tauri::AppHandle, group_id: String, text: String) -> Result<serde_json::Value, String> {
+    let data_dir = app.state::<AppState>().data_dir.clone();
+    Ok(crate::presence::kollegen_group_send(&data_dir, &group_id, &text))
+}
+
+#[tauri::command]
+async fn kollegen_call_open(app: tauri::AppHandle, group_id: String) -> Result<serde_json::Value, String> {
+    let data_dir = app.state::<AppState>().data_dir.clone();
+    Ok(crate::presence::kollegen_call_open(&data_dir, &group_id))
+}
+
+#[tauri::command]
+async fn kollegen_call_join(app: tauri::AppHandle, call_id: String) -> Result<serde_json::Value, String> {
+    let data_dir = app.state::<AppState>().data_dir.clone();
+    Ok(crate::presence::kollegen_call_join(&data_dir, &call_id))
+}
+
+#[tauri::command]
+async fn kollegen_call_leave(app: tauri::AppHandle, call_id: String) -> Result<serde_json::Value, String> {
+    let data_dir = app.state::<AppState>().data_dir.clone();
+    Ok(crate::presence::kollegen_call_leave(&data_dir, &call_id))
+}
+
+#[tauri::command]
+async fn kollegen_call_signal(app: tauri::AppHandle, call_id: String, to_id: String, kind: String, data: serde_json::Value) -> Result<serde_json::Value, String> {
+    let data_dir = app.state::<AppState>().data_dir.clone();
+    Ok(crate::presence::kollegen_call_signal(&data_dir, &call_id, &to_id, &kind, data))
+}
+
+#[tauri::command]
+async fn kollegen_call_direct_open(app: tauri::AppHandle, peer_id: String) -> Result<serde_json::Value, String> {
+    let data_dir = app.state::<AppState>().data_dir.clone();
+    Ok(crate::presence::kollegen_call_direct_open(&data_dir, &peer_id))
+}
+
+#[tauri::command]
+async fn kollegen_call_direct_poll(app: tauri::AppHandle, call_id: String, since_sig: u64) -> Result<serde_json::Value, String> {
+    let data_dir = app.state::<AppState>().data_dir.clone();
+    Ok(crate::presence::kollegen_call_direct_poll(&data_dir, &call_id, since_sig))
+}
+
+#[tauri::command]
+async fn kollegen_call_direct_active(app: tauri::AppHandle) -> Result<serde_json::Value, String> {
+    let data_dir = app.state::<AppState>().data_dir.clone();
+    Ok(crate::presence::kollegen_call_direct_active(&data_dir))
+}
+
 // ─=== Skin / Cape Changer ===
 #[tauri::command]
 fn skin_list(state: State<'_, AppState>) -> Value {
@@ -1828,6 +1930,21 @@ fn main() {
             kollegen_dm_send,
             kollegen_store,
             kollegen_store_equip,
+            kollegen_groups,
+            kollegen_group_create,
+            kollegen_group_view,
+            kollegen_group_add_member,
+            kollegen_group_leave,
+            kollegen_group_delete,
+            kollegen_group_poll,
+            kollegen_group_send,
+            kollegen_call_open,
+            kollegen_call_join,
+            kollegen_call_leave,
+            kollegen_call_signal,
+            kollegen_call_direct_open,
+            kollegen_call_direct_poll,
+            kollegen_call_direct_active,
             skin_list,
             skin_set_active,
             skin_delete,

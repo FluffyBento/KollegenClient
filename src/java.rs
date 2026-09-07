@@ -16,9 +16,22 @@ fn java_exe() -> &'static str {
 /// (LD_LIBRARY_PATH points at the bundled WebKit libs). A spawned `java` would
 /// otherwise load those bundled libs, crash on `-version` and be reported as
 /// "Java X nicht gefunden". The JRE ships its own libs, so clearing them is safe.
+///
+/// Zusätzlich werden SteamOS-spezifische / AppImage-Variablen entfernt: Beim
+/// Start aus einem AppImage (wie dem SteamDeck-Launcher) erbt der Java-Kind-
+/// Prozess sonst `LD_LIBRARY_PATH`, `APPIMAGE`, `APPDIR`, `STEAM_*` und
+/// `WAYLAND_DISPLAY` des Wrappers, wodurch Minecraft stumm hängen kann (falsche
+/// .so-Dateien / GL/EGL-Vulkan-Komplexität), bevor irgendein Log geschrieben
+/// wird.
 pub fn sanitize_java_env(cmd: &mut Command) {
     cmd.env_remove("LD_LIBRARY_PATH");
     cmd.env_remove("LD_PRELOAD");
+    cmd.env_remove("APPIMAGE");
+    cmd.env_remove("APPDIR");
+    cmd.env_remove("STEAM_RUNTIME_LIBRARY_PATH");
+    cmd.env_remove("STEAM_RUNTIME_PREFER_HOST_LIBRARIES");
+    cmd.env_remove("STEAM_COMPAT_INSTALL_PATH");
+    cmd.env_remove("STEAM_COMPAT_RUN")
 }
 
 /// Finds a Java executable matching the required major version.
