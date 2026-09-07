@@ -31,7 +31,7 @@ pub fn sanitize_java_env(cmd: &mut Command) {
     cmd.env_remove("STEAM_RUNTIME_LIBRARY_PATH");
     cmd.env_remove("STEAM_RUNTIME_PREFER_HOST_LIBRARIES");
     cmd.env_remove("STEAM_COMPAT_INSTALL_PATH");
-    cmd.env_remove("STEAM_COMPAT_RUN")
+    cmd.env_remove("STEAM_COMPAT_RUN");
 }
 
 /// Finds a Java executable matching the required major version.

@@ -150,6 +150,12 @@ fn backend_url(data_dir: &PathBuf) -> Option<String> {
     }
 }
 
+/// Basis-URL, die die in-game begleitende Mod per `config/kollegen-server.txt`
+/// bekommt (Backend für Presence + soziale Endpunkte).
+pub fn mod_backend_url(data_dir: &PathBuf) -> String {
+    backend_url(data_dir).unwrap_or_else(|| DEFAULT_PRESENCE_BACKEND.to_string())
+}
+
 /// Holt (falls nötig) ein Backend-Session-Token via Discord-Auth.
 fn ensure_session(
     client: &reqwest::blocking::Client,
@@ -259,18 +265,34 @@ fn friends_value(data_dir: &PathBuf) -> serde_json::Value {
 }
 
 /// Schreibt ~/.kollegen/social.json (eigenes Profil + Freunde) für die Mod.
-pub fn sync_social(data_dir: &PathBuf) {
+///
+/// Zusätzlich wird ~/.kollegen/client.json geschrieben – die Brücke für die
+/// in-game begleitende Mod: Sie enthält Backend-URL + gültige Session + eigenes
+/// Profil, damit die Mod direkt (ohne Discord-OAuth) die sozialen Endpunkte
+/// (Freunde, Gruppen, DMs) aufrufen und Presence melden kann.
+pub fn sync_social(data_dir: &PathBuf, backend: &str, session: &str) {
     let me = me_value(data_dir);
     if me.get("error").is_some() {
         return;
     }
     let friends = friends_value(data_dir);
     let out = serde_json::json!({ "me": me, "friends": friends });
+    let bridge = serde_json::json!({
+        "version": 1,
+        "backend": backend,
+        "session": session,
+        "me": me,
+        "friends": friends,
+        "ts": now_ms(),
+    });
     if let Some(home) = dirs::home_dir() {
         let dir = home.join(".kollegen");
         if std::fs::create_dir_all(&dir).is_ok() {
             if let Ok(s) = serde_json::to_string_pretty(&out) {
                 let _ = std::fs::write(dir.join("social.json"), s);
+            }
+            if let Ok(s) = serde_json::to_string_pretty(&bridge) {
+                let _ = std::fs::write(dir.join("client.json"), s);
             }
         }
     }
@@ -492,24 +514,9 @@ pub fn kollegen_dm_send(data_dir: &PathBuf, to_id: &str, text: &str) -> serde_js
 
 /// Kosmetik-Store: eigener Katalog inkl. Kontostand, Owned & Equipped.
 pub fn kollegen_store(data_dir: &PathBuf) -> serde_json::Value {
-    let (client, backend, session) = match authed_request(data_dir) {
-        Some(x) => x,
-        None => return serde_json::json!({ "error": "not_authenticated" }),
-    };
-    let url = format!("{}/store", backend);
-    match client
-        .get(&url)
-        .header("Authorization", format!("Bearer {}", session))
-        .send()
-    {
-        Ok(r) if r.status().is_success() => r.json().unwrap_or(serde_json::json!({})),
-        Ok(r) if r.status() == 401 => {
-            *SESSION.lock().unwrap() = None;
-            serde_json::json!({ "error": "not_authenticated" })
-        }
-        Ok(r) => serde_json::json!({ "error": format!("HTTP {}", r.status()) }),
-        Err(e) => serde_json::json!({ "error": e.to_string() }),
-    }
+    // Eigener Pfad (/store/catalog), damit er nicht mit der Website-Seite
+    // /store (SPA-HTML) kollidiert. Caddy routet /store/catalog* → Backend.
+    get_authed(data_dir, "/store/catalog", &[])
 }
 
 /// Rüstet ein eigenes Kosmetik-Item aus (oder legt es mit item_id="" ab).
@@ -552,6 +559,165 @@ fn urlencode(s: &str) -> String {
         }
     }
     out
+}
+
+// ── Gruppen + Anrufe (öffentliche Backend-Endpunkte, Bearer-Session) ─────────
+
+/// Generischer authentifizierter Aufruf für die sozialen Endpunkte
+/// (Gruppen, Anrufe, Store). `query` wird als Query-Parameter angehängt.
+fn authed_value(
+    data_dir: &PathBuf,
+    method: reqwest::Method,
+    path: &str,
+    body: Option<serde_json::Value>,
+    query: &[(&str, String)],
+) -> serde_json::Value {
+    let (client, backend, session) = match authed_request(data_dir) {
+        Some(x) => x,
+        None => return serde_json::json!({ "error": "not_authenticated" }),
+    };
+    let mut url = match reqwest::Url::parse(&format!("{}{}", backend, path)) {
+        Ok(u) => u,
+        Err(_) => return serde_json::json!({ "error": "bad_backend" }),
+    };
+    {
+        let mut qp = url.query_pairs_mut();
+        for (k, v) in query {
+            qp.append_pair(k, v);
+        }
+    }
+    let mut req = client
+        .request(method, url)
+        .header("Authorization", format!("Bearer {}", session));
+    if let Some(b) = body {
+        req = req.json(&b);
+    }
+    match req.send() {
+        Ok(r) if r.status().is_success() => r.json().unwrap_or(serde_json::json!({ "ok": true })),
+        Ok(r) if r.status() == 401 => {
+            *SESSION.lock().unwrap() = None;
+            serde_json::json!({ "error": "not_authenticated" })
+        }
+        Ok(r) => serde_json::json!({ "error": format!("HTTP {}", r.status()) }),
+        Err(e) => serde_json::json!({ "error": e.to_string() }),
+    }
+}
+
+fn get_authed(data_dir: &PathBuf, path: &str, query: &[(&str, String)]) -> serde_json::Value {
+    authed_value(data_dir, reqwest::Method::GET, path, None, query)
+}
+
+fn post_authed(data_dir: &PathBuf, path: &str, body: serde_json::Value) -> serde_json::Value {
+    authed_value(data_dir, reqwest::Method::POST, path, Some(body), &[])
+}
+
+/// Eigene Gruppen-Liste (neueste zuerst).
+pub fn kollegen_groups(data_dir: &PathBuf) -> serde_json::Value {
+    get_authed(data_dir, "/groups", &[])
+}
+
+/// Erstellt eine neue Gruppe (Owner = ich), optional mit Freundes-IDs.
+pub fn kollegen_group_create(data_dir: &PathBuf, name: &str, member_ids: Vec<String>) -> serde_json::Value {
+    post_authed(
+        data_dir,
+        "/group/create",
+        serde_json::json!({ "name": name, "memberIds": member_ids }),
+    )
+}
+
+/// Gruppe mit Mitgliederliste ansehen (nur Mitglieder).
+pub fn kollegen_group_view(data_dir: &PathBuf, group_id: &str) -> serde_json::Value {
+    get_authed(data_dir, "/group/view", &[("groupId", group_id.to_string())])
+}
+
+/// Owner fügt einen Freund zur Gruppe hinzu.
+pub fn kollegen_group_add_member(data_dir: &PathBuf, group_id: &str, member_id: &str) -> serde_json::Value {
+    post_authed(
+        data_dir,
+        "/group/add",
+        serde_json::json!({ "groupId": group_id, "memberId": member_id }),
+    )
+}
+
+/// Gruppe verlassen (Owner übergibt oder die Gruppe wird gelöscht).
+pub fn kollegen_group_leave(data_dir: &PathBuf, group_id: &str) -> serde_json::Value {
+    post_authed(data_dir, "/group/leave", serde_json::json!({ "groupId": group_id }))
+}
+
+/// Gruppe löschen (nur Owner).
+pub fn kollegen_group_delete(data_dir: &PathBuf, group_id: &str) -> serde_json::Value {
+    post_authed(data_dir, "/group/delete", serde_json::json!({ "groupId": group_id }))
+}
+
+/// Neue Chat-Nachrichten + Call-Zustand seit since_msg/since_sig.
+pub fn kollegen_group_poll(data_dir: &PathBuf, group_id: &str, since_msg: u64, since_sig: u64) -> serde_json::Value {
+    get_authed(
+        data_dir,
+        "/group/poll",
+        &[
+            ("groupId", group_id.to_string()),
+            ("sinceMsg", since_msg.to_string()),
+            ("sinceSig", since_sig.to_string()),
+        ],
+    )
+}
+
+/// Gruppennachricht senden.
+pub fn kollegen_group_send(data_dir: &PathBuf, group_id: &str, text: &str) -> serde_json::Value {
+    post_authed(data_dir, "/group/send", serde_json::json!({ "groupId": group_id, "text": text }))
+}
+
+// ── Gruppen-Anrufe (WebRTC-Signaling) ──
+
+/// Einen Gruppen-Anruf öffnen oder einem laufenden beitreten.
+pub fn kollegen_call_open(data_dir: &PathBuf, group_id: &str) -> serde_json::Value {
+    post_authed(data_dir, "/call/open", serde_json::json!({ "groupId": group_id }))
+}
+
+/// Einem laufenden Gruppen-Anruf über dessen Call-ID beitreten.
+pub fn kollegen_call_join(data_dir: &PathBuf, call_id: &str) -> serde_json::Value {
+    post_authed(data_dir, "/call/join", serde_json::json!({ "callId": call_id }))
+}
+
+/// Anruf verlassen (Gruppen- oder Direkt-Call).
+pub fn kollegen_call_leave(data_dir: &PathBuf, call_id: &str) -> serde_json::Value {
+    post_authed(data_dir, "/call/leave", serde_json::json!({ "callId": call_id }))
+}
+
+/// WebRTC-Signal an einen anderen Teilnehmer senden.
+pub fn kollegen_call_signal(
+    data_dir: &PathBuf,
+    call_id: &str,
+    to_id: &str,
+    kind: &str,
+    data: serde_json::Value,
+) -> serde_json::Value {
+    post_authed(
+        data_dir,
+        "/call/signal",
+        serde_json::json!({ "callId": call_id, "to_id": to_id, "kind": kind, "data": data }),
+    )
+}
+
+// ── Direkt-Anrufe (privat, 1:1) ──
+
+/// Privaten 1:1-Anruf mit einem Freund öffnen oder beitreten.
+pub fn kollegen_call_direct_open(data_dir: &PathBuf, peer_id: &str) -> serde_json::Value {
+    post_authed(data_dir, "/call/direct/open", serde_json::json!({ "peerId": peer_id }))
+}
+
+/// Direkt-Call pollen (Signale + Teilnehmer).
+pub fn kollegen_call_direct_poll(data_dir: &PathBuf, call_id: &str, since_sig: u64) -> serde_json::Value {
+    get_authed(
+        data_dir,
+        "/call/direct/poll",
+        &[("callId", call_id.to_string()), ("sinceSig", since_sig.to_string())],
+    )
+}
+
+/// Eingehenden Direkt-Anruf für mich abfragen.
+pub fn kollegen_call_direct_active(data_dir: &PathBuf) -> serde_json::Value {
+    get_authed(data_dir, "/call/direct/active", &[])
 }
 
 /// Öffentliche Profile auf dem Backend durchsuchen (Paket {backend}/profiles).
@@ -781,7 +947,7 @@ fn run(data_dir: PathBuf) {
         // Freundes-Code-Anfragen der Mod bearbeiten.
         if now - last_social > 5000 {
             last_social = now;
-            sync_social(&data_dir);
+            sync_social(&data_dir, &backend, &session);
             process_pending_friend_add(&data_dir);
         }
     }
