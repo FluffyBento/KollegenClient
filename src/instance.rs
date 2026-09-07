@@ -978,9 +978,11 @@ pub(crate) fn enforce_bundled_mods(mods_dir: &Path, mc_version: &str, companion_
     // wrong version is present 1.21.1!". Deshalb wird nur gedeployt, wenn die
     // laufende Version exakt unterstützt ist; sonst werden die (ggf. noch von
     // einem früheren Stand vorhandenen) Bundle-Jars entfernt und die Instanz
-    // heilt sich beim nächsten Start von selbst. Die Begleit-Mod selbst wird
-    // weiterhin injiziert (via is_compatible_version, dort wird die
-    // MC-Sperre ja auf >=1.21 relaxiert) – Kern-Features funktionieren trotzdem.
+    // heilt sich beim nächsten Start von selbst. Auch die Begleit-Mod selbst
+    // folgt jetzt derselben exakten Versionsregel: Ihre Mixins (SkyBodies/
+    // SkyRenderer, Biome, ChatScreen) sind auf 1.21.11-Intermediary remapped –
+    // auf 1.21.1 (SteamDeck) bräche der Start sonst mit 'Critical injection
+    // failure … Mixin transformation of net.minecraft.class_408 failed' ab.
     if !crate::companion::bundles_compatible(mc_version) {
         warn!(
             "Integrations-Bundles bei MC {} übersprungen: die gebündelten Jars sind exakt für {} kompiliert/remapped. \

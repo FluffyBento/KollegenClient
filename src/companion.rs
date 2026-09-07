@@ -342,26 +342,31 @@ pub fn install_companion_mod(data_dir: &Path, instance_name: &str, version: &str
         );
         return;
     }
-    // The companion mod is built against a single Minecraft major.minor line
-    // (see `COMPANION_TARGET_MC_VERSION`). Installing it onto a different line
-    // would make the loader crash with cryptic class-not-found errors, so we
-    // refuse early with a clear message instead of relaxing the constraint.
-    if !is_compatible_version(version) {
-        let line = version_major_minor(COMPANION_TARGET_MC_VERSION)
-            .map(|(m, n)| format!("{}.{}", m, n))
-            .unwrap_or_else(|| COMPANION_TARGET_MC_VERSION.to_string());
+    // The companion mod is built against a single Minecraft version
+    // (`COMPANION_TARGET_MC_VERSION`): sowohl die Remapping als auch die
+    // Mixins zielen auf exakt deren intermediary (z.B. `class_9975`,
+    // `method_48162`, ChatScreen-<init>). `is_compatible_version` vergleicht
+    // nur die major.minor-Linie – eine 1.21.1-Instanz (SteamDeck) lädt die
+    // Mod dann zwar (dependency relaxiert), stürzt aber beim Start mit einer
+    // fatalen `InvalidInjectionException` ab, weil z.B. SkyBodies/SkyRenderer
+    // (class_9975) oder der neue Biome-/ChatScreen-Code in 1.21.1 fehlen.
+    // Deshalb gilt dieselbe Regel wie für die Bundles: mod und Mixins nur,
+    // wenn die Version EXAKT passt. Jede andere Version heilt sich selbst,
+    // indem ein evtl. noch vorhandener Companion-Jar entfernt wird.
+    if !bundles_compatible(version) {
         warn!(
-            "Kollegen-Client-Mod bei MC {v} übersprungen: die Mod ist nur mit Minecraft {t} ({line}.x) kompatibel. \
-             Eine Installation auf {v} würde beim Start mit NoClassDefFoundError abstürzen. \
-             Bitte eine Instanz mit {t} (oder einer anderen {line}.x-Version) nutzen.",
+            "Kollegen-Client-Mod bei MC {v} übersprungen: die Mod (Mixins) ist nur mit Minecraft {t} kompatibel. \
+             Eine Installation auf {v} würde beim Start mit einer Mixin-'Critical injection failure' abstürzen. \
+             Bitte eine Instanz mit {t} nutzen (die Integrations-Bundles folgen derselben Regel).",
             v = version,
             t = COMPANION_TARGET_MC_VERSION,
             line = line
         );
-        // Auch eine ggf. aus einer früheren 1.21.x-Konfiguration übrig gebliebene
-        // Companion-Jar entfernen, sobald die Instanz auf eine andere Linie
-        // (z.B. 26.2) wechselt – sonst lädt der Loader die alte Mod und stürzt
-        // mit NoClassDefFoundError ab. So heilt sich die Instanz von selbst.
+        // Auch eine aus einer anderen Konfiguration übrig gebliebene
+        // Companion-Jar entfernen, sobald die Instanz auf eine nicht exakt
+        // unterstützte Version wechselt – sonst lädt der Loader die alte Mod
+        // und stürzt mit dem Mixin-Crash ab. So heilt sich die Instanz von
+        // selbst (entspricht dem Self-Healing der Bundles).
         let mods_dir = crate::utils::instance_dir(data_dir, instance_name).join("mods");
         if let Ok(entries) = std::fs::read_dir(&mods_dir) {
             for e in entries.flatten() {
@@ -371,7 +376,7 @@ pub fn install_companion_mod(data_dir: &Path, instance_name: &str, version: &str
                 }
                 let name = e.file_name().to_string_lossy().to_lowercase();
                 if is_companion_mod_name(&name) {
-                    info!("Entferne inkompatible (1.21.x) Kollegen-Client-Mod aus Instanz '{}': {}", instance_name, name);
+                    info!("Entferne inkompatible Kollegen-Client-Mod aus Instanz '{}': {}", instance_name, name);
                     let _ = std::fs::remove_file(&p);
                 }
             }
