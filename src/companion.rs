@@ -359,8 +359,7 @@ pub fn install_companion_mod(data_dir: &Path, instance_name: &str, version: &str
              Eine Installation auf {v} würde beim Start mit einer Mixin-'Critical injection failure' abstürzen. \
              Bitte eine Instanz mit {t} nutzen (die Integrations-Bundles folgen derselben Regel).",
             v = version,
-            t = COMPANION_TARGET_MC_VERSION,
-            line = line
+            t = COMPANION_TARGET_MC_VERSION
         );
         // Auch eine aus einer anderen Konfiguration übrig gebliebene
         // Companion-Jar entfernen, sobald die Instanz auf eine nicht exakt
