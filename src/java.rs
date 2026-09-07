@@ -17,21 +17,18 @@ fn java_exe() -> &'static str {
 /// otherwise load those bundled libs, crash on `-version` and be reported as
 /// "Java X nicht gefunden". The JRE ships its own libs, so clearing them is safe.
 ///
-/// Zusätzlich werden SteamOS-spezifische / AppImage-Variablen entfernt: Beim
-/// Start aus einem AppImage (wie dem SteamDeck-Launcher) erbt der Java-Kind-
-/// Prozess sonst `LD_LIBRARY_PATH`, `APPIMAGE`, `APPDIR`, `STEAM_*` und
-/// `WAYLAND_DISPLAY` des Wrappers, wodurch Minecraft stumm hängen kann (falsche
-/// .so-Dateien / GL/EGL-Vulkan-Komplexität), bevor irgendein Log geschrieben
-/// wird.
+/// WICHTIG (SteamDeck): Nur diese beiden Variablen entfernen. Zusätzliche
+/// Entfernungen (APPIMAGE, APPDIR, STEAM_RUNTIME_*, STEAM_COMPAT_*) wurden in
+/// v1.13.6 kurzzeitig ergänzt und brachen dort die Java-Detektion: Das
+/// `-version`-Probe von `find_java` (s. `java_major`) lief unter dieser bereinigten
+/// Umgebung nicht mehr, woraufhin ein vorhandenes, funktionierendes Java 21 als
+/// "nicht gefunden" gemeldet wurde (Launch fehlgeschlagen). Die wahre Ursache des
+/// ursprünglichen stillen Startabbruchs war übrigens der Mixin-Crash der
+/// Begleit-Mod (v1.13.6-Fix), nicht die AppImage-Umgebung – die Bereinigung
+/// brachte also keinen Fix, nur die Java-Detektion.
 pub fn sanitize_java_env(cmd: &mut Command) {
     cmd.env_remove("LD_LIBRARY_PATH");
     cmd.env_remove("LD_PRELOAD");
-    cmd.env_remove("APPIMAGE");
-    cmd.env_remove("APPDIR");
-    cmd.env_remove("STEAM_RUNTIME_LIBRARY_PATH");
-    cmd.env_remove("STEAM_RUNTIME_PREFER_HOST_LIBRARIES");
-    cmd.env_remove("STEAM_COMPAT_INSTALL_PATH");
-    cmd.env_remove("STEAM_COMPAT_RUN");
 }
 
 /// Finds a Java executable matching the required major version.
@@ -103,6 +100,7 @@ pub fn find_java(data_dir: &Path, required_version: u32) -> Result<String> {
         }
     }
 
+    let mut probed: Vec<String> = Vec::new();
     let mut best: Option<(u32, PathBuf)> = None;
     for c in &candidates {
         if c.as_os_str().is_empty() || !c.exists() {
@@ -118,6 +116,8 @@ pub fn find_java(data_dir: &Path, required_version: u32) -> Result<String> {
                     best = Some((major, c.clone()));
                 }
             }
+        } else {
+            probed.push(format!("{} (Probe fehlgeschlagen)", c.display()));
         }
     }
 
@@ -129,9 +129,14 @@ pub fn find_java(data_dir: &Path, required_version: u32) -> Result<String> {
         return Ok(p.to_string_lossy().into_owned());
     }
 
+    let detail = if probed.is_empty() {
+        String::new()
+    } else {
+        format!(" Geprüfte Kandidaten: {}", probed.join("; "))
+    };
     Err(anyhow!(
-        "Java {} nicht gefunden. Bitte JRE herunterladen oder JAVA_HOME setzen.",
-        required_version
+        "Java {} nicht gefunden. Bitte JRE herunterladen oder JAVA_HOME setzen.{}",
+        required_version, detail
     ))
 }
 
@@ -268,8 +273,27 @@ fn find_java_bin(dir: &Path) -> Option<PathBuf> {
 
 /// Returns the major version of a java executable (e.g. 21, 17, 8).
 fn java_major(java_path: &Path) -> Option<u32> {
-    let mut cmd = Command::new(java_path);
-    sanitize_java_env(&mut cmd);
+    // Erst mit der sanitisierten Umgebung probieren (AppImage-/SteamOS-Altlasten
+    // entfernt – ein heruntergeladenes Temurin-JRE braucht diese Variablen nicht
+    // und lädt ansonsten ggf. die gebündelten WebKit-Libs). Schlägt das fehl,
+    // noch einmal mit der UNVERÄNDERTEN Umgebung versuchen: Ein Java aus der
+    // Steam-Runtime o.ä. kann auf STEAM_RUNTIME_LIBRARY_PATH o.ä. angewiesen
+    // sein, um überhaupt zu starten. Erst wenn BEIDE Probes fehlschlagen, gilt
+    // der Kandidat als unbrauchbar.
+    for sanitized in [true, false] {
+        let mut cmd = Command::new(java_path);
+        if sanitized {
+            sanitize_java_env(&mut cmd);
+        }
+        if let Some(major) = parse_java_major(&mut cmd) {
+            return Some(major);
+        }
+    }
+    None
+}
+
+/// Runs `java -version` on `cmd` and parses the major version.
+fn parse_java_major(cmd: &mut Command) -> Option<u32> {
     let output = cmd.arg("-version").output().ok()?;
     let text = String::from_utf8_lossy(&output.stderr);
     let line = text.lines().next()?;
