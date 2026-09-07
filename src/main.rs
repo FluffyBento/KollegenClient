@@ -1832,7 +1832,7 @@ fn main() {
         let dd = data_dir.clone();
         std::thread::Builder::new()
             .name("kollegen-social-sync".into())
-            .spawn(move || presence::sync_social(&dd))
+            .spawn(move || presence::sync_social(&dd, None, None))
             .ok();
     }
     // Initial "in launcher" presence (only shows if Discord is running).
