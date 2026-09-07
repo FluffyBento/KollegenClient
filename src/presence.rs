@@ -270,29 +270,35 @@ fn friends_value(data_dir: &PathBuf) -> serde_json::Value {
 /// in-game begleitende Mod: Sie enthält Backend-URL + gültige Session + eigenes
 /// Profil, damit die Mod direkt (ohne Discord-OAuth) die sozialen Endpunkte
 /// (Freunde, Gruppen, DMs) aufrufen und Presence melden kann.
-pub fn sync_social(data_dir: &PathBuf, backend: &str, session: &str) {
+///
+/// `backend`/`session` sind optional: Der Presence-Loop liefert beides (und
+/// schreibt dann die client.json-Brücke), der asynchrone Start-Helfer in
+/// main.rs ruft nur `(data_dir)` auf und schreibt dann nur social.json.
+pub fn sync_social(data_dir: &PathBuf, backend: Option<&str>, session: Option<&str>) {
     let me = me_value(data_dir);
     if me.get("error").is_some() {
         return;
     }
     let friends = friends_value(data_dir);
     let out = serde_json::json!({ "me": me, "friends": friends });
-    let bridge = serde_json::json!({
-        "version": 1,
-        "backend": backend,
-        "session": session,
-        "me": me,
-        "friends": friends,
-        "ts": now_ms(),
-    });
     if let Some(home) = dirs::home_dir() {
         let dir = home.join(".kollegen");
         if std::fs::create_dir_all(&dir).is_ok() {
             if let Ok(s) = serde_json::to_string_pretty(&out) {
                 let _ = std::fs::write(dir.join("social.json"), s);
             }
-            if let Ok(s) = serde_json::to_string_pretty(&bridge) {
-                let _ = std::fs::write(dir.join("client.json"), s);
+            if let (Some(backend), Some(session)) = (backend, session) {
+                let bridge = serde_json::json!({
+                    "version": 1,
+                    "backend": backend,
+                    "session": session,
+                    "me": me,
+                    "friends": friends,
+                    "ts": now_ms(),
+                });
+                if let Ok(s) = serde_json::to_string_pretty(&bridge) {
+                    let _ = std::fs::write(dir.join("client.json"), s);
+                }
             }
         }
     }
@@ -947,7 +953,7 @@ fn run(data_dir: PathBuf) {
         // Freundes-Code-Anfragen der Mod bearbeiten.
         if now - last_social > 5000 {
             last_social = now;
-            sync_social(&data_dir, &backend, &session);
+            sync_social(&data_dir, Some(&backend), Some(&session));
             process_pending_friend_add(&data_dir);
         }
     }
