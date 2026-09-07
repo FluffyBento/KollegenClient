@@ -1390,6 +1390,101 @@ pub fn launch(
     // "Minecraft Java Edition" title logo with Logo.png.
     ensure_title_logo_pack(&inst_dir, &inst.version);
 
+    // ── Start-Bericht (~/.kollegen/last-launch-report.txt) ──────────────────
+    // Vor dem Spawn wird Umgebung + Kommandozeile + `java -version`
+    // dokumentiert und Java auf Startbarkeit geprüft. Wird Java selbst gar
+    // nicht startbar (z.B. durch SteamOS-AppImage-Lib-Konflikt), brechen wir
+    // HIER ab und liefern eine echte Fehlermeldung statt des irreführenden
+    // "Minecraft started"-Alerts. Der Watchdog weiter unten hängt Exit-Code,
+    // Hänger-Warnung und die letzten latest.log-Zeilen an denselben Bericht an –
+    // damit ist jeder "startet nicht"-Fall auch auf dem SteamDeck nachvoll-
+    // ziehbar, selbst wenn die UI-Log-Anzeige unerreichbar ist.
+    let report_path = dirs::home_dir().map(|h| h.join(".kollegen").join("last-launch-report.txt"));
+    if let Some(rp) = &report_path {
+        if let Some(p) = rp.parent() {
+            let _ = fs::create_dir_all(p);
+        }
+    }
+
+    // Java-Sanity-Check (stderr, da `java -version` auf stderr schreibt).
+    let java_probe = std::process::Command::new(java_path)
+        .arg("-version")
+        .output();
+    let java_version_note = match &java_probe {
+        Ok(o) => {
+            let s = String::from_utf8_lossy(&o.stderr);
+            let t = s.trim();
+            if t.is_empty() {
+                String::from_utf8_lossy(&o.stdout).trim().to_string()
+            } else {
+                t.to_string()
+            }
+        }
+        Err(e) => format!("java -version fehlgeschlagen: {}", e),
+    };
+    if java_probe.is_err() {
+        let mut extra = String::new();
+        if let Some(rp) = &report_path {
+            extra = format!(" (Bericht: {})", rp.display());
+        }
+        return Err(format!(
+            "Java ist nicht startbar ({}/java):{}{}",
+            java_path.display(),
+            if java_version_note.is_empty() {
+                String::new()
+            } else {
+                format!(" {}", java_version_note)
+            },
+            extra
+        ));
+    }
+
+    let cmdline = std::iter::once(java_path.to_string_lossy().into_owned())
+        .chain(cmd.get_args().map(|a| a.to_string_lossy().into_owned()))
+        .collect::<Vec<_>>()
+        .join(" ");
+    {
+        let mut txt = String::new();
+        txt.push_str(&format!(
+            "Kollegen-Launcher Start-Bericht — {}\n",
+            chrono::Local::now().format("%Y-%m-%d %H:%M:%S")
+        ));
+        txt.push_str(&format!(
+            "Instanz: {} ({} / {})\n",
+            inst.name, inst.version, inst.loader
+        ));
+        txt.push_str(&format!("java-Binary: {}\n", java_path.display()));
+        txt.push_str(&format!("java -version:\n{}\n", java_version_note));
+        txt.push_str("Umgebung (relevant):\n");
+        for key in [
+            "DISPLAY",
+            "WAYLAND_DISPLAY",
+            "XDG_SESSION_TYPE",
+            "XDG_CURRENT_DESKTOP",
+            "STEAM_GAMEID",
+            "STEAM_COMPAT_APP_ID",
+            "APPIMAGE",
+            "APPDIR",
+            "JAVA_HOME",
+            "JAVA_TOOL_OPTIONS",
+            "_JAVA_OPTIONS",
+            "GDK_BACKEND",
+            "LIBGL_ALWAYS_SOFTWARE",
+            "MESA_VK_WSI_PRESENT_MODE",
+        ] {
+            if let Ok(v) = std::env::var(key) {
+                txt.push_str(&format!("  {}={}\n", key, v));
+            }
+        }
+        txt.push_str("Aufruf:\n");
+        txt.push_str(&cmdline);
+        txt.push_str("\n");
+        txt.push_str("── Start (Spawn) ──\n");
+        if let Some(rp) = &report_path {
+            let _ = fs::write(rp, txt);
+        }
+    }
+
     info!("Starting Minecraft process...");
     let mut child = cmd.spawn()?;
     let pid = child.id();
@@ -1545,6 +1640,7 @@ pub fn launch(
     let logs_arc = Arc::clone(&state.logs);
     let log_path2 = log_path.clone();
     let data_dir2 = state.data_dir.clone();
+    let report_path2 = report_path.clone();
     thread::spawn(move || {
         let t0 = std::time::Instant::now();
         let mut exit_code: Option<i32> = None;
@@ -1622,6 +1718,25 @@ pub fn launch(
                 for l in log_tail.lines().rev().take(8) {
                     logs.push(l.trim_end().to_string());
                 }
+            }
+        }
+        // Dieselben Fakten an den Start-Bericht anhängen.
+        if let Some(rp) = &report_path2 {
+            let mut txt = String::new();
+            txt.push_str(&format!(
+                "\n── Ende ({}) ──\n{}\n",
+                chrono::Local::now().format("%Y-%m-%d %H:%M:%S"),
+                line,
+            ));
+            if !log_tail.trim().is_empty() {
+                txt.push_str("── Letzte Log-Zeilen ──\n");
+                for l in log_tail.lines().rev().take(15) {
+                    txt.push_str(l.trim_end());
+                    txt.push('\n');
+                }
+            }
+            if let Ok(mut f) = fs::OpenOptions::new().create(true).append(true).open(rp) {
+                let _ = f.write_all(txt.as_bytes());
             }
         }
         let _ = discord_tx.send(crate::discord::RpcMessage::Set {
