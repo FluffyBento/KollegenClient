@@ -1652,11 +1652,70 @@ fn setup_webkit_appimage_env() {
     }
 }
 
+/// Engels-Forward: Der Launcher spiegelt den vollen Gamepad-Zustand (GLFW-
+/// kanonisches Layout) als JSON-State in die Mods-Ordner aller Instanzen. Der
+/// Begleit-Mod liest diese Datei als "Forward-Gamepad" und speist sie in den
+/// selben GLFWGamepadState ein – so funktioniert die SteamDeck-Steuerung auch,
+/// wenn Steam Input den virtuellen Controller NUR an den Steam-registrierten
+/// Launcher-Prozess routet und der Minecraft-Kindprozess kein Gerät sieht.
+fn forward_gamepad_json(present: bool, axes: &[f32; 6], buttons: &[u8; 15]) -> String {
+    let t = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as u64)
+        .unwrap_or(0);
+    serde_json::json!({
+        "present": present,
+        "t": t,
+        "axes": axes,
+        "buttons": buttons
+    })
+    .to_string()
+}
+
+/// Liest den vollen aktuellen Zustand des ersten verbundenen Controllers in
+/// GLFW-kanonischem Layout: axes = [LeftX, LeftY, RightX, RightY, LT, RT],
+/// buttons = GLFW-Gamepad-Button-Index (0=A,1=B,2=X,3=Y,4=LB,5=RB,6=Back,
+/// 7=Start,8=Guide,9=LS,10=RS,11=Up,12=Right,13=Down,14=Left).
+fn read_forward_state(gilrs: &mut gilrs::Gilrs) -> (bool, [f32; 6], [u8; 15]) {
+    use gilrs::{Axis, Button};
+    let mut axes = [0.0f32; 6];
+    let mut buttons = [0u8; 15];
+    for (_, gamepad) in gilrs.gamepads() {
+        if !gamepad.is_connected() {
+            continue;
+        }
+        axes[0] = gamepad.value(Axis::LeftStickX);
+        axes[1] = gamepad.value(Axis::LeftStickY);
+        axes[2] = gamepad.value(Axis::RightStickX);
+        axes[3] = gamepad.value(Axis::RightStickY);
+        axes[4] = gamepad.value(Axis::LeftZ);
+        axes[5] = gamepad.value(Axis::RightZ);
+        buttons[0] = if gamepad.is_pressed(Button::South) { 1 } else { 0 };
+        buttons[1] = if gamepad.is_pressed(Button::East) { 1 } else { 0 };
+        buttons[2] = if gamepad.is_pressed(Button::West) { 1 } else { 0 };
+        buttons[3] = if gamepad.is_pressed(Button::North) { 1 } else { 0 };
+        buttons[4] = if gamepad.is_pressed(Button::LeftTrigger) { 1 } else { 0 };
+        buttons[5] = if gamepad.is_pressed(Button::RightTrigger) { 1 } else { 0 };
+        buttons[6] = if gamepad.is_pressed(Button::Select) { 1 } else { 0 };
+        buttons[7] = if gamepad.is_pressed(Button::Start) { 1 } else { 0 };
+        buttons[9] = if gamepad.is_pressed(Button::LeftThumb) { 1 } else { 0 };
+        buttons[10] = if gamepad.is_pressed(Button::RightThumb) { 1 } else { 0 };
+        buttons[11] = if gamepad.is_pressed(Button::DPadUp) { 1 } else { 0 };
+        buttons[12] = if gamepad.is_pressed(Button::DPadRight) { 1 } else { 0 };
+        buttons[13] = if gamepad.is_pressed(Button::DPadDown) { 1 } else { 0 };
+        buttons[14] = if gamepad.is_pressed(Button::DPadLeft) { 1 } else { 0 };
+        return (true, axes, buttons);
+    }
+    (false, axes, buttons)
+}
+
 /// Ständig laufender Thread, der den physischen Controller (gilrs) ausliest,
 /// sobald der SteamDeck-/Konsolenmodus aktiv ist. WebKitGTK implementiert die
 /// JS-Gamepad-API auf Linux praktisch nicht, daher wird der Controller hier im
 /// Backend gelesen und als `console-input`-Tauri-Event an die UI geschickt.
-fn spawn_gamepad_loop(app: tauri::AppHandle, console_on: Arc<AtomicBool>) {
+/// Zusätzlich wird der volle Gamepad-Zustand als `.kollegen-gamepad`-State in
+/// die Mods-Ordner gespiegelt (siehe {@code forward_gamepad_json}).
+fn spawn_gamepad_loop(app: tauri::AppHandle, console_on: Arc<AtomicBool>, data_dir: PathBuf) {
     std::thread::Builder::new()
         .name("kollegen-gamepad".into())
         .spawn(move || {
@@ -1690,7 +1749,25 @@ fn spawn_gamepad_loop(app: tauri::AppHandle, console_on: Arc<AtomicBool>) {
                 }
             };
             let mut console_was_on = false;
+            // Forward-State: nur schreiben, wenn sich der Wert geändert hat oder
+            // ein Heartbeat fällig ist (hält den Zeitstempel im Mod frisch).
+            let mut fwd_dirs: Vec<PathBuf> = Vec::new();
+            let mut fwd_last = Instant::now() - Duration::from_secs(10);
+            let mut last_payload: Option<Vec<f32>> = None;
+            let mut fwd_list_refresh = Instant::now() - Duration::from_secs(10);
+            const FWD_HEARTBEAT: Duration = Duration::from_millis(400);
             loop {
+                // Instanz-Liste nur selten neu laden (Instanzen ändern sich kaum).
+                if fwd_list_refresh.elapsed() >= Duration::from_secs(5) {
+                    fwd_list_refresh = Instant::now();
+                    fwd_dirs = utils::load_json::<Vec<crate::types::Instance>>(
+                        &utils::instances_file(&data_dir),
+                        vec![],
+                    )
+                    .into_iter()
+                    .map(|inst| utils::instance_dir(&data_dir, &inst.name).join("mods"))
+                    .collect();
+                }
                 let console_on_now = console_on.load(Ordering::Relaxed);
                 if console_on_now {
                     // Zustände beim (Re-)Aktivieren zurücksetzen, damit beim
@@ -1770,6 +1847,31 @@ fn spawn_gamepad_loop(app: tauri::AppHandle, console_on: Arc<AtomicBool>) {
                     }
                 } else {
                     console_was_on = false;
+                }
+                // ── Forward-State spiegeln (Engine/Launcher → Begleit-Mod) ──
+                // Im Steam-Game-Mode sieht der Minecraft-Kindprozess keinen
+                // Controller (Steam Input routet den virtuellen Pad an den
+                // Steam-registrierten Launcher). Deshalb liest der Launcher den
+                // vollen Zustand und schreibt ihn als .kollegen-gamepad-JSON in
+                // die Mods-Ordner; der Mod speist ihn als Fallback ein.
+                let (fwd_present, fwd_axes, fwd_buttons) = read_forward_state(&mut gilrs);
+                // "t" ist ein frischer Zeitstempel: NUR über Werte-Vergleich
+                // (ohne t) entscheiden, ob neu geschrieben wird.
+                let payload = [fwd_present, fwd_axes[0], fwd_axes[1], fwd_axes[2],
+                    fwd_axes[3], fwd_axes[4], fwd_axes[5]]
+                    .into_iter()
+                    .chain(fwd_buttons.iter().map(|&b| b as f32))
+                    .collect::<Vec<f32>>();
+                let changed = last_payload.as_deref() != Some(payload.as_slice());
+                let heartbeat = fwd_last.elapsed() >= FWD_HEARTBEAT;
+                if changed || heartbeat {
+                    let json = forward_gamepad_json(fwd_present, &fwd_axes, &fwd_buttons);
+                    last_payload = Some(payload);
+                    fwd_last = Instant::now();
+                    for dir in &fwd_dirs {
+                        let _ = std::fs::create_dir_all(dir);
+                        let _ = std::fs::write(dir.join(".kollegen-gamepad"), &json);
+                    }
                 }
                 std::thread::sleep(Duration::from_millis(16));
             }
@@ -1863,7 +1965,7 @@ fn main() {
         .setup(move |app| {
             app_updates::spawn(app.handle().clone());
             let gpad_console_on = console_on.clone();
-            spawn_gamepad_loop(app.handle().clone(), gpad_console_on);
+            spawn_gamepad_loop(app.handle().clone(), gpad_console_on, data_dir.clone());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

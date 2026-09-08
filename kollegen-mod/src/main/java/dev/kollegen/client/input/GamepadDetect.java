@@ -1,6 +1,10 @@
 package dev.kollegen.client.input;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import dev.kollegen.client.KollegenMod;
+import net.fabricmc.loader.api.FabricLoader;
 import org.lwjgl.glfw.GLFW;
 import org.lwjgl.glfw.GLFWGamepadState;
 
@@ -8,6 +12,8 @@ import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.nio.FloatBuffer;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 /**
  * Gemeinsame Gamepad-Erkennung für Cursor- und Gameplay-Steuerung.
@@ -61,10 +67,17 @@ public final class GamepadDetect {
      *   <li>Zuerst der normale Pfad: {@code glfwJoystickIsGamepad()} == true.</li>
      *   <li>Fallback: ein verbundener Joystick mit Valve-Vendor-ID bzw.
      *       Steam-artigem Namen (auch ohne Mapping).</li>
+     *   <li>Letzter Fallback: der vom Launcher gespiegelte Forward-State
+     *       ({@code mods/.kollegen-gamepad}). Im Steam-Game-Mode sieht der
+     *       Minecraft-Kindprozess sein Gerät nicht, weil Steam Input den
+     *       virtuellen Controller an den Steam-registrierten Launcher routet.
+     *       Der Launcher liest ihn dort und schreibt ihn als JSON – dieser
+     *       Zustand wird hier in denselben {@link GLFWGamepadState} eingelesen
+     *       (liefert dann ein fiktives Joystick-Ergebnis).</li>
      * </ul>
      *
      * @param state zu befüllender Gamepad-State (wird nur bei Erfolg geschrieben)
-     * @return Joystick-Index oder -1
+     * @return Joystick-Index, das Fiktiv-Ergebnis {@link #FORWARDED} oder -1
      */
     public static int scan(GLFWGamepadState state) {
         ensureMappings();
@@ -80,8 +93,12 @@ public final class GamepadDetect {
                 return jid;
             }
         }
+        if (state != null && readForwarded(state)) return FORWARDED;
         return -1;
     }
+
+    /** Fiktiver Rückgabewert, wenn der gespiegelte Launcher-Zustand benutzt wird. */
+    public static final int FORWARDED = -2;
 
     /**
      * Füllt den Gamepad-State aus den rohen Joystick-Achsen/-Buttons eines
@@ -127,6 +144,58 @@ public final class GamepadDetect {
         } catch (Throwable ignored) {
         }
     }
+
+    /**
+     * Liest den vom Launcher gespiegelten Forward-State
+     * ({@code mods/.kollegen-gamepad}) und füllt damit das übergebene
+     * {@link GLFWGamepadState}-Objekt in GLFW-kanonischem Layout.
+     * Die Daten kommen vom Steam-registrierten Launcher-Prozess, weil Steam
+     * Input im Game Mode den virtuellen Controller nur dorthin routet – der
+     * Minecraft-Kindprozess sieht sein Gerät nicht, GLFW findet also nichts.
+     * <p>
+     * Das JSON hat folgendes Format (vom Launcher, {@code forward_gamepad_json}):
+     * <pre>
+     * {"present":true,"t":&lt;epoch-ms&gt;,
+     *  "axes":[LeftX,LeftY,RightX,RightY,LT,RT],
+     *  "buttons":[15 Werte in GLFW-Gamepad-Button-Reihenfolge]}
+     * </pre>
+     *
+     * @param state zu befüllender Gamepad-State (wird nur bei Erfolg geschrieben)
+     * @return true, wenn der Forward-State frisch gelesen werden konnte
+     */
+    private static boolean readForwarded(GLFWGamepadState state) {
+        try {
+            Path p = FabricLoader.getInstance().getGameDir()
+                    .resolve("mods").resolve(".kollegen-gamepad");
+            if (!Files.exists(p)) return false;
+            JsonObject o = JsonParser.parseString(Files.readString(p)).getAsJsonObject();
+            if (!o.has("present") || !o.get("present").getAsBoolean()) return false;
+            long t = o.get("t").getAsLong();
+            // Nur frische Daten nutzen (Launcher schreibt im 16ms-Takt); abgelaufene
+            // States (Launcher geschlossen, Controller abgesteckt) ignorieren.
+            if (System.currentTimeMillis() - t > 1500) return false;
+
+            JsonArray axes = o.get("axes").getAsJsonArray();
+            JsonArray buttons = o.get("buttons").getAsJsonArray();
+            FloatBuffer dstAxes = state.axes();
+            ByteBuffer dstButtons = state.buttons();
+            for (int i = 0; i < 6 && i < axes.size(); i++) {
+                dstAxes.put(i, axes.get(i).getAsFloat());
+            }
+            for (int i = 0; i < 15 && i < buttons.size(); i++) {
+                dstButtons.put(i, buttons.get(i).getAsByte());
+            }
+            if (!forwardedLogged) {
+                forwardedLogged = true;
+                KollegenMod.LOGGER.info("[gamepad] Nutze Forward-Gamepad des Launchers (.kollegen-gamepad).");
+            }
+            return true;
+        } catch (Throwable t) {
+            return false;
+        }
+    }
+
+    private static boolean forwardedLogged = false;
 
     private static boolean isLikelyValve(int jid) {
         try {

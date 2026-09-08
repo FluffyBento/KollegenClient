@@ -81,10 +81,11 @@ public final class ControllerMode {
             firstTick = false;
         }
 
-        // Gibt es ein verbundenes Gamepad? (Mapping-DB + Valve-Fallback in GamepadDetect)
+        // Gibt es ein verbundenes Gamepad? (Mapping-DB + Valve-Fallback +
+        // Launcher-Forward in GamepadDetect; FORWARDED zählt genauso als Pad)
         boolean padOk = false;
         int pad = GamepadDetect.scan(GAMEPAD);
-        if (pad >= 0) {
+        if (pad >= 0 || pad == GamepadDetect.FORWARDED) {
             padOk = true;
             applyGamepad(mc, window);
         }
