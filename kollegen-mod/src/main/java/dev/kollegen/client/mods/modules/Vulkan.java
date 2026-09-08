@@ -38,6 +38,14 @@ public final class Vulkan {
 
         @Override
         public void onEnable() {
+            // Essential-Mod + Vulkan (VulkanMod/Beryl): Essential-UI wird kopfstehend /
+            // crasht – nicht aktivieren, sonst startet die Instanz kopfstehend.
+            if (dev.kollegen.client.mods.modules.RendererManager.essentialPresent(
+                    net.fabricmc.loader.api.FabricLoader.getInstance().getGameDir().resolve("mods"))) {
+                this.enabled = false;
+                risk = "Vulkan mit Essential-Mod inkompatibel – bleibt auf OpenGL.";
+                return;
+            }
             // Nur Wunsch speichern – kein Datei-Umbau im laufenden Spiel!
             RendererManager.setDesired(RendererManager.Group.VULKAN);
             risk = "Vulkan AKTIV – starte Minecraft neu, damit VulkanMod+Beryl laden.";

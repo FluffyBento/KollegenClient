@@ -218,8 +218,7 @@ pub async fn install(app: &tauri::AppHandle) -> Result<(), String> {
         .download_and_install(|_chunk_length, _content_length| {}, || {})
         .await
         .map_err(|e| e.to_string())?;
-    app.restart();
-    Ok(())
+    app.restart()
 }
 
 async fn check_and_prompt(app: &tauri::AppHandle) -> tauri_plugin_updater::Result<()> {
@@ -251,8 +250,7 @@ async fn check_and_prompt(app: &tauri::AppHandle) -> tauri_plugin_updater::Resul
         update
             .download_and_install(|_chunk_length, _content_length| {}, || {})
             .await?;
-        app.restart();
-        Ok(())
+        app.restart()
     } else {
         // Notification-only: local/package installs that can't self-update.
         // Point the user to the right download for their install format.

@@ -72,10 +72,23 @@ public final class RendererManager {
 
     /** Stellt den auf dem State-File basierenden Renderer-Zustand her. */
     public static void apply() {
-        Group active = desiredGroup();
         Path mods = FabricLoader.getInstance().getGameDir().resolve("mods");
         if (!Files.isDirectory(mods)) {
             return;
+        }
+        Group active = desiredGroup();
+        // Essential-Mod + Vulkan (VulkanMod/Beryl) sind inkompatibel: Essential rendert
+        // seine UI in Kombination mit dem Vulkan-Renderer kopfstehend und crasht das
+        // Spiel. Essential stellt dafür keinen eigenen Fix bereit (nur ein inoffizielles
+        // Community-Patch-Mod, das wir nicht bündeln). Daher erzwingen wir bei
+        // installiertem Essential immer die OpenGL-Gruppe und korrigieren den State
+        // zurück, so dass der Launcher den Wunsch beim nächsten Start übernimmt.
+        if (active == Group.VULKAN && essentialPresent(mods)) {
+            KollegenMod.LOGGER.warn(
+                    "Kollegen: Essential-Mod erkannt – Vulkan (VulkanMod/Beryl) ist mit dem "
+                            + "Essential-Renderer inkompatibel (kopfstehende UI / Crash). Erzwinge OpenGL (Sodium+Iris).");
+            active = Group.OPENGL;
+            setDesired(Group.OPENGL);
         }
         for (String[] mod : MODS) {
             boolean wantActive = isVulkan(mod[2]) == (active == Group.VULKAN);
@@ -87,6 +100,20 @@ public final class RendererManager {
 
     private static boolean isVulkan(String id) {
         return id.equals("vulkanmod") || id.equals("beryl");
+    }
+
+    /** True, wenn die Essential-Mod im mods/-Ordner liegt (essential*.jar). */
+    public static boolean essentialPresent(Path mods) {
+        try (java.nio.file.DirectoryStream<Path> ds = Files.newDirectoryStream(mods)) {
+            for (Path p : ds) {
+                String name = p.getFileName().toString().toLowerCase();
+                if (name.startsWith("essential") && name.endsWith(".jar")) {
+                    return true;
+                }
+            }
+        } catch (IOException ignored) {
+        }
+        return false;
     }
 
     private static void ensureState(Path mods, String resource, String fileName, boolean active) {

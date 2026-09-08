@@ -88,16 +88,15 @@ fn fit_logo_square(png: &[u8]) -> Vec<u8> {
     let mut buf = Vec::new();
     {
         let img = image::DynamicImage::ImageRgba8(canvas);
-        let mut cursor = std::io::Cursor::new(buf);
-        if img
+        let mut cursor = std::io::Cursor::new(&mut buf);
+        if !img
             .write_to(&mut cursor, image::ImageFormat::Png)
             .is_ok()
         {
-            return cursor.into_inner();
+            return png.to_vec();
         }
-        buf = cursor.into_inner();
     }
-    png.to_vec()
+    buf
 }
 
 /// Builds the title-logo resource pack zip in memory, rewriting `pack.mcmeta`
@@ -823,6 +822,27 @@ pub(crate) fn enforce_renderer_consistency(mods_dir: &Path, vulkan_enabled: bool
     if !mods_dir.exists() {
         return;
     }
+    // Essential-Mod + Vulkan (VulkanMod/Beryl) sind inkompatibel: Essential rendert
+    // seine UI in Kombination mit dem Vulkan-Renderer kopfstehend und crasht das
+    // Spiel (bekanntes Problem, kein offizieller Fix). Erzwinge OpenGL, sobald
+    // essential*.jar im mods/-Ordner liegt – der In-Game-Toggle spiegelt das über
+    // denselben State und die Begleit-Mod hat denselben Guard in RendererManager.
+    let essential_present = fs::read_dir(mods_dir)
+        .map(|entries| {
+            entries.flatten().any(|e| {
+                let name = e.file_name().to_string_lossy().to_lowercase();
+                name.starts_with("essential") && name.ends_with(".jar")
+            })
+        })
+        .unwrap_or(false);
+    let vulkan_enabled = if essential_present {
+        if vulkan_enabled {
+            info!("Essential-Mod erkannt – erzwinge OpenGL-Renderer (Vulkan/VulkanMod+Beryl ist mit Essential inkompatibel: kopfstehende UI/Crash).");
+        }
+        false
+    } else {
+        vulkan_enabled
+    };
     // Persist the desired renderer so the in-game companion mod honours it.
     let state = if vulkan_enabled { "vulkan" } else { "opengl" };
     let _ = fs::write(renderer_state_path(mods_dir), state);

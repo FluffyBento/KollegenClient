@@ -1857,7 +1857,7 @@ fn spawn_gamepad_loop(app: tauri::AppHandle, console_on: Arc<AtomicBool>, data_d
                 let (fwd_present, fwd_axes, fwd_buttons) = read_forward_state(&mut gilrs);
                 // "t" ist ein frischer Zeitstempel: NUR über Werte-Vergleich
                 // (ohne t) entscheiden, ob neu geschrieben wird.
-                let payload = [fwd_present, fwd_axes[0], fwd_axes[1], fwd_axes[2],
+                let payload = [fwd_present as u8 as f32, fwd_axes[0], fwd_axes[1], fwd_axes[2],
                     fwd_axes[3], fwd_axes[4], fwd_axes[5]]
                     .into_iter()
                     .chain(fwd_buttons.iter().map(|&b| b as f32))
