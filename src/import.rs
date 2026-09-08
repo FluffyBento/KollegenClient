@@ -310,7 +310,7 @@ pub fn import_instance(
 
     // Make sure the Essential mod is present for modded instances (best effort).
     if !inst.loader.eq_ignore_ascii_case("vanilla") {
-        let _ = crate::utils::ensure_essential(&dest_name, data_dir);
+        let _ = crate::utils::ensure_essential(&dest_name, data_dir, &inst.version);
     }
 
     Ok(inst)

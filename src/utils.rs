@@ -129,49 +129,122 @@ pub fn download_file_client(client: &reqwest::blocking::Client, url: &str, dest:
 /// (typeParametersSerializers) im Cosmetics-Loader. Schlägt der Download fehl
 /// (offline/zentrale nicht erreichbar), bleibt die vorhandene Datei erhalten,
 /// damit der Start nicht blockiert wird.
-pub fn ensure_essential(name: &str, data_dir: &Path) -> Result<()> {
+pub fn ensure_essential(name: &str, data_dir: &Path, mc_version: &str) -> Result<()> {
     let mods_dir = instance_dir(data_dir, name).join("mods");
     fs::create_dir_all(&mods_dir)?;
     let target = mods_dir.join("essentialmod.jar");
 
-    // Stale/empty placeholder from a previous failed download.
+    // Stale/empty placeholder from a previous failed download. Auch
+    // Nicht-Fabric-Stubs ohne `fabric.mod.json` (z.B. ein 407-Byte-Placeholder,
+    // "PK"-Magie, aber keine Mod) entfernen, damit sie die Suche nicht als
+    // "vorhandene Version" verwerfen und Essentia nie aktualisiert wird.
     if target.exists() {
-        if let Ok(meta) = fs::metadata(&target) {
-            if meta.len() == 0 {
-                let _ = fs::remove_file(&target);
+        let mut remove = fs::metadata(&target)
+            .map(|meta| meta.len() == 0)
+            .unwrap_or(false);
+        if !remove {
+            let valid_fabric_mod = fs::read(&target)
+                .ok()
+                .and_then(|b| {
+                    if b.starts_with(b"PK") {
+                        let mut zip = zip::ZipArchive::new(std::io::Cursor::new(b)).ok()?;
+                        for i in 0..zip.len() {
+                            let name = zip.by_index(i).ok()?.name().to_string();
+                            if name == "fabric.mod.json" {
+                                return Some(true);
+                            }
+                        }
+                        Some(false)
+                    } else {
+                        Some(false)
+                    }
+                })
+                .unwrap_or(false);
+            if !valid_fabric_mod {
+                log::warn!(
+                    "Ersetze invalide essentialmod.jar (kein Fabric-Mod): {}",
+                    target.display()
+                );
+                remove = true;
             }
+        }
+        if remove {
+            let _ = fs::remove_file(&target);
         }
     }
 
-    info!("Aktualisiere Essential-Mod für {}...", name);
-    for url in [
-        "https://cdn.modrinth.com/data/essential/files/latest/essential.jar",
-        "https://github.com/sparkuniverse/essential-mod/releases/latest/download/essential.jar",
-    ] {
-        let client = reqwest::blocking::Client::builder()
-            .user_agent(crate::USER_AGENT)
-            .timeout(Duration::from_secs(60))
-            .build()?;
-        match client.get(url).send() {
-            Ok(resp) if resp.status().is_success() => {
-                if let Ok(bytes) = resp.bytes() {
-                    // Only accept a real (non-empty) zip archive.
-                    if bytes.len() > 0 && bytes.starts_with(b"PK") {
-                        fs::write(&target, &bytes)?;
-                        info!("Essential mod aktualisiert/installiert.");
-                        return Ok(());
+    info!("Aktualisiere Essential-Mod für {} (MC {})...", name, mc_version);
+    // Modrinth-CDN hat kein stable "<slug>/files/latest"-Muster; die Datei-URLs
+    // folgen "data/<projekt-id>/versions/<hash>/<datei>" und müssen über die
+    // Version-API aufgelöst werden. Essential veröffentlicht pro Minecraft-
+    // Version ein eigenes Jar (NICHT multiversion-fähig), daher die Versionen
+    // auf die Ziel-MC-Version filtern und die neueste davon nehmen.
+    let client = reqwest::blocking::Client::builder()
+        .user_agent(crate::USER_AGENT)
+        .timeout(Duration::from_secs(60))
+        .build()?;
+    let versions: Vec<serde_json::Value> = match client
+        .get("https://api.modrinth.com/v2/project/essential/version?loaders=%5B%22fabric%22%5D")
+        .send()
+    {
+        Ok(resp) if resp.status().is_success() => match resp.json() {
+            Ok(v) => v,
+            Err(e) => {
+                log::warn!("Essential-Versionsliste nicht lesbar: {}", e);
+                vec![]
+            }
+        },
+        Ok(resp) => {
+            log::warn!("Essential-API antwortete mit Status {}", resp.status());
+            vec![]
+        }
+        Err(e) => {
+            log::warn!("Essential-API nicht erreichbar: {}", e);
+            vec![]
+        }
+    };
+    for version in versions {
+        let supports_mc = version
+            .get("game_versions")
+            .and_then(|g| g.as_array())
+            .map(|g| g.iter().any(|v| v.as_str() == Some(mc_version)))
+            .unwrap_or(false);
+        if !supports_mc {
+            continue;
+        }
+        let files = version
+            .get("files")
+            .and_then(|f| f.as_array())
+            .cloned()
+            .unwrap_or_default();
+        for file in files {
+            if file.get("primary").and_then(|p| p.as_bool()).unwrap_or(false) != true {
+                continue;
+            }
+            let Some(url) = file.get("url").and_then(|u| u.as_str()) else {
+                continue;
+            };
+            match client.get(url).send() {
+                Ok(resp) if resp.status().is_success() => {
+                    if let Ok(bytes) = resp.bytes() {
+                        // Only accept a real (non-empty) zip archive.
+                        if bytes.len() > 0 && bytes.starts_with(b"PK") {
+                            fs::write(&target, &bytes)?;
+                            info!("Essential mod aktualisiert/installiert ({}).", url);
+                            return Ok(());
+                        }
                     }
                 }
+                Err(e) => {
+                    log::warn!("Essential-Download fehlgeschlagen ({}): {}", url, e);
+                }
+                _ => {}
             }
-            Err(e) => {
-                log::warn!("Essential-Download fehlgeschlagen ({}): {}", url, e);
-            }
-            _ => {}
         }
     }
     if target.exists() {
         log::warn!(
-            "Essential konnte nicht aktualisiert werden; vorhandene Version wird beibehalten (offline?)."
+            "Essential konnte nicht aktualisiert werden; vorhandene Version wird beibehalten (API/Download fehlgeschlagen)."
         );
         Ok(())
     } else {

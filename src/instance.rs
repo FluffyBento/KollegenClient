@@ -390,7 +390,7 @@ pub fn install_instance(
 
     // Download essential mod if not vanilla
     if loader != "vanilla" {
-        crate::utils::ensure_essential(name, data_dir)?;
+        crate::utils::ensure_essential(name, data_dir, version)?;
     }
 
     // Kollegen-Client-Mod standardmäßig in jede Mod-Instanz installieren.
