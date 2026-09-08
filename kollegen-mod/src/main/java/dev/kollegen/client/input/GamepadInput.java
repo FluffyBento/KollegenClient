@@ -82,23 +82,12 @@ public final class GamepadInput {
     /** True, sobald ein Gamepad verbunden ist und der SteamDeck-Modus aktiv ist. */
     public static boolean isActive(Minecraft mc) {
         if (!ControllerMode.isActive()) return false;
-        return !isAnyGamepadPresent();
+        return isAnyGamepadPresent();
     }
 
     /** Es ist ein Gamepad (GLFW) mit einem State verbunden. */
     public static boolean isAnyGamepadPresent() {
-        return scanJoystick() != -1;
-    }
-
-    private static int scanJoystick() {
-        for (int jid = GLFW.GLFW_JOYSTICK_1; jid <= GLFW.GLFW_JOYSTICK_LAST; jid++) {
-            if (GLFW.glfwJoystickPresent(jid)
-                    && GLFW.glfwJoystickIsGamepad(jid)
-                    && GLFW.glfwGetGamepadState(jid, GAMEPAD)) {
-                return jid;
-            }
-        }
-        return -1;
+        return GamepadDetect.scan(GAMEPAD) != -1;
     }
 
     /**

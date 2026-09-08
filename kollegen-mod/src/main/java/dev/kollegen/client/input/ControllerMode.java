@@ -46,6 +46,7 @@ public final class ControllerMode {
 
     /** Liest die Launcher-State-Datei einmalig beim Start. */
     public static void init() {
+        GamepadDetect.ensureMappings();
         try {
             Path state = FabricLoader.getInstance().getGameDir()
                     .resolve("mods").resolve(".kollegen-controller");
@@ -80,16 +81,12 @@ public final class ControllerMode {
             firstTick = false;
         }
 
-        // Gibt es ein verbundenes Gamepad?
+        // Gibt es ein verbundenes Gamepad? (Mapping-DB + Valve-Fallback in GamepadDetect)
         boolean padOk = false;
-        for (int jid = GLFW.GLFW_JOYSTICK_1; jid <= GLFW.GLFW_JOYSTICK_LAST; jid++) {
-            if (GLFW.glfwJoystickPresent(jid)
-                    && GLFW.glfwJoystickIsGamepad(jid)
-                    && GLFW.glfwGetGamepadState(jid, GAMEPAD)) {
-                padOk = true;
-                applyGamepad(mc, window);
-                break;
-            }
+        int pad = GamepadDetect.scan(GAMEPAD);
+        if (pad >= 0) {
+            padOk = true;
+            applyGamepad(mc, window);
         }
         // Klick auslösen (Press + Release mit Abstand)
         processClick(mc, window);
