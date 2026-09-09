@@ -9,10 +9,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-/**
- * HUD-Render-Hook (kein fabric-api): nachdem Vanilla das HUD gezeichnet hat,
- * werden alle aktiven HUD-Module gezeichnet.
- */
+
 @Mixin(Gui.class)
 public class HudMixin {
 

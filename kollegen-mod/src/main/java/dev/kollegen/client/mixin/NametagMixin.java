@@ -17,14 +17,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-/**
- * Zeichnet das "kollegen.png"-Badge links neben dem Namensschild eines
- * Kollegen-Client-Nutzers (erkennbar ueber die Backend-Präsenzliste).
- *
- * 1.21.11-Architektur: EntityRenderer.extractRenderState(T, S, float) liefert
- * uns das Entity (-> UUID), EntityRenderer.submitNameTag(S, ...) das ist der
- * Punkt, an dem das Namensschild gezeichnet wird.
- */
+
 @Mixin(EntityRenderer.class)
 public class NametagMixin {
 

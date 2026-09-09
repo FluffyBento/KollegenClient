@@ -3,10 +3,7 @@ package dev.kollegen.client.mods;
 import java.util.ArrayDeque;
 import java.util.Deque;
 
-/**
- * Zählt Maus-Klicks für die CPS-Anzeige und merkt sich den Tasten-Druck-Zustand
- * der Maustasten (für Keystrokes). Wird aus {@code MouseHandlerMixin} gefüllt.
- */
+
 public final class ClickTracker {
     public static final Deque<Long> LEFT = new ArrayDeque<>();
     public static final Deque<Long> RIGHT = new ArrayDeque<>();

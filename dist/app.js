@@ -347,6 +347,8 @@ async function refreshLogs() {
     renderProfileWidget();
     renderFriendsWidget();
     renderSocialPanel();
+    if (window.renderKollegenSummary) { try { window.renderKollegenSummary(); } catch (e) {} }
+    if (window.renderKollegenStore) { try { window.renderKollegenStore(); } catch (e) {} }
   }
 
   async function refreshSocial(force) {
@@ -1504,12 +1506,9 @@ const THEMES = {
   Kollegen:    { bg:"#0a0c10", panel:"#12141d", panel2:"#161922", accent:"#ffaa00", accent2:"#f5c518", text:"#ededed", muted:"#9ca3af", border:"#282d3d", danger:"#ff5b6e", head:"Kollegen.png" },
   Limit_Los:   { bg:"#140a0a", panel:"#1d0f0f", panel2:"#271414", accent:"#FF0000", accent2:"#cc0000", text:"#f3e9e9", muted:"#c39b9b", border:"#600000", danger:"#ff5b6e", head:"heads/Limit_Los.png" },
   FluffyBento: { bg:"#0d0912", panel:"#160f1e", panel2:"#1e1524", accent:"#b054d8", accent2:"#7c2fa3", accent3:"#86e14a", text:"#f6ecfa", muted:"#c2a8d4", border:"#332050", danger:"#ff6b9d", head:"heads/FluffyBento.png" },
-  Annanastv:   { bg:"#1a1605", panel:"#221d08", panel2:"#2b250c", accent:"#f1c40f", accent2:"#d4ac0d", text:"#fbf7e6", muted:"#cabf8e", border:"#3a3211", danger:"#ff7a59", head:"heads/Annanastv_.png" },
   T_son_:      { bg:"#0c1410", panel:"#112019", panel2:"#16271e", accent:"#2ecc71", accent2:"#239b56", text:"#e8f5ee", muted:"#9bc2ac", border:"#244234", danger:"#ff5b6e", head:"heads/T_son_.png" },
   zSpicyyy:    { bg:"#0a1218", panel:"#0f1a22", panel2:"#14222c", accent:"#3498db", accent2:"#2471a3", text:"#e6f1f8", muted:"#9bbccc", border:"#223a48", danger:"#ff7a59", head:"heads/zSpicyy.png" },
   Irongirl:    { bg:"#14171a", panel:"#1c2024", panel2:"#24292e", accent:"#bdc3c7", accent2:"#95a5a6", text:"#f0f3f5", muted:"#aab4ba", border:"#2e343a", danger:"#ff5b6e", head:"heads/Irongirl_.png" },
-
-  Machtarchiv: { bg:"#1a0000", panel:"#260a0a", panel2:"#300f0f", accent:"#e22626", accent2:"#ff8a8a", accent3:"#ffffff", text:"#ffffff", muted:"#d9b3b3", border:"#4a1414", danger:"#ff5252", head:"heads/Machtarchiv.png" },
   Zerocraft77: { bg:"#050505", panel:"#0a0a0a", panel2:"#101010", accent:"#b0b0b0", accent2:"#6e6e6e", text:"#e6e6e6", muted:"#8a8a8a", border:"#1f1f1f", danger:"#ff5252", head:"heads/Zerocraft77.png" },
   Erhaltunq:   { bg:"#1c1610", panel:"#241c14", panel2:"#2c2118", accent:"#d4b482", accent2:"#a98c55", text:"#f3ecdf", muted:"#c9b79a", border:"#3a2d1e", danger:"#ff6b5e", head:"heads/Erhaltunq.png" },
 };
@@ -3233,6 +3232,7 @@ startBackgroundIntervals();
           kmCat = d.catalog;
           window.kmCat = kmCat;
           kmState = d;
+          window.kmState = d;
         }
       } catch (e) {}
     }
@@ -3372,7 +3372,275 @@ startBackgroundIntervals();
     }
   }
 
-  // ── Profil-Viewer (kollegen.me/u/<Code> als Modal) ──
+  const STORE_RAR = { common: ["Gewöhnlich", "r-common"], rare: ["Selten", "r-rare"], epic: ["Episch", "r-epic"], legendary: ["Legendär", "r-legendary"] };
+  const STORE_RANK = { common: 0, rare: 1, epic: 2, legendary: 3 };
+
+  let storeFilter = "alle";
+  let storeRar = "alle";
+  let storeSort = "price-asc";
+
+  function storePreview(item) {
+    const av = previewAvatar() || "https://mc-heads.net/avatar/MHF_Steve/64";
+    if (item.category === "title") return `<span style="font-weight:800;font-size:1rem;">${esc(item.data.text)}</span>`;
+    if (item.category === "badge") return `<span style="font-size:30px;color:${esc(item.data.color)}">${esc(item.data.icon)}</span>`;
+    if (item.category === "avatar_theme") return `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:${esc(item.data.gradient)}"><img style="width:64px;height:64px;border-radius:14px;object-fit:cover;" src="${av}"/></div>`;
+    if (item.category === "banner") return `<div style="width:88%;height:58px;border-radius:10px;display:flex;align-items:center;justify-content:center;color:#0a0d13;font-weight:800;background:${esc(item.data.gradient)}">Banner</div>`;
+    if (item.category === "profile_bg") return `<div style="width:88%;height:78px;border-radius:10px;display:flex;align-items:center;justify-content:center;color:#c9d4e3;font-weight:700;font-size:11px;background:${esc(item.data.gradient)}"><img style="width:34px;height:34px;border-radius:8px;" src="${av}"/></div>`;
+    if (item.category === "profile_frame") return `<div style="width:78%;height:64px;border-radius:10px;display:flex;align-items:center;justify-content:center;border:4px solid ${esc(item.data.color1)};box-shadow:0 0 12px ${esc(item.data.color1)}44;background:#0d1420;"><img style="width:40px;height:40px;border-radius:8px;" src="${av}"/></div>`;
+    if (item.category === "profil_stil") return `<div style="width:78%;height:64px;border-radius:10px;display:flex;align-items:center;justify-content:center;border:2px solid ${esc(item.data.accent)};background:#0d1420;"><span style="color:${esc(item.data.accent)};font-weight:800;font-size:22px;">Aa</span> <span style="color:#c9d4e3;font-size:11px;">${esc(item.data.font)}</span></div>`;
+    if (item.category === "font") return `<div style="width:78%;height:64px;border-radius:10px;display:flex;align-items:center;justify-content:center;color:#c9d4e3;font-weight:700;font-size:15px;font-family:${esc(item.data.font)};">Aa</div>`;
+    if (item.category === "name_color") return `<div style="width:78%;height:64px;border-radius:10px;display:flex;align-items:center;justify-content:center;color:${esc(item.data.accent)};font-weight:800;font-size:22px;">Aa</div>`;
+    if (item.category === "sticker") return `<div style="width:78%;height:64px;border-radius:10px;display:flex;align-items:center;justify-content:center;color:${esc(item.data.color)};font-size:34px;">${esc(item.data.icon)}</div>`;
+    let border = "", shadow = "";
+    if (item.category === "avatar_frame" && item.data.color1) border = `border:${(item.data.width || 3)}px solid ${esc(item.data.color1)};`;
+    return `<img style="width:64px;height:64px;border-radius:14px;object-fit:cover;${border}${shadow}" src="${av}"/>`;
+  }
+
+  function storeFiltered() {
+    const items = (kmCat || []).filter((i) => (storeFilter === "alle" || i.category === storeFilter) && (storeRar === "alle" || i.rarity === storeRar));
+    items.sort((a, b) => {
+      if (storeSort === "price-asc") return a.price - b.price;
+      if (storeSort === "price-desc") return b.price - a.price;
+      if (storeSort === "rarity") { const d = (STORE_RANK[b.rarity] ?? -1) - (STORE_RANK[a.rarity] ?? -1); return d || a.price - b.price; }
+      if (storeSort === "name") return (a.name || "").localeCompare(b.name || "");
+      return 0;
+    });
+    return items;
+  }
+
+  function storeButtonFor(item) {
+    const logged = !!(kmState && !kmState.needsAuth && typeof kmState.points === "number");
+    const owned = logged && item.owned;
+    const equipped = logged && item.equippedCategory;
+    if (equipped) return { txt: "Ausgerüstet ✓", disabled: true, act: "" };
+    if (owned) return { txt: "Ausrüsten", disabled: false, act: "equip" };
+    if (!logged) return { txt: "Anmelden zum Kaufen", disabled: true, act: "" };
+    if (item.price > (kmState.points || 0)) return { txt: `Nicht genug ★ ${kmState.points}`, disabled: true, act: "" };
+    return { txt: `Kaufen · ★ ${item.price}`, disabled: false, act: "buy" };
+  }
+
+  function storeCard(item) {
+    const card = document.createElement("div");
+    card.className = "store-card" + (item.owned ? " owned" : "") + (item.equippedCategory ? " equipped" : "");
+    const rarArr = STORE_RAR[item.rarity] || ["", "r-common"];
+    const pv = document.createElement("div");
+    pv.className = "store-pv";
+    pv.innerHTML = storePreview(item);
+    card.append(pv);
+    const rar = document.createElement("span");
+    rar.className = "store-badge " + rarArr[1];
+    rar.textContent = rarArr[0];
+    card.append(rar);
+    const body = document.createElement("div");
+    body.className = "store-card-body";
+    const t = document.createElement("div");
+    t.className = "store-card-title";
+    t.textContent = item.name;
+    const d = document.createElement("div");
+    d.className = "store-card-desc";
+    d.textContent = item.desc || "";
+    const price = document.createElement("div");
+    price.className = "store-price";
+    price.textContent = "★ " + item.price;
+    body.append(t, d, price);
+    const btn = document.createElement("button");
+    btn.className = "cardBtn";
+    const b = storeButtonFor(item);
+    btn.textContent = b.txt;
+    if (b.disabled) btn.disabled = true;
+    if (b.act === "equip") btn.onclick = (e) => { e.stopPropagation(); storeEquip(item.id); };
+    if (b.act === "buy") btn.onclick = (e) => { e.stopPropagation(); storeBuy(item.id); };
+    body.append(btn);
+    card.append(body);
+    card.addEventListener("click", () => storeOpenModal(item));
+    return card;
+  }
+
+  window.renderKollegenStore = renderStore;
+  function renderStore() {
+    const grid = $("storeGrid");
+    if (!grid || !kmCat) return;
+    const items = storeFiltered();
+    grid.innerHTML = "";
+    if (!items.length) { grid.innerHTML = `<div class="store-msg">Keine Items in dieser Auswahl.</div>`; return; }
+    for (const it of items) grid.append(storeCard(it));
+    const wallet = $("storeWallet");
+    if (wallet) {
+      if (kmState && !kmState.needsAuth && typeof kmState.level === "number") {
+        wallet.style.display = "flex";
+        $("storePts").textContent = "★ " + (kmState.points || 0);
+        $("storeLvl").textContent = "Level " + kmState.level;
+      } else wallet.style.display = "none";
+    }
+    storeRenderShow();
+  }
+
+  function storeRenderShow() {
+    const show = $("storeShow");
+    if (!show || !kmState || kmState.needsAuth || !kmCat) { if (show) show.style.display = "none"; return; }
+    const eq = kmState.equipped || {};
+    const owned = kmCat.filter((it) => it.owned).length;
+    const total = kmCat.length;
+    const bndata = byId(eq.banner);
+    const bn = $("storeShowBanner");
+    if (bn) bn.style.background = (bndata && bndata.data && bndata.data.gradient) || "linear-gradient(90deg,#1a2234,#0d1420)";
+    const av = $("storeShowAv");
+    if (av) {
+      av.src = previewAvatar() || "https://mc-heads.net/avatar/MHF_Steve/96";
+      const fr = byId(eq.avatar_frame);
+      const th = byId(eq.avatar_theme);
+      if (fr && fr.data && fr.data.color1) av.style.border = "3px solid " + fr.data.color1;
+      else av.style.border = "0";
+      if (th && th.data && th.data.gradient) av.style.background = th.data.gradient;
+      else av.style.background = "";
+    }
+    const ti = byId(eq.title);
+    const bd = byId(eq.badge);
+    const nmEl = $("storeShowName");
+    if (nmEl) nmEl.textContent = (ti && ti.data && ti.data.text) ? ti.data.text + " \u00b7 Dein Profil" : "Dein Profil";
+    const subEl = $("storeShowSub");
+    if (subEl) {
+      let sub = "Level " + (kmState.level || 1);
+      if (bd && bd.data) sub += " \u00b7 Abzeichen " + bd.data.icon;
+      sub += " \u00b7 Code " + ((kmMe && kmMe.code) || "-");
+      subEl.textContent = sub;
+    }
+    const pct = total ? Math.round((owned / total) * 100) : 0;
+    const fill = $("storeShowFill");
+    if (fill) fill.style.width = pct + "%";
+    const coll = $("storeShowColl");
+    if (coll) coll.textContent = owned + " von " + total + " gesammelt";
+    const pctEl = $("storeShowPct");
+    if (pctEl) pctEl.textContent = pct + "%";
+    show.style.display = "flex";
+  }
+
+  async function storeBuy(id) {
+    try {
+      const r = await invoke("kollegen_store_buy", { itemId: id });
+      if (r && r.ok !== false) {
+        kmCat = null;
+        window.kmCat = null;
+        kmState = null;
+        await loadStore();
+        renderKosmet();
+        renderStore();
+        renderProfileSummary();
+      } else alert("Kauf fehlgeschlagen: " + ((r && r.error) || "unbekannt"));
+    } catch (e) { alert("Fehler: " + e); }
+  }
+
+  async function storeEquip(id) {
+    try {
+      const cat = (kmCat || []).find((it) => it.id === id);
+      const r = await invoke("kollegen_store_equip", { itemId: id, category: cat ? cat.category : "" });
+      if (r && (r.ok || r.equipped)) {
+        kmState.equipped = r.equipped || kmState.equipped;
+        if (kmCat) {
+          for (const it of kmCat) it.equippedCategory = it.category && kmState.equipped && kmState.equipped[it.category] === it.id;
+        }
+        renderKosmet();
+        renderStore();
+      } else alert("Ausrüsten fehlgeschlagen: " + ((r && r.error) || "unbekannt"));
+    } catch (e) { alert("Fehler: " + e); }
+  }
+
+  function storeOpenModal(item) {
+    const m = $("storeItemModal");
+    const body = $("storeItemBody");
+    if (!m || !body) return;
+    const rarArr = STORE_RAR[item.rarity] || ["", "r-common"];
+    const pv = document.createElement("div");
+    pv.className = "store-pv store-pv-lg";
+    pv.innerHTML = storePreview(item);
+    const rar = document.createElement("span");
+    rar.className = "store-badge " + rarArr[1];
+    rar.textContent = rarArr[0];
+    const t = document.createElement("div");
+    t.className = "store-mm-title";
+    t.textContent = item.name;
+    const d = document.createElement("div");
+    d.textContent = item.desc || "";
+    d.style.cssText = "color:#a9b3c0;font-size:.9rem;margin-top:.6rem;";
+    const pr = document.createElement("div");
+    pr.textContent = "★ " + item.price;
+    pr.className = "store-price";
+    pr.style.cssText = "margin-top:.6rem;font-size:1.1rem;";
+    const btn = document.createElement("button");
+    btn.className = "cardBtn";
+    btn.style.cssText = "margin-top:1rem;";
+    const b = storeButtonFor(item);
+    btn.textContent = b.txt;
+    if (b.disabled) btn.disabled = true;
+    if (b.act === "equip") btn.onclick = () => { storeEquip(item.id); storeCloseModal(); };
+    if (b.act === "buy") btn.onclick = () => { storeBuy(item.id); storeCloseModal(); };
+    body.innerHTML = "";
+    body.append(pv, rar, t, d, pr, btn);
+    m.style.display = "flex";
+  }
+
+  function storeCloseModal() {
+    const m = $("storeItemModal");
+    if (m) m.style.display = "none";
+  }
+
+  function storeInit() {
+    const rarBox = $("storeRarChips");
+    if (rarBox) rarBox.addEventListener("click", (e) => {
+      const c = e.target.closest(".chip");
+      if (!c) return;
+      rarBox.querySelectorAll(".chip").forEach((x) => x.classList.remove("on"));
+      c.classList.add("on");
+      storeRar = c.getAttribute("data-r");
+      renderStore();
+    });
+    const sort = $("storeSort");
+    if (sort) sort.addEventListener("change", () => { storeSort = sort.value; renderStore(); });
+    const tabs = $("storeTabs");
+    if (tabs) tabs.addEventListener("click", (e) => {
+      const t = e.target.closest(".tab");
+      if (!t) return;
+      tabs.querySelectorAll(".tab").forEach((x) => x.classList.remove("on"));
+      t.classList.add("on");
+      storeFilter = t.getAttribute("data-f");
+      renderStore();
+    });
+    const close = $("storeItemClose");
+    if (close) close.onclick = storeCloseModal;
+    const modal = $("storeItemModal");
+    if (modal) modal.addEventListener("click", (e) => { if (e.target === modal) storeCloseModal(); });
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape") storeCloseModal(); });
+  }
+
+  window.renderKollegenSummary = renderProfileSummary;
+  function renderProfileSummary() {
+    const wrap = $("spProgressWrap");
+    const codeWrap = $("spCodeWrap");
+    const st = window.kmState;
+    if (!st || !kmMe) return;
+    const pts = $("spPoints");
+    if (pts) pts.textContent = "★ " + (typeof st.points === "number" ? st.points : "–") + " Points · " + (typeof st.level === "number" ? "Level " + st.level : "Level –");
+    const total = typeof st.points_total === "number" ? st.points_total : 0;
+    const inLevel = total ? ((total - 1) % 300 + 300) % 300 + 1 : 1;
+    const fill = $("spProgressFill");
+    if (fill) fill.style.width = inLevel + "%";
+    const lvl = typeof st.level === "number" ? st.level : 1;
+    const next = 300 - inLevel;
+    const label = $("spProgressLabel");
+    if (label) label.textContent = `Level ${lvl} → ${lvl + 1} · ${next} Punkte bis Level ${lvl + 1}`;
+    if (wrap) wrap.style.display = "";
+    const myCode = (kmMe && (kmMe.code || kmMe.friend_code)) || "";
+    const codeEl = $("spCode");
+    if (codeEl) codeEl.textContent = myCode;
+    const codeCopy = $("spCodeCopy");
+    if (codeCopy) codeCopy.onclick = () => {
+      if (!myCode) return;
+      if (navigator.clipboard) navigator.clipboard.writeText(myCode).catch(() => {});
+      codeCopy.textContent = "✓";
+      setTimeout(() => { codeCopy.textContent = "Kopieren"; }, 1500);
+    };
+    if (codeWrap && myCode) codeWrap.style.display = "";
+  }
   window.kmShowProfile = async function (code) {
     if (!code) return;
     const res = $("viewProfileResult");
@@ -3539,14 +3807,18 @@ startBackgroundIntervals();
       info.className = "dm-ci";
       const n = document.createElement("div");
       n.className = "dm-cn";
-      n.textContent = u.name || "User " + u.id;
+      const dot = document.createElement("span");
+      dot.style.color = u.online ? "#3fb950" : "#4b5563";
+      dot.textContent = "\u25cf";
+      n.append(dot, " " + (u.name || ("User " + u.id)));
+      n.querySelector("span").style.marginRight = "0.25rem";
       const last = document.createElement("div");
       last.className = "dm-cl";
       const l = c.last || {};
       last.textContent = (l.from === dmMeId ? "Du: " : "") + (l.text || "") + (l.ts ? " \u00b7 " + timeStr(l.ts) : "");
       info.append(n, last);
       row.append(img, info);
-      row.onclick = () => openOther(u.discordId, u.name || "User " + u.id);
+      row.onclick = () => openOther(u.discordId, u.name || "User " + u.id, u.code, u.profile && u.profile.avatar_data_url);
       listEl.append(row);
     }
   }
@@ -3559,15 +3831,34 @@ startBackgroundIntervals();
       const p = await invoke("kollegen_profile_view", { code });
       if (!p || p.error) { alert("Kein Kollege mit diesem Code."); return; }
       if (!p.isFriend) { alert("Du bist mit \u201e" + (p.name || "ihm") + "\u201c noch nicht befreundet. F\u00fcge den Code zuerst hinzu."); return; }
-      openOther(p.discordId, p.name);
+      openOther(p.discordId, p.name, p.code, p.profile && p.profile.avatar_data_url);
       loadConvs();
     } catch (e) { alert("Fehler: " + e); }
   }
 
-  function openOther(did, name) {
+  function openOther(did, name, code, avatarUrl) {
     dmCurrent = did;
     const head = $("dmThreadHead");
-    if (head) head.textContent = name;
+    if (head) {
+      head.style.color = "";
+      $("dmThName").textContent = name || "Chat";
+      const av = $("dmThAv");
+      if (av) {
+        const src = avatarUrl || "https://mc-heads.net/head/" + (name || "MHF_Steve") + "/96";
+        av.src = src;
+        av.style.display = "";
+        av.onerror = () => { av.src = "https://mc-heads.net/head/MHF_Steve/96"; };
+      }
+      const pr = $("dmThProf");
+      if (pr) {
+        if (code) { pr.style.display = ""; window.kmThreadProfile = () => { if (window.kmShowProfile) window.kmShowProfile(code); }; }
+        else pr.style.display = "none";
+        if (!pr.dataset.bound) {
+          pr.dataset.bound = "1";
+          pr.addEventListener("click", (e) => { e.preventDefault(); if (window.kmThreadProfile) window.kmThreadProfile(); });
+        }
+      }
+    }
     $("dmInputBox").style.display = "flex";
     document.querySelectorAll(".dm-conv.on").forEach((x) => x.classList.remove("on"));
     loadConvs();
@@ -3614,6 +3905,8 @@ startBackgroundIntervals();
   let dmMeId = "";
   (async function init() {
     await loadStore();
+    storeInit();
+    renderStore();
     try {
       const me = await invoke("kollegen_me");
       const accts = (me && me.accounts) || [];
@@ -3627,6 +3920,7 @@ startBackgroundIntervals();
       }).observe(pm, { attributes: true, attributeFilter: ["style"] });
       renderKosmet();
     }
+    renderProfileSummary();
     // Freundes-Zeilen aktualisieren, falls schon gerendert.
     if (window.refreshSocial) { try { window.refreshSocial(true); } catch (e) {} }
   })();

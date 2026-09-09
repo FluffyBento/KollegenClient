@@ -5,11 +5,7 @@ import dev.kollegen.client.mods.Module;
 import dev.kollegen.client.mods.ModuleManager;
 import dev.kollegen.client.mods.SliderSetting;
 
-/**
- * Verschiebt das Survival-Inventar (samt Ruestung und 2x2-Crafting) um einen
- * konfigurierbaren Versatz. Experimentell: greift ueber Reflection an die
- * finalen Slot-Positionen, damit Klicks mit der Anzeige mitwandern.
- */
+
 public final class InventoryTweaks {
 
     private InventoryTweaks() {

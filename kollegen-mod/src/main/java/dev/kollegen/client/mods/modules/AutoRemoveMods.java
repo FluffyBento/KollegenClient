@@ -10,14 +10,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-/**
- * Beta: räumt eigenständige Kopien gebündelter Mods (sowie veraltete/duplizierte
- * fabric-language-kotlin-Jars) im mods/-Ordner auf. Standardmäßig AUS – der
- * Kollegen-Client verändert die Mods des Nutzers nicht automatisch. Wer die
- * Aufräum-Automatik will, aktiviert dieses Modul; die Begleit-Mod schreibt die
- * Flag {@code mods/.kollegen-autoremove}, und der Launcher führt die
- * Bereinigung beim nächsten Start durch.
- */
+
 public final class AutoRemoveMods extends Module {
 
     private static final Path FLAG = FabricLoader.getInstance()

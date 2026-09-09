@@ -1,5 +1,5 @@
-// Instance management for the Kollegen Client launcher
-// Handles version fetching, instance installation, and game launching
+
+
 
 use crate::types::{Instance, MojangVersionManifest, Settings, VersionJson};
 use crate::AppState;
@@ -16,15 +16,15 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::thread;
 use std::time::Duration;
 
-/// Resource pack (zipped at compile time) that overrides the Minecraft
-/// title-screen logo (`assets/minecraft/textures/gui/title/minecraft.png`)
-/// with `Logo.png`. This is how we replace the in-game "Minecraft Java
-/// Edition" logo without modifying the game jars.
+
+
+
+
 const TITLE_LOGO_PACK: &[u8] = include_bytes!("title_logo_pack.zip");
 const TITLE_LOGO_PACK_ID: &str = "KollegenTitle";
 
-/// Maps a Minecraft version string to the resource-pack `pack_format` number
-/// Minecraft expects, so the override actually loads (e.g. 1.21.11 -> 75).
+
+
 fn pack_format_for(version: &str) -> u32 {
     let mut it = version.split('.');
     let major: u32 = it.next().and_then(|s| s.parse().ok()).unwrap_or(1);
@@ -62,10 +62,10 @@ fn pack_format_for(version: &str) -> u32 {
     75
 }
 
-/// Composites the source `Logo.png` (any aspect ratio) into a square
-/// `minecraft.png` that Minecraft expects for the title screen. The logo is
-/// scaled to "contain" (never cropped) within a 256x256 transparent canvas and
-/// centered, so it keeps its aspect ratio and can't be stretched or clipped.
+
+
+
+
 fn fit_logo_square(png: &[u8]) -> Vec<u8> {
     const SIZE: u32 = 256;
     const FILL: f32 = 0.92;
@@ -99,10 +99,10 @@ fn fit_logo_square(png: &[u8]) -> Vec<u8> {
     buf
 }
 
-/// Builds the title-logo resource pack zip in memory, rewriting `pack.mcmeta`
-/// with the `pack_format` that matches the instance's Minecraft version. For
-/// 1.21.9+ (format >= 65) Minecraft requires the `min_format`/`max_format`
-/// schema instead of a single `pack_format` number.
+
+
+
+
 fn build_title_logo_pack(version: &str) -> Vec<u8> {
     let fmt = pack_format_for(version);
     let meta = if fmt >= 65 {
@@ -158,10 +158,10 @@ fn build_title_logo_pack(version: &str) -> Vec<u8> {
     out
 }
 
-/// Installs the title-logo resource pack into the instance and enables it in
-/// `options.txt` (force-enabled via `incompatibleResourcePacks` so it works
-/// across Minecraft versions regardless of `pack_format`). Called both when the
-/// instance is created/installed and right before every launch (safety net).
+
+
+
+
 pub fn ensure_title_logo_pack(inst_dir: &Path, version: &str) {
     let rp_dir = inst_dir.join("resourcepacks");
     if let Err(e) = fs::create_dir_all(&rp_dir) {
@@ -196,16 +196,16 @@ pub fn ensure_title_logo_pack(inst_dir: &Path, version: &str) {
     }
 }
 
-/// Auto-installiert die Kollegen-Client-Mod in die `mods/`-Familie der Instanz.
-/// Delegiert an das `companion`-Modul, das Bundling/Download, Version-Relax
-/// (1.21.x – 1.26.x) und Verstecken im Mod-Browser übernimmt.
+
+
+
 pub fn ensure_kollegen_mod(data_dir: &Path, name: &str, loader: &str, version: &str) {
     crate::companion::install_companion_mod(data_dir, name, version, loader);
 }
 
-/// Ensures `value` is present in the comma-separated list stored in the
-/// `key:[...]` line of Minecraft's `options.txt` (creating the line if absent).
-/// Inserted at the front so our override has the highest priority.
+
+
+
 fn ensure_option_list(lines: &mut Vec<String>, key: &str, value: &str) {
     let prefix = format!("{}:[", key);
     for line in lines.iter_mut() {
@@ -226,9 +226,9 @@ fn ensure_option_list(lines: &mut Vec<String>, key: &str, value: &str) {
     lines.push(format!("{}:[\"{}\"]", key, value));
 }
 
-// ─=== Version Fetching ===
 
-/// Fetches the list of available Minecraft versions from Mojang.
+
+
 pub fn fetch_available_versions() -> Result<Vec<String>> {
     let client = reqwest::blocking::Client::builder()
         .user_agent(crate::USER_AGENT)
@@ -248,8 +248,8 @@ pub fn fetch_available_versions() -> Result<Vec<String>> {
     Ok(versions)
 }
 
-/// Fetches available modloaders for a specific Minecraft version.
-/// Returns JSON with Fabric, Forge, and NeoForge loader versions.
+
+
 pub fn fetch_loaders_for_version(version: &str) -> Result<Value> {
     let client = reqwest::blocking::Client::builder()
         .user_agent(crate::USER_AGENT)
@@ -261,7 +261,7 @@ pub fn fetch_loaders_for_version(version: &str) -> Result<Value> {
         "neoforge": []
     });
 
-    // Fabric loaders from FabricMC metadata
+    
     let fabric_resp = client
         .get(&format!("https://meta.fabricmc.net/v2/versions/loader/{}", version))
         .send();
@@ -279,9 +279,9 @@ pub fn fetch_loaders_for_version(version: &str) -> Result<Value> {
     Ok(result)
 }
 
-// ─=== Instance Installation ===
 
-/// Installs a Minecraft instance by downloading the version jar and libraries.
+
+
 pub fn install_instance(
     data_dir: &Path,
     name: &str,
@@ -322,11 +322,11 @@ pub fn install_instance(
     let version_json: VersionJson = serde_json::from_str(&body_text)
         .map_err(|e| anyhow!("JSON Parse Fehler für Version {}: {} (Snippet: {})", version, e, &body_text[..body_text.len().min(100)]))?;
 
-    // Save version JSON
+    
     let version_json_path = version_dir.join(format!("{}.json", version));
     crate::utils::save_json(&version_json_path, &serde_json::to_value(&version_json)?)?;
 
-    // Download client jar
+    
     let downloads = version_json.downloads
         .ok_or_else(|| anyhow!("Keine Download-Informationen in Version JSON für {} gefunden", version))?;
     let client_download = downloads.client
@@ -337,11 +337,11 @@ pub fn install_instance(
         crate::utils::download_file(&client_download.url, &jar_path)?;
     }
 
-    // Download libraries (respect OS rules)
+    
     for lib in &version_json.libraries {
         if let Some(lib_downloads) = &lib.downloads {
             if let Some(artifact) = &lib_downloads.artifact {
-                // Check OS rules
+                
                 if let Some(rules) = &lib.rules {
                     let allowed = rules.iter().all(|rule| {
                         match rule.action.as_str() {
@@ -385,29 +385,29 @@ pub fn install_instance(
         }
     }
 
-    // Download the full asset set (index + all objects)
+    
     download_assets(data_dir, name, version)?;
 
-    // Download essential mod if not vanilla
+    
     if loader != "vanilla" {
         crate::utils::ensure_essential(name, data_dir, version)?;
     }
 
-    // Kollegen-Client-Mod standardmäßig in jede Mod-Instanz installieren.
+    
     ensure_kollegen_mod(data_dir, name, loader, version);
 
-    // Install + enable the KollegenTitle resource pack (Logo.png on the title
-    // screen) already at creation, not just at launch.
+    
+    
     ensure_title_logo_pack(&inst_dir, version);
 
     Ok(())
 }
 
-// ─=== Asset Download ===
 
-/// Downloads a single Minecraft asset object, verifying its SHA-1 (and size)
-/// against the asset index before writing it. A corrupt/truncated download is
-/// removed so the caller can retry it.
+
+
+
+
 fn download_asset_object(
     client: &reqwest::blocking::Client,
     url: &str,
@@ -436,9 +436,9 @@ fn download_asset_object(
     Ok(())
 }
 
-/// Downloads the full asset set (index + all objects) for an instance.
-/// Idempotent: already-present object files are skipped, so it is safe to
-/// call on every launch to backfill any missing assets.
+
+
+
 pub fn download_assets(data_dir: &Path, name: &str, version: &str) -> Result<()> {
     let inst_dir = crate::utils::instance_dir(data_dir, name);
     let version_dir = inst_dir.join("versions").join(version);
@@ -453,7 +453,7 @@ pub fn download_assets(data_dir: &Path, name: &str, version: &str) -> Result<()>
         None => return Ok(()),
     };
 
-    // Download the asset index if missing
+    
     let index_path = assets_dir.join(format!("indexes/{}.json", assets_id));
     if !index_path.exists() {
         match &vjson.asset_index {
@@ -471,10 +471,10 @@ pub fn download_assets(data_dir: &Path, name: &str, version: &str) -> Result<()>
         None => return Ok(()),
     };
 
-    // Build the job list. An object is (re)downloaded when it is missing OR
-    // when the already-present file fails the SHA-1/size check from the index
-    // (a previously truncated/corrupt download would otherwise be skipped
-    // forever and crash Minecraft with a "PNG header missing" on load).
+    
+    
+    
+    
     let mut jobs: Vec<(String, std::path::PathBuf, String, u64)> = Vec::new();
     for (_key, obj) in objects {
         let hash = match obj.get("hash").and_then(|h| h.as_str()) {
@@ -486,10 +486,10 @@ pub fn download_assets(data_dir: &Path, name: &str, version: &str) -> Result<()>
         let obj_path = assets_dir.join("objects").join(prefix).join(hash);
         let needs = if obj_path.exists() {
             match (size, fs::metadata(&obj_path)) {
-                // Cheap stat-based check (no content read) when the index
-                // advertises a size; only re-downloads on a mismatch.
+                
+                
                 (Some(expected), Ok(m)) => m.len() != expected,
-                // No size in the index: fall back to a content hash check.
+                
                 _ => match fs::read(&obj_path) {
                     Ok(bytes) => crate::utils::sha1_hex(&bytes) != hash,
                     Err(_) => true,
@@ -558,7 +558,7 @@ pub fn download_assets(data_dir: &Path, name: &str, version: &str) -> Result<()>
                     }
                 }
                 if !ok {
-                    // Never leave a corrupt partial file behind.
+                    
                     let _ = fs::remove_file(path.with_extension("part"));
                 }
             }
@@ -572,9 +572,9 @@ pub fn download_assets(data_dir: &Path, name: &str, version: &str) -> Result<()>
     Ok(())
 }
 
-// ─=== Mod Loader Support (Fabric) ===
 
-/// Resolves the latest Fabric loader version for a Minecraft version.
+
+
 fn resolve_fabric_loader_version(mc_version: &str) -> Result<String> {
     let client = reqwest::blocking::Client::builder()
         .user_agent(crate::USER_AGENT)
@@ -598,7 +598,7 @@ fn resolve_fabric_loader_version(mc_version: &str) -> Result<String> {
     Ok(ver.to_string())
 }
 
-/// Resolves the latest Fabric installer version from Maven metadata.
+
 fn resolve_fabric_installer_version() -> Result<String> {
     let client = reqwest::blocking::Client::builder()
         .user_agent(crate::USER_AGENT)
@@ -622,9 +622,9 @@ fn resolve_fabric_installer_version() -> Result<String> {
     Ok(last)
 }
 
-/// Scans the instance's versions directory for an already-installed
-/// Fabric profile and returns its version id (e.g.
-/// "fabric-loader-0.19.3-1.21.11").
+
+
+
 fn find_fabric_version_dir(versions_dir: &Path) -> Option<String> {
     let entries = fs::read_dir(versions_dir).ok()?;
     for e in entries.flatten() {
@@ -642,15 +642,15 @@ fn find_fabric_version_dir(versions_dir: &Path) -> Option<String> {
     None
 }
 
-/// Ensures the Fabric loader is installed for the instance, running the
-/// official installer headlessly if needed. Returns the actual generated
-/// version id (e.g. "fabric-loader-0.19.3-1.21.11").
+
+
+
 fn ensure_fabric(data_dir: &Path, inst: &Instance, java_path: &str) -> Result<String> {
     let inst_dir = crate::utils::instance_dir(data_dir, &inst.name);
     let versions_dir = inst_dir.join("versions");
     fs::create_dir_all(&versions_dir).ok();
 
-    // Reuse an already-installed Fabric profile if present (no network).
+    
     if let Some(id) = find_fabric_version_dir(&versions_dir) {
         return Ok(id);
     }
@@ -674,7 +674,7 @@ fn ensure_fabric(data_dir: &Path, inst: &Instance, java_path: &str) -> Result<St
 
     let mut fab_cmd = Command::new(java_path);
     crate::java::sanitize_java_env(&mut fab_cmd);
-    // Hide the briefly flashing console window on Windows.
+    
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;
@@ -699,14 +699,14 @@ fn ensure_fabric(data_dir: &Path, inst: &Instance, java_path: &str) -> Result<St
         ));
     }
 
-    // Locate the generated Fabric version directory (the installer chooses
-    // the exact id, so we resolve it from disk rather than guessing).
+    
+    
     find_fabric_version_dir(&versions_dir)
         .ok_or_else(|| anyhow!("Fabric Version-Verzeichnis nicht gefunden"))
 }
 
-/// Removes zero-byte / corrupt mod jars from the mods directory so a broken
-/// file can't prevent Fabric (or Forge) from loading the rest of the mods.
+
+
 fn clean_corrupt_mods(mods_dir: &Path) {
     if let Ok(entries) = fs::read_dir(mods_dir) {
         for e in entries.flatten() {
@@ -718,7 +718,7 @@ fn clean_corrupt_mods(mods_dir: &Path) {
                 Ok(m) => m,
                 Err(_) => continue,
             };
-            // Empty file, or not a real zip archive (valid jars start with "PK").
+            
             let corrupt = meta.len() == 0
                 || fs::read(&p)
                     .map(|b| b.len() < 4 || !b.starts_with(b"PK"))
@@ -731,27 +731,27 @@ fn clean_corrupt_mods(mods_dir: &Path) {
     }
 }
 
-// ─=== Game Launch ===
 
-/// The two mutually exclusive renderer mod groups managed by the in-game
-/// companion mod (which embeds + deploys them). The launcher only enforces the
-/// `.disabled` state; it never downloads or deploys the mod binaries itself.
+
+
+
+
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum RendererGroup {
-    Opengl, // Sodium + Iris
-    Vulkan, // VulkanMod fork + Beryl
+    Opengl, 
+    Vulkan, 
 }
 
-/// Returns the renderer group a mod file belongs to (by file-name prefix),
-/// ignoring a trailing `.disabled`.
-///
-/// Xaero's World Map/Minimap ship OpenGL-only shaders (xaerolib) that
-/// VulkanMod's GLSL→Vulkan converter cannot parse (`pos_tex_alpha_pre` etc.),
-/// which hard-crashes the client. Axiom patches the same `LevelRenderer`
-/// chunk-render path (`prepareChunkRenders`) that VulkanMod replaces with its
-/// own pipeline, so the two Mixins collide and Fabric aborts at startup. Both
-/// only work with the OpenGL/Sodium render path, hence they are bound to the
-/// OpenGL group and auto-disabled whenever the Vulkan renderer is active.
+
+
+
+
+
+
+
+
+
+
 fn renderer_mod_group(fname: &str) -> Option<RendererGroup> {
     let f = fname.to_lowercase();
     let f = f.strip_suffix(".disabled").unwrap_or(&f);
@@ -770,18 +770,18 @@ fn renderer_mod_group(fname: &str) -> Option<RendererGroup> {
     }
 }
 
-/// Path to the shared renderer-state file the companion mod reads to decide
-/// which group to deploy. The launcher is the source of truth (driven by the
-/// instance's `vulkan_enabled` flag) and writes it before every launch.
+
+
+
 fn renderer_state_path(mods_dir: &Path) -> PathBuf {
     mods_dir.join(".kollegen-renderer")
 }
 
-/// Reads the renderer-state file written by the in-game toggle. The toggle
-/// deliberately only writes this file (renaming renderer jars while the JVM
-/// has them loaded crashes natively); the launcher adopts it here at next
-/// start. Returns `Some(true)` for "vulkan", `Some(false)` for "opengl" and
-/// `None` when the file is missing or has an unknown value.
+
+
+
+
+
 pub(crate) fn read_renderer_state(mods_dir: &Path) -> Option<bool> {
     let s = fs::read_to_string(renderer_state_path(mods_dir)).ok()?;
     match s.trim().to_lowercase().as_str() {
@@ -791,15 +791,15 @@ pub(crate) fn read_renderer_state(mods_dir: &Path) -> Option<bool> {
     }
 }
 
-/// Path to the shared controller-mode state file the companion mod reads to
-/// decide whether its gamepad/controller mode is active. Written by the launcher
-/// from the `steamdeck_mode` setting before every launch (and on toggle).
+
+
+
 fn controller_state_path(mods_dir: &Path) -> PathBuf {
     mods_dir.join(".kollegen-controller")
 }
 
-/// Writes the desired controller-mode state ("on"/"off") so the in-game
-/// companion mod can read it. Mirrors the renderer-state pattern.
+
+
 pub(crate) fn enforce_controller_state(mods_dir: &Path, on: bool) {
     if !mods_dir.exists() {
         let _ = std::fs::create_dir_all(mods_dir);
@@ -807,26 +807,26 @@ pub(crate) fn enforce_controller_state(mods_dir: &Path, on: bool) {
     let _ = fs::write(controller_state_path(mods_dir), if on { "on" } else { "off" });
 }
 
-/// Enforces renderer exclusivity on the instance's `mods/` folder WITHOUT
-/// downloading or deploying any mod binaries — the companion mod embeds and
-/// deploys them at runtime. It only guarantees the on-disk `.disabled` state
-/// matches the `vulkan_enabled` flag, so exactly one renderer group is active
-/// and the Fabric loader can't hard-crash on a mutual-exclusion conflict:
-///
-/// * `vulkan_enabled == true`  -> Vulkan group enabled, OpenGL group disabled
-/// * `vulkan_enabled == false` -> OpenGL group enabled, Vulkan group disabled
-///
-/// This is the "always one of the two true, the other false" invariant the
-/// user asked for; the companion mod honors the same state file in-game.
+
+
+
+
+
+
+
+
+
+
+
 pub(crate) fn enforce_renderer_consistency(mods_dir: &Path, vulkan_enabled: bool) {
     if !mods_dir.exists() {
         return;
     }
-    // Essential-Mod + Vulkan (VulkanMod/Beryl) sind inkompatibel: Essential rendert
-    // seine UI in Kombination mit dem Vulkan-Renderer kopfstehend und crasht das
-    // Spiel (bekanntes Problem, kein offizieller Fix). Erzwinge OpenGL, sobald
-    // essential*.jar im mods/-Ordner liegt – der In-Game-Toggle spiegelt das über
-    // denselben State und die Begleit-Mod hat denselben Guard in RendererManager.
+    
+    
+    
+    
+    
     let essential_present = fs::read_dir(mods_dir)
         .map(|entries| {
             entries.flatten().any(|e| {
@@ -843,7 +843,7 @@ pub(crate) fn enforce_renderer_consistency(mods_dir: &Path, vulkan_enabled: bool
     } else {
         vulkan_enabled
     };
-    // Persist the desired renderer so the in-game companion mod honours it.
+    
     let state = if vulkan_enabled { "vulkan" } else { "opengl" };
     let _ = fs::write(renderer_state_path(mods_dir), state);
 
@@ -851,7 +851,7 @@ pub(crate) fn enforce_renderer_consistency(mods_dir: &Path, vulkan_enabled: bool
         for e in entries.flatten() {
             let p = e.path();
             let ext = p.to_string_lossy().to_lowercase();
-            // Only consider .jar and .jar.disabled files.
+            
             let is_jar = p.extension().and_then(|x| x.to_str()) == Some("jar")
                 || ext.ends_with(".jar.disabled");
             if !is_jar {
@@ -869,11 +869,11 @@ pub(crate) fn enforce_renderer_consistency(mods_dir: &Path, vulkan_enabled: bool
             };
             let is_disabled = fname.ends_with(".disabled");
             if active && is_disabled {
-                // enable: .disabled -> .jar
+                
                 let target = p.with_file_name(fname.trim_end_matches(".disabled").to_string());
                 let _ = fs::rename(&p, &target);
             } else if !active && !is_disabled {
-                // disable: .jar -> .jar.disabled
+                
                 let target = p.with_file_name(format!("{}.disabled", fname));
                 let _ = fs::rename(&p, &target);
             }
@@ -881,10 +881,10 @@ pub(crate) fn enforce_renderer_consistency(mods_dir: &Path, vulkan_enabled: bool
     }
 }
 
-/// Eingebettete Integrations-Bundles: (Flag-Schlüssel in
-/// `.kollegen-bundles.json`, Ziel-Jar in mods/, Ressourcen-Pfad innerhalb der
-/// Begleit-Mod-Jar). `"@deps"` heißt: aktiv, sobald mindestens ein echtes
-/// Bundle aktiv ist (gemeinsame Dependencies von Spotify Overlay/ChatHeads).
+
+
+
+
 const BUNDLED_MODS: &[(&str, &str, &str)] = &[
     ("spotify", "kollegen-bundle-spotify.jar", "dev/kollegen/client/spotify.bin"),
     ("chatheads", "kollegen-bundle-chatheads.jar", "dev/kollegen/client/chatheads.bin"),
@@ -897,17 +897,17 @@ const BUNDLED_MODS: &[(&str, &str, &str)] = &[
     ("@deps", "kollegen-bundle-clothconfig.jar", "dev/kollegen/client/clothconfig.bin"),
 ];
 
-/// Legacy-Bundles, die früher gebündelt wurden, jetzt aber stören bzw. von
-/// anderer Stelle (Essential bringt sein eigenes FLK als Nested-Jar mit) kommen.
-/// Werden beim Sync immer aus mods/ entfernt – auch wenn sie nicht mehr in
-/// BUNDLED_MODS auftauchen (dort würden sie sonst ewig liegen bleiben).
+
+
+
+
 const LEGACY_BUNDLE_JARS: &[&str] = &["kollegen-bundle-flk.jar"];
 
-/// Standalone-Dateinamen-Präfixe, die ein gebündeltes Mod ersetzt. Dient
-/// ausschließlich zum Aufräumen in `enforce_bundled_mods`: eine Standalone-Kopie
-/// wird nur gelöscht, wenn das entsprechende Bundle danach auch wirklich
-/// (wieder-)deployt wird – so verschwinden z.B. fabric-api oder ModMenu nie
-/// stumm, nur weil eine Integration deaktiviert ist.
+
+
+
+
+
 fn bundle_standalone_prefixes(jar_name: &str) -> &'static [&'static str] {
     match jar_name {
         "kollegen-bundle-spotify.jar" => &["spotify_overlay", "spotify-overlay"],
@@ -927,8 +927,8 @@ fn bundles_flag_path(mods_dir: &Path) -> PathBuf {
     mods_dir.join(".kollegen-bundles.json")
 }
 
-/// Liest die Bundle-Flags; fehlende/unbekannte Werte gelten als AN (gute
-/// Out-of-the-box-Erfahrung), genau wie der Default in der Begleit-Mod.
+
+
 fn read_bundle_flags(mods_dir: &Path) -> Value {
     let mut flags = serde_json::json!({ "spotify": true, "chatheads": true });
     if let Ok(s) = fs::read_to_string(bundles_flag_path(mods_dir)) {
@@ -945,15 +945,15 @@ fn read_bundle_flags(mods_dir: &Path) -> Value {
     flags
 }
 
-/// Entfernt alle vom Launcher deployten Integrations-Bundle-Jars (aktiv UND
-/// `.disabled`) aus `mods/`. Wird nur auf Instanzen aufgerufen, deren
-/// Minecraft-Version außerhalb der 1.21.x-Linie liegt, für die die Bundles
-/// kompiliert sind – deren 1.21.x-Jars würden den Fabric-Loader sonst zum
-/// "incompatible mods"-Absturz bringen. Nadelt gezielt `kollegen-bundle-`.
-/// Entfernt die von `local_media_listener` shaded ins innere Jar eingebetteten
-/// kotlin-Projektklassen (kotlin-stdlib, kotlinx-coroutines, kotlinx-json/-core).
-/// `None`, wenn nichts zu entfernen war (bereits aufgeräumt → no-op für den
-/// Aufrufer).
+
+
+
+
+
+
+
+
+
 fn strip_shaded_kotlin(jar: &[u8]) -> Option<Vec<u8>> {
     let reader = std::io::Cursor::new(jar);
     let mut archive = zip::ZipArchive::new(reader).ok()?;
@@ -996,19 +996,19 @@ fn strip_shaded_kotlin(jar: &[u8]) -> Option<Vec<u8>> {
     Some(out)
 }
 
-/// Repariert `mods/kollegen-bundle-spotify.jar` (idempotent): das Bundle bettet
-/// `local_media_listener` als Fat-JAR ein, die eine ALTE kotlinx-serialization
-/// (<1.8.0) shaded – dort ist `GeneratedSerializer.typeParametersSerializers`
-/// noch ABSTRACT. Auf dem Laufzeit-Classpath gewinnt dieses alte Interface
-/// gegen die 1.9.0/1.11.0-Version, und serializers, die gegen >=1.8.0 kompiliert
-/// wurden (Methode ist dort Default, wird nicht mehr implementiert), brechen im
-/// Essential-Cosmetics-Loader mit AbstractMethodError. Entfernen der shadowed
-/// kotlin/kotlinx-Klassen aus den inneren Jars lässt fabric-language-kotlin
-/// (bzw. Essentials eigenes FLK, ab 1.8.0, kompatible Default-Methode) zum Zug
-/// kommen.
+
+
+
+
+
+
+
+
+
+
 fn sanitize_spotify_bundle(mods_dir: &Path) {
     let path = mods_dir.join("kollegen-bundle-spotify.jar");
-    // 1) Analyse: innere Jars nach shadowed kotlin/kotlinx-Klassen durchsuchen.
+    
     let replacements = {
         let file = match fs::File::open(&path) {
             Ok(f) => f,
@@ -1045,7 +1045,7 @@ fn sanitize_spotify_bundle(mods_dir: &Path) {
         "Entferne shadowed kotlinx.serialization <1.8.0 aus kollegen-bundle-spotify.jar \
          (Essential-AbstractMethodError-Fix)"
     );
-    // 2) Äußeres Jar neu schreiben, bereinigte innere Jars ersetzen.
+    
     let file = match fs::File::open(&path) {
         Ok(f) => f,
         Err(_) => return,
@@ -1106,42 +1106,42 @@ fn remove_bundle_jars(mods_dir: &Path) {
     }
 }
 
-/// Deployt die aus der Begleit-Mod eingebetteten Integrations-Bundles nach
-/// mods/, entfernt sie bei deaktiviertem Flag und räumt Standalone-Kopien
-/// derselben Mods weg. Läuft ausschließlich VOR dem Spielstart – im laufenden
-/// Spiel werden niemals Jars angefasst (bereits geladene Klassen wären sonst
-/// nicht mehr nachladbar). Die In-Game-Toggles schreiben nur die Flag-Datei;
-/// hier ist der Zwei-Wege-Sync.
+
+
+
+
+
+
 pub(crate) fn enforce_bundled_mods(mods_dir: &Path, mc_version: &str, companion_jar: Option<&Path>) {
     if let Err(e) = fs::create_dir_all(mods_dir) {
         warn!("mods-Verzeichnis {} nicht erstellbar: {}", mods_dir.display(), e);
         return;
     }
 
-    // Die gebündelten Integrations-Jars (Spotify Overlay, ChatHeads, Fabric API,
-    // ModMenu, Silk, …) sind in der Begleit-Mod für MC 1.21.x kompiliert und
-    // lassen sich nicht auf eine andere Hauptlinie (z.B. 26.2) entkoppeln.
-    // Deployt man sie dort, bricht der Fabric-Loader mit "incompatible mods"
-    // (fabric-api 0.141.6+1.21.11 vs. 26.2, Silk 1.11.5 braucht 1.21.x, …) ab.
-    // Deshalb: auf inkompatiblen Versionen NICHT deployen und bereits deployte
-    // Bundle-Jars entfernen – so heilt sich eine falsch eingerichtete Instanz
-    // (z.B. eine auf 26.2 aktualisierte) beim nächsten Start von selbst.
-    //
-    // WICHTIG (Steam-Deck-Fix): `is_compatible_version` (gleiche major.minor-
-    // Linie) reicht für die Bundles NICHT. Die Bündel behalten ihre echten
-    // `depends.minecraft`-Constraints (fabric-api >=1.21.11- <1.21.12-,
-    // ModMenu >=1.21.11, ChatHeads ==1.21.11, …) und sind exakt auf
-    // COMPANION_TARGET_MC_VERSION remapped. Eine 1.21.1-Instanz (z.B. auf dem
-    // SteamDeck) liegt zwar in der 1.21.x-Linie, schluckt die 1.21.11-Jars aber
-    // nicht – der Loader bricht ab mit "Incompatible mods found! … only the
-    // wrong version is present 1.21.1!". Deshalb wird nur gedeployt, wenn die
-    // laufende Version exakt unterstützt ist; sonst werden die (ggf. noch von
-    // einem früheren Stand vorhandenen) Bundle-Jars entfernt und die Instanz
-    // heilt sich beim nächsten Start von selbst. Auch die Begleit-Mod selbst
-    // folgt jetzt derselben exakten Versionsregel: Ihre Mixins (SkyBodies/
-    // SkyRenderer, Biome, ChatScreen) sind auf 1.21.11-Intermediary remapped –
-    // auf 1.21.1 (SteamDeck) bräche der Start sonst mit 'Critical injection
-    // failure … Mixin transformation of net.minecraft.class_408 failed' ab.
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
     if !crate::companion::bundles_compatible(mc_version) {
         warn!(
             "Integrations-Bundles bei MC {} übersprungen: die gebündelten Jars sind exakt für {} kompiliert/remapped. \
@@ -1155,7 +1155,7 @@ pub(crate) fn enforce_bundled_mods(mods_dir: &Path, mc_version: &str, companion_
     let flag_on =
         |k: &str| flags.get(k).and_then(|v| v.as_bool()).unwrap_or(true);
 
-    // Begleit-Jar einmal öffnen und die verfügbaren .bin-Ressourcen erfassen.
+    
     let mut archive: Option<zip::ZipArchive<fs::File>> = None;
     if let Some(path) = companion_jar {
         match fs::File::open(path) {
@@ -1172,14 +1172,14 @@ pub(crate) fn enforce_bundled_mods(mods_dir: &Path, mc_version: &str, companion_
         .map(|a| a.file_names().map(|s| s.to_string()).collect())
         .unwrap_or_default();
 
-    // Essential bundlelt ein eigenes fabric-language-kotlin (inkl. kotlinx.serialization)
-    // als Nested-Jar mit. Ein zusätzliches eigenständiges FLK im mods/-Ordner (z.B. von
-    // älteren Kollegen-Ständen oder manuell hinzugefügt) kann eine andere
-    // kotlinx.serialization-Version auf den Classpath bringen. Die eigentliche
-    // AbstractMethodError-Quelle ist allerdings unser kollegen-bundle-spotify.jar
-    // (ge-shadete <1.8.0-serialization, siehe sanitize_spotify_bundle) – das FLK hier
-    // wird trotzdem defensiv entfernt, damit nur EINE FLK-Version aktiv ist.
-    // Merken, ob Essential vorhanden ist.
+    
+    
+    
+    
+    
+    
+    
+    
     let essential_present = fs::read_dir(mods_dir)
         .map(|entries| {
             entries.flatten().any(|e| {
@@ -1188,38 +1188,38 @@ pub(crate) fn enforce_bundled_mods(mods_dir: &Path, mc_version: &str, companion_
         })
         .unwrap_or(false);
 
-    // Pro Bundle entscheiden: gewünscht? (@deps sind zwingende Core-Dependencies
-    // des Clients – fabric-api wird z.B. von JEDEM Fabric-Mod zum Laden
-    // benötigt – und dürfen NIEMALS fehlen, auch nicht wenn beide Integrationen
-    // (Spotify/ChatHeads) deaktiviert sind). Und tatsächlich deploybar (Begleit-
-    // Jar + passender .bin-Eintrag vorhanden)?
+    
+    
+    
+    
+    
     let decisions: Vec<(&str, &str, bool, bool)> = BUNDLED_MODS
         .iter()
         .map(|&(flag_key, jar_name, bin_path)| {
-            // FLK ist eine zwingende Core-Dependency und wird IMMER deployt –
-            // auch wenn Essential vorhanden ist. Essential stellt sein FLK nur als
-            // Nested-Jar bereit; verlässt man sich ausschließlich darauf und
-            // entfernt unser Bundle, landet man (wenn Essentials Nested-Jar nicht
-            // lädt) ohne FLK und Fabric startet nicht. Unser Bundle bleibt die
-            // verlässliche Quelle; die eigenständige FLK des Nutzers wird nur
-            // entfernt, wenn Essential da ist UND wir sie ersetzen können (s.u.).
+            
+            
+            
+            
+            
+            
+            
             let desired = if flag_key == "@deps" { true } else { flag_on(flag_key) };
             let deployable = archive_available && available.contains(bin_path);
             (jar_name, bin_path, desired, desired && deployable)
         })
         .collect();
 
-    // Wird unser eigenes FLK-Bundle tatsächlich deployt? Nur dann dürfen wir die
-    // eigenständige FLK des Nutzers wegnehmen (wir "ersetzen" sie sonst durch
-    // nichts und Fabric hätte kein FLK mehr).
+    
+    
+    
     let flk_will_deploy = decisions
         .iter()
         .any(|&(jn, _, _, wd)| jn == "kollegen-bundle-flk.jar" && wd);
 
-    // 1) Standalone-Kopien gebündelter Mods aufräumen – NUR opt-in (Beta):
-    //    der Nutzer aktiviert "Auto-Remove Mods (Beta)" in der Begleit-Mod, die
-    //    dann `mods/.kollegen-autoremove` schreibt. Ohne diese Flag verändern
-    //    wir die Mods des Nutzers nicht automatisch (kein erzwungenes Fixen).
+    
+    
+    
+    
     let autoremove = mods_dir.join(".kollegen-autoremove").exists();
     if autoremove {
     if let Ok(entries) = fs::read_dir(mods_dir) {
@@ -1229,8 +1229,8 @@ pub(crate) fn enforce_bundled_mods(mods_dir: &Path, mc_version: &str, companion_
                 continue;
             }
             let name = e.file_name().to_string_lossy().to_lowercase();
-            // Legacy-Bundles (z.B. FLK, das Essential jetzt selbst mitbringt)
-            // zuerst entfernen – bevor der kollegen-bundle-Schutz greift.
+            
+            
             if LEGACY_BUNDLE_JARS
                 .iter()
                 .any(|l| name == *l || name == format!("{l}.disabled"))
@@ -1239,14 +1239,14 @@ pub(crate) fn enforce_bundled_mods(mods_dir: &Path, mc_version: &str, companion_
                 let _ = fs::remove_file(&p);
                 continue;
             }
-            // Eigenständige fabric-language-kotlin-Jars entfernen: Essential
-            // bringt sein eigenes FLK als Nested-Jar mit. Doppelte oder
-            // veraltete FLK-Versionen (z.B. von älteren Kollegen-Client-Ständen
-            // oder manuell hinzugefügt) laden eine inkompatible
-            // kotlinx-serialization und verursachen einen AbstractMethodError
-            // (typeParametersSerializers) im Cosmetics-Loader von Essential.
-            // Unser kollegen-bundle-flk.jar (Name beginnt nicht mit
-            // "fabric-language-kotlin") wird danach ohnehin neu deployt.
+            
+            
+            
+            
+            
+            
+            
+            
             if name.starts_with("fabric-language-kotlin") || name.starts_with("fabric_language_kotlin") {
                 info!("Entferne eigenständiges FLK (Essential stellt es selbst bereit): {}", name);
                 let _ = fs::remove_file(&p);
@@ -1267,16 +1267,16 @@ pub(crate) fn enforce_bundled_mods(mods_dir: &Path, mc_version: &str, companion_
             }
         }
     }
-    } // end if autoremove
+    } 
 
-    // Eigenständige fabric-language-kotlin-Jars entfernen, sobald Essential
-    // vorhanden ist – unabhängig von der Auto-Remove-Opt-In, da sonst Essentials
-    // Cosmetics-Loader mit AbstractMethodError (typeParametersSerializers) abstürzt.
-    // Essential stellt FLK selbst bereit; ein weiteres (eigenständiges) FLK auf dem
-    // Classpath liefert die inkompatible kotlinx.serialization-Version.
-    // WICHTIG: Wir entfernen die eigenständige FLK NUR, wenn wir sie auch wirklich
-    // ersetzen – also unser eigenes kollegen-bundle-flk.jar deployt wird. Sonst
-    // verschwindet FLK komplett und Fabric startet nicht (Regression ab 1.9.7).
+    
+    
+    
+    
+    
+    
+    
+    
     if essential_present && flk_will_deploy {
         if let Ok(entries) = fs::read_dir(mods_dir) {
             for e in entries.flatten() {
@@ -1293,9 +1293,9 @@ pub(crate) fn enforce_bundled_mods(mods_dir: &Path, mc_version: &str, companion_
         }
     }
 
-    // 2) Bundles deployen. Gewünscht + deploybar -> extrahieren. Nur explizit
-    //    deaktivierte Bundles entfernen; bei fehlender Begleit-Jar das zuletzt
-    //    deployte Bundle belassen (nie die einzige Quelle eines Mods löschen).
+    
+    
+    
     for &(jar_name, bin_path, desired, will_deploy) in &decisions {
         let dest = mods_dir.join(jar_name);
         if will_deploy {
@@ -1320,21 +1320,21 @@ pub(crate) fn enforce_bundled_mods(mods_dir: &Path, mc_version: &str, companion_
         }
     }
 
-    // 3) Spotify-Bundle reparieren: die embedded local_media_listener-Fat-JAR
-    //    shaded eine alte kotlinx-serialization (<1.8.0) mit abstraktem
-    //    `typeParametersSerializers`. Sie gewinnt auf dem Knot-Classpath gegen
-    //    die 1.9.0/1.11.0-Default-Methode und Essentials (>1.8.0-kompilierte)
-    //    Serializer brechen mit AbstractMethodError im Cosmetics-Loader.
-    //    Idempotent – repariert auch bereits deployte (alte) Bündel.
+    
+    
+    
+    
+    
+    
     sanitize_spotify_bundle(mods_dir);
 
-    // 4) Kanonische Flags zurückschreiben (Quelle der Wahrheit für beide Seiten).
+    
     if let Ok(json) = serde_json::to_string_pretty(&flags) {
         let _ = fs::write(bundles_flag_path(mods_dir), json);
     }
 }
 
-/// Builds the classpath and launches Minecraft for the given instance.
+
 pub fn launch(
     state: &AppState,
     data_dir: &Path,
@@ -1343,25 +1343,25 @@ pub fn launch(
     settings: &Settings,
 ) -> Result<String> {
     let inst_dir = crate::utils::instance_dir(data_dir, &inst.name);
-    // Begleit-Mod bei jedem Start erneut sicherstellen (1.21.x – 1.26.x).
+    
     ensure_kollegen_mod(data_dir, &inst.name, &inst.loader, &inst.version);
-    // Renderer-Exklusivität (Sodium/Iris vs. VulkanMod/Beryl) durchsetzen, ohne
-    // Mod-Binaries selbst zu deployen – die Begleit-Mod embedded/deployed sie
-    // zur Laufzeit. Der Launcher schreibt nur den gewünschten Zustand
-    // (.kollegen-renderer) und stimmt die .disabled-State ab.
+    
+    
+    
+    
     let mods_dir = inst_dir.join("mods");
     enforce_renderer_consistency(&mods_dir, inst.vulkan_enabled);
-    // SteamDeck-/Konsolen-Modus: den Controller-Modus im Begleit-Mod über die
-    // shared State-Datei .kollegen-controller aktivieren (from the setting).
+    
+    
     enforce_controller_state(&mods_dir, settings.steamdeck_mode);
-    // Integrations-Bundles (Spotify Overlay, ChatHeads + Dependencies) aus der
-    // Begleit-Mod deployen/entfernen und Standalone-Kopien derselben Mods
-    // aufräumen – siehe enforce_bundled_mods (Zwei-Wege-Sync über
-    // mods/.kollegen-bundles.json).
+    
+    
+    
+    
     let companion_jar = crate::companion::companion_jar(data_dir);
     enforce_bundled_mods(&mods_dir, &inst.version, companion_jar.as_deref());
-    // Fresh launcher log per launch (avoids stale crash lines triggering the
-    // auto-resolver again on the next manual launch).
+    
+    
     if let Ok(mut logs) = state.logs.lock() {
         logs.clear();
     }
@@ -1371,7 +1371,7 @@ pub fn launch(
 
     info!("Launching Minecraft {} ({}) for instance '{}'...", inst.version, inst.loader, inst.name);
 
-    // Verify version jar exists; if missing, install the instance automatically
+    
     let version_jar = version_dir.join(format!("{}.jar", inst.version));
     if !version_jar.exists() {
         info!(
@@ -1387,18 +1387,18 @@ pub fn launch(
         )?;
     }
 
-    // Ensure assets are present (idempotent: only missing objects are downloaded)
+    
     info!("Prüfe Minecraft-Assets...");
     let _ = download_assets(data_dir, &inst.name, &inst.version);
 
-    // Read version JSON to get main class
+    
     let vjson_path = version_dir.join(format!("{}.json", inst.version));
     let vjson_str = fs::read_to_string(&vjson_path)?;
     let vjson: VersionJson = serde_json::from_str(&vjson_str)?;
 
-    // For Fabric, install the loader (if needed) and use its generated
-    // profile to obtain the KnotClient main class. The classpath is built
-    // from all jars under libraries/ (incl. Fabric loader + deps) below.
+    
+    
+    
     let (main_class, asset_index) = if inst.loader.eq_ignore_ascii_case("fabric") {
         let fabric_id = ensure_fabric(data_dir, inst, java_path)?;
         let fabric_json_path = crate::utils::instance_dir(data_dir, &inst.name)
@@ -1421,10 +1421,10 @@ pub fn launch(
     };
     info!("Launching with main class: {}", main_class);
 
-    // Build classpath: version jar + all libraries
+    
     let mut classpath = vec![version_jar.to_string_lossy().into_owned()];
 
-    // Add all library jars
+    
     if libs_dir.exists() {
         for entry in collect_jars(&libs_dir) {
             if !classpath.contains(&entry) {
@@ -1433,7 +1433,7 @@ pub fn launch(
         }
     }
 
-    // Add mods
+    
     let mods_dir = inst_dir.join("mods");
     clean_corrupt_mods(&mods_dir);
     if mods_dir.exists() {
@@ -1446,36 +1446,36 @@ pub fn launch(
         }
     }
 
-    // Build JVM arguments
+    
     let mut jvm_args: Vec<String> = vec![];
 
-    // macOS: GLFW requires -XstartOnFirstThread
+    
     if cfg!(target_os = "macos") {
         jvm_args.push("-XstartOnFirstThread".to_string());
     }
 
-    // Java library path for natives
+    
     let natives_dir = version_dir.join("natives");
     if natives_dir.exists() {
         jvm_args.push(format!("-Djava.library.path={}", natives_dir.to_string_lossy()));
     }
 
-    // Memory settings
+    
     jvm_args.push(format!("-Xms{}", inst.memory_min));
     jvm_args.push(format!("-Xmx{}", inst.memory_max));
 
-    // Build classpath argument
+    
     let os_cp_sep = if cfg!(target_os = "windows") { ";" } else { ":" };
     jvm_args.push("-cp".to_string());
     jvm_args.push(classpath.join(os_cp_sep));
 
-    // Get account info (load from disk to always have the latest)
+    
     let mut accounts = crate::utils::load_json::<Vec<crate::types::Account>>(
         &crate::utils::accounts_file(&state.data_dir),
         vec![],
     );
 
-    // Refresh the token if it has expired, then reload the account data
+    
     let now = chrono::Utc::now().timestamp() as u64;
     let expired = accounts
         .first()
@@ -1497,11 +1497,11 @@ pub fn launch(
     let uuid = first.map(|a| a.uuid.clone()).unwrap_or_else(|| "0".to_string());
     let access_token = first.map(|a| a.access_token.clone()).unwrap_or_default();
 
-    // Build the command
+    
     let mut cmd = std::process::Command::new(java_path);
     crate::java::sanitize_java_env(&mut cmd);
-    // On Windows a GUI parent spawns a visible console window for java.exe; hide
-    // it (logs are still captured via the piped stdout/stderr below).
+    
+    
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;
@@ -1509,10 +1509,10 @@ pub fn launch(
     }
     cmd.args(&jvm_args);
 
-    // Add main class
+    
     cmd.arg(&main_class);
 
-    // Add Minecraft-specific arguments
+    
     cmd.args(&[
         "--username", &username,
         "--version", &inst.version,
@@ -1527,7 +1527,7 @@ pub fn launch(
         "--versionType", "release",
     ]);
 
-    // Server connection
+    
     if let Some(server) = &inst.server {
         let parts: Vec<&str> = server.split(':').collect();
         if parts.len() >= 2 {
@@ -1535,21 +1535,21 @@ pub fn launch(
         }
     }
 
-    // Custom Java args
+    
     if let Some(jargs) = &inst.java_args {
         for arg in jargs.split_whitespace() {
             cmd.arg(arg);
         }
     }
 
-    // Working directory
+    
     cmd.current_dir(&inst_dir);
 
-    // Capture the game's output: stdout UND stderr werden gepiped, damit beide
-    // in das In-Memory-Launcher-Log UND in logs/latest.log gestreamt werden
-    // (vorher ging stderr nur in die Datei → JVM-/Loader-Fehler waren in der UI
-    // unsichtbar, z.B. beim stillen Startabbruch auf dem SteamDeck). Die beiden
-    // Reader-Threads unten drainen beide Pipes.
+    
+    
+    
+    
+    
     let log_path = inst_dir.join("logs").join("latest.log");
     if let Some(parent) = log_path.parent() {
         let _ = fs::create_dir_all(parent);
@@ -1558,19 +1558,19 @@ pub fn launch(
     cmd.stdout(Stdio::piped());
     cmd.stderr(Stdio::piped());
 
-    // Install + enable the resource pack that replaces the in-game
-    // "Minecraft Java Edition" title logo with Logo.png.
+    
+    
     ensure_title_logo_pack(&inst_dir, &inst.version);
 
-    // ── Start-Bericht (~/.kollegen/last-launch-report.txt) ──────────────────
-    // Vor dem Spawn wird Umgebung + Kommandozeile + `java -version`
-    // dokumentiert und Java auf Startbarkeit geprüft. Wird Java selbst gar
-    // nicht startbar (z.B. durch SteamOS-AppImage-Lib-Konflikt), brechen wir
-    // HIER ab und liefern eine echte Fehlermeldung statt des irreführenden
-    // "Minecraft started"-Alerts. Der Watchdog weiter unten hängt Exit-Code,
-    // Hänger-Warnung und die letzten latest.log-Zeilen an denselben Bericht an –
-    // damit ist jeder "startet nicht"-Fall auch auf dem SteamDeck nachvoll-
-    // ziehbar, selbst wenn die UI-Log-Anzeige unerreichbar ist.
+    
+    
+    
+    
+    
+    
+    
+    
+    
     let report_path = dirs::home_dir().map(|h| h.join(".kollegen").join("last-launch-report.txt"));
     if let Some(rp) = &report_path {
         if let Some(p) = rp.parent() {
@@ -1578,7 +1578,7 @@ pub fn launch(
         }
     }
 
-    // Java-Sanity-Check (stderr, da `java -version` auf stderr schreibt).
+    
     let java_probe = std::process::Command::new(java_path)
         .arg("-version")
         .output();
@@ -1661,16 +1661,16 @@ pub fn launch(
     let mut child = cmd.spawn()?;
     let pid = child.id();
 
-    // Gemeinsames Signal "letzter Log-Output" (Unix-Millis). Beide Reader
-    // aktualisieren es; der Watchdog unten erkennt so einen Prozess, der noch
-    // lebt, aber nichts mehr schreibt (= stilles Hängen), statt weiter ruhig
-    // auf dessen Ende zu warten.
+    
+    
+    
+    
     let last_activity = Arc::new(AtomicU64::new(0));
 
-    // Stream stdout (game log) into the in-memory launcher log and the file.
-    // The same stream is also scanned for server connect/disconnect so the
-    // launcher can show – and advertise via rich presence – the server you
-    // actually joined, with no manual configuration.
+    
+    
+    
+    
     let log_discord_tx = state.discord.tx.clone();
     let log_version = inst.version.clone();
     let log_loader = inst.loader.clone();
@@ -1701,8 +1701,8 @@ pub fn launch(
                             let line = carry[..idx].trim_end().to_string();
                             carry.replace_range(..=idx, "");
                             if !line.is_empty() {
-                                // Detect joining / leaving a server and keep
-                                // the Discord panel + rich presence in sync.
+                                
+                                
                                 if let Some(srv) = parse_server_from_log(&line) {
                                     crate::discord::set_current_server(Some(srv.clone()));
                                     let _ = log_discord_tx.send(crate::discord::RpcMessage::Set {
@@ -1752,8 +1752,8 @@ pub fn launch(
         });
     }
 
-    // Stderr (JVM-/Loader-Fehler wie Fabric-Abstürze, OOM, GLFW/GL-Probleme)
-    // in UI-Log + latest.log spiegeln – sonst "verschwinden" Fehler spurlos.
+    
+    
     if let Some(mut err) = child.stderr.take() {
         let logs_arc = Arc::clone(&state.logs);
         let log_path2 = log_path.clone();
@@ -1802,12 +1802,12 @@ pub fn launch(
         });
     }
 
-    // Process-Watcher: wartet mit Watchdog auf das Spielende, erkennt einen
-    // leeren Absturz (Exit-Code ungleich 0, sehr kurze Laufzeit, ohne dass je
-    // ein Fehlerfenster auftaucht – genau das SteamDeck-Symptom) und einen
-    // Hänger (Prozess lebt, schreibt aber nichts mehr). Beide Meldungen landen
-    // im Launcher-Log samt letzter Log-Zeilen, damit kein Start mehr still
-    // scheitert. Danach Discord-Presence auf "Im Launcher" zurücksetzen.
+    
+    
+    
+    
+    
+    
     let discord_tx = state.discord.tx.clone();
     let logs_arc = Arc::clone(&state.logs);
     let log_path2 = log_path.clone();
@@ -1828,9 +1828,9 @@ pub fn launch(
                     break;
                 }
                 Ok(None) => {
-                    // Lebt der Prozess noch, aber kommt seit 60s kein Log-Output
-                    // → wahrscheinlich hängt das Spiel (z.B. Renderer/OpenAL/
-                    // Vulkan-Init). Einmalig laut melden.
+                    
+                    
+                    
                     let last = last_activity.load(Ordering::Relaxed);
                     if last != 0 && t0.elapsed().as_secs() > 10 {
                         let now_ms = std::time::SystemTime::now()
@@ -1881,8 +1881,8 @@ pub fn launch(
             let ts = chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
             let _ = std::writeln!(f, "[{}] {}", ts, line);
         }
-        // Letzter Stand von latest.log als Kontext anhängen (falls der Absturz
-        // gar nichts nach stdout/stderr geschrieben hat).
+        
+        
         let log_tail = crate::read_log_tail(&log_path2, 16 * 1024);
         if !log_tail.trim().is_empty() {
             if let Ok(mut logs) = logs_arc.lock() {
@@ -1892,7 +1892,7 @@ pub fn launch(
                 }
             }
         }
-        // Dieselben Fakten an den Start-Bericht anhängen.
+        
         if let Some(rp) = &report_path2 {
             let mut txt = String::new();
             txt.push_str(&format!(
@@ -1921,7 +1921,7 @@ pub fn launch(
         crate::discord::set_current_server(None);
     });
 
-    // Update last_played
+    
     let path = crate::utils::instances_file(&state.data_dir);
     let mut instances = crate::utils::load_json::<Vec<Instance>>(&path, vec![]);
     for i in &mut instances {
@@ -1934,14 +1934,14 @@ pub fn launch(
     Ok(format!("Minecraft started (PID: {})", pid))
 }
 
-/// Extracts the server address from a Minecraft client log line such as
-/// `[Render thread/INFO]: Connecting to play.example.com, 25565`.
+
+
 fn parse_server_from_log(line: &str) -> Option<String> {
     let marker = "Connecting to ";
     let idx = line.find(marker)?;
     let rest = &line[idx + marker.len()..];
     let host_part = rest.split(',').next().unwrap_or("").trim();
-    // Some versions log "host/resolved-ip" – keep only the host part.
+    
     let host = host_part.split('/').next().unwrap_or(host_part).trim();
     if host.is_empty() {
         return None;
@@ -1963,14 +1963,14 @@ fn parse_server_from_log(line: &str) -> Option<String> {
     }
 }
 
-/// Returns true if the log line indicates the client left the server.
+
 fn is_disconnect_log(line: &str) -> bool {
     line.contains("Disconnected from server")
         || line.contains("Lost connection")
         || line.contains("Client disconnected")
 }
 
-/// Recursively collects all .jar file paths from a directory.
+
 fn collect_jars(dir: &Path) -> Vec<String> {
     let mut result = vec![];
     if let Ok(entries) = fs::read_dir(dir) {
@@ -1986,10 +1986,10 @@ fn collect_jars(dir: &Path) -> Vec<String> {
     result
 }
 
-// ─=== Modrinth Modpack Import (.mrpack / .zip) ===
 
-/// Replaces filesystem-unfriendly characters so the pack name is a safe
-/// instance directory name.
+
+
+
 fn sanitize_name(name: &str) -> String {
     let cleaned: String = name
         .trim()
@@ -2006,17 +2006,17 @@ fn sanitize_name(name: &str) -> String {
     }
 }
 
-/// Imports a Modrinth modpack (`.mrpack` or a `.zip` containing
-/// `modrinth.index.json`) as a new instance: parses the index, creates the
-/// instance, installs Minecraft + loader and downloads all client-side files
-/// (mods, resource packs, shaders, …) declared in the pack.
+
+
+
+
 pub fn import_pack(data_dir: &Path, path: &str) -> Result<Instance> {
     let file = fs::File::open(path)
         .map_err(|e| anyhow!("Konnte Paket nicht öffnen: {}", e))?;
     let mut archive = zip::ZipArchive::new(file)
         .map_err(|e| anyhow!("Datei ist kein gültiges zip: {}", e))?;
 
-    // Find modrinth.index.json (case-insensitive, anywhere in the archive).
+    
     let mut index_name = None;
     for i in 0..archive.len() {
         if let Ok(f) = archive.by_index(i) {
@@ -2064,7 +2064,7 @@ pub fn import_pack(data_dir: &Path, path: &str) -> Result<Instance> {
         .ok_or_else(|| anyhow!("Minecraft-Version fehlt im Pack."))?
         .to_string();
 
-    // Loader + Loader-Version aus den dependencies ableiten.
+    
     let (loader, loader_version) = if let Some(v) =
         deps.get("fabric-loader").and_then(|v| v.as_str())
     {
@@ -2090,7 +2090,7 @@ pub fn import_pack(data_dir: &Path, path: &str) -> Result<Instance> {
         .unwrap_or("")
         .to_string();
 
-    // Instance anlegen (eindeutigen Namen sicherstellen).
+    
     let inst_path = crate::utils::instances_file(data_dir);
     let mut instances = crate::utils::load_json::<Vec<Instance>>(&inst_path, vec![]);
     let base = sanitize_name(&pack_name);
@@ -2121,7 +2121,7 @@ pub fn import_pack(data_dir: &Path, path: &str) -> Result<Instance> {
     instances.push(inst.clone());
     crate::utils::save_json(&inst_path, &instances)?;
 
-    // Minecraft + Loader installieren.
+    
     info!("Importiere Modpack '{}' (MC {})…", name, mc_version);
     install_instance(
         data_dir,
@@ -2131,7 +2131,7 @@ pub fn import_pack(data_dir: &Path, path: &str) -> Result<Instance> {
         inst.loader_version.as_deref(),
     )?;
 
-    // Pack-Dateien herunterladen (nur client-seitige).
+    
     let inst_dir = crate::utils::instance_dir(data_dir, &name);
     let client = reqwest::blocking::Client::builder()
         .user_agent(crate::USER_AGENT)
@@ -2143,7 +2143,7 @@ pub fn import_pack(data_dir: &Path, path: &str) -> Result<Instance> {
                 Some(p) => p,
                 None => continue,
             };
-            // Nur client-seitige Dateien (env.client != "unsupported").
+            
             if let Some(env) = f.get("env").and_then(|e| e.as_object()) {
                 let client_env = env
                     .get("client")

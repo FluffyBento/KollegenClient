@@ -1,5 +1,5 @@
-// Modrinth integration: search, install and manage instance content
-// (mods, resource packs, shader packs).
+
+
 
 use anyhow::{anyhow, Result};
 use log::{info, warn};
@@ -51,8 +51,8 @@ fn category_dir(kind: &str) -> Result<&'static str> {
     }
 }
 
-/// Searches Modrinth for projects of the given kind, compatible with the
-/// instance's Minecraft version (and loader, for mods).
+
+
 pub fn search(
     kind: &str,
     query: &str,
@@ -139,8 +139,8 @@ pub fn search(
     Ok(out)
 }
 
-/// Picks the first version compatible with the instance's Minecraft version
-/// (and loader, for mods) from a project's version list.
+
+
 fn pick_compatible<'a>(
     versions: &'a [Value],
     mc_version: &str,
@@ -167,7 +167,7 @@ fn pick_compatible<'a>(
     })
 }
 
-/// Returns the (url, filename) of a version's primary file.
+
 fn primary_file(v: &Value) -> Option<(String, String)> {
     let files = v
         .get("files")
@@ -186,8 +186,8 @@ fn primary_file(v: &Value) -> Option<(String, String)> {
     Some((url, filename))
 }
 
-/// Lists Modrinth versions of `project_id` that are compatible with the given
-/// Minecraft version (and loader, for mods). Newest first.
+
+
 pub fn list_versions(project_id: &str, mc_version: &str, loader: &str) -> Result<Vec<ModrinthVersion>> {
     let url = format!("{}/project/{}/version", MODRINTH_API, project_id);
     let resp = client()?.get(&url).send()?;
@@ -211,8 +211,8 @@ pub fn list_versions(project_id: &str, mc_version: &str, loader: &str) -> Result
             .and_then(|l| l.as_array())
             .map(|a| a.iter().filter_map(|x| x.as_str().map(|s| s.to_string())).collect::<Vec<_>>())
             .unwrap_or_default();
-        // Mods carry a loader list; resource packs / shaders have none, so the
-        // loader filter only applies when the version actually declares loaders.
+        
+        
         let loader_ok = loaders.is_empty() || loaders.iter().any(|l| l.eq_ignore_ascii_case(loader));
         if !(game_ok && loader_ok) {
             continue;
@@ -238,10 +238,10 @@ pub fn list_versions(project_id: &str, mc_version: &str, loader: &str) -> Result
     Ok(out)
 }
 
-/// Downloads a project (and recursively its required dependencies) into the
-/// instance's content folder. `visited` prevents cycles / duplicate installs.
-/// `version_id` selects a specific version; when `None` the newest compatible
-/// version is installed (dependencies always use their newest compatible version).
+
+
+
+
 fn install_project_recursive(
     data_dir: &Path,
     instance_name: &str,
@@ -292,14 +292,14 @@ fn install_project_recursive(
         crate::utils::download_file(&file_url, &dest)?;
         info!("Installiert: {} ({})", filename, project_id);
     }
-    // Always record the install so the project is tracked as "already
-    // installed" (and filtered out of search). Previously this only ran when
-    // the file was freshly downloaded, so mods whose file already existed on
-    // disk (older builds, re-installs) were never recorded and kept showing
-    // up in the browse list after a restart.
+    
+    
+    
+    
+    
     let _ = record_install(data_dir, instance_name, kind, &filename, project_id);
 
-    // Recurse into required dependencies
+    
     if let Some(deps) = chosen.get("dependencies").and_then(|d| d.as_array()) {
         for dep in deps {
             let dep_type = dep
@@ -330,9 +330,9 @@ fn install_project_recursive(
     Ok(())
 }
 
-/// Downloads the latest version of a project compatible with the instance's
-/// Minecraft version (and loader, for mods) into the correct subfolder,
-/// including its required dependencies.
+
+
+
 pub fn install_content(
     instance_name: &str,
     data_dir: &Path,
@@ -356,12 +356,12 @@ pub fn install_content(
     )
 }
 
-/// Curated set of the strongest, mutually-compatible Fabric performance mods.
-/// Each entry is a Modrinth project id (slug) and is resolved to the newest
-/// version compatible with the instance's Minecraft version + loader. Mods
-/// without a compatible release for a given version are simply skipped, so the
-/// list stays safe across Minecraft versions. Dependencies (e.g. config libs)
-/// are pulled in automatically by `install_content`.
+
+
+
+
+
+
 const PERF_MODS: &[&str] = &[
     "lithium",
     "ferrite-core",
@@ -373,10 +373,10 @@ const PERF_MODS: &[&str] = &[
     "memoryleakfix",
 ];
 
-/// Installs the curated performance-modpack into a Fabric/Quilt instance.
-/// Best-effort: a single mod failing to install is logged and skipped rather
-/// than aborting the whole batch, so instance creation never breaks.
-/// Returns the slugs of all successfully installed mods.
+
+
+
+
 pub fn install_perf_mods(
     data_dir: &Path,
     instance_name: &str,
@@ -404,7 +404,7 @@ pub fn install_perf_mods(
     Ok(installed)
 }
 
-/// Lists installed content filenames per category for an instance.
+
 pub fn list_content(data_dir: &Path, instance_name: &str) -> Value {
     let inst_dir = crate::utils::instance_dir(data_dir, instance_name);
     let cats = [
@@ -413,8 +413,8 @@ pub fn list_content(data_dir: &Path, instance_name: &str) -> Value {
         ("shaderpacks", "shader"),
     ];
     let mut result = serde_json::json!({});
-    // Metadaten einmalig laden statt pro Datei neu von der Platte zu lesen
-    // (Ursache für das Lag im "Installiert"-Tab bei vielen Mods).
+    
+    
     let meta = load_meta(data_dir, instance_name);
     for (dir, key) in cats {
         let d = inst_dir.join(dir);
@@ -425,22 +425,22 @@ pub fn list_content(data_dir: &Path, instance_name: &str) -> Value {
                 if e.path().is_file() {
                     if let Some(name) = e.file_name().to_str() {
                         let name = name.to_string();
-                        // The launcher-managed title-logo pack stays hidden from
-                        // the browser. The Kollegen Client companion mod is shown
-                        // so users can confirm it's present (deletion is still
-                        // blocked in `delete_content`).
+                        
+                        
+                        
+                        
                         if key == "resourcepack" && name == "KollegenTitle.zip" {
                             continue;
                         }
-                        // Vom Kollegen-Client eingebettet/verwaltete Renderer-Mods
-                        // (VulkanMod, Beryl, Sodium, Iris) werden in der Liste
-                        // ausgeblendet – es soll nur die Kollegen-Client-Mod
-                        // sichtbar sein.
+                        
+                        
+                        
+                        
                         if crate::modrinth::is_managed_renderer_mod(&name) {
                             continue;
                         }
-                        // Ebenso die vom Launcher deployten Integrations-Bundles
-                        // (Spotify Overlay, ChatHeads + Dependencies).
+                        
+                        
                         if name.starts_with("kollegen-bundle") {
                             continue;
                         }
@@ -465,9 +465,9 @@ pub fn list_content(data_dir: &Path, instance_name: &str) -> Value {
     result
 }
 
-/// Removes an installed content file. Filenames are validated to prevent
-/// path traversal. Launcher-managed files (Kollegen Client mod, title-logo
-/// resource pack) are protected and cannot be removed here.
+
+
+
 pub fn delete_content(
     data_dir: &Path,
     instance_name: &str,
@@ -493,10 +493,10 @@ pub fn delete_content(
     Ok(())
 }
 
-/// Changes the installed version of a Modrinth-managed project: installs the
-/// requested version (downloading it if needed, including required dependencies)
-/// and removes the previously installed file for the same project so only one
-/// version stays installed at a time.
+
+
+
+
 pub fn change_content_version(
     data_dir: &Path,
     instance_name: &str,
@@ -524,13 +524,13 @@ pub fn change_content_version(
     let project_id = project_id_for_file(data_dir, instance_name, kind, filename)
         .ok_or_else(|| anyhow!("Projekt-ID für '{}' nicht gefunden", filename))?;
 
-    // A specific version_id is given, so mc_version/loader are only required by
-    // the signature and are not used to pick a compatible version.
+    
+    
     install_content(instance_name, data_dir, kind, &project_id, "", "", Some(version_id))?;
 
     let after = snapshot(&target_dir);
-    // A newly added file means the chosen version installed under a different
-    // name than the old one – remove the previous file so only one remains.
+    
+    
     let added: std::collections::HashSet<String> =
         after.difference(&before).cloned().collect();
     if !added.is_empty() && !added.contains(filename) {
@@ -539,10 +539,10 @@ pub fn change_content_version(
     Ok(())
 }
 
-/// True for mods the in-game companion mod manages internally (VulkanMod fork,
-/// Beryl, Sodium, Iris). They are deployed/disabled by the companion mod and
-/// hidden from the launcher's content browser so only the Kollegen Client
-/// companion mod is shown. Matched by file-name prefix (incl. `.disabled`).
+
+
+
+
 pub fn is_managed_renderer_mod(filename: &str) -> bool {
     let f = filename.to_lowercase();
     let f = f.strip_suffix(".disabled").unwrap_or(&f);
@@ -552,9 +552,9 @@ pub fn is_managed_renderer_mod(filename: &str) -> bool {
         || f.starts_with("beryl")
 }
 
-/// Returns true when `filename` is managed by the launcher itself (the
-/// injected Kollegen Client mod and the title-logo resource pack). Such files
-/// are hidden from the content browser and cannot be deleted by the user.
+
+
+
 fn is_managed_content(kind: &str, filename: &str) -> bool {
     if crate::companion::is_companion_mod_name(filename) {
         return true;
@@ -562,16 +562,16 @@ fn is_managed_content(kind: &str, filename: &str) -> bool {
     if crate::modrinth::is_managed_renderer_mod(filename) {
         return true;
     }
-    // Integrations-Bundles (Spotify Overlay, ChatHeads + Dependencies) werden
-    // vom Launcher vor jedem Start neu deployed/entfernt.
+    
+    
     if filename.starts_with("kollegen-bundle") {
         return true;
     }
-    // The KollegenTitle.zip pack is reinstalled + force-enabled on every launch.
+    
     kind == "resourcepack" && filename == "KollegenTitle.zip"
 }
 
-/// Returns the singular metadata key for a content kind.
+
 fn meta_key(kind: &str) -> Option<&'static str> {
     match kind {
         "mod" => Some("mod"),
@@ -603,7 +603,7 @@ fn save_meta(data_dir: &Path, instance_name: &str, meta: &Value) -> Result<()> {
     Ok(())
 }
 
-/// Records that `filename` (belonging to `project_id`) was installed for `kind`.
+
 fn record_install(
     data_dir: &Path,
     instance_name: &str,
@@ -625,7 +625,7 @@ fn record_install(
     save_meta(data_dir, instance_name, &meta)
 }
 
-/// Removes a recorded install entry (used when deleting content).
+
 fn remove_install_record(
     data_dir: &Path,
     instance_name: &str,
@@ -643,8 +643,8 @@ fn remove_install_record(
     save_meta(data_dir, instance_name, &meta)
 }
 
-/// Returns the set of installed Modrinth project ids per content kind,
-/// so the UI can hide already-installed projects from search results.
+
+
 pub fn installed_project_ids(data_dir: &Path, instance_name: &str) -> Value {
     let meta = load_meta(data_dir, instance_name);
     let mut out = serde_json::json!({});
@@ -663,8 +663,8 @@ pub fn installed_project_ids(data_dir: &Path, instance_name: &str) -> Value {
     out
 }
 
-/// Returns the recorded Modrinth project id for an installed file (by content
-/// kind + filename), or `None` if the file isn't tracked as a Modrinth install.
+
+
 pub fn project_id_for_file(
     data_dir: &Path,
     instance_name: &str,
@@ -680,8 +680,8 @@ pub fn project_id_for_file(
         .map(|s| s.to_string())
 }
 
-/// Fetches full project details (and gallery images) from Modrinth for the
-/// in-client detail view opened via "Ansehen".
+
+
 pub fn project_details(id: &str) -> Result<Value, String> {
     let client = client().map_err(|e| e.to_string())?;
     let proj_url = format!("{}/project/{}", MODRINTH_API, id);

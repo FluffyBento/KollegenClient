@@ -3,11 +3,7 @@ package dev.kollegen.client.input;
 import net.minecraft.client.Minecraft;
 import org.lwjgl.glfw.GLFW;
 
-/**
- * Liest die Rechts-Shift-Taste direkt vom GLFW-Fenster aus. Damit braucht der
- * Mod KEINE fabric-api (das fabric-Keybinding-API wäre sonst eine Pflicht-
- * Abhängigkeit, die in fremden Instanzen fehlen kann).
- */
+
 public final class KollegenKeybind {
 
     private KollegenKeybind() {

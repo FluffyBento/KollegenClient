@@ -1,4 +1,4 @@
-// Java utilities for the Kollegen Client launcher
+
 
 use anyhow::{anyhow, Result};
 use log::{info, warn};
@@ -7,38 +7,38 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::Duration;
 
-/// Returns the platform-specific Java executable name ("java" or "java.exe").
+
 fn java_exe() -> &'static str {
     if cfg!(target_os = "windows") { "java.exe" } else { "java" }
 }
 
-/// Strips loader variables the launcher inherited from the AppImage/AppRun
-/// (LD_LIBRARY_PATH points at the bundled WebKit libs). A spawned `java` would
-/// otherwise load those bundled libs, crash on `-version` and be reported as
-/// "Java X nicht gefunden". The JRE ships its own libs, so clearing them is safe.
-///
-/// WICHTIG (SteamDeck): Nur diese beiden Variablen entfernen. Zusätzliche
-/// Entfernungen (APPIMAGE, APPDIR, STEAM_RUNTIME_*, STEAM_COMPAT_*) wurden in
-/// v1.13.6 kurzzeitig ergänzt und brachen dort die Java-Detektion: Das
-/// `-version`-Probe von `find_java` (s. `java_major`) lief unter dieser bereinigten
-/// Umgebung nicht mehr, woraufhin ein vorhandenes, funktionierendes Java 21 als
-/// "nicht gefunden" gemeldet wurde (Launch fehlgeschlagen). Die wahre Ursache des
-/// ursprünglichen stillen Startabbruchs war übrigens der Mixin-Crash der
-/// Begleit-Mod (v1.13.6-Fix), nicht die AppImage-Umgebung – die Bereinigung
-/// brachte also keinen Fix, nur die Java-Detektion.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 pub fn sanitize_java_env(cmd: &mut Command) {
     cmd.env_remove("LD_LIBRARY_PATH");
     cmd.env_remove("LD_PRELOAD");
 }
 
-/// Finds a Java executable matching the required major version.
-/// Prefers an exact match (versioned bundled JRE, JAVA_HOME, generic bundled
-/// JRE, system PATH), then falls back to any available JRE whose major version
-/// is >= the required one (a newer JRE can still run older Minecraft versions).
+
+
+
+
 pub fn find_java(data_dir: &Path, required_version: u32) -> Result<String> {
     let exe = java_exe();
 
-    // Exact-match candidates, in priority order.
+    
     let mut exact: Vec<PathBuf> = Vec::new();
     exact.push(data_dir.join(format!("jre-{}", required_version)).join("bin").join(exe));
     if let Ok(home) = std::env::var("JAVA_HOME") {
@@ -52,7 +52,7 @@ pub fn find_java(data_dir: &Path, required_version: u32) -> Result<String> {
         }
     }
 
-    // System PATH (exact match)
+    
     let which_cmd = if cfg!(target_os = "windows") { "where" } else { "which" };
     if let Ok(output) = Command::new(which_cmd).arg("java").output() {
         if output.status.success() {
@@ -68,9 +68,9 @@ pub fn find_java(data_dir: &Path, required_version: u32) -> Result<String> {
         }
     }
 
-    // Lenient fallback: pick the smallest available major version that is still
-    // >= required (closest compatible), so e.g. a bundled Java 21 also satisfies
-    // an instance that needs Java 17. Too-old JREs are never selected.
+    
+    
+    
     let mut candidates: Vec<PathBuf> = Vec::new();
     if let Ok(entries) = std::fs::read_dir(data_dir) {
         for e in entries.flatten() {
@@ -140,8 +140,8 @@ pub fn find_java(data_dir: &Path, required_version: u32) -> Result<String> {
     ))
 }
 
-/// Downloads a bundled JRE for the given major version into a versioned
-/// directory (e.g. jre-21). Returns the path to the java executable.
+
+
 pub fn download_jre_internal(version: u32) -> Result<String> {
     let data_dir = crate::utils::get_project_dirs()?;
     let jre_dir = data_dir.join(format!("jre-{}", version));
@@ -183,7 +183,7 @@ pub fn download_jre_internal(version: u32) -> Result<String> {
     let data = resp.bytes()?;
     fs::create_dir_all(&jre_dir)?;
 
-    // Extract and fix directory layout
+    
     if os_name == "windows" {
         use std::io::Cursor;
         let mut zip = zip::ZipArchive::new(Cursor::new(data))?;
@@ -195,16 +195,16 @@ pub fn download_jre_internal(version: u32) -> Result<String> {
         tar.unpack(&jre_dir)?;
     }
 
-    // TAR.GZ/ZIP archives from Adoptium may extract into a subdirectory
-    // (e.g. jdk-21.0.5+11-jre/) or even nest a `jre/` folder. Flatten so that
-    // jre-21/bin/java exists.
+    
+    
+    
     let java_bin = jre_dir.join("bin").join(java_exe());
     if !java_bin.exists() {
             if let Some(found) = find_java_bin(&jre_dir) {
-                // `found` is .../bin/java[.exe]; its parent's parent is the JRE root —
-                // the directory that directly contains bin/ — which may be nested
-                // (e.g. on macOS: jdk-21.x-jre/Contents/Home). Flatten that root into
-                // jre_dir so jre_dir/bin/java[.exe] exists.
+                
+                
+                
+                
                 if let Some(root) = found.parent().and_then(|b| b.parent()) {
                     if root != jre_dir {
                     if let Ok(entries) = std::fs::read_dir(&root) {
@@ -216,7 +216,7 @@ pub fn download_jre_internal(version: u32) -> Result<String> {
                     let _ = std::fs::remove_dir_all(&root);
                 }
             }
-            // Also handle a nested jre/ subfolder (e.g. jre_dir/jre/bin/java)
+            
             let nested = jre_dir.join("jre");
             if nested.is_dir() {
                 if let Ok(entries) = std::fs::read_dir(&nested) {
@@ -230,8 +230,8 @@ pub fn download_jre_internal(version: u32) -> Result<String> {
         }
     }
 
-    // Ensure the java binary is executable (tar/zip may not preserve the bit,
-    // and on macOS the extracted binary is otherwise not runnable).
+    
+    
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
@@ -252,7 +252,7 @@ pub fn download_jre_internal(version: u32) -> Result<String> {
     Ok(java_bin.to_string_lossy().into_owned())
 }
 
-/// Recursively searches `dir` for a `bin/java` (or `bin/java.exe`) executable.
+
 fn find_java_bin(dir: &Path) -> Option<PathBuf> {
     let bin = dir.join("bin").join(java_exe());
     if bin.exists() {
@@ -271,15 +271,15 @@ fn find_java_bin(dir: &Path) -> Option<PathBuf> {
     None
 }
 
-/// Returns the major version of a java executable (e.g. 21, 17, 8).
+
 fn java_major(java_path: &Path) -> Option<u32> {
-    // Erst mit der sanitisierten Umgebung probieren (AppImage-/SteamOS-Altlasten
-    // entfernt – ein heruntergeladenes Temurin-JRE braucht diese Variablen nicht
-    // und lädt ansonsten ggf. die gebündelten WebKit-Libs). Schlägt das fehl,
-    // noch einmal mit der UNVERÄNDERTEN Umgebung versuchen: Ein Java aus der
-    // Steam-Runtime o.ä. kann auf STEAM_RUNTIME_LIBRARY_PATH o.ä. angewiesen
-    // sein, um überhaupt zu starten. Erst wenn BEIDE Probes fehlschlagen, gilt
-    // der Kandidat als unbrauchbar.
+    
+    
+    
+    
+    
+    
+    
     for sanitized in [true, false] {
         let mut cmd = Command::new(java_path);
         if sanitized {
@@ -292,14 +292,14 @@ fn java_major(java_path: &Path) -> Option<u32> {
     None
 }
 
-/// Runs `java -version` on `cmd` and parses the major version.
+
 fn parse_java_major(cmd: &mut Command) -> Option<u32> {
     let output = cmd.arg("-version").output().ok()?;
     let text = String::from_utf8_lossy(&output.stderr);
     let line = text.lines().next()?;
     let ver = line.split('"').nth(1)?;
     if ver.starts_with("1.") {
-        // Legacy style: 1.8.0_411 -> 8
+        
         return ver[2..3].parse::<u32>().ok();
     }
     ver.split('.').next()?.parse::<u32>().ok()

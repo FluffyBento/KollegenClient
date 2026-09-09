@@ -1,6 +1,6 @@
-// Microsoft OAuth authentication - Device Code Flow
-// Flow: MSA (device code) -> Xbox Live -> XSTS -> Minecraft
-// Based on https://github.com/i0nx/MinecraftOAuth
+
+
+
 
 use crate::types::Account;
 use anyhow::{anyhow, Result};
@@ -10,7 +10,7 @@ use std::path::Path;
 use std::sync::Mutex;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-// ─=== Global Auth Status for Polling ===
+
 
 lazy_static! {
     static ref AUTH_STATUS: Mutex<Value> = Mutex::new(serde_json::json!({
@@ -22,9 +22,9 @@ lazy_static! {
     static ref REFRESHING: Mutex<bool> = Mutex::new(false);
 }
 
-/// Returns the current auth status (for polling from frontend).
-/// If a valid account is stored on disk it is reflected as "done", and an
-/// expired-but-refreshable account is renewed automatically in the background.
+
+
+
 pub fn get_auth_status() -> Value {
     let mut status = AUTH_STATUS.lock().unwrap();
     if status["state"] == "idle" {
@@ -98,12 +98,12 @@ pub fn get_auth_status() -> Value {
     status.clone()
 }
 
-/// Starts the Microsoft OAuth login flow using the device code flow.
-/// Returns the auth status with user code and verification URI.
-///
-/// Tries each known public client ID in turn (`MICROSOFT_CLIENT_ID` env override
-/// first, otherwise `crate::MS_CLIENT_IDS`). If Microsoft blocks/throttles one
-/// ID for a user, the next candidate is tried automatically so login still works.
+
+
+
+
+
+
 pub fn ms_auth_start() -> Result<Value> {
     let candidates: Vec<String> = match std::env::var("MICROSOFT_CLIENT_ID").ok().filter(|s| !s.is_empty()) {
         Some(env) => vec![env],
@@ -173,7 +173,7 @@ pub fn ms_auth_start() -> Result<Value> {
             });
         }
 
-        // Spawn polling thread (uses the same client ID via crate::auth_client_id())
+        
         std::thread::spawn(move || {
             ms_auth_poll(device_code, interval, expires_in);
         });
@@ -184,7 +184,7 @@ pub fn ms_auth_start() -> Result<Value> {
     Err(anyhow!("Alle Microsoft-Client-IDs fehlgeschlagen: {}", last_err))
 }
 
-/// Polls Microsoft for the OAuth token, then completes the full auth chain.
+
 fn ms_auth_poll(device_code: String, interval: i64, expires_in: i64) {
     let client = reqwest::blocking::Client::builder()
         .timeout(Duration::from_secs(30))
@@ -239,7 +239,7 @@ fn ms_auth_poll(device_code: String, interval: i64, expires_in: i64) {
                         return;
                     }
 
-                    // Success - complete the auth chain
+                    
                     let access_token = msa["access_token"]
                         .as_str()
                         .unwrap_or("")
@@ -316,7 +316,7 @@ fn complete_auth(username: &str, uuid: &str, mc_token: &str, prof: &Value, msa: 
         client_id: Some(crate::auth_client_id()),
     };
 
-    // Save account to disk
+    
     if let Ok(data_dir) = crate::utils::get_project_dirs() {
         let path = crate::utils::accounts_file(&data_dir);
         let mut accts = crate::utils::load_json::<Vec<Account>>(&path, vec![]);
@@ -336,8 +336,8 @@ fn complete_auth(username: &str, uuid: &str, mc_token: &str, prof: &Value, msa: 
     });
 }
 
-/// Renews the stored account using its refresh_token and re-runs the full
-/// auth chain (Xbox Live -> XSTS -> Minecraft). Updates the saved account.
+
+
 pub fn refresh_stored_account() -> Result<()> {
     let data_dir = crate::utils::get_project_dirs()?;
     let path = crate::utils::accounts_file(&data_dir);
@@ -408,9 +408,9 @@ pub fn refresh_stored_account() -> Result<()> {
     Ok(())
 }
 
-/// Marks the account with the given uuid as the "active" (first) account by
-/// moving it to the front of the stored list. The first account is what the
-/// rest of the launcher treats as the signed-in identity.
+
+
+
 pub fn switch_account(data_dir: &Path, uuid: &str) -> Result<()> {
     let path = crate::utils::accounts_file(data_dir);
     let mut accts = crate::utils::load_json::<Vec<Account>>(&path, vec![]);
@@ -422,7 +422,7 @@ pub fn switch_account(data_dir: &Path, uuid: &str) -> Result<()> {
     Ok(())
 }
 
-/// Removes the account with the given uuid from the stored list.
+
 pub fn remove_account(data_dir: &Path, uuid: &str) -> Result<()> {
     let path = crate::utils::accounts_file(data_dir);
     let mut accts = crate::utils::load_json::<Vec<Account>>(&path, vec![]);
@@ -431,10 +431,10 @@ pub fn remove_account(data_dir: &Path, uuid: &str) -> Result<()> {
     Ok(())
 }
 
-// ─=== Xbox Live Authentication ===
 
-/// Authenticates with Xbox Live using the MSA access token.
-/// Returns the Xbox Live token.
+
+
+
 fn xbox_auth(msa_token: &str) -> Result<String> {
     let body = serde_json::json!({
         "Properties": {
@@ -462,10 +462,10 @@ fn xbox_auth(msa_token: &str) -> Result<String> {
         .ok_or_else(|| anyhow!("Xbox auth failed: no token in response"))
 }
 
-// ─=== XSTS Authentication ===
 
-/// Authenticates with XSTS using the Xbox Live token.
-/// Returns (XSTS token, UHS - User Hash).
+
+
+
 fn xsts_auth(xbl_token: &str) -> Result<(String, String)> {
     let body = serde_json::json!({
         "Properties": {
@@ -486,7 +486,7 @@ fn xsts_auth(xbl_token: &str) -> Result<(String, String)> {
 
     let data: Value = resp.json()?;
 
-    // Check for XSTS errors (e.g., 4 for Xbox Live account not able to get XSTS)
+    
     if data.get("error").is_some() {
         let error = data["error"].as_i64().unwrap_or(0);
         let error_description = data["error_description"].as_str().unwrap_or("");
@@ -510,13 +510,13 @@ fn xsts_auth(xbl_token: &str) -> Result<(String, String)> {
     Ok((token, uhs))
 }
 
-// ─=== Minecraft Login ===
 
-/// Logs in to Minecraft services using the XSTS token.
-/// Uses the canonical third-party endpoint (`authentication/login_with_xbox`,
-/// also used by PrismLauncher/ATLauncher) rather than the official launcher's
-/// `/launcher/login`, so the returned access token is accepted by Mojang's
-/// session server for multiplayer joins.
+
+
+
+
+
+
 fn mc_login(xsts_token: &str, uhs: &str) -> Result<Value> {
     let token_str = format!("XBL3.0 x={};{}", uhs, xsts_token);
     let body = serde_json::json!({
@@ -547,9 +547,9 @@ fn mc_login(xsts_token: &str, uhs: &str) -> Result<Value> {
     Ok(data)
 }
 
-// ─=== Minecraft Profile ===
 
-/// Retrieves the Minecraft profile for the logged-in user.
+
+
 fn mc_profile(mc_token: &str) -> Result<Value> {
     let resp = reqwest::blocking::Client::new()
         .get("https://api.minecraftservices.com/minecraft/profile")
@@ -568,8 +568,8 @@ fn mc_profile(mc_token: &str) -> Result<Value> {
             .as_str()
             .or_else(|| data["errorMessage"].as_str())
             .unwrap_or("unbekannter Fehler");
-        // `NOT_FOUND` means the Microsoft account does not own Minecraft Java
-        // Edition (or it isn't linked) – by far the most common cause, so say so.
+        
+        
         if err.as_str() == Some("NOT_FOUND") {
             return Err(anyhow!(
                 "Minecraft-Profil nicht gefunden: dieses Microsoft-Konto besitzt keine Minecraft Java Edition (oder sie ist nicht mit diesem Konto verknüpft). Details: {}",

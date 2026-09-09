@@ -4,12 +4,7 @@ import net.minecraft.world.inventory.Slot;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.gen.Accessor;
 
-/**
- * Zugriff auf Slot.x/Slot.y ohne Reflection. Die Felder sind final, daher wird
- * ueber den refmap-remapped @Accessor-Setter (putfield) geschrieben – ein
- * direktes s.x = ... ist nicht moeglich (final) und Class.getField("x") wuerde
- * unter Intermediary mit NoSuchFieldException scheitern.
- */
+
 @Mixin(Slot.class)
 public interface SlotAccessor {
 

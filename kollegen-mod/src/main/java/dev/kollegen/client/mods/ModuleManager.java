@@ -12,11 +12,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Verwaltet alle Module, lädt/speichert sie als JSON und ruft Tick- sowie
- * HUD-Render-Hooks auf. Bewusst OHNE fabric-api (nur net.minecraft + Gson +
- * FabricLoader für das Config-Verzeichnis).
- */
+
 public final class ModuleManager {
     private static final List<Module> MODULES = new ArrayList<>();
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
@@ -66,7 +62,7 @@ public final class ModuleManager {
                 try {
                     m.onTick();
                 } catch (Throwable t) {
-                    // Ein fehlerhaftes Modul darf den Tick nicht crashen.
+                    
                 }
             }
         }

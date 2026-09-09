@@ -9,12 +9,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-/**
- * Blendet Sonne und Mond im Überworld-Himmel aus (Setting "Himmelskörper"
- * in der Welt-Kategorie). Die privaten Zeichenmethoden von {@link SkyRenderer}
- * werden an der HEAD abgebrochen, sobald das jeweilige Setting aktiv ist.
- * Sterne bleiben sichtbar.
- */
+
 @Mixin(SkyRenderer.class)
 public class SkyBodiesMixin {
 

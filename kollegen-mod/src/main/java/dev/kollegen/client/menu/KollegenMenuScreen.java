@@ -114,10 +114,17 @@ public class KollegenMenuScreen extends Screen {
         px = p[0]; py = p[1]; pw = p[2]; ph = p[3];
         cx = px + SW + 18;
         cw = pw - SW - 34;
-        sidebarTop = py + 70;
+
+        
+        Button socialBtn = Button.builder(Component.literal("🌐 Soziales"),
+                btn -> Minecraft.getInstance().setScreen(new KollegenSocialScreen(this)))
+                .bounds(px + 22, py + 56, SW - 44, 34).build();
+        addRenderableWidget(socialBtn);
+
+        sidebarTop = py + 102;
         sidebarBottom = py + ph - 16;
 
-        // Sidebar: Höhe an verfügbaren Platz anpassen (skalieren) + Scroll
+        
         int avail = sidebarBottom - sidebarTop;
         int minH = 36;
         int need = cats.length * (minH + CAT_GAP);
@@ -131,11 +138,11 @@ public class KollegenMenuScreen extends Screen {
         if (catScroll > maxCatScroll) catScroll = maxCatScroll;
         if (catScroll < 0) catScroll = 0;
 
-        // Schließen
+        
         closeBtn = Button.builder(Component.literal("✕"), btn -> close()).bounds(px + pw - 38, py + 14, 26, 26).build();
         addRenderableWidget(closeBtn);
 
-        // Suche
+        
         search = new EditBox(this.font, cx + 14, py + 16, cw - 28, 24, Component.literal(""));
         search.setMaxLength(40);
         search.setHint(Component.literal("Suchen…"));
@@ -148,7 +155,7 @@ public class KollegenMenuScreen extends Screen {
         addRenderableWidget(search);
         search.setFocused(true);
 
-        // Inhalt
+        
         contentTop = py + 52;
         contentBottom = py + ph - 14;
         boolean hudCat = cats[category] == Category.HUD;
@@ -225,7 +232,7 @@ public class KollegenMenuScreen extends Screen {
         double mx = event.x();
         double my = event.y();
         int button = event.button();
-        // Sidebar-Klick (manuell, da selbst gerendert + gescrollt)
+        
         if (mx >= px && mx <= px + SW && my >= sidebarTop && my <= sidebarBottom) {
             int idx = (int) ((my - sidebarTop + catScroll) / (catItemH + CAT_GAP));
             if (idx >= 0 && idx < cats.length) {
@@ -242,7 +249,7 @@ public class KollegenMenuScreen extends Screen {
 
     @Override
     public boolean mouseScrolled(double mx, double my, double horizontal, double vertical) {
-        // Über der Sidebar: diese scrollen, sonst Inhalt
+        
         if (mx >= px && mx <= px + SW && my >= sidebarTop && my <= sidebarBottom && maxCatScroll > 0) {
             catScroll = Math.max(0, Math.min(maxCatScroll, catScroll - (int) (vertical * 28)));
             return true;
@@ -270,22 +277,22 @@ public class KollegenMenuScreen extends Screen {
     @Override
     public void render(GuiGraphics g, int mx, int my, float pt) {
         g.fill(0, 0, this.width, this.height, Palette.tint(Palette.BG, 0x20));
-        // Panel
+        
         Glass.fillRound(g, px, py, pw, ph, R, Palette.BORDER);
         Glass.fillRound(g, px + 1, py + 1, pw - 2, ph - 2, R - 1, Palette.tint(Palette.PANEL, 0xF2));
-        // Sidebar-Fläche
+        
         Glass.fillRound(g, px + 8, py + 8, SW, ph - 16, 14, Palette.tint(Palette.PANEL2, 0xCC));
-        // Akzentleiste oben
+        
         Glass.fillRound(g, px + 8, py + 8, SW, 6, 4, Palette.tint(Palette.ACCENT, 0xE0));
 
-        // Header-Text (Launcher-Stil: fett-orange "KOLLEGEN" + muted "Client")
+        
         g.drawString(this.font, "KOLLEGEN", px + 22, py + 26, Palette.ACCENT, false);
         g.drawString(this.font, "Client", px + 22 + this.font.width("KOLLEGEN") + 6, py + 28, Palette.MUTED, false);
 
         String title = query.isEmpty() ? cats[category].display : "Suche: " + query;
         g.drawString(this.font, title, cx + 14, py + 22, Palette.TEXT, false);
 
-        // ── Sidebar (manuell, gescrollt, skaliert) ──
+        
         g.enableScissor(px + 10, sidebarTop, px + SW - 2, sidebarBottom);
         for (int i = 0; i < cats.length; i++) {
             int by = sidebarTop + i * (catItemH + CAT_GAP) - catScroll;
@@ -298,7 +305,7 @@ public class KollegenMenuScreen extends Screen {
                     sel ? 0xFFffffff : Palette.TEXT, false);
         }
         g.disableScissor();
-        // Sidebar-Scrollbar
+        
         if (maxCatScroll > 0) {
             int trackH = sidebarBottom - sidebarTop;
             int thumbH = Math.max(20, (int) ((double) trackH * trackH / (trackH + maxCatScroll)));
@@ -306,7 +313,7 @@ public class KollegenMenuScreen extends Screen {
             Glass.fillRound(g, px + SW - 6, thumbY, 3, thumbH, 2, Palette.tint(Palette.ACCENT, 0xCC));
         }
 
-        // ── Inhalt (gescissort) ──
+        
         g.enableScissor(cx, contentTop, cx + cw, contentBottom);
         for (Row r : rows) {
             if (r.isModule) {
@@ -319,7 +326,7 @@ public class KollegenMenuScreen extends Screen {
                 if (r.module.risk != null) {
                     g.drawString(this.font, "⚠ " + trunc(r.module.risk, cw - 60), cx + 22, r.y + 45, Palette.DANGER, false);
                 }
-                // Gesperrte Module: Schloss statt Toggle
+                
                 if (r.module.locked) {
                     g.drawString(this.font, "🔒", cx + cw - 56, r.y + (ROW_H - 28) / 2 + 6, Palette.MUTED, false);
                 }
@@ -334,7 +341,7 @@ public class KollegenMenuScreen extends Screen {
         }
         g.disableScissor();
 
-        // Inhalts-Scrollbar
+        
         if (maxScroll > 0) {
             int trackTop = contentTop, trackBottom = contentBottom, trackH = trackBottom - trackTop;
             int thumbH = Math.max(24, (int) ((double) trackH * trackH / (trackH + maxScroll)));

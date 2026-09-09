@@ -2,7 +2,6 @@ target/
 node_modules/
 *.log
 
-# AppImage-Tooling (bei CI-Build frisch heruntergeladen)
 .appimage-tools/
 AppDir/
 instances.json
@@ -11,27 +10,20 @@ settings.json
 *.db
 .DS_Store
 
-# Kollegen in-game mod (gradle build artifacts)
 kollegen-mod/build/
 kollegen-mod/.gradle/
 kollegen-mod/.idea/
 
-# Tauri updater signing secret key (minisign box format)
 minisign.key
 
-# Server SSH keys (never commit)
 Kollegenserver
 Kollegenserver.pub
 
-# Backend server runtime data (friends/presence store)
 server/data/
 
-# Reference / inspiration material (not part of the client or mod)
 Inspiration/
 
-# Vendored VulkanMod binary (fetched at build via vendorVulkanMod task)
 kollegen-mod/src/main/resources/dev/kollegen/client/vulkanmod.bin
 Das/
 
-# Vendored Mod-Binaries (werden von den vendor*-Gradle-Tasks generiert)
 kollegen-mod/src/main/resources/dev/

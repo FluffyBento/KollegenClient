@@ -7,12 +7,7 @@ import net.fabricmc.loader.api.FabricLoader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-/**
- * Farbpalette für das Mod-Menü + HUD. Standardmäßig im Kollegen-Launcher-Look
- * (dunkles Anthrazit + orangener Akzent). Kann vom Launcher überschrieben
- * werden, indem dieser eine Datei {@code kollegen-theme.json} in das
- * Config-Verzeichnis schreibt (gleiche Ordnerstruktur wie die Module-Config).
- */
+
 public final class Palette {
     private Palette() {
     }
@@ -29,12 +24,12 @@ public final class Palette {
     public static int GREEN = 0xFF3ec46d;
     public static int BLUE = 0xFF4aa3ff;
 
-    /** Setzt den Alpha-Kanal einer 0xAARRGGBB-Farbe. */
+    
     public static int tint(int argb, int alpha) {
         return (alpha << 24) | (argb & 0x00FFFFFF);
     }
 
-    /** Lädt eine optionale Theme-Override-Datei (vom Launcher geschrieben). */
+    
     public static void loadTheme() {
         try {
             Path dir = FabricLoader.getInstance().getConfigDir().resolve("kollegen-theme.json");
@@ -55,7 +50,7 @@ public final class Palette {
         }
     }
 
-    /** Parst "#rrggbb" / "rrggbb" (0xRRGGBB) oder "aarrggbb" (0xAARRGGBB). */
+    
     private static int parse(String s, int fallback) {
         try {
             String h = s.startsWith("#") ? s.substring(1) : s;

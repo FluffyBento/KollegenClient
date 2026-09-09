@@ -1,49 +1,49 @@
-// Kollegen Client companion mod injection.
-//
-// The launcher ships a small Fabric mod ("Kollegen Client Mod") that drives the
-// in-game Discord rich presence, the Right-Shift mod menu and the join-secret
-// flow. It is injected into every (Fabric/Quilt) instance and is hidden +
-// protected inside the mod browser (see `modrinth::list_content` /
-// `delete_content`), so users cannot accidentally remove it.
-//
-// The jar is resolved in this order:
-//   1. `<data_dir>/companion/kollegen-client-mod.jar` (downloaded cache)
-//   2. Bundled resources next to the executable (`resources/…`) – set via
-//      `bundle.resources` in tauri.conf.json
-//   3. A locally built jar (`kollegen-mod/build/libs/…`) during development
-//   4. The latest GitHub release asset `kollegen-client-mod.jar` (fallback)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 use log::{info, warn};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
-/// File name the companion mod is copied to inside an instance's `mods/`.
+
 pub const COMPANION_MOD_FILENAME: &str = "kollegen-client-mod.jar";
-/// Name prefix used by the mod's build outputs (`kollegen-client-mod-<version>.jar`).
+
 pub const COMPANION_MOD_PREFIX: &str = "kollegen-client";
 
-/// Minecraft version the published companion-mod jar is *built* against
-/// (`minecraftVersion` in `kollegen-mod/build.gradle`). The mod's classes are
-/// remapped to this version's intermediary, so the jar can only actually load
-/// on the same `major.minor` line. Installing it onto a different line (e.g.
-/// `26.2`) makes the loader crash with cryptic `class_xxxx`
-/// `NoClassDefFoundError`s, so we refuse those versions explicitly instead of
-/// silently relaxing the metadata constraint.
+
+
+
+
+
+
+
 pub const COMPANION_TARGET_MC_VERSION: &str = "1.21.11";
 
 const GITHUB_DOWNLOAD_URL: &str =
     "https://github.com/FluffyBento/KollegenClient/releases/latest/download/kollegen-client-mod.jar";
 
-/// True when `filename` belongs to the built-in Kollegen Client mod, so the mod
-/// browser can hide it and refuse to delete it.
+
+
 pub fn is_companion_mod_name(filename: &str) -> bool {
     let lc = filename.to_ascii_lowercase();
     lc == COMPANION_MOD_FILENAME
         || (lc.starts_with(COMPANION_MOD_PREFIX) && lc.ends_with(".jar"))
 }
 
-/// True when the file exists, is non-empty and looks like a real zip/jar
-/// (jars start with `PK`).
+
+
 fn is_valid_jar(p: &Path) -> bool {
     match std::fs::metadata(p) {
         Ok(m) if m.len() > 0 => match std::fs::read(p) {
@@ -58,7 +58,7 @@ fn cache_dir(data_dir: &Path) -> PathBuf {
     data_dir.join("companion")
 }
 
-/// Liest die `version` aus der fabric.mod.json eines Jars (Best-effort).
+
 fn jar_fabric_version(p: &Path) -> Option<String> {
     use std::io::Read;
     let file = std::fs::File::open(p).ok()?;
@@ -73,10 +73,10 @@ fn jar_fabric_version(p: &Path) -> Option<String> {
     value.get("version")?.as_str().map(str::to_string)
 }
 
-/// Grober Versionsvergleich: true, wenn `a` mindestens so neu wie `b` ist.
-/// Segmentiert an Punkten und vergleicht numerisch; nicht-numerische Segmente
-/// gelten als kleiner (1.8.8 > 1.8.8-beta). Kurze Versionen zählen als gleich,
-/// solange alle vorhandenen Segmente übereinstimmen.
+
+
+
+
 fn version_at_least(a: &str, b: &str) -> bool {
     let parse = |v: &str| -> Vec<(u64, bool)> {
         v.split(['.', '-', '+'])
@@ -92,8 +92,8 @@ fn version_at_least(a: &str, b: &str) -> bool {
                 std::cmp::Ordering::Less => return false,
                 std::cmp::Ordering::Equal => {}
             },
-            // Zusätzliche Segmente: nur ein echtes numerisches Segment (>0)
-            // macht neuer (1.8.10 > 1.8); Suffixe wie "-beta" gelten als älter.
+            
+            
             (Some(x), None) => return x.0 > 0 && x.1,
             (None, Some(y)) => return !(y.0 > 0 && y.1),
             (None, None) => break,
@@ -116,10 +116,10 @@ fn try_download(data_dir: &Path) -> Option<PathBuf> {
         }
     }
 }
-/// Aktualisiert den Cache mit der neuesten Companion-Mod aus dem GitHub-Release
-/// (überschreibt die bisherige Cache-Datei). Best-effort: schlägt der Download
-/// fehl (offline), bleibt der bestehende Cache erhalten. Wird vor jeder
-/// Installation aufgerufen, damit sich die Mod automatisch aktualisiert.
+
+
+
+
 fn refresh_cache(data_dir: &Path) -> Option<PathBuf> {
     let dir = cache_dir(data_dir);
     let _ = std::fs::create_dir_all(&dir);
@@ -127,9 +127,9 @@ fn refresh_cache(data_dir: &Path) -> Option<PathBuf> {
     let tmp = dir.join("kollegen-client-mod.jar.tmp");
     match crate::utils::download_file(GITHUB_DOWNLOAD_URL, &tmp) {
         Ok(()) if is_valid_jar(&tmp) => {
-            // Nur überschreiben, wenn der Release wirklich neuer ist als der
-            // Cache. Sonst würde ein Dev-Build (lokaler Cache) beim nächsten
-            // Start still mit dem alten Release downgegradet.
+            
+            
+            
             let keep_cached = is_valid_jar(&dest)
                 .then(|| {
                     match (
@@ -137,7 +137,7 @@ fn refresh_cache(data_dir: &Path) -> Option<PathBuf> {
                         jar_fabric_version(&tmp).as_deref(),
                     ) {
                         (Some(cur), Some(new)) => version_at_least(cur, new),
-                        // Versionen nicht lesbar: altes Verhalten (überschreiben).
+                        
                         _ => false,
                     }
                 })
@@ -157,16 +157,16 @@ fn refresh_cache(data_dir: &Path) -> Option<PathBuf> {
     }
 }
 
-/// Locates a usable companion-mod jar, downloading it on demand. Returns
-/// `None` when no jar could be found/obtained (offline + not bundled).
+
+
 pub fn companion_jar(data_dir: &Path) -> Option<PathBuf> {
-    // 1) Freshly downloaded / previously cached copy.
+    
     let cached = cache_dir(data_dir).join(COMPANION_MOD_FILENAME);
     if is_valid_jar(&cached) {
         return Some(cached);
     }
 
-    // 2) Bundled resources next to the executable (packaged builds).
+    
     if let Ok(exe) = std::env::current_exe() {
         if let Some(dir) = exe.parent() {
             for cand in [
@@ -180,7 +180,7 @@ pub fn companion_jar(data_dir: &Path) -> Option<PathBuf> {
         }
     }
 
-    // 3) Dev build: a locally built jar inside `kollegen-mod/build/libs`.
+    
     let manifest = Path::new(env!("CARGO_MANIFEST_DIR"));
     let libs = manifest.join("kollegen-mod").join("build").join("libs");
     if let Ok(entries) = std::fs::read_dir(&libs) {
@@ -189,7 +189,7 @@ pub fn companion_jar(data_dir: &Path) -> Option<PathBuf> {
             .map(|e| e.path())
             .filter(|p| p.extension().and_then(|x| x.to_str()) == Some("jar"))
             .collect();
-        // Prefer the stable name over versioned build outputs.
+        
         candidates.sort_by_key(|p| {
             p.file_name()
                 .and_then(|n| n.to_str())
@@ -210,15 +210,15 @@ pub fn companion_jar(data_dir: &Path) -> Option<PathBuf> {
         }
     }
 
-    // 4) Network fallback (also seeds the cache for next time).
+    
     try_download(data_dir)
 }
 
-/// The published companion-mod jar pins `minecraft >= 1.21.11`. To let it load
-/// on *any* 1.21.x instance we relax that constraint to `>= 1.21` by rewriting
-/// the jar's `fabric.mod.json` on the fly (the mod's code is compatible across
-/// the whole 1.21 line). Returns a path to a patched copy; on any failure the
-/// original jar path is returned so installation still proceeds.
+
+
+
+
+
 fn relax_companion_constraints(jar: &Path) -> PathBuf {
     let patched = std::env::temp_dir().join(format!(
         "kollegen-mod-relaxed-{}.jar",
@@ -269,7 +269,7 @@ fn relax_companion_constraints(jar: &Path) -> PathBuf {
                         }
                     }
                 }
-                // Copy every other entry verbatim.
+                
                 let mut bytes = Vec::new();
                 if std::io::Read::read_to_end(&mut entry, &mut bytes).is_err() {
                     ok = false;
@@ -284,11 +284,11 @@ fn relax_companion_constraints(jar: &Path) -> PathBuf {
             }
         }
     }
-    // Fallback: install the original jar unchanged.
+    
     jar.to_path_buf()
 }
 
-/// Returns the `major.minor` of a Minecraft version string, if parseable.
+
 fn version_major_minor(version: &str) -> Option<(u32, u32)> {
     let mut parts = version.split('.');
     let major = parts.next().and_then(|s| s.parse::<u32>().ok())?;
@@ -296,11 +296,11 @@ fn version_major_minor(version: &str) -> Option<(u32, u32)> {
     Some((major, minor))
 }
 
-/// True when the instance's Minecraft version is on the same `major.minor`
-/// line as the companion mod's build target. The mod is remapped to
-/// `COMPANION_TARGET_MC_VERSION`'s intermediary, so it can only load on that
-/// line (e.g. any `1.21.x`); other lines (e.g. `26.2`) crash at runtime with
-/// `NoClassDefFoundError`. We therefore refuse them before injecting anything.
+
+
+
+
+
 pub fn is_compatible_version(version: &str) -> bool {
     match (
         version_major_minor(version),
@@ -311,24 +311,24 @@ pub fn is_compatible_version(version: &str) -> bool {
     }
 }
 
-/// True when the instance's Minecraft version is one the *bundled integration
-/// jars* (`enforce_bundled_mods`) are actually built/remapped for. Unlike the
-/// companion mod (relaxed to `>=1.21` at install time, see
-/// `relax_companion_constraints`), the bundled jars keep their real
-/// `depends.minecraft` constraints: fabric-api `>=1.21.11- <1.21.12-`,
-/// ModMenu `>=1.21.11`, Spotify Overlay `>=1.21.11`, ChatHeads `==1.21.11`,
-/// Cloth Config `>=1.21.9-`. On any other 1.21.x minor (e.g. 1.21.1) the
-/// Fabric-Loader refuses to boot with "Incompatible mods found!". Bundles may
-/// therefore only be deployed when the running version is exactly supported;
-/// otherwise the launcher must remove them so such an instance self-heals.
+
+
+
+
+
+
+
+
+
+
 pub fn bundles_compatible(version: &str) -> bool {
     version == COMPANION_TARGET_MC_VERSION
 }
 
-/// Injects the companion mod into an instance's `mods/` folder. The file name
-/// is the fixed `kollegen-client-mod.jar` so `list_content`/`delete_content`
-/// can hide/protect it. Skipped for vanilla servers (nothing would load it)
-/// and for loaders Fabric cannot run on (Forge/NeoForge). Idempotent.
+
+
+
+
 pub fn install_companion_mod(data_dir: &Path, instance_name: &str, version: &str, loader: &str) {
     let loader_lc = loader.to_ascii_lowercase();
     if loader_lc.is_empty() || loader_lc == "vanilla" {
@@ -342,17 +342,17 @@ pub fn install_companion_mod(data_dir: &Path, instance_name: &str, version: &str
         );
         return;
     }
-    // The companion mod is built against a single Minecraft version
-    // (`COMPANION_TARGET_MC_VERSION`): sowohl die Remapping als auch die
-    // Mixins zielen auf exakt deren intermediary (z.B. `class_9975`,
-    // `method_48162`, ChatScreen-<init>). `is_compatible_version` vergleicht
-    // nur die major.minor-Linie – eine 1.21.1-Instanz (SteamDeck) lädt die
-    // Mod dann zwar (dependency relaxiert), stürzt aber beim Start mit einer
-    // fatalen `InvalidInjectionException` ab, weil z.B. SkyBodies/SkyRenderer
-    // (class_9975) oder der neue Biome-/ChatScreen-Code in 1.21.1 fehlen.
-    // Deshalb gilt dieselbe Regel wie für die Bundles: mod und Mixins nur,
-    // wenn die Version EXAKT passt. Jede andere Version heilt sich selbst,
-    // indem ein evtl. noch vorhandener Companion-Jar entfernt wird.
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
     if !bundles_compatible(version) {
         warn!(
             "Kollegen-Client-Mod bei MC {v} übersprungen: die Mod (Mixins) ist nur mit Minecraft {t} kompatibel. \
@@ -361,11 +361,11 @@ pub fn install_companion_mod(data_dir: &Path, instance_name: &str, version: &str
             v = version,
             t = COMPANION_TARGET_MC_VERSION
         );
-        // Auch eine aus einer anderen Konfiguration übrig gebliebene
-        // Companion-Jar entfernen, sobald die Instanz auf eine nicht exakt
-        // unterstützte Version wechselt – sonst lädt der Loader die alte Mod
-        // und stürzt mit dem Mixin-Crash ab. So heilt sich die Instanz von
-        // selbst (entspricht dem Self-Healing der Bundles).
+        
+        
+        
+        
+        
         let mods_dir = crate::utils::instance_dir(data_dir, instance_name).join("mods");
         if let Ok(entries) = std::fs::read_dir(&mods_dir) {
             for e in entries.flatten() {
@@ -383,8 +383,8 @@ pub fn install_companion_mod(data_dir: &Path, instance_name: &str, version: &str
         return;
     }
 
-    // Auto-Update: Cache immer mit der neuesten Mod-Version vom Release
-    // versorgen, bevor wir installieren (best-effort, offline = alter Cache).
+    
+    
     let _ = refresh_cache(data_dir);
 
     let source = match companion_jar(data_dir) {
@@ -397,8 +397,8 @@ pub fn install_companion_mod(data_dir: &Path, instance_name: &str, version: &str
             return;
         }
     };
-    // Relax the `minecraft` version constraint so the mod also loads on
-    // 1.21.0–1.21.10 (the published jar requires >= 1.21.11).
+    
+    
     let jar = relax_companion_constraints(&source);
 
     let mods_dir = crate::utils::instance_dir(data_dir, instance_name).join("mods");
@@ -413,10 +413,10 @@ pub fn install_companion_mod(data_dir: &Path, instance_name: &str, version: &str
 
     let target = mods_dir.join(COMPANION_MOD_FILENAME);
 
-    // Immer neu injizieren: der Cache hält bereits die neueste Mod-Version
-    // (refresh_cache lädt bei jedem Start releases/latest), und ein erneutes
-    // Kopieren stellt sicher, dass in keiner Instanz eine veraltete Mod
-    // hängen bleibt – auch wenn ein früheres Update übersprungen wurde.
+    
+    
+    
+    
     match std::fs::copy(&jar, &target) {
         Ok(_) => info!(
             "Kollegen-Client-Mod in Instanz '{}' (MC {}) injiziert.",

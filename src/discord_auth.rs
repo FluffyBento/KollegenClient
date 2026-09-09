@@ -11,17 +11,17 @@ use std::time::{Duration, Instant};
 const AUTHORIZE_ENDPOINT: &str = "https://discord.com/oauth2/authorize";
 const TOKEN_ENDPOINT: &str = "https://discord.com/api/v10/oauth2/token";
 const USER_ENDPOINT: &str = "https://discord.com/api/v10/users/@me";
-// Scopes requested on the Discord OAuth authorize page. `identify` + `guilds`
-// are standard (non-privileged) scopes. We previously also requested
-// `relationships` to power the REST friend list, but Discord removed that scope
-// for (new) OAuth applications – requesting it now makes Discord reject the
-// authorize call with "scope relationships does not exist". So we only ask for
-// the scopes Discord still grants; the friend list is sourced from the Discord
-// RPC gateway (RELATIONSHIP_ADD events) instead, which needs no special scope.
+
+
+
+
+
+
+
 const SCOPES: &str = "identify guilds";
 const RELATIONSHIPS_ENDPOINT: &str = "https://discord.com/api/v10/users/@me/relationships";
-/// Fixed localhost port the browser is redirected back to. This exact URI must
-/// be registered as a Redirect URI in the Discord application's OAuth2 settings.
+
+
 const CALLBACK_PORT: u16 = 31337;
 const REDIRECT_URI: &str = "http://127.0.0.1:31337/callback";
 
@@ -100,7 +100,7 @@ pub fn delete_token(data_dir: &Path) {
     let _ = std::fs::remove_file(token_path(data_dir));
 }
 
-/// Returns the persisted login state for the frontend.
+
 pub fn status(data_dir: &Path) -> serde_json::Value {
     match load_token(data_dir) {
         Some(t) => serde_json::json!({ "logged_in": true, "user": t.user }),
@@ -117,19 +117,19 @@ lazy_static! {
         std::sync::Mutex::new((std::time::Instant::now(), Vec::new()));
 }
 
-/// Fetches the authenticated user's Discord friends via the REST API
-/// (`/users/@me/relationships`, requires the privileged `relationships` OAuth
-/// scope). Returns lightweight friend entries (no rich-presence join secret);
-/// `discord_social` merges these with the RPC-sourced friends (which carry live
-/// presence). Network/permission failures degrade gracefully to an empty list.
-/// Results are cached for 60s so the Socials tab can poll without hammering
-/// the Discord API.
-/// Blocking HTTP client with a short connect/total timeout.
-///
-/// These helper fetches (friends, per-friend mutual-guild profiles, guilds)
-/// must never hang for the OS-level TCP connect timeout (~2 min) when an
-/// endpoint is slow/reachable-DNS-but-unreachable. Without this, the Socials
-/// tab (which calls `fetch_friends`) froze for minutes on one bad profile call.
+
+
+
+
+
+
+
+
+
+
+
+
+
 fn blocking_http_client() -> reqwest::blocking::Client {
     reqwest::blocking::Client::builder()
         .timeout(Duration::from_secs(5))
@@ -150,7 +150,7 @@ pub fn fetch_friends(data_dir: &Path) -> Vec<serde_json::Value> {
         None => return Vec::new(),
     };
 
-    // Collect the raw friend entries first.
+    
     let mut base: Vec<(
         String,
         String,
@@ -167,7 +167,7 @@ pub fn fetch_friends(data_dir: &Path) -> Vec<serde_json::Value> {
     {
         if let Ok(arr) = resp.json::<Vec<serde_json::Value>>() {
             for r in arr {
-                // type 1 == friend (2 = blocked, 3 = incoming, 4 = outgoing).
+                
                 if r.get("type").and_then(|t| t.as_i64()) != Some(1) {
                     continue;
                 }
@@ -223,8 +223,8 @@ pub fn fetch_friends(data_dir: &Path) -> Vec<serde_json::Value> {
         }
     }
 
-    // Own guild ids -> names (needs the `guilds` scope) for nicer "join server"
-    // labels. Missing names (scope not granted / fetch failed) are tolerated.
+    
+    
     let mut guild_names: std::collections::HashMap<String, String> =
         std::collections::HashMap::new();
     if let Ok(resp) = blocking_http_client()
@@ -244,10 +244,10 @@ pub fn fetch_friends(data_dir: &Path) -> Vec<serde_json::Value> {
         }
     }
 
-    // `mutual_guilds` is NOT part of the relationship payload. It lives on the
-    // per-user profile endpoint, whose response carries a top-level
-    // `mutual_guilds` array of `{ id, nick }`. We fetch it per friend. The whole
-    // result is cached 60s at the call site to limit the number of requests.
+    
+    
+    
+    
     let client = blocking_http_client();
     let mut result: Vec<serde_json::Value> = Vec::new();
     for (id, username, global_name, avatar_url, status, game, presence_known) in base {
@@ -299,11 +299,11 @@ pub fn fetch_friends(data_dir: &Path) -> Vec<serde_json::Value> {
     result
 }
 
-/// Aktive Login-Session (PKCE-Verifier + State). Wird global gehalten, damit
-/// der (einzige) gebundene Callback-Server immer gegen die *neueste* Session
-/// validiert – auch wenn der Nutzer den Login mehrfach auslöst oder einen
-/// abbricht und erneut startet. Sonst prüft ein noch lebender alter Server
-/// gegen ein veraltetes State und wirft "State stimmt nicht überein".
+
+
+
+
+
 #[derive(Clone)]
 struct OAuthSession {
     verifier: String,
@@ -369,25 +369,25 @@ fn exchange_token(code: &str, verifier: &str, data_dir: &Path) -> Result<(), Str
         user: Some(user),
     };
     save_token(data_dir, &token);
-    // Invalidate the cached OAuth friend list so it is refreshed for the new user.
+    
     OAUTH_FRIENDS_CACHE.lock().unwrap().0 =
         std::time::Instant::now() - std::time::Duration::from_secs(120);
     Ok(())
 }
 
-/// Runs a minimal localhost HTTP server that waits for Discord's redirect,
-/// exchanges the code for a token, and shows a "done" page in the browser.
-/// State/Verifier werden aus dem globalen `OAUTH_SESSION` gelesen, damit auch
-/// ein bereits laufender Server (von einem vorherigen Login-Versuch) den
-/// aktuellen State akzeptiert.
+
+
+
+
+
 fn run_callback_server(data_dir: std::path::PathBuf) {
     let listener = match TcpListener::bind(("127.0.0.1", CALLBACK_PORT)) {
         Ok(l) => l,
         Err(e) => {
-            // Port schon belegt (z. B. ein vorheriger Callback-Server aus diesem
-            // oder einem anderen Prozess läuft noch). Wir verlassen uns darauf,
-            // dass jener Server den Redirect bearbeitet – er validiert gegen
-            // dieselbe globale Session.
+            
+            
+            
+            
             eprintln!(
                 "[discord_auth] Callback-Server konnte Port {} nicht binden (läuft evtl. schon): {}",
                 CALLBACK_PORT, e
@@ -423,7 +423,7 @@ fn run_callback_server(data_dir: std::path::PathBuf) {
                     if k == "code" {
                         code = v.to_string();
                     } else if k == "state" {
-                        // Discord kann State percent-kodieren – sicher decodieren.
+                        
                         returned_state = urlencoding::decode(v).unwrap_or_default().to_string();
                     }
                 }
@@ -485,8 +485,8 @@ fn run_callback_server(data_dir: std::path::PathBuf) {
     }
 }
 
-/// Builds the Discord authorize URL, opens it in the default browser, and starts
-/// the local callback server that completes the login.
+
+
 pub fn start_flow(data_dir: std::path::PathBuf) -> Result<String, String> {
     let verifier = random_base64url(32);
     let challenge = pkce_challenge(&verifier);
@@ -503,20 +503,20 @@ pub fn start_flow(data_dir: std::path::PathBuf) -> Result<String, String> {
         challenge
     );
 
-    // Aktive Session global speichern, damit der (einzige) Callback-Server
-    // selbst bei einem erneuten Login-Versuch die jeweils neueste Session
-    // validiert (verhindert "State stimmt nicht überein").
+    
+    
+    
     *OAUTH_SESSION.lock().unwrap() = Some(OAuthSession {
         verifier: verifier.clone(),
         state: state.clone(),
     });
 
-    // Spawn the callback server (it stores the token on success).
+    
     thread::spawn(move || {
         run_callback_server(data_dir);
     });
 
-    // Open the browser for the user to authenticate.
+    
     if let Err(e) = open::that(url.as_str()) {
         return Err(format!(
             "Browser konnte nicht geöffnet werden: {:?}. URL manuell öffnen: {}",

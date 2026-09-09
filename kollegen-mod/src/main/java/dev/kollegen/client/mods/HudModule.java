@@ -7,9 +7,7 @@ import net.minecraft.client.gui.GuiGraphics;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Basis für HUD-Module: gemeinsame Position/Anker-Logik und Zeichen-Helfer.
- */
+
 public abstract class HudModule extends Module {
     protected final ModeSetting position;
     protected final ColorSetting color;
@@ -19,13 +17,13 @@ public abstract class HudModule extends Module {
     public final SliderSetting offsetY;
     protected final BooleanSetting move;
 
-    /** Zuletzt gezeichnete Bounds (für Drag-Hit-Test). */
+    
     public int lastX, lastY, lastW, lastH;
     public static HudModule dragging = null;
     public static int dragOffX = 0, dragOffY = 0;
-    /** Aktuelle Maus-Position in GUI-Skalierung (für Drag). */
+    
     public static double cursorX = 0, cursorY = 0;
-    /** Globaler Bearbeitungsmodus: alle HUD-Elemente werden verschiebbar. */
+    
     public static boolean editMode = false;
 
     protected HudModule(String id, String name, String description) {
@@ -76,10 +74,7 @@ public abstract class HudModule extends Module {
         return null;
     }
 
-    /**
-     * Ordnet alle aktiven HUD-Elemente so an, dass sie sich innerhalb ihrer
-     * Ecke nicht überlappen (stapelt sie mit Abstand).
-     */
+    
     public static void autoArrange() {
         for (int corner = 0; corner < 4; corner++) {
             List<HudModule> list = new ArrayList<>();

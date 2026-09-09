@@ -84,13 +84,7 @@ public final class Performance {
         }
     }
 
-    /**
-     * Verschiebt die Last staerker auf die CPU und entlastet die (schwache) GPU:
-     * VSync aus (entkoppelt, CPU treibt Frames), Mipmaps aus und Biom-Mischung
-     * aus (weniger GPU-Textur-/F&nbsp;llkosten), sowie Chunk-Updates nahe dem
-     * Spieler (CPU priorisiert). Bei starker CPU + schwacher GPU der beste
-     * Hebel f&uuml;r mehr FPS.
-     */
+    
     private static class CpuOffload extends Module {
         private Boolean savedVsync = Boolean.TRUE;
         private Integer savedMipmap = 4;
@@ -126,14 +120,7 @@ public final class Performance {
         }
     }
 
-    /**
-     * Ein-Klick-Preset fuer maximale Leistung: b&uuml;ndelt die aggressivsten
-     * client-seitigen Einstellungen (Schnelle Grafik, keine Wolken, keine weiche
-     * Beleuchtung, keine Entity-Schatten, keine Sicht-Effekte
-     * wie Verletzungs-/K&uuml;rbis-Overlay, reduzierte Entity-Sichtweite und
-     * Chunk-Update-Priorisierung auf Performance). Stellt die Originalwerte beim
-     * Deaktivieren wieder her.
-     */
+    
     private static class MaxFps extends Module {
         private GraphicsPreset savedGfx = GraphicsPreset.FANCY;
         private CloudStatus savedCloud = CloudStatus.FANCY;
@@ -190,13 +177,7 @@ public final class Performance {
         }
     }
 
-    /**
-     * Adaptive Performance: &uuml;berwacht die aktuelle FPS und regelt die
-     * Render-Distanz (sowie bei Bedarf die Grafikstufe) automatisch herunter,
-     * sobald die FPS einbrechen, und f&auml;hrt sie bei Spielraum wieder hoch
-     * (bis zur vom Spieler gew&auml;hlten Ausgangs-Distanz). So bleibt die FPS
-     * stabil, ohne die Sicht dauerhaft unn&ouml;tig zu beschneiden.
-     */
+    
     private static class AdaptivePerformance extends Module {
         private int baseRenderDistance = 12;
         private GraphicsPreset baseGfx = GraphicsPreset.FANCY;
@@ -226,7 +207,7 @@ public final class Performance {
         public void onTick() {
             var o = mc.options;
             if (o == null || mc.level == null) return;
-            if (++timer < 20) return; // ~1x pro Sekunde auswerten
+            if (++timer < 20) return; 
             timer = 0;
             int fps = mc.getFps();
             int cur = o.renderDistance().get();

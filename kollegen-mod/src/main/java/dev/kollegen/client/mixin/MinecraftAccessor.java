@@ -5,23 +5,18 @@ import net.minecraft.client.multiplayer.ServerData;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.gen.Invoker;
 
-/**
- * Zugriff auf Minecraft.getCurrentServer() ohne Reflection. Die Methode wird ueber
- * den refmap des Mods remapped – ein Class.getMethod("getCurrentServer") wuerde
- * unter Intermediary mit NoSuchMethodException scheitern. ACHTUNG: @Accessor
- * funktioniert nur fuer Felder; fuer Methoden ist @Invoker noetig.
- */
+
 @Mixin(Minecraft.class)
 public interface MinecraftAccessor {
 
     @Invoker("getCurrentServer")
     ServerData kollegen$getCurrentServer();
 
-    /** startAttack() ist privat; benötigt für den SteamDeck-Angriffs-Button (RT). */
+    
     @Invoker("startAttack")
     boolean kollegen$startAttack();
 
-    /** startUseItem() ist privat; benötigt für den SteamDeck-Benutzen-Button (LT). */
+    
     @Invoker("startUseItem")
     void kollegen$startUseItem();
 }

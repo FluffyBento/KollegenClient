@@ -1,4 +1,4 @@
-// ASM for bytecode patching (VulkanMod patches)
+
 buildscript {
     dependencies {
         classpath 'org.ow2.asm:asm:9.7.1'
@@ -18,9 +18,9 @@ base {
 }
 
 repositories {
-    // Vendored local Maven repo: the `dev.kollegen:discord-rpc` artifact is
-    // only ever published to the now-defunct JCenter, so we commit it under
-    // `libs/` and resolve it from here on every machine / CI runner.
+    
+    
+    
     maven { url = uri("${projectDir}/libs") }
     mavenLocal()
     maven { url 'https://maven.fabricmc.net/' }
@@ -33,32 +33,32 @@ dependencies {
     modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
     modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
 
-    // Discord Rich Presence (Minnced) – vendored locally (club.minnced sources
-    // from java-discord-rpc v1.3.6 + JNA + native libs) since the original
-    // artifact was only ever published to the now-defunct JCenter.
+    
+    
+    
     implementation('dev.kollegen:discord-rpc:1.3.6') { transitive = false }
     include('dev.kollegen:discord-rpc:1.3.6') { transitive = false }
 
-    // Fabric Loom automatically registers the Mixin annotation processor and
-    // generates the refmap (kollegen-client-mod.refmap.json). It must be declared
-    // in kollegen.mixins.json via the "refmap" key so Mixin can resolve Yarn
-    // method names against the obfuscated runtime.
+    
+    
+    
+    
 }
 
-// ── Eingebettete Renderer-Mods ───────────────────────────────────────────────
-// VulkanMod (LGPL) wird gepatcht (siehe vendorVulkanMod). Sodium, Iris und Beryl
-// werden als Resource eingebettet und zur Laufzeit vom Kollegen-Client je nach
-// Renderer-Gruppe deployed (.jar) bzw. deaktiviert (.disabled).
-//
-// Alle vier jars bekommen beim Vendoring ihre fabric.mod.json um
-// "custom.modmenu.parent = kollegen-client" ergänzt – dadurch ordnet ModMenu sie
-// als Unterpunkte des Kollegen-Client ein statt als eigene Top-Level-Mods.
+
+
+
+
+
+
+
+
 
 def modrinthPrimaryFileUrl(String slug, String mc, String loader) {
     def slurp = { String body -> new groovy.json.JsonSlurper().parseText(body) }
     def fetch = { String u ->
         def conn = new URL(u).openConnection()
-        // Modrinth verlangt einen User-Agent ohne diesen droht 403/Rate-Limit.
+        
         conn.setRequestProperty("User-Agent", "KollegenClient/${project.version} (+https://github.com/FluffyBento/KollegenClient)")
         conn.setConnectTimeout(20000)
         conn.setReadTimeout(120000)
@@ -69,8 +69,8 @@ def modrinthPrimaryFileUrl(String slug, String mc, String loader) {
         return slurp(conn.inputStream.getText("UTF-8"))
     }
 
-    // Wichtig: Query-Parameter URL-enkodieren. Rohe [ ] " im Query-String
-    // liefern sonst HTTP 400 von der Modrinth-API (Grund für den CI-Fehler).
+    
+    
     def enc = { String v -> java.net.URLEncoder.encode(v, "UTF-8") }
 
     List versions = []
@@ -83,7 +83,7 @@ def modrinthPrimaryFileUrl(String slug, String mc, String loader) {
     // Fallback: alle Versionen laden und selbst filtern (robust gegen
     // unbekannte Game-Version-Tags).
     if (!versions) {
-        versions = fetch("https://api.modrinth.com/v2/project/${slug}/version")
+        versions = fetch("https:
     }
     if (!versions) {
         throw new GradleException("Keine Modrinth-Versionen für '${slug}' gefunden.")
@@ -98,16 +98,16 @@ def modrinthPrimaryFileUrl(String slug, String mc, String loader) {
 
 def vendorModResource(String resourceRel, String slug, String urlOverride = null) {
     def res = file("src/main/resources/${resourceRel}")
-    // Task-Namen dürfen keine Bindestriche enthalten (z.B. "chat-heads").
+    
     def safeSlug = slug.replaceAll('[^a-zA-Z0-9]', '')
     tasks.register("vendor${safeSlug.capitalize()}Mod") {
         onlyIf { !res.exists() }
         doLast {
             res.parentFile.mkdirs()
-            // urlOverride: fest gepinnte Version (z.B. Spotify Overlay), sonst
-            // die neueste Modrinth-Version passend zur MC-Version.
+            
+            
             def url = urlOverride ?: modrinthPrimaryFileUrl(slug, project.minecraft_version, "fabric")
-            // Original-Jar cachen (Download), danach immer neu patchen
+            
             def cacheDir = file("${buildDir}/vendor-patch/${slug}")
             cacheDir.mkdirs()
             def download = new File(cacheDir, "${safeSlug}-orig.jar")
@@ -115,8 +115,8 @@ def vendorModResource(String resourceRel, String slug, String urlOverride = null
                 ant.get(src: url, dest: download, verbose: true)
             }
 
-            // Entpacken → fabric.mod.json für ModMenu patchen (unter dem
-            // Kollegen-Client einordnen) → neu zippen.
+            
+            
             def unzipDir = new File(cacheDir, "unzipped")
             unzipDir.deleteDir()
             unzipDir.mkdirs()
@@ -131,14 +131,14 @@ def vendorModResource(String resourceRel, String slug, String urlOverride = null
                 fmj.write(groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(json)))
             }
             ant.zip(destfile: res, basedir: unzipDir)
-            // Spotify Overlay bettet local_media_listener als Fat-JAR ein, die
-            // eine ALTE kotlinx-serialization (<1.8.0) shaded. Deren
-            // GeneratedSerializer.typeParametersSerializers ist noch ABSTRACT –
-            // auf dem Knot-Classpath gewinnt sie gegen die 1.9.0-Default-Methode
-            // und Essentials (>=1.8.0-kompilierte) Serializer brechen im
-            // Cosmetics-Loader mit AbstractMethodError. Die shadowed
-            // kotlin/kotlinx-Klassen an der Quelle entfernen (fabric-language-
-            // kotlin stellt sie zur Laufzeit in der Instanz bereit).
+            
+            
+            
+            
+            
+            
+            
+            
             if (slug == 'spotify-overlay') {
                 sanitizeJar(res)
             }
@@ -146,14 +146,14 @@ def vendorModResource(String resourceRel, String slug, String urlOverride = null
     }
 }
 
-// Shadowed Kotlin-Projektklassen (kotlin-stdlib, kotlinx-coroutines,
-// kotlinx-serialization) aus einer JAR entfernen – deren ALTE
-// kotlinx-serialization (<1.8.0) deklariert typeParametersSerializers noch als
-// ABSTRACT und crasht Essentials (>=1.8.0-kompilierte) Serializer im
-// Cosmetics-Loader mit AbstractMethodError. Innere Jars unter META-INF/jars
-// (z.B. die local_media_listener-Fat-JAR von Spotify Overlay) werden
-// rekursiv mitbereinigt. fabric-language-kotlin stellt die benötigten kotlin-
-// Bibliotheken zur Laufzeit in der Instanz bereit.
+
+
+
+
+
+
+
+
 def sanitizeJar(File jar) {
     def sanitized = sanitizeZipBytes(jar.bytes)
     if (sanitized != null) {
@@ -199,29 +199,29 @@ byte[] sanitizeZipBytes(byte[] data) {
     return changed ? outBytes.toByteArray() : null
 }
 
-// Renderer-Gruppe. vendorModResource gibt den TaskProvider zurück – wir
-// sammeln ihn direkt ein, statt Task-Namen in der dependsOn-Zeile zu raten.
-// Sodium auf 0.8.12 gepinnt: Iris 1.10.7 (aktuellstes Iris-Release für
-// 1.21.11, keine neuere Version verfügbar) ist inkompatibel mit Sodium >= 0.8.13
-// (Fehler: "Sodium 0.8.13 is incompatible with version 1.10.7 or earlier of
-// Iris"). 0.8.14-beta.2 deklariert sogar explizit "breaks iris @ [<=1.10.7]".
-// Pin gilt nur für minecraft_version == 1.21.11 – bei einem MC-Wechsel prüfen.
+
+
+
+
+
+
+
 def sodiumUrl = "https://cdn.modrinth.com/data/AANobbMI/versions/NFkjnzWE/sodium-fabric-0.8.12%2Bmc${project.minecraft_version}.jar"
 def sodiumTask = vendorModResource('dev/kollegen/client/sodium.bin', 'sodium', sodiumUrl)
 def irisTask = vendorModResource('dev/kollegen/client/iris.bin', 'iris')
 def berylTask = vendorModResource('dev/kollegen/client/beryl.bin', 'beryl')
 
-// Integrations-Bundles: Spotify Overlay (+ alle harten Dependencies laut dessen
-// fabric.mod.json) und Chat Heads. Spotify ist bewusst auf die vom Nutzer
-// angegebene Version gepinnt; der Rest zieht automatisch die neueste zur
-// MC-Version passende Version.
+
+
+
+
 def spotifyUrl = 'https://cdn.modrinth.com/data/iRsArBuW/versions/BMGGYY7f/spotify_overlay-1.0.17-SNAPSHOT%2Bfabric.1.21.11.jar'
 def spotifyTask = vendorModResource('dev/kollegen/client/spotify.bin', 'spotify-overlay', spotifyUrl)
-// FLK bewusst auf EXAKT 1.13.8+kotlin.2.3.0 gepinnt – das ist die Version, die
-// "Essential Dependencies" selbst als Nested-Jar mitbringt. So ist die
-// kotlinx-serialization-ABI überall identisch und Essential bricht nicht mit
-// AbstractMethodError (typeParametersSerializers). Instance ohne Essential
-// bekommen so trotzdem ein fabric-language-kotlin für Spotify/Silk/etc.
+
+
+
+
+
 def flkUrl = 'https://cdn.modrinth.com/data/Ha28R6CL/versions/N6D3uiZF/fabric-language-kotlin-1.13.8%2Bkotlin.2.3.0.jar'
 def flkTask = vendorModResource('dev/kollegen/client/flk.bin', 'fabric-language-kotlin', flkUrl)
 def fabricApiTask = vendorModResource('dev/kollegen/client/fabricapi.bin', 'fabric-api')
@@ -239,11 +239,11 @@ loom {
     }
 }
 
-// ── Xaero World Map (optionaler Mixin-Target) ────────────────────────────────
-// XaeroWorldMapMixin patcht xaero.map.MapLimiter, damit World Map unter VulkanMod
-// nicht mehr crasht. Die Klasse muss nur zur Compile-Zeit auf dem Classpath
-// liegen – der Mixin wird zur Laufzeit ohnehin nur angewandt, wenn Xaero geladen
-// ist (siehe KollegenMixinConfigPlugin). Sie wird NICHT in den Mod-Jar gebündelt.
+
+
+
+
+
 def xaeroWorldMapJar = layout.buildDirectory.file('xaero/xaeroworldmap.jar')
 tasks.register('downloadXaeroWorldMapJar') {
     def out = xaeroWorldMapJar.get().asFile
@@ -270,13 +270,13 @@ processResources {
     }
 }
 
-// VulkanMod (LGPL-3.0) wird gepatcht und als Resource eingebettet:
-//  1. Logo durch Kollegen.png ersetzen
-//  2. fabric.mod.json Name/Description für F3-Branding
-//  3. Sprache auf Deutsch übersetzen + "Support me" → "Zum Discord" (dsc.gg/Kollegen)
-//  4. Mixin-Priorität RenderTypeM 1000 → 1100 (npcstudio-Konflikt vermeiden)
-//  5. "Support me"-Button (Ko-fi) → "Zum Discord" (dsc.gg/Kollegen)
-//  6. Farbpalette (ColorUtil$ARGB): Weiß→Creme, Grün→Akzent, Rot→Danger – Kollegen-Look
+
+
+
+
+
+
+
 def vulkanRes = file("src/main/resources/dev/kollegen/client/vulkanmod.bin")
 def vulkanUrl = "https://cdn.modrinth.com/data/JYQhtZtO/versions/hWKRTXbQ/VulkanMod-0.6.8%2B1.21.11.jar"
 tasks.register('vendorVulkanMod') {
@@ -284,7 +284,7 @@ tasks.register('vendorVulkanMod') {
         vulkanRes.parentFile.mkdirs()
         def cacheDir = file("${buildDir}/vulkanmod-patch")
         cacheDir.mkdirs()
-        // Original-Jar nur einmal cachen (Download), danach immer neu patchen
+        
         def download = file("${cacheDir}/VulkanMod-orig.jar")
         if (!download.exists()) {
             ant.get(src: vulkanUrl, dest: download, verbose: true)
@@ -295,20 +295,20 @@ tasks.register('vendorVulkanMod') {
         unzipDir.mkdirs()
         ant.unzip(src: download, dest: unzipDir)
 
-        // 1) Logo ersetzen: Kollegen.png → vlogo.png + vlogo_transparent.png
+        
         def srcLogo = file("src/main/resources/assets/kollegen/textures/kollegen.png")
         if (srcLogo.exists()) {
             ant.copy(file: srcLogo, tofile: file("${unzipDir}/assets/vulkanmod/vlogo.png"))
             ant.copy(file: srcLogo, tofile: file("${unzipDir}/assets/vulkanmod/vlogo_transparent.png"))
         }
 
-        // 2) fabric.mod.json patchen: Name + Description für F3
+        
         def fabricFile = file("${unzipDir}/fabric.mod.json")
         if (fabricFile.exists()) {
             def json = new groovy.json.JsonSlurper().parseText(fabricFile.text)
             json.name = "Kollegen Client Vulkan+${project.version}"
             json.description = "Vulkan-Renderer (VulkanMod), integriert in den Kollegen Client. Von Kollegen Client verwaltet."
-            // In ModMenu unter dem Kollegen-Client einordnen statt Top-Level-Eintrag
+            
             if (!(json.custom instanceof Map)) {
                 json.custom = [:]
             }
@@ -316,11 +316,11 @@ tasks.register('vendorVulkanMod') {
             fabricFile.write(groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(json)))
         }
 
-        // 3) Sprache auf Deutsch übersetzen + "Support me" → "Zum Discord"
+        
         def langFile = file("${unzipDir}/assets/vulkanmod/lang/en_us.json")
         if (langFile.exists()) {
             def json = new groovy.json.JsonSlurper().parseText(langFile.text)
-            // Deutsch-Übersetzung
+            
             json["vulkanmod.options.unknown"] = "Unbekannt"
             json["vulkanmod.options.pages.video"] = "Video"
             json["vulkanmod.options.pages.graphics"] = "Grafik"
@@ -367,7 +367,7 @@ tasks.register('vendorVulkanMod') {
             langFile.write(groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(json)))
         }
 
-        // 4) Mixin-Priorität patchen: RenderTypeM priority 1000 → 1100
+        
         def mixinFile = file("${unzipDir}/vulkanmod.mixins.json")
         if (mixinFile.exists()) {
             def json = new groovy.json.JsonSlurper().parseText(mixinFile.text)
@@ -383,7 +383,7 @@ tasks.register('vendorVulkanMod') {
             mixinFile.write(groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(json)))
         }
 
-        // 5) Bytecode patchen: Ko-fi URL → Discord URL in VOptionScreen.class
+        
         def voptionScreen = file("${unzipDir}/net/vulkanmod/config/gui/VOptionScreen.class")
         if (voptionScreen.exists()) {
             def classBytes = voptionScreen.bytes
@@ -410,8 +410,8 @@ tasks.register('vendorVulkanMod') {
             file("${unzipDir}/net/vulkanmod/config/gui/VOptionScreen.class").bytes = writer.toByteArray()
         }
 
-        // 6) Farbpalette an Kollegen-Look anpassen (ColorUtil$ARGB):
-        //    Weiß→Creme (Text), Grün→Kollegen-Akzent (orange), Rot→Kollegen-Danger
+        
+        
         def colorUtil = file("${unzipDir}/net/vulkanmod/vulkan/util/ColorUtil\$ARGB.class")
         if (colorUtil.exists()) {
             def cuReader = new org.objectweb.asm.ClassReader(colorUtil.bytes)
@@ -431,11 +431,11 @@ tasks.register('vendorVulkanMod') {
             colorUtil.bytes = cuWriter.toByteArray()
         }
 
-        // Rezippen
+        
         def patchedJar = file("${cacheDir}/VulkanMod-patched.jar")
         ant.zip(destfile: patchedJar, basedir: unzipDir)
 
-        // Als Resource kopieren
+        
         ant.copy(file: patchedJar, tofile: vulkanRes)
     }
 }

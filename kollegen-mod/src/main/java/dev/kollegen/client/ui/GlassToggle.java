@@ -8,10 +8,7 @@ import net.minecraft.network.chat.Component;
 
 import java.util.function.Consumer;
 
-/**
- * Glas-Toggle (runder Schalter) als echtes Widget – damit die Eingabe über
- * Minecrafts Widget-System zuverlässig funktioniert.
- */
+
 public class GlassToggle extends AbstractWidget {
     private boolean state;
     private final Consumer<Boolean> onChange;

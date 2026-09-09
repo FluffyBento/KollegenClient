@@ -5,9 +5,7 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.network.chat.Component;
 
-/**
- * Glas-Button, der {@link Button} erweitert, damit Klick-Eingabe über Vanilla läuft.
- */
+
 public class GlassButton extends Button {
     private int panel = 0xff1a1a24;
     private int accent = 0xfff5a623;

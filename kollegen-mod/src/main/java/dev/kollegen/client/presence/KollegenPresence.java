@@ -22,17 +22,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.WeakHashMap;
 
-/**
- * Verwaltet die "Kollegen-Client-Online-Liste" auf EUEREM Backend-Server.
- *
- * Vertrag (vom Launcher/Backend bereitzustellen):
- *   POST   {base}/presence/{uuid}   Body: {"name":"..."}   (beitreten)
- *   DELETE {base}/presence/{uuid}                              (offline)
- *   GET    {base}/presence          → JSON-Array [{uuid,name}]
- *
- * Die Basis-URL wird aus {@code config/kollegen-server.txt} gelesen (eine Zeile),
- * sonst aus dem Konstanten-Default. Der Launcher kann diese Datei schreiben.
- */
+
 public final class KollegenPresence {
     private static final Set<UUID> USERS = ConcurrentHashMap.newKeySet();
     private static boolean registered = false;
@@ -51,10 +41,7 @@ public final class KollegenPresence {
         return USERS;
     }
 
-    /**
-     * Render-State-basierte Markierung fuer das Namensschild-Badge.
-     * Render-States sind pro Entity stabil, daher reicht eine WeakHashMap.
-     */
+    
     private static final Map<EntityRenderState, Boolean> STATE_KOLLEGEN = new WeakHashMap<>();
 
     public static void markKollegen(EntityRenderState state, boolean value) {
@@ -74,10 +61,10 @@ public final class KollegenPresence {
             }
         } catch (Throwable ignored) {
         }
-        return "https://kollegen.example/api"; // ← vom Launcher/Backend setzen
+        return "https://kollegen.me"; 
     }
 
-    /** Wird beim Betreten eines Servers / einer Welt aufgerufen. */
+    
     public static void join(Minecraft mc) {
         if (mc.player == null) return;
         UUID id = mc.player.getUUID();
@@ -91,7 +78,7 @@ public final class KollegenPresence {
         });
     }
 
-    /** Wird beim Verlassen (Disconnect / Menü) aufgerufen. */
+    
     public static void leave() {
         if (!registered) return;
         registered = false;
@@ -106,7 +93,7 @@ public final class KollegenPresence {
 
     private static void fetch() {
         try {
-            HttpRequest req = HttpRequest.newBuilder(URI.create(base() + "/presence"))
+            HttpRequest req = HttpRequest.newBuilder(URI.create(base() + "/presence/uuids"))
                     .timeout(Duration.ofSeconds(5))
                     .GET().build();
             HttpResponse<String> res = HTTP.send(req, HttpResponse.BodyHandlers.ofString());

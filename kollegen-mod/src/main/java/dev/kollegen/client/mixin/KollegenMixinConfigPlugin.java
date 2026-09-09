@@ -6,12 +6,7 @@ import org.objectweb.asm.tree.ClassNode;
 import org.spongepowered.asm.mixin.extensibility.IMixinConfigPlugin;
 import org.spongepowered.asm.mixin.extensibility.IMixinInfo;
 
-/**
- * Sorgt dafür, dass {@link XaeroWorldMapMixin} zur Laufzeit nur angewandt wird,
- * wenn Xaero's World Map tatsächlich geladen ist. Fehlt die Mod (oder die Klasse
- * xaero.map.MapLimiter), wird der Mixin übersprungen, statt mit einem
- * "target not found"-Fehler abzustürzen.
- */
+
 public class KollegenMixinConfigPlugin implements IMixinConfigPlugin {
 
     private static final String XAERO_MIXIN = "dev.kollegen.client.mixin.XaeroWorldMapMixin";

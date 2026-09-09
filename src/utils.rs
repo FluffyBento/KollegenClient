@@ -1,4 +1,4 @@
-// Utility functions for Kollegen Client launcher
+
 
 use anyhow::Result;
 use directories::ProjectDirs;
@@ -10,54 +10,54 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-/// Returns the project data directory for Kollegen Client.
+
 pub fn get_project_dirs() -> Result<PathBuf> {
     ProjectDirs::from("dev", "kollegen", "KollegenClient")
         .map(|p| p.data_dir().to_path_buf())
         .ok_or_else(|| anyhow::anyhow!("Could not find project directory"))
 }
 
-/// Returns the instances.json file path.
+
 pub fn instances_file(dir: &Path) -> PathBuf {
     dir.join("instances.json")
 }
 
-/// Returns the accounts.json file path.
+
 pub fn accounts_file(dir: &Path) -> PathBuf {
     dir.join("accounts.json")
 }
 
-/// Returns the settings.json file path.
+
 pub fn settings_file(dir: &Path) -> PathBuf {
     dir.join("settings.json")
 }
 
-/// Returns the launcher.log file path.
+
 pub fn log_file(dir: &Path) -> PathBuf {
     dir.join("launcher.log")
 }
 
-/// Returns the directory for a specific instance.
+
 pub fn instance_dir(data_dir: &Path, name: &str) -> PathBuf {
     data_dir.join("instances").join(sanitize_filename::sanitize(name))
 }
 
-/// Sanitizes a filename for safe use across platforms.
+
 pub fn sanitize_name(name: &str) -> String {
     sanitize_filename::sanitize(name)
 }
 
-/// Returns the user agent string for HTTP requests.
+
 pub fn user_agent() -> &'static str {
     super::USER_AGENT
 }
 
-/// Returns the Prism Launcher client ID for Microsoft OAuth.
+
 pub fn client_id() -> &'static str {
     super::client_id()
 }
 
-/// Loads JSON from a file path, returning default if file doesn't exist or parsing fails.
+
 pub fn load_json<T: serde::de::DeserializeOwned>(path: &Path, default: T) -> T {
     if path.exists() {
         if let Ok(content) = fs::read_to_string(path) {
@@ -69,7 +69,7 @@ pub fn load_json<T: serde::de::DeserializeOwned>(path: &Path, default: T) -> T {
     default
 }
 
-/// Saves JSON data to a file path.
+
 pub fn save_json<T: Serialize>(path: &Path, data: &T) -> Result<()> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)?;
@@ -79,7 +79,7 @@ pub fn save_json<T: Serialize>(path: &Path, data: &T) -> Result<()> {
     Ok(())
 }
 
-/// Downloads a file to the specified destination.
+
 pub fn download_file(url: &str, dest: &Path) -> Result<()> {
     let client = reqwest::blocking::Client::builder()
         .user_agent(crate::USER_AGENT)
@@ -88,7 +88,7 @@ pub fn download_file(url: &str, dest: &Path) -> Result<()> {
     download_file_client(&client, url, dest)
 }
 
-/// Returns the lowercase hex SHA-1 of `data`, matching Mojang's asset hashes.
+
 pub fn sha1_hex(data: &[u8]) -> String {
     let mut hasher = sha1::Sha1::new();
     hasher.update(data);
@@ -100,11 +100,11 @@ pub fn sha1_hex(data: &[u8]) -> String {
     out
 }
 
-/// Downloads a file using a caller-provided client (reused across many downloads).
-///
-/// Writes to a temporary `.part` file first and then atomically renames it into
-/// place, so an interrupted/truncated download never leaves a corrupt file at
-/// `dest` (which would otherwise be treated as "already downloaded" and skipped).
+
+
+
+
+
 pub fn download_file_client(client: &reqwest::blocking::Client, url: &str, dest: &Path) -> Result<()> {
     let resp = client.get(url).send()?;
     if !resp.status().is_success() {
@@ -121,23 +121,23 @@ pub fn download_file_client(client: &reqwest::blocking::Client, url: &str, dest:
     Ok(())
 }
 
-/// Ensures the Essential mod is installed and kept up to date for an instance.
-///
-/// Essential wird bei jedem Start neu heruntergeladen, wenn eine Verbindung
-/// besteht: veraltete Essential-Versionen laden eine inkompatible
-/// kotlinx.serialization und verursachen einen AbstractMethodError
-/// (typeParametersSerializers) im Cosmetics-Loader. Schlägt der Download fehl
-/// (offline/zentrale nicht erreichbar), bleibt die vorhandene Datei erhalten,
-/// damit der Start nicht blockiert wird.
+
+
+
+
+
+
+
+
 pub fn ensure_essential(name: &str, data_dir: &Path, mc_version: &str) -> Result<()> {
     let mods_dir = instance_dir(data_dir, name).join("mods");
     fs::create_dir_all(&mods_dir)?;
     let target = mods_dir.join("essentialmod.jar");
 
-    // Stale/empty placeholder from a previous failed download. Auch
-    // Nicht-Fabric-Stubs ohne `fabric.mod.json` (z.B. ein 407-Byte-Placeholder,
-    // "PK"-Magie, aber keine Mod) entfernen, damit sie die Suche nicht als
-    // "vorhandene Version" verwerfen und Essentia nie aktualisiert wird.
+    
+    
+    
+    
     if target.exists() {
         let mut remove = fs::metadata(&target)
             .map(|meta| meta.len() == 0)
@@ -174,11 +174,11 @@ pub fn ensure_essential(name: &str, data_dir: &Path, mc_version: &str) -> Result
     }
 
     info!("Aktualisiere Essential-Mod für {} (MC {})...", name, mc_version);
-    // Modrinth-CDN hat kein stable "<slug>/files/latest"-Muster; die Datei-URLs
-    // folgen "data/<projekt-id>/versions/<hash>/<datei>" und müssen über die
-    // Version-API aufgelöst werden. Essential veröffentlicht pro Minecraft-
-    // Version ein eigenes Jar (NICHT multiversion-fähig), daher die Versionen
-    // auf die Ziel-MC-Version filtern und die neueste davon nehmen.
+    
+    
+    
+    
+    
     let client = reqwest::blocking::Client::builder()
         .user_agent(crate::USER_AGENT)
         .timeout(Duration::from_secs(60))
@@ -227,7 +227,7 @@ pub fn ensure_essential(name: &str, data_dir: &Path, mc_version: &str) -> Result
             match client.get(url).send() {
                 Ok(resp) if resp.status().is_success() => {
                     if let Ok(bytes) = resp.bytes() {
-                        // Only accept a real (non-empty) zip archive.
+                        
                         if bytes.len() > 0 && bytes.starts_with(b"PK") {
                             fs::write(&target, &bytes)?;
                             info!("Essential mod aktualisiert/installiert ({}).", url);
@@ -255,7 +255,7 @@ pub fn ensure_essential(name: &str, data_dir: &Path, mc_version: &str) -> Result
     }
 }
 
-/// Appends a message to the launcher log.
+
 pub fn append_log(state: &crate::AppState, msg: &str) {
     let ts = chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
     let line = format!("[{}] {}", ts, msg);
@@ -272,7 +272,7 @@ pub fn append_log(state: &crate::AppState, msg: &str) {
     info!("{}", line);
 }
 
-/// Initializes logging to file.
+
 pub fn init_logging(data_dir: &Path) {
     let log_path = log_file(data_dir);
     if let Some(parent) = log_path.parent() {

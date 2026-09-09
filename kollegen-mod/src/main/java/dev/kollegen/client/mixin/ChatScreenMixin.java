@@ -9,10 +9,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-/**
- * Erfasst das Chat-Eingabefeld, damit AutoText (Schnellantwort) die Vorlage
- * direkt in ein bereits offenes Chat-Feld einfügen kann.
- */
+
 @Mixin(ChatScreen.class)
 public class ChatScreenMixin {
 

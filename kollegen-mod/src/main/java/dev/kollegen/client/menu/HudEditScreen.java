@@ -10,12 +10,7 @@ import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 import org.lwjgl.glfw.GLFW;
 
-/**
- * Temporärer Bearbeitungsmodus fürs HUD: das Mod-Menü wird ausgeblendet und
- * die HUD-Elemente lassen sich direkt auf dem Spielbildschirm mit der Maus
- * verschieben. Escape kehrt zum Mod-Menü zurück; die Positionen werden
- * automatisch gespeichert.
- */
+
 public class HudEditScreen extends Screen {
     public HudEditScreen() {
         super(Component.literal("Kollegen Client – HUD bearbeiten"));
@@ -58,7 +53,7 @@ public class HudEditScreen extends Screen {
 
     @Override
     public void render(GuiGraphics g, int mx, int my, float pt) {
-        // Spielwelt wird automatisch hinter dem (transparenten) Screen gezeichnet.
+        
         ModuleManager.renderHud(g, pt);
 
         String hint = "HUD bearbeiten · Elemente ziehen · Esc = zurück";

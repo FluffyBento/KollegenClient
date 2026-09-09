@@ -10,15 +10,11 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-/**
- * Zählt Maus-Klicks für die CPS-Anzeige (Keystrokes/CPS-Module) und steuert
- * das Verschieben von HUD-Modulen per Drag (sofern das Modul "Verschieben"
- * aktiviert ist und man sich nicht in einem Screen befindet).
- */
+
 @Mixin(MouseHandler.class)
 public class MouseHandlerMixin {
 
-    /** Speichert die Maus-Position (Roh-Pixel) für die GUI-Skalierung. */
+    
     private static double kollegen$cursorRawX = 0, kollegen$cursorRawY = 0;
 
     @Inject(method = "onMove", at = @At("HEAD"))
@@ -47,7 +43,7 @@ public class MouseHandlerMixin {
             else ClickTracker.releaseRight();
         }
 
-        // HUD-Drag (nur links, nur im Spiel, nicht in Screens)
+        
         if (button == 0) {
             Minecraft mc = Minecraft.getInstance();
             if (mc.screen == null) {
@@ -61,8 +57,8 @@ public class MouseHandlerMixin {
                 } else {
                     if (HudModule.dragging != null) {
                         HudModule.dragging = null;
-                        // Position wurde per Drag veraendert -> sofort persistieren,
-                        // sonst geht die Verschiebung beim Neustart verloren.
+                        
+                        
                         ModuleManager.save();
                     }
                 }

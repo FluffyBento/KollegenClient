@@ -15,10 +15,10 @@ import net.minecraft.world.phys.Vec3;
 
 public final class Visual {
 
-    /** Vom ParticleEngineMixin gelesen: alle Partikel abbrechen. */
+    
     public static boolean particleCancelAll = false;
 
-    /** Vom GameRendererMixin gelesen: FOV wird durch diesen Wert geteilt (Zoom aktiv). */
+    
     public static float zoomFovDivisor = 1.0f;
 
     private Visual() {
@@ -31,7 +31,7 @@ public final class Visual {
         ModuleManager.register(new Zoom());
     }
 
-    /** Gamma auf Maximum setzen, damit alles ausgeleuchtet ist. */
+    
     private static class Fullbright extends Module {
         private double saved = -1;
 
@@ -53,7 +53,7 @@ public final class Visual {
         }
     }
 
-    /** Respektiert die Sicht auch nachts, ohne den Gamme-Wert zu verändern. */
+    
     private static class NightVision extends Module {
         NightVision() {
             super("nightvision", "Night Vision", "Permanente Nachtsicht (Vanilla-Effekt).", Category.VISUAL);
@@ -72,7 +72,7 @@ public final class Visual {
         }
     }
 
-    /** Partikel: An / Reduziert (Minimum) / Aus (keine). */
+    
     private static class ReducedParticles extends Module {
         private ParticleStatus saved = ParticleStatus.ALL;
         private final ModeSetting mode = new ModeSetting("Modus",
@@ -106,9 +106,7 @@ public final class Visual {
         }
     }
 
-    /** Optifine-artiger Zoom: FOV-Teiler im GameRendererMixin statt Manipulation
-     *  der FOV-Einstellung (überschrieb früher dauerhaft die Option und reagierte
-     *  nicht live auf den Slider). Zusätzlich weiche Kamera wie bei OptiFine. */
+    
     private static class Zoom extends Module {
         private final SliderSetting zoom = new SliderSetting("Zoom", "Zoomstärke (1 = kein Zoom, höher = stärker heran). Wirkt sofort.", 4.0, 1.0, 16.0, 0.5);
         private final KeybindSetting key = new KeybindSetting("Taste", "Schaltet den Zoom ein/aus.");

@@ -13,22 +13,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-/**
- * Verschiebt das Inventar-Panel (Hintergrund, Slots, Ruestung, Crafting) um den
- * in InventoryLayout konfigurierten Versatz. Slots werden ueber SlotAccessor
- * verschoben (ihre Felder x/y sind final), damit Anzeige und Klick-Trefferzonen
- * zusammen bleiben.
- *
- * Das Kollegen-Logo unten rechts liegt in ScreenLogoMixin (greift ueber
- * konkrete Zielklassen, damit es auch auf Inventar/Truhen/Titel-Screen
- * zuverlaessig feuert und nicht ueber die render-Ueberschreibungskette
- * verloren geht).
- *
- * Alle Vanilla-Feldzugriffe (leftPos/topPos/menu ueber @Shadow, Slot ueber
- * SlotAccessor) werden ueber den refmap des Mods remapped. Reflection ueber
- * Class.getDeclaredField(...) wuerde unter Intermediary mit NoSuchFieldException
- * crashn, weil String-Literale NICHT vom refmap erfasst werden.
- */
+
 @Mixin(AbstractContainerScreen.class)
 public class InventoryScreenMixin {
 
@@ -52,7 +37,7 @@ public class InventoryScreenMixin {
         if (!((Object) this instanceof InventoryScreen)) return;
         int ox = InventoryLayout.offX, oy = InventoryLayout.offY;
 
-        // vorherigen Versatz rueckgaengig machen (Resize-/Mehrfach-Init sicher)
+        
         int prevX = kollegen$appliedX, prevY = kollegen$appliedY;
         this.leftPos -= prevX;
         this.topPos -= prevY;
@@ -65,7 +50,7 @@ public class InventoryScreenMixin {
             }
         }
 
-        // neuen Versatz anwenden
+        
         this.leftPos += ox;
         this.topPos += oy;
         if (m != null && m.slots != null) {

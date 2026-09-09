@@ -8,14 +8,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-/**
- * Bricht sämtliche Partikel ab, wenn das Setting "Partikel → Aus" aktiv ist
- * (Modul "Partikel" in der Visual-Kategorie).
- *
- * Einstiegspunkt ist {@code ParticleEngine#add(Particle)} – dort laufen alle
- * Partikel zusammen (auch die direkt erzeugten), bevor sie in die
- * Renderlisten aufgenommen werden.
- */
+
 @Mixin(ParticleEngine.class)
 public class ParticleEngineMixin {
 

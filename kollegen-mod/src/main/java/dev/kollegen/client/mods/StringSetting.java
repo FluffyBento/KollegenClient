@@ -8,10 +8,7 @@ import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
-/**
- * Freitext-Einstellung (z. B. Nachrichten-Vorlagen für AutoText). Baut ein
- * EditBox-Widget, das den Wert live speichert.
- */
+
 public class StringSetting extends Setting {
     public String value;
     private final int maxLength;
@@ -38,7 +35,7 @@ public class StringSetting extends Setting {
 
     @Override
     public String valueText() {
-        return ""; // der Wert wird bereits im EditBox angezeigt
+        return ""; 
     }
 
     @Override
@@ -47,7 +44,7 @@ public class StringSetting extends Setting {
         int h = 20;
         int x = px + cw - w - 8;
         int y = py + (rowH - h) / 2;
-        // Screen#font ist protected – über die globale Minecraft-Instanz abgreifen.
+        
         EditBox box = new EditBox(Minecraft.getInstance().font, x, y, w, h, Component.literal(""));
         box.setMaxLength(maxLength);
         box.setValue(value == null ? "" : value);

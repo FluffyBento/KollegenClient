@@ -7,10 +7,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-/**
- * Tick-Hook OHNE fabric-api: Ziel ist der Client selbst. Jeder Client-Tick läuft
- * durch {@code KollegenMod.onTick()} (Menü-Taste, Module, Keybinds, RPC).
- */
+
 @Mixin(Minecraft.class)
 public class MinecraftClientMixin {
 
@@ -19,11 +16,7 @@ public class MinecraftClientMixin {
         KollegenMod.onTick();
     }
 
-    /**
-     * Frame-Hook (render-loop) OHNE fabric-api: wird von Minecraft.runTick pro
-     * Frame aufgerufen. Für die glatte Gamepad-Kamera (rechter Stick), die sonst
-     * im 20-TPS-Client-Tick ruckeln würde.
-     */
+    
     @Inject(method = "runTick", at = @At("TAIL"))
     private void kollegen_client$onFrame(boolean tickIn, CallbackInfo ci) {
         KollegenMod.onFrame();

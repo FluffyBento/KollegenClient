@@ -6,7 +6,7 @@ import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.screens.Screen;
 
 public class ColorSetting extends Setting {
-    public int value; // 0xAARRGGBB
+    public int value; 
 
     public ColorSetting(String name, String description, int def) {
         super(name, description);

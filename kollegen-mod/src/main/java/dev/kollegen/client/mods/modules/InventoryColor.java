@@ -6,11 +6,7 @@ import dev.kollegen.client.mods.Module;
 import dev.kollegen.client.mods.ModuleManager;
 import dev.kollegen.client.mods.SliderSetting;
 
-/**
- * Faerbt den Hintergrund ALLER Container-Bildschirme (Inventar, Kiste, Werkbank
- * ...) mit einer einstellbaren Farbe und Deckkraft. Die eigentliche Einfaebung
- * erfolgt in ContainerScreenMixin.
- */
+
 public final class InventoryColor {
 
     private InventoryColor() {

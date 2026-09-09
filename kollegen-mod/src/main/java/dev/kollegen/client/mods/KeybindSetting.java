@@ -8,7 +8,7 @@ import net.minecraft.network.chat.Component;
 import org.lwjgl.glfw.GLFW;
 
 public class KeybindSetting extends Setting {
-    public int value = -1; // GLFW key, -1 = keine
+    public int value = -1; 
     public static KeybindSetting capturing = null;
 
     public KeybindSetting(String name, String description) {

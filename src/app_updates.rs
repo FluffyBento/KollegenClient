@@ -1,35 +1,35 @@
-//! Automatic update checking + prompting using the official Tauri updater plugin.
-//!
-//! On startup (and then every few hours) we ask the configured update endpoint
-//! for a newer version. If one exists we pop a native dialog asking the user to
-//! install it; on confirmation the update is downloaded + installed and the app
-//! restarts. The endpoint + signing public key live in `tauri.conf.json`.
-//!
-//! `check_info` / `install` are also exposed as Tauri commands so the Settings
-//! UI can offer a manual "Check for updates" button with visible feedback.
+
+
+
+
+
+
+
+
+
 use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_updater::UpdaterExt;
 
-/// Where users can grab a new version manually (used when self-update is
-/// unsupported for the current install format, e.g. .deb/.rpm).
+
+
 const RELEASE_URL: &str = "https://github.com/FluffyBento/KollegenClient/releases/latest";
 
-/// GitHub REST API for the latest release. Used as a robust fallback for the
-/// manual "Check for updates" button: it returns clean JSON (no `latest.json`
-/// CDN redirect, which some reqwest configurations fail to follow) and gives us
-/// the tag + notes directly.
+
+
+
+
 const UPDATE_API_URL: &str =
     "https://api.github.com/repos/FluffyBento/KollegenClient/releases/latest";
 
-/// Whether this running binary can update itself in place.
-///
-/// * Windows: the NSIS installer self-updates -> true.
-/// * macOS: the app bundle self-updates -> true.
-/// * Linux: only the **AppImage** can be replaced in place. When the app was
-///   installed via a system package manager (.deb/.rpm) the current executable
-///   is not an AppImage, so downloading the AppImage artifact would fail with
-///   "invalid updater binary format". In that case we fall back to a
-///   "download manually" notification instead of attempting an in-place install.
+
+
+
+
+
+
+
+
+
 pub fn can_self_install() -> bool {
     #[cfg(target_os = "windows")]
     {
@@ -37,8 +37,8 @@ pub fn can_self_install() -> bool {
     }
     #[cfg(target_os = "linux")]
     {
-        // AppImage launchers set the `APPIMAGE` environment variable to the
-        // running AppImage path; .deb/.rpm installs do not.
+        
+        
         std::env::var("APPIMAGE").is_ok()
     }
     #[cfg(target_os = "macos")]
@@ -51,8 +51,8 @@ pub fn can_self_install() -> bool {
     }
 }
 
-/// Human-readable install format for the current running build. Used by the
-/// Settings UI to pick the right update flow and the right hint text.
+
+
 pub fn install_format() -> &'static str {
     #[cfg(target_os = "windows")]
     {
@@ -78,10 +78,10 @@ pub fn install_format() -> &'static str {
     }
 }
 
-/// True when the app was installed as a Flatpak. Flatpak always runs the app
-/// from inside the immutable `/app` prefix, so this is a reliable check. The
-/// Flatpak has no in-place updater (it's a local bundle, not a Flathub remote),
-/// so updates funnel the user to the released `.flatpak` bundle.
+
+
+
+
 pub fn is_flatpak() -> bool {
     #[cfg(target_os = "linux")]
     {
@@ -98,16 +98,16 @@ pub fn is_flatpak() -> bool {
     }
 }
 
-/// Spawns the background update-checker loop. Safe to call once during setup.
+
 pub fn spawn(app: tauri::AppHandle) {
     tauri::async_runtime::spawn(async move {
-        // Give the UI a moment to come up before we might pop a dialog.
+        
         tokio::time::sleep(std::time::Duration::from_secs(4)).await;
         if let Err(e) = check_and_prompt(&app).await {
             eprintln!("[app_updates] update check failed: {e}");
         }
 
-        // Re-check periodically in the background.
+        
         let mut ticker = tokio::time::interval(std::time::Duration::from_secs(6 * 3600));
         loop {
             ticker.tick().await;
@@ -118,33 +118,33 @@ pub fn spawn(app: tauri::AppHandle) {
     });
 }
 
-/// Returns `(version, notes)` of an available update, or `None` if up to date.
-/// Errors are returned as `Err(String)` so the UI can surface them.
+
+
 pub async fn check_info(app: &tauri::AppHandle) -> Result<Option<(String, String)>, String> {
-    // 1) Prefer the official plugin: it verifies the artifact signature and is
-    //    what performs the actual in-place install (AppImage/NSIS).
+    
+    
     if let Ok(updater) = app.updater() {
         match updater.check().await {
             Ok(Some(u)) => {
                 return Ok(Some((u.version.to_string(), u.body.clone().unwrap_or_default())));
             }
-            // `None` = up to date; an error (e.g. transient fetch/parse problem)
-            // falls through to the direct fallback below so the manual check in
-            // the Settings UI never hard-fails with a cryptic message.
+            
+            
+            
             _ => {}
         }
     }
 
-    // 2) Fallback: fetch `latest.json` ourselves and compare versions. Robust
-    //    against plugin quirks and keeps the "Update verfügbar" notice working
-    //    for every install format (including .deb/.rpm, where self-install is
-    //    unsupported but the user still wants to know about new releases).
+    
+    
+    
+    
     fetch_update_via_http(app).await
 }
 
-/// Directly fetches the latest release via the GitHub REST API (bypassing the
-/// updater plugin) and returns the version/notes only when the remote version
-/// is newer than the running app.
+
+
+
 async fn fetch_update_via_http(app: &tauri::AppHandle) -> Result<Option<(String, String)>, String> {
     let url = UPDATE_API_URL.to_string();
     let current = app.package_info().version.to_string();
@@ -196,9 +196,9 @@ async fn fetch_update_via_http(app: &tauri::AppHandle) -> Result<Option<(String,
     }
 }
 
-/// Downloads and installs the pending update, then restarts the app.
-/// Returns an error (without attempting an install) when the current install
-/// format cannot self-update (e.g. .deb/.rpm on Linux).
+
+
+
 pub async fn install(app: &tauri::AppHandle) -> Result<(), String> {
     if !can_self_install() {
         return Err(
@@ -231,7 +231,7 @@ async fn check_and_prompt(app: &tauri::AppHandle) -> tauri_plugin_updater::Resul
     let notes = update.body.clone().unwrap_or_default();
 
     if can_self_install() {
-        // The normal flow: ask to install in place.
+        
         let (tx, rx) = std::sync::mpsc::channel::<bool>();
         app.dialog()
             .message(format!(
@@ -252,8 +252,8 @@ async fn check_and_prompt(app: &tauri::AppHandle) -> tauri_plugin_updater::Resul
             .await?;
         app.restart()
     } else {
-        // Notification-only: local/package installs that can't self-update.
-        // Point the user to the right download for their install format.
+        
+        
         let (tx, rx) = std::sync::mpsc::channel::<bool>();
         let body = if is_flatpak() {
             format!(

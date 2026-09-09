@@ -4,10 +4,7 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.network.chat.Component;
 
-/**
- * Farb-Schalter: zeigt die aktuelle Farbe als Kachel und öffnet bei Klick den
- * ColorPicker. (Eigenständiges Widget, da der Standard-Button nur Text malen kann.)
- */
+
 public class ColorButton extends Button {
     public int color;
 

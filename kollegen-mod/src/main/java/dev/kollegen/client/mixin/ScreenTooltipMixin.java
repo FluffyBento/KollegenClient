@@ -15,12 +15,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.util.List;
 
-/**
- * AppleSkin-Naehrwert-Tooltips: haengt Hunger-/Saettigungswerte an den Tooltip
- * jeder Speise. Einstiegspunkt ist Screen.getTooltipFromItem – die zentrale
- * Stelle, an der Vanilla alle Item-Tooltips aufbaut (ein einziger Aufruf pro
- * Tooltip statt rekursiver appendHoverText-Kette).
- */
+
 @Mixin(Screen.class)
 public class ScreenTooltipMixin {
 

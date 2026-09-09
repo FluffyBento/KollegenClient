@@ -10,15 +10,10 @@ import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.world.food.FoodProperties;
 
-/**
- * AppleSkin-Integration: Sättigungsanzeige über der Hungerleiste, Vorschau des
- * gehaltenen Essens und Nährwert-Tooltips – vollständig über das Menü
- * anpassbar und einzeln an-/ausschaltbar. Zeichnung läuft über den bestehenden
- * HUD-Hook ({@code ModuleManager.renderHud}), Tooltips über ScreenTooltipMixin.
- */
+
 public final class Appleskin extends Module {
 
-    /** Für ScreenTooltipMixin. */
+    
     private static Appleskin instance = null;
 
     public final BooleanSetting showSaturation = new BooleanSetting(
@@ -59,9 +54,9 @@ public final class Appleskin extends Module {
         int w = g.guiWidth();
         int h = g.guiHeight();
 
-        // Hungerleiste: 10 Slots à 8px, rechtsbündig bei w/2+91, Icons ab h-36.
+        
         int rightEdge = w / 2 + 91;
-        int barW = 81; // 10*8 + 1
+        int barW = 81; 
         int x1 = rightEdge - barW;
         float sat = mc.player.getFoodData().getSaturationLevel();
         int hunger = mc.player.getFoodData().getFoodLevel();
@@ -75,8 +70,8 @@ public final class Appleskin extends Module {
             }
         }
 
-        // Vorschau: was das gehaltene Essen auffüllen würde (wie das Sättigungs-
-        // HUD-Modul gerechnet, aber direkt an der Hungerleiste).
+        
+        
         if (showPreview.value) {
             FoodProperties fp = mc.player.getMainHandItem().get(DataComponents.FOOD);
             if (fp != null && (fp.nutrition() > 0 || fp.saturation() > 0)) {

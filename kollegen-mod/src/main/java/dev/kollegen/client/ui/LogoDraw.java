@@ -7,11 +7,7 @@ import net.minecraft.resources.Identifier;
 
 import java.io.InputStream;
 
-/**
- * Zentraler Helfer zum Zeichnen des eigenen Logos (assets/kollegen/logo.png),
- * seitenveraeltniskonform skaliert. Wird vom Titel-Screen (LogoRendererMixin)
- * und vom Inventar (InventoryScreenMixin) genutzt.
- */
+
 public final class LogoDraw {
     private static final Identifier KOLLEGEN_LOGO = Identifier.tryParse("kollegen:logo.png");
     private static int[] DIMS;

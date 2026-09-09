@@ -9,15 +9,7 @@ import dev.kollegen.client.mixin.ServerDataAccessor;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ServerData;
 
-/**
- * In-game Discord Rich Presence. Verbindet sich über IPC mit dem lokalen
- * Discord-Client (gleiche Application Client ID wie der Launcher).
- *
- * Die Activity ist immer als „Kollegen Client“ markiert (details) und trägt –
- * sobald man auf einem Multiplayer-Server ist – die Server-Adresse als
- * joinSecret. Dadurch sehen Freunde im Launcher/Mod „⚡ Kollegen Client“ und
- * können per „Freund beitreten“ direkt in den Server springen.
- */
+
 public class KollegenRPC {
     private static DiscordRPC rpc;
     private static boolean ready = false;
@@ -52,10 +44,7 @@ public class KollegenRPC {
         }
     }
 
-    /**
-     * Aktualisiert die Presence (nur wenn sich etwas geändert hat). Wird pro
-     * Client-Tick aus {@code KollegenMod.onTick()} aufgerufen.
-     */
+    
     public static void tick(Minecraft mc) {
         if (rpc == null || !ready) return;
 
@@ -67,7 +56,7 @@ public class KollegenRPC {
                 if (mc.hasSingleplayerServer()) {
                     state = "Im Einzelspieler";
                 } else {
-                    // Auf einem (Multiplayer-)Server – Adresse als Join-Secret.
+                    
                     String ip = currentServerIp(mc);
                     if (ip != null && !ip.isEmpty()) {
                         server = ip;
@@ -114,12 +103,8 @@ public class KollegenRPC {
         } catch (Exception ignored) {
         }
     }
-//PART2
-    /**
-     * Holt die aktuelle Server-Adresse ueber @Accessor-Mixins (refmap-remapped).
-     * Reflection ueber Class.getMethod(...) wuerde unter Intermediary mit
-     * NoSuchMethodException scheitern.
-     */
+
+    
     private static String currentServerIp(Minecraft mc) {
         try {
             ServerData serverData = ((MinecraftAccessor) mc).kollegen$getCurrentServer();

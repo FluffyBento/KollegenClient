@@ -12,7 +12,7 @@ import org.lwjgl.glfw.GLFW;
 
 public final class Chat {
 
-    /** Aktuelles Chat-Eingabefeld – vom ChatScreenMixin gesetzt. */
+    
     public static EditBox activeChatInput = null;
 
     private Chat() {
@@ -23,7 +23,7 @@ public final class Chat {
         ModuleManager.register(new AutoText());
     }
 
-    /** Leert den Chat per Keybind. */
+    
     private static class ClearChat extends Module {
         private final KeybindSetting key = new KeybindSetting("Taste", "Leert den Chat.");
 
@@ -43,7 +43,7 @@ public final class Chat {
         }
     }
 
-    /** Fügt per Hotkey vorgefertigte Nachrichten in den Chat ein. */
+    
     private static class AutoText extends Module {
         private static final int SLOTS = 6;
         private final Slot[] slots = new Slot[SLOTS];

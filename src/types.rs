@@ -1,4 +1,4 @@
-// Data structures and types for the Kollegen Client launcher
+
 
 use serde::{Deserialize, Serialize};
 
@@ -11,23 +11,23 @@ pub struct Account {
     pub expires_at: Option<u64>,
     pub avatar_id: Option<String>,
     pub xuid: Option<String>,
-    /// Microsoft OAuth client ID that obtained this account's tokens. Stored so
-    /// refresh uses the exact same public client (important when the default was
-    /// overridden or a fallback candidate was used during login).
+    
+    
+    
     #[serde(default)]
     pub client_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Instance {
-    /// Unique id so instance management (delete/join) can always address exactly
-    /// one instance, even when several share the same display name (legacy data
-    /// without an id falls back to name-based first-match handling).
+    
+    
+    
     #[serde(default)]
     pub id: String,
     pub name: String,
     pub version: String,
-    pub loader: String, // Vanilla | Fabric | Forge | NeoForge | Quilt
+    pub loader: String, 
     pub loader_version: Option<String>,
     pub description: String,
     pub mods: Vec<String>,
@@ -52,39 +52,39 @@ pub struct Settings {
     #[serde(default)]
     pub theme_mode: String,
     pub proxy: Option<String>,
-    /// Basis-URL des externen Presence-Backends (z. B. "https://presence.kollegen.dev").
-    /// Leer = Presence-Feature aus. Umgebungsvariable KOLLEGEN_PRESENCE_BACKEND hat Vorrang.
+    
+    
     #[serde(default)]
     pub presence_backend: String,
-    /// Optionales Bearer-Token für das Presence-Backend. Umgebungsvariable
-    /// KOLLEGEN_PRESENCE_TOKEN hat Vorrang.
+    
+    
     #[serde(default)]
     pub presence_token: String,
-    /// Begleit-Mod (Fabric) automatisch in mod-fähige Instanzen installieren.
-    /// Ausschalten, falls ein Server (z. B. GommeHD) modifizierte Clients
-    /// mit „invalid packet" kickt – ohne Mod ist der Client unverändert.
+    
+    
+    
     #[serde(default = "default_true")]
     pub companion_mod: bool,
-    /// UI-Dichte: "comfortable" oder "compact".
+    
     #[serde(default = "default_density")]
     pub density: String,
-    /// Sidebar mit den Social-Buttons anzeigen.
+    
     #[serde(default = "default_true")]
     pub sidebar_visible: bool,
-    /// UI-Animationen aktivieren.
+    
     #[serde(default = "default_true")]
     pub animations: bool,
-    /// Bekannte Fabric-Performance-Mods bei Fabric-/Quilt-Instanzen automatisch
-    /// installieren (Sodium, Lithium, FerriteCore, EntityCulling, …).
+    
+    
     #[serde(default = "default_true")]
     pub perf_mods: bool,
-    /// SteamDeck-/Konsolen-Modus: TV/Controller-optimierte Launcher-Oberfläche
-    /// und automatisch aktivierter Controller-Modus im Kollegen-Begleit-Mod.
+    
+    
     #[serde(default = "default_false")]
     pub steamdeck_mode: bool,
-    /// Eigene Profilanpassungen für das öffentliche Profil (Bio, Banner, Avatar).
-    /// Wird vom Frontend über `save_settings` persistiert und über das
-    /// Presence-Backend (`POST /profile`) mit anderen geteilt.
+    
+    
+    
     #[serde(default)]
     pub profile: Option<ProfileSettings>,
 }

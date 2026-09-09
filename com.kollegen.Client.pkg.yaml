@@ -1,11 +1,3 @@
-# Package-only Flatpak manifest: bündelt das bereits gebaute Kollegen-Client-Binary
-# (target/release/kollegen-client) mitsamt der mitgelieferten Resources, anstatt im
-# abgeschotteten Build-Sandbox neu zu kompilieren. Der Binary wird im linux-CI-Job
-# (mit Netzwerkzugriff) gebaut und hier nur noch verpackt. Die GNOME-Runtime liefert
-# WebKitGTK, gegen das der Tauri-Client linkt — dadurch wird der Whitescreen auf
-# SteamDeck/SteamOS (fehlendes webkit2gtk-4.1) behoben.
-#
-# Die referenzierten Quellen werden von der CI vor dem Build in `_fpkg/` gestaged.
 app-id: dev.kollegen.client
 runtime: org.gnome.Platform
 runtime-version: '49'

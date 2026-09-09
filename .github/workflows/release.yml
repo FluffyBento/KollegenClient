@@ -9,8 +9,6 @@ on:
 permissions:
   contents: write
 
-# Cancel any in-progress run for the same tag (e.g. when a tag is deleted and
-# re-pushed) so we never build the same release twice in parallel.
 concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: true
@@ -133,9 +131,6 @@ jobs:
           cp target/release/bundle/rpm/*.rpm release_artifacts/KollegenClient.rpm || true
           cp target/release/bundle/deb/*.deb release_artifacts/KollegenClient.deb || true
 
-      # Selbst-enthaltendes AppImage mit gebündeltem WebKitGTK (siehe
-      # scripts/build-appimage-webkit.sh). SteamOS hat kein system-webkit2gtk-4.1,
-      # deshalb bündelt das AppImage libwebkit2gtk + die WebKit-Tochterprozesse.
       - name: Build self-contained AppImage (bundled WebKit)
         run: |
           chmod +x scripts/build-appimage-webkit.sh
@@ -157,12 +152,6 @@ jobs:
           fi
           ls -la release_artifacts
 
-      # DAU-freundlicher Vertrieb für SteamDeck/SteamOS. Das Flatpak bündelt das
-      # bereits gebaute Binary + Resources und läuft gegen die GNOME-Runtime
-      # (inkl. WebKitGTK), womit der Whitescreen (fehlendes webkit2gtk-4.1) auf
-      # SteamOS behoben wird. Keine manuell installierten Abhängigkeiten nötig.
-      # Bewusst im linux-Job (mit Netzwerk) gebaut statt isoliert zu kompilieren,
-      # da die Flatpak-Build-Sandbox kein Netz hat und kein Rust-Toolchain mitbringt.
       - name: Install Flatpak build tools
         run: |
           sudo apt-get update
@@ -297,9 +286,6 @@ jobs:
           JAR=$(ls kollegen-mod/build/libs/kollegen-client-mod-*.jar 2>/dev/null | head -n1)
           if [ -n "$JAR" ]; then cp "$JAR" resources/kollegen-client-mod.jar; echo "Bundled $JAR"; else echo "Mod build failed"; exit 1; fi
 
-      # Two separate native builds instead of one universal binary: the universal
-      # bundle caused install problems on Apple Silicon. Each arch gets its own
-      # .app.tar.gz + .sig (for the updater) and its own .dmg.
       - name: Build macOS Apple Silicon bundles (aarch64)
         run: tauri build --config tauri.conf.json --target aarch64-apple-darwin --bundles app,dmg
 
@@ -309,7 +295,6 @@ jobs:
       - name: Collect release artifacts
         run: |
           mkdir -p release_artifacts
-          # Apple Silicon
           SRC_A="target/aarch64-apple-darwin/release/bundle"
           cp "$SRC_A"/dmg/*.dmg release_artifacts/KollegenClient-arm64.dmg 2>/dev/null || true
           APP_TAR_A=$(ls "$SRC_A"/macos/*.app.tar.gz 2>/dev/null | head -n1)
@@ -317,7 +302,6 @@ jobs:
             cp "$APP_TAR_A" release_artifacts/KollegenClient-aarch64.app.tar.gz
             [ -f "${APP_TAR_A}.sig" ] && cp "${APP_TAR_A}.sig" release_artifacts/KollegenClient-aarch64.app.tar.gz.sig
           fi
-          # Intel
           SRC_I="target/x86_64-apple-darwin/release/bundle"
           cp "$SRC_I"/dmg/*.dmg release_artifacts/KollegenClient-x64.dmg 2>/dev/null || true
           APP_TAR_I=$(ls "$SRC_I"/macos/*.app.tar.gz 2>/dev/null | head -n1)

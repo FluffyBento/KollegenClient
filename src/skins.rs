@@ -1,10 +1,10 @@
-// Skin- & Cape-Verwaltung für den Kollegen-Client.
-//
-// Ermöglicht es dem Nutzer, seinen Minecraft-Skin direkt im Launcher zu
-// wechseln (3D-Vorschau + lokale Bibliothek + Upload zum Minecraft-Konto)
-// sowie besitzte Capes auszurüsten. Alle Minecraft-API-Aufrufe laufen über das
-// aktive (erste) Microsoft-Konto; ohne Konto funktioniert die lokale
-// Bibliothek + 3D-Vorschau trotzdem.
+
+
+
+
+
+
+
 
 use base64::Engine;
 use serde_json::Value;
@@ -18,8 +18,8 @@ fn now_secs() -> u64 {
         .unwrap_or(0)
 }
 
-/// Frisches Minecraft-Access-Token des aktiven (ersten) Kontos – bei Bedarf
-/// wird die Session über den Refresh-Token erneuert.
+
+
 fn mc_token(data_dir: &Path) -> Option<String> {
     let path = crate::utils::accounts_file(data_dir);
     let mut accts =
@@ -90,7 +90,7 @@ fn b64_to_bytes(s: &str) -> Result<Vec<u8>, String> {
         .map_err(|e| format!("Ungültiges Bild (Base64): {}", e))
 }
 
-/// Listet die lokale Skin-Bibliothek inkl. Vorschau-Data-URLs.
+
 pub fn list_skins(data_dir: &Path) -> Value {
     let idx = read_index(data_dir);
     let skins = idx
@@ -126,8 +126,8 @@ fn save_skin_bytes(data_dir: &Path, name: &str, bytes: &[u8]) -> Result<String, 
     Ok(file)
 }
 
-/// Speichert einen Skin in der lokalen Bibliothek (ersetzt gleichnamige) und
-/// setzt ihn bei Bedarf als aktiv. Gibt die aktualisierte Liste zurück.
+
+
 pub fn import_skin(data_dir: &Path, name: &str, bytes: &[u8]) -> Value {
     let file = match save_skin_bytes(data_dir, name, bytes) {
         Ok(f) => f,
@@ -149,7 +149,7 @@ pub fn import_skin(data_dir: &Path, name: &str, bytes: &[u8]) -> Value {
     list_skins(data_dir)
 }
 
-/// Markiert einen bibliotheks-Skin als aktiv.
+
 pub fn set_active_skin(data_dir: &Path, name: &str) -> Value {
     let mut idx = read_index(data_dir);
     idx["active"] = serde_json::json!(name);
@@ -157,7 +157,7 @@ pub fn set_active_skin(data_dir: &Path, name: &str) -> Value {
     list_skins(data_dir)
 }
 
-/// Entfernt einen Skin aus der Bibliothek.
+
 pub fn delete_skin(data_dir: &Path, name: &str) -> Value {
     let mut idx = read_index(data_dir);
     let skins: Vec<Value> = idx
@@ -190,7 +190,7 @@ pub fn delete_skin(data_dir: &Path, name: &str) -> Value {
     list_skins(data_dir)
 }
 
-/// Holt das Minecraft-Profil (Skins + Capes) des aktiven Kontos.
+
 pub fn minecraft_profile(data_dir: &Path) -> Value {
     let token = match mc_token(data_dir) {
         Some(t) => t,
@@ -211,7 +211,7 @@ pub fn minecraft_profile(data_dir: &Path) -> Value {
     }
 }
 
-/// Lädt den aktuell bei Minecraft hinterlegten Skin in die Bibliothek.
+
 pub fn download_current_skin(data_dir: &Path) -> Value {
     let prof = minecraft_profile(data_dir);
     if prof.get("error").is_some() {
@@ -244,8 +244,8 @@ pub fn download_current_skin(data_dir: &Path) -> Value {
     import_skin(data_dir, &name, &bytes)
 }
 
-/// Lädt einen Skin zum Minecraft-Konto hoch (und speichert ihn lokal).
-/// Ohne Microsoft-Konto wird der Skin nur lokal abgelegt.
+
+
 pub fn upload_skin(data_dir: &Path, name: &str, b64: &str, variant: &str) -> Value {
     let bytes = match b64_to_bytes(b64) {
         Ok(b) => b,
@@ -297,7 +297,7 @@ pub fn upload_skin(data_dir: &Path, name: &str, b64: &str, variant: &str) -> Val
     }
 }
 
-/// Rüstet ein besitztes Cape aus (aktiviert es im Minecraft-Konto).
+
 pub fn equip_cape(data_dir: &Path, cape_id: &str) -> Value {
     let token = match mc_token(data_dir) {
         Some(t) => t,
@@ -315,11 +315,11 @@ pub fn equip_cape(data_dir: &Path, cape_id: &str) -> Value {
     }
 }
 
-/// Holt das öffentliche Minecraft-Profil (aktueller Skin) eines Spielers per
-/// Minecraft-Name (kein Login erforderlich). Liefert Skin- und Cape-URLs sowie
-/// Data-URLs (base64) für direkte Anzeige in der UI.
+
+
+
 pub fn minecraft_profile_by_name(_data_dir: &Path, name: &str) -> Value {
-    // 1) Name → UUID
+    
     let lookup = format!("https://api.mojang.com/users/profiles/minecraft/{}", name);
     let id_resp = match reqwest::blocking::get(&lookup) {
         Ok(r) if r.status().is_success() => match r.json::<Value>() {
@@ -334,7 +334,7 @@ pub fn minecraft_profile_by_name(_data_dir: &Path, name: &str) -> Value {
         None => return serde_json::json!({ "error": "UUID not found for name" }),
     };
 
-    // 2) Session profile → textures
+    
     let sess_url = format!("https://sessionserver.mojang.com/session/minecraft/profile/{}", uuid);
     let sess = match reqwest::blocking::get(&sess_url) {
         Ok(r) if r.status().is_success() => match r.json::<Value>() {
@@ -345,7 +345,7 @@ pub fn minecraft_profile_by_name(_data_dir: &Path, name: &str) -> Value {
         Err(e) => return serde_json::json!({ "error": format!("Profile fetch failed: {}", e) }),
     };
 
-    // Extract textures property (base64)
+    
     let props = sess.get("properties").and_then(|p| p.as_array()).cloned().unwrap_or_default();
     let mut textures_b64: Option<String> = None;
     for p in props {
@@ -382,7 +382,7 @@ pub fn minecraft_profile_by_name(_data_dir: &Path, name: &str) -> Value {
         .and_then(|u| u.as_str())
         .map(|s| s.to_string());
 
-    // Try to fetch skin bytes and produce data URL if possible
+    
     let skin_data_url = skin_url.as_ref().and_then(|url| match reqwest::blocking::get(url) {
         Ok(r) if r.status().is_success() => match r.bytes() {
             Ok(b) => Some(format!("data:image/png;base64,{}", base64::engine::general_purpose::STANDARD.encode(&b))),

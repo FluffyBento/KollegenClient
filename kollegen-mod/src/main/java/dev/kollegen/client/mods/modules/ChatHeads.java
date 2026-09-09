@@ -6,11 +6,7 @@ import dev.kollegen.client.mods.Category;
 import dev.kollegen.client.mods.Module;
 import dev.kollegen.client.mods.ModuleManager;
 
-/**
- * Schaltet die gebündelte Chat-Heads-Mod ein/aus (Spielerköpfe neben Chat-
- * Nachrichten). Wie Spotify Overlay: Toggle schreibt nur die Wunsch-Datei,
- * der Launcher setzt sie beim nächsten Spielstart um.
- */
+
 public final class ChatHeads {
 
     private ChatHeads() {

@@ -1,8 +1,8 @@
-// Detection of other Minecraft launchers and import of their instances.
-//
-// Works on both Windows and Linux by probing each launcher's well-known
-// instance directory. Only launchers whose instance directory actually exists
-// are reported, so the UI never shows empty/ghost entries.
+
+
+
+
+
 
 use anyhow::{anyhow, Result};
 use serde_json::Value;
@@ -27,9 +27,9 @@ fn home() -> PathBuf {
     dirs::home_dir().unwrap_or_else(|| PathBuf::from("."))
 }
 
-/// Returns every known launcher together with the candidate instance-root
-/// directories for the current OS. `detect_launchers` only reports those whose
-/// directory exists.
+
+
+
 fn launcher_defs() -> Vec<(&'static str, &'static str, LauncherKind, Vec<PathBuf>)> {
     let h = home();
     let data_local = dirs::data_local_dir().unwrap_or_else(|| h.clone());
@@ -191,7 +191,7 @@ fn read_text(p: &Path) -> Option<String> {
     fs::read_to_string(p).ok()
 }
 
-/// Lists launchers whose instance directory actually exists on this machine.
+
 pub fn detect_launchers() -> Vec<Value> {
     let mut out = Vec::new();
     for (id, name, _kind, roots) in launcher_defs() {
@@ -206,7 +206,7 @@ pub fn detect_launchers() -> Vec<Value> {
     out
 }
 
-/// Lists the instances found inside a detected launcher's instance directory.
+
 pub fn list_launcher_instances(launcher_id: &str) -> Vec<Value> {
     let mut out = Vec::new();
     for (id, _name, kind, roots) in launcher_defs() {
@@ -236,9 +236,9 @@ pub fn list_launcher_instances(launcher_id: &str) -> Vec<Value> {
     out
 }
 
-/// Imports a single instance from another launcher into the Kollegen Client
-/// instance store: copies the instance files, normalizes a nested `.minecraft`
-/// folder to the instance root, and registers it in `instances.json`.
+
+
+
 pub fn import_instance(
     data_dir: &Path,
     launcher_id: &str,
@@ -261,7 +261,7 @@ pub fn import_instance(
     let src = src.ok_or_else(|| anyhow!("Instanz nicht gefunden: {}", instance_name))?;
     let kind = kind.unwrap_or(LauncherKind::Prism);
 
-    // Pick a destination name that does not collide with an existing instance.
+    
     let mut dest_name = utils::sanitize_name(instance_name);
     let inst_file = utils::instances_file(data_dir);
     let mut instances = utils::load_json::<Vec<Instance>>(&inst_file, vec![]);
@@ -276,12 +276,12 @@ pub fn import_instance(
     fs::create_dir_all(dest.as_path())?;
     copy_dir_contents(&src, &dest)?;
 
-    // Lift the source launcher's game directory to the instance root so our
-    // launcher layout matches. Prism/MultiMC use `.minecraft`, GDLauncher/
-    // Technic/ATLauncher use `minecraft`, and instances may override the path via
-    // Prism's instance.cfg `GameDirectory`. Without this, mods/saves/resource
-    // packs/options end up in a subfolder that Minecraft (gameDir = instance
-    // root) never reads – so the whole instance appears "empty" after import.
+    
+    
+    
+    
+    
+    
     if let Some(gd) = detect_game_dir(&dest, kind) {
         merge_dir_to_root(&gd, &dest);
         let _ = fs::remove_dir_all(&gd);
@@ -308,7 +308,7 @@ pub fn import_instance(
     instances.push(inst.clone());
     utils::save_json(&inst_file, &instances)?;
 
-    // Make sure the Essential mod is present for modded instances (best effort).
+    
     if !inst.loader.eq_ignore_ascii_case("vanilla") {
         let _ = crate::utils::ensure_essential(&dest_name, data_dir, &inst.version);
     }
@@ -335,11 +335,11 @@ fn copy_dir_contents(src: &Path, dst: &Path) -> Result<()> {
     Ok(())
 }
 
-/// Finds the source launcher's game directory inside the copied instance.
-/// Prism/MultiMC can override it via `instance.cfg` `GameDirectory` (relative or
-/// absolute); otherwise we fall back to the conventional `.minecraft` / `minecraft`
-/// folder names. Returns `None` when the game files already live at the instance
-/// root (e.g. `GameDirectory=.`).
+
+
+
+
+
 fn detect_game_dir(dest: &Path, kind: LauncherKind) -> Option<PathBuf> {
     if matches!(kind, LauncherKind::Prism | LauncherKind::MultiMC) {
         if let Some(txt) = read_text(&dest.join("instance.cfg")) {
@@ -371,9 +371,9 @@ fn detect_game_dir(dest: &Path, kind: LauncherKind) -> Option<PathBuf> {
     None
 }
 
-/// Moves the contents of `src` into `dest`, merging directories and never
-/// overwriting existing files. Used to lift a nested game directory to the
-/// instance root without losing anything.
+
+
+
 fn merge_dir_to_root(src: &Path, dest: &Path) {
     if let Ok(entries) = fs::read_dir(src) {
         for e in entries.flatten() {
@@ -389,9 +389,9 @@ fn merge_dir_to_root(src: &Path, dest: &Path) {
     }
 }
 
-/// Extracts per-instance JVM settings (extra args, min/max memory) from the
-/// source launcher's config so they survive the import. Missing fields fall back
-/// to the Kollegen Client defaults.
+
+
+
 fn parse_import_settings(
     kind: LauncherKind,
     dir: &Path,
@@ -493,7 +493,7 @@ fn parse_import_settings(
     (java_args, mem_min, mem_max)
 }
 
-// ─=== Instance metadata parsing (per launcher) ===
+
 
 fn parse_instance(kind: LauncherKind, dir: &Path) -> (String, String, String) {
     match kind {
@@ -518,8 +518,8 @@ fn parse_cfg_instance(dir: &Path) -> (String, String, String) {
     let mut version = String::new();
     let mut loader = "vanilla".to_string();
 
-    // Prefer mmc-pack.json (Prism/MultiMC) which authoritatively lists the
-    // Minecraft version and the mod-loader components.
+    
+    
     if let Some(txt) = read_text(&dir.join("mmc-pack.json")) {
         if let Ok(v) = serde_json::from_str::<Value>(&txt) {
             if let Some(comps) = v.get("components").and_then(|c| c.as_array()) {
@@ -543,7 +543,7 @@ fn parse_cfg_instance(dir: &Path) -> (String, String, String) {
         }
     }
 
-    // Fall back to instance.cfg for older MultiMC layouts.
+    
     if let Some(txt) = read_text(&dir.join("instance.cfg")) {
         for line in txt.lines() {
             let line = line.trim();
@@ -607,8 +607,8 @@ fn parse_modrinth_instance(dir: &Path) -> (String, String, String) {
     let mut name = dir_name_of(dir);
     let mut version = String::new();
     let mut loader = "vanilla".to_string();
-    // Legacy Modrinth App stores instance.json; the newer "Theseus" build uses
-    // profile.json. Both expose the same fields (name, game_version, loader).
+    
+    
     for file in ["instance.json", "profile.json"] {
         if let Some(txt) = read_text(&dir.join(file)) {
             if let Ok(v) = serde_json::from_str::<Value>(&txt) {

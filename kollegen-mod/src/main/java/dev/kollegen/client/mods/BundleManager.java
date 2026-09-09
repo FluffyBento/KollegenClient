@@ -8,18 +8,7 @@ import net.fabricmc.loader.api.FabricLoader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-/**
- * Verwaltet die An/Aus-Wünsche für die vom Launcher eingebetteten Bundles
- * (Spotify Overlay, ChatHeads).
- *
- * Die Jar-Dateien selbst werden NUR vom Launcher vor dem Spielstart aus der
- * Begleit-Mod nach mods/ extrahiert bzw. entfernt – im laufenden Spiel werden
- * niemals Dateien umbenannt oder gelöscht (bereits geladene Klassen wären dann
- * nicht mehr nachladbar). Diese Klasse schreibt ausschließlich die Wunsch-
- * Datei mods/.kollegen-bundles.json, die der Launcher beim nächsten Start
- * liest und umsetzt (Zwei-Wege-Sync wie bei .kollegen-renderer). Die Datei
- * ist die alleinige Quelle der Wahrheit; das Menü spiegelt sie.
- */
+
 public final class BundleManager {
 
     private static boolean loaded = false;

@@ -1,4 +1,4 @@
-// Prevents additional console window on Windows in release
+
 #![cfg_attr(
     all(not(debug_assertions), target_os = "windows"),
     windows_subsystem = "windows"
@@ -29,15 +29,15 @@ use tauri::Emitter;
 use tauri::Manager;
 use tauri::State;
 
-// ─=== Constants ===
-// Microsoft Identity Platform (Azure AD) public client ID used for the device-code
-// OAuth flow that authenticates with PrismLauncher / Minecraft. This is a "public
-// client" (no secret) so it can be shared openly, but if Microsoft ever blocks or
-// throttles this ID you can point the app at your own Entra app registration via
-// the `MICROSOFT_CLIENT_ID` environment variable.
+
+
+
+
+
+
 pub const CLIENT_ID_DEFAULT: &str = "c36a9fb6-4f2a-41ff-90bd-ae7cc92031eb";
 
-/// Microsoft OAuth client ID, overridable via the `MICROSOFT_CLIENT_ID` env var.
+
 pub fn client_id() -> &'static str {
     static V: std::sync::OnceLock<String> = std::sync::OnceLock::new();
     V.get_or_init(|| {
@@ -49,22 +49,22 @@ pub fn client_id() -> &'static str {
     .as_str()
 }
 
-// Public Microsoft client IDs that work with the device-code flow and the
-// `XboxLive.Signin` / `offline_access` scopes. These are *public* clients (no
-// secret) that are reused across the open-source Minecraft-launcher ecosystem at
-// no cost and without registering your own Azure app. When Microsoft blocks or
-// throttles one ID for a user, `ms_auth_start` automatically retries with the
-// next candidate so login keeps working. Add more known-good public IDs here.
+
+
+
+
+
+
 pub const MS_CLIENT_IDS: &[&str] = &[
-    CLIENT_ID_DEFAULT,                                   // PrismLauncher's public client
-    "9c1f1f43-58d5-4b7a-af0d-4e487f073441",              // public client used by minecraft-rs/auth
+    CLIENT_ID_DEFAULT,                                   
+    "9c1f1f43-58d5-4b7a-af0d-4e487f073441",              
 ];
 
-// Client ID selected for the in-progress login attempt (a fallback candidate).
+
 static ACTIVE_MS_CLIENT_ID: std::sync::Mutex<Option<String>> = std::sync::Mutex::new(None);
 
-/// Client ID for the current login attempt: `MICROSOFT_CLIENT_ID` env override,
-/// then the selected fallback candidate, then the default.
+
+
 pub fn auth_client_id() -> String {
     if let Some(env) = std::env::var("MICROSOFT_CLIENT_ID").ok().filter(|s| !s.is_empty()) {
         return env;
@@ -75,29 +75,29 @@ pub fn auth_client_id() -> String {
     CLIENT_ID_DEFAULT.to_string()
 }
 
-/// Selects which fallback client ID the next login attempt uses.
+
 pub fn set_auth_client_id(id: &str) {
     *ACTIVE_MS_CLIENT_ID.lock().unwrap() = Some(id.to_string());
 }
-pub const USER_AGENT: &str = "KollegenClient/1.0 (+https://kollegen.dev)";
+pub const USER_AGENT: &str = "KollegenClient/1.0 (+https://kollegen.me)";
 pub const DEFAULT_MEMORY_MIN: &str = "2G";
 pub const DEFAULT_MEMORY_MAX: &str = "4G";
 pub const MAX_LOG_LINES: usize = 1000;
-/// Hotfix suffix appended to the version string (e.g. "v1", "v2"). Empty for a
-/// clean release. Shown in the UI corner so users can identify the exact build.
+
+
 pub const VERSION_HOTFIX: &str = "";
 
-// Discord Rich Presence application ID. Replace this with the numeric Client ID
-// of YOUR OWN Discord application (https://discord.com/developers/applications).
-// The rich presence only appears if this ID matches a real Discord app and the
-// Discord desktop client is running.
-//
-// This value can be overridden at runtime via the DISCORD_CLIENT_ID environment
-// variable. It must be the Client ID of a real Discord application (see
-// https://discord.com/developers/applications) for the rich presence to appear.
+
+
+
+
+
+
+
+
 pub const DISCORD_CLIENT_ID_DEFAULT: &str = "1538588736718373034";
 
-/// Discord application Client ID, overridable via the `DISCORD_CLIENT_ID` env var.
+
 pub fn discord_client_id() -> &'static str {
     static V: std::sync::OnceLock<String> = std::sync::OnceLock::new();
     V.get_or_init(|| {
@@ -110,26 +110,26 @@ pub fn discord_client_id() -> &'static str {
 }
 
 
-// The "Kollegen Client" companion mod is injected into every instance from the
-// bundled/downloaded `kollegen-client-mod.jar` (see `companion` module). It is
-// hidden from the mod browser and can't be removed by the user.
 
-// ─=== App State ===
+
+
+
+
 pub struct AppState {
     pub instances: Mutex<Vec<types::Instance>>,
     pub accounts: Mutex<Vec<types::Account>>,
     pub data_dir: PathBuf,
     pub logs: Arc<Mutex<Vec<String>>>,
     pub discord: discord::DiscordHandle,
-    /// SteamDeck-/Konsolenmodus an? Der Gamepad-Thread liest dieses Flag jedes
-    /// Paket und sendet nur bei aktivem Modus Tastenevents an die UI.
+    
+    
     pub console_on: Arc<AtomicBool>,
 }
 
-// ─=== Tauri Commands ===
 
-/// Returns the exact app version shown in the UI corner, composed of the Cargo
-/// package version plus an optional hotfix suffix (e.g. `1.3.0v1`).
+
+
+
 #[tauri::command]
 fn get_version() -> String {
     let base = env!("CARGO_PKG_VERSION");
@@ -161,7 +161,7 @@ fn get_settings(state: State<'_, AppState>) -> Result<types::Settings, String> {
     Ok(settings)
 }
 
-/// Holt öffentliches Minecraft-Profil (Skin + Cape) für einen gegebenen Namen.
+
 #[tauri::command]
 fn get_minecraft_profile_by_name(
     state: State<'_, AppState>,
@@ -191,9 +191,9 @@ fn create_instance(
     let path = utils::instances_file(&state.data_dir);
     let mut instances = utils::load_json::<Vec<types::Instance>>(&path, vec![]);
 
-    // The instance name is the on-disk identifier (`instances/<name>`). Two
-    // instances with the same name would share one directory, which breaks
-    // management (e.g. deleting one would wipe the other). Reject duplicates.
+    
+    
+    
     if instances.iter().any(|i| i.name == name) {
         return Err(format!(
             "Eine Instanz mit dem Namen '{}' existiert bereits.",
@@ -224,9 +224,9 @@ fn create_instance(
     instances.push(inst.clone());
     utils::save_json(&path, &instances).map_err(|e| e.to_string())?;
 
-    // JRE für die benötigte Java-Version automatisch herunterladen (best-effort),
-    // sobald die Instanz erstellt wird – der separate „JRE herunterladen"-Knopf
-    // entfällt. Nur laden, wenn noch kein passendes JRE vorhanden ist.
+    
+    
+    
     let required_java = required_java_for_version(&version);
     if java::find_java(&state.data_dir, required_java).is_err() {
         let _ = java::download_jre_internal(required_java).map_err(|e| {
@@ -237,9 +237,9 @@ fn create_instance(
         });
     }
 
-    // Fabric/Quilt: stärkstes Performance-Modpack automatisch vorinstallieren
-    // (best-effort – einzelne Mods dürfen fehlschlagen, ohne die Instanz zu
-    // blockieren).
+    
+    
+    
     if inst.loader.eq_ignore_ascii_case("fabric")
         || inst.loader.eq_ignore_ascii_case("quilt")
     {
@@ -258,7 +258,7 @@ fn create_instance(
         }
     }
 
-    // Begleit-Mod direkt bei der Erstellung in die Instanz legen (1.21.x – 1.26.x).
+    
     crate::instance::ensure_kollegen_mod(&state.data_dir, &inst.name, &inst.loader, &inst.version);
 
     Ok(inst)
@@ -273,9 +273,9 @@ fn delete_instance(
     let path = utils::instances_file(&state.data_dir);
     let mut instances = utils::load_json::<Vec<types::Instance>>(&path, vec![]);
 
-    // Address exactly one instance: prefer the unique id, otherwise fall back
-    // to the FIRST instance with this name. Never delete-all-matching, so two
-    // legacy instances sharing a display name don't both get removed.
+    
+    
+    
     let target_idx = if let Some(uid) = id.as_deref().filter(|s| !s.is_empty()) {
         instances.iter().position(|i| i.id == uid)
     } else {
@@ -287,8 +287,8 @@ fn delete_instance(
         utils::save_json(&path, &instances).map_err(|e| e.to_string())?;
     }
 
-    // The on-disk data dir is shared by all instances with the same name; only
-    // wipe it when no remaining instance still uses that name.
+    
+    
     if !instances.iter().any(|i| i.name == name) {
         let dir = utils::instance_dir(&state.data_dir, &name);
         if dir.exists() {
@@ -313,9 +313,9 @@ fn get_game_log(state: State<'_, AppState>, instance_name: String) -> String {
     read_log_tail(&p, 200 * 1024)
 }
 
-/// Reads at most the last `max_bytes` of a file. Used for `latest.log` so we
-/// never ship a multi-hundred-MB string over IPC / into the DOM on every poll
-/// (that unbounded transfer is what ballooned the webview's memory).
+
+
+
 pub fn read_log_tail(path: &Path, max_bytes: usize) -> String {
     use std::io::{Read, Seek, SeekFrom};
     let mut f = match std::fs::File::open(path) {
@@ -337,17 +337,17 @@ pub fn read_log_tail(path: &Path, max_bytes: usize) -> String {
     let mut buf = Vec::new();
     let _ = f.read_to_end(&mut buf);
     let s = String::from_utf8_lossy(&buf).to_string();
-    // Drop the leading partial line so we start on a clean log line.
+    
     match s.find('\n') {
         Some(i) => s[i + 1..].to_string(),
         None => s,
     }
 }
 
-/// Detects a Fabric mod-incompatibility crash in the game log and automatically
-/// fixes it: for every conflicting mod Fabric lists, the matching jar is
-/// replaced with the recommended (or latest compatible) version from Modrinth.
-/// If no compatible version can be installed, the incompatible mod is removed.
+
+
+
+
 #[tauri::command]
 fn auto_resolve_conflict(
     state: State<'_, AppState>,
@@ -362,8 +362,8 @@ fn auto_resolve_conflict(
         return Ok("Kein Mod-Konflikt erkannt.".to_string());
     }
 
-    // The instance's Minecraft version + loader decide which replacement
-    // version is compatible.
+    
+    
     let instances = utils::load_json::<Vec<types::Instance>>(
         &utils::instances_file(&state.data_dir),
         vec![],
@@ -413,12 +413,12 @@ fn auto_resolve_conflict(
 
         match pid {
             Some(pid) => {
-                // Remove the conflicting file before installing the fix so only
-                // the new version remains.
+                
+                
                 let _ = std::fs::remove_file(&jar);
                 let preferred = preferred_version_id(&pid, &mc_version, &loader, &modid, &name, &text);
-                // Try the recommended version from the error first, then fall
-                // back to the latest compatible version.
+                
+                
                 let mut install = match &preferred {
                     Some(vid) => crate::modrinth::install_content(
                         &instance_name,
@@ -453,14 +453,14 @@ fn auto_resolve_conflict(
                 match install {
                     Ok(()) => fixed.push(format!("{} → {}", label, fname)),
                     Err(_) => {
-                        // Fix failed -> ensure the incompatible mod is removed.
+                        
                         let _ = std::fs::remove_file(&jar);
                         removed.push(format!("{} (entfernt – keine kompatible Version)", label));
                     }
                 }
             }
             None => {
-                // Not a known Modrinth mod -> remove the incompatible file.
+                
                 let _ = std::fs::remove_file(&jar);
                 removed.push(format!("{} (entfernt)", label));
             }
@@ -492,10 +492,10 @@ fn auto_resolve_conflict(
     Ok(msg)
 }
 
-/// Parses Fabric's "Incompatible mods found!" report and returns, for each
-/// conflicting mod, its modid (from the `(modid)` parenthetical) and display
-/// name. Handles both "- Replace 'Name' (modid) ver ..." and
-/// "- Remove Name (modid) ver" lines (Fabric uses a capital "Mod").
+
+
+
+
 fn parse_conflict_targets(text: &str) -> Vec<(String, String)> {
     let mut out = Vec::new();
     for line in text.lines() {
@@ -515,8 +515,8 @@ fn parse_conflict_targets(text: &str) -> Vec<(String, String)> {
         if modid.is_empty() {
             continue;
         }
-        // Display name: between single quotes (Replace) or, when Fabric has no
-        // quotes (e.g. "- Remove fabric-api (fabric-api)"), the modid itself.
+        
+        
         let name = if let Some(a) = l.find('\'') {
             if let Some(b) = l[a + 1..].find('\'') {
                 l[a + 1..a + 1 + b].to_string()
@@ -531,8 +531,8 @@ fn parse_conflict_targets(text: &str) -> Vec<(String, String)> {
     out
 }
 
-/// Finds the jar file in `mods_dir` that belongs to a mod with the given modid
-/// / display name (case-insensitive substring match).
+
+
 fn find_mod_jar(mods_dir: &Path, modid: &str, name: &str) -> Option<PathBuf> {
     let mid = modid.to_lowercase();
     let nm = name.to_lowercase();
@@ -543,9 +543,9 @@ fn find_mod_jar(mods_dir: &Path, modid: &str, name: &str) -> Option<PathBuf> {
             if !fname.ends_with(".jar") {
                 continue;
             }
-            // Vom Kollegen-Client verwaltete Renderer-Mods (Sodium/Iris/
-            // VulkanMod/Beryl) werden vom Crash-Resolver ignoriert – sie werden
-            // von der Begleit-Mod verwaltet, nicht über Modrinth ersetzt.
+            
+            
+            
             if crate::modrinth::is_managed_renderer_mod(&fname) {
                 continue;
             }
@@ -560,9 +560,9 @@ fn find_mod_jar(mods_dir: &Path, modid: &str, name: &str) -> Option<PathBuf> {
     None
 }
 
-/// Resolves a Modrinth project id for a conflicting mod: first from the
-/// launcher's own install metadata (if the jar is managed), then by searching
-/// Modrinth with the modid or display name.
+
+
+
 fn resolve_mod_pid(
     data_dir: &Path,
     instance_name: &str,
@@ -597,7 +597,7 @@ fn resolve_mod_pid(
     None
 }
 
-/// Extracts the first `X.Y.Z`-style version token from a string.
+
 fn extract_version(s: &str) -> Option<String> {
     let bytes = s.as_bytes();
     let mut i = 0;
@@ -618,8 +618,8 @@ fn extract_version(s: &str) -> Option<String> {
     None
 }
 
-/// If Fabric's report names a specific version that is "compatible", returns the
-/// matching Modrinth version id so we can install exactly that recommended fix.
+
+
 fn preferred_version_id(
     pid: &str,
     mc_version: &str,
@@ -682,25 +682,25 @@ fn install_instance(
     utils::save_json(&path, &instances).map_err(|e| e.to_string())?;
     instance::install_instance(&state.data_dir, &name, &version, &loader, loader_version.as_deref())
         .map_err(|e| e.to_string())?;
-    // Ensure every installed instance carries the Kollegen Client companion
-    // mod (drives in-game rich presence + join). No-op for vanilla/offline.
+    
+    
     companion::install_companion_mod(&state.data_dir, &name, &version, &loader);
     Ok(())
 }
 
-/// Installs the "Kollegen Client" companion Fabric mod into an instance if it
-/// isn't already present. The mod is bundled/downloaded (see `companion`
-/// module), hidden from the mod browser and cannot be removed by the user.
-/// Best-effort: no-op when the jar is unavailable or the loader is not
-/// Fabric/Quilt compatible (Forge/NeoForge/vanilla).
+
+
+
+
+
 fn ensure_companion_mod(data_dir: &Path, instance_name: &str, version: &str, loader: &str) {
     crate::companion::install_companion_mod(data_dir, instance_name, version, loader);
 }
 
-/// Maps a Minecraft version string to the Java major version it requires, used
-/// as a fallback when the instance's Mojang version JSON isn't available locally
-/// (e.g. imported instances). 1.21+ needs Java 21; 1.17–1.20 need Java 17;
-/// 1.16 needs Java 16; everything older needs Java 8.
+
+
+
+
 fn required_java_for_version(version: &str) -> u32 {
     let mut it = version.split('.');
     let major: u32 = it.next().and_then(|s| s.parse().ok()).unwrap_or(99);
@@ -728,15 +728,15 @@ fn launch_game(
         .ok_or("Instanz nicht gefunden")?;
     let mut inst = inst.clone();
     if let Some(s) = &server {
-        // Normalize a bare host to host:25565 for the --server/--port args.
+        
         inst.server = Some(if s.contains(':') { s.clone() } else { format!("{}:25565", s) });
     }
 
-    // Zwei-Wege-Sync des Renderer-Toggles: Der In-Game-Schalter schreibt nur
-    // die State-Datei mods/.kollegen-renderer ("vulkan"/"opengl") – Jars dürfen
-    // im laufenden Spiel nicht umbenannt werden (SIGSEGV). Beim Start übernehmen
-    // wir den Wunsch als Quelle der Wahrheit, bevor enforce_renderer_consistency
-    // ihn überschreiben würde, und persistieren ihn in instances.json.
+    
+    
+    
+    
+    
     {
         let mods_dir = utils::instance_dir(&state.data_dir, &inst.name).join("mods");
         if let Some(desired) = instance::read_renderer_state(&mods_dir) {
@@ -760,14 +760,14 @@ fn launch_game(
         }
     }
 
-    // Make sure the Kollegen Client companion mod is present (drives in-game
-    // rich presence + join). Best-effort; no-op if the project id is empty or
-    // the instance is vanilla.
+    
+    
+    
     ensure_companion_mod(&state.data_dir, &inst.name, &inst.version, &inst.loader);
 
-    // Presence/Sozial-Basis-URL für die Mod bereitstellen. Die Mod liest
-    // `config/kollegen-server.txt` (getConfigDir) und ruft darüber das
-    // Backend auf — ohne diese Datei zeigt sie auf eine Platzhalter-Domain.
+    
+    
+    
     {
         let cfg = utils::instance_dir(&state.data_dir, &inst.name).join("config");
         let _ = std::fs::create_dir_all(&cfg);
@@ -777,13 +777,13 @@ fn launch_game(
         );
     }
 
-    // Determine the required Java version. We read every version JSON in the
-    // instance's version dir (the Mojang one AND the Fabric-merged one) and take
-    // the highest `javaVersion.majorVersion`, falling back to a mapping derived
-    // from the Minecraft version string. This matters for instances imported
-    // from other launchers (e.g. Prism) whose Mojang version JSON may not be
-    // present locally – without the fallback they'd silently launch with Java 17
-    // and crash on 1.21+ (which needs Java 21).
+    
+    
+    
+    
+    
+    
+    
     let required_java = {
         let fallback = required_java_for_version(&inst.version);
         let version_dir = utils::instance_dir(&state.data_dir, &inst.name)
@@ -839,10 +839,10 @@ fn launch_game(
     }
 }
 
-/// Aktualisiert sofort (ohne Neustart) den Controller-Modus des Begleit-Mods in
-/// allen bestehenden Instanzen – z. B. wenn der Nutzer den SteamDeck-Modus in
-/// den Einstellungen umschaltet. Der Mod wird den Zustand beim nächsten Start
-/// zusätzlich selbst aus der Shared-State-Datei übernehmen.
+
+
+
+
 #[tauri::command]
 fn set_console_mode(state: State<'_, AppState>, on: bool) -> Result<(), String> {
     state.console_on.store(on, Ordering::Relaxed);
@@ -858,7 +858,7 @@ fn set_console_mode(state: State<'_, AppState>, on: bool) -> Result<(), String> 
     Ok(())
 }
 
-// ─=== Auth Commands ===
+
 
 #[tauri::command]
 fn auth_check_status() -> Result<Value, String> {
@@ -871,7 +871,7 @@ fn auth_start() -> Result<Value, String> {
     auth::ms_auth_start().map_err(|e| e.to_string())
 }
 
-// (device-code Discord login removed – RPC-only integration)
+
 
 #[tauri::command]
 fn download_jre_command(version: Option<u32>) -> Result<Value, String> {
@@ -942,8 +942,8 @@ fn modrinth_versions(
     Ok(serde_json::to_value(versions).unwrap_or(Value::Null))
 }
 
-/// Installiert das kuratierte Performance-Modpack in eine bestehende
-/// Fabric-/Quilt-Instanz nachträglich (best-effort) und meldet das Ergebnis.
+
+
 #[tauri::command]
 fn optimize_instance(
     state: State<'_, AppState>,
@@ -962,11 +962,11 @@ fn optimize_instance(
         &inst.loader,
     )
     .map_err(|e| e.to_string())?;
-    // Keine einzelne Mod-Liste anzeigen – nur kurz bestätigen, dass die
-    // Instanz optimiert wurde (auch wenn kein Mod neu hinzugefügt wurde).
+    
+    
     let _ = installed;
-    // Kollegen Client Begleit-Mod sicherstellen, auch wenn die Instanz noch
-    // nicht gestartet wurde (best-effort; no-op bei Vanilla/Forge/NeoForge).
+    
+    
     crate::companion::install_companion_mod(&state.data_dir, &name, &inst.version, &inst.loader);
     Ok("Instanz wurde optimiert.".to_string())
 }
@@ -1017,10 +1017,10 @@ fn open_logs_folder(state: State<'_, AppState>) -> Result<(), String> {
     open::that(dir.as_os_str()).map_err(|e| e.to_string())
 }
 
-/// Persists the launcher's current theme colors so the in-game Kollegen Client
-/// mod can render its menu with the exact same palette (even when the user
-/// changes the accent color at runtime). Written both to the app data dir and to
-/// `~/.kollegen-theme.json` (a fixed, user-home location the mod can read).
+
+
+
+
 #[tauri::command]
 fn write_theme_file(state: State<'_, AppState>, json: String) -> Result<(), String> {
     let dir = state.data_dir.join(".kollegen");
@@ -1070,7 +1070,7 @@ fn clear_discord_presence(state: State<'_, AppState>) -> Result<(), String> {
     Ok(())
 }
 
-/// Snapshot of the Discord RPC connection (account + pending join invites).
+
 #[tauri::command]
 fn discord_status() -> Result<Value, String> {
     let s = discord::discord_state();
@@ -1093,8 +1093,8 @@ fn discord_status() -> Result<Value, String> {
     }))
 }
 
-/// Combined Discord view for the Socials tab: RPC connection state, OAuth login,
-/// the local user, current server, pending invites and the friends list.
+
+
 #[tauri::command]
 fn discord_social(state: State<'_, AppState>) -> Result<Value, String> {
     let s = discord::discord_state();
@@ -1105,9 +1105,9 @@ fn discord_social(state: State<'_, AppState>) -> Result<Value, String> {
         .unwrap_or(false);
     let oauth_user = oauth.get("user").cloned();
 
-    // Normalize the identity into a single shape that always carries
-    // `avatar_url`, preferring the OAuth user (richer, present once logged in)
-    // and falling back to the RPC READY user.
+    
+    
+    
     let user = if let Some(u) = &oauth_user {
         let id = u.get("id").and_then(|v| v.as_str()).unwrap_or("");
         let avatar = u.get("avatar").and_then(|v| v.as_str());
@@ -1132,7 +1132,7 @@ fn discord_social(state: State<'_, AppState>) -> Result<Value, String> {
         })
     };
 
-    // RPC-sourced friends carry live rich presence (game/version/join secret).
+    
     let rpc_friends: Vec<serde_json::Value> = discord::friends()
         .iter()
         .map(|f| {
@@ -1152,10 +1152,10 @@ fn discord_social(state: State<'_, AppState>) -> Result<Value, String> {
         })
         .collect();
 
-    // OAuth-sourced friends (via the `relationships` scope) so users who only
-    // authenticated in the browser – without the Discord desktop app / RPC –
-    // can still see their friends. RPC entries win on id collisions because
-    // they carry richer presence data.
+    
+    
+    
+    
     let mut merged: std::collections::HashMap<String, serde_json::Value> =
         std::collections::HashMap::new();
     for f in discord_auth::fetch_friends(&state.data_dir) {
@@ -1166,9 +1166,9 @@ fn discord_social(state: State<'_, AppState>) -> Result<Value, String> {
         merged.insert(key, f);
     }
     for f in &rpc_friends {
-        // Only let RPC friends override OAuth friends when Discord actually
-        // delivered a real presence – otherwise they'd clobber a known friend
-        // with a bogus "offline" status.
+        
+        
+        
         let known = f
             .get("presence_known")
             .and_then(|v| v.as_bool())
@@ -1195,9 +1195,9 @@ fn discord_social(state: State<'_, AppState>) -> Result<Value, String> {
     }))
 }
 
-/// Launches an instance and connects straight to the server from a Discord
-/// join invite (`server` is the `host:port` the friend exposed). The secret is
-/// also written to `join_request.json` so the in-game mod connects on launch.
+
+
+
 #[tauri::command]
 fn discord_join(
     state: State<'_, AppState>,
@@ -1220,7 +1220,7 @@ fn discord_clear_invites() -> Result<(), String> {
     Ok(())
 }
 
-// ─=== Discord OAuth (browser login) ===
+
 
 #[tauri::command]
 fn discord_oauth_start(state: State<'_, AppState>) -> Result<String, String> {
@@ -1238,21 +1238,21 @@ fn discord_oauth_logout(state: State<'_, AppState>) -> Result<(), String> {
     Ok(())
 }
 
-// ─=== Microsoft account management (Connections) ===
 
-/// Switches the active Microsoft account to the one with the given uuid.
+
+
 #[tauri::command]
 fn ms_switch_account(state: State<'_, AppState>, uuid: String) -> Result<(), String> {
     auth::switch_account(&state.data_dir, &uuid).map_err(|e| e.to_string())
 }
 
-/// Removes the Microsoft account with the given uuid.
+
 #[tauri::command]
 fn ms_remove_account(state: State<'_, AppState>, uuid: String) -> Result<(), String> {
     auth::remove_account(&state.data_dir, &uuid).map_err(|e| e.to_string())
 }
 
-// ─=== Instance import from other launchers ===
+
 
 #[tauri::command]
 fn detect_launchers() -> Result<Vec<Value>, String> {
@@ -1274,8 +1274,8 @@ fn import_instance(
         .map_err(|e| e.to_string())
 }
 
-/// Importiert ein Modrinth-Modpack (`.mrpack` oder `.zip` mit
-/// `modrinth.index.json`) als neue Instanz.
+
+
 #[tauri::command]
 fn import_pack(state: State<'_, AppState>, path: String) -> Result<types::Instance, String> {
     crate::instance::import_pack(&state.data_dir, &path).map_err(|e| e.to_string())
@@ -1372,6 +1372,12 @@ async fn kollegen_store_equip(app: tauri::AppHandle, item_id: String, category: 
 }
 
 #[tauri::command]
+async fn kollegen_store_buy(app: tauri::AppHandle, item_id: String) -> Result<serde_json::Value, String> {
+    let data_dir = app.state::<AppState>().data_dir.clone();
+    Ok(crate::presence::kollegen_store_buy(&data_dir, &item_id))
+}
+
+#[tauri::command]
 async fn kollegen_groups(app: tauri::AppHandle) -> Result<serde_json::Value, String> {
     let data_dir = app.state::<AppState>().data_dir.clone();
     Ok(crate::presence::kollegen_groups(&data_dir))
@@ -1461,7 +1467,7 @@ async fn kollegen_call_direct_active(app: tauri::AppHandle) -> Result<serde_json
     Ok(crate::presence::kollegen_call_direct_active(&data_dir))
 }
 
-// ─=== Skin / Cape Changer ===
+
 #[tauri::command]
 fn skin_list(state: State<'_, AppState>) -> Value {
     crate::skins::list_skins(&state.data_dir)
@@ -1515,29 +1521,29 @@ async fn install_app_update(app: tauri::AppHandle) -> Result<(), String> {
     crate::app_updates::install(&app).await
 }
 
-/// Configures WebKitGTK's runtime location. The AppImage is not fully
-/// self-contained for WebKit on every distro (notably Fedora), where
-/// webkit2gtk4.1 is provided by the host – and the same applies when the user
-/// extracts the AppImage and runs the binary directly. Without
-/// `WEBKIT_EXEC_PATH` the WebKit web/network processes can't be found and the
-/// window stays blank (white screen); without the host lib dirs on
-/// `LD_LIBRARY_PATH` the spawned web process may fail to load libwebkit.
-///
-/// (The main binary's libwebkit is resolved by the dynamic linker at exec time,
-/// which is handled separately via the RPATH baked into the binary at link
-/// time – see `.cargo/config.toml`.) Must run before GTK/WebKit initializes.
+
+
+
+
+
+
+
+
+
+
+
 fn setup_webkit_appimage_env() {
-    // Collect candidate dirs that may contain the WebKit helper processes
-    // (WebKitWebProcess / WebKitNetworkProcess). WebKit spawns these as child
-    // processes; if `WEBKIT_EXEC_PATH` isn't set to a valid, *absolute* dir the
-    // webkit process falls back to a path relative to the current prefix and
-    // fails ("Unable to spawn a new child process: .../WebKitNetworkProcess" /
-    // "Datei oder Verzeichnis nicht gefunden"), which aborts startup with a
-    // white screen + SIGABRT. This happened for users who extract the AppImage
-    // and run the bundled binary directly.
+    
+    
+    
+    
+    
+    
+    
+    
     let mut candidates: Vec<PathBuf> = Vec::new();
 
-    // 1) Host system webkit dirs (most distros, incl. Fedora webkit2gtk4.1).
+    
     for dir in [
         "/usr/libexec/webkit2gtk-4.1",
         "/usr/libexec/webkit2gtk-4.0",
@@ -1551,9 +1557,9 @@ fn setup_webkit_appimage_env() {
         candidates.push(PathBuf::from(dir));
     }
 
-    // 2) Bundled webkit shipped inside the AppImage / extracted squashfs-root.
-    // The process runs from <root>/usr/bin/kollegen-client, so the webkit
-    // helpers live at <root>/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1 etc.
+    
+    
+    
     if let Ok(exe) = std::env::current_exe() {
         if let Some(bindir) = exe.parent() {
             for rel in [
@@ -1579,8 +1585,8 @@ fn setup_webkit_appimage_env() {
         }
     }
 
-    // 3) AppImage run-time mount dir (APPIMAGE env points at the .AppImage;
-    //    AppImage's own runtime exposes the webkit dir under /tmp/.mount_*).
+    
+    
     if let Ok(ai) = std::env::var("APPIMAGE") {
         let ai = PathBuf::from(ai.trim());
         if let Some(parent) = ai.parent() {
@@ -1608,9 +1614,9 @@ fn setup_webkit_appimage_env() {
         }
     }
 
-    // Diagnostic: show what WEBKIT_EXEC_PATH was resolved to (or that nothing
-    // matched), so we can confirm whether the WebKit child-process lookup fix
-    // is active in the running binary.
+    
+    
+    
     match std::env::var_os("WEBKIT_EXEC_PATH") {
         Some(p) => eprintln!(
             "[kollegen] WEBKIT_EXEC_PATH = {}",
@@ -1621,9 +1627,9 @@ fn setup_webkit_appimage_env() {
         ),
     }
 
-    // Make the host's webkit libraries discoverable for the spawned web process.
-    // Append (don't replace) the usual system lib dirs so any bundled copy
-    // still takes precedence.
+    
+    
+    
     let extra_libs = ["/usr/lib64", "/usr/lib/x86_64-linux-gnu", "/usr/lib"];
     let existing: Vec<String> = std::env::var("LD_LIBRARY_PATH")
         .unwrap_or_default()
@@ -1652,12 +1658,12 @@ fn setup_webkit_appimage_env() {
     }
 }
 
-/// Engels-Forward: Der Launcher spiegelt den vollen Gamepad-Zustand (GLFW-
-/// kanonisches Layout) als JSON-State in die Mods-Ordner aller Instanzen. Der
-/// Begleit-Mod liest diese Datei als "Forward-Gamepad" und speist sie in den
-/// selben GLFWGamepadState ein – so funktioniert die SteamDeck-Steuerung auch,
-/// wenn Steam Input den virtuellen Controller NUR an den Steam-registrierten
-/// Launcher-Prozess routet und der Minecraft-Kindprozess kein Gerät sieht.
+
+
+
+
+
+
 fn forward_gamepad_json(present: bool, axes: &[f32; 6], buttons: &[u8; 15]) -> String {
     let t = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -1672,10 +1678,10 @@ fn forward_gamepad_json(present: bool, axes: &[f32; 6], buttons: &[u8; 15]) -> S
     .to_string()
 }
 
-/// Liest den vollen aktuellen Zustand des ersten verbundenen Controllers in
-/// GLFW-kanonischem Layout: axes = [LeftX, LeftY, RightX, RightY, LT, RT],
-/// buttons = GLFW-Gamepad-Button-Index (0=A,1=B,2=X,3=Y,4=LB,5=RB,6=Back,
-/// 7=Start,8=Guide,9=LS,10=RS,11=Up,12=Right,13=Down,14=Left).
+
+
+
+
 fn read_forward_state(gilrs: &mut gilrs::Gilrs) -> (bool, [f32; 6], [u8; 15]) {
     use gilrs::{Axis, Button};
     let mut axes = [0.0f32; 6];
@@ -1709,12 +1715,12 @@ fn read_forward_state(gilrs: &mut gilrs::Gilrs) -> (bool, [f32; 6], [u8; 15]) {
     (false, axes, buttons)
 }
 
-/// Ständig laufender Thread, der den physischen Controller (gilrs) ausliest,
-/// sobald der SteamDeck-/Konsolenmodus aktiv ist. WebKitGTK implementiert die
-/// JS-Gamepad-API auf Linux praktisch nicht, daher wird der Controller hier im
-/// Backend gelesen und als `console-input`-Tauri-Event an die UI geschickt.
-/// Zusätzlich wird der volle Gamepad-Zustand als `.kollegen-gamepad`-State in
-/// die Mods-Ordner gespiegelt (siehe {@code forward_gamepad_json}).
+
+
+
+
+
+
 fn spawn_gamepad_loop(app: tauri::AppHandle, console_on: Arc<AtomicBool>, data_dir: PathBuf) {
     std::thread::Builder::new()
         .name("kollegen-gamepad".into())
@@ -1729,17 +1735,17 @@ fn spawn_gamepad_loop(app: tauri::AppHandle, console_on: Arc<AtomicBool>, data_d
             };
             eprintln!("[gamepad] Controller-Thread aktiv.");
             use std::time::{Duration, Instant};
-            // v1.10.9: kein 280ms-Cooldown mehr (der war mit dem Analogstick
-            // geteilt – Stick-Schwankungen um die Schwelle haben so schnelle
-            // D-Pad-Drucke verschluckt, man musste oft doppelt drücken).
-            // Frischer D-Pad-Druck = sofort genau ein Schritt; gehaltene
-            // Richtungen wiederholen sich im REPEAT_DELAY-Rhythmus.
+            
+            
+            
+            
+            
             const REPEAT_DELAY: Duration = Duration::from_millis(270);
             let mut last_emit = Instant::now() - Duration::from_secs(1);
             let mut held_dir: Option<&'static str> = None;
-            // Analogstick mit Hysterese: scharf ab 0.6, entschärft unter 0.3.
-            // Zittern um die Schwelle löst so nicht wiederholt aus und der
-            // geteilte Cooldown entfällt komplett.
+            
+            
+            
             let (mut stick_x, mut stick_y) = (0.0f32, 0.0f32);
             let (mut arm_up, mut arm_down, mut arm_left, mut arm_right) = (false, false, false, false);
             let mut send = |action: &'static str, force: bool| {
@@ -1749,15 +1755,15 @@ fn spawn_gamepad_loop(app: tauri::AppHandle, console_on: Arc<AtomicBool>, data_d
                 }
             };
             let mut console_was_on = false;
-            // Forward-State: nur schreiben, wenn sich der Wert geändert hat oder
-            // ein Heartbeat fällig ist (hält den Zeitstempel im Mod frisch).
+            
+            
             let mut fwd_dirs: Vec<PathBuf> = Vec::new();
             let mut fwd_last = Instant::now() - Duration::from_secs(10);
             let mut last_payload: Option<Vec<f32>> = None;
             let mut fwd_list_refresh = Instant::now() - Duration::from_secs(10);
             const FWD_HEARTBEAT: Duration = Duration::from_millis(400);
             loop {
-                // Instanz-Liste nur selten neu laden (Instanzen ändern sich kaum).
+                
                 if fwd_list_refresh.elapsed() >= Duration::from_secs(5) {
                     fwd_list_refresh = Instant::now();
                     fwd_dirs = utils::load_json::<Vec<crate::types::Instance>>(
@@ -1770,8 +1776,8 @@ fn spawn_gamepad_loop(app: tauri::AppHandle, console_on: Arc<AtomicBool>, data_d
                 }
                 let console_on_now = console_on.load(Ordering::Relaxed);
                 if console_on_now {
-                    // Zustände beim (Re-)Aktivieren zurücksetzen, damit beim
-                    // erneuten Betreten kein Geister-Schritt gesendet wird.
+                    
+                    
                     if !console_was_on {
                         held_dir = None;
                         stick_x = 0.0;
@@ -1798,7 +1804,7 @@ fn spawn_gamepad_loop(app: tauri::AppHandle, console_on: Arc<AtomicBool>, data_d
                                     Button::DPadRight => { held_dir = Some("RIGHT"); "RIGHT" }
                                     _ => continue,
                                 };
-                                // D-Pad: sofort auslösen, ein Druck = ein Schritt.
+                                
                                 send(action, true);
                             }
                             EventType::ButtonReleased(b, _) => {
@@ -1819,7 +1825,7 @@ fn spawn_gamepad_loop(app: tauri::AppHandle, console_on: Arc<AtomicBool>, data_d
                             _ => {}
                         }
                     }
-                    // Analogstick-Auslösung einmal pro erneutem Überschreiten.
+                    
                     if stick_y <= -0.60 && !arm_up { arm_up = true; send("UP", true); }
                     if stick_y >= -0.30 && arm_up { arm_up = false; }
                     if stick_y >= 0.60 && !arm_down { arm_down = true; send("DOWN", true); }
@@ -1828,7 +1834,7 @@ fn spawn_gamepad_loop(app: tauri::AppHandle, console_on: Arc<AtomicBool>, data_d
                     if stick_x >= -0.30 && arm_left { arm_left = false; }
                     if stick_x >= 0.60 && !arm_right { arm_right = true; send("RIGHT", true); }
                     if stick_x <= 0.30 && arm_right { arm_right = false; }
-                    // Auto-Wiederholung solange eine Richtung gehalten wird.
+                    
                     let held = held_dir.or_else(|| {
                         Some(if arm_up {
                             "UP"
@@ -1848,15 +1854,15 @@ fn spawn_gamepad_loop(app: tauri::AppHandle, console_on: Arc<AtomicBool>, data_d
                 } else {
                     console_was_on = false;
                 }
-                // ── Forward-State spiegeln (Engine/Launcher → Begleit-Mod) ──
-                // Im Steam-Game-Mode sieht der Minecraft-Kindprozess keinen
-                // Controller (Steam Input routet den virtuellen Pad an den
-                // Steam-registrierten Launcher). Deshalb liest der Launcher den
-                // vollen Zustand und schreibt ihn als .kollegen-gamepad-JSON in
-                // die Mods-Ordner; der Mod speist ihn als Fallback ein.
+                
+                
+                
+                
+                
+                
                 let (fwd_present, fwd_axes, fwd_buttons) = read_forward_state(&mut gilrs);
-                // "t" ist ein frischer Zeitstempel: NUR über Werte-Vergleich
-                // (ohne t) entscheiden, ob neu geschrieben wird.
+                
+                
                 let payload = [fwd_present as u8 as f32, fwd_axes[0], fwd_axes[1], fwd_axes[2],
                     fwd_axes[3], fwd_axes[4], fwd_axes[5]]
                     .into_iter()
@@ -1880,34 +1886,34 @@ fn spawn_gamepad_loop(app: tauri::AppHandle, console_on: Arc<AtomicBool>, data_d
 }
 
 fn main() {
-    // Wayland compatibility: WebKit's DMABUF renderer crashes/white-screens
-    // under several Wayland compositors (e.g. "Error 71 dispatching to Wayland
-    // display", or a blank white window). Disabling it is a no-op on X11, so
-    // the app works on both backends.
+    
+    
+    
+    
     if std::env::var_os("WEBKIT_DISABLE_DMABUF_RENDERER").is_none() {
         unsafe {
             std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
         }
     }
 
-    // Render-config variant selection (empirical, user-driven):
-    //   * Wayland is handled exactly like v1.9.8  – DMABUF off + GPU
-    //     compositing forced, NO GDK_BACKEND override.
-    //   * X11     is handled exactly like v1.9.11 – same: DMABUF off + GPU
-    //     compositing forced.
-    // Both boil down to the same minimal, session-independent config, which is
-    // what actually rendered correctly (rather than the session-adaptive
-    // GDK_BACKEND/compositing-off experiments in 1.9.9–1.9.13, all of which
-    // white-screened for the reporter). Must run before GTK/WebKit initializes.
-    // Force WebKitGTK's GPU compositing mode (harmless/no-op if no GPU present).
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
     if std::env::var_os("WEBKIT_FORCE_COMPOSITING_MODE").is_none() {
         unsafe {
             std::env::set_var("WEBKIT_FORCE_COMPOSITING_MODE", "1");
         }
     }
 
-    // AppImage: wire up the host's WebKit (Fedora etc.) so the webview doesn't
-    // white-screen. Must run before GTK/WebKit initializes.
+    
+    
     setup_webkit_appimage_env();
 
     let data_dir = match ProjectDirs::from("dev", "kollegen", "KollegenClient") {
@@ -1921,15 +1927,15 @@ fn main() {
     std::fs::create_dir_all(&data_dir).expect("Could not create data directory");
 
     let discord = discord::start(data_dir.clone());
-    // Presence-Reporter: meldet die im Spiel erkannte Server-Präsenz an das
-    // externe Backend, damit andere Kollegen-Client-Nutzer markiert werden.
+    
+    
     presence::start(data_dir.clone());
-    // Profil + Freundesliste sofort schreiben (falls bereits mit Discord
-    // angemeldet), damit die Begleit-Mod im Spiel direkt Daten hat.
-    // Läuft auf einem eigenen Thread: `sync_social` macht einen (jetzt mit
-    // kurzem Timeout versehenen) Netzwerk-Call zum Presence-Backend. Auf dem
-    // Hauptthread ausgeführt, blockiert das den kompletten Tauri-/WebKit-Start
-    // (Weißschirm/"lädt 20–30 Min"), solange das Backend nicht erreichbar ist.
+    
+    
+    
+    
+    
+    
     {
         let dd = data_dir.clone();
         std::thread::Builder::new()
@@ -1937,7 +1943,7 @@ fn main() {
             .spawn(move || presence::sync_social(&dd, None, None))
             .ok();
     }
-    // Initial "in launcher" presence (only shows if Discord is running).
+    
     let _ = discord.tx.send(discord::RpcMessage::Set {
         details: "Kollegen Client".to_string(),
         state: "Im Launcher".to_string(),
@@ -2032,6 +2038,7 @@ fn main() {
             kollegen_dm_send,
             kollegen_store,
             kollegen_store_equip,
+            kollegen_store_buy,
             kollegen_groups,
             kollegen_group_create,
             kollegen_group_view,

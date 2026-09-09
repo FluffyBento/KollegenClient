@@ -6,13 +6,7 @@ import dev.kollegen.client.mods.Category;
 import dev.kollegen.client.mods.Module;
 import dev.kollegen.client.mods.ModuleManager;
 
-/**
- * Schaltet das gebündelte Spotify-Overlay ein/aus. Der Toggle schreibt nur die
- * Wunsch-Datei ({@link BundleManager}); der Launcher deployed/entfernt das Jar
- * beim nächsten Spielstart – daher wirkt der Umschalt erst nach einem Neustart.
- * Das Overlay selbst zeigt den aktuell laufenden Song als HUD an und konfiguriert
- * sich über seinen eigenen ModMenu-Eintrag (unter "Kollegen Client").
- */
+
 public final class SpotifyOverlay {
 
     private SpotifyOverlay() {
@@ -30,8 +24,8 @@ public final class SpotifyOverlay {
             @Override
             public void load(JsonObject o) {
                 super.load(o);
-                // Die Bundle-Datei bleibt die Quelle der Wahrheit – nicht der
-                // Modul-Config-Cache (der Launcher schreibt sie ebenfalls).
+                
+                
                 this.enabled = BundleManager.spotify;
                 if (enabled) onEnable();
             }

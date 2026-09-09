@@ -10,12 +10,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-/**
- * Blendet unten rechts das Kollegen-Logo ein. Das Ziel sind die konkreten
- * Screen-Klassen (Inventar, Truhen, Titel-Screen), weil ein Injekt auf
- * AbstractContainerScreen.render ueber die render-Ueberschreibungskette der
- * Unterklassen nicht zuverlaessig feuert. Kern-Kosmetik, daher nie crashn.
- */
+
 @Mixin({InventoryScreen.class, ContainerScreen.class, TitleScreen.class})
 public class ScreenLogoMixin {
 
@@ -29,7 +24,7 @@ public class ScreenLogoMixin {
             int y = gui.guiHeight() - targetH - 10;
             LogoDraw.draw(gui, x, y, targetW);
         } catch (Exception ignored) {
-            // Kosmetik-Feature: darf niemals zum Crash fuehren.
+            
         }
     }
 }

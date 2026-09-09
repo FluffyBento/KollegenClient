@@ -7,26 +7,19 @@ import net.minecraft.client.gui.GuiGraphics;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Ein Modul (Feature) mit eigenen Einstellungen. Entspricht dem, was NoRisk /
- * Feather / LabyMod als „Modul" bezeichnen – gebündelt mit Toggles, Slidern,
- * Modi, Farben und einem Keybind.
- */
+
 public abstract class Module {
     public final String id;
     public final String name;
     public final String description;
     public final Category category;
     public boolean enabled = false;
-    public int key = -1; // GLFW key, -1 = keine
+    public int key = -1; 
 
-    /** Warnhinweis (z. B. "Server-Risiko") – wird im Menü rot markiert. */
+    
     public String risk = null;
 
-    /**
-     * Wenn true, kann das Modul nicht deaktiviert werden (Toggle im Menü
-     * gesperrt, z. B. Discord Rich Presence, die immer laufen soll).
-     */
+    
     public boolean locked = false;
 
     protected final List<Setting> settings = new ArrayList<>();
@@ -53,15 +46,15 @@ public abstract class Module {
     public void onDisable() {
     }
 
-    /** Jeden Client-Tick (nur wenn enabled). */
+    
     public void onTick() {
     }
 
-    /** HUD-Render (nur wenn enabled). */
+    
     public void onRenderHud(GuiGraphics g, float tickDelta) {
     }
 
-    /** Wird aufgerufen, wenn eine Keybind dieses Moduls gedrückt wird. */
+    
     public void onKey() {
     }
 
@@ -77,7 +70,7 @@ public abstract class Module {
 
     public void load(JsonObject o) {
         if (o.has("enabled")) enabled = o.get("enabled").getAsBoolean();
-        if (locked) enabled = true; // gesperrte Module bleiben immer an
+        if (locked) enabled = true; 
         if (o.has("key")) key = o.get("key").getAsInt();
         if (o.has("settings")) {
             JsonObject s = o.getAsJsonObject("settings");

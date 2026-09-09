@@ -16,13 +16,7 @@ import org.slf4j.LoggerFactory;
 import java.util.HashSet;
 import java.util.Set;
 
-/**
- * Kollegen Client Mod. Bewusst OHNE fabric-api geschrieben, damit er in jede
- * Fabric-/Quilt-Instanz injiziert werden kann. Der Tick-Hook kommt aus
- * {@code MinecraftClientMixin}. Alle Features/Menü-Optionen liegen im
- * Package {@code dev.kollegen.client.mods} (Module + Settings) und werden zur
- * Laufzeit aus einer JSON-Config geladen.
- */
+
 @Environment(EnvType.CLIENT)
 public class KollegenMod implements ClientModInitializer {
     public static final Logger LOGGER = LoggerFactory.getLogger("kollegen-client");
@@ -36,13 +30,13 @@ public class KollegenMod implements ClientModInitializer {
 
     @Override
     public void onInitializeClient() {
-        dev.kollegen.client.mods.Palette.loadTheme(); // ggf. Launcher-Theme übernehmen
-        ModuleManager.registerAll(); // lädt Config + ruft onEnable für aktive Module
-        // Renderer-Gruppen (VulkanMod+Beryl vs. Sodium+Iris) anhand des vom
-        // Launcher geschriebenen State-Files abstimmen – genau eine Gruppe aktiv.
+        dev.kollegen.client.mods.Palette.loadTheme(); 
+        ModuleManager.registerAll(); 
+        
+        
         dev.kollegen.client.mods.modules.        RendererManager.apply();
-        dev.kollegen.client.input.ControllerMode.init(); // SteamDeck-Controller-Modus (State-Datei des Launchers)
-        KollegenRPC.start(); // Rich Presence läuft ab sofort (ohne extra Setting)
+        dev.kollegen.client.input.ControllerMode.init(); 
+        KollegenRPC.start(); 
         LOGGER.info("Kollegen Client Mod initialisiert (Rechts-Shift = Menü).");
     }
 
@@ -50,12 +44,12 @@ public class KollegenMod implements ClientModInitializer {
         Minecraft mc = Minecraft.getInstance();
         if (mc == null) return;
 
-        // ── SteamDeck-Controller-Cursor (Bewegung + Klicks) ──
+        
         dev.kollegen.client.input.ControllerMode.tick(mc);
-        // ── SteamDeck-Gameplay-Controller (in-game, wie Controlify) ──
+        
         dev.kollegen.client.input.GamepadInput.tick(mc);
 
-        // ── Rechts-Shift → Menü (mit Entprellung) ──
+        
         boolean shiftDown = dev.kollegen.client.input.KollegenKeybind.isRightShiftHeld();
         if (shiftDown && !shiftWasDown) {
             if (!(mc.screen instanceof KollegenMenuScreen)) {
@@ -64,10 +58,10 @@ public class KollegenMod implements ClientModInitializer {
         }
         shiftWasDown = shiftDown;
 
-        // ── Module-Ticks ──
+        
         ModuleManager.tick();
 
-        // ── HUD verschieben per Drag ──
+        
         if (dev.kollegen.client.mods.HudModule.dragging != null) {
             try {
                 dev.kollegen.client.mods.HudModule d = dev.kollegen.client.mods.HudModule.dragging;
@@ -79,7 +73,7 @@ public class KollegenMod implements ClientModInitializer {
             }
         }
 
-        // ── Keybinds der Module (Edge-Trigger) ──
+        
         for (Module m : ModuleManager.modules()) {
             for (dev.kollegen.client.mods.Setting s : m.settings()) {
                 if (s instanceof KeybindSetting ks && ks.value >= 0) {
@@ -99,20 +93,17 @@ public class KollegenMod implements ClientModInitializer {
             }
         }
 
-        // ── Rich Presence ──
+        
         KollegenRPC.tick(mc);
 
-        // ── Kollegen-Präsenz (Backend-Liste) bei Join/Leave ──
+        
         boolean connected = mc.getConnection() != null;
         if (connected && !wasConnected) dev.kollegen.client.presence.KollegenPresence.join(mc);
         else if (!connected && wasConnected) dev.kollegen.client.presence.KollegenPresence.leave();
         wasConnected = connected;
     }
 
-    /**
-     * Pro Render-Frame aufgerufen (aus MinecraftClientMixin.runTick-Hook).
-     * Nur für Dinge, die per-Frame glatt laufen müssen (Gamepad-Kamera).
-     */
+    
     public static void onFrame() {
         Minecraft mc = Minecraft.getInstance();
         if (mc == null || mc.player == null || mc.level == null) return;

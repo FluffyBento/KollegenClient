@@ -10,10 +10,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-/**
- * Faerbt den Himmel fuer die Atmosphaeren-Modi (Nebel / End-Blitz / Basalt-Delta)
- * passend zum Nebel ein.
- */
+
 @Mixin(SkyRenderer.class)
 public class SkyRendererMixin {
 
@@ -24,9 +21,9 @@ public class SkyRendererMixin {
         try {
             if (state != null) {
                 state.skyColor = switch (WeatherState.mode) {
-                    case 4 -> 0xFF_CCCC_CC;   // Nebel: hellgrau
-                    case 5 -> 0xFF_2E_13_48;  // End-Blitz: dunkles Violett
-                    case 6 -> 0xFF_4A_1E_10;  // Basalt-Delta: orange-rot
+                    case 4 -> 0xFF_CCCC_CC;   
+                    case 5 -> 0xFF_2E_13_48;  
+                    case 6 -> 0xFF_4A_1E_10;  
                     default -> state.skyColor;
                 };
             }

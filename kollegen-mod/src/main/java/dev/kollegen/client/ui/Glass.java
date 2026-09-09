@@ -3,22 +3,18 @@ package dev.kollegen.client.ui;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 
-/**
- * Kleine Sammlung zum Zeichnen von "Liquid-Glass"-Flächen (abgerundete,
- * halbtransparente Panels mit dünner Leiste und dezentem Glanz). Alle Farben
- * werden als 0xAARRGGBB erwartet.
- */
+
 public final class Glass {
 
     private Glass() {
     }
 
-    /** Ersetzt den Alpha-Kanal einer 0xAARRGGBB-Farbe. */
+    
     public static int tint(int argb, int alpha) {
         return (alpha << 24) | (argb & 0x00FFFFFF);
     }
 
-    /** Mischt zwei Farben (a gewichtet durch t in [0,1]). */
+    
     public static int mix(int a, int b, float t) {
         int ar = (a >> 16) & 0xFF, ag = (a >> 8) & 0xFF, ab = a & 0xFF;
         int br = (b >> 16) & 0xFF, bg = (b >> 8) & 0xFF, bb = b & 0xFF;
@@ -28,7 +24,7 @@ public final class Glass {
         return (0xFF << 24) | (r << 16) | (g << 8) | bl;
     }
 
-    /** Scanline-basierter abgerundeter Kasten (gefüllt). */
+    
     public static void fillRound(GuiGraphics g, int x, int y, int w, int h, int r, int color) {
         if (w <= 0 || h <= 0) return;
         r = Math.min(r, w / 2);
@@ -44,17 +40,14 @@ public final class Glass {
         }
     }
 
-    /**
-     * Glas-Panel: gefüllter abgerundeter Kasten mit dünner, hellerer Leiste
-     * (1px) und einem dezenten Glanz im oberen Bereich.
-     */
+    
     public static void panel(GuiGraphics g, int x, int y, int w, int h, int r,
                              int fill, int border, int sheen) {
-        // Border (etwas größer, dahinter)
+        
         fillRound(g, x, y, w, h, r, border);
-        // Füllung (1px nach innen)
+        
         fillRound(g, x + 1, y + 1, w - 2, h - 2, Math.max(0, r - 1), fill);
-        // Glanz: obere Hälfte leicht aufhellen
+        
         int sheenH = Math.max(8, h / 3);
         int steps = Math.min(sheenH, 60);
         for (int i = 0; i < steps; i++) {
@@ -65,7 +58,7 @@ public final class Glass {
         }
     }
 
-    /** Glas-Button (abgerundet, halbtransparent). */
+    
     public static void button(GuiGraphics g, int x, int y, int w, int h, int r,
                               int fill, int border, int text, Font font, String label,
                               boolean hover, boolean selected) {

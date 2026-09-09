@@ -109,6 +109,15 @@
           <div class="socials-profile-meta">
             <div id="spName" class="socials-profile-name">nicht verbunden</div>
             <div id="spDiscord" class="socials-profile-sub"></div>
+            <div id="spPoints" class="socials-profile-sub"></div>
+            <div class="socials-progress" id="spProgressWrap" style="display:none;">
+              <div class="socials-progress-bar"><div id="spProgressFill" style="height:100%;width:0%;"></div></div>
+              <div id="spProgressLabel" class="socials-profile-sub"></div>
+            </div>
+            <div id="spCodeWrap" style="display:none;">
+              <span class="socials-code">Freundes-Code: <code id="spCode"></code></span>
+              <button id="spCodeCopy" class="small-btn">Kopieren</button>
+            </div>
           </div>
           <button id="openProfileBtn" class="socials-profile-btn">Profil</button>
         </div>
@@ -138,6 +147,53 @@
           <ul id="kollegenRequests" class="friend-list"></ul>
         </div>
         <ul id="kollegenFriends" class="friend-list"></ul>
+
+        <h3 class="socials-subhead">Store</h3>
+        <p class="socials-hint">Kollegen-Points einlösen: Kosmetik kaufen und an deinem Profil ausrüsten.</p>
+        <div class="store-wallet" id="storeWallet" style="display:none;">
+          <span class="store-pts" id="storePts">★ 0</span>
+          <span class="store-lvl" id="storeLvl">Level 1</span>
+        </div>
+        <div class="store-show" id="storeShow" style="display:none;">
+          <div class="store-show-banner" id="storeShowBanner"></div>
+          <img id="storeShowAv" class="store-show-av" alt="" />
+          <div class="store-show-meta">
+            <div id="storeShowName" class="store-show-name">Dein Profil</div>
+            <div id="storeShowSub" class="store-show-sub"></div>
+            <div class="store-show-bar"><div id="storeShowFill" style="width:0%;"></div></div>
+            <div class="store-show-col"><span id="storeShowColl">0 gesammelt</span><span id="storeShowPct">0%</span></div>
+          </div>
+        </div>
+        <div class="store-tools">
+          <div class="store-rar" id="storeRarChips">
+            <button class="chip on" data-r="alle">Alle Raritäten</button>
+            <button class="chip" data-r="common">Gewöhnlich</button>
+            <button class="chip" data-r="rare">Selten</button>
+            <button class="chip" data-r="epic">Episch</button>
+            <button class="chip" data-r="legendary">Legendär</button>
+          </div>
+          <select id="storeSort" class="store-sort">
+            <option value="price-asc">Preis ↑</option>
+            <option value="price-desc">Preis ↓</option>
+            <option value="rarity">Seltenheit</option>
+            <option value="name">Name</option>
+          </select>
+        </div>
+        <div class="store-tabs" id="storeTabs">
+          <button class="tab on" data-f="alle">Alle</button>
+          <button class="tab" data-f="title">Titel</button>
+          <button class="tab" data-f="avatar_frame">Avatar-Rahmen</button>
+          <button class="tab" data-f="avatar_theme">Avatar-Hintergrund</button>
+          <button class="tab" data-f="badge">Abzeichen</button>
+          <button class="tab" data-f="profile_frame">Profil-Rahmen</button>
+          <button class="tab" data-f="profile_bg">Profil-Hintergrund</button>
+          <button class="tab" data-f="banner">Banner</button>
+          <button class="tab" data-f="profil_stil">Profilstil</button>
+          <button class="tab" data-f="font">Schriftart</button>
+          <button class="tab" data-f="name_color">Namensfarbe</button>
+          <button class="tab" data-f="sticker">Aufkleber</button>
+        </div>
+        <div class="store-grid" id="storeGrid"><div class="store-msg">Lade Store…</div></div>
 
         <div class="socials-invite">
           <p class="socials-hint">Kennst du jemanden, der den Kollegen Client auch nutzen sollte?</p>
@@ -303,7 +359,11 @@
           <input id="dmConvCode" placeholder="Freundes-Code öffnen" autocomplete="off" />
         </div>
         <div class="dm-thread">
-          <div class="dm-thread-head" id="dmThreadHead" style="color:var(--muted);">Konversation wählen</div>
+          <div class="dm-thread-head" id="dmThreadHead">
+            <img id="dmThAv" alt="" style="display:none;" />
+            <span id="dmThName">Konversation wählen</span>
+            <a id="dmThProf" href="#" style="display:none;">Profil</a>
+          </div>
           <div id="dmMsgList" class="dm-msgs"><div class="dm-empty">Wähle links einen Chat oder öffne einen Freundes-Code.</div></div>
           <div class="dm-input" id="dmInputBox" style="display:none;">
             <input id="dmText" placeholder="Nachricht …" maxlength="2000" autocomplete="off" />
@@ -311,6 +371,13 @@
           </div>
         </div>
       </div>
+    </div>
+  </div>
+
+  <div id="storeItemModal" class="modal" style="display:none;">
+    <div class="modal-content store-item-content">
+      <button id="storeItemClose" class="icon-btn" title="Schließen">✕</button>
+      <div id="storeItemBody"></div>
     </div>
   </div>
 

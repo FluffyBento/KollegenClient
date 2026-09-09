@@ -10,7 +10,7 @@ import net.minecraft.client.Minecraft;
 
 public final class World {
 
-    /** Vom SkyBodiesMixin gelesen: Sonne/Mond ausblenden. */
+    
     public static boolean hideSun = false;
     public static boolean hideMoon = false;
 
@@ -61,13 +61,13 @@ public final class World {
             try {
                 if (mc.level instanceof net.minecraft.client.multiplayer.ClientLevel cl) {
                     switch (mode.index) {
-                        case 1: cl.setRainLevel(1f); cl.setThunderLevel(0f); break;   // Regen
-                        case 2: cl.setRainLevel(1f); cl.setThunderLevel(1f); break;   // Gewitter
-                        case 3: cl.setRainLevel(1f); cl.setThunderLevel(0f); break;   // Schnee (Precipitation via Mixin)
-                        case 4: cl.setRainLevel(0f); cl.setThunderLevel(0f); break;   // Nebel (Atmosphäre via Mixin)
-                        case 5: cl.setRainLevel(0f); cl.setThunderLevel(0f); break;   // End-Blitz (Atmosphäre via Mixin)
-                        case 6: cl.setRainLevel(0f); cl.setThunderLevel(0f); break;   // Basalt-Delta (Atmosphäre via Mixin)
-                        default: cl.setRainLevel(0f); cl.setThunderLevel(0f);          // Klar
+                        case 1: cl.setRainLevel(1f); cl.setThunderLevel(0f); break;   
+                        case 2: cl.setRainLevel(1f); cl.setThunderLevel(1f); break;   
+                        case 3: cl.setRainLevel(1f); cl.setThunderLevel(0f); break;   
+                        case 4: cl.setRainLevel(0f); cl.setThunderLevel(0f); break;   
+                        case 5: cl.setRainLevel(0f); cl.setThunderLevel(0f); break;   
+                        case 6: cl.setRainLevel(0f); cl.setThunderLevel(0f); break;   
+                        default: cl.setRainLevel(0f); cl.setThunderLevel(0f);          
                     }
                 }
             } catch (Throwable ignored) {
@@ -87,7 +87,7 @@ public final class World {
         }
     }
 
-    /** Blendet Sonne und/oder Mond im Überworld-Himmel aus. */
+    
     private static class CelestialBodies extends Module {
         private final BooleanSetting sun = new BooleanSetting("Sonne ausblenden", "Blendet die Sonne aus.", false);
         private final BooleanSetting moon = new BooleanSetting("Mond ausblenden", "Blendet den Mond aus.", false);

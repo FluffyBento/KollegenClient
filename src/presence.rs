@@ -1,24 +1,24 @@
-// Presence-Reporter für den Kollegen-Client-Launcher.
-//
-// Die im Spiel laufende Begleit-Mod schreibt `~/.kollegen/presence.json`
-// ({server, name, timestamp}), sobald der Spieler auf einem Server ist, und
-// löscht die Datei beim Verlassen. Dieser Reporter beobachtet die Datei und
-// meldet die Presence an das externe Backend.
-//
-// Authentifizierung läuft über Discord: Der Launcher nutzt seinen gespeicherten
-// Discord-Access-Token, tauscht ihn gegen ein Backend-Session-Token ein
-// (`POST {backend}/auth`) und meldet dann die Presence:
-//
-//   POST   {backend}/auth           Body: {"discord_token"}            (-> session)
-//   PUT    {backend}/presence       Body: {"server","name","timestamp"} (Bearer session)
-//   DELETE {backend}/presence                                                (Bearer session)
-//
-// Die Mod fragt öffentlich `GET {backend}/presence?server=…` ab und erhält die
-// Liste der MC-Namen, die gerade als Discord-authentifizierte Kollegen-User auf
-// diesem Server online sind -> Kollegen.png Icon. Nur wer sich per Discord
-// authentifiziert hat, landet in dieser Liste.
-//
-// Backend-URL aus den Launcher-Einstellungen bzw. KOLLEGEN_PRESENCE_BACKEND.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 use log::{debug, warn};
 use serde::{Deserialize, Serialize};
@@ -37,7 +37,7 @@ struct PresenceEntry {
 const HEARTBEAT_MS: u64 = 20_000;
 const POLL_MS: u64 = 2_000;
 
-/// Backend-Session-Token (flüchtig, wird bei 401 verworfen und neu geholt).
+
 static SESSION: Mutex<Option<String>> = Mutex::new(None);
 
 fn now_ms() -> u64 {
@@ -54,8 +54,8 @@ fn now_secs() -> u64 {
         .unwrap_or(0)
 }
 
-/// Liefert das aktive Minecraft-Profil (uuid + name) als JSON-Value, damit das
-/// Backend bei `/auth` den Kollegen-User mit MC-Daten anlegen kann.
+
+
 fn mc_profile_value(data_dir: &PathBuf) -> Option<serde_json::Value> {
     let accounts = crate::utils::load_json::<Vec<crate::types::Account>>(
         &crate::utils::accounts_file(data_dir),
@@ -72,7 +72,7 @@ fn mc_profile_value(data_dir: &PathBuf) -> Option<serde_json::Value> {
     }))
 }
 
-/// Liefert einen gültigen Discord-Access-Token (refresht ihn ggf.).
+
 fn discord_access_token(data_dir: &PathBuf) -> Option<String> {
     let tok = crate::discord_auth::load_token(data_dir)?;
     if !tok.access_token.is_empty() {
@@ -90,7 +90,7 @@ fn discord_access_token(data_dir: &PathBuf) -> Option<String> {
     Some(tok.access_token)
 }
 
-/// Versucht, einen neuen Discord-Access-Token über den Refresh-Token zu holen.
+
 fn refresh_discord_token(refresh: &str, data_dir: &PathBuf) -> Option<String> {
     let params = [
         ("client_id", crate::discord_client_id()),
@@ -126,13 +126,13 @@ fn refresh_discord_token(refresh: &str, data_dir: &PathBuf) -> Option<String> {
     Some(at)
 }
 
-/// Standard-Backend-URL des Kollegen-Servers. Nutzer müssen nichts konfigurieren –
-/// Presence/Freunde funktionieren out-of-the-box. Env/Setting überschreiben das.
-// Default presence backend: use the public standard domain. This can be overridden
-// by the environment variable KOLLEGEN_PRESENCE_BACKEND or the user's settings.
+
+
+
+
 const DEFAULT_PRESENCE_BACKEND: &str = "https://kollegen.me";
 
-/// Liefert die konfigurierte Backend-URL (Env > Setting > Default).
+
 fn backend_url(data_dir: &PathBuf) -> Option<String> {
     let env = std::env::var("KOLLEGEN_PRESENCE_BACKEND").ok();
     if let Some(b) = env.filter(|s| !s.trim().is_empty()) {
@@ -150,13 +150,13 @@ fn backend_url(data_dir: &PathBuf) -> Option<String> {
     }
 }
 
-/// Basis-URL, die die in-game begleitende Mod per `config/kollegen-server.txt`
-/// bekommt (Backend für Presence + soziale Endpunkte).
+
+
 pub fn mod_backend_url(data_dir: &PathBuf) -> String {
     backend_url(data_dir).unwrap_or_else(|| DEFAULT_PRESENCE_BACKEND.to_string())
 }
 
-/// Holt (falls nötig) ein Backend-Session-Token via Discord-Auth.
+
 fn ensure_session(
     client: &reqwest::blocking::Client,
     backend: &str,
@@ -192,14 +192,14 @@ fn ensure_session(
     Some(tok)
 }
 
-/// Authentifizierte Anfrage-Hilfe für die sozialen Endpunkte (Directory/Freunde).
-///
-/// Wichtig: Der hier erzeugte Client MUSS ein kurzes Connect/Total-Timeout tragen.
-/// Früher stand hier `Client::new()` (= kein Timeout). Wird das Backend
-/// (`5.175.192.69:8080` etc.) nicht erreicht, hängt der `POST /auth` dann bis zum
-/// OS-Connect-Timeout – und da `sync_social`/`kollegen_me` auf dem Hauptthread
-/// laufen können, friert der komplette Launcher-Start (Weißschirm, "lädt 20–30
-/// Minuten") ein. Mit begrenztem Timeout schlägt der Versuch in Sekunden fehl.
+
+
+
+
+
+
+
+
 fn authed_request(
     data_dir: &PathBuf,
 ) -> Option<(reqwest::blocking::Client, String, String)> {
@@ -214,12 +214,12 @@ fn authed_request(
     Some((client, backend, session))
 }
 
-/// Holt das eigene Profil (GET /me).
-///
-/// Die Freundesliste + social.json für die Mod schreibt der Hintergrund-
-/// Presence-Loop periodisch selbst (sync_social); hier wird sie NICHT noch
-/// einmal nachgezogen, sonst machten wir beim Öffnen des Socials-Tabs mehrere
-/// redundante Blocking-HTTP-Calls in Serie (früher: /me + /me + /friends).
+
+
+
+
+
+
 pub fn kollegen_me(data_dir: &PathBuf) -> serde_json::Value {
     me_value(data_dir)
 }
@@ -264,16 +264,16 @@ fn friends_value(data_dir: &PathBuf) -> serde_json::Value {
     }
 }
 
-/// Schreibt ~/.kollegen/social.json (eigenes Profil + Freunde) für die Mod.
-///
-/// Zusätzlich wird ~/.kollegen/client.json geschrieben – die Brücke für die
-/// in-game begleitende Mod: Sie enthält Backend-URL + gültige Session + eigenes
-/// Profil, damit die Mod direkt (ohne Discord-OAuth) die sozialen Endpunkte
-/// (Freunde, Gruppen, DMs) aufrufen und Presence melden kann.
-///
-/// `backend`/`session` sind optional: Der Presence-Loop liefert beides (und
-/// schreibt dann die client.json-Brücke), der asynchrone Start-Helfer in
-/// main.rs ruft nur `(data_dir)` auf und schreibt dann nur social.json.
+
+
+
+
+
+
+
+
+
+
 pub fn sync_social(data_dir: &PathBuf, backend: Option<&str>, session: Option<&str>) {
     let me = me_value(data_dir);
     if me.get("error").is_some() {
@@ -304,8 +304,8 @@ pub fn sync_social(data_dir: &PathBuf, backend: Option<&str>, session: Option<&s
     }
 }
 
-/// Bearbeitet ausstehende Freundes-Code-Anfragen, die die Mod (im Spiel)
-/// nach ~/.kollegen/friend_add.json schreibt.
+
+
 pub fn process_pending_friend_add(data_dir: &PathBuf) {
     if let Some(home) = dirs::home_dir() {
         let file = home.join(".kollegen").join("friend_add.json");
@@ -320,7 +320,7 @@ pub fn process_pending_friend_add(data_dir: &PathBuf) {
     }
 }
 
-/// Fügt einen Freund über dessen Freundes-Code hinzu.
+
 pub fn add_friend_by_code(data_dir: &PathBuf, code: &str) -> serde_json::Value {
     let (client, backend, session) = match authed_request(data_dir) {
         Some(x) => x,
@@ -343,17 +343,17 @@ pub fn add_friend_by_code(data_dir: &PathBuf, code: &str) -> serde_json::Value {
     }
 }
 
-/// Eigene Freundesliste (Profile inkl. Status/Server).
+
 pub fn kollegen_friends(data_dir: &PathBuf) -> serde_json::Value {
     friends_value(data_dir)
 }
 
-/// Fügt einen Freund über dessen Freundes-Code hinzu.
+
 pub fn kollegen_friend_add(data_dir: &PathBuf, code: &str) -> serde_json::Value {
     add_friend_by_code(data_dir, code)
 }
 
-/// Entfernt einen Freund (per id).
+
 pub fn kollegen_friend_remove(data_dir: &PathBuf, target_id: &str) -> serde_json::Value {
     let (client, backend, session) = match authed_request(data_dir) {
         Some(x) => x,
@@ -376,7 +376,7 @@ pub fn kollegen_friend_remove(data_dir: &PathBuf, target_id: &str) -> serde_json
     }
 }
 
-/// Eingehende Freundesanfragen (Liste; wer darf mich anfragen + Status).
+
 pub fn kollegen_friend_requests(data_dir: &PathBuf) -> serde_json::Value {
     let (client, backend, session) = match authed_request(data_dir) {
         Some(x) => x,
@@ -397,12 +397,12 @@ pub fn kollegen_friend_requests(data_dir: &PathBuf) -> serde_json::Value {
     }
 }
 
-/// Nimmt eine Freundesanfrage an (from_id = Discord-ID des Anfragenden).
+
 pub fn kollegen_friend_accept(data_dir: &PathBuf, from_id: &str) -> serde_json::Value {
     friend_request_act(data_dir, "/friend/accept", from_id)
 }
 
-/// Lehnt eine Freundesanfrage ab (from_id = Discord-ID des Anfragenden).
+
 pub fn kollegen_friend_decline(data_dir: &PathBuf, from_id: &str) -> serde_json::Value {
     friend_request_act(data_dir, "/friend/decline", from_id)
 }
@@ -429,7 +429,7 @@ fn friend_request_act(data_dir: &PathBuf, path: &str, from_id: &str) -> serde_js
     }
 }
 
-/// Öffentliches Profil eines Kollegen ansehen (per Freundes-Code).
+
 pub fn kollegen_profile_view(data_dir: &PathBuf, code: &str) -> serde_json::Value {
     let (client, backend, session) = match authed_request(data_dir) {
         Some(x) => x,
@@ -451,7 +451,7 @@ pub fn kollegen_profile_view(data_dir: &PathBuf, code: &str) -> serde_json::Valu
     }
 }
 
-/// Liste der DM-Konversationen (neueste zuerst).
+
 pub fn kollegen_dm_conversations(data_dir: &PathBuf) -> serde_json::Value {
     let (client, backend, session) = match authed_request(data_dir) {
         Some(x) => x,
@@ -473,7 +473,7 @@ pub fn kollegen_dm_conversations(data_dir: &PathBuf) -> serde_json::Value {
     }
 }
 
-/// Nachrichten mit einem bestimmten Kollegen (per discordId).
+
 pub fn kollegen_dm_messages(data_dir: &PathBuf, other: &str) -> serde_json::Value {
     let (client, backend, session) = match authed_request(data_dir) {
         Some(x) => x,
@@ -495,7 +495,7 @@ pub fn kollegen_dm_messages(data_dir: &PathBuf, other: &str) -> serde_json::Valu
     }
 }
 
-/// Sendet eine DM an einen Kollegen (nur Freunde).
+
 pub fn kollegen_dm_send(data_dir: &PathBuf, to_id: &str, text: &str) -> serde_json::Value {
     let (client, backend, session) = match authed_request(data_dir) {
         Some(x) => x,
@@ -518,14 +518,14 @@ pub fn kollegen_dm_send(data_dir: &PathBuf, to_id: &str, text: &str) -> serde_js
     }
 }
 
-/// Kosmetik-Store: eigener Katalog inkl. Kontostand, Owned & Equipped.
+
 pub fn kollegen_store(data_dir: &PathBuf) -> serde_json::Value {
-    // Eigener Pfad (/store/catalog), damit er nicht mit der Website-Seite
-    // /store (SPA-HTML) kollidiert. Caddy routet /store/catalog* → Backend.
+    
+    
     get_authed(data_dir, "/store/catalog", &[])
 }
 
-/// Rüstet ein eigenes Kosmetik-Item aus (oder legt es mit item_id="" ab).
+
 pub fn kollegen_store_equip(data_dir: &PathBuf, item_id: &str, category: &str) -> serde_json::Value {
     let (client, backend, session) = match authed_request(data_dir) {
         Some(x) => x,
@@ -553,7 +553,12 @@ pub fn kollegen_store_equip(data_dir: &PathBuf, item_id: &str, category: &str) -
     }
 }
 
-/// URL-Kodierung für Query-Werte (RFC 3986, außer ~ . - _).
+
+pub fn kollegen_store_buy(data_dir: &PathBuf, item_id: &str) -> serde_json::Value {
+    post_authed(data_dir, "/store/buy", serde_json::json!({ "item_id": item_id }))
+}
+
+
 fn urlencode(s: &str) -> String {
     let mut out = String::new();
     for b in s.bytes() {
@@ -567,10 +572,10 @@ fn urlencode(s: &str) -> String {
     out
 }
 
-// ── Gruppen + Anrufe (öffentliche Backend-Endpunkte, Bearer-Session) ─────────
 
-/// Generischer authentifizierter Aufruf für die sozialen Endpunkte
-/// (Gruppen, Anrufe, Store). `query` wird als Query-Parameter angehängt.
+
+
+
 fn authed_value(
     data_dir: &PathBuf,
     method: reqwest::Method,
@@ -617,12 +622,12 @@ fn post_authed(data_dir: &PathBuf, path: &str, body: serde_json::Value) -> serde
     authed_value(data_dir, reqwest::Method::POST, path, Some(body), &[])
 }
 
-/// Eigene Gruppen-Liste (neueste zuerst).
+
 pub fn kollegen_groups(data_dir: &PathBuf) -> serde_json::Value {
     get_authed(data_dir, "/groups", &[])
 }
 
-/// Erstellt eine neue Gruppe (Owner = ich), optional mit Freundes-IDs.
+
 pub fn kollegen_group_create(data_dir: &PathBuf, name: &str, member_ids: Vec<String>) -> serde_json::Value {
     post_authed(
         data_dir,
@@ -631,12 +636,12 @@ pub fn kollegen_group_create(data_dir: &PathBuf, name: &str, member_ids: Vec<Str
     )
 }
 
-/// Gruppe mit Mitgliederliste ansehen (nur Mitglieder).
+
 pub fn kollegen_group_view(data_dir: &PathBuf, group_id: &str) -> serde_json::Value {
     get_authed(data_dir, "/group/view", &[("groupId", group_id.to_string())])
 }
 
-/// Owner fügt einen Freund zur Gruppe hinzu.
+
 pub fn kollegen_group_add_member(data_dir: &PathBuf, group_id: &str, member_id: &str) -> serde_json::Value {
     post_authed(
         data_dir,
@@ -645,17 +650,17 @@ pub fn kollegen_group_add_member(data_dir: &PathBuf, group_id: &str, member_id: 
     )
 }
 
-/// Gruppe verlassen (Owner übergibt oder die Gruppe wird gelöscht).
+
 pub fn kollegen_group_leave(data_dir: &PathBuf, group_id: &str) -> serde_json::Value {
     post_authed(data_dir, "/group/leave", serde_json::json!({ "groupId": group_id }))
 }
 
-/// Gruppe löschen (nur Owner).
+
 pub fn kollegen_group_delete(data_dir: &PathBuf, group_id: &str) -> serde_json::Value {
     post_authed(data_dir, "/group/delete", serde_json::json!({ "groupId": group_id }))
 }
 
-/// Neue Chat-Nachrichten + Call-Zustand seit since_msg/since_sig.
+
 pub fn kollegen_group_poll(data_dir: &PathBuf, group_id: &str, since_msg: u64, since_sig: u64) -> serde_json::Value {
     get_authed(
         data_dir,
@@ -668,29 +673,29 @@ pub fn kollegen_group_poll(data_dir: &PathBuf, group_id: &str, since_msg: u64, s
     )
 }
 
-/// Gruppennachricht senden.
+
 pub fn kollegen_group_send(data_dir: &PathBuf, group_id: &str, text: &str) -> serde_json::Value {
     post_authed(data_dir, "/group/send", serde_json::json!({ "groupId": group_id, "text": text }))
 }
 
-// ── Gruppen-Anrufe (WebRTC-Signaling) ──
 
-/// Einen Gruppen-Anruf öffnen oder einem laufenden beitreten.
+
+
 pub fn kollegen_call_open(data_dir: &PathBuf, group_id: &str) -> serde_json::Value {
     post_authed(data_dir, "/call/open", serde_json::json!({ "groupId": group_id }))
 }
 
-/// Einem laufenden Gruppen-Anruf über dessen Call-ID beitreten.
+
 pub fn kollegen_call_join(data_dir: &PathBuf, call_id: &str) -> serde_json::Value {
     post_authed(data_dir, "/call/join", serde_json::json!({ "callId": call_id }))
 }
 
-/// Anruf verlassen (Gruppen- oder Direkt-Call).
+
 pub fn kollegen_call_leave(data_dir: &PathBuf, call_id: &str) -> serde_json::Value {
     post_authed(data_dir, "/call/leave", serde_json::json!({ "callId": call_id }))
 }
 
-/// WebRTC-Signal an einen anderen Teilnehmer senden.
+
 pub fn kollegen_call_signal(
     data_dir: &PathBuf,
     call_id: &str,
@@ -705,14 +710,14 @@ pub fn kollegen_call_signal(
     )
 }
 
-// ── Direkt-Anrufe (privat, 1:1) ──
 
-/// Privaten 1:1-Anruf mit einem Freund öffnen oder beitreten.
+
+
 pub fn kollegen_call_direct_open(data_dir: &PathBuf, peer_id: &str) -> serde_json::Value {
     post_authed(data_dir, "/call/direct/open", serde_json::json!({ "peerId": peer_id }))
 }
 
-/// Direkt-Call pollen (Signale + Teilnehmer).
+
 pub fn kollegen_call_direct_poll(data_dir: &PathBuf, call_id: &str, since_sig: u64) -> serde_json::Value {
     get_authed(
         data_dir,
@@ -721,13 +726,13 @@ pub fn kollegen_call_direct_poll(data_dir: &PathBuf, call_id: &str, since_sig: u
     )
 }
 
-/// Eingehenden Direkt-Anruf für mich abfragen.
+
 pub fn kollegen_call_direct_active(data_dir: &PathBuf) -> serde_json::Value {
     get_authed(data_dir, "/call/direct/active", &[])
 }
 
-/// Öffentliche Profile auf dem Backend durchsuchen (Paket {backend}/profiles).
-/// Nutzt den konfigurierten Backend (Presence-Default), kein Login nötig.
+
+
 pub fn browse_profiles(data_dir: &PathBuf, search: &str) -> serde_json::Value {
     let backend = match backend_url(data_dir) {
         Some(b) => b,
@@ -757,8 +762,8 @@ pub fn browse_profiles(data_dir: &PathBuf, search: &str) -> serde_json::Value {
     }
 }
 
-/// Veröffentlicht das lokale Profil auf dem Backend. Authentifiziert wird über
-/// die gespeicherte Discord-Session – es ist KEIN manuelles Token nötig.
+
+
 pub fn publish_profile(data_dir: &PathBuf, profile: &serde_json::Value) -> serde_json::Value {
     let (client, backend, session) = match authed_request(data_dir) {
         Some(x) => x,
@@ -843,8 +848,8 @@ fn send_delete(
     }
 }
 
-/// Startet den Hintergrund-Reporter-Thread. Einrichtungsfehler sind harmlos –
-/// der Thread läuft einfach nicht (das Spiel zeigt dann kein Presence-Icon).
+
+
 pub fn start(data_dir: PathBuf) {
     std::thread::Builder::new()
         .name("kollegen-presence".into())
@@ -881,10 +886,10 @@ fn run(data_dir: PathBuf) {
     loop {
         std::thread::sleep(Duration::from_millis(POLL_MS));
 
-        // Backoff: ist das Backend nicht erreichbar, hämmert der Loop sonst im
-        // Sekundentakt auf die tote IP (5.175.192.69) und blockiert die
-        // Presence-Network-Arbeit. Bei wiederholtem Fehlschlag warten wir
-        // zunehmend länger (bis ~30 s), statt permanent zu raten.
+        
+        
+        
+        
         if auth_failures > 0 {
             let backoff = std::cmp::min(auth_failures, 15) as u64;
             std::thread::sleep(Duration::from_secs(backoff));
@@ -949,8 +954,8 @@ fn run(data_dir: PathBuf) {
         }
         }
 
-        // Profil + Freundesliste für die Mod schreiben und ausstehende
-        // Freundes-Code-Anfragen der Mod bearbeiten.
+        
+        
         if now - last_social > 5000 {
             last_social = now;
             sync_social(&data_dir, Some(&backend), Some(&session));

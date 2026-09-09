@@ -6,10 +6,7 @@ import net.minecraft.network.chat.Component;
 
 import java.util.function.Consumer;
 
-/**
- * Glas-Slider (Wert 0..1) als echtes {@link AbstractSliderButton}-Widget.
- * Die Eingabe (Klick/Drag) wird vom Vanilla-Slider übernommen, wir malen nur um.
- */
+
 public class GlassSlider extends AbstractSliderButton {
     private int accent = 0xfff5a623;
     private Consumer<Double> cb;

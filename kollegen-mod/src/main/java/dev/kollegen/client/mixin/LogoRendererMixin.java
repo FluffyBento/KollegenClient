@@ -8,11 +8,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import dev.kollegen.client.ui.LogoDraw;
 
-/**
- * Ersetzt das vanilla Minecraft-Logo im Hauptmenue durch das eigene
- * assets/kollegen/logo.png (Titelbildschirm-Overlay). Die Textur wird
- * seitenveraeltniskonform auf die gewuenschte Anzeigebreite skaliert.
- */
+
 @Mixin(net.minecraft.client.gui.components.LogoRenderer.class)
 public class LogoRendererMixin {
 

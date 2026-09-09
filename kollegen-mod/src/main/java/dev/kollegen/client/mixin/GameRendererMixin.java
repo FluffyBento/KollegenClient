@@ -8,12 +8,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-/**
- * Zoom über einen FOV-Teiler am zentralen Punkt der FOV-Berechnung. Das alte
- * Verfahren (options.fov().set(...)) überschrieb dauerhaft die FOV-Einstellung
- * und reagierte nicht live auf Slider-Änderungen – hier bleibt die eingestellte
- * FOV unangetastet und der Zoom wirkt in jedem Frame sofort.
- */
+
 @Mixin(GameRenderer.class)
 public class GameRendererMixin {
 

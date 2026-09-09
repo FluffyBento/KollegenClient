@@ -1,8 +1,6 @@
 package dev.kollegen.client.mods;
 
-/**
- * Kategorien für das Mod-Menü (angelehnt an NoRisk / Feather / LabyMod).
- */
+
 public enum Category {
     VISUAL("Visual", "🎨"),
     HUD("HUD", "📊"),

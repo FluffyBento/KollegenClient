@@ -84,7 +84,7 @@ public class ColorPickerScreen extends Screen {
         g.drawString(this.font, "Farbton", x + 20, y + 46, Palette.MUTED, false);
         g.drawString(this.font, "Sättigung", x + 20, y + 96, Palette.MUTED, false);
         g.drawString(this.font, "Helligkeit", x + 20, y + 146, Palette.MUTED, false);
-        // Vorschau
+        
         g.fill(x + 20, y + hgt - 40, 40, 26, current);
         g.fill(x + 20, y + hgt - 40, 40, 1, 0x22000000);
         super.render(g, mx, my, pt);
