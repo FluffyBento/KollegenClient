@@ -1335,6 +1335,43 @@ pub(crate) fn enforce_bundled_mods(mods_dir: &Path, mc_version: &str, companion_
 }
 
 
+fn write_classpath_jar(inst_dir: &Path, entries: &[String]) -> Result<String> {
+    let jar_path = inst_dir.join("classpath.jar");
+    let mut tokens: Vec<String> = Vec::with_capacity(entries.len());
+    for abs in entries {
+        match Path::new(abs).strip_prefix(inst_dir) {
+            Ok(rel) => tokens.push(rel.to_string_lossy().replace('\\', "/").replace(' ', "%20")),
+            Err(_) => tokens.push(format!("file:///{}", abs.replace('\\', "/").replace(' ', "%20"))),
+        }
+    }
+    let mut manifest = String::from("Manifest-Version: 1.0\r\n");
+    let mut line = String::from("Class-Path: ");
+    for (i, t) in tokens.iter().enumerate() {
+        let candidate = if i == 0 {
+            t.clone()
+        } else {
+            format!("{} {}", line, t)
+        };
+        if candidate.len() > 72 {
+            manifest.push_str(&line);
+            manifest.push_str("\r\n ");
+            line = t.clone();
+        } else {
+            line = candidate;
+        }
+    }
+    manifest.push_str(&line);
+    manifest.push_str("\r\n\r\n");
+    let file = fs::File::create(&jar_path)?;
+    let mut zw = zip::ZipWriter::new(file);
+    let opts = zip::write::FileOptions::default()
+        .compression_method(zip::CompressionMethod::Stored);
+    zw.start_file("META-INF/MANIFEST.MF", opts)?;
+    zw.write_all(manifest.as_bytes())?;
+    zw.finish()?;
+    Ok(jar_path.to_string_lossy().into_owned())
+}
+
 pub fn launch(
     state: &AppState,
     data_dir: &Path,
@@ -1466,8 +1503,14 @@ pub fn launch(
 
     
     let os_cp_sep = if cfg!(target_os = "windows") { ";" } else { ":" };
+    let joined = classpath.join(os_cp_sep);
+    let cp_arg = if cfg!(target_os = "windows") && joined.len() > 28000 {
+        write_classpath_jar(&inst_dir, &classpath)?
+    } else {
+        joined
+    };
     jvm_args.push("-cp".to_string());
-    jvm_args.push(classpath.join(os_cp_sep));
+    jvm_args.push(cp_arg);
 
     
     let mut accounts = crate::utils::load_json::<Vec<crate::types::Account>>(
