@@ -950,6 +950,145 @@ fn read_bundle_flags(mods_dir: &Path) -> Value {
 /// Minecraft-Version außerhalb der 1.21.x-Linie liegt, für die die Bundles
 /// kompiliert sind – deren 1.21.x-Jars würden den Fabric-Loader sonst zum
 /// "incompatible mods"-Absturz bringen. Nadelt gezielt `kollegen-bundle-`.
+/// Entfernt die von `local_media_listener` shaded ins innere Jar eingebetteten
+/// kotlin-Projektklassen (kotlin-stdlib, kotlinx-coroutines, kotlinx-json/-core).
+/// `None`, wenn nichts zu entfernen war (bereits aufgeräumt → no-op für den
+/// Aufrufer).
+fn strip_shaded_kotlin(jar: &[u8]) -> Option<Vec<u8>> {
+    let reader = std::io::Cursor::new(jar);
+    let mut archive = zip::ZipArchive::new(reader).ok()?;
+    let should_strip = |name: &str| {
+        name.starts_with("kotlin/")
+            || name.starts_with("kotlinx/")
+            || name.starts_with("_COROUTINE/")
+            || (name.starts_with("META-INF/kotlinx-")
+                && (name.ends_with(".kotlin_module") || name.ends_with(".pro")))
+            || name.starts_with("META-INF/kotlin-stdlib")
+    };
+    let mut changed = false;
+    let mut out = Vec::new();
+    {
+        let mut writer = zip::ZipWriter::new(std::io::Cursor::new(&mut out));
+        let opts =
+            zip::write::FileOptions::default().compression_method(zip::CompressionMethod::Deflated);
+        for i in 0..archive.len() {
+            let mut entry = match archive.by_index(i) {
+                Ok(e) => e,
+                Err(_) => continue,
+            };
+            let name = entry.name().to_string();
+            if should_strip(&name) {
+                changed = true;
+                continue;
+            }
+            let mut data = Vec::new();
+            if entry.read_to_end(&mut data).is_err() {
+                continue;
+            }
+            let _ = writer.start_file(&name, opts);
+            let _ = writer.write_all(&data);
+        }
+        if !changed {
+            return None;
+        }
+        let _ = writer.finish();
+    }
+    Some(out)
+}
+
+/// Repariert `mods/kollegen-bundle-spotify.jar` (idempotent): das Bundle bettet
+/// `local_media_listener` als Fat-JAR ein, die eine ALTE kotlinx-serialization
+/// (<1.8.0) shaded – dort ist `GeneratedSerializer.typeParametersSerializers`
+/// noch ABSTRACT. Auf dem Laufzeit-Classpath gewinnt dieses alte Interface
+/// gegen die 1.9.0/1.11.0-Version, und serializers, die gegen >=1.8.0 kompiliert
+/// wurden (Methode ist dort Default, wird nicht mehr implementiert), brechen im
+/// Essential-Cosmetics-Loader mit AbstractMethodError. Entfernen der shadowed
+/// kotlin/kotlinx-Klassen aus den inneren Jars lässt fabric-language-kotlin
+/// (bzw. Essentials eigenes FLK, ab 1.8.0, kompatible Default-Methode) zum Zug
+/// kommen.
+fn sanitize_spotify_bundle(mods_dir: &Path) {
+    let path = mods_dir.join("kollegen-bundle-spotify.jar");
+    // 1) Analyse: innere Jars nach shadowed kotlin/kotlinx-Klassen durchsuchen.
+    let replacements = {
+        let file = match fs::File::open(&path) {
+            Ok(f) => f,
+            Err(_) => return,
+        };
+        let mut archive = match zip::ZipArchive::new(file) {
+            Ok(a) => a,
+            Err(_) => return,
+        };
+        let mut reps: Vec<(String, Vec<u8>)> = Vec::new();
+        for i in 0..archive.len() {
+            let mut entry = match archive.by_index(i) {
+                Ok(e) => e,
+                Err(_) => continue,
+            };
+            let name = entry.name().to_string();
+            if !(name.starts_with("META-INF/jars/") && name.ends_with(".jar")) {
+                continue;
+            }
+            let mut data = Vec::new();
+            if entry.read_to_end(&mut data).is_err() {
+                continue;
+            }
+            if let Some(cleaned) = strip_shaded_kotlin(&data) {
+                reps.push((name, cleaned));
+            }
+        }
+        reps
+    };
+    if replacements.is_empty() {
+        return;
+    }
+    info!(
+        "Entferne shadowed kotlinx.serialization <1.8.0 aus kollegen-bundle-spotify.jar \
+         (Essential-AbstractMethodError-Fix)"
+    );
+    // 2) Äußeres Jar neu schreiben, bereinigte innere Jars ersetzen.
+    let file = match fs::File::open(&path) {
+        Ok(f) => f,
+        Err(_) => return,
+    };
+    let mut archive = match zip::ZipArchive::new(file) {
+        Ok(a) => a,
+        Err(_) => return,
+    };
+    let tmp = path.with_extension("jar.tmp2");
+    let ok = (|| -> std::io::Result<()> {
+        let out = fs::File::create(&tmp)?;
+        {
+            let mut writer = zip::ZipWriter::new(out);
+            let opts =
+                zip::write::FileOptions::default().compression_method(zip::CompressionMethod::Deflated);
+            for i in 0..archive.len() {
+                let mut entry = match archive.by_index(i) {
+                    Ok(e) => e,
+                    Err(_) => continue,
+                };
+                let name = entry.name().to_string();
+                let mut data = Vec::new();
+                if entry.read_to_end(&mut data).is_err() {
+                    continue;
+                }
+                let bytes = replacements
+                    .iter()
+                    .find(|(n, _)| *n == name)
+                    .map(|(_, b)| b.as_slice())
+                    .unwrap_or(&data);
+                let _ = writer.start_file(&name, opts);
+                let _ = writer.write_all(bytes);
+            }
+            writer.finish()?;
+        }
+        fs::rename(&tmp, &path)?;
+        Ok(())
+    })();
+    if ok.is_err() {
+        let _ = fs::remove_file(&tmp);
+    }
+}
+
 fn remove_bundle_jars(mods_dir: &Path) {
     let Ok(entries) = fs::read_dir(mods_dir) else {
         return;
@@ -1034,10 +1173,13 @@ pub(crate) fn enforce_bundled_mods(mods_dir: &Path, mc_version: &str, companion_
         .unwrap_or_default();
 
     // Essential bundlelt ein eigenes fabric-language-kotlin (inkl. kotlinx.serialization)
-    // als Nested-Jar mit. Ist zusätzlich ein eigenständiges FLK im mods/-Ordner, landen
-    // zwei kotlinx.serialization-Versionen auf dem Classpath und Essentials (gegen eine
-    // ältere Version kompilierte) Serializer werfen einen AbstractMethodError
-    // (typeParametersSerializers) im Cosmetics-Loader. Merken, ob Essential vorhanden ist.
+    // als Nested-Jar mit. Ein zusätzliches eigenständiges FLK im mods/-Ordner (z.B. von
+    // älteren Kollegen-Ständen oder manuell hinzugefügt) kann eine andere
+    // kotlinx.serialization-Version auf den Classpath bringen. Die eigentliche
+    // AbstractMethodError-Quelle ist allerdings unser kollegen-bundle-spotify.jar
+    // (ge-shadete <1.8.0-serialization, siehe sanitize_spotify_bundle) – das FLK hier
+    // wird trotzdem defensiv entfernt, damit nur EINE FLK-Version aktiv ist.
+    // Merken, ob Essential vorhanden ist.
     let essential_present = fs::read_dir(mods_dir)
         .map(|entries| {
             entries.flatten().any(|e| {
@@ -1178,7 +1320,15 @@ pub(crate) fn enforce_bundled_mods(mods_dir: &Path, mc_version: &str, companion_
         }
     }
 
-    // 3) Kanonische Flags zurückschreiben (Quelle der Wahrheit für beide Seiten).
+    // 3) Spotify-Bundle reparieren: die embedded local_media_listener-Fat-JAR
+    //    shaded eine alte kotlinx-serialization (<1.8.0) mit abstraktem
+    //    `typeParametersSerializers`. Sie gewinnt auf dem Knot-Classpath gegen
+    //    die 1.9.0/1.11.0-Default-Methode und Essentials (>1.8.0-kompilierte)
+    //    Serializer brechen mit AbstractMethodError im Cosmetics-Loader.
+    //    Idempotent – repariert auch bereits deployte (alte) Bündel.
+    sanitize_spotify_bundle(mods_dir);
+
+    // 4) Kanonische Flags zurückschreiben (Quelle der Wahrheit für beide Seiten).
     if let Ok(json) = serde_json::to_string_pretty(&flags) {
         let _ = fs::write(bundles_flag_path(mods_dir), json);
     }

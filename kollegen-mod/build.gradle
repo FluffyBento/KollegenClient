@@ -131,8 +131,72 @@ def vendorModResource(String resourceRel, String slug, String urlOverride = null
                 fmj.write(groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(json)))
             }
             ant.zip(destfile: res, basedir: unzipDir)
+            // Spotify Overlay bettet local_media_listener als Fat-JAR ein, die
+            // eine ALTE kotlinx-serialization (<1.8.0) shaded. Deren
+            // GeneratedSerializer.typeParametersSerializers ist noch ABSTRACT –
+            // auf dem Knot-Classpath gewinnt sie gegen die 1.9.0-Default-Methode
+            // und Essentials (>=1.8.0-kompilierte) Serializer brechen im
+            // Cosmetics-Loader mit AbstractMethodError. Die shadowed
+            // kotlin/kotlinx-Klassen an der Quelle entfernen (fabric-language-
+            // kotlin stellt sie zur Laufzeit in der Instanz bereit).
+            if (slug == 'spotify-overlay') {
+                sanitizeJar(res)
+            }
         }
     }
+}
+
+// Shadowed Kotlin-Projektklassen (kotlin-stdlib, kotlinx-coroutines,
+// kotlinx-serialization) aus einer JAR entfernen – deren ALTE
+// kotlinx-serialization (<1.8.0) deklariert typeParametersSerializers noch als
+// ABSTRACT und crasht Essentials (>=1.8.0-kompilierte) Serializer im
+// Cosmetics-Loader mit AbstractMethodError. Innere Jars unter META-INF/jars
+// (z.B. die local_media_listener-Fat-JAR von Spotify Overlay) werden
+// rekursiv mitbereinigt. fabric-language-kotlin stellt die benötigten kotlin-
+// Bibliotheken zur Laufzeit in der Instanz bereit.
+def sanitizeJar(File jar) {
+    def sanitized = sanitizeZipBytes(jar.bytes)
+    if (sanitized != null) {
+        jar.bytes = sanitized
+        println("vendorSpotifyMod: shadowed kotlinx-Klassen entfernt (AbstractMethodError-Fix)")
+    }
+}
+
+byte[] sanitizeZipBytes(byte[] data) {
+    def outBytes = new ByteArrayOutputStream()
+    def zout = new java.util.zip.ZipOutputStream(outBytes)
+    def zin = new java.util.zip.ZipInputStream(new ByteArrayInputStream(data))
+    def buf = new byte[16384]
+    boolean changed = false
+    java.util.zip.ZipEntry e
+    while ((e = zin.nextEntry) != null) {
+        def name = e.name
+        if (name.startsWith('kotlin/') || name.startsWith('kotlinx/') ||
+            name.startsWith('_COROUTINE/') ||
+            name.startsWith('META-INF/kotlinx-') ||
+            name.startsWith('META-INF/kotlin-stdlib')) {
+            changed = true
+            continue
+        }
+        zout.putNextEntry(new java.util.zip.ZipEntry(name))
+        if (name.startsWith('META-INF/jars/') && name.endsWith('.jar')) {
+            def inner = zin.readAllBytes()
+            def cleaned = sanitizeZipBytes(inner)
+            if (cleaned != null) {
+                zout.write(cleaned)
+                changed = true
+            } else {
+                zout.write(inner)
+            }
+        } else {
+            int n
+            while ((n = zin.read(buf)) > 0) zout.write(buf, 0, n)
+        }
+        zout.closeEntry()
+    }
+    zin.close()
+    zout.close()
+    return changed ? outBytes.toByteArray() : null
 }
 
 // Renderer-Gruppe. vendorModResource gibt den TaskProvider zurück – wir
