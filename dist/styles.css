@@ -2169,3 +2169,11 @@ body.console-mode .manage-search input {
 .dm-thread-head img { width: 34px; height: 34px; border-radius: 9px; object-fit: cover; background: #151d2b; flex: none; }
 .dm-thread-head span { flex: 1; min-width: 0; }
 .dm-thread-head a { font-size: 0.78rem; font-weight: 600; flex: none; }
+.dm-callbar { display: flex; align-items: center; gap: 0.6rem; padding: 0.45rem 0.85rem; background: rgba(46,160,67,0.12); border-bottom: 1px solid rgba(46,160,67,0.25); font-size: 0.82rem; font-weight: 600; }
+.dm-callbar.ringing { background: rgba(241,196,15,0.14); border-bottom-color: rgba(241,196,15,0.3); }
+.dm-callbar span { flex: 1; min-width: 0; }
+.group-members { display: flex; flex-wrap: wrap; gap: 0.4rem; padding: 0.5rem 0.85rem; border-bottom: 1px solid rgba(255,255,255,0.08); }
+.group-member { font-size: 0.75rem; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); padding: 0.22rem 0.5rem; border-radius: 999px; display: flex; align-items: center; gap: 0.3rem; }
+.group-member .gm-av { width: 18px; height: 18px; border-radius: 999px; object-fit: cover; background: #222; }
+.group-actions { display: flex; gap: 0.5rem; padding: 0.7rem; border-top: 1px solid rgba(255,255,255,0.08); flex-wrap: wrap; }
+.group-actions input { flex: 1; min-width: 140px; }

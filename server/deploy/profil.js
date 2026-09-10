@@ -1,26 +1,26 @@
-// Kollegen.me – Profil-/Store-/Freunde-Modul (Website)
-// =====================================================
-// Ergänzt die Website um:
-//   GET  /profil             – self-contained Profil-Seite (HTML, Steam-inspiriert)
-//   GET  /store              – self-contained Kosmetik-Store (Kollegen-Points)
-//   GET  /freunde            – self-contained Freunde-Seite
-//   GET  /api/profil/me      – eigene Profil-/MC-Daten
-//   GET  /api/profil/store   – Katalog + eigener Kontostand/Owned/Equipped
-//   POST /api/profil/buy     – Kosmetik kaufen (Points abziehen)
-//   POST /api/profil/equip   – Kosmetik ausrüsten/ablegen
-//   GET  /api/profil/friends, POST /api/profil/friend-add/-remove
-//   GET  /api/profil/uuid?name=… – MC-Name → UUID Proxy
-//   POST /api/profil/save    – Profil + MC-Identität ins Backend-Bridge schreiben
-//   Admin (nur session.isAdmin):
-//   GET  /api/profil/admin/users, POST /api/profil/admin/points,
-//        /api/profil/admin/grant, /api/profil/admin/reset
-//
-// In der SPA wird die alte (React-)Toolbar ausgeblendet und durch eine
-// Steam-artige Topbar ersetzt (beide Link-Sets), mit Points-Chip, Avatar,
-// Discord/Anmelden (ausgeloggt) bzw. Abmelden (eingeloggt).
-//
-// Einbindung in server.js VOR den statischen/SPA-Fallbacks:
-//   require(path.join(__dirname, 'profil.js'))(app, getSession);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 'use strict';
 
@@ -37,8 +37,8 @@ function loadInternalSecret() {
   return '';
 }
 
-// ── Topbar (Steam-angelehnt) ────────────────────────────────────────────────
-const DISCORD_INVITE = 'https://discord.gg/P5kzdms8bx';
+
+const DISCORD_INVITE = 'https://kollegen.me/discord';
 
 const KM_TOP_CSS =
   '.km-topbar{position:sticky;top:0;z-index:9999;display:flex;align-items:center;gap:6px;width:100%;box-sizing:border-box;' +
@@ -94,7 +94,7 @@ function topBarHtml(current) {
     const hs = hideSm ? ' km-hide-sm' : '';
     return '<a class="km-link' + on + hs + '" href="' + href + '">' + label + '</a>';
   }
-  // Gruppen-Navigation: „Spielen" · „Community" · „Deine Welt"
+  
   const groups = [
     { label: 'Spielen', pages: [
       { href: '/minecraft', label: 'Minecraft' },
@@ -110,6 +110,8 @@ function topBarHtml(current) {
       { href: '/profil', label: 'Profil' },
       { href: '/store', label: 'Store' },
       { href: '/freunde', label: 'Freunde' },
+      { href: '/gruppen', label: 'Gruppen', hideSm: true },
+      { href: '/dm', label: 'Nachrichten', hideSm: true },
     ] },
   ];
   let links = '';
@@ -206,7 +208,7 @@ module.exports = function registerProfilModule(app, getSession) {
     return !!session && session.isAdmin === true;
   }
 
-  // MC-Name → UUID (Browser-Proxy)
+  
   app.get('/api/profil/uuid', async (req, res) => {
     const name = String(req.query.name || '').trim();
     if (!name || !/^[A-Za-z0-9_]{1,16}$/.test(name)) {
@@ -223,14 +225,14 @@ module.exports = function registerProfilModule(app, getSession) {
     }
   });
 
-  // Eigene Profil-/MC-Daten (über getSession aus server.js)
+  
   app.get('/api/profil/me', async (req, res) => {
     const session = (typeof getSession === 'function') ? getSession(req) : null;
     if (!session) return res.json({ user: null });
     let r = await backendInternal('GET', '/internal/user?discordId=' + encodeURIComponent(String(session.id)));
-    // Neu-Registrierung: Ein Discord-Login legt den Backend-User erst an, wenn er
-    // im Profil-Editor gespeichert wird → bis dahin 404 + keine Starter-Points.
-    // Hier legen wir den User deshalb beim ersten Zugriff automatisch an.
+    
+    
+    
     if (!r.ok && /404/.test(r.error || '')) {
       const reg = await backendInternal('POST', '/internal/profile', {
         discordId: String(session.id),
@@ -260,7 +262,7 @@ module.exports = function registerProfilModule(app, getSession) {
     });
   });
 
-  // Profil speichern (Website-Session → Backend-Bridge)
+  
   app.post('/api/profil/save', async (req, res) => {
     const session = (typeof getSession === 'function') ? getSession(req) : null;
     if (!session) return res.status(401).json({ error: 'not_authenticated' });
@@ -285,7 +287,7 @@ module.exports = function registerProfilModule(app, getSession) {
     return res.json({ ok: true });
   });
 
-  // Store: Katalog + eigener Kontostand (über discordId + Secret)
+  
   app.get('/api/profil/store', async (req, res) => {
     const session = (typeof getSession === 'function') ? getSession(req) : null;
     const q = session ? '?discordId=' + encodeURIComponent(String(session.id)) : '';
@@ -294,7 +296,7 @@ module.exports = function registerProfilModule(app, getSession) {
     return res.json(r.data);
   });
 
-  // Kosmetik kaufen
+  
   app.post('/api/profil/buy', async (req, res) => {
     const session = (typeof getSession === 'function') ? getSession(req) : null;
     if (!session) return res.status(401).json({ error: 'not_authenticated' });
@@ -309,7 +311,7 @@ module.exports = function registerProfilModule(app, getSession) {
     return res.json(r.data);
   });
 
-  // Kosmetik ausrüsten/ablegen
+  
   app.post('/api/profil/equip', async (req, res) => {
     const session = (typeof getSession === 'function') ? getSession(req) : null;
     if (!session) return res.status(401).json({ error: 'not_authenticated' });
@@ -323,7 +325,7 @@ module.exports = function registerProfilModule(app, getSession) {
     return res.json(r.data);
   });
 
-  // Freundesliste
+  
   app.get('/api/profil/friends', async (req, res) => {
     const session = (typeof getSession === 'function') ? getSession(req) : null;
     if (!session) return res.status(401).json({ error: 'not_authenticated' });
@@ -332,7 +334,7 @@ module.exports = function registerProfilModule(app, getSession) {
     return res.json(Array.isArray(r.data) ? r.data : []);
   });
 
-  // Freund per Code hinzufügen (legt eine Anfrage an, Gegner bestätigt)
+  
   app.post('/api/profil/friend-add', async (req, res) => {
     const session = (typeof getSession === 'function') ? getSession(req) : null;
     if (!session) return res.status(401).json({ error: 'not_authenticated' });
@@ -345,7 +347,7 @@ module.exports = function registerProfilModule(app, getSession) {
     return res.json(r.data);
   });
 
-  // Eingehende Freundesanfragen
+  
   app.get('/api/profil/friend-requests', async (req, res) => {
     const session = (typeof getSession === 'function') ? getSession(req) : null;
     if (!session) return res.status(401).json({ error: 'not_authenticated' });
@@ -354,7 +356,7 @@ module.exports = function registerProfilModule(app, getSession) {
     return res.json(Array.isArray(r.data) ? r.data : []);
   });
 
-  // Freundesanfrage annehmen
+  
   app.post('/api/profil/friend-accept', async (req, res) => {
     const session = (typeof getSession === 'function') ? getSession(req) : null;
     if (!session) return res.status(401).json({ error: 'not_authenticated' });
@@ -367,7 +369,7 @@ module.exports = function registerProfilModule(app, getSession) {
     return res.json(r.data);
   });
 
-  // Freundesanfrage ablehnen
+  
   app.post('/api/profil/friend-decline', async (req, res) => {
     const session = (typeof getSession === 'function') ? getSession(req) : null;
     if (!session) return res.status(401).json({ error: 'not_authenticated' });
@@ -380,7 +382,7 @@ module.exports = function registerProfilModule(app, getSession) {
     return res.json(r.data);
   });
 
-  // Freund entfernen (target = id | code | discordId)
+  
   app.post('/api/profil/friend-remove', async (req, res) => {
     const session = (typeof getSession === 'function') ? getSession(req) : null;
     if (!session) return res.status(401).json({ error: 'not_authenticated' });
@@ -393,7 +395,7 @@ module.exports = function registerProfilModule(app, getSession) {
     return res.json(r.data);
   });
 
-  // Profil eines Kollegen ansehen (öffentlich / Freund / eigene)
+  
   app.get('/api/profil/profile-view', async (req, res) => {
     const session = (typeof getSession === 'function') ? getSession(req) : null;
     const viewer = session ? String(session.id) : '';
@@ -404,7 +406,7 @@ module.exports = function registerProfilModule(app, getSession) {
     return res.json(r.data);
   });
 
-  // ── DMs (privater Chat zwischen Freunden) ──
+  
   app.get('/api/profil/dm/conversations', async (req, res) => {
     const session = (typeof getSession === 'function') ? getSession(req) : null;
     if (!session) return res.status(401).json({ error: 'not_authenticated' });
@@ -437,7 +439,92 @@ module.exports = function registerProfilModule(app, getSession) {
     return res.json(r.data);
   });
 
-  // ── Admin (nur für Admins) ──
+  // ── Gruppen-REST für Website ─────────────────────────────────────────────
+
+  app.get('/api/profil/groups', async (req, res) => {
+    const session = (typeof getSession === 'function') ? getSession(req) : null;
+    if (!session) return res.status(401).json({ error: 'not_authenticated' });
+    const r = await backendInternal('GET', '/internal/groups?discordId=' + encodeURIComponent(String(session.id)));
+    if (!r.ok) return res.status(500).json({ error: r.error });
+    return res.json(Array.isArray(r.data) ? r.data : []);
+  });
+
+  app.post('/api/profil/group/create', async (req, res) => {
+    const session = (typeof getSession === 'function') ? getSession(req) : null;
+    if (!session) return res.status(401).json({ error: 'not_authenticated' });
+    const body = req.body && typeof req.body === 'object' ? req.body : {};
+    const r = await backendInternal('POST', '/internal/group/create', {
+      discordId: String(session.id),
+      name: String(body.name || ''),
+      memberIds: Array.isArray(body.memberIds) ? body.memberIds : [],
+    });
+    if (!r.ok) return res.status(400).json({ error: r.error });
+    return res.json(r.data);
+  });
+
+  app.get('/api/profil/group/view', async (req, res) => {
+    const session = (typeof getSession === 'function') ? getSession(req) : null;
+    if (!session) return res.status(401).json({ error: 'not_authenticated' });
+    const groupId = String(req.query.groupId || '');
+    if (!groupId) return res.status(400).json({ error: 'groupId_required' });
+    const r = await backendInternal('GET', '/internal/group/view?discordId=' + encodeURIComponent(String(session.id)) + '&groupId=' + encodeURIComponent(groupId));
+    if (!r.ok) return res.status(400).json({ error: r.error });
+    return res.json(r.data);
+  });
+
+  app.get('/api/profil/group/poll', async (req, res) => {
+    const session = (typeof getSession === 'function') ? getSession(req) : null;
+    if (!session) return res.status(401).json({ error: 'not_authenticated' });
+    const groupId = String(req.query.groupId || '');
+    if (!groupId) return res.status(400).json({ error: 'groupId_required' });
+    const qs = '?discordId=' + encodeURIComponent(String(session.id))
+      + '&groupId=' + encodeURIComponent(groupId)
+      + '&sinceMsg=' + encodeURIComponent(String(req.query.sinceMsg || '0'))
+      + '&sinceSig=' + encodeURIComponent(String(req.query.sinceSig || '0'));
+    const r = await backendInternal('GET', '/internal/group/poll' + qs);
+    if (!r.ok) return res.status(500).json({ error: r.error });
+    return res.json(r.data);
+  });
+
+  app.post('/api/profil/group/send', async (req, res) => {
+    const session = (typeof getSession === 'function') ? getSession(req) : null;
+    if (!session) return res.status(401).json({ error: 'not_authenticated' });
+    const body = req.body && typeof req.body === 'object' ? req.body : {};
+    const r = await backendInternal('POST', '/internal/group/send', {
+      discordId: String(session.id),
+      groupId: String(body.groupId || ''),
+      text: String(body.text || ''),
+    });
+    if (!r.ok) return res.status(400).json({ error: r.error });
+    return res.json(r.data);
+  });
+
+  app.post('/api/profil/group/add', async (req, res) => {
+    const session = (typeof getSession === 'function') ? getSession(req) : null;
+    if (!session) return res.status(401).json({ error: 'not_authenticated' });
+    const body = req.body && typeof req.body === 'object' ? req.body : {};
+    const r = await backendInternal('POST', '/internal/group/add', {
+      discordId: String(session.id),
+      groupId: String(body.groupId || ''),
+      memberId: String(body.memberId || ''),
+    });
+    if (!r.ok) return res.status(400).json({ error: r.error });
+    return res.json(r.data);
+  });
+
+  app.post('/api/profil/group/leave', async (req, res) => {
+    const session = (typeof getSession === 'function') ? getSession(req) : null;
+    if (!session) return res.status(401).json({ error: 'not_authenticated' });
+    const body = req.body && typeof req.body === 'object' ? req.body : {};
+    const r = await backendInternal('POST', '/internal/group/leave', {
+      discordId: String(session.id),
+      groupId: String(body.groupId || ''),
+    });
+    if (!r.ok) return res.status(400).json({ error: r.error });
+    return res.json(r.data);
+  });
+
+  
   app.get('/api/profil/admin/users', async (req, res) => {
     const session = (typeof getSession === 'function') ? getSession(req) : null;
     if (!isAdmin(session)) return res.status(403).json({ error: 'forbidden' });
@@ -483,16 +570,17 @@ module.exports = function registerProfilModule(app, getSession) {
     return res.json(r.data);
   });
 
-  // ── Seiten ──
+  
   const PAGES = {
     '/profil': buildProfilPage(),
     '/store': buildStorePage(),
     '/freunde': buildFreundePage(),
     '/dm': buildDmPage(),
+    '/gruppen': buildGruppenPage(),
   };
 
-  // ── SPA: alte Toolbar ausblenden + neue Topbar injizieren ──
-  // Route-abhängig: /chat bekommt zusätzlich das Social-Widget (Freunde + DMs).
+  
+  
   const indexCache = {};
   let baseIndexHtml = null;
   function injectedIndex(route) {
@@ -507,7 +595,7 @@ module.exports = function registerProfilModule(app, getSession) {
     let html = baseIndexHtml;
     let top =
       '<style>' + KM_TOP_CSS +
-      // Alte React-Toolbar (fixed top-0 z-50) unsichtbar machen.
+      
       'nav[class*="top-0"][class*="z-50"]{display:none !important;}' +
       '</style>' +
       topBarHtml(route) +
@@ -518,7 +606,7 @@ module.exports = function registerProfilModule(app, getSession) {
     return html;
   }
 
-  // HTML-Navigationen abfangen, Assets (css/js/img) durchreichen
+  
   app.use((req, res, next) => {
     if (req.method !== 'GET') return next();
     const urlPath = (req.url || '').split('?')[0];
@@ -528,7 +616,7 @@ module.exports = function registerProfilModule(app, getSession) {
       return res.send(PAGES[urlPath]);
     }
 
-    // Öffentliche Kollegen-Profile: /u/<Code>
+    
     const um = /^\/u\/([A-Za-z0-9]{1,20})$/.exec(urlPath);
     if (um) {
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
@@ -550,7 +638,7 @@ module.exports = function registerProfilModule(app, getSession) {
   });
 };
 
-// ── Gemeinsame Basis ────────────────────────────────────────────────────────
+
 const SHARED_CSS =
   'body{background:#0a0d13;color:#f2f3f5;font-family:Inter,"Segoe UI",Arial,sans-serif;' +
   'margin:0;padding:0;display:flex;flex-direction:column;align-items:center;min-height:100vh;box-sizing:border-box;}' +
@@ -598,7 +686,7 @@ function pagePathForTitle(title) {
   return '';
 }
 
-// ── Profilseite ─────────────────────────────────────────────────────────────
+
 function buildProfilPage() {
   const css =
     '#wrap{border:1px solid rgba(255,255,255,.06);border-radius:18px;background:rgba(9,11,18,.66);' +
@@ -614,7 +702,7 @@ function buildProfilPage() {
     'border-radius:10px;padding:.45rem .7rem;font-size:.85rem;color:#e3e9f2;}' +
     '.equipItem .swatch{width:18px;height:18px;border-radius:5px;flex:none;text-align:center;line-height:18px;font-size:11px;}' +
     '.progressLabel{display:flex;justify-content:space-between;font-size:.75rem;color:#8f9aab;margin-top:.25rem;}' +
-    // Profil-Editor
+    
     '.editPreview{display:flex;align-items:center;gap:.9rem;padding:.8rem;border:1px dashed #2c3b57;border-radius:12px;' +
     'margin-top:.4rem;background:#0d1420;}' +
     '.editPreview img{width:64px;height:64px;border-radius:12px;object-fit:cover;background:#151d2b;flex:none;}' +
@@ -866,12 +954,12 @@ function buildProfilPage() {
   return pageShell('Profil', css, html);
 }
 
-// ── Store-Seite (Steam-inspiriert + Admin-Panel) ────────────────────────────
+
 function buildStorePage() {
   const css = SHARED_CSS +
     '#wrap{border:0;background:transparent;box-shadow:none;}' +
     '.storeHead{display:flex;align-items:center;gap:.8rem;flex-wrap:wrap;justify-content:space-between;}' +
-    // Showcase (Steam-Profil-Vorschau)
+    
     '.showCard{margin-top:1rem;overflow:hidden;padding:0;}' +
     '.showBanner{height:72px;background-size:cover;background-position:center;}' +
     '.showRow{display:flex;gap:1rem;align-items:center;padding:1rem 1.2rem 1.1rem;}' +
@@ -881,19 +969,19 @@ function buildStorePage() {
     '.showName{font:800 16px/1 Outfit,Inter,sans-serif;color:#ffd75f;}' +
     '.showSub{color:#9aa3af;font-size:.83rem;margin:.25rem 0 .55rem;}' +
     '.showCollTxt{display:flex;justify-content:space-between;font-size:.75rem;color:#8f9aab;margin-bottom:.25rem;}' +
-    // Filter + Sortierung
+    
     '.toolRow{display:flex;gap:.6rem;align-items:center;flex-wrap:wrap;margin:1rem 0 .3rem;}' +
     '.rarChips{display:flex;gap:.35rem;flex-wrap:wrap;}' +
     '.chip{background:#121826;border:1px solid #26334a;color:#b8c2d0;font:600 12px/1 Inter,sans-serif;' +
     'padding:6px 12px;border-radius:999px;cursor:pointer;transition:all .15s;margin:0;}' +
     '.chip.on{background:#D4AF37;border-color:#D4AF37;color:#0a0d13;}' +
     '.sortSel{width:auto;background:#0d1420;border:1px solid #2a3749;color:#b8c2d0;border-radius:9px;padding:.45rem .6rem;font-size:.82rem;}' +
-    // Tabs
+    
     '.tabs{display:flex;gap:.4rem;flex-wrap:wrap;margin:.6rem 0 .4rem;}' +
     '.tab{background:#121826;border:1px solid #26334a;color:#c6cfdb;font:600 13px/1 Inter,sans-serif;' +
     'padding:7px 14px;border-radius:999px;cursor:pointer;transition:all .15s;margin:0;}' +
     '.tab.on{background:#D4AF37;border-color:#D4AF37;color:#0a0d13;}' +
-    // Grid + Karten
+    
     '.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(176px,1fr));gap:1rem;margin-top:.9rem;}' +
     '.card{display:flex;flex-direction:column;margin:0;position:relative;transition:transform .15s,border-color .15s;cursor:pointer;}' +
     '.card:hover{transform:translateY(-3px);border-color:#3c4a63;box-shadow:0 8px 22px rgba(0,0,0,.35);}' +
@@ -917,7 +1005,7 @@ function buildStorePage() {
     '.cardDesc{color:#8f9aab;font-size:.8rem;margin:.25rem 0 .5rem;flex:1;}' +
     '.price{display:flex;align-items:center;gap:5px;color:#ffd75f;font-weight:800;}' +
     '.cardBtn{width:100%;text-align:center;margin-top:.55rem;padding:.5rem;}' +
-    // Admin
+    
     '.adminCard{border:1px dashed #6b5627;background:#15131B;}' +
     '.adminCard>div:first-child{margin-top:0;}' +
     '.adminUsers{max-height:220px;overflow:auto;border:1px solid #26344a;border-radius:10px;margin-top:.4rem;}' +
@@ -928,7 +1016,7 @@ function buildStorePage() {
     '.adminU .auPts{color:#ffd75f;font-weight:800;font-size:.8rem;}' +
     '.adminTarget{border:1px solid #2e3a52;border-radius:12px;padding:.8rem;margin-top:.6rem;background:#0d1420;}' +
     '.adminNote{color:#8f9aab;font-size:.78rem;margin-top:.5rem;}' +
-    // Modal
+    
     '.kmModal{position:fixed;inset:0;z-index:10000;background:rgba(4,6,10,.72);display:flex;align-items:center;justify-content:center;padding:1rem;}' +
     '.kmModalCard{background:#121826;border:1px solid #3a4a63;border-radius:16px;max-width:440px;width:100%;position:relative;padding:1.2rem;' +
     'box-shadow:0 18px 60px rgba(0,0,0,.6),0 0 30px rgba(212,175,55,.12);}' +
@@ -1286,7 +1374,7 @@ function buildStorePage() {
   return pageShell('Store', css, html);
 }
 
-// ── Freunde-Seite ───────────────────────────────────────────────────────────
+
 function buildFreundePage() {
   const css = SHARED_CSS +
     '#wrap{border:0;background:transparent;box-shadow:none;}' +
@@ -1454,7 +1542,7 @@ function buildFreundePage() {
   return pageShell('Freunde', css, html);
 }
 
-// ── Öffentliches Kollegen-Profil: /u/<Code> ─────────────────────────────────
+
 function buildUserPage(code) {
   const css =
     '#wrap{border:1px solid rgba(255,255,255,.06);border-radius:18px;background:var(--ubCardBg,rgba(9,11,18,.66));box-shadow:0 12px 44px rgba(0,0,0,.45);}' +
@@ -1632,7 +1720,7 @@ function buildUserPage(code) {
   return pageShell('Profil von ' + code, css, html);
 }
 
-// ── Nachrichten (DMs): /dm ───────────────────────────────────────────────────
+
 function buildDmPage() {
   const css =
     '#wrap{border:0;background:transparent;box-shadow:none;}' +
@@ -1785,7 +1873,193 @@ function buildDmPage() {
   return pageShell('Nachrichten', css, html);
 }
 
-// ── Chat-Widget für die SPA (/chat): Freunde & DMs ──────────────────────────
+function buildGruppenPage() {
+  const css =
+    '#wrap{border:0;background:transparent;box-shadow:none;}' +
+    '.gpCols{display:grid;grid-template-columns:300px 1fr;gap:1rem;align-items:start;margin-top:.6rem;}' +
+    '@media(max-width:760px){.gpCols{grid-template-columns:1fr;}}' +
+    '.convCard{padding:0;overflow:hidden;}' +
+    '.convHead{padding:.8rem 1rem;border-bottom:1px solid #1c2636;font-weight:800;color:#ffd75f;}' +
+    '.conv{padding:.6rem .9rem;border-bottom:1px solid #141c2a;cursor:pointer;display:flex;gap:.7rem;align-items:center;transition:background .15s;}' +
+    '.conv:hover{background:#16203a;}' +
+    '.conv.on{background:#1c2740;}' +
+    '.convAv{width:40px;height:40px;border-radius:10px;flex:none;display:flex;align-items:center;justify-content:center;font-size:18px;background:#2a3140;}' +
+    '.convInfo{flex:1;min-width:0;}' +
+    '.convName{font-weight:700;font-size:.9rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}' +
+    '.convLast{color:#8f9aab;font-size:.75rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;}' +
+    '.dmMsgs{display:flex;flex-direction:column;gap:.5rem;padding:1rem;max-height:420px;overflow-y:auto;min-height:260px;}' +
+    '.dmB{max-width:75%;padding:.6rem .9rem;border-radius:14px;font-size:.9rem;line-height:1.45;word-break:break-word;}' +
+    '.dmB.me{background:linear-gradient(135deg,#D4AF37,#b8860b);color:#0a0d13;align-self:flex-end;border-bottom-right-radius:4px;}' +
+    '.dmB.oth{background:#1c2740;color:#e3e9f2;align-self:flex-start;border-bottom-left-radius:4px;}' +
+    '.dmT{font-size:.7rem;color:#8f9aab;margin:.35rem 0 0;text-align:right;}' +
+    '.dmInput{display:flex;gap:.5rem;padding:.8rem;border-top:1px solid #141c2a;}' +
+    '.dmInput input{flex:1;width:auto;}' +
+    '.dmInput button{margin:0;}' +
+    '.dmEmpty{text-align:center;color:#8f9aab;padding:2.5rem 1rem;}' +
+    '.gmRow{display:flex;flex-wrap:wrap;gap:.4rem;padding:.8rem 1rem;border-bottom:1px solid #141c2a;}' +
+    '.gmChip{padding:.2rem .55rem;border-radius:999px;background:#1c2740;border:1px solid #26334a;font-size:.75rem;color:#e0e7f2;}' +
+    '.gpAdd{display:flex;gap:.5rem;padding:.8rem 1rem;border-top:1px solid #141c2a;}' +
+    '.gpAdd input{flex:1;width:auto;}';
+
+  const html =
+    '<div id="wrap">' +
+    '<h1>Gruppen</h1>' +
+    '<div class="sub">Gemeinsame Chats f\u00fcr dich und deine Freunde\u2026</div>' +
+    '<div class="card loginCard" id="loginCard">' +
+    '<p style="margin:0 0 .4rem;">Melde dich mit Discord an, um Gruppen zu erstellen und zu nutzen.</p>' +
+    '<a href="/api/auth/discord/login"><button type="button">Mit Discord anmelden</button></a>' +
+    '</div>' +
+    '<div class="gpCols" id="gpCols" style="display:none;">' +
+    '<div class="card convCard">' +
+    '<div class="convHead">Meine Gruppen</div>' +
+    '<div style="padding:.8rem 1rem;border-bottom:1px solid #141c2a;">' +
+    '<div class="muted" style="margin-bottom:.35rem;">Neue Gruppe</div>' +
+    '<div class="gpAdd" style="padding:0;">' +
+    '<input id="gpName" placeholder="Gruppenname" maxlength="60"/>' +
+    '<button type="button" id="gpCreate">Erstellen</button>' +
+    '</div></div>' +
+    '<div id="convList"><div class="dmEmpty">Keine Gruppen.</div></div>' +
+    '</div>' +
+    '<div class="card" id="threadCard">' +
+    '<div class="convHead" id="thName">W\u00e4hle eine Gruppe</div>' +
+    '<div class="gmRow" id="thMembers"><span class="muted">Keine Mitglieder.</span></div>' +
+    '<div class="dmMsgs" id="dmMsgs"><div class="dmEmpty">Noch keine Gruppe ausgew\u00e4hlt. \u00d6ffne rechts eine Gruppe oder erstelle eine neue.</div></div>' +
+    '<div class="dmInput" id="dmInputBox" style="display:none;">' +
+    '<input id="dmText" placeholder="Nachricht \u2026" maxlength="2000"/>' +
+    '<button type="button" id="dmSend">Senden</button>' +
+    '</div>' +
+    '<div class="gpAdd">' +
+    '<input id="gpCode" placeholder="Freundes-Code hinzuf\u00fcgen" style="text-transform:uppercase;"/>' +
+    '<button type="button" id="gpAddBtn">Hinzuf\u00fcgen</button>' +
+    '<button type="button" id="gpLeave">Verlassen</button>' +
+    '</div>' +
+    '</div>' +
+    '</div>' +
+    '</div>' +
+    '<script>' + KM_TOP_SCRIPT +
+    '(function(){' +
+    'function $(i){return document.getElementById(i);}' +
+    'function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}' +
+    'var meDid="",current=null,sinceMsg=0,pollTimer=null,meName="";' +
+    'function tstr(ts){if(!ts)return "";var d=new Date(ts);' +
+    'var pad=function(n){return((""+n).length<2?"0"+n:""+n);};' +
+    'return pad(d.getHours())+":"+pad(d.getMinutes());}' +
+    'fetch("/api/auth/me").then(function(r){return r.json();}).then(function(j){' +
+    'if(!j||!j.user){$("loginCard").style.display="block";return;}' +
+    'meDid=String(j.user.id);meName=j.user.global_name||j.user.username||"Du";' +
+    '$("gpCols").style.display="grid";' +
+    'loadGroups();' +
+    '}).catch(function(){ $("loginCard").style.display="block"; });' +
+    'function loadGroups(){' +
+    'fetch("/api/profil/groups").then(function(r){return r.json();}).then(function(list){' +
+    'var wrap=$("convList");wrap.innerHTML="";' +
+    'if(!list||!list.length){wrap.innerHTML="<div class=\\"dmEmpty\\">Noch keine Gruppen. Erstelle die erste!</div>";return;}' +
+    'list.forEach(function(g){' +
+    'var row=document.createElement("div");row.className="conv";' +
+    'if(current&&current===g.id)row.className+=" on";' +
+    'var av=document.createElement("div");av.className="convAv";av.textContent="\uD83D\uDC65";' +
+    'var ui=document.createElement("div");ui.className="convInfo";' +
+    'var nm=document.createElement("div");nm.className="convName";nm.textContent=g.name||"Gruppe";' +
+    'var last=document.createElement("div");last.className="convLast";' +
+    'var l=g.last||{};' +
+    'last.textContent=(l.text?(l.text):"Noch keine Nachrichten")+" \u00b7 "+g.memberCount+" Mitglieder";' +
+    'ui.append(nm,last);' +
+    'row.append(av,ui);' +
+    'row.addEventListener("click",function(){openGroup(g.id);});' +
+    'wrap.append(row);' +
+    '});' +
+    '}).catch(function(){});' +
+    '}' +
+    '$("gpCreate").addEventListener("click",createGroup);' +
+    '$("gpName").addEventListener("keydown",function(e){if(e.key==="Enter")createGroup();});' +
+    'function createGroup(){' +
+    'var n=$("gpName").value.trim();' +
+    'if(!n)return;' +
+    '$("gpName").value="";' +
+    'fetch("/api/profil/group/create",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:n})})' +
+    '.then(function(r){return r.json();}).then(function(j){' +
+    'if(j&&j.data&&j.data.id){loadGroups();openGroup(j.data.id);}' +
+    'else{alert("Fehler: "+((j&&j.error)||"?"));}})' +
+    '.catch(function(){alert("Netzwerkfehler");});' +
+    '}' +
+    'function openGroup(id){' +
+    'current=id;sinceMsg=0;' +
+    '$("dmMsgs").innerHTML="<div class=\\"dmEmpty\\">Lade Gruppe\u2026</div>";' +
+    'fetch("/api/profil/group/view?groupId="+encodeURIComponent(id)).then(function(r){return r.json();}).then(function(v){' +
+    'if(!v){return;}' +
+    '$("thName").textContent=v.name||"Gruppe";' +
+    'var mb=$("thMembers");mb.innerHTML="";' +
+    '(v.members||[]).forEach(function(mm){' +
+    'var c=document.createElement("span");c.className="gmChip";c.textContent=mm.name||("User "+mm.id);mb.append(c);});' +
+    'var q=document.querySelectorAll(".conv.on");for(var i=0;i<q.length;i++)q[i].classList.remove("on");' +
+    'loadGroups();' +
+    '$("dmInputBox").style.display="flex";' +
+    'loadMsgs();' +
+    'if(pollTimer)clearInterval(pollTimer);' +
+    'pollTimer=setInterval(function(){if(current)loadMsgs(true);},4000);' +
+    '}).catch(function(){});' +
+    '}' +
+    'function loadMsgs(silent){' +
+    'if(!current)return;' +
+    'fetch("/api/profil/group/poll?groupId="+encodeURIComponent(current)+"&sinceMsg="+sinceMsg+"&sinceSig=0").then(function(r){return r.json();}).then(function(j){' +
+    'var pb=$("dmMsgs");' +
+    'var had=pb.querySelector(".dmB");' +
+    'var wasBottom=!had||(pb.scrollHeight-pb.scrollTop-pb.clientHeight<60);' +
+    'var msgs=(j&&j.messages)||[];' +
+    'msgs.forEach(function(m){' +
+    'if(m.ts>sinceMsg)sinceMsg=m.ts;' +
+    'var d=document.createElement("div");d.className="dmB "+(m.from===meDid?"me":"oth");' +
+    'd.textContent=(m.from===meDid?"Du: ":(m.fromName?m.fromName+": ":""))+m.text;' +
+    'var t=document.createElement("div");t.className="dmT";t.textContent=tstr(m.ts);' +
+    'var w=document.createElement("div");' +
+    'w.append(d,t);' +
+    'pb.append(w);' +
+    '});' +
+    'if(!msgs.length&&!pb.querySelector(".dmB")){pb.innerHTML="<div class=\\"dmEmpty\\">Noch keine Nachrichten. Starte den Chat!</div>";}' +
+    'if((!silent&&msgs.length)||wasBottom&&msgs.length)pb.scrollTop=pb.scrollHeight;' +
+    '}).catch(function(){});' +
+    '}' +
+    '$("dmSend").addEventListener("click",send);' +
+    '$("dmText").addEventListener("keydown",function(e){if(e.key==="Enter")send();});' +
+    'function send(){' +
+    'var t=$("dmText").value.trim();' +
+    'if(!t||!current)return;' +
+    '$("dmText").value="";' +
+    'fetch("/api/profil/group/send",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({groupId:current,text:t})})' +
+    '.then(function(r){return r.json();}).then(function(j){if(!j||!j.ok){$("dmText").value=t;alert("Fehler: "+((j&&j.error)||"?"));}else{loadMsgs();loadGroups();}})' +
+    '.catch(function(){$("dmText").value=t;alert("Netzwerkfehler");});' +
+    '}' +
+    '$("gpAddBtn").addEventListener("click",addMember);' +
+    '$("gpCode").addEventListener("keydown",function(e){if(e.key==="Enter")addMember();});' +
+    'function addMember(){' +
+    'var code=$("gpCode").value.trim().toUpperCase();' +
+    'if(!code||!current)return;' +
+    'fetch("/api/profil/profile-view?code="+encodeURIComponent(code)).then(function(r){return r.json();}).then(function(p){' +
+    'var mid=p&&p.discordId?p.discordId:code;' +
+    'fetch("/api/profil/group/add",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({groupId:current,memberId:mid})})' +
+    '.then(function(r){return r.json();}).then(function(j){if(j&&j.ok){$("gpCode").value="";openGroup(current);}else{alert("Fehler: "+((j&&j.error)||"?"));}})' +
+    '.catch(function(){alert("Netzwerkfehler");});' +
+    '}).catch(function(){if(current)openGroup(current);});' +
+    '}' +
+    '$("gpLeave").addEventListener("click",function(){' +
+    'if(!current)return;' +
+    'fetch("/api/profil/group/leave",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({groupId:current})})' +
+    '.then(function(r){return r.json();}).then(function(){' +
+    'if(pollTimer)clearInterval(pollTimer);pollTimer=null;' +
+    'current=null;$("dmInputBox").style.display="none";' +
+    '$("dmMsgs").innerHTML="<div class=\\"dmEmpty\\">Noch keine Gruppe ausgew\u00e4hlt.</div>";' +
+    '$("thName").textContent="W\u00e4hle eine Gruppe";$("thMembers").innerHTML="<span class=\\"muted\\">Keine Mitglieder.</span>";' +
+    'loadGroups();' +
+    '}).catch(function(){});' +
+    '});' +
+    'window.addEventListener("beforeunload",function(){if(pollTimer)clearInterval(pollTimer);});' +
+    '})();' +
+    '</script>';
+
+  return pageShell('Gruppen', css, html);
+}
+
+
 const CHAT_WIDGET_HTML =
   '<div id="kmSocial">' +
   '<style>' +

@@ -1,6 +1,9 @@
 kollegen.me {
   encode gzip
 
+  # Discord invite shortcut
+  redir /discord* https://discord.gg/P5kzdms8bx permanent
+
   # Reverse-proxy all API endpoints to the local Node backend
   reverse_proxy /health* 127.0.0.1:8080
   reverse_proxy /auth* 127.0.0.1:8080
@@ -9,6 +12,10 @@ kollegen.me {
   reverse_proxy /profile* 127.0.0.1:8080
   reverse_proxy /presence* 127.0.0.1:8080
   reverse_proxy /profiles* 127.0.0.1:8080
+  reverse_proxy /dm* 127.0.0.1:8080
+  reverse_proxy /groups* 127.0.0.1:8080
+  reverse_proxy /group* 127.0.0.1:8080
+  reverse_proxy /call* 127.0.0.1:8080
 
   # Fallback: the public website (React-SPA) on port 3001.
   reverse_proxy 127.0.0.1:3001

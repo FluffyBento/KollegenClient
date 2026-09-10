@@ -148,6 +148,14 @@
         </div>
         <ul id="kollegenFriends" class="friend-list"></ul>
 
+        <h3 class="socials-subhead">Gruppen</h3>
+        <p class="socials-hint">Erstelle eine Gruppe, um zusammen zu chatten oder anzurufen.</p>
+        <div class="add-friend">
+          <input id="groupNameInput" placeholder="Gruppenname" autocomplete="off" maxlength="60" />
+          <button id="groupCreateBtn">Erstellen</button>
+        </div>
+        <ul id="kollegenGroups" class="friend-list"><li style="color:#888;">Lade Gruppen…</li></ul>
+
         <h3 class="socials-subhead">Store</h3>
         <p class="socials-hint">Kollegen-Points einlösen: Kosmetik kaufen und an deinem Profil ausrüsten.</p>
         <div class="store-wallet" id="storeWallet" style="display:none;">
@@ -362,7 +370,12 @@
           <div class="dm-thread-head" id="dmThreadHead">
             <img id="dmThAv" alt="" style="display:none;" />
             <span id="dmThName">Konversation wählen</span>
+            <button id="dmCallBtn" class="small-btn" title="Anrufen" style="display:none;"><span>📶</span> Anrufen</button>
             <a id="dmThProf" href="#" style="display:none;">Profil</a>
+          </div>
+          <div id="dmCallBar" class="dm-callbar" style="display:none;">
+            <span id="dmCallState">Anruf wird aufgebaut…</span>
+            <button id="dmCallEnd" class="small-btn">Auflegen</button>
           </div>
           <div id="dmMsgList" class="dm-msgs"><div class="dm-empty">Wähle links einen Chat oder öffne einen Freundes-Code.</div></div>
           <div class="dm-input" id="dmInputBox" style="display:none;">
@@ -370,6 +383,29 @@
             <button id="dmSend">Senden</button>
           </div>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="groupModal" class="modal" style="display:none;">
+    <div class="modal-content dm-modal">
+      <button id="groupClose" class="icon-btn" title="Schließen">✕</button>
+      <h2 id="groupTitle" style="margin-top:0;">Gruppe</h2>
+      <div id="groupMembers" class="group-members"></div>
+      <div id="groupMsgList" class="dm-msgs"><div class="dm-empty">Noch keine Nachrichten.</div></div>
+      <div class="dm-input" id="groupInputBox" style="display:none;">
+        <input id="groupText" placeholder="Nachricht …" maxlength="2000" autocomplete="off" />
+        <button id="groupSend">Senden</button>
+      </div>
+      <div id="groupCallBar" class="dm-callbar" style="display:none;">
+        <span id="groupCallState">Gruppenanruf wird aufgebaut…</span>
+        <button id="groupCallEnd" class="small-btn">Auflegen</button>
+      </div>
+      <div class="group-actions">
+        <input id="groupAddCode" placeholder="Freundes-Code hinzufügen" autocomplete="off" maxlength="10" />
+        <button id="groupAddBtn">Hinzufügen</button>
+        <button id="groupCallBtn">Anrufen</button>
+        <button id="groupLeaveBtn">Verlassen</button>
       </div>
     </div>
   </div>

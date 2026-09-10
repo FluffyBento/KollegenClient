@@ -1,39 +1,6 @@
 'use strict';
 
-/**
- * Kollegen-Client Backend
- * =======================
- * Server für das Freundes-System und die Badges (Icon links neben dem Namen,
- * wie bei Feather/Essential/Tier-Tag). Reines Node.js (keine externen
- * Abhängigkeiten, kein `npm install`) – läuft mit `node index.js`.
- *
- * Erwartet (via Umgebung):
- *   PORT                 (default 8080)
- *   KOLLEGEN_DATA_DIR     Verzeichnis für store.json (default: ./data)
- *   PRESENCE_TTL_MS       Gültigkeit einer Presence in ms (default 90000)
- *   REQUIRE_HTTPS_NOTE    nur ein Hinweis – der Betreiber sollte HTTPS
- *                         (z. B. Caddy/Reverse-Proxy) davor setzen, damit das
- *                         Discord-Token nicht im Klartext übertragen wird.
- *
- * API-Vertrag (vom Launcher/Mod aufgerufen):
- *   POST   /auth              {discord_token, profile?}      -> {token}
- *   GET    /me                (Bearer)                       -> {id,name,uuid,code,accounts}
- *   GET    /friends           (Bearer)                       -> [{id,name,uuid,code,server,online}]
- *   POST   /friends           (Bearer) {code|target_id}      -> {ok} | {error}
- *   DELETE /friends           (Bearer) {target_id}           -> {ok} | {error}
- *   POST   /profile           (Bearer) {uuid,name,accounts?} -> {ok}
- *   PUT    /presence          (Bearer) {server,name,timestamp}
- *   DELETE /presence          (Bearer)
- *   GET    /presence?server=  (öffentlich)                   -> [name, ...]
- *   GET    /health
- *   GET    /store                (optional Bearer)        -> {catalog, points?, equipped?}
- *   POST   /store/buy            (Bearer) {item_id}       -> {ok, points, equipped}
- *   POST   /store/equip          (Bearer) {item_id|category}
- *   Interne Bridge (Header X-Kollegen-Internal):
- *   GET    /internal/user, /internal/friends
- *   POST   /internal/profile, /internal/store-buy,
- *          /internal/store-equip, /internal/friend-add, /internal/friend-remove
- */
+
 
 const http = require('http');
 const crypto = require('crypto');
@@ -46,50 +13,50 @@ const DATA_DIR = process.env.KOLLEGEN_DATA_DIR || path.join(__dirname, 'data');
 const PRESENCE_TTL_MS = parseInt(process.env.PRESENCE_TTL_MS || '90000', 10);
 const STORE_FILE = path.join(DATA_DIR, 'store.json');
 
-// ── Kollegen-Points & Cosmetics (Steam-inspiriert) ─────────────────────────
-// Startguthaben für neue Nutzer. Das Guthaben ist die "custom currency"
-// (Kollegen-Points). Ein späterer Tausch (redeem) ist eingeplant – der
-// Gesamtverdienst steckt in points_total und wird schon jetzt getrackt.
+
+
+
+
 const START_POINTS = 250;
 
-// Kosmetik-Katalog. Kategorien: title, avatar_frame, avatar_theme, badge.
+
 const CATALOG = [
-  // Titel (werden vor dem Namen angezeigt)
+  
   { id: 'title_erkunder', category: 'title', name: 'Erkunder', desc: 'Zeig deinen Entdeckermut.', price: 120, rarity: 'common', data: { text: 'Erkunder' } },
   { id: 'title_veteran', category: 'title', name: 'Veteran', desc: 'Viele Stunden im Nether überlebt.', price: 450, rarity: 'rare', data: { text: 'Veteran' } },
   { id: 'title_champion', category: 'title', name: 'Champion', desc: 'Unbesiegt in deiner Arena.', price: 900, rarity: 'epic', data: { text: 'Champion' } },
   { id: 'title_legende', category: 'title', name: 'Legende', desc: 'Eine Legende unter den Kollegen.', price: 1600, rarity: 'legendary', featured: true, data: { text: 'Legende' } },
-  // Avatar-Rahmen
+  
   { id: 'frame_bronze', category: 'avatar_frame', name: 'Bronzen', desc: 'Bronzefarbener Avatar-Rahmen.', price: 200, rarity: 'common', data: { color1: '#cd7f32', color2: '#7a5630' } },
   { id: 'frame_silber', category: 'avatar_frame', name: 'Silbern', desc: 'Silberner Avatar-Rahmen.', price: 500, rarity: 'rare', data: { color1: '#c0c0c0', color2: '#7f7f8a' } },
   { id: 'frame_gold', category: 'avatar_frame', name: 'Golden', desc: 'Goldener Avatar-Rahmen.', price: 1000, rarity: 'epic', data: { color1: '#ffd700', color2: '#b8860b' } },
   { id: 'frame_regenbogen', category: 'avatar_frame', name: 'Regenbogen', desc: 'Schimmernder Regenbogen-Rahmen.', price: 2500, rarity: 'legendary', featured: true, data: { color1: '#ff6b6b', color2: '#6b5bff' } },
-  // Avatar-Hintergrund (Theme)
+  
   { id: 'theme_nebel', category: 'avatar_theme', name: 'Nebel', desc: 'Ruhiger Nebel-Hintergrund.', price: 250, rarity: 'common', data: { gradient: 'linear-gradient(135deg,#3a4a6b,#1c1c28)' } },
   { id: 'theme_lava', category: 'avatar_theme', name: 'Lava', desc: 'Glühende Lava.', price: 600, rarity: 'rare', data: { gradient: 'linear-gradient(135deg,#ff8c00,#3a1212)' } },
   { id: 'theme_galaxie', category: 'avatar_theme', name: 'Galaxie', desc: 'Jenseits aller Welten.', price: 1200, rarity: 'epic', data: { gradient: 'linear-gradient(135deg,#2b1055,#7597de)' } },
   { id: 'theme_nether', category: 'avatar_theme', name: 'Nether', desc: 'Trotz der Hitze des Nethers.', price: 2000, rarity: 'legendary', data: { gradient: 'linear-gradient(135deg,#4a0e0e,#c92020)' } },
-  // Badges (werden neben dem Namen angezeigt)
+  
   { id: 'badge_stein', category: 'badge', name: 'Stein-Abzeichen', desc: 'Felsenfest im Kollegenkreis.', price: 100, rarity: 'common', data: { icon: '●', color: '#9aa5b1' } },
   { id: 'badge_diamant', category: 'badge', name: 'Diamant-Abzeichen', desc: 'Wertvoll wie ein Diamant.', price: 350, rarity: 'rare', data: { icon: '◆', color: '#4deeea' } },
   { id: 'badge_netherit', category: 'badge', name: 'Netherit-Abzeichen', desc: 'Unzerstörbar und dunkel.', price: 700, rarity: 'epic', data: { icon: '⬢', color: '#d4c9c0' } },
   { id: 'badge_drache', category: 'badge', name: 'Enderdrache-Abzeichen', desc: 'Bezwing den Drachen.', price: 1200, rarity: 'legendary', data: { icon: '★', color: '#c77dff' } },
-  // Profil-Rahmen (um deine Profil-Karte, Steam-style)
+  
   { id: 'pframe_emerald', category: 'profile_frame', name: 'Smaragd-Rahmen', desc: 'Grüner Glanz um dein Profil.', price: 500, rarity: 'rare', data: { color1: '#2ea043', color2: '#0f6b32' } },
   { id: 'pframe_ruby', category: 'profile_frame', name: 'Rubin-Rahmen', desc: 'Edler roter Rahmen.', price: 900, rarity: 'epic', data: { color1: '#f85149', color2: '#a32127' } },
   { id: 'pframe_royal', category: 'profile_frame', name: 'Königsblau-Rahmen', desc: 'Royal blau strahlend.', price: 1400, rarity: 'epic', data: { color1: '#3b82f6', color2: '#1e3a8a' } },
   { id: 'pframe_onyx', category: 'profile_frame', name: 'Onyx-Gold-Rahmen', desc: 'Schwarz mit Gold-Akzenten.', price: 2200, rarity: 'legendary', data: { color1: '#e6c96b', color2: '#374151' } },
-  // Profil-Hintergrund (Seiten-Hintergrund deiner Profilseite)
+  
   { id: 'pbg_dusk', category: 'profile_bg', name: 'Zwielicht', desc: 'Ruhiges, dunkles Dämmerlicht.', price: 300, rarity: 'common', data: { gradient: 'linear-gradient(135deg,#1a1b2e,#0b0d14)' } },
   { id: 'pbg_lava', category: 'profile_bg', name: 'Lavastrom', desc: 'Glühende Lava unter deinem Profil.', price: 700, rarity: 'rare', data: { gradient: 'linear-gradient(135deg,#7a2200,#120404)' } },
   { id: 'pbg_aurora', category: 'profile_bg', name: 'Aurora', desc: 'Polarlichter über dunkler See.', price: 1400, rarity: 'epic', data: { gradient: 'linear-gradient(135deg,#0f2027,#203a43,#2c5364)' } },
   { id: 'pbg_ender', category: 'profile_bg', name: 'Das Ende', desc: 'Würde dem Enderdrachen gefallen.', price: 2400, rarity: 'legendary', featured: true, data: { gradient: 'linear-gradient(135deg,#0f0c29,#302b63,#24243e)' } },
-  // Profil-Banner (Zierleiste oben auf der Profilseite, Steam-style)
+  
   { id: 'banner_dawn', category: 'banner', name: 'Morgenröte', desc: 'Warme Töne für deinen Banner.', price: 400, rarity: 'common', data: { gradient: 'linear-gradient(135deg,#f6d365,#fda085)' } },
   { id: 'banner_ember', category: 'banner', name: 'Glut', desc: 'Feuer und Gold.', price: 800, rarity: 'rare', data: { gradient: 'linear-gradient(135deg,#f12711,#f5af19)' } },
   { id: 'banner_ocean', category: 'banner', name: 'Ozean', desc: 'Blau wie die offene See.', price: 1500, rarity: 'epic', data: { gradient: 'linear-gradient(135deg,#2193b0,#6dd5ed)' } },
   { id: 'banner_onyx', category: 'banner', name: 'Onyx Gold', desc: 'Elegant, dunkel, teuer.', price: 2400, rarity: 'legendary', featured: true, data: { gradient: 'linear-gradient(135deg,#232526,#414345,#b8860b)' } },
-  // Profil-Stil (Akzentfarbe + Typografie deiner Profilseite)
+  
   { id: 'stil_klassisch', category: 'profil_stil', name: 'Klassisch Gold', desc: 'Warme Gold-Akzente, seri\u00f6s.', price: 350, rarity: 'common', data: { accent: '#D4AF37', font: 'Outfit' } },
   { id: 'stil_cyan', category: 'profil_stil', name: 'Eisblau', desc: 'Klare Cyan-Akzente mit Tech-Feeling.', price: 500, rarity: 'rare', data: { accent: '#4deeea', font: 'Inter' } },
   { id: 'stil_aura', category: 'profil_stil', name: 'Aura', desc: 'Sanftes Lila f\u00fcr mystische Profile.', price: 600, rarity: 'rare', data: { accent: '#c77dff', font: 'Outfit' } },
@@ -97,19 +64,19 @@ const CATALOG = [
   { id: 'stil_gluth', category: 'profil_stil', name: 'Glut', desc: 'Feuriges Rot \u2013 hei\u00df und selbstbewusst.', price: 800, rarity: 'epic', data: { accent: '#f85149', font: 'Inter' } },
   { id: 'stil_ozean', category: 'profil_stil', name: 'Ozean', desc: 'K\u00f6nigsblau mit Tiefe.', price: 1000, rarity: 'epic', data: { accent: '#3b82f6', font: 'Outfit' } },
   { id: 'stil_onyx', category: 'profil_stil', name: 'Onyx Schwarzgold', desc: 'Dunkel mit edlem Gold-Glanz.', price: 2200, rarity: 'legendary', featured: true, data: { accent: '#e6c96b', font: 'Outfit' } },
-  // Namensfarbe (Farbe deines Profilnamens)
+  
   { id: 'name_bernstein', category: 'name_color', name: 'Bernstein', desc: 'Warm wie Bernstein.', price: 150, rarity: 'common', data: { accent: '#ffb454' } },
   { id: 'name_karmesin', category: 'name_color', name: 'Karmesin', desc: 'Feuriges Rot für deinen Namen.', price: 400, rarity: 'rare', data: { accent: '#ff5f56' } },
   { id: 'name_tuerkis', category: 'name_color', name: 'Türkis', desc: 'Frisch wie eine Lagune.', price: 700, rarity: 'epic', data: { accent: '#39d7ff' } },
   { id: 'name_violett', category: 'name_color', name: 'Neonviolett', desc: 'Kräftiges Violett mit Glow.', price: 1400, rarity: 'epic', data: { accent: '#c77dff' } },
   { id: 'name_onyxgold', category: 'name_color', name: 'Onyxgold', desc: 'Schwarz und Gold für den Namen.', price: 2200, rarity: 'legendary', featured: true, data: { accent: '#e6c96b' } },
-  // Sticker (Aufkleber neben dem Namen)
+  
   { id: 'sticker_herz', category: 'sticker', name: 'Herz-Sticker', desc: 'Zeig deine Zuneigung.', price: 120, rarity: 'common', data: { icon: '❤', color: '#ff6b6b' } },
   { id: 'sticker_glueck', category: 'sticker', name: 'Glücksklee', desc: 'Grün wie Freude.', price: 350, rarity: 'rare', data: { icon: '🍀', color: '#7ee787' } },
   { id: 'sticker_stern', category: 'sticker', name: 'Goldstern', desc: 'Strahl wie ein Star.', price: 650, rarity: 'epic', data: { icon: '⭐', color: '#ffd700' } },
   { id: 'sticker_blitz', category: 'sticker', name: 'Blitz', desc: 'Schnell und elektrisierend.', price: 800, rarity: 'epic', data: { icon: '⚡', color: '#ffd23f' } },
   { id: 'sticker_drache', category: 'sticker', name: 'Drachen-Sticker', desc: 'Der Enderdrache grüßt.', price: 1200, rarity: 'legendary', data: { icon: '🐉', color: '#c77dff' } },
-  // Font (Schriftart des Profilnamens)
+  
   { id: 'font_rund', category: 'font', name: 'Rund und freundlich', desc: 'Weiche, freundliche Schrift.', price: 100, rarity: 'common', data: { font: '"Verdana","Segoe UI",sans-serif' } },
   { id: 'font_serif', category: 'font', name: 'Klassische Buchstaben', desc: 'Serifen für die Ewigkeit.', price: 250, rarity: 'rare', data: { font: '"Georgia","Times New Roman",serif' } },
   { id: 'font_typewriter', category: 'font', name: 'Typewriter', desc: 'Wie auf einer Schreibmaschine.', price: 600, rarity: 'epic', data: { font: '"Courier New",monospace' } },
@@ -137,7 +104,7 @@ function levelOf(u) {
   return 1 + Math.floor(t / 300);
 }
 
-// Volles Sozial-Bild eines Users (Punkte, Kosmetik, Equip, Presence).
+
 function socialView(u) {
   ensureUserExtras(u);
   const p = store.presence[u.discordId];
@@ -159,8 +126,8 @@ function socialView(u) {
   };
 }
 
-// ── Persistenz ────────────────────────────────────────────────────────────
-let store = { users: {}, sessions: {}, codes: {}, presence: {}, dms: {}, seq: 1, catalog: CATALOG };
+
+let store = { users: {}, sessions: {}, codes: {}, presence: {}, dms: {}, groups: {}, calls: {}, seq: 1, catalog: CATALOG };
 let saveTimer = null;
 
 function loadStore() {
@@ -173,9 +140,9 @@ function loadStore() {
   } catch (e) {
     console.error('Konnte store.json nicht laden:', e.message);
   }
-  // Migration: neue Felder (Punkte/Kosmetik) für Bestandsnutzer ergänzen.
-  // Katalog-Seed: neue Items per id in den bereits persistierten Katalog mergen,
-  // damit Katalog-Erweiterungen auch bei Bestandesinstallationen ankommen.
+  
+  
+  
   const curCat = Array.isArray(store.catalog) ? store.catalog : [];
   const byId = {};
   for (const c of curCat) if (c && c.id) byId[c.id] = c;
@@ -202,7 +169,7 @@ function saveStore() {
 
 loadStore();
 
-// ── Hilfsfunktionen ─────────────────────────────────────────────────────────
+
 function sendJson(res, status, obj) {
   const body = JSON.stringify(obj);
   res.writeHead(status, {
@@ -247,7 +214,7 @@ function genCode() {
   return code;
 }
 
-// User robust auflösen: per discordId, numerischer id oder Freundes-Code.
+
 function resolveUser(x) {
   if (!x) return null;
   const s = String(x);
@@ -276,7 +243,7 @@ function publicFriend(u) {
     online,
     level: levelOf(u),
     equipped: equippedData,
-    // Profil-Zusammenfassung (nur für Freunde sichtbar, egal ob public).
+    
     profile:
       u.profile && typeof u.profile === 'object'
         ? {
@@ -290,9 +257,9 @@ function publicFriend(u) {
   };
 }
 
-// ── Freundesanfragen (Anfrage → Annehmen/Ablehnen) ──────────────────────────
+
 function addFriendByCode(me, target) {
-  // Liefert {ok:true, already:true} | {ok:true, accepted:true} | {ok:true, pending:true}
+  
   me.friends = me.friends || [];
   target.friends = target.friends || [];
   target.friend_requests = target.friend_requests || [];
@@ -347,7 +314,7 @@ function incomingRequests(user) {
   return out;
 }
 
-// ── Discord-Token validieren ─────────────────────────────────────────────────
+
 async function verifyDiscordToken(discordToken) {
   if (!discordToken) return null;
   try {
@@ -361,7 +328,7 @@ async function verifyDiscordToken(discordToken) {
   }
 }
 
-// ── Routing ────────────────────────────────────────────────────────────────
+
 const server = http.createServer(async (req, res) => {
   if (req.method === 'OPTIONS') return sendJson(res, 204, {});
 
@@ -370,12 +337,12 @@ const server = http.createServer(async (req, res) => {
   const method = req.method;
 
   try {
-    // ── Health ──
+    
     if (pathname === '/health' && method === 'GET') {
       return sendJson(res, 200, { ok: true });
     }
 
-    // ── Auth (Discord-Token -> Session) ──
+    
     if (pathname === '/auth' && method === 'POST') {
       const body = await readBody(req);
       const discord = await verifyDiscordToken(body.discord_token);
@@ -413,7 +380,7 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 200, { token });
     }
 
-    // ── Profil registrieren/aktualisieren ──
+    
     if (pathname === '/profile' && method === 'POST') {
       const user = bearerUser(req);
       if (!user) return sendJson(res, 401, { error: 'not_authenticated' });
@@ -422,7 +389,7 @@ const server = http.createServer(async (req, res) => {
       if (body.name) user.name = String(body.name);
       if (Array.isArray(body.accounts)) user.accounts = body.accounts;
 
-      // Optional: profile customizations for public profile directory
+      
       user.profile = user.profile || {};
       if (body.profile && typeof body.profile === 'object') {
         const p = body.profile;
@@ -433,7 +400,7 @@ const server = http.createServer(async (req, res) => {
         if (typeof p.public === 'boolean') user.profile.public = p.public;
       }
 
-      // Optional: Kosmetik anlegen/ausrüsten (z.B. via Website/Client).
+      
       if (Array.isArray(body.cosmetics)) {
         for (const c of body.cosmetics) {
           const itemId = typeof c === 'object' && c ? String(c.id) : String(c);
@@ -459,7 +426,7 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 200, { ok: true });
     }
 
-    // ── Eigene Profil-Daten ──
+    
     if (pathname === '/me' && method === 'GET') {
       const user = bearerUser(req);
       if (!user) return sendJson(res, 401, { error: 'not_authenticated' });
@@ -479,7 +446,7 @@ const server = http.createServer(async (req, res) => {
       });
     }
 
-    // ── Store: Katalog (öffentlich, mit Owned/Equipped wenn eingeloggt) ──
+    
     if (pathname === '/store' && method === 'GET') {
       let user = bearerUser(req);
       if (!user) {
@@ -498,7 +465,7 @@ const server = http.createServer(async (req, res) => {
         : { catalog: items, needsAuth: true });
     }
 
-    // ── Store: Kaufen (Kollegen-Points) ──
+    
     if (pathname === '/store/buy' && method === 'POST') {
       const user = bearerUser(req);
       if (!user) return sendJson(res, 401, { error: 'not_authenticated' });
@@ -511,7 +478,7 @@ const server = http.createServer(async (req, res) => {
       if (user.points < item.price) return sendJson(res, 400, { error: 'not_enough_points', points: user.points, price: item.price });
       user.points -= item.price;
       user.cosmetics.push({ id: itemId, boughtAt: Date.now() });
-      // Komfort: leere Kategorie-Slots automatisch ausrüsten.
+      
       if (!user.equipped[item.category]) user.equipped[item.category] = itemId;
       saveStore();
       return sendJson(res, 200, {
@@ -522,7 +489,7 @@ const server = http.createServer(async (req, res) => {
       });
     }
 
-    // ── Store: Ausrüsten / Ablegen ──
+    
     if (pathname === '/store/equip' && method === 'POST') {
       const user = bearerUser(req);
       if (!user) return sendJson(res, 401, { error: 'not_authenticated' });
@@ -530,7 +497,7 @@ const server = http.createServer(async (req, res) => {
       const body = await readBody(req);
       const itemId = String(body.item_id || '');
       if (!itemId) {
-        // Ablegen: { category: "avatar_frame" } ohne item_id → Slot leeren.
+        
         if (!user.equipped || typeof user.equipped !== 'object') user.equipped = {};
         const cat = String(body.category || '');
         if (cat) user.equipped[cat] = '';
@@ -547,9 +514,9 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 200, { ok: true, equipped: user.equipped });
     }
 
-    // ── Öffentliches Profil-Listing / Suche ──
+    
     if (pathname === '/profiles' && method === 'GET') {
-      // query: search, limit, offset
+      
       const search = (url.searchParams.get('search') || '').toLowerCase();
       const limit = parseInt(url.searchParams.get('limit') || '50', 10);
       const offset = parseInt(url.searchParams.get('offset') || '0', 10);
@@ -576,10 +543,10 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 200, { total: filtered.length, items: slice });
     }
 
-    // ── Einzelnes öffentliches Profil ──
+    
     if (pathname.startsWith('/profiles/') && method === 'GET') {
       const parts = pathname.split('/').filter(Boolean);
-      // /profiles/:id
+      
       if (parts.length === 2) {
         const id = parts[1];
         const u = Object.values(store.users || {}).find(x => x && (x.id === id || x.code === id));
@@ -598,11 +565,11 @@ const server = http.createServer(async (req, res) => {
       }
     }
 
-    // ── Interne Bridge (nur Website-Server → Backend) ─────────────────────────
-// Authentifiziert über das Shared Secret in KOLLEGEN_INTERNAL_SECRET
-// (Umgebung/EnvironmentFile). Die Website (kollegen.me server.js) ruft diese
-// Endpoints mit demselben Secret auf, um Profil + MC-Identität abzugleichen –
-// ohne dass Nutzereingaben durch die Website-Sessions hindurchtoken müssen.
+    
+
+
+
+
 function internalAuthorized(req) {
   const expect = process.env.KOLLEGEN_INTERNAL_SECRET || '';
   if (!expect) return false;
@@ -610,7 +577,7 @@ function internalAuthorized(req) {
   return h === expect;
 }
 
-// GET /internal/user?discordId=... | ?id=... → öffentliche Profildaten des Users
+
 if (pathname === '/internal/user' && method === 'GET') {
   if (!internalAuthorized(req)) return sendJson(res, 403, { error: 'forbidden' });
   const discordId = url.searchParams.get('discordId');
@@ -636,7 +603,7 @@ if (pathname === '/internal/user' && method === 'GET') {
   });
 }
 
-// POST /internal/profile → Legt Profil + MC-Identität an/aktualisiert (Server-to-Server)
+
 if (pathname === '/internal/profile' && method === 'POST') {
   if (!internalAuthorized(req)) return sendJson(res, 403, { error: 'forbidden' });
   const body = await readBody(req);
@@ -682,7 +649,7 @@ if (pathname === '/internal/profile' && method === 'POST') {
   return sendJson(res, 200, { ok: true, user: { id: user.id, code: user.code } });
 }
 
-// GET /internal/store-buy → Kauf für einen User (Server-to-Server, ohne Bearer)
+
 if (pathname === '/internal/store-buy' && method === 'POST') {
   if (!internalAuthorized(req)) return sendJson(res, 403, { error: 'forbidden' });
   const body = await readBody(req);
@@ -702,7 +669,7 @@ if (pathname === '/internal/store-buy' && method === 'POST') {
   return sendJson(res, 200, { ok: true, points: user.points, item: { id: itemId, category: item.category, equipped: true }, equipped: user.equipped });
 }
 
-// POST /internal/store-equip → Ausrüsten/Ablegen (Server-to-Server)
+
 if (pathname === '/internal/store-equip' && method === 'POST') {
   if (!internalAuthorized(req)) return sendJson(res, 403, { error: 'forbidden' });
   const body = await readBody(req);
@@ -726,7 +693,7 @@ if (pathname === '/internal/store-equip' && method === 'POST') {
   return sendJson(res, 200, { ok: true, equipped: user.equipped });
 }
 
-// GET /internal/friends?discordId=... → Freundesliste (Server-to-Server)
+
 if (pathname === '/internal/friends' && method === 'GET') {
   if (!internalAuthorized(req)) return sendJson(res, 403, { error: 'forbidden' });
   const discordId = url.searchParams.get('discordId');
@@ -739,7 +706,7 @@ if (pathname === '/internal/friends' && method === 'GET') {
   return sendJson(res, 200, list);
 }
 
-// POST /internal/friend-add {discordId, code} → Freund hinzufügen (Anfrage/Verknüpfen)
+
 if (pathname === '/internal/friend-add' && method === 'POST') {
   if (!internalAuthorized(req)) return sendJson(res, 403, { error: 'forbidden' });
   const body = await readBody(req);
@@ -755,7 +722,7 @@ if (pathname === '/internal/friend-add' && method === 'POST') {
   return sendJson(res, 200, r);
 }
 
-// POST /internal/friend-remove {discordId, target_id} → Freund entfernen (Server-to-Server)
+
 if (pathname === '/internal/friend-remove' && method === 'POST') {
   if (!internalAuthorized(req)) return sendJson(res, 403, { error: 'forbidden' });
   const body = await readBody(req);
@@ -772,7 +739,7 @@ if (pathname === '/internal/friend-remove' && method === 'POST') {
   return sendJson(res, 200, { ok: true });
 }
 
-// GET /internal/friend-requests?discordId=... → eingehende Freundesanfragen
+
 if (pathname === '/internal/friend-requests' && method === 'GET') {
   if (!internalAuthorized(req)) return sendJson(res, 403, { error: 'forbidden' });
   const discordId = url.searchParams.get('discordId');
@@ -781,7 +748,7 @@ if (pathname === '/internal/friend-requests' && method === 'GET') {
   return sendJson(res, 200, incomingRequests(user));
 }
 
-// POST /internal/friend-accept {discordId, from_id} → Anfrage annehmen
+
 if (pathname === '/internal/friend-accept' && method === 'POST') {
   if (!internalAuthorized(req)) return sendJson(res, 403, { error: 'forbidden' });
   const body = await readBody(req);
@@ -792,7 +759,7 @@ if (pathname === '/internal/friend-accept' && method === 'POST') {
   return sendJson(res, 200, r);
 }
 
-// POST /internal/friend-decline {discordId, from_id} → Anfrage ablehnen
+
 if (pathname === '/internal/friend-decline' && method === 'POST') {
   if (!internalAuthorized(req)) return sendJson(res, 403, { error: 'forbidden' });
   const body = await readBody(req);
@@ -802,9 +769,9 @@ if (pathname === '/internal/friend-decline' && method === 'POST') {
   return sendJson(res, 200, r);
 }
 
-// GET /internal/profile-view?code=... | ?id=... → Profil anderer Nutzer ansehen.
-// Liefert Kosmetik/Equip/Online ohne private Daten. Friend/Bio nur für Freunde,
-// den Eigentümer selbst oder öffentliche Profile (viewer_id = aktuelle discordId).
+
+
+
 if (pathname === '/internal/profile-view' && method === 'GET') {
   if (!internalAuthorized(req)) return sendJson(res, 403, { error: 'forbidden' });
   const code = (url.searchParams.get('code') || '').toUpperCase();
@@ -853,12 +820,12 @@ if (pathname === '/internal/profile-view' && method === 'GET') {
   });
 }
 
-// ── Direct Messages (privater Chat) ──
+
 function dmKey(a, b) {
   return [String(a), String(b)].sort().join(':');
 }
 
-// POST /internal/dm/send {from_id, to_id, text} → Nachricht senden (nur Freunde)
+
 if (pathname === '/internal/dm/send' && method === 'POST') {
   if (!internalAuthorized(req)) return sendJson(res, 403, { error: 'forbidden' });
   const body = await readBody(req);
@@ -881,7 +848,7 @@ if (pathname === '/internal/dm/send' && method === 'POST') {
   return sendJson(res, 200, { ok: true, message: msg });
 }
 
-// GET /internal/dm/conversations?discordId=... → Liste der Chats (neueste zuerst)
+
 if (pathname === '/internal/dm/conversations' && method === 'GET') {
   if (!internalAuthorized(req)) return sendJson(res, 403, { error: 'forbidden' });
   const me = url.searchParams.get('discordId');
@@ -905,7 +872,7 @@ if (pathname === '/internal/dm/conversations' && method === 'GET') {
   return sendJson(res, 200, out);
 }
 
-// GET /internal/dm/messages?me=...&other=... → letzte Nachrichten (max 100)
+
 if (pathname === '/internal/dm/messages' && method === 'GET') {
   if (!internalAuthorized(req)) return sendJson(res, 403, { error: 'forbidden' });
   const me = url.searchParams.get('me');
@@ -918,7 +885,162 @@ if (pathname === '/internal/dm/messages' && method === 'GET') {
   return sendJson(res, 200, msgs);
 }
 
-// GET /internal/users?search= → Admin: Nutzerliste mit Punkten/Kosmetik/Level
+// ── Internes API für die Website (Gruppen) ──────────────────────────────────
+
+if (pathname === '/internal/groups' && method === 'GET') {
+  if (!internalAuthorized(req)) return sendJson(res, 403, { error: 'forbidden' });
+  const did = url.searchParams.get('discordId');
+  const myUser = did ? store.users[did] : null;
+  if (!myUser) return sendJson(res, 404, { error: 'user_not_found' });
+  const myGroups = Object.values(store.groups || {}).filter(
+    (g) => Array.isArray(g.members) && g.members.includes(myUser.discordId),
+  );
+  const out = myGroups.map((g) => ({
+    id: g.id,
+    name: g.name,
+    memberCount: g.members.length,
+    last: (g.messages || [])[g.messages.length - 1] || null,
+  }));
+  out.sort((a, b) => ((b.last && b.last.ts) || 0) - ((a.last && a.last.ts) || 0));
+  return sendJson(res, 200, out);
+}
+
+if (pathname === '/internal/group/create' && method === 'POST') {
+  if (!internalAuthorized(req)) return sendJson(res, 403, { error: 'forbidden' });
+  const body = await readBody(req);
+  const myUser = store.users[String(body.discordId || '')];
+  if (!myUser) return sendJson(res, 404, { error: 'user_not_found' });
+  const name = String(body.name || '').trim().slice(0, 60) || 'Gruppe';
+  const members = [myUser.discordId];
+  if (Array.isArray(body.memberIds)) {
+    for (const raw of body.memberIds) {
+      const u = resolveUser(raw);
+      if (u && !members.includes(u.discordId)) members.push(u.discordId);
+    }
+  }
+  const id = crypto.randomBytes(4).toString('hex').toUpperCase();
+  store.groups = store.groups || {};
+  store.groups[id] = { id, name, owner: myUser.discordId, members, messages: [], signals: [], created: Date.now() };
+  saveStore();
+  return sendJson(res, 200, { ok: true, data: { id, name } });
+}
+
+if (pathname === '/internal/group/view' && method === 'GET') {
+  if (!internalAuthorized(req)) return sendJson(res, 403, { error: 'forbidden' });
+  const did = url.searchParams.get('discordId');
+  const gid = url.searchParams.get('groupId');
+  const myUser = did ? store.users[did] : null;
+  if (!myUser) return sendJson(res, 404, { error: 'user_not_found' });
+  const g = (store.groups || {})[gid];
+  if (!g || !g.members.includes(myUser.discordId)) return sendJson(res, 404, { error: 'group_not_found' });
+  return sendJson(res, 200, {
+    id: g.id,
+    name: g.name,
+    owner: g.owner,
+    members: g.members.map((dId) => Object.assign(publicFriend(store.users[dId]), { discordId: dId })).filter(Boolean),
+  });
+}
+
+if (pathname === '/internal/group/poll' && method === 'GET') {
+  if (!internalAuthorized(req)) return sendJson(res, 403, { error: 'forbidden' });
+  const did = url.searchParams.get('discordId');
+  const gid = url.searchParams.get('groupId');
+  const myUser = did ? store.users[did] : null;
+  if (!myUser) return sendJson(res, 404, { error: 'user_not_found' });
+  const g = (store.groups || {})[gid];
+  if (!g || !g.members.includes(myUser.discordId)) return sendJson(res, 200, { messages: [], signals: [] });
+  const sinceMsg = parseInt(url.searchParams.get('sinceMsg') || '0', 10) || 0;
+  const sinceSig = parseInt(url.searchParams.get('sinceSig') || '0', 10) || 0;
+  return sendJson(res, 200, {
+    messages: (g.messages || []).filter((m) => m.ts > sinceMsg),
+    signals: (g.signals || []).filter((s) => s.ts > sinceSig && (s.to === myUser.discordId || s.to === '*')),
+  });
+}
+
+if (pathname === '/internal/group/send' && method === 'POST') {
+  if (!internalAuthorized(req)) return sendJson(res, 403, { error: 'forbidden' });
+  const body = await readBody(req);
+  const myUser = store.users[String(body.discordId || '')];
+  if (!myUser) return sendJson(res, 404, { error: 'user_not_found' });
+  const gid = String(body.groupId || '');
+  const g = (store.groups || {})[gid];
+  if (!g || !g.members.includes(myUser.discordId)) return sendJson(res, 404, { error: 'group_not_found' });
+  const text = String(body.text || '').trim().slice(0, 2000);
+  if (!text) return sendJson(res, 400, { error: 'text_required' });
+  const msg = { id: store.seq++, from: myUser.discordId, text, ts: Date.now() };
+  g.messages = g.messages || [];
+  g.messages.push(msg);
+  if (g.messages.length > 1000) g.messages = g.messages.slice(-1000);
+  saveStore();
+  return sendJson(res, 200, { ok: true, message: msg });
+}
+
+if (pathname === '/internal/group/add' && method === 'POST') {
+  if (!internalAuthorized(req)) return sendJson(res, 403, { error: 'forbidden' });
+  const body = await readBody(req);
+  const myUser = store.users[String(body.discordId || '')];
+  if (!myUser) return sendJson(res, 404, { error: 'user_not_found' });
+  const gid = String(body.groupId || '');
+  const g = (store.groups || {})[gid];
+  if (!g || !g.members.includes(myUser.discordId)) return sendJson(res, 404, { error: 'group_not_found' });
+  const u = resolveUser(body.memberId);
+  if (!u) return sendJson(res, 404, { error: 'user_not_found' });
+  if (!g.members.includes(u.discordId)) g.members.push(u.discordId);
+  saveStore();
+  return sendJson(res, 200, { ok: true });
+}
+
+if (pathname === '/internal/group/leave' && method === 'POST') {
+  if (!internalAuthorized(req)) return sendJson(res, 403, { error: 'forbidden' });
+  const body = await readBody(req);
+  const myUser = store.users[String(body.discordId || '')];
+  if (!myUser) return sendJson(res, 404, { error: 'user_not_found' });
+  const gid = String(body.groupId || '');
+  const g = (store.groups || {})[gid];
+  if (!g || !g.members.includes(myUser.discordId)) return sendJson(res, 404, { error: 'group_not_found' });
+  g.members = g.members.filter((d) => d !== myUser.discordId);
+  if (g.members.length === 0) delete store.groups[gid];
+  saveStore();
+  return sendJson(res, 200, { ok: true });
+}
+
+if (pathname === '/internal/group/delete' && method === 'POST') {
+  if (!internalAuthorized(req)) return sendJson(res, 403, { error: 'forbidden' });
+  const body = await readBody(req);
+  const myUser = store.users[String(body.discordId || '')];
+  if (!myUser) return sendJson(res, 404, { error: 'user_not_found' });
+  const gid = String(body.groupId || '');
+  const g = (store.groups || {})[gid];
+  if (!g) return sendJson(res, 404, { error: 'group_not_found' });
+  if (g.owner !== myUser.discordId) return sendJson(res, 403, { error: 'not_owner' });
+  delete store.groups[gid];
+  saveStore();
+  return sendJson(res, 200, { ok: true });
+}
+
+if (pathname === '/internal/call/direct/active' && method === 'GET') {
+  if (!internalAuthorized(req)) return sendJson(res, 403, { error: 'forbidden' });
+  const did = url.searchParams.get('discordId');
+  const myUser = did ? store.users[did] : null;
+  if (!myUser) return sendJson(res, 200, []);
+  ensureCalls();
+  activeCallCleanup();
+  const myCalls = Object.values(store.calls).filter(
+    (c) => c.members.includes(myUser.discordId) && ((c.direct && c.members.length > 0) || (!c.direct && c.members.length > 1)),
+  );
+  return sendJson(res, 200, myCalls.map((c) => {
+    const peerId = c.direct ? c.members.find((d) => d !== myUser.discordId) : null;
+    return {
+      callId: c.id,
+      groupId: c.groupId || null,
+      direct: !!c.direct,
+      peer: peerId ? Object.assign(publicFriend(store.users[peerId]), { discordId: peerId }) : null,
+      ts: c.ts,
+    };
+  }));
+}
+
+
 if (pathname === '/internal/users' && method === 'GET') {
   if (!internalAuthorized(req)) return sendJson(res, 403, { error: 'forbidden' });
   const search = (url.searchParams.get('search') || '').toLowerCase();
@@ -936,7 +1058,7 @@ if (pathname === '/internal/users' && method === 'GET') {
   return sendJson(res, 200, all);
 }
 
-// POST /internal/points {discordId, delta} → Punkte geben/abziehen (Admin)
+
 if (pathname === '/internal/points' && method === 'POST') {
   if (!internalAuthorized(req)) return sendJson(res, 403, { error: 'forbidden' });
   const body = await readBody(req);
@@ -950,7 +1072,7 @@ if (pathname === '/internal/points' && method === 'POST') {
   return sendJson(res, 200, { ok: true, points: user.points, points_total: user.points_total, level: levelOf(user) });
 }
 
-// POST /internal/grant {discordId, item_id} → Kosmetik kostenlos schenken (Admin)
+
 if (pathname === '/internal/grant' && method === 'POST') {
   if (!internalAuthorized(req)) return sendJson(res, 403, { error: 'forbidden' });
   const body = await readBody(req);
@@ -968,7 +1090,7 @@ if (pathname === '/internal/grant' && method === 'POST') {
   return sendJson(res, 200, { ok: true, items: user.cosmetics.length, equipped: user.equipped });
 }
 
-// POST /internal/reset {discordId} → Punkte/Level zurücksetzen, Equip leeren (Admin)
+
 if (pathname === '/internal/reset' && method === 'POST') {
   if (!internalAuthorized(req)) return sendJson(res, 403, { error: 'forbidden' });
   const body = await readBody(req);
@@ -982,7 +1104,7 @@ if (pathname === '/internal/reset' && method === 'POST') {
   return sendJson(res, 200, { ok: true, points: user.points, level: levelOf(user) });
 }
 
-// ── Freunde ──
+
     if (pathname === '/friends' && method === 'GET') {
       const user = bearerUser(req);
       if (!user) return sendJson(res, 401, { error: 'not_authenticated' });
@@ -1048,7 +1170,7 @@ if (pathname === '/internal/reset' && method === 'POST') {
       return sendJson(res, 200, { ok: true });
     }
 
-    // ── Profil ansehen (Launcher/Website, Bearer optional) ──
+    
     if (pathname === '/profile-view' && method === 'GET') {
       const viewer = bearerUser(req);
       const code = (url.searchParams.get('code') || '').toUpperCase();
@@ -1091,7 +1213,7 @@ if (pathname === '/internal/reset' && method === 'POST') {
       });
     }
 
-    // ── DMs (Launcher/Website, Bearer) ──
+    
     if (pathname === '/dm/conversations' && method === 'GET') {
       const me = bearerUser(req);
       if (!me) return sendJson(res, 401, { error: 'not_authenticated' });
@@ -1144,7 +1266,7 @@ if (pathname === '/internal/reset' && method === 'POST') {
       return sendJson(res, 200, { ok: true, message: msg });
     }
 
-    // ── Presence ──
+    
     if (pathname === '/presence' && method === 'PUT') {
       const user = bearerUser(req);
       if (!user) return sendJson(res, 401, { error: 'not_authenticated' });
@@ -1180,6 +1302,274 @@ if (pathname === '/internal/reset' && method === 'POST') {
         if (p.name) names.push(p.name);
       }
       return sendJson(res, 200, names);
+    }
+
+    // ── Gruppen ────────────────────────────────────────────────────────────
+    if (pathname === '/groups' && method === 'GET') {
+      const me = bearerUser(req);
+      if (!me) return sendJson(res, 401, { error: 'not_authenticated' });
+      const myGroups = Object.values(store.groups || {}).filter(
+        (g) => Array.isArray(g.members) && g.members.includes(me.discordId),
+      );
+      const out = myGroups.map((g) => ({
+        id: g.id,
+        name: g.name,
+        memberCount: g.members.length,
+        last: (g.messages || [])[g.messages.length - 1] || null,
+      }));
+      out.sort((a, b) => ((b.last && b.last.ts) || 0) - ((a.last && a.last.ts) || 0));
+      return sendJson(res, 200, out);
+    }
+
+    if (pathname === '/group/create' && method === 'POST') {
+      const me = bearerUser(req);
+      if (!me) return sendJson(res, 401, { error: 'not_authenticated' });
+      const body = await readBody(req);
+      const name = String(body.name || '').trim().slice(0, 60) || 'Gruppe';
+      const members = [me.discordId];
+      if (Array.isArray(body.memberIds)) {
+        for (const raw of body.memberIds) {
+          const u = resolveUser(raw);
+          if (u && !members.includes(u.discordId)) members.push(u.discordId);
+        }
+      }
+      const id = crypto.randomBytes(4).toString('hex').toUpperCase();
+      store.groups = store.groups || {};
+      store.groups[id] = {
+        id,
+        name,
+        owner: me.discordId,
+        members,
+        messages: [],
+        signals: [],
+        created: Date.now(),
+      };
+      saveStore();
+      return sendJson(res, 200, { id, name });
+    }
+
+    if (pathname === '/group/view' && method === 'GET') {
+      const me = bearerUser(req);
+      if (!me) return sendJson(res, 401, { error: 'not_authenticated' });
+      const gid = String(url.searchParams.get('groupId') || '');
+      const g = (store.groups || {})[gid];
+      if (!g || !g.members.includes(me.discordId)) return sendJson(res, 404, { error: 'group_not_found' });
+      return sendJson(res, 200, {
+        id: g.id,
+        name: g.name,
+        owner: g.owner,
+        members: g.members.map((dId) => Object.assign(publicFriend(store.users[dId]), { discordId: dId })).filter(Boolean),
+      });
+    }
+
+    if (pathname === '/group/add' && method === 'POST') {
+      const me = bearerUser(req);
+      if (!me) return sendJson(res, 401, { error: 'not_authenticated' });
+      const body = await readBody(req);
+      const gid = String(body.groupId || '');
+      const g = (store.groups || {})[gid];
+      if (!g || !g.members.includes(me.discordId)) return sendJson(res, 404, { error: 'group_not_found' });
+      const u = resolveUser(body.memberId);
+      if (!u) return sendJson(res, 404, { error: 'user_not_found' });
+      if (!g.members.includes(u.discordId)) g.members.push(u.discordId);
+      saveStore();
+      return sendJson(res, 200, { ok: true });
+    }
+
+    if (pathname === '/group/leave' && method === 'POST') {
+      const me = bearerUser(req);
+      if (!me) return sendJson(res, 401, { error: 'not_authenticated' });
+      const body = await readBody(req);
+      const gid = String(body.groupId || '');
+      const g = (store.groups || {})[gid];
+      if (!g || !g.members.includes(me.discordId)) return sendJson(res, 404, { error: 'group_not_found' });
+      g.members = g.members.filter((d) => d !== me.discordId);
+      if (g.members.length === 0) delete store.groups[gid];
+      saveStore();
+      return sendJson(res, 200, { ok: true });
+    }
+
+    if (pathname === '/group/delete' && method === 'POST') {
+      const me = bearerUser(req);
+      if (!me) return sendJson(res, 401, { error: 'not_authenticated' });
+      const body = await readBody(req);
+      const gid = String(body.groupId || '');
+      const g = (store.groups || {})[gid];
+      if (!g) return sendJson(res, 404, { error: 'group_not_found' });
+      if (g.owner !== me.discordId) return sendJson(res, 403, { error: 'not_owner' });
+      delete store.groups[gid];
+      saveStore();
+      return sendJson(res, 200, { ok: true });
+    }
+
+    if (pathname === '/group/poll' && method === 'GET') {
+      const me = bearerUser(req);
+      if (!me) return sendJson(res, 401, { error: 'not_authenticated' });
+      const gid = String(url.searchParams.get('groupId') || '');
+      const g = (store.groups || {})[gid];
+      if (!g || !g.members.includes(me.discordId)) return sendJson(res, 200, { messages: [], signals: [] });
+      const sinceMsg = parseInt(url.searchParams.get('sinceMsg') || '0', 10) || 0;
+      const sinceSig = parseInt(url.searchParams.get('sinceSig') || '0', 10) || 0;
+      return sendJson(res, 200, {
+        messages: (g.messages || []).filter((m) => m.ts > sinceMsg),
+        signals: (g.signals || []).filter((s) => s.ts > sinceSig && (s.to === me.discordId || s.to === '*')),
+      });
+    }
+
+    if (pathname === '/group/send' && method === 'POST') {
+      const me = bearerUser(req);
+      if (!me) return sendJson(res, 401, { error: 'not_authenticated' });
+      const body = await readBody(req);
+      const gid = String(body.groupId || '');
+      const g = (store.groups || {})[gid];
+      if (!g || !g.members.includes(me.discordId)) return sendJson(res, 404, { error: 'group_not_found' });
+      const text = String(body.text || '').trim().slice(0, 2000);
+      if (!text) return sendJson(res, 400, { error: 'text_required' });
+      const msg = { id: store.seq++, from: me.discordId, text, ts: Date.now() };
+      g.messages = g.messages || [];
+      g.messages.push(msg);
+      if (g.messages.length > 1000) g.messages = g.messages.slice(-1000);
+      saveStore();
+      return sendJson(res, 200, { ok: true, message: msg });
+    }
+
+    // ── Anrufe (Gerüst) ────────────────────────────────────────────────────
+    function ensureCalls() { store.calls = store.calls || {}; }
+    function activeCallCleanup() {
+      ensureCalls();
+      const cutoff = Date.now() - 24 * 60 * 60 * 1000;
+      for (const [cid, c] of Object.entries(store.calls)) {
+        if (c.ts < cutoff || (Array.isArray(c.members) && c.members.length === 0)) delete store.calls[cid];
+      }
+    }
+
+    if (pathname === '/call/open' && method === 'POST') {
+      const me = bearerUser(req);
+      if (!me) return sendJson(res, 401, { error: 'not_authenticated' });
+      activeCallCleanup();
+      ensureCalls();
+      const body = await readBody(req);
+      const gid = String(body.groupId || '');
+      const g = gid ? (store.groups || {})[gid] : null;
+      if (gid && (!g || !g.members.includes(me.discordId))) return sendJson(res, 404, { error: 'group_not_found' });
+      const id = crypto.randomBytes(4).toString('hex').toUpperCase();
+      store.calls[id] = {
+        id,
+        groupId: gid || null,
+        members: [me.discordId],
+        signals: [],
+        ts: Date.now(),
+      };
+      saveStore();
+      return sendJson(res, 200, { callId: id, members: [me.discordId] });
+    }
+
+    if (pathname === '/call/join' && method === 'POST') {
+      const me = bearerUser(req);
+      if (!me) return sendJson(res, 401, { error: 'not_authenticated' });
+      ensureCalls();
+      const body = await readBody(req);
+      const call = store.calls[String(body.callId || '')];
+      if (!call) return sendJson(res, 404, { error: 'call_not_found' });
+      if (!call.members.includes(me.discordId)) call.members.push(me.discordId);
+      saveStore();
+      return sendJson(res, 200, { ok: true });
+    }
+
+    if (pathname === '/call/leave' && method === 'POST') {
+      const me = bearerUser(req);
+      if (!me) return sendJson(res, 401, { error: 'not_authenticated' });
+      ensureCalls();
+      const body = await readBody(req);
+      const call = store.calls[String(body.callId || '')];
+      if (!call) return sendJson(res, 404, { error: 'call_not_found' });
+      call.members = (call.members || []).filter((d) => d !== me.discordId);
+      saveStore();
+      return sendJson(res, 200, { ok: true });
+    }
+
+    if (pathname === '/call/signal' && method === 'POST') {
+      const me = bearerUser(req);
+      if (!me) return sendJson(res, 401, { error: 'not_authenticated' });
+      ensureCalls();
+      const body = await readBody(req);
+      const call = store.calls[String(body.callId || '')];
+      if (!call) return sendJson(res, 404, { error: 'call_not_found' });
+      if (!call.members.includes(me.discordId)) return sendJson(res, 403, { error: 'not_in_call' });
+      const sig = {
+        id: store.seq++,
+        from: me.discordId,
+        to: body.to_id ? String(body.to_id) : '*',
+        kind: String(body.kind || ''),
+        data: body.data || null,
+        ts: Date.now(),
+      };
+      call.signals = call.signals || [];
+      call.signals.push(sig);
+      if (call.signals.length > 200) call.signals = call.signals.slice(-200);
+      saveStore();
+      return sendJson(res, 200, { ok: true });
+    }
+
+    if (pathname === '/call/direct/open' && method === 'POST') {
+      const me = bearerUser(req);
+      if (!me) return sendJson(res, 401, { error: 'not_authenticated' });
+      activeCallCleanup();
+      ensureCalls();
+      const body = await readBody(req);
+      const peerId = String(body.peerId || '');
+      const peer = store.users[peerId];
+      if (!peer) return sendJson(res, 404, { error: 'peer_not_found' });
+      const key = dmKey(me.discordId, peer.discordId);
+      let existing = Object.values(store.calls).find(
+        (c) => c.directKey === key && c.direct && c.members.includes(me.discordId),
+      );
+      if (existing) return sendJson(res, 200, { callId: existing.id, peer: Object.assign(publicFriend(peer), { discordId: peer.discordId }) });
+      const id = crypto.randomBytes(4).toString('hex').toUpperCase();
+      store.calls[id] = {
+        id,
+        directKey: key,
+        direct: true,
+        members: [me.discordId, peer.discordId],
+        signals: [],
+        ts: Date.now(),
+      };
+      saveStore();
+      return sendJson(res, 200, { callId: id, peer: Object.assign(publicFriend(peer), { discordId: peer.discordId }) });
+    }
+
+    if (pathname === '/call/direct/poll' && method === 'GET') {
+      const me = bearerUser(req);
+      if (!me) return sendJson(res, 401, { error: 'not_authenticated' });
+      ensureCalls();
+      const cid = String(url.searchParams.get('callId') || '');
+      const call = store.calls[cid];
+      if (!call || !call.members.includes(me.discordId)) return sendJson(res, 200, { signals: [], members: [] });
+      const sinceSig = parseInt(url.searchParams.get('sinceSig') || '0', 10) || 0;
+      const sigs = (call.signals || []).filter(
+        (s) => s.ts > sinceSig && (s.to === me.discordId || s.to === '*'),
+      );
+      return sendJson(res, 200, { signals: sigs, members: call.members });
+    }
+
+    if (pathname === '/call/direct/active' && method === 'GET') {
+      const me = bearerUser(req);
+      if (!me) return sendJson(res, 401, { error: 'not_authenticated' });
+      activeCallCleanup();
+      ensureCalls();
+      const myCalls = Object.values(store.calls).filter(
+        (c) => c.members.includes(me.discordId) && ((c.direct && c.members.length > 0) || (!c.direct && c.members.length > 1)),
+      );
+      return sendJson(res, 200, myCalls.map((c) => {
+        const peerId = c.direct ? c.members.find((d) => d !== me.discordId) : null;
+        return {
+          callId: c.id,
+          groupId: c.groupId || null,
+          direct: !!c.direct,
+          peer: peerId ? Object.assign(publicFriend(store.users[peerId]), { discordId: peerId }) : null,
+          ts: c.ts,
+        };
+      }));
     }
 
     return sendJson(res, 404, { error: 'not_found' });
