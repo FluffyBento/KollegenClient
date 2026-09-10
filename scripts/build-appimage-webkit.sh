@@ -38,6 +38,20 @@ if [ ! -d "$WEBKIT_DIR" ] || [ ! -x "$WEBKIT_DIR/WebKitWebProcess" ]; then
   exit 1
 fi
 
+INJECTED=""
+for cand in "$WEBKIT_DIR/injected-bundle/libwebkit2gtkinjectedbundle.so" "$WEBKIT_DIR/libwebkit2gtkinjectedbundle.so"; do
+  if [ -f "$cand" ]; then
+    INJECTED="$cand"
+    break
+  fi
+done
+if [ -z "$INJECTED" ]; then
+  echo "FEHLER: libwebkit2gtkinjectedbundle.so nicht gefunden (weder unter" >&2
+  echo "  $WEBKIT_DIR/injected-bundle/ noch unter $WEBKIT_DIR)" >&2
+  exit 1
+fi
+echo "==> Injected bundle gefunden: $INJECTED"
+
 rm -rf "$APPDIR"
 mkdir -p "$APPDIR/usr/bin" "$APPDIR/usr/lib"
 
@@ -63,10 +77,17 @@ for p in WebKitWebProcess WebKitNetworkProcess; do
 done
 
 echo "==> Zusätzliche WebKit-Bestandteile bündeln (linuxdeploy räumt sie nicht mit)"
-if [ -f "$WEBKIT_DIR/libwebkit2gtkinjectedbundle.so" ]; then
-  cp -a "$WEBKIT_DIR/libwebkit2gtkinjectedbundle.so" "$APPDIR/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1/"
+if [ -f "$INJECTED" ]; then
+  mkdir -p "$APPDIR/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1/injected-bundle"
+  cp -a "$INJECTED" "$APPDIR/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1/injected-bundle/"
+  echo "  -> Injected-Bundle gebündelt"
 else
-  echo "WARNUNG: libwebkit2gtkinjectedbundle.so nicht unter $WEBKIT_DIR gefunden" >&2
+  echo "FEHLER: libwebkit2gtkinjectedbundle.so fehlt" >&2
+  exit 1
+fi
+if [ -f "$WEBKIT_DIR/libwebkit2gtkinjectedbundle.so" ] && \
+   [ ! -f "$APPDIR/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1/injected-bundle/libwebkit2gtkinjectedbundle.so" ]; then
+  cp -a "$WEBKIT_DIR/libwebkit2gtkinjectedbundle.so" "$APPDIR/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1/injected-bundle/"
 fi
 if [ -d "$WEBKIT_DIR/WebKitResources" ]; then
   cp -a "$WEBKIT_DIR/WebKitResources" "$APPDIR/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1/"
@@ -129,9 +150,20 @@ ensure_wk_link() {
   if [ -L "$WEBKIT_TMP/$1" ] && [ -e "$WEBKIT_TMP/$1" ]; then return; fi
   ln -sfn "$HERE/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1/$1" "$WEBKIT_TMP/$1"
 }
-for w in WebKitWebProcess WebKitNetworkProcess libwebkit2gtkinjectedbundle.so; do
+ensure_wk_dir() {
+  if [ ! -e "$WEBKIT_TMP/$1" ]; then
+    mkdir -p "$WEBKIT_TMP"
+    ln -sfn "$HERE/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1/$1" "$WEBKIT_TMP/$1"
+  fi
+}
+for w in WebKitWebProcess WebKitNetworkProcess; do
   ensure_wk_link "$w"
 done
+ensure_wk_dir injected-bundle
+if [ -f "$HERE/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1/injected-bundle/libwebkit2gtkinjectedbundle.so" ] && \
+   [ ! -e "$WEBKIT_TMP/injected-bundle/libwebkit2gtkinjectedbundle.so" ]; then
+  ln -sfn "$HERE/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1/injected-bundle/libwebkit2gtkinjectedbundle.so" "$WEBKIT_TMP/injected-bundle/libwebkit2gtkinjectedbundle.so"
+fi
 if [ -d "$HERE/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1/WebKitResources" ] && \
    { [ ! -e "$WEBKIT_TMP/WebKitResources" ] || [ ! -d "$WEBKIT_TMP/WebKitResources" ]; }; then
   ln -sfn "$HERE/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1/WebKitResources" "$WEBKIT_TMP/WebKitResources"
