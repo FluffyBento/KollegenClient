@@ -39,8 +39,8 @@ public class KollegenRPC {
             t.start();
             startTime = System.currentTimeMillis() / 1000;
             push("Im Hauptmenü", "", false);
-        } catch (Exception e) {
-            KollegenMod.LOGGER.warn("Discord RPC konnte nicht gestartet werden: {}", e.getMessage());
+        } catch (Throwable e) {
+            KollegenMod.LOGGER.warn("Discord RPC konnte nicht gestartet werden: {}", String.valueOf(e));
         }
     }
 
