@@ -160,9 +160,16 @@ for w in WebKitWebProcess WebKitNetworkProcess; do
   ensure_wk_link "$w"
 done
 ensure_wk_dir injected-bundle
-if [ -f "$HERE/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1/injected-bundle/libwebkit2gtkinjectedbundle.so" ] && \
-   [ ! -e "$WEBKIT_TMP/injected-bundle/libwebkit2gtkinjectedbundle.so" ]; then
-  ln -sfn "$HERE/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1/injected-bundle/libwebkit2gtkinjectedbundle.so" "$WEBKIT_TMP/injected-bundle/libwebkit2gtkinjectedbundle.so"
+WK="$HERE/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1"
+WK_INJECTED="$WK/injected-bundle/libwebkit2gtkinjectedbundle.so"
+if [ ! -f "$WK_INJECTED" ]; then WK_INJECTED="$WK/libwebkit2gtkinjectedbundle.so"; fi
+if [ -f "$WK_INJECTED" ]; then
+  if [ ! -e "$WEBKIT_TMP/libwebkit2gtkinjectedbundle.so" ]; then
+    ln -sfn "$WK_INJECTED" "$WEBKIT_TMP/libwebkit2gtkinjectedbundle.so"
+  fi
+  if [ ! -e "$WEBKIT_TMP/injected-bundle/libwebkit2gtkinjectedbundle.so" ]; then
+    ln -sfn "$WK_INJECTED" "$WEBKIT_TMP/injected-bundle/libwebkit2gtkinjectedbundle.so"
+  fi
 fi
 if [ -d "$HERE/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1/WebKitResources" ] && \
    { [ ! -e "$WEBKIT_TMP/WebKitResources" ] || [ ! -d "$WEBKIT_TMP/WebKitResources" ]; }; then
