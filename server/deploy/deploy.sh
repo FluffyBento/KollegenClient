@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Simple deploy helper for Kollegen Client backend (Ubuntu/Debian focused).
-# Run on the target server as root (or via sudo).
 
 DEST_DIR="/opt/kollegenclient"
 DATA_DIR="/var/lib/kollegenclient/data"
@@ -19,7 +17,6 @@ echo "Creating install directories..."
 mkdir -p "$DEST_DIR"
 mkdir -p "$DATA_DIR"
 
-# Create a system user if missing
 if ! id -u kollegen >/dev/null 2>&1; then
   echo "Creating system user 'kollegen'..."
   useradd --system --create-home --home-dir /var/lib/kollegenclient kollegen || true
@@ -29,22 +26,18 @@ echo "Setting ownership to kollegen:kollegen"
 chown -R kollegen:kollegen "$DEST_DIR" "$DATA_DIR"
 chmod 750 "$DEST_DIR" || true
 
-# Copy files from current working tree into the destination
 echo "Copying files to $DEST_DIR (preserving existing files)..."
 rsync -a --delete --exclude='.git' ./ "$DEST_DIR/"
 chown -R kollegen:kollegen "$DEST_DIR"
 
-# Install Node.js if not present (Ubuntu/Debian). This step is best-effort.
 if ! command -v node >/dev/null 2>&1; then
   echo "Node.js not found. Installing Node.js (Debian/Ubuntu)..."
   apt-get update
   apt-get install -y curl ca-certificates
-  # Using NodeSource LTS installer
   curl -fsSL https://deb.nodesource.com/setup_lts.x | bash -
   apt-get install -y nodejs
 fi
 
-# Place systemd unit
 if [[ -f "$DEST_DIR/server/deploy/kollegen.service" ]]; then
   echo "Installing systemd unit to $SERVICE_FILE"
   cp "$DEST_DIR/server/deploy/kollegen.service" "$SERVICE_FILE"
@@ -55,7 +48,6 @@ else
   echo "Warning: Service file not found in $DEST_DIR/server/deploy/kollegen.service" >&2
 fi
 
-# Optional: install Caddy config
 if [[ -f "$DEST_DIR/server/deploy/Caddyfile" ]]; then
   echo "Installing Caddyfile to $CADDYFILE_DEST"
   cp "$DEST_DIR/server/deploy/Caddyfile" "$CADDYFILE_DEST"

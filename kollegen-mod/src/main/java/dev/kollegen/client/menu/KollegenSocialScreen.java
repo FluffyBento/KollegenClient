@@ -316,6 +316,7 @@ public class KollegenSocialScreen extends Screen {
 
     private void rebuildFriends() {
         JsonArray list = arr(state.get("friends"));
+        JsonArray calls = arr(state.get("calls"));
         for (int i = 0; i < list.size(); i++) {
             JsonObject f = list.get(i).getAsJsonObject();
             String name = str(f, "name");
@@ -323,16 +324,47 @@ public class KollegenSocialScreen extends Screen {
             if (name.isEmpty()) name = "User " + str(f, "id");
             boolean online = f.has("online") && f.get("online").getAsBoolean();
             String server = f.has("server") && !f.get("server").isJsonNull() ? f.get("server").getAsString() : "";
+            String otherId = str(f, "discordId");
+            boolean inCall = false;
+            for (JsonElement ce : calls) {
+                if (!ce.isJsonObject()) continue;
+                JsonObject c = ce.getAsJsonObject();
+                if (!c.has("direct") || !c.get("direct").getAsBoolean()) continue;
+                JsonElement pe = c.get("peer");
+                if (pe != null && pe.isJsonObject() && otherId.equals(str(pe.getAsJsonObject(), "discordId"))) {
+                    inCall = true;
+                    break;
+                }
+            }
             String sub = online
                     ? ("\u25CF Online" + (server.isEmpty() ? "" : " \u00b7 " + server))
-                    : ("\u25CB Offline" + (server.isEmpty() ? "" : " \u00b7 " + server));
-            String otherId = str(f, "discordId");
+                    : ("\u25CB Offline" + (server.isEmpty() ? "" : " \u00b7 " + server)) + (inCall ? " \u00b7 \uD83D\uDCDE" : "");
+            if (inCall) name = "\uD83D\uDCDE " + name;
             String friendName = name;
-            entries.add(new Entry(name, sub, online ? Palette.GREEN : Palette.MUTED,
+            int color = friendColor(f, online ? Palette.GREEN : Palette.MUTED);
+            entries.add(new Entry(name, sub, color,
                     () -> openDm(otherId, friendName)));
         }
         if (list.size() == 0) {
             entries.add(new Entry("Keine Freunde", "Füge unten einen Freundes-Code hinzu", Palette.MUTED, null));
+        }
+    }
+
+    private static int friendColor(JsonObject f, int fallback) {
+        try {
+            JsonElement eq = f.get("equipped");
+            if (eq == null || !eq.isJsonObject() || !eq.getAsJsonObject().has("name_color")) return fallback;
+            JsonObject nc = eq.getAsJsonObject().get("name_color").getAsJsonObject();
+            if (!nc.has("data")) return fallback;
+            JsonObject data = nc.get("data").getAsJsonObject();
+            if (!data.has("accent")) return fallback;
+            String h = data.get("accent").getAsString();
+            if (h.startsWith("#")) h = h.substring(1);
+            if (h.startsWith("0x") || h.startsWith("0X")) h = h.substring(2);
+            if (h.length() == 6) h = "FF" + h;
+            return (int) Long.parseLong(h, 16);
+        } catch (Throwable t) {
+            return fallback;
         }
     }
 
@@ -585,6 +617,7 @@ public class KollegenSocialScreen extends Screen {
             snap.add("requests", getArr("/friend/requests"));
             snap.add("groups", getArr("/groups"));
             snap.add("convs", getArr("/dm/conversations"));
+            snap.add("calls", getArr("/call/direct/active"));
             mc().execute(() -> {
                 state = snap;
                 if (inThread) loadThread();

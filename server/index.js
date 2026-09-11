@@ -127,7 +127,9 @@ function socialView(u) {
 }
 
 
-let store = { users: {}, sessions: {}, codes: {}, presence: {}, dms: {}, groups: {}, calls: {}, seq: 1, catalog: CATALOG };
+let store = { users: {}, sessions: {}, codes: {}, presence: {}, dms: {}, groups: {}, groupDms: {}, seq: 1, catalog: CATALOG };
+let liveCalls = {};
+let callSeq = 1;
 let saveTimer = null;
 
 function loadStore() {
@@ -702,7 +704,7 @@ if (pathname === '/internal/friends' && method === 'GET') {
   const list = (user.friends || [])
     .map((id) => store.users[id])
     .filter(Boolean)
-    .map(publicFriend);
+    .map((f) => Object.assign(publicFriend(f), { discordId: f.discordId }));
   return sendJson(res, 200, list);
 }
 
@@ -819,8 +821,6 @@ if (pathname === '/internal/profile-view' && method === 'GET') {
     isViewer,
   });
 }
-
-
 function dmKey(a, b) {
   return [String(a), String(b)].sort().join(':');
 }
@@ -885,23 +885,64 @@ if (pathname === '/internal/dm/messages' && method === 'GET') {
   return sendJson(res, 200, msgs);
 }
 
-// ── Internes API für die Website (Gruppen) ──────────────────────────────────
+function groupById(id) {
+  return (store.groups || {})[id] || null;
+}
+function groupView(id, viewerDid) {
+  const g = groupById(id);
+  if (!g) return null;
+  const msgs = (store.groupDms && store.groupDms[id]) ? store.groupDms[id] : [];
+  const last = msgs.length ? msgs[msgs.length - 1] : null;
+  return {
+    id: g.id,
+    name: g.name,
+    owner: g.owner,
+    createdAt: g.createdAt || 0,
+    memberCount: Array.isArray(g.members) ? g.members.length : 0,
+    isOwner: !!g.owner && String(g.owner) === String(viewerDid),
+    last,
+  };
+}
+function groupMemberUsers(g) {
+  const out = [];
+  for (const did of (Array.isArray(g && g.members) ? g.members : [])) {
+    const u = store.users[did];
+    if (!u) continue;
+    out.push(Object.assign(publicFriend(u), { discordId: u.discordId }));
+  }
+  return out;
+}
+function isGroupMember(g, did) {
+  return !!g && Array.isArray(g.members) && g.members.includes(String(did));
+}
+function callForGroup(groupId) {
+  for (const cid of Object.keys(liveCalls)) {
+    const c = liveCalls[cid];
+    if (c && c.groupId === groupId) return c;
+  }
+  return null;
+}
+function callPublicView(c, me) {
+  if (!c) return null;
+  const ps = Object.keys(c.participants || {}).map((did) => {
+    const u = store.users[did];
+    return { id: did, name: (u && (u.name || u.discordName)) || ('User ' + did) };
+  });
+  return { id: c.id, groupId: c.groupId, participants: ps, selfInCall: !!me && !!c.participants[me] };
+}
 
 if (pathname === '/internal/groups' && method === 'GET') {
   if (!internalAuthorized(req)) return sendJson(res, 403, { error: 'forbidden' });
   const did = url.searchParams.get('discordId');
   const myUser = did ? store.users[did] : null;
   if (!myUser) return sendJson(res, 404, { error: 'user_not_found' });
-  const myGroups = Object.values(store.groups || {}).filter(
-    (g) => Array.isArray(g.members) && g.members.includes(myUser.discordId),
-  );
-  const out = myGroups.map((g) => ({
-    id: g.id,
-    name: g.name,
-    memberCount: g.members.length,
-    last: (g.messages || [])[g.messages.length - 1] || null,
-  }));
-  out.sort((a, b) => ((b.last && b.last.ts) || 0) - ((a.last && a.last.ts) || 0));
+  const out = [];
+  for (const id of Object.keys(store.groups || {})) {
+    const g = store.groups[id];
+    if (!g || !isGroupMember(g, myUser.discordId)) continue;
+    out.push(groupView(id, myUser.discordId));
+  }
+  out.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
   return sendJson(res, 200, out);
 }
 
@@ -920,7 +961,9 @@ if (pathname === '/internal/group/create' && method === 'POST') {
   }
   const id = crypto.randomBytes(4).toString('hex').toUpperCase();
   store.groups = store.groups || {};
-  store.groups[id] = { id, name, owner: myUser.discordId, members, messages: [], signals: [], created: Date.now() };
+  store.groupDms = store.groupDms || {};
+  store.groups[id] = { id, name, owner: myUser.discordId, members, createdAt: Date.now() };
+  store.groupDms[id] = [];
   saveStore();
   return sendJson(res, 200, { ok: true, data: { id, name } });
 }
@@ -937,6 +980,11 @@ if (pathname === '/internal/group/view' && method === 'GET') {
     id: g.id,
     name: g.name,
     owner: g.owner,
+    createdAt: g.createdAt || 0,
+    memberCount: g.members.length,
+    isOwner: String(g.owner) === String(myUser.discordId),
+    last: (store.groupDms && store.groupDms[g.id] && store.groupDms[g.id].length) ? store.groupDms[g.id][store.groupDms[g.id].length - 1] : null,
+    group: groupView(g.id, myUser.discordId),
     members: g.members.map((dId) => Object.assign(publicFriend(store.users[dId]), { discordId: dId })).filter(Boolean),
   });
 }
@@ -948,13 +996,34 @@ if (pathname === '/internal/group/poll' && method === 'GET') {
   const myUser = did ? store.users[did] : null;
   if (!myUser) return sendJson(res, 404, { error: 'user_not_found' });
   const g = (store.groups || {})[gid];
-  if (!g || !g.members.includes(myUser.discordId)) return sendJson(res, 200, { messages: [], signals: [] });
+  if (!g || !g.members.includes(myUser.discordId)) return sendJson(res, 200, { messages: [], call: null, sig: [], sigId: 0 });
   const sinceMsg = parseInt(url.searchParams.get('sinceMsg') || '0', 10) || 0;
   const sinceSig = parseInt(url.searchParams.get('sinceSig') || '0', 10) || 0;
-  return sendJson(res, 200, {
-    messages: (g.messages || []).filter((m) => m.ts > sinceMsg),
-    signals: (g.signals || []).filter((s) => s.ts > sinceSig && (s.to === myUser.discordId || s.to === '*')),
-  });
+  const messages = [];
+  const all = (store.groupDms && store.groupDms[gid]) || [];
+  for (const m of all) if ((m.ts || 0) > sinceMsg) messages.push(m);
+  const now = Date.now();
+  const cl = callForGroup(gid);
+  let call = null;
+  let sig = [];
+  let sigId = 0;
+  if (cl) {
+    const myDid = String(myUser.discordId);
+    if (cl.participants[myDid]) cl.participants[myDid].lastSeen = now;
+    for (const pid of Object.keys(cl.participants || {})) {
+      if (now - cl.participants[pid].lastSeen > 20000) delete cl.participants[pid];
+    }
+    if (cl.participants[myDid]) {
+      const smsgs = (cl.msgs || []).filter((m) => m.id > sinceSig && (!m.to || String(m.to) === myDid));
+      sig = smsgs.slice(0, 200);
+      if (sig.length) sigId = sig[sig.length - 1].id;
+      const cutoff = now - 30000;
+      cl.msgs = (cl.msgs || []).filter((m) => (m.ts || 0) >= cutoff);
+    }
+    call = callPublicView(cl, myDid);
+    if (!Object.keys(cl.participants).length) { delete liveCalls[cl.id]; call = null; }
+  }
+  return sendJson(res, 200, { messages, call, sig, sigId });
 }
 
 if (pathname === '/internal/group/send' && method === 'POST') {
@@ -967,10 +1036,11 @@ if (pathname === '/internal/group/send' && method === 'POST') {
   if (!g || !g.members.includes(myUser.discordId)) return sendJson(res, 404, { error: 'group_not_found' });
   const text = String(body.text || '').trim().slice(0, 2000);
   if (!text) return sendJson(res, 400, { error: 'text_required' });
+  store.groupDms = store.groupDms || {};
+  store.groupDms[gid] = store.groupDms[gid] || [];
   const msg = { id: store.seq++, from: myUser.discordId, text, ts: Date.now() };
-  g.messages = g.messages || [];
-  g.messages.push(msg);
-  if (g.messages.length > 1000) g.messages = g.messages.slice(-1000);
+  store.groupDms[gid].push(msg);
+  if (store.groupDms[gid].length > 1000) store.groupDms[gid] = store.groupDms[gid].slice(-1000);
   saveStore();
   return sendJson(res, 200, { ok: true, message: msg });
 }
@@ -999,7 +1069,10 @@ if (pathname === '/internal/group/leave' && method === 'POST') {
   const g = (store.groups || {})[gid];
   if (!g || !g.members.includes(myUser.discordId)) return sendJson(res, 404, { error: 'group_not_found' });
   g.members = g.members.filter((d) => d !== myUser.discordId);
-  if (g.members.length === 0) delete store.groups[gid];
+  if (g.members.length === 0) {
+    delete store.groups[gid];
+    if (store.groupDms) delete store.groupDms[gid];
+  }
   saveStore();
   return sendJson(res, 200, { ok: true });
 }
@@ -1014,30 +1087,159 @@ if (pathname === '/internal/group/delete' && method === 'POST') {
   if (!g) return sendJson(res, 404, { error: 'group_not_found' });
   if (g.owner !== myUser.discordId) return sendJson(res, 403, { error: 'not_owner' });
   delete store.groups[gid];
+  if (store.groupDms) delete store.groupDms[gid];
+  const deadCall = callForGroup(gid);
+  if (deadCall) delete liveCalls[deadCall.id];
   saveStore();
   return sendJson(res, 200, { ok: true });
-}
-
-if (pathname === '/internal/call/direct/active' && method === 'GET') {
+}if (pathname === '/internal/call/direct/active' && method === 'GET') {
   if (!internalAuthorized(req)) return sendJson(res, 403, { error: 'forbidden' });
   const did = url.searchParams.get('discordId');
   const myUser = did ? store.users[did] : null;
   if (!myUser) return sendJson(res, 200, []);
-  ensureCalls();
-  activeCallCleanup();
-  const myCalls = Object.values(store.calls).filter(
-    (c) => c.members.includes(myUser.discordId) && ((c.direct && c.members.length > 0) || (!c.direct && c.members.length > 1)),
-  );
-  return sendJson(res, 200, myCalls.map((c) => {
-    const peerId = c.direct ? c.members.find((d) => d !== myUser.discordId) : null;
-    return {
+  const out = [];
+  for (const cid of Object.keys(liveCalls)) {
+    const c = liveCalls[cid];
+    if (!c || c.groupId !== null || !c.directKey) continue;
+    const pair = c.directKey.slice(2).split('_');
+    if (!pair || pair.length !== 2 || !pair.includes(String(myUser.discordId))) continue;
+    if (!Object.keys(c.participants || {}).length) continue;
+    const otherId = String(pair[0]) === String(myUser.discordId) ? pair[1] : pair[0];
+    const u = store.users[otherId];
+    out.push({
       callId: c.id,
-      groupId: c.groupId || null,
-      direct: !!c.direct,
-      peer: peerId ? Object.assign(publicFriend(store.users[peerId]), { discordId: peerId }) : null,
-      ts: c.ts,
-    };
-  }));
+      groupId: null,
+      direct: true,
+      incoming: !c.participants[String(myUser.discordId)],
+      otherId,
+      otherName: (u && (u.name || u.discordName)) || ('User ' + otherId),
+      peer: u ? Object.assign(publicFriend(u), { discordId: otherId }) : null,
+      ts: c.createdAt,
+    });
+  }
+  out.sort((a, b) => (b.ts || 0) - (a.ts || 0));
+  return sendJson(res, 200, out);
+}
+
+if (pathname === '/internal/call/direct/open' && method === 'POST') {
+  if (!internalAuthorized(req)) return sendJson(res, 403, { error: 'forbidden' });
+  const body = await readBody(req);
+  const myUser = store.users[String(body.discordId || '')];
+  if (!myUser) return sendJson(res, 404, { error: 'user_not_found' });
+  const peer = resolveUser(String(body.peerId || body.peer || ''));
+  if (!peer) return sendJson(res, 404, { error: 'peer_not_found' });
+  const did = String(myUser.discordId);
+  const pid = String(peer.discordId);
+  if (did === pid) return sendJson(res, 403, { error: 'cannot_call_self' });
+  const key = 'd_' + [did, pid].sort().join('_');
+  let cl = null;
+  for (const cid of Object.keys(liveCalls)) {
+    const c = liveCalls[cid];
+    if (c && c.directKey === key) { cl = c; break; }
+  }
+  const now = Date.now();
+  if (!cl) {
+    const cid = 'call_' + crypto.randomBytes(4).toString('hex');
+    cl = { id: cid, groupId: null, directKey: key, participants: {}, msgs: [], createdAt: now };
+    liveCalls[cid] = cl;
+  }
+  cl.participants[did] = { joined: now, lastSeen: now };
+  return sendJson(res, 200, {
+    ok: true,
+    call: callPublicView(cl, did),
+    callId: cl.id,
+    peer: Object.assign(publicFriend(peer), { discordId: pid }),
+  });
+}
+
+if (pathname === '/internal/call/direct/poll' && method === 'GET') {
+  if (!internalAuthorized(req)) return sendJson(res, 403, { error: 'forbidden' });
+  const did = url.searchParams.get('discordId');
+  const myUser = did ? store.users[did] : null;
+  if (!myUser) return sendJson(res, 200, { signals: [], members: [], call: null, sig: [], sigId: 0 });
+  const cid = String(url.searchParams.get('callId') || '');
+  const cl = liveCalls[cid];
+  if (!cl || !cl.participants[myUser.discordId]) return sendJson(res, 200, { signals: [], members: [], call: null, sig: [], sigId: 0 });
+  const sinceSig = parseInt(url.searchParams.get('sinceSig') || '0', 10) || 0;
+  const now = Date.now();
+  cl.participants[myUser.discordId].lastSeen = now;
+  for (const pid of Object.keys(cl.participants || {})) {
+    if (now - cl.participants[pid].lastSeen > 20000) delete cl.participants[pid];
+  }
+  const sigs = (cl.msgs || []).filter((m) => m.id > sinceSig && (!m.to || String(m.to) === myUser.discordId)).slice(0, 200);
+  const cutoff = now - 30000;
+  cl.msgs = (cl.msgs || []).filter((m) => (m.ts || 0) >= cutoff);
+  if (!Object.keys(cl.participants).length) { delete liveCalls[cl.id]; return sendJson(res, 200, { signals: [], members: [], call: null, sig: [], sigId: 0 }); }
+  const sigId = sigs.length ? sigs[sigs.length - 1].id : 0;
+  return sendJson(res, 200, { signals: sigs, members: Object.keys(cl.participants), call: callPublicView(cl, String(myUser.discordId)), sig: sigs, sigId });
+}
+
+if (pathname === '/internal/call/open' && method === 'POST') {
+  if (!internalAuthorized(req)) return sendJson(res, 403, { error: 'forbidden' });
+  const body = await readBody(req);
+  const myUser = store.users[String(body.discordId || '')];
+  if (!myUser) return sendJson(res, 404, { error: 'user_not_found' });
+  const gid = String(body.groupId || '');
+  const g = gid ? (store.groups || {})[gid] : null;
+  if (!g) return sendJson(res, 404, { error: 'group_not_found' });
+  if (!g.members.includes(myUser.discordId)) return sendJson(res, 403, { error: 'not_member' });
+  const now = Date.now();
+  let cl = callForGroup(g.id);
+  if (!cl) {
+    const cid = 'call_' + crypto.randomBytes(4).toString('hex');
+    cl = { id: cid, groupId: g.id, createdAt: now, participants: {}, msgs: [] };
+    liveCalls[cid] = cl;
+  }
+  const did = String(myUser.discordId);
+  cl.participants[did] = { joined: now, lastSeen: now };
+  return sendJson(res, 200, { ok: true, call: callPublicView(cl, did), callId: cl.id });
+}
+
+if (pathname === '/internal/call/join' && method === 'POST') {
+  if (!internalAuthorized(req)) return sendJson(res, 403, { error: 'forbidden' });
+  const body = await readBody(req);
+  const myUser = store.users[String(body.discordId || '')];
+  if (!myUser) return sendJson(res, 404, { error: 'user_not_found' });
+  const cl = liveCalls[String(body.callId || '')];
+  if (!cl) return sendJson(res, 404, { error: 'call_not_found' });
+  const g = cl.groupId ? groupById(cl.groupId) : null;
+  if (g && !isGroupMember(g, myUser.discordId)) return sendJson(res, 403, { error: 'not_member' });
+  const now = Date.now();
+  const did = String(myUser.discordId);
+  cl.participants[did] = { joined: (cl.participants[did] && cl.participants[did].joined) || now, lastSeen: now };
+  return sendJson(res, 200, { ok: true, call: callPublicView(cl, did), callId: cl.id });
+}
+
+if (pathname === '/internal/call/leave' && method === 'POST') {
+  if (!internalAuthorized(req)) return sendJson(res, 403, { error: 'forbidden' });
+  const body = await readBody(req);
+  const cl = liveCalls[String(body.callId || '')];
+  if (!cl) return sendJson(res, 200, { ok: true });
+  const did = String(body.discordId || '');
+  delete cl.participants[did];
+  cl.msgs.push({ id: callSeq++, from: did, to: '', kind: 'bye', data: null, ts: Date.now() });
+  if (!Object.keys(cl.participants).length) delete liveCalls[cl.id];
+  return sendJson(res, 200, { ok: true });
+}
+
+if (pathname === '/internal/call/signal' && method === 'POST') {
+  if (!internalAuthorized(req)) return sendJson(res, 403, { error: 'forbidden' });
+  const body = await readBody(req);
+  const cl = liveCalls[String(body.callId || '')];
+  if (!cl) return sendJson(res, 404, { error: 'call_not_found' });
+  const fromId = String(body.from_id || '');
+  const toId = String(body.to_id || '');
+  if (!cl.participants[fromId] || (toId && !cl.participants[toId])) return sendJson(res, 403, { error: 'not_in_call' });
+  cl.msgs.push({
+    id: callSeq++,
+    from: fromId,
+    to: toId,
+    kind: String(body.kind || '').slice(0, 16),
+    data: body.data || null,
+    ts: Date.now(),
+  });
+  if (cl.msgs.length > 5000) cl.msgs = cl.msgs.slice(-5000);
+  return sendJson(res, 200, { ok: true });
 }
 
 
@@ -1104,7 +1306,6 @@ if (pathname === '/internal/reset' && method === 'POST') {
   return sendJson(res, 200, { ok: true, points: user.points, level: levelOf(user) });
 }
 
-
     if (pathname === '/friends' && method === 'GET') {
       const user = bearerUser(req);
       if (!user) return sendJson(res, 401, { error: 'not_authenticated' });
@@ -1168,10 +1369,7 @@ if (pathname === '/internal/reset' && method === 'POST') {
       }
       saveStore();
       return sendJson(res, 200, { ok: true });
-    }
-
-    
-    if (pathname === '/profile-view' && method === 'GET') {
+    }if (pathname === '/profile-view' && method === 'GET') {
       const viewer = bearerUser(req);
       const code = (url.searchParams.get('code') || '').toUpperCase();
       const target = code ? store.users[store.codes[code]] : null;
@@ -1213,7 +1411,6 @@ if (pathname === '/internal/reset' && method === 'POST') {
       });
     }
 
-    
     if (pathname === '/dm/conversations' && method === 'GET') {
       const me = bearerUser(req);
       if (!me) return sendJson(res, 401, { error: 'not_authenticated' });
@@ -1266,7 +1463,6 @@ if (pathname === '/internal/reset' && method === 'POST') {
       return sendJson(res, 200, { ok: true, message: msg });
     }
 
-    
     if (pathname === '/presence' && method === 'PUT') {
       const user = bearerUser(req);
       if (!user) return sendJson(res, 401, { error: 'not_authenticated' });
@@ -1302,22 +1498,16 @@ if (pathname === '/internal/reset' && method === 'POST') {
         if (p.name) names.push(p.name);
       }
       return sendJson(res, 200, names);
-    }
-
-    // ── Gruppen ────────────────────────────────────────────────────────────
-    if (pathname === '/groups' && method === 'GET') {
+    }if (pathname === '/groups' && method === 'GET') {
       const me = bearerUser(req);
       if (!me) return sendJson(res, 401, { error: 'not_authenticated' });
-      const myGroups = Object.values(store.groups || {}).filter(
-        (g) => Array.isArray(g.members) && g.members.includes(me.discordId),
-      );
-      const out = myGroups.map((g) => ({
-        id: g.id,
-        name: g.name,
-        memberCount: g.members.length,
-        last: (g.messages || [])[g.messages.length - 1] || null,
-      }));
-      out.sort((a, b) => ((b.last && b.last.ts) || 0) - ((a.last && a.last.ts) || 0));
+      const out = [];
+      for (const id of Object.keys(store.groups || {})) {
+        const g = store.groups[id];
+        if (!g || !isGroupMember(g, me.discordId)) continue;
+        out.push(groupView(id, me.discordId));
+      }
+      out.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
       return sendJson(res, 200, out);
     }
 
@@ -1335,17 +1525,11 @@ if (pathname === '/internal/reset' && method === 'POST') {
       }
       const id = crypto.randomBytes(4).toString('hex').toUpperCase();
       store.groups = store.groups || {};
-      store.groups[id] = {
-        id,
-        name,
-        owner: me.discordId,
-        members,
-        messages: [],
-        signals: [],
-        created: Date.now(),
-      };
+      store.groupDms = store.groupDms || {};
+      store.groups[id] = { id, name, owner: me.discordId, members, createdAt: Date.now() };
+      store.groupDms[id] = [];
       saveStore();
-      return sendJson(res, 200, { id, name });
+      return sendJson(res, 200, { ok: true, id, name, group: groupView(id, me.discordId) });
     }
 
     if (pathname === '/group/view' && method === 'GET') {
@@ -1358,6 +1542,11 @@ if (pathname === '/internal/reset' && method === 'POST') {
         id: g.id,
         name: g.name,
         owner: g.owner,
+        createdAt: g.createdAt || 0,
+        memberCount: g.members.length,
+        isOwner: String(g.owner) === String(me.discordId),
+        last: (store.groupDms && store.groupDms[g.id] && store.groupDms[g.id].length) ? store.groupDms[g.id][store.groupDms[g.id].length - 1] : null,
+        group: groupView(g.id, me.discordId),
         members: g.members.map((dId) => Object.assign(publicFriend(store.users[dId]), { discordId: dId })).filter(Boolean),
       });
     }
@@ -1384,7 +1573,10 @@ if (pathname === '/internal/reset' && method === 'POST') {
       const g = (store.groups || {})[gid];
       if (!g || !g.members.includes(me.discordId)) return sendJson(res, 404, { error: 'group_not_found' });
       g.members = g.members.filter((d) => d !== me.discordId);
-      if (g.members.length === 0) delete store.groups[gid];
+      if (g.members.length === 0) {
+        delete store.groups[gid];
+        if (store.groupDms) delete store.groupDms[gid];
+      }
       saveStore();
       return sendJson(res, 200, { ok: true });
     }
@@ -1398,6 +1590,9 @@ if (pathname === '/internal/reset' && method === 'POST') {
       if (!g) return sendJson(res, 404, { error: 'group_not_found' });
       if (g.owner !== me.discordId) return sendJson(res, 403, { error: 'not_owner' });
       delete store.groups[gid];
+      if (store.groupDms) delete store.groupDms[gid];
+      const deadCall = callForGroup(gid);
+      if (deadCall) delete liveCalls[deadCall.id];
       saveStore();
       return sendJson(res, 200, { ok: true });
     }
@@ -1407,13 +1602,34 @@ if (pathname === '/internal/reset' && method === 'POST') {
       if (!me) return sendJson(res, 401, { error: 'not_authenticated' });
       const gid = String(url.searchParams.get('groupId') || '');
       const g = (store.groups || {})[gid];
-      if (!g || !g.members.includes(me.discordId)) return sendJson(res, 200, { messages: [], signals: [] });
+      if (!g || !g.members.includes(me.discordId)) return sendJson(res, 200, { messages: [], call: null, sig: [], sigId: 0 });
       const sinceMsg = parseInt(url.searchParams.get('sinceMsg') || '0', 10) || 0;
       const sinceSig = parseInt(url.searchParams.get('sinceSig') || '0', 10) || 0;
-      return sendJson(res, 200, {
-        messages: (g.messages || []).filter((m) => m.ts > sinceMsg),
-        signals: (g.signals || []).filter((s) => s.ts > sinceSig && (s.to === me.discordId || s.to === '*')),
-      });
+      const messages = [];
+      const all = (store.groupDms && store.groupDms[gid]) || [];
+      for (const m of all) if ((m.ts || 0) > sinceMsg) messages.push(m);
+      const now = Date.now();
+      const cl = callForGroup(gid);
+      let call = null;
+      let sig = [];
+      let sigId = 0;
+      if (cl) {
+        const myDid = String(me.discordId);
+        if (cl.participants[myDid]) cl.participants[myDid].lastSeen = now;
+        for (const pid of Object.keys(cl.participants || {})) {
+          if (now - cl.participants[pid].lastSeen > 20000) delete cl.participants[pid];
+        }
+        if (cl.participants[myDid]) {
+          const smsgs = (cl.msgs || []).filter((m) => m.id > sinceSig && (!m.to || String(m.to) === myDid));
+          sig = smsgs.slice(0, 200);
+          if (sig.length) sigId = sig[sig.length - 1].id;
+          const cutoff = now - 30000;
+          cl.msgs = (cl.msgs || []).filter((m) => (m.ts || 0) >= cutoff);
+        }
+        call = callPublicView(cl, myDid);
+        if (!Object.keys(cl.participants).length) { delete liveCalls[cl.id]; call = null; }
+      }
+      return sendJson(res, 200, { messages, call, sig, sigId });
     }
 
     if (pathname === '/group/send' && method === 'POST') {
@@ -1425,151 +1641,167 @@ if (pathname === '/internal/reset' && method === 'POST') {
       if (!g || !g.members.includes(me.discordId)) return sendJson(res, 404, { error: 'group_not_found' });
       const text = String(body.text || '').trim().slice(0, 2000);
       if (!text) return sendJson(res, 400, { error: 'text_required' });
+      store.groupDms = store.groupDms || {};
+      store.groupDms[gid] = store.groupDms[gid] || [];
       const msg = { id: store.seq++, from: me.discordId, text, ts: Date.now() };
-      g.messages = g.messages || [];
-      g.messages.push(msg);
-      if (g.messages.length > 1000) g.messages = g.messages.slice(-1000);
+      store.groupDms[gid].push(msg);
+      if (store.groupDms[gid].length > 1000) store.groupDms[gid] = store.groupDms[gid].slice(-1000);
       saveStore();
       return sendJson(res, 200, { ok: true, message: msg });
-    }
-
-    // ── Anrufe (Gerüst) ────────────────────────────────────────────────────
-    function ensureCalls() { store.calls = store.calls || {}; }
-    function activeCallCleanup() {
-      ensureCalls();
-      const cutoff = Date.now() - 24 * 60 * 60 * 1000;
-      for (const [cid, c] of Object.entries(store.calls)) {
-        if (c.ts < cutoff || (Array.isArray(c.members) && c.members.length === 0)) delete store.calls[cid];
-      }
     }
 
     if (pathname === '/call/open' && method === 'POST') {
       const me = bearerUser(req);
       if (!me) return sendJson(res, 401, { error: 'not_authenticated' });
-      activeCallCleanup();
-      ensureCalls();
       const body = await readBody(req);
-      const gid = String(body.groupId || '');
-      const g = gid ? (store.groups || {})[gid] : null;
-      if (gid && (!g || !g.members.includes(me.discordId))) return sendJson(res, 404, { error: 'group_not_found' });
-      const id = crypto.randomBytes(4).toString('hex').toUpperCase();
-      store.calls[id] = {
-        id,
-        groupId: gid || null,
-        members: [me.discordId],
-        signals: [],
-        ts: Date.now(),
-      };
-      saveStore();
-      return sendJson(res, 200, { callId: id, members: [me.discordId] });
+      const g = groupById(String(body.groupId || ''));
+      if (!g) return sendJson(res, 404, { error: 'group_not_found' });
+      if (!isGroupMember(g, me.discordId)) return sendJson(res, 403, { error: 'not_member' });
+      const now = Date.now();
+      let cl = callForGroup(g.id);
+      if (!cl) {
+        const cid = 'call_' + crypto.randomBytes(4).toString('hex');
+        cl = { id: cid, groupId: g.id, createdAt: now, participants: {}, msgs: [] };
+        liveCalls[cid] = cl;
+      }
+      const did = String(me.discordId);
+      cl.participants[did] = { joined: now, lastSeen: now };
+      return sendJson(res, 200, { ok: true, callId: cl.id, call: callPublicView(cl, did) });
     }
 
     if (pathname === '/call/join' && method === 'POST') {
       const me = bearerUser(req);
       if (!me) return sendJson(res, 401, { error: 'not_authenticated' });
-      ensureCalls();
       const body = await readBody(req);
-      const call = store.calls[String(body.callId || '')];
-      if (!call) return sendJson(res, 404, { error: 'call_not_found' });
-      if (!call.members.includes(me.discordId)) call.members.push(me.discordId);
-      saveStore();
-      return sendJson(res, 200, { ok: true });
+      const cl = liveCalls[String(body.callId || '')];
+      if (!cl) return sendJson(res, 404, { error: 'call_not_found' });
+      const g = groupById(cl.groupId);
+      if (!g || !isGroupMember(g, me.discordId)) return sendJson(res, 403, { error: 'not_member' });
+      const now = Date.now();
+      const did = String(me.discordId);
+      cl.participants[did] = { joined: (cl.participants[did] && cl.participants[did].joined) || now, lastSeen: now };
+      return sendJson(res, 200, { ok: true, callId: cl.id, call: callPublicView(cl, did) });
     }
 
     if (pathname === '/call/leave' && method === 'POST') {
       const me = bearerUser(req);
       if (!me) return sendJson(res, 401, { error: 'not_authenticated' });
-      ensureCalls();
       const body = await readBody(req);
-      const call = store.calls[String(body.callId || '')];
-      if (!call) return sendJson(res, 404, { error: 'call_not_found' });
-      call.members = (call.members || []).filter((d) => d !== me.discordId);
-      saveStore();
+      const cl = liveCalls[String(body.callId || '')];
+      if (!cl) return sendJson(res, 200, { ok: true });
+      const did = String(me.discordId);
+      delete cl.participants[did];
+      cl.msgs.push({ id: callSeq++, from: did, to: '', kind: 'bye', data: null, ts: Date.now() });
+      if (!Object.keys(cl.participants).length) delete liveCalls[cl.id];
       return sendJson(res, 200, { ok: true });
     }
 
     if (pathname === '/call/signal' && method === 'POST') {
       const me = bearerUser(req);
       if (!me) return sendJson(res, 401, { error: 'not_authenticated' });
-      ensureCalls();
       const body = await readBody(req);
-      const call = store.calls[String(body.callId || '')];
-      if (!call) return sendJson(res, 404, { error: 'call_not_found' });
-      if (!call.members.includes(me.discordId)) return sendJson(res, 403, { error: 'not_in_call' });
-      const sig = {
-        id: store.seq++,
-        from: me.discordId,
-        to: body.to_id ? String(body.to_id) : '*',
-        kind: String(body.kind || ''),
+      const cl = liveCalls[String(body.callId || '')];
+      if (!cl) return sendJson(res, 404, { error: 'call_not_found' });
+      const fromId = String(me.discordId);
+      const toId = String(body.to_id || body.peer || '');
+      if (!cl.participants[fromId] || (toId && toId !== '*' && !cl.participants[toId])) return sendJson(res, 403, { error: 'not_in_call' });
+      cl.msgs.push({
+        id: callSeq++,
+        from: fromId,
+        to: toId,
+        kind: String(body.kind || '').slice(0, 16),
         data: body.data || null,
         ts: Date.now(),
-      };
-      call.signals = call.signals || [];
-      call.signals.push(sig);
-      if (call.signals.length > 200) call.signals = call.signals.slice(-200);
-      saveStore();
+      });
+      if (cl.msgs.length > 5000) cl.msgs = cl.msgs.slice(-5000);
       return sendJson(res, 200, { ok: true });
     }
 
     if (pathname === '/call/direct/open' && method === 'POST') {
       const me = bearerUser(req);
       if (!me) return sendJson(res, 401, { error: 'not_authenticated' });
-      activeCallCleanup();
-      ensureCalls();
       const body = await readBody(req);
-      const peerId = String(body.peerId || '');
-      const peer = store.users[peerId];
+      const peer = resolveUser(body.peerId || body.peer);
       if (!peer) return sendJson(res, 404, { error: 'peer_not_found' });
-      const key = dmKey(me.discordId, peer.discordId);
-      let existing = Object.values(store.calls).find(
-        (c) => c.directKey === key && c.direct && c.members.includes(me.discordId),
-      );
-      if (existing) return sendJson(res, 200, { callId: existing.id, peer: Object.assign(publicFriend(peer), { discordId: peer.discordId }) });
-      const id = crypto.randomBytes(4).toString('hex').toUpperCase();
-      store.calls[id] = {
-        id,
-        directKey: key,
-        direct: true,
-        members: [me.discordId, peer.discordId],
-        signals: [],
-        ts: Date.now(),
-      };
-      saveStore();
-      return sendJson(res, 200, { callId: id, peer: Object.assign(publicFriend(peer), { discordId: peer.discordId }) });
+      const did = String(me.discordId);
+      const pid = String(peer.discordId);
+      if (did === pid) return sendJson(res, 403, { error: 'cannot_call_self' });
+      const key = 'd_' + [did, pid].sort().join('_');
+      let cl = null;
+      for (const cid of Object.keys(liveCalls)) {
+        const c = liveCalls[cid];
+        if (c && c.directKey === key) { cl = c; break; }
+      }
+      const now = Date.now();
+      if (!cl) {
+        const cid = 'call_' + crypto.randomBytes(4).toString('hex');
+        cl = { id: cid, groupId: null, directKey: key, participants: {}, msgs: [], createdAt: now };
+        liveCalls[cid] = cl;
+      }
+      cl.participants[did] = { joined: now, lastSeen: now };
+      return sendJson(res, 200, {
+        ok: true,
+        callId: cl.id,
+        peer: Object.assign(publicFriend(peer), { discordId: pid }),
+        call: callPublicView(cl, did),
+      });
     }
 
     if (pathname === '/call/direct/poll' && method === 'GET') {
       const me = bearerUser(req);
       if (!me) return sendJson(res, 401, { error: 'not_authenticated' });
-      ensureCalls();
-      const cid = String(url.searchParams.get('callId') || '');
-      const call = store.calls[cid];
-      if (!call || !call.members.includes(me.discordId)) return sendJson(res, 200, { signals: [], members: [] });
+      const cl = liveCalls[String(url.searchParams.get('callId') || '')];
+      const did = String(me.discordId);
       const sinceSig = parseInt(url.searchParams.get('sinceSig') || '0', 10) || 0;
-      const sigs = (call.signals || []).filter(
-        (s) => s.ts > sinceSig && (s.to === me.discordId || s.to === '*'),
-      );
-      return sendJson(res, 200, { signals: sigs, members: call.members });
+      if (!cl || !cl.participants[did]) return sendJson(res, 200, { call: null, sig: [], sigId: 0, signals: [], members: [] });
+      const now = Date.now();
+      cl.participants[did].lastSeen = now;
+      for (const pid of Object.keys(cl.participants || {})) {
+        if (now - cl.participants[pid].lastSeen > 20000) delete cl.participants[pid];
+      }
+      const smsgs = (cl.msgs || []).filter((m) => m.id > sinceSig && (!m.to || String(m.to) === did));
+      const sig = smsgs.slice(0, 200);
+      let sigId = 0;
+      if (sig.length) sigId = sig[sig.length - 1].id;
+      const cutoff = now - 30000;
+      cl.msgs = (cl.msgs || []).filter((m) => (m.ts || 0) >= cutoff);
+      let call = callPublicView(cl, did);
+      if (!Object.keys(cl.participants).length) { delete liveCalls[cl.id]; call = null; }
+      return sendJson(res, 200, {
+        call,
+        sig,
+        sigId,
+        signals: sig,
+        members: Object.keys(cl.participants || {}),
+      });
     }
 
     if (pathname === '/call/direct/active' && method === 'GET') {
       const me = bearerUser(req);
       if (!me) return sendJson(res, 401, { error: 'not_authenticated' });
-      activeCallCleanup();
-      ensureCalls();
-      const myCalls = Object.values(store.calls).filter(
-        (c) => c.members.includes(me.discordId) && ((c.direct && c.members.length > 0) || (!c.direct && c.members.length > 1)),
-      );
-      return sendJson(res, 200, myCalls.map((c) => {
-        const peerId = c.direct ? c.members.find((d) => d !== me.discordId) : null;
-        return {
+      const did = String(me.discordId);
+      const out = [];
+      for (const cid of Object.keys(liveCalls)) {
+        const c = liveCalls[cid];
+        if (!c || c.groupId !== null || !c.directKey) continue;
+        const pair = c.directKey.slice(2).split('_');
+        if (!pair || pair.length !== 2 || !pair.includes(did)) continue;
+        if (!Object.keys(c.participants || {}).length) continue;
+        const otherId = pair[0] === did ? pair[1] : pair[0];
+        const u = store.users[otherId];
+        out.push({
           callId: c.id,
-          groupId: c.groupId || null,
-          direct: !!c.direct,
-          peer: peerId ? Object.assign(publicFriend(store.users[peerId]), { discordId: peerId }) : null,
-          ts: c.ts,
-        };
-      }));
+          groupId: null,
+          direct: true,
+          incoming: !c.participants[did],
+          otherId,
+          otherName: (u && (u.name || u.discordName)) || ('User ' + otherId),
+          peer: u ? Object.assign(publicFriend(u), { discordId: u.discordId }) : null,
+          ts: c.createdAt,
+        });
+      }
+      out.sort((a, b) => (b.ts || 0) - (a.ts || 0));
+      return sendJson(res, 200, out);
     }
 
     return sendJson(res, 404, { error: 'not_found' });

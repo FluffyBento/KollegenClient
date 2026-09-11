@@ -1,18 +1,4 @@
 #!/usr/bin/env bash
-# Deploy des Kollegen-Backends auf den Server (mein-server).
-#
-# Nutzung:
-#   ./scripts/deploy-server.sh <host> [user]
-#
-# Beispiel:
-#   ./scripts/deploy-server.sh mein-server root
-#
-# Voraussetzungen auf dem Zielserver:
-#   - node >= 18 (z. B. via `node -v` prüfen)
-#   - das Verzeichnis /opt/kollegen-backend ist anlegbar
-#
-# Das Skript kopiert nur den server/-Ordner (kein npm install nötig, da
-# zero-dependency) und startet den Dienst neu.
 
 set -euo pipefail
 
@@ -21,7 +7,6 @@ USER="${2:-root}"
 REMOTE_DIR="/opt/kollegen-backend"
 KEY="$(dirname "$0")/../Kollegenserver"
 
-# Key-Pfad anpassen, falls er anders heißt.
 if [ ! -f "$KEY" ]; then
   KEY="$(dirname "$0")/../Kollegenserver"
 fi

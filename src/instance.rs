@@ -282,6 +282,55 @@ pub fn fetch_loaders_for_version(version: &str) -> Result<Value> {
 
 
 
+fn download_libraries(libs_dir: &Path, vjson: &VersionJson) {
+    for lib in &vjson.libraries {
+        if let Some(lib_downloads) = &lib.downloads {
+            if let Some(artifact) = &lib_downloads.artifact {
+                if let Some(rules) = &lib.rules {
+                    let allowed = rules.iter().all(|rule| {
+                        match rule.action.as_str() {
+                            "allow" => {
+                                if let Some(os) = &rule.os {
+                                    match os.name.as_str() {
+                                        "windows" => cfg!(target_os = "windows"),
+                                        "osx" => cfg!(target_os = "macos"),
+                                        "linux" => cfg!(target_os = "linux"),
+                                        _ => true,
+                                    }
+                                } else {
+                                    true
+                                }
+                            }
+                            "disallow" => {
+                                if let Some(os) = &rule.os {
+                                    match os.name.as_str() {
+                                        "windows" => !cfg!(target_os = "windows"),
+                                        "osx" => !cfg!(target_os = "macos"),
+                                        "linux" => !cfg!(target_os = "linux"),
+                                        _ => true,
+                                    }
+                                } else {
+                                    true
+                                }
+                            }
+                            _ => true,
+                        }
+                    });
+                    if !allowed {
+                        continue;
+                    }
+                }
+
+                let lib_path = libs_dir.join(&artifact.path);
+                if !lib_path.exists() {
+                    let _ = crate::utils::download_file(&artifact.url, &lib_path);
+                }
+            }
+        }
+    }
+}
+
+
 pub fn install_instance(
     data_dir: &Path,
     name: &str,
@@ -338,52 +387,7 @@ pub fn install_instance(
     }
 
     
-    for lib in &version_json.libraries {
-        if let Some(lib_downloads) = &lib.downloads {
-            if let Some(artifact) = &lib_downloads.artifact {
-                
-                if let Some(rules) = &lib.rules {
-                    let allowed = rules.iter().all(|rule| {
-                        match rule.action.as_str() {
-                            "allow" => {
-                                if let Some(os) = &rule.os {
-                                    match os.name.as_str() {
-                                        "windows" => cfg!(target_os = "windows"),
-                                        "osx" => cfg!(target_os = "macos"),
-                                        "linux" => cfg!(target_os = "linux"),
-                                        _ => true,
-                                    }
-                                } else {
-                                    true
-                                }
-                            }
-                            "disallow" => {
-                                if let Some(os) = &rule.os {
-                                    match os.name.as_str() {
-                                        "windows" => !cfg!(target_os = "windows"),
-                                        "osx" => !cfg!(target_os = "macos"),
-                                        "linux" => !cfg!(target_os = "linux"),
-                                        _ => true,
-                                    }
-                                } else {
-                                    true
-                                }
-                            }
-                            _ => true,
-                        }
-                    });
-                    if !allowed {
-                        continue;
-                    }
-                }
-
-                let lib_path = libs_dir.join(&artifact.path);
-                if !lib_path.exists() {
-                    let _ = crate::utils::download_file(&artifact.url, &lib_path);
-                }
-            }
-        }
-    }
+    download_libraries(&libs_dir, &version_json);
 
     
     download_assets(data_dir, name, version)?;
@@ -1444,6 +1448,7 @@ pub fn launch(
             .join(format!("{}.json", &fabric_id));
         let fabric_str = fs::read_to_string(&fabric_json_path)?;
         let fabric_v: VersionJson = serde_json::from_str(&fabric_str)?;
+        download_libraries(&libs_dir, &fabric_v);
         let mc = fabric_v.main_class.clone().unwrap_or_else(|| {
             "net.fabricmc.loader.impl.launch.knot.KnotClient".to_string()
         });
