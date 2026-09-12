@@ -26,15 +26,38 @@
 
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
+
+function loadEnvValue(key) {
+  const raw = fs.readFileSync('/etc/kollegen_internal.env', 'utf8');
+  const m = new RegExp('^' + key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*=\\s*(.+)\\s*$', 'm').exec(raw);
+  if (m) return m[1].trim();
+  return '';
+}
 
 function loadInternalSecret() {
   if (process.env.KOLLEGEN_INTERNAL_SECRET) return process.env.KOLLEGEN_INTERNAL_SECRET;
   try {
-    const raw = fs.readFileSync('/etc/kollegen_internal.env', 'utf8');
-    const m = /^KOLLEGEN_INTERNAL_SECRET\s*=\s*(.+)\s*$/m.exec(raw);
-    if (m) return m[1].trim();
+    const v = loadEnvValue('KOLLEGEN_INTERNAL_SECRET');
+    if (v) return v;
   } catch (_) {}
   return '';
+}
+
+function loadElyndraJwtSecret() {
+  if (process.env.ELYNDRA_JWT_SECRET) return process.env.ELYNDRA_JWT_SECRET;
+  try {
+    const v = loadEnvValue('ELYNDRA_JWT_SECRET');
+    if (v) return v;
+  } catch (_) {}
+  return '';
+}
+
+function signHmacJwt(payload, secret) {
+  const enc = (o) => Buffer.from(JSON.stringify(o)).toString('base64url');
+  const data = enc({ alg: 'HS256', typ: 'JWT' }) + '.' + enc(payload);
+  const sig = crypto.createHmac('sha256', secret).update(data).digest('base64url');
+  return data + '.' + sig;
 }
 
 
@@ -100,6 +123,7 @@ function topBarHtml(current) {
       { href: '/minecraft', label: 'Minecraft' },
       { href: '/clicker', label: 'Clicker' },
       { href: '/chat', label: 'Chat', badge: true },
+      { href: '/world/', label: 'WORLD' },
     ] },
     { label: 'Community', pages: [
       { href: '/kollegenawards', label: 'Awards', hideSm: true },
@@ -110,8 +134,6 @@ function topBarHtml(current) {
       { href: '/profil', label: 'Profil' },
       { href: '/store', label: 'Store' },
       { href: '/freunde', label: 'Freunde' },
-      { href: '/gruppen', label: 'Gruppen', hideSm: true },
-      { href: '/dm', label: 'Nachrichten', hideSm: true },
     ] },
   ];
   let links = '';
@@ -145,7 +167,7 @@ const KM_TOP_SCRIPT =
   'var av=document.getElementById("kmNavAvatar");' +
   'var lg=document.getElementById("kmLogin");var dg=document.getElementById("kmDiscord");' +
   'var lo=document.getElementById("kmLogout");' +
-  'var kmCur=(location&&location.pathname)?location.pathname:"/";document.querySelectorAll("a[href^=\"/api/auth/discord/login\"]").forEach(function(a){' +
+  'var kmCur=(location&&location.pathname)?location.pathname:"/";document.querySelectorAll("a[href^=\\\"/api/auth/discord/login\\\"]").forEach(function(a){' +
   'try{if(a)a.href="/api/auth/discord/login?redirect="+encodeURIComponent(kmCur);}catch(e){}});' +
   'fetch("/api/auth/me").then(function(r){return r.json();}).then(function(j){' +
   'if(j&&j.user){' +
@@ -204,6 +226,76 @@ module.exports = function registerProfilModule(app, getSession) {
   function isAdmin(session) {
     return !!session && session.isAdmin === true;
   }
+
+  const WORLD_ACCESS_PATH = path.join(__dirname, 'world-access.json');
+  const DEFAULT_OWNER_DISCORD = '734794262188785741';
+  function loadWorldAccess() {
+    try {
+      const cfg = JSON.parse(fs.readFileSync(WORLD_ACCESS_PATH, 'utf8'));
+      if (cfg && typeof cfg === 'object') return cfg;
+    } catch (_) {}
+    return { ownerDiscord: DEFAULT_OWNER_DISCORD, enabled: true, allowed: [] };
+  }
+  function saveWorldAccess(cfg) {
+    try {
+      fs.writeFileSync(WORLD_ACCESS_PATH, JSON.stringify(cfg, null, 2), 'utf8');
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+  function worldGate(session) {
+    const cfg = loadWorldAccess();
+    const owner = cfg.ownerDiscord || DEFAULT_OWNER_DISCORD;
+    if (session && String(session.id) === String(owner)) return { ok: true };
+    if (cfg.enabled === false) return { ok: true };
+    if (session && Array.isArray(cfg.allowed) && cfg.allowed.indexOf(String(session.id)) >= 0) return { ok: true };
+    return { ok: false, message: 'WORLD ist noch nicht für dich freigeschaltet.' };
+  }
+
+  app.get('/api/world/login', (req, res) => {
+    const session = (typeof getSession === 'function') ? getSession(req) : null;
+    if (!session || !session.id) return res.status(401).json({ error: 'not_logged_in' });
+    const gate = worldGate(session);
+    if (!gate.ok) return res.status(403).json({ error: 'world_locked', message: gate.message });
+    const secret = loadElyndraJwtSecret();
+    if (!secret) return res.status(500).json({ error: 'elyndra_jwt_not_configured' });
+    const now = Math.floor(Date.now() / 1000);
+    const token = signHmacJwt({
+      userId: String(session.id),
+      username: session.username || session.global_name || 'Abenteurer',
+      iat: now,
+      exp: now + 24 * 3600
+    }, secret);
+    return res.json({ token });
+  });
+
+  app.get('/api/profil/admin/world', (req, res) => {
+    const session = (typeof getSession === 'function') ? getSession(req) : null;
+    if (!isAdmin(session)) return res.status(403).json({ error: 'forbidden' });
+    const cfg = loadWorldAccess();
+    return res.json({ ownerDiscord: cfg.ownerDiscord || DEFAULT_OWNER_DISCORD, enabled: cfg.enabled !== false, allowed: cfg.allowed || [] });
+  });
+
+  app.post('/api/profil/admin/world', (req, res) => {
+    const session = (typeof getSession === 'function') ? getSession(req) : null;
+    if (!isAdmin(session)) return res.status(403).json({ error: 'forbidden' });
+    const body = req.body && typeof req.body === 'object' ? req.body : {};
+    const cfg = loadWorldAccess();
+    if (typeof body.ownerDiscord === 'string' && body.ownerDiscord.trim()) cfg.ownerDiscord = body.ownerDiscord.trim();
+    if (typeof body.enabled === 'boolean') cfg.enabled = body.enabled;
+    if (Array.isArray(body.allowed)) {
+      const owner = cfg.ownerDiscord || DEFAULT_OWNER_DISCORD;
+      const keep = [];
+      body.allowed.forEach(function (id) {
+        const s = String(id == null ? '' : id).trim();
+        if (s && s !== String(owner) && keep.indexOf(s) < 0) keep.push(s);
+      });
+      cfg.allowed = keep;
+    }
+    saveWorldAccess(cfg);
+    return res.json({ ok: true, ownerDiscord: cfg.ownerDiscord || DEFAULT_OWNER_DISCORD, enabled: cfg.enabled !== false, allowed: cfg.allowed || [] });
+  });
 
   
   app.get('/api/profil/uuid', async (req, res) => {
@@ -666,6 +758,7 @@ app.post('/api/profil/group/leave', async (req, res) => {
     '/freunde': buildFreundePage(),
     '/dm': buildDmPage(),
     '/gruppen': buildGruppenPage(),
+    '/admin': buildAdminPage(),
   };
 
   
@@ -699,6 +792,17 @@ app.post('/api/profil/group/leave', async (req, res) => {
   app.use((req, res, next) => {
     if (req.method !== 'GET') return next();
     const urlPath = (req.url || '').split('?')[0];
+
+    if (urlPath === '/world' || urlPath === '/world/') {
+      return res.sendFile(path.join(__dirname, 'dist', 'world', 'index.html'));
+    }
+
+    if (urlPath === '/admin') {
+      const session = (typeof getSession === 'function') ? getSession(req) : null;
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      if (!isAdmin(session)) return res.status(403).send(pageShell('Keine Berechtigung', SHARED_CSS, '<div class="card"><h2 style="font-size:1.2rem;">Keine Berechtigung</h2><p class="muted">Nur Admins können den Admin-Bereich öffnen.</p></div>'));
+      return res.send(PAGES['/admin']);
+    }
 
     if (PAGES[urlPath]) {
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
@@ -1519,6 +1623,11 @@ function buildFreundePage() {
     '<strong id="listTitle"></strong><span class="muted" id="listCount"></span></div>' +
     '<div id="listWrap"><div class="empty">Lade Freunde\u2026</div></div>' +
     '</div>' +
+    '<div class="card" id="dmCard" style="display:none;">' +
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.4rem;">' +
+    '<strong>Nachrichten</strong><a class="muted" href="/dm" style="font-size:.8rem;">Alle Nachrichten \u2192</a></div>' +
+    '<div id="dmList"><div class="empty">Lade Nachrichten\u2026</div></div>' +
+    '</div>' +
     GRUP_HTML +
     '<a class="backLink" href="/">\u2190 Zur Startseite</a>' +
     '</div>' +
@@ -1526,19 +1635,21 @@ function buildFreundePage() {
     '(function(){' +
     'function $(i){return document.getElementById(i);}' +
     'var me=$("meCard"),login=$("loginCard"),listCard=$("listCard");' +
-    'var cat=null;' +
+    'var cat=null,meDid="";' +
     'function byId(id){var c=cat||[];for(var i=0;i<c.length;i++){if(c[i].id===id)return c[i];}return null;}' +
     'function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}' +
     'function avFor(f){return "https://mc-heads.net/head/"+encodeURIComponent(f.name||"MHF_Steve").replace(/%20/g,"_")+"/128";}' +
     'function enc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}' +
     'fetch("/api/auth/me").then(function(r){return r.json();}).then(function(j){' +
     'if(!j||!j.user){login.style.display="block";return;}' +
+    'meDid=String(j.user.id);' +
     'me.style.display="block";' +
     'fetch("/api/profil/store").then(function(r){return r.json();}).then(function(d){cat=(d&&d.catalog)||[];}).catch(function(){});' +
     'fetch("/api/profil/me").then(function(r){return r.json();}).then(function(p){' +
     'if(p&&p.code){$("myCode").textContent=p.code;}' +
     '}).catch(function(){});' +
     'load();' +
+    'loadDm();' +
     '}).catch(function(){login.style.display="block";});' +
     'function load(){' +
     'loadRequests();' +
@@ -1611,6 +1722,37 @@ function buildFreundePage() {
     'wrap.append(row);' +
     '});' +
     '}).catch(function(){});' +
+    '}' +
+    'function tstr(ts){if(!ts)return "";var d=new Date(ts);var p=function(n){return(n<10?"0":"")+n;};return p(d.getHours())+":"+p(d.getMinutes());}' +
+    'function loadDm(){' +
+    'var card=$("dmCard");if(!card)return;' +
+    'var wrap=$("dmList");wrap.innerHTML="<div class=\\"empty\\">Lade Nachrichten\u2026</div>";' +
+    'fetch("/api/profil/dm/conversations").then(function(r){return r.json();}).then(function(list){' +
+    'list=Array.isArray(list)?list:[];' +
+    'if(!list.length){card.style.display="none";return;}' +
+    'card.style.display="block";' +
+    'wrap.innerHTML="";' +
+    'list.forEach(function(c){' +
+    'var u=c.user||{};' +
+    'var row=document.createElement("div");row.className="frRow";row.style.cursor="pointer";' +
+    'var av=document.createElement("img");av.className="frAv";av.alt="";' +
+    'av.src=(u.profile&&u.profile.avatar_data_url)?u.profile.avatar_data_url:"https://mc-heads.net/head/MHF_Steve/128";' +
+    'av.onerror=function(){av.src="https://mc-heads.net/head/MHF_Steve/128";};' +
+    'var info=document.createElement("div");info.className="frInfo";' +
+    'var nm=document.createElement("div");nm.className="frName";nm.textContent=u.name||("User #"+u.id);' +
+    'var l=c.last||{};' +
+    'var sub=document.createElement("div");sub.className="frSub";' +
+    'sub.textContent=(l.text?((l.from===meDid?"Du: ":"")+l.text):"")+(l.ts?(" \u00b7 "+tstr(l.ts)):"");' +
+    'info.append(nm,sub);' +
+    'var btns=document.createElement("div");btns.className="frBtns";' +
+    'var open=document.createElement("a");open.className="btn-sm linkBtn";open.textContent="\u00d6ffnen";' +
+    'open.href="/dm?to="+encodeURIComponent(u.code||"");' +
+    'btns.appendChild(open);' +
+    'row.append(av,info,btns);' +
+    'row.addEventListener("click",function(){location.href=open.href;});' +
+    'wrap.append(row);' +
+    '});' +
+    '}).catch(function(){card.style.display="none";});' +
     '}' +
     '$("copyBtn").addEventListener("click",function(){' +
     'var c=$("myCode").textContent;if(!c||c==="\u2013")return;' +
@@ -2257,3 +2399,86 @@ const CHAT_WIDGET_HTML =
   '});' +
   '})();' +
   '</scr' + 'ipt>';
+
+function buildAdminPage() {
+  const css =
+    '#wrap{max-width:760px;}' +
+    '.admCard{border-left:3px solid #ffd75f;}' +
+    '.admToggle{display:flex;align-items:center;gap:.7rem;margin:.6rem 0 .2rem;}' +
+    '.admToggle input{width:auto;}' +
+    '.admRow{display:flex;align-items:center;gap:.5rem;padding:.45rem .1rem;border-bottom:1px solid rgba(255,255,255,.05);}' +
+    '.admRow .wid{font-family:monospace;color:#f2f3f5;}' +
+    '.admRow .wname{color:#8f9aab;font-size:.8rem;}' +
+    '.admRow button{margin:0;padding:.3rem .7rem;font-size:.75rem;}' +
+    '.admHint{color:#8f9aab;font-size:.8rem;line-height:1.5;margin-top:.4rem;}' +
+    '.admStatus{padding:.6rem .9rem;border-radius:8px;font-size:.85rem;margin-top:.8rem;display:none;}' +
+    '.admStatus.ok{display:block;background:rgba(126,231,135,.12);border:1px solid rgba(126,231,135,.35);color:#7ee787;}' +
+    '.admStatus.err{display:block;background:rgba(248,81,73,.12);border:1px solid rgba(248,81,73,.35);color:#f85149;}';
+
+  const html =
+    '<h1>Admin</h1>' +
+    '<p class="sub">WORLD-Zugang steuern. Solange gesperrt, können nur der Eigentümer und freigeschaltete UIDs sich in WORLD einloggen.</p>' +
+    '<div class="card admCard">' +
+    '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.5rem;">' +
+    '<strong>WORLD-Zugang</strong><span class="muted" id="wlOwner"></span></div>' +
+    '<div class="admToggle"><input type="checkbox" id="wlEnabled"/><label for="wlEnabled" style="margin:0;">Gesperrt — nur für Eigentümer &amp; freigeschaltete UIDs</label></div>' +
+    '<div style="margin-top:1rem;"><strong style="font-size:.9rem;">Freigeschaltete Discord-UIDs</strong></div>' +
+    '<div id="wlList" style="margin-top:.3rem;"><div class="muted">Lade…</div></div>' +
+    '<div style="display:flex;gap:.5rem;align-items:center;margin-top:.8rem;flex-wrap:wrap;">' +
+    '<input id="wlAddId" placeholder="Discord-UID (Zahlen)" style="flex:1;min-width:200px;width:auto;"/>' +
+    '<button type="button" class="btn-sm" id="wlAddBtn">Freischalten</button></div>' +
+    '<div class="admHint">Eigentümer ist immer freigeschaltet. Zum Sperren für eine UID einfach aus der Liste entfernen. Zum Öffnen für alle: Haken entfernen.</div>' +
+    '<div class="admStatus" id="wlStatus"></div>' +
+    '</div>';
+
+  const js =
+    '(function(){' +
+    'function $(i){return document.getElementById(i);}' +
+    'var owner="";' +
+    'function state(){' +
+    'return { enabled: $("wlEnabled").checked, allowed: Array.from($("wlList").querySelectorAll(".rowId")).map(function(e){return e.getAttribute("data-id");}) };' +
+    '}' +
+    'function render(cfg){' +
+    'owner=cfg.ownerDiscord||"";' +
+    '$("wlOwner").textContent="Eigentümer: "+owner;' +
+    '$("wlEnabled").checked=cfg.enabled!==false;' +
+    'var l=$("wlList");l.innerHTML="";' +
+    'if(!cfg.allowed||!cfg.allowed.length){l.innerHTML="<div class=\\"muted\\">Niemand freigeschaltet.</div>";return;}' +
+    'cfg.allowed.forEach(function(id){' +
+    'var r=document.createElement("div");r.className="admRow";' +
+    'var s=document.createElement("span");s.className="wid rowId";s.setAttribute("data-id",id);s.textContent=id;' +
+    'var b=document.createElement("button");b.type="button";b.className="secondary btn-sm";b.textContent="Entfernen";' +
+    'b.addEventListener("click",function(){' +
+    'var keep=state().allowed.filter(function(x){return x!==id;});' +
+    'save({enabled:$("wlEnabled").checked,allowed:keep});' +
+    '});' +
+    'r.append(s,b);l.append(r);' +
+    '});' +
+    '}' +
+    'function save(data){' +
+    'fetch("/api/profil/admin/world",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(data)}).then(function(r){return r.json();}).then(function(j){' +
+    'var st=$("wlStatus");' +
+    'if(j&&j.ok){st.className="admStatus ok";st.textContent="Gespeichert.";render(j);}' +
+    'else{st.className="admStatus err";st.textContent="Fehler: "+((j&&j.error)||"?");}' +
+    'setTimeout(function(){st.className="admStatus";},2500);' +
+    '}).catch(function(){var st=$("wlStatus");st.className="admStatus err";st.textContent="Netzwerkfehler.";});' +
+    '}' +
+    '$("wlEnabled").addEventListener("change",function(){save({enabled:$("wlEnabled").checked,allowed:state().allowed});});' +
+    '$("wlAddBtn").addEventListener("click",function(){' +
+    'var id=$("wlAddId").value.trim();' +
+    'if(!id){return;}' +
+    'if(!/^\\d+$/.test(id)){$("wlStatus").className="admStatus err";$("wlStatus").textContent="UID muss aus Zahlen bestehen.";return;}' +
+    'var cur=state().allowed;' +
+    'if(cur.indexOf(id)>=0){return;}' +
+    'cur.push(id);' +
+    'save({enabled:$("wlEnabled").checked,allowed:cur});' +
+    '$("wlAddId").value="";' +
+    '});' +
+    'fetch("/api/profil/admin/world").then(function(r){return r.json();}).then(function(j){' +
+    'if(!j||j.error){var l=$("wlList");l.innerHTML="<div class=\\"muted\\">Kein Zugriff: "+(j&&j.error||"?")+"</div>";return;}' +
+    'render(j);' +
+    '}).catch(function(){var l=$("wlList");l.innerHTML="<div class=\\"muted\\">Nicht erreichbar.</div>";});' +
+    '})();';
+
+  return pageShell('Admin', css, html + '<script>' + js + '</script>');
+}
