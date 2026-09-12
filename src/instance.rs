@@ -376,9 +376,9 @@ pub fn install_instance(
     crate::utils::save_json(&version_json_path, &serde_json::to_value(&version_json)?)?;
 
     
-    let downloads = version_json.downloads
+    let downloads = version_json.downloads.as_ref()
         .ok_or_else(|| anyhow!("Keine Download-Informationen in Version JSON für {} gefunden", version))?;
-    let client_download = downloads.client
+    let client_download = downloads.client.as_ref()
         .ok_or_else(|| anyhow!("Kein Client-Jar-Download für {} gefunden", version))?;
 
     let jar_path = version_dir.join(format!("{}.jar", version));
