@@ -48,6 +48,9 @@ public class KollegenMenuScreen extends Screen {
     private int maxCatScroll = 0;
     private int sidebarTop, sidebarBottom;
     private int catItemH = 42;
+    private boolean kollegen$dragActive = false;
+    private int kollegen$dragStartY = 0;
+    private int kollegen$dragStartScroll = 0;
     private static final int CAT_GAP = 8;
 
     private int contentTop, contentBottom;
@@ -228,11 +231,40 @@ public class KollegenMenuScreen extends Screen {
     }
 
     @Override
+    public boolean mouseDragged(double mx, double my, int button, double dx, double dy) {
+        if (kollegen$dragActive && button == 0) {
+            int delta = (int) Math.round(dy);
+            if (delta != 0) {
+                scroll = Math.max(0, Math.min(maxScroll, scroll + delta));
+                rebuild();
+            }
+            return true;
+        }
+        return super.mouseDragged(mx, my, button, dx, dy);
+    }
+
+    @Override
+    public boolean mouseReleased(double mx, double my, int button) {
+        if (kollegen$dragActive && button == 0) {
+            kollegen$dragActive = false;
+            return true;
+        }
+        return super.mouseReleased(mx, my, button);
+    }
+
+    @Override
     public boolean mouseClicked(net.minecraft.client.input.MouseButtonEvent event, boolean bl) {
         double mx = event.x();
         double my = event.y();
         int button = event.button();
-        
+
+        if (mx >= px + SW && mx <= px + pw - 16 && my >= contentTop && my <= contentBottom && maxScroll > 0 && button == 0) {
+            kollegen$dragActive = true;
+            kollegen$dragStartY = (int) my;
+            kollegen$dragStartScroll = scroll;
+            return true;
+        }
+
         if (mx >= px && mx <= px + SW && my >= sidebarTop && my <= sidebarBottom) {
             int idx = (int) ((my - sidebarTop + catScroll) / (catItemH + CAT_GAP));
             if (idx >= 0 && idx < cats.length) {

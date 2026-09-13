@@ -789,7 +789,46 @@ app.post('/api/profil/group/leave', async (req, res) => {
   }
 
   
-  app.use((req, res, next) => {
+  
+  // ===== GLOBALE kmLive-Widget-Injektion (goldener purer Live-Chat auf JEDER HTML-Route) =====
+  const KM_KM_GLOBAL_INJ = (function () {
+    function inject(body) {
+      if (typeof body !== 'string') return body;
+      if (body.indexOf('<body') === -1) return body;
+      if (body.indexOf('kmLfBtn') !== -1) return body;            // schon injiziert (top-Pfad / / /chat)
+      if (body.indexOf('kmLfBody') !== -1) return body;           // Guard gegen Doppel via Body-Marker
+      const tag = body.match(/<body[^>]*>/i);
+      if (!tag) return body;
+      return body.replace(/<body[^>]*>/i, function (m) {
+        return m + '\n' + LIVE_CHAT_WIDGET_HTML + '\n';
+      });
+    }
+    return function kmGlobalInject(req, res, next) {
+      const _send = res.send.bind(res);
+      const _sendFile = res.sendFile.bind(res);
+      res.send = function (payload) {
+        if (typeof payload === 'string') {
+          payload = inject(payload);
+          if (Buffer.isBuffer(res.locals.kmHtmlGz)) payload = res.locals.kmHtmlGz;
+        }
+        return _send.call(this, payload);
+      };
+      res.sendFile = function (p, opts, cb) {
+        const fp = typeof p === 'string' ? p : '';
+        if (/\.html$/i.test(fp)) {
+          try {
+            const h = fs.readFileSync(fp, 'utf8');
+            return _send.call(this, inject(h));
+          } catch (_) {}
+        }
+        return _sendFile.call(this, p, opts, cb);
+      };
+      return next();
+    };
+  })();
+  app.use(KM_KM_GLOBAL_INJ);
+
+app.use((req, res, next) => {
     if (req.method !== 'GET') return next();
     const urlPath = (req.url || '').split('?')[0];
 
