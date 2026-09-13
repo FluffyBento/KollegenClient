@@ -122,7 +122,6 @@ function topBarHtml(current) {
     { label: 'Spielen', pages: [
       { href: '/minecraft', label: 'Minecraft' },
       { href: '/clicker', label: 'Clicker' },
-      { href: '/chat', label: 'Chat', badge: true },
       { href: '/world/', label: 'WORLD' },
     ] },
     { label: 'Community', pages: [
@@ -782,6 +781,7 @@ app.post('/api/profil/group/leave', async (req, res) => {
       '</style>' +
       topBarHtml(route) +
       '<script>' + KM_TOP_SCRIPT + '</' + 'script>';
+    top += LIVE_CHAT_WIDGET_HTML;
     if (route === '/chat') top += CHAT_WIDGET_HTML;
     html = html.replace(/<body[^>]*>/, function (m) { return m + top; });
     indexCache[route] = html;
@@ -2299,6 +2299,114 @@ function buildGruppenPage() {
   return pageShell('Gruppen', css, html);
 }
 
+
+const LIVE_CHAT_WIDGET_HTML = `<div style="position:fixed;right:16px;bottom:16px;z-index:10001;font-family:'Outfit',sans-serif;">
+<style>
+.kmLfBtn{width:58px;height:58px;border-radius:999px;background:linear-gradient(135deg,#FFD700,#FFAA00);border:2px solid rgba(255,215,0,.75);box-shadow:0 6px 26px rgba(0,0,0,.5),0 0 0 6px rgba(255,215,0,.13);cursor:pointer;display:flex;align-items:center;justify-content:center;position:relative;padding:0;transition:transform .15s,filter .15s;}
+.kmLfBtn:hover{transform:translateY(-2px) scale(1.05);filter:brightness(1.08);}
+.kmLfBtn .kmLfIco{width:28px;height:28px;fill:#191919;}
+.kmLfBub{position:absolute;top:-5px;right:-5px;min-width:18px;height:18px;border-radius:999px;background:#ef4444;color:#fff;font:700 10px/18px 'Outfit',sans-serif;text-align:center;padding:0 5px;display:none;box-shadow:0 2px 8px rgba(0,0,0,.5);}
+.kmLfBox{position:fixed;right:16px;bottom:86px;width:min(360px,calc(100vw - 30px));height:min(470px,calc(100dvh - 120px));display:none;flex-direction:column;background:#0d1117;border:1px solid #232a3f;border-radius:18px;overflow:hidden;box-shadow:0 22px 70px rgba(0,0,0,.65);z-index:10001;}
+.kmLfHead{display:flex;align-items:center;gap:9px;padding:12px 14px;background:linear-gradient(135deg,#FFD700,#FFAA00);}
+.kmLfHeadT{flex:1;font:800 15px/1 'Outfit',sans-serif;color:#191919;}
+.kmLfOn{display:flex;align-items:center;gap:6px;font:700 11px/1 'Outfit',sans-serif;color:#191919;}
+.kmLfDot{width:8px;height:8px;border-radius:50%;background:#22c55e;box-shadow:0 0 0 3px rgba(34,197,94,.3);}
+.kmLfCls{width:26px;height:26px;border-radius:8px;border:none;background:rgba(0,0,0,.14);color:#191919;font:700 17px/1 'Outfit',sans-serif;cursor:pointer;}
+.kmLfBody{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:10px;}
+.kmLfM{display:flex;flex-direction:column;max-width:88%;}
+.kmLfMH{display:flex;align-items:baseline;gap:8px;margin-bottom:4px;font:800 12px/1 'Outfit',sans-serif;color:#FFAA00;}
+.kmLfMT{font:500 10px/1 'Outfit',sans-serif;color:#6b7280;}
+.kmLfMQ{font:400 13px/1.45 'Outfit',sans-serif;color:#e6e6e6;background:#161b26;border:1px solid #232a3f;padding:8px 11px;border-radius:4px 12px 12px 12px;word-wrap:break-word;}
+.kmLfFoot{display:flex;gap:8px;padding:10px;border-top:1px solid #232a3f;background:#12161f;}
+.kmLfInp{flex:1;background:#0b0e14;border:1px solid #232a3f;border-radius:999px;color:#e6e6e6;font:400 13px/1 'Outfit',sans-serif;padding:10px 14px;outline:none;}
+.kmLfInp:focus{border-color:#FFAA00;}
+.kmLfSnd{background:linear-gradient(135deg,#FFD700,#FFAA00);border:none;color:#191919;border-radius:999px;font:800 13px/1 'Outfit',sans-serif;padding:0 16px;cursor:pointer;}
+.kmLfSnd:hover{filter:brightness(1.08);}
+<\/style>
+<button type="button" id="kmLfBtn" class="kmLfBtn" aria-label="Live-Chat öffnen" title="Live-Chat">
+<svg class="kmLfIco" viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg>
+<span id="kmLfBub" class="kmLfBub">0</span>
+</button>
+<div id="kmLfBox" class="kmLfBox">
+<div class="kmLfHead">
+<span class="kmLfHeadT">Kollegen Live-Chat</span>
+<span class="kmLfOn"><span class="kmLfDot"></span><span id="kmLfOnT">0 online</span></span>
+<button type="button" id="kmLfCls" class="kmLfCls" aria-label="Schließen">&times;</button>
+</div>
+<div id="kmLfBody" class="kmLfBody"></div>
+<div class="kmLfFoot">
+<input id="kmLfInp" class="kmLfInp" type="text" maxlength="400" autocomplete="off" placeholder="Schreib was in den Live-Chat..." />
+<button type="button" id="kmLfSnd" class="kmLfSnd">Senden</button>
+</div>
+</div>
+</div>
+<script>
+(function(){
+var L=window.kmLiveFix=window.kmLiveFix||{};
+L.btn=document.getElementById("kmLfBtn"),L.bub=document.getElementById("kmLfBub");
+L.box=document.getElementById("kmLfBox"),L.cls=document.getElementById("kmLfCls");
+L.body=document.getElementById("kmLfBody"),L.inp=document.getElementById("kmLfInp");
+L.snd=document.getElementById("kmLfSnd"),L.onT=document.getElementById("kmLfOnT");
+L.page=(location.pathname||"/");L.es=null;L.seen={};L.unread=0;L.online=0;
+L.esc=function(v){var d=document.createElement("div");d.textContent=v==null?"":String(v);return d.innerHTML;};
+L.scroll=function(){L.body.scrollTop=L.body.scrollHeight;};
+L.isOpen=function(){return L.box.style.display==="flex";};
+L.setOnline=function(n){L.online=(typeof n==="number")?n:0;L.onT.textContent=L.online+" online";};
+L.add=function(m){
+if(!m||!m.text)return;
+if(m.id){if(L.seen[m.id])return;L.seen[m.id]=1;}
+var w=document.createElement("div");w.className="kmLfM";
+var h=document.createElement("div");h.className="kmLfMH";
+var u=document.createElement("span");u.textContent=m.username||"Anon";
+var t=document.createElement("span");t.className="kmLfMT";t.textContent=m.time||"";
+h.appendChild(u);h.appendChild(t);
+var q=document.createElement("div");q.className="kmLfMQ";q.textContent=m.text;
+w.appendChild(h);w.appendChild(q);L.body.appendChild(w);
+if(L.isOpen())L.scroll();else{L.unread++;L.bub.textContent=L.unread>99?"99+":L.unread;L.bub.style.display="flex";}
+};
+L.load=function(){
+fetch("/api/clicker/chat/messages").then(function(r){return r.json();}).then(function(d){
+if(!d||!Array.isArray(d.messages))return;
+L.body.innerHTML="";L.seen={};var ms=d.messages.slice(-60);
+for(var i=0;i<ms.length;i++)L.add(ms[i]);
+L.scroll();
+}).catch(function(){});
+};
+L.send=function(){
+if(L.sending)return;var t=(L.inp.value||"").trim();if(!t)return;L.sending=true;
+fetch("/api/clicker/chat/send",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text:t,page:L.page})})
+.then(function(r){return r.json();}).then(function(d){
+L.sending=false;
+if(d&&d.error){if(d.error==="Bitte melde dich mit Discord an, um im Chat zu schreiben."){window.location.href="/login";}else{alert(d.error);}L.inp.value=t;return;}
+if(d&&d.message)L.add(d.message);
+L.inp.value="";
+}).catch(function(){L.sending=false;L.inp.value=t;});
+};
+L.toggle=function(){
+if(L.isOpen()){L.box.style.display="none";return;}
+L.box.style.display="flex";L.bub.style.display="none";L.unread=0;L.inp.focus();
+if(!L.es){L.load();L.connect();}
+L.scroll();
+};
+L.connect=function(){
+if(L.es)return;
+try{L.es=new EventSource("/api/clicker/live-leaderboard?page="+encodeURIComponent(L.page));}
+catch(e){return;}
+L.es.onmessage=function(ev){
+var d;try{d=JSON.parse(ev.data);}catch(e){return;}
+if(!d)return;
+if(d.type==="chat_message"&&d.message)L.add(d.message);
+else if(typeof d.onlineUsers==="number")L.setOnline(d.onlineUsers);
+else if(typeof d.onlineUsers==="number")L.setOnline(d.onlineUsers);
+};
+};
+L.cls.onclick=function(){L.box.style.display="none";};
+L.snd.onclick=function(){L.send();};
+L.inp.onkeydown=function(e){if(e.key==="Enter")L.send();};
+L.btn.onclick=L.toggle;
+})();
+<\/script>
+`;
 
 const CHAT_WIDGET_HTML =
   '<div id="kmSocial">' +
