@@ -1940,6 +1940,22 @@ pub fn launch(
                 }
             }
         }
+        let mut crash_hint: Vec<String> = Vec::new();
+        if runtime < 120.0 {
+            if let Some(inst) = log_path2.parent().and_then(|p| p.parent()) {
+                crash_hint = analyze_native_crash(inst, runtime);
+            }
+        }
+        if !crash_hint.is_empty() {
+            if let Ok(mut logs) = logs_arc.lock() {
+                for l in &crash_hint {
+                    logs.push(l.clone());
+                    if logs.len() > crate::MAX_LOG_LINES {
+                        logs.remove(0);
+                    }
+                }
+            }
+        }
         
         if let Some(rp) = &report_path2 {
             let mut txt = String::new();
@@ -1952,6 +1968,13 @@ pub fn launch(
                 txt.push_str("── Letzte Log-Zeilen ──\n");
                 for l in log_tail.lines().rev().take(15) {
                     txt.push_str(l.trim_end());
+                    txt.push('\n');
+                }
+            }
+            if !crash_hint.is_empty() {
+                txt.push_str("── Native-Crash-Analyse ──\n");
+                for l in &crash_hint {
+                    txt.push_str(l);
                     txt.push('\n');
                 }
             }
@@ -1983,6 +2006,120 @@ pub fn launch(
 }
 
 
+
+fn native_crash_suspect(module: &str) -> Option<&'static str> {
+    let m = module.to_lowercase();
+    if m.contains("mediainterface_winrt") || m.contains("spotify") {
+        return Some("spotify-overlay (WinRT-Bridge)");
+    }
+    if m.contains("discord_game_sdk") {
+        return Some("Discord-RPC (kollegen-client)");
+    }
+    if m.contains("opus") || m.contains("rnnoise") || m.contains("voicechat") {
+        return Some("Simple Voice Chat (Audio-Natives)");
+    }
+    if m.contains("tcnative") || m.contains("boringssl") || m.contains("velocity") || m.contains("netty") {
+        return Some("krypton (velocity-native)");
+    }
+    if m.contains("lwjgl") || m.contains("glfw") || m.contains("openal") || m.contains("soft_oal") {
+        return Some("LWJGL/Audio-Natives");
+    }
+    if m.contains("nvoglv") || m.contains("atio6axx") || m.contains("amdxn64") || m.contains("igc64") || m.contains("igxelpicd") || m.contains("opengl32") {
+        return Some("GPU-Treiber");
+    }
+    if m.contains("jvm.dll") {
+        return Some("Java-VM (Heap/JIT)");
+    }
+    None
+}
+
+fn analyze_native_crash(inst_dir: &std::path::Path, runtime_secs: f64) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    let now_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as u64)
+        .unwrap_or(0);
+    let started_ms = now_ms.saturating_sub((runtime_secs * 1000.0) as u64);
+    let mut newest: Option<(u64, std::path::PathBuf)> = None;
+    if let Ok(entries) = std::fs::read_dir(inst_dir) {
+        for e in entries.flatten() {
+            let p = e.path();
+            let name = p.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
+            if !name.starts_with("hs_err_pid") || !name.ends_with(".log") {
+                continue;
+            }
+            if let Ok(md) = e.metadata() {
+                if let Ok(mt) = md.modified() {
+                    if let Ok(ms) = mt.duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis() as u64) {
+                        if ms + 120_000 >= started_ms && newest.as_ref().map(|(m, _)| ms > *m).unwrap_or(true) {
+                            newest = Some((ms, p));
+                        }
+                    }
+                }
+            }
+        }
+    }
+    let path = match newest {
+        Some((_, p)) => p,
+        None => return out,
+    };
+    let text = match std::fs::read_to_string(&path) {
+        Ok(t) => t,
+        Err(_) => return out,
+    };
+    let mut exception = String::new();
+    let mut frame = String::new();
+    let mut thread = String::new();
+    let mut modules: Vec<String> = Vec::new();
+    for l in text.lines() {
+        let t = l.trim().trim_start_matches('#').trim();
+        if t.starts_with("EXCEPTION_") && exception.is_empty() {
+            exception = t.to_string();
+        } else if t.starts_with("Problematic frame:") && frame.is_empty() {
+            frame = t.trim_start_matches("Problematic frame:").trim().to_string();
+        } else if t.starts_with("Current thread") && thread.is_empty() {
+            thread = t.to_string();
+        } else if t.starts_with('C') && (t.contains(".dll") || t.contains(".so")) && modules.len() < 6 {
+            if let Some(a) = t.find('[') {
+                if let Some(b) = t[a..].find(']') {
+                    let raw = t[a + 1..a + b].to_string();
+                    let base = raw.split(['+', '!']).next().unwrap_or(&raw).to_string();
+                    if !base.is_empty() && !modules.contains(&base) {
+                        modules.push(base);
+                    }
+                }
+            }
+        }
+    }
+    if exception.is_empty() && frame.is_empty() {
+        return out;
+    }
+    if !exception.is_empty() {
+        out.push(format!("Nativer Absturz erkannt: {}", exception));
+    }
+    if !frame.is_empty() {
+        out.push(format!("Problematic frame: {}", frame));
+    }
+    if !thread.is_empty() {
+        let short = thread.chars().take(120).collect::<String>();
+        out.push(format!("Thread: {}", short));
+    }
+    let mut first_suspect = String::new();
+    for m in &modules {
+        if let Some(suspect) = native_crash_suspect(m) {
+            out.push(format!("Verdächtiges natives Modul: {} – mögliche Quelle: {}.", m, suspect));
+            if first_suspect.is_empty() && !suspect.starts_with("GPU-") && !suspect.starts_with("Java-") {
+                first_suspect = suspect.to_string();
+            }
+        }
+    }
+    if first_suspect.is_empty() {
+        out.push("Tipp: hs_err-Datei in der Instanz prüfen, Mods einzeln deaktivieren, Grafiktreiber und VC++-Redistributable aktualisieren.".to_string());
+    } else {
+        out.push(format!("Tipp: zum Eingrenzen zuerst {} deaktivieren und erneut starten.", first_suspect));
+    }
+    out
+}
 
 fn parse_server_from_log(line: &str) -> Option<String> {
     let marker = "Connecting to ";
