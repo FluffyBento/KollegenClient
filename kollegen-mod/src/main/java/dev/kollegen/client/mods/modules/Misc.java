@@ -9,7 +9,6 @@ public final class Misc {
 
     public static void register() {
         InventoryColor.register();
-        SpotifyOverlay.register();
         ChatHeads.register();
         Appleskin.register();
         AutoRemoveMods.register();

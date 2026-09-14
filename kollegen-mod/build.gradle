@@ -129,17 +129,6 @@ def vendorModResource(String resourceRel, String slug, String urlOverride = null
                 fmj.write(groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(json)))
             }
             ant.zip(destfile: res, basedir: unzipDir)
-            
-            
-            
-            
-            
-            
-            
-            
-            if (slug == 'spotify-overlay') {
-                sanitizeJar(res)
-            }
         }
     }
 }
@@ -152,50 +141,7 @@ def vendorModResource(String resourceRel, String slug, String urlOverride = null
 
 
 
-def sanitizeJar(File jar) {
-    def sanitized = sanitizeZipBytes(jar.bytes)
-    if (sanitized != null) {
-        jar.bytes = sanitized
-        println("vendorSpotifyMod: shadowed kotlinx-Klassen entfernt (AbstractMethodError-Fix)")
-    }
-}
 
-byte[] sanitizeZipBytes(byte[] data) {
-    def outBytes = new ByteArrayOutputStream()
-    def zout = new java.util.zip.ZipOutputStream(outBytes)
-    def zin = new java.util.zip.ZipInputStream(new ByteArrayInputStream(data))
-    def buf = new byte[16384]
-    boolean changed = false
-    java.util.zip.ZipEntry e
-    while ((e = zin.nextEntry) != null) {
-        def name = e.name
-        if (name.startsWith('kotlin/') || name.startsWith('kotlinx/') ||
-            name.startsWith('_COROUTINE/') ||
-            name.startsWith('META-INF/kotlinx-') ||
-            name.startsWith('META-INF/kotlin-stdlib')) {
-            changed = true
-            continue
-        }
-        zout.putNextEntry(new java.util.zip.ZipEntry(name))
-        if (name.startsWith('META-INF/jars/') && name.endsWith('.jar')) {
-            def inner = zin.readAllBytes()
-            def cleaned = sanitizeZipBytes(inner)
-            if (cleaned != null) {
-                zout.write(cleaned)
-                changed = true
-            } else {
-                zout.write(inner)
-            }
-        } else {
-            int n
-            while ((n = zin.read(buf)) > 0) zout.write(buf, 0, n)
-        }
-        zout.closeEntry()
-    }
-    zin.close()
-    zout.close()
-    return changed ? outBytes.toByteArray() : null
-}
 
 
 
@@ -213,8 +159,6 @@ def berylTask = vendorModResource('dev/kollegen/client/beryl.bin', 'beryl')
 
 
 
-def spotifyUrl = 'https://cdn.modrinth.com/data/iRsArBuW/versions/BMGGYY7f/spotify_overlay-1.0.17-SNAPSHOT%2Bfabric.1.21.11.jar'
-def spotifyTask = vendorModResource('dev/kollegen/client/spotify.bin', 'spotify-overlay', spotifyUrl)
 
 
 
@@ -438,7 +382,7 @@ tasks.register('vendorVulkanMod') {
     }
 }
 processResources.dependsOn vendorVulkanMod, sodiumTask, irisTask, berylTask,
-        spotifyTask, flkTask, fabricApiTask, owoTask, modMenuTask,
+        flkTask, fabricApiTask, owoTask, modMenuTask,
         tpaTask, silkTask, clothConfigTask, chatHeadsTask
 
 java {

@@ -890,7 +890,6 @@ pub(crate) fn enforce_renderer_consistency(mods_dir: &Path, vulkan_enabled: bool
 
 
 const BUNDLED_MODS: &[(&str, &str, &str)] = &[
-    ("spotify", "kollegen-bundle-spotify.jar", "dev/kollegen/client/spotify.bin"),
     ("chatheads", "kollegen-bundle-chatheads.jar", "dev/kollegen/client/chatheads.bin"),
     ("@deps", "kollegen-bundle-fabric-api.jar", "dev/kollegen/client/fabricapi.bin"),
     ("@deps", "kollegen-bundle-flk.jar", "dev/kollegen/client/flk.bin"),
@@ -914,7 +913,6 @@ const LEGACY_BUNDLE_JARS: &[&str] = &["kollegen-bundle-flk.jar"];
 
 fn bundle_standalone_prefixes(jar_name: &str) -> &'static [&'static str] {
     match jar_name {
-        "kollegen-bundle-spotify.jar" => &["spotify_overlay", "spotify-overlay"],
         "kollegen-bundle-chatheads.jar" => &["chat_heads", "chat-heads"],
         "kollegen-bundle-fabric-api.jar" => &["fabric-api", "fabric_api"],
         "kollegen-bundle-flk.jar" => &["fabric-language-kotlin", "fabric_language_kotlin"],
@@ -934,11 +932,11 @@ fn bundles_flag_path(mods_dir: &Path) -> PathBuf {
 
 
 fn read_bundle_flags(mods_dir: &Path) -> Value {
-    let mut flags = serde_json::json!({ "spotify": true, "chatheads": true });
+    let mut flags = serde_json::json!({ "chatheads": true });
     if let Ok(s) = fs::read_to_string(bundles_flag_path(mods_dir)) {
         if let Ok(v) = serde_json::from_str::<Value>(&s) {
             if v.is_object() {
-                for k in ["spotify", "chatheads"] {
+                for k in ["chatheads"] {
                     if let Some(b) = v.get(k).and_then(|x| x.as_bool()) {
                         flags[k] = serde_json::Value::Bool(b);
                     }
@@ -957,141 +955,6 @@ fn read_bundle_flags(mods_dir: &Path) -> Value {
 
 
 
-
-fn strip_shaded_kotlin(jar: &[u8]) -> Option<Vec<u8>> {
-    let reader = std::io::Cursor::new(jar);
-    let mut archive = zip::ZipArchive::new(reader).ok()?;
-    let should_strip = |name: &str| {
-        name.starts_with("kotlin/")
-            || name.starts_with("kotlinx/")
-            || name.starts_with("_COROUTINE/")
-            || (name.starts_with("META-INF/kotlinx-")
-                && (name.ends_with(".kotlin_module") || name.ends_with(".pro")))
-            || name.starts_with("META-INF/kotlin-stdlib")
-    };
-    let mut changed = false;
-    let mut out = Vec::new();
-    {
-        let mut writer = zip::ZipWriter::new(std::io::Cursor::new(&mut out));
-        let opts =
-            zip::write::FileOptions::default().compression_method(zip::CompressionMethod::Deflated);
-        for i in 0..archive.len() {
-            let mut entry = match archive.by_index(i) {
-                Ok(e) => e,
-                Err(_) => continue,
-            };
-            let name = entry.name().to_string();
-            if should_strip(&name) {
-                changed = true;
-                continue;
-            }
-            let mut data = Vec::new();
-            if entry.read_to_end(&mut data).is_err() {
-                continue;
-            }
-            let _ = writer.start_file(&name, opts);
-            let _ = writer.write_all(&data);
-        }
-        if !changed {
-            return None;
-        }
-        let _ = writer.finish();
-    }
-    Some(out)
-}
-
-
-
-
-
-
-
-
-
-
-
-fn sanitize_spotify_bundle(mods_dir: &Path) {
-    let path = mods_dir.join("kollegen-bundle-spotify.jar");
-    
-    let replacements = {
-        let file = match fs::File::open(&path) {
-            Ok(f) => f,
-            Err(_) => return,
-        };
-        let mut archive = match zip::ZipArchive::new(file) {
-            Ok(a) => a,
-            Err(_) => return,
-        };
-        let mut reps: Vec<(String, Vec<u8>)> = Vec::new();
-        for i in 0..archive.len() {
-            let mut entry = match archive.by_index(i) {
-                Ok(e) => e,
-                Err(_) => continue,
-            };
-            let name = entry.name().to_string();
-            if !(name.starts_with("META-INF/jars/") && name.ends_with(".jar")) {
-                continue;
-            }
-            let mut data = Vec::new();
-            if entry.read_to_end(&mut data).is_err() {
-                continue;
-            }
-            if let Some(cleaned) = strip_shaded_kotlin(&data) {
-                reps.push((name, cleaned));
-            }
-        }
-        reps
-    };
-    if replacements.is_empty() {
-        return;
-    }
-    info!(
-        "Entferne shadowed kotlinx.serialization <1.8.0 aus kollegen-bundle-spotify.jar \
-         (Essential-AbstractMethodError-Fix)"
-    );
-    
-    let file = match fs::File::open(&path) {
-        Ok(f) => f,
-        Err(_) => return,
-    };
-    let mut archive = match zip::ZipArchive::new(file) {
-        Ok(a) => a,
-        Err(_) => return,
-    };
-    let tmp = path.with_extension("jar.tmp2");
-    let ok = (|| -> std::io::Result<()> {
-        let out = fs::File::create(&tmp)?;
-        {
-            let mut writer = zip::ZipWriter::new(out);
-            let opts =
-                zip::write::FileOptions::default().compression_method(zip::CompressionMethod::Deflated);
-            for i in 0..archive.len() {
-                let mut entry = match archive.by_index(i) {
-                    Ok(e) => e,
-                    Err(_) => continue,
-                };
-                let name = entry.name().to_string();
-                let mut data = Vec::new();
-                if entry.read_to_end(&mut data).is_err() {
-                    continue;
-                }
-                let bytes = replacements
-                    .iter()
-                    .find(|(n, _)| *n == name)
-                    .map(|(_, b)| b.as_slice())
-                    .unwrap_or(&data);
-                let _ = writer.start_file(&name, opts);
-                let _ = writer.write_all(bytes);
-            }
-            writer.finish()?;
-        }
-        fs::rename(&tmp, &path)?;
-        Ok(())
-    })();
-    if ok.is_err() {
-        let _ = fs::remove_file(&tmp);
-    }
-}
 
 fn remove_bundle_jars(mods_dir: &Path) {
     let Ok(entries) = fs::read_dir(mods_dir) else {
@@ -1330,7 +1193,12 @@ pub(crate) fn enforce_bundled_mods(mods_dir: &Path, mc_version: &str, companion_
     
     
     
-    sanitize_spotify_bundle(mods_dir);
+    for name in [
+        "kollegen-bundle-spotify.jar",
+        "kollegen-bundle-spotify.jar.disabled",
+    ] {
+        let _ = fs::remove_file(mods_dir.join(name));
+    }
 
     
     if let Ok(json) = serde_json::to_string_pretty(&flags) {

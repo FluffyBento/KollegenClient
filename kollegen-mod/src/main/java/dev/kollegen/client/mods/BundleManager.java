@@ -12,7 +12,6 @@ import java.nio.file.Path;
 public final class BundleManager {
 
     private static boolean loaded = false;
-    public static boolean spotify = true;
     public static boolean chatheads = true;
 
     private BundleManager() {
@@ -31,7 +30,6 @@ public final class BundleManager {
             if (Files.exists(p)) {
                 JsonObject o = new Gson().fromJson(Files.readString(p), JsonObject.class);
                 if (o != null) {
-                    if (o.has("spotify")) spotify = o.get("spotify").getAsBoolean();
                     if (o.has("chatheads")) chatheads = o.get("chatheads").getAsBoolean();
                 }
             }
@@ -42,7 +40,6 @@ public final class BundleManager {
     public static synchronized void save() {
         try {
             JsonObject o = new JsonObject();
-            o.addProperty("spotify", spotify);
             o.addProperty("chatheads", chatheads);
             Files.writeString(file(), new GsonBuilder().setPrettyPrinting().create().toJson(o));
         } catch (Exception ignored) {
