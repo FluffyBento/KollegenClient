@@ -8,6 +8,7 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.util.zip.ZipFile;
 
 
 public final class RendererManager {
@@ -111,8 +112,10 @@ public final class RendererManager {
             try (InputStream in = RendererManager.class.getResourceAsStream(resource)) {
                 if (in == null) {
                     KollegenMod.LOGGER.warn("Kollegen: eingebettete Mod '{}' fehlt (Build-Fehler).", resource);
+                    removeIfBroken(jar, fileName);
                 } else {
                     Files.copy(in, jar, StandardCopyOption.REPLACE_EXISTING);
+                    removeIfBroken(jar, fileName);
                 }
             } catch (IOException e) {
                 KollegenMod.LOGGER.warn("Kollegen: Mod '{}' konnte nicht deployt werden: {}", fileName, e.getMessage());
@@ -166,6 +169,25 @@ public final class RendererManager {
                 }
             } catch (IOException ignored) {
             }
+        }
+    }
+
+    private static void removeIfBroken(Path jar, String fileName) {
+        if (!Files.isRegularFile(jar) || isIntactJar(jar)) {
+            return;
+        }
+        try {
+            Files.deleteIfExists(jar);
+        } catch (IOException ignored) {
+        }
+        KollegenMod.LOGGER.warn("Kollegen: Mod '{}' war defekt und wurde entfernt.", fileName);
+    }
+
+    private static boolean isIntactJar(Path jar) {
+        try (ZipFile zip = new ZipFile(jar.toFile())) {
+            return true;
+        } catch (IOException e) {
+            return false;
         }
     }
 }
