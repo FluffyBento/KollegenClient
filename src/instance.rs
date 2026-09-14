@@ -822,6 +822,13 @@ pub(crate) fn enforce_controller_state(mods_dir: &Path, on: bool) {
 
 
 
+fn is_intact_jar(path: &Path) -> bool {
+    match fs::File::open(path) {
+        Ok(f) => zip::ZipArchive::new(f).is_ok(),
+        Err(_) => false,
+    }
+}
+
 pub(crate) fn enforce_renderer_consistency(mods_dir: &Path, vulkan_enabled: bool) {
     if !mods_dir.exists() {
         return;
@@ -848,6 +855,24 @@ pub(crate) fn enforce_renderer_consistency(mods_dir: &Path, vulkan_enabled: bool
         vulkan_enabled
     };
     
+    let vulkan_enabled = if vulkan_enabled && mods_dir.join(".kollegen-vulkan-fallback").is_file() {
+        info!("Nativer Absturz beim letzten Start mit Vulkan-Renderer – starte einmalig mit OpenGL (Sodium+Iris).");
+        let _ = fs::remove_file(mods_dir.join(".kollegen-vulkan-fallback"));
+        false
+    } else {
+        vulkan_enabled
+    };
+    for name in ["VulkanMod.jar", "sodium.jar", "iris.jar", "beryl.jar"] {
+        for candidate in [
+            mods_dir.join(name),
+            mods_dir.join(format!("{}.disabled", name)),
+        ] {
+            if candidate.is_file() && !is_intact_jar(&candidate) {
+                info!("Entferne korrupte Renderer-Datei (wird beim Start neu deployed): {}", name);
+                let _ = fs::remove_file(&candidate);
+            }
+        }
+    }
     let state = if vulkan_enabled { "vulkan" } else { "opengl" };
     let _ = fs::write(renderer_state_path(mods_dir), state);
 
@@ -1809,9 +1834,44 @@ pub fn launch(
             }
         }
         let mut crash_hint: Vec<String> = Vec::new();
+        let mut crash_modules: Vec<String> = Vec::new();
         if runtime < 120.0 {
             if let Some(inst) = log_path2.parent().and_then(|p| p.parent()) {
-                crash_hint = analyze_native_crash(inst, runtime);
+                let (hints, modules) = analyze_native_crash(inst, runtime);
+                crash_hint = hints;
+                crash_modules = modules;
+            }
+        }
+        let graphics_suspect = crash_modules.iter().any(|m| {
+            let l = m.to_lowercase();
+            l.contains("vulkan")
+                || l.contains("nvoglv")
+                || l.contains("atio6axx")
+                || l.contains("amdxn64")
+                || l.contains("igc64")
+                || l.contains("igxelpicd")
+                || l.contains("lwjgl")
+                || l.contains("glfw")
+                || l.contains("beryl")
+                || l.contains("opengl32")
+        });
+        let mut renderer_note: Option<String> = None;
+        if graphics_suspect || (!crash_hint.is_empty() && crash_modules.is_empty()) {
+            if let Some(inst) = log_path2.parent().and_then(|p| p.parent()) {
+                let marker = inst.join("mods").join(".kollegen-vulkan-fallback");
+                if read_renderer_state(&inst.join("mods")) == Some(true)
+                    && fs::write(&marker, "vulkan-crash").is_ok()
+                {
+                    renderer_note = Some("Nativer Absturz mit aktivem Vulkan-Renderer – nächster Start fällt einmalig auf OpenGL (Sodium+Iris) zurück.".to_string());
+                }
+            }
+        }
+        if let Some(note) = &renderer_note {
+            if let Ok(mut logs) = logs_arc.lock() {
+                logs.push(note.clone());
+                if logs.len() > crate::MAX_LOG_LINES {
+                    logs.remove(0);
+                }
             }
         }
         if !crash_hint.is_empty() {
@@ -1845,6 +1905,11 @@ pub fn launch(
                     txt.push_str(l);
                     txt.push('\n');
                 }
+            }
+            if let Some(note) = &renderer_note {
+                txt.push_str("── Renderer-Fallback ──\n");
+                txt.push_str(note);
+                txt.push('\n');
             }
             if let Ok(mut f) = fs::OpenOptions::new().create(true).append(true).open(rp) {
                 let _ = f.write_all(txt.as_bytes());
@@ -1901,7 +1966,7 @@ fn native_crash_suspect(module: &str) -> Option<&'static str> {
     None
 }
 
-fn analyze_native_crash(inst_dir: &std::path::Path, runtime_secs: f64) -> Vec<String> {
+fn analyze_native_crash(inst_dir: &std::path::Path, runtime_secs: f64) -> (Vec<String>, Vec<String>) {
     let mut out: Vec<String> = Vec::new();
     let now_ms = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -1929,11 +1994,11 @@ fn analyze_native_crash(inst_dir: &std::path::Path, runtime_secs: f64) -> Vec<St
     }
     let path = match newest {
         Some((_, p)) => p,
-        None => return out,
+        None => return (out, Vec::new()),
     };
     let text = match std::fs::read_to_string(&path) {
         Ok(t) => t,
-        Err(_) => return out,
+        Err(_) => return (out, Vec::new()),
     };
     let mut exception = String::new();
     let mut frame = String::new();
@@ -1960,7 +2025,7 @@ fn analyze_native_crash(inst_dir: &std::path::Path, runtime_secs: f64) -> Vec<St
         }
     }
     if exception.is_empty() && frame.is_empty() {
-        return out;
+        return (out, modules);
     }
     if !exception.is_empty() {
         out.push(format!("Nativer Absturz erkannt: {}", exception));
@@ -1986,7 +2051,7 @@ fn analyze_native_crash(inst_dir: &std::path::Path, runtime_secs: f64) -> Vec<St
     } else {
         out.push(format!("Tipp: zum Eingrenzen zuerst {} deaktivieren und erneut starten.", first_suspect));
     }
-    out
+    (out, modules)
 }
 
 fn parse_server_from_log(line: &str) -> Option<String> {

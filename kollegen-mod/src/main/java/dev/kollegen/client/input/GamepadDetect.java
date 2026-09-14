@@ -37,7 +37,11 @@ public final class GamepadDetect {
                 return;
             }
             String db = new String(in.readAllBytes(), StandardCharsets.UTF_8);
-            ByteBuffer bb = ByteBuffer.wrap(db.getBytes(StandardCharsets.UTF_8));
+            byte[] raw = db.getBytes(StandardCharsets.UTF_8);
+            ByteBuffer bb = ByteBuffer.allocateDirect(raw.length + 1);
+            bb.put(raw);
+            bb.put((byte) 0);
+            bb.flip();
             boolean ok = GLFW.glfwUpdateGamepadMappings(bb);
             KollegenMod.LOGGER.info("[gamepad] GameControllerDB geladen ({} Zeichen), GLFW akzeptiert: {}",
                     db.length(), ok);
