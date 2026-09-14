@@ -231,8 +231,8 @@ public class KollegenMenuScreen extends Screen {
     }
 
     @Override
-    public boolean mouseDragged(double mx, double my, int button, double dx, double dy) {
-        if (kollegen$dragActive && button == 0) {
+    public boolean mouseDragged(net.minecraft.client.input.MouseButtonEvent event, double dx, double dy) {
+        if (kollegen$dragActive && event.button() == 0) {
             int delta = (int) Math.round(dy);
             if (delta != 0) {
                 scroll = Math.max(0, Math.min(maxScroll, scroll + delta));
@@ -240,16 +240,16 @@ public class KollegenMenuScreen extends Screen {
             }
             return true;
         }
-        return super.mouseDragged(mx, my, button, dx, dy);
+        return super.mouseDragged(event, dx, dy);
     }
 
     @Override
-    public boolean mouseReleased(double mx, double my, int button) {
-        if (kollegen$dragActive && button == 0) {
+    public boolean mouseReleased(net.minecraft.client.input.MouseButtonEvent event) {
+        if (kollegen$dragActive && event.button() == 0) {
             kollegen$dragActive = false;
             return true;
         }
-        return super.mouseReleased(mx, my, button);
+        return super.mouseReleased(event);
     }
 
     @Override
