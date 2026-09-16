@@ -1278,23 +1278,13 @@ fn write_classpath_jar(inst_dir: &Path, entries: &[String]) -> Result<String> {
             Err(_) => tokens.push(format!("file:///{}", abs.replace('\\', "/").replace(' ', "%20"))),
         }
     }
-    let mut manifest = String::from("Manifest-Version: 1.0\r\n");
-    let mut line = String::from("Class-Path: ");
+    let mut manifest = String::from("Manifest-Version: 1.0\r\nClass-Path: ");
     for (i, t) in tokens.iter().enumerate() {
-        let candidate = if i == 0 {
-            t.clone()
-        } else {
-            format!("{} {}", line, t)
-        };
-        if candidate.len() > 72 {
-            manifest.push_str(&line);
-            manifest.push_str("\r\n ");
-            line = t.clone();
-        } else {
-            line = candidate;
+        if i > 0 {
+            manifest.push(' ');
         }
+        manifest.push_str(t);
     }
-    manifest.push_str(&line);
     manifest.push_str("\r\n\r\n");
     let file = fs::File::create(&jar_path)?;
     let mut zw = zip::ZipWriter::new(file);
