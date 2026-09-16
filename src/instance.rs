@@ -350,8 +350,8 @@ fn download_libraries(libs_dir: &Path, vjson: &VersionJson) {
             .and_then(|d| d.artifact.as_ref())
         {
             (PathBuf::from(&artifact.path), artifact.url.clone())
-        } else if let (Some(name), Some(base)) = (&lib.name, &lib.url) {
-            let Some(rel) = maven_library_path(name) else {
+        } else if let Some(base) = &lib.url {
+            let Some(rel) = maven_library_path(&lib.name) else {
                 continue;
             };
             let rel = rel.to_string_lossy().replace('\\', "/");
