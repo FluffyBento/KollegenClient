@@ -282,50 +282,87 @@ pub fn fetch_loaders_for_version(version: &str) -> Result<Value> {
 
 
 
+fn maven_library_path(name: &str) -> Option<PathBuf> {
+    let (name, ext) = match name.rsplit_once('@') {
+        Some((n, e)) => (n, e),
+        None => (name, "jar"),
+    };
+    let parts: Vec<&str> = name.split(':').collect();
+    let (group, artifact, version, classifier) = match parts.as_slice() {
+        [g, a, v] => (g, a, v, None),
+        [g, a, v, c] => (g, a, v, Some(*c)),
+        _ => return None,
+    };
+    let mut out = PathBuf::from(group.replace('.', "/"));
+    out.push(artifact);
+    out.push(version);
+    let mut file = format!("{}-{}", artifact, version);
+    if let Some(c) = classifier {
+        file.push('-');
+        file.push_str(c);
+    }
+    file.push('.');
+    file.push_str(ext);
+    out.push(file);
+    Some(out)
+}
+
 fn download_libraries(libs_dir: &Path, vjson: &VersionJson) {
     for lib in &vjson.libraries {
-        if let Some(lib_downloads) = &lib.downloads {
-            if let Some(artifact) = &lib_downloads.artifact {
-                if let Some(rules) = &lib.rules {
-                    let allowed = rules.iter().all(|rule| {
-                        match rule.action.as_str() {
-                            "allow" => {
-                                if let Some(os) = &rule.os {
-                                    match os.name.as_str() {
-                                        "windows" => cfg!(target_os = "windows"),
-                                        "osx" => cfg!(target_os = "macos"),
-                                        "linux" => cfg!(target_os = "linux"),
-                                        _ => true,
-                                    }
-                                } else {
-                                    true
-                                }
+        let allowed = match &lib.rules {
+            Some(rules) => rules.iter().all(|rule| {
+                match rule.action.as_str() {
+                    "allow" => {
+                        if let Some(os) = &rule.os {
+                            match os.name.as_str() {
+                                "windows" => cfg!(target_os = "windows"),
+                                "osx" => cfg!(target_os = "macos"),
+                                "linux" => cfg!(target_os = "linux"),
+                                _ => true,
                             }
-                            "disallow" => {
-                                if let Some(os) = &rule.os {
-                                    match os.name.as_str() {
-                                        "windows" => !cfg!(target_os = "windows"),
-                                        "osx" => !cfg!(target_os = "macos"),
-                                        "linux" => !cfg!(target_os = "linux"),
-                                        _ => true,
-                                    }
-                                } else {
-                                    true
-                                }
-                            }
-                            _ => true,
+                        } else {
+                            true
                         }
-                    });
-                    if !allowed {
-                        continue;
                     }
+                    "disallow" => {
+                        if let Some(os) = &rule.os {
+                            match os.name.as_str() {
+                                "windows" => !cfg!(target_os = "windows"),
+                                "osx" => !cfg!(target_os = "macos"),
+                                "linux" => !cfg!(target_os = "linux"),
+                                _ => true,
+                            }
+                        } else {
+                            true
+                        }
+                    }
+                    _ => true,
                 }
-
-                let lib_path = libs_dir.join(&artifact.path);
-                if !lib_path.exists() {
-                    let _ = crate::utils::download_file(&artifact.url, &lib_path);
-                }
-            }
+            }),
+            None => true,
+        };
+        if !allowed {
+            continue;
+        }
+        let (rel, url) = if let Some(artifact) = lib
+            .downloads
+            .as_ref()
+            .and_then(|d| d.artifact.as_ref())
+        {
+            (PathBuf::from(&artifact.path), artifact.url.clone())
+        } else if let (Some(name), Some(base)) = (&lib.name, &lib.url) {
+            let Some(rel) = maven_library_path(name) else {
+                continue;
+            };
+            let rel = rel.to_string_lossy().replace('\\', "/");
+            let url = format!("{}/{}", base.trim_end_matches('/'), rel);
+            (PathBuf::from(&rel), url)
+        } else {
+            continue;
+        };
+        let lib_path = libs_dir.join(&rel);
+        if !lib_path.exists() {
+            let _ = crate::utils::download_file(&url, &lib_path);
         }
     }
 }

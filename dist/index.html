@@ -552,14 +552,14 @@
       try {
         var t = window.__TAURI__;
         if (t && t.core && t.core.invoke) {
-          t.core.invoke('get_version').then(show).catch(function () { el.textContent = 'v1.16.4'; });
+          t.core.invoke('get_version').then(show).catch(function () { el.textContent = 'v1.16.5'; });
         } else if (t && t.invoke) {
-          t.invoke('get_version').then(show).catch(function () { el.textContent = 'v1.16.4'; });
+          t.invoke('get_version').then(show).catch(function () { el.textContent = 'v1.16.5'; });
         } else {
-          el.textContent = 'v1.16.4';
+          el.textContent = 'v1.16.5';
         }
       } catch (e) {
-        el.textContent = 'v1.16.4';
+        el.textContent = 'v1.16.5';
       }
     })();
   </script>

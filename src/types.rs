@@ -183,6 +183,7 @@ pub struct AssetIndexInfo {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LibraryEntry {
     pub name: String,
+    pub url: Option<String>,
     pub downloads: Option<LibraryDownloads>,
     pub rules: Option<Vec<LibraryRule>>,
 }
