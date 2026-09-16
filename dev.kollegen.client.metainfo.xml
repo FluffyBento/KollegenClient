@@ -11,6 +11,14 @@
   <launchable type="desktop-id">dev.kollegen.client.desktop</launchable>
   <url type="homepage">https://github.com/FluffyBento/KollegenClient</url>
   <releases>
+    <release version="1.16.4" date="2026-09-16">
+      <description>
+        <p>Fehlerbehebung:</p>
+        <ul>
+          <li>GLFW-Crash beim Spielstart behoben: Die Gamepad-Mappings werden erst nach der GLFW-Initialisierung geladen (zuvor "GLFW error before init: [0x10001]").</li>
+        </ul>
+      </description>
+    </release>
     <release version="1.2.9" date="2026-08-17">
       <description>
         <p>Fehlerbehebungen:</p>
