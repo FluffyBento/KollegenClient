@@ -5,6 +5,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import dev.kollegen.client.KollegenMod;
 import net.fabricmc.loader.api.FabricLoader;
+import net.minecraft.client.Minecraft;
 import org.lwjgl.glfw.GLFW;
 import org.lwjgl.glfw.GLFWGamepadState;
 
@@ -30,6 +31,8 @@ public final class GamepadDetect {
     
     public static void ensureMappings() {
         if (mappingsLoaded) return;
+        Minecraft mc = Minecraft.getInstance();
+        if (mc == null || mc.getWindow() == null) return;
         mappingsLoaded = true;
         try (InputStream in = GamepadDetect.class.getResourceAsStream("/data/gamecontrollerdb.txt")) {
             if (in == null) {

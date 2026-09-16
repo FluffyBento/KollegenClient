@@ -45,6 +45,8 @@ public class KollegenMod implements ClientModInitializer {
         if (mc == null) return;
 
         
+        dev.kollegen.client.input.GamepadDetect.ensureMappings();
+        
         dev.kollegen.client.input.ControllerMode.tick(mc);
         
         dev.kollegen.client.input.GamepadInput.tick(mc);
