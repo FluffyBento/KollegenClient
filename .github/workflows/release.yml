@@ -26,7 +26,7 @@ jobs:
         run: gh release delete "${{ github.ref_name }}" --yes || true
 
       - name: Create release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ github.ref_name }}
           name: Kollegen Client ${{ github.ref_name }}
@@ -174,7 +174,7 @@ jobs:
           ls -la dev.kollegen.Client.flatpak
 
       - name: Publish to GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v1
         with:
           files: |
             release_artifacts/*
@@ -236,7 +236,7 @@ jobs:
           if ($sig) { Copy-Item $sig.FullName "KollegenClient.exe.sig" }
 
       - name: Publish to GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v1
         with:
           files: |
             KollegenClient.exe
@@ -312,7 +312,7 @@ jobs:
           ls -la release_artifacts
 
       - name: Publish to GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v1
         with:
           files: "release_artifacts/*"
 
@@ -372,6 +372,6 @@ jobs:
           cat latest.json
 
       - name: Publish latest.json
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v1
         with:
           files: "latest.json"
