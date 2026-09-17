@@ -3,7 +3,6 @@ package dev.kollegen.client.ui;
 import dev.kollegen.client.mods.Palette;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.GuiGraphics.Pose;
 
 public final class Glass {
 
