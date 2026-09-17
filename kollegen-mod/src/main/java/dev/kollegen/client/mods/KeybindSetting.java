@@ -1,14 +1,15 @@
 package dev.kollegen.client.mods;
 
 import com.google.gson.JsonObject;
+import dev.kollegen.client.ui.GlassButton;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import org.lwjgl.glfw.GLFW;
 
+
 public class KeybindSetting extends Setting {
-    public int value = -1; 
+    public int value = -1;
     public static KeybindSetting capturing = null;
 
     public KeybindSetting(String name, String description) {
@@ -47,13 +48,14 @@ public class KeybindSetting extends Setting {
     @Override
     public AbstractWidget buildWidget(int px, int py, int cw, int rowH, Screen screen) {
         int w = Math.min(140, cw - 70);
-        int h = 24;
+        int h = 28;
         int x = px + cw - w - 8;
         int y = py + (rowH - h) / 2;
-        Button b = Button.builder(Component.literal(capturing == this ? "…" : keyName(value)), btn -> {
+        GlassButton b = new GlassButton(x, y, w, h, Component.literal(capturing == this ? "…" : keyName(value)), btn -> {
             capturing = (capturing == this) ? null : this;
             btn.setMessage(Component.literal(capturing == this ? "…" : keyName(value)));
-        }).bounds(x, y, w, h).build();
+        });
+        b.selected(capturing == this);
         return b;
     }
 }

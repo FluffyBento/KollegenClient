@@ -41,10 +41,10 @@ public class StringSetting extends Setting {
     @Override
     public AbstractWidget buildWidget(int px, int py, int cw, int rowH, Screen screen) {
         int w = Math.max(80, cw - 70);
-        int h = 20;
+        int h = 24;
         int x = px + cw - w - 8;
         int y = py + (rowH - h) / 2;
-        
+
         EditBox box = new EditBox(Minecraft.getInstance().font, x, y, w, h, Component.literal(""));
         box.setMaxLength(maxLength);
         box.setValue(value == null ? "" : value);
@@ -52,6 +52,7 @@ public class StringSetting extends Setting {
         if (hint.length() > 22) hint = hint.substring(0, 21) + "…";
         box.setHint(Component.literal(hint));
         box.setTextColor(Palette.TEXT);
+        box.setBordered(true);
         box.setResponder(t -> {
             value = t;
             changed();

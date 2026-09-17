@@ -41,7 +41,6 @@ public class BooleanSetting extends Setting {
             if (onChange != null) onChange.accept(on);
             changed();
         });
-        t.colors(Palette.ACCENT, Palette.MUTED);
         return t;
     }
 }

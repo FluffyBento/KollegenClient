@@ -9,8 +9,8 @@ import dev.kollegen.client.mods.ModuleManager;
 import dev.kollegen.client.mods.Palette;
 import dev.kollegen.client.mods.Setting;
 import dev.kollegen.client.ui.Glass;
-import dev.kollegen.client.menu.HudEditScreen;
 import dev.kollegen.client.ui.GlassButton;
+import dev.kollegen.client.ui.GlassSlider;
 import dev.kollegen.client.ui.GlassToggle;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
@@ -25,6 +25,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+
 public class KollegenMenuScreen extends Screen {
     private final Screen parent;
 
@@ -33,13 +34,14 @@ public class KollegenMenuScreen extends Screen {
     private String query = "";
     private final Set<String> expanded = new HashSet<>();
 
-    private static final int SW = 220;
-    private static final int R = 20;
-    private static final int ROW_H = 58;
-    private static final int SET_H = 34;
+    private static final int SW = 200;
+    private static final int R = 10;
+    private static final int ROW_H = 52;
+    private static final int SET_H = 36;
 
     private EditBox search;
     private Button closeBtn;
+    private Button themeBtn;
 
     private int px, py, pw, ph, cx, cw;
     private int scroll = 0;
@@ -47,11 +49,11 @@ public class KollegenMenuScreen extends Screen {
     private int catScroll = 0;
     private int maxCatScroll = 0;
     private int sidebarTop, sidebarBottom;
-    private int catItemH = 42;
+    private int catItemH = 40;
     private boolean kollegen$dragActive = false;
     private int kollegen$dragStartY = 0;
     private int kollegen$dragStartScroll = 0;
-    private static final int CAT_GAP = 8;
+    private static final int CAT_GAP = 6;
 
     private int contentTop, contentBottom;
 
@@ -86,10 +88,10 @@ public class KollegenMenuScreen extends Screen {
     }
 
     private int[] panel() {
-        int w = Math.min(this.width - 70, 940);
-        int h = Math.min(this.height - 70, 640);
-        int y = (this.height - h) / 2 - 24;
-        if (y < 8) y = 8;
+        int w = Math.min(this.width - 80, 980);
+        int h = Math.min(this.height - 80, 680);
+        int y = (this.height - h) / 2 - 20;
+        if (y < 12) y = 12;
         return new int[]{(this.width - w) / 2, y, w, h};
     }
 
@@ -115,21 +117,24 @@ public class KollegenMenuScreen extends Screen {
         rows.clear();
         int[] p = panel();
         px = p[0]; py = p[1]; pw = p[2]; ph = p[3];
-        cx = px + SW + 18;
-        cw = pw - SW - 34;
+        cx = px + SW + 20;
+        cw = pw - SW - 38;
 
-        
+        themeBtn = Button.builder(Component.literal("🎨 Thema"), btn -> {
+            Minecraft.getInstance().setScreen(new ThemeSelectorScreen(this));
+        }).bounds(px + 16, py + 14, SW - 32, 30).build();
+        addRenderableWidget(themeBtn);
+
         Button socialBtn = Button.builder(Component.literal("🌐 Soziales"),
                 btn -> Minecraft.getInstance().setScreen(new KollegenSocialScreen(this)))
-                .bounds(px + 22, py + 56, SW - 44, 34).build();
+                .bounds(px + 16, py + 50, SW - 32, 30).build();
         addRenderableWidget(socialBtn);
 
-        sidebarTop = py + 102;
+        sidebarTop = py + 90;
         sidebarBottom = py + ph - 16;
 
-        
         int avail = sidebarBottom - sidebarTop;
-        int minH = 36;
+        int minH = 34;
         int need = cats.length * (minH + CAT_GAP);
         if (need <= avail) {
             catItemH = Math.max(minH, (avail - (cats.length - 1) * CAT_GAP) / cats.length);
@@ -141,12 +146,10 @@ public class KollegenMenuScreen extends Screen {
         if (catScroll > maxCatScroll) catScroll = maxCatScroll;
         if (catScroll < 0) catScroll = 0;
 
-        
-        closeBtn = Button.builder(Component.literal("✕"), btn -> close()).bounds(px + pw - 38, py + 14, 26, 26).build();
+        closeBtn = Button.builder(Component.literal("✕"), btn -> close()).bounds(px + pw - 36, py + 12, 24, 24).build();
         addRenderableWidget(closeBtn);
 
-        
-        search = new EditBox(this.font, cx + 14, py + 16, cw - 28, 24, Component.literal(""));
+        search = new EditBox(this.font, cx + 14, py + 16, cw - 28, 26, Component.literal(""));
         search.setMaxLength(40);
         search.setHint(Component.literal("Suchen…"));
         search.setValue(query);
@@ -158,40 +161,38 @@ public class KollegenMenuScreen extends Screen {
         addRenderableWidget(search);
         search.setFocused(true);
 
-        
         contentTop = py + 52;
         contentBottom = py + ph - 14;
         boolean hudCat = cats[category] == Category.HUD;
         int topExtra = 0;
         if (hudCat) {
-            topExtra = 46;
+            topExtra = 50;
             int bx = cx + 14;
             int half = (cw - 28) / 2 - 4;
             Button editBtn = Button.builder(
                     Component.literal(HudModule.editMode ? "✓ Elemente verschieben" : "Elemente verschieben"),
                     btn -> {
                         HudModule.editMode = true;
-                        Minecraft.getInstance().setScreen(new HudEditScreen());
-                    }).bounds(bx, contentTop + 6, half, 32).build();
+                        Minecraft.getInstance().setScreen(new HudEditScreen(this));
+                    }).bounds(bx, contentTop + 8, half, 34).build();
             addRenderableWidget(editBtn);
             Button arrBtn = Button.builder(Component.literal("Auto-Anordnen"),
-                    btn -> HudModule.autoArrange()).bounds(bx + half + 8, contentTop + 6, half, 32).build();
+                    btn -> HudModule.autoArrange()).bounds(bx + half + 8, contentTop + 8, half, 34).build();
             addRenderableWidget(arrBtn);
         }
         int contentH = 0;
-        int y = contentTop + 2 + topExtra - scroll;
+        int y = contentTop + 4 + topExtra - scroll;
         for (Module m : visibleModules()) {
-            int toggleX = cx + cw - 62;
+            int toggleX = cx + cw - 68;
             int gearX = toggleX - 36;
             boolean vis = y + ROW_H > contentTop && y < contentBottom;
             if (!m.locked && vis) {
-                GlassToggle t = new GlassToggle(toggleX, y + (ROW_H - 28) / 2, 54, 28, m.enabled, on -> {
+                GlassToggle t = new GlassToggle(toggleX, y + (ROW_H - 28) / 2, 58, 28, m.enabled, on -> {
                     m.enabled = on;
                     if (on) m.onEnable();
                     else m.onDisable();
                     ModuleManager.save();
                 });
-                t.colors(Palette.ACCENT, Palette.MUTED);
                 addRenderableWidget(t);
             }
             if (vis) {
@@ -199,24 +200,24 @@ public class KollegenMenuScreen extends Screen {
                     if (expanded.contains(m.id)) expanded.remove(m.id);
                     else expanded.add(m.id);
                     rebuild();
-                }).bounds(gearX, y + (ROW_H - 24) / 2, 30, 24).build();
+                }).bounds(gearX, y + (ROW_H - 26) / 2, 30, 26).build();
                 addRenderableWidget(gear);
             }
             rows.add(new Row(true, m, null, y, ROW_H, null));
-            y += ROW_H + 8;
-            contentH += ROW_H + 8;
+            y += ROW_H + 10;
+            contentH += ROW_H + 10;
 
             if (expanded.contains(m.id)) {
                 for (Setting s : m.settings()) {
                     boolean sv = y + SET_H > contentTop && y < contentBottom;
                     AbstractWidget w = null;
                     if (sv) {
-                        w = s.buildWidget(cx + 8, y, cw - 16, SET_H, this);
+                        w = s.buildWidget(cx + 12, y, cw - 24, SET_H, this);
                         addRenderableWidget(w);
                     }
                     rows.add(new Row(false, m, s, y, SET_H, w));
-                    y += SET_H + 6;
-                    contentH += SET_H + 6;
+                    y += SET_H + 8;
+                    contentH += SET_H + 8;
                 }
             }
         }
@@ -281,9 +282,8 @@ public class KollegenMenuScreen extends Screen {
 
     @Override
     public boolean mouseScrolled(double mx, double my, double horizontal, double vertical) {
-        
         if (mx >= px && mx <= px + SW && my >= sidebarTop && my <= sidebarBottom && maxCatScroll > 0) {
-            catScroll = Math.max(0, Math.min(maxCatScroll, catScroll - (int) (vertical * 28)));
+            catScroll = Math.max(0, Math.min(maxCatScroll, catScroll - (int) (vertical * 24)));
             return true;
         }
         if (maxScroll > 0) {
@@ -308,77 +308,74 @@ public class KollegenMenuScreen extends Screen {
 
     @Override
     public void render(GuiGraphics g, int mx, int my, float pt) {
-        g.fill(0, 0, this.width, this.height, Palette.tint(Palette.BG, 0x20));
-        
-        Glass.fillRound(g, px, py, pw, ph, R, Palette.BORDER);
-        Glass.fillRound(g, px + 1, py + 1, pw - 2, ph - 2, R - 1, Palette.tint(Palette.PANEL, 0xF2));
-        
-        Glass.fillRound(g, px + 8, py + 8, SW, ph - 16, 14, Palette.tint(Palette.PANEL2, 0xCC));
-        
-        Glass.fillRound(g, px + 8, py + 8, SW, 6, 4, Palette.tint(Palette.ACCENT, 0xE0));
+        g.fill(0, 0, this.width, this.height, Palette.tint(Palette.BG, 0xCC));
 
-        
-        g.drawString(this.font, "KOLLEGEN", px + 22, py + 26, Palette.ACCENT, false);
-        g.drawString(this.font, "Client", px + 22 + this.font.width("KOLLEGEN") + 6, py + 28, Palette.MUTED, false);
+        Glass.dropShadow(g, px, py, pw, ph, R, 4, 8);
+        Glass.panelVanilla(g, px, py, pw, ph, R);
+
+        Glass.fillRound(g, px + 8, py + 8, SW, ph - 16, 8, Palette.tint(Palette.PANEL2, 0xCC));
+
+        Glass.fillRound(g, px + 8, py + 8, SW, 4, 2, Palette.tint(Palette.ACCENT, 0xE0));
+
+        g.drawString(this.font, "KOLLEGEN", px + 18, py + 24, Palette.ACCENT, false);
+        g.drawString(this.font, "Client", px + 18 + this.font.width("KOLLEGEN") + 4, py + 26, Palette.MUTED, false);
 
         String title = query.isEmpty() ? cats[category].display : "Suche: " + query;
         g.drawString(this.font, title, cx + 14, py + 22, Palette.TEXT, false);
 
-        
         g.enableScissor(px + 10, sidebarTop, px + SW - 2, sidebarBottom);
         for (int i = 0; i < cats.length; i++) {
             int by = sidebarTop + i * (catItemH + CAT_GAP) - catScroll;
             if (by + catItemH < sidebarTop || by > sidebarBottom) continue;
             boolean sel = i == category;
-            Glass.fillRound(g, px + 14, by, SW - 28, catItemH, 10,
-                    sel ? Palette.tint(Palette.ACCENT, 0xD8) : Palette.tint(Palette.PANEL2, 0x66));
+            int fill = sel ? Palette.tint(Palette.ACCENT, 0xD8) : Palette.tint(Palette.PANEL2, 0x50);
+            Glass.fillRound(g, px + 12, by, SW - 24, catItemH, 8, fill);
             int ty = by + (catItemH - this.font.lineHeight) / 2;
-            g.drawString(this.font, cats[i].icon + "  " + cats[i].display, px + 26, ty,
+            g.drawString(this.font, cats[i].icon + "  " + cats[i].display, px + 22, ty,
                     sel ? 0xFFffffff : Palette.TEXT, false);
         }
         g.disableScissor();
-        
+
         if (maxCatScroll > 0) {
             int trackH = sidebarBottom - sidebarTop;
-            int thumbH = Math.max(20, (int) ((double) trackH * trackH / (trackH + maxCatScroll)));
+            int thumbH = Math.max(24, (int) ((double) trackH * trackH / (trackH + maxCatScroll)));
             int thumbY = sidebarTop + (int) ((trackH - thumbH) * (catScroll / (double) maxCatScroll));
-            Glass.fillRound(g, px + SW - 6, thumbY, 3, thumbH, 2, Palette.tint(Palette.ACCENT, 0xCC));
+            Glass.scrollbarThumb(g, px + SW - 8, thumbY, 4, thumbH, 2, false);
         }
 
-        
         g.enableScissor(cx, contentTop, cx + cw, contentBottom);
         for (Row r : rows) {
             if (r.isModule) {
-                boolean hov = mx >= cx + 8 && mx <= cx + cw - 8 && my >= r.y && my < r.y + r.h;
-                Glass.fillRound(g, cx + 8, r.y, cw - 16, r.h, 10, Palette.tint(Palette.BORDER, 0xAA));
-                Glass.fillRound(g, cx + 9, r.y + 1, cw - 18, r.h - 2, 9,
-                        hov ? Palette.tint(Palette.PANEL2, 0x99) : Palette.tint(Palette.PANEL2, 0x66));
-                g.drawString(this.font, r.module.name, cx + 22, r.y + 11, Palette.TEXT, false);
-                g.drawString(this.font, trunc(r.module.description, cw - 220), cx + 22, r.y + 31, Palette.MUTED, false);
+                boolean hov = mx >= cx + 12 && mx <= cx + cw - 12 && my >= r.y && my < r.y + r.h;
+                int borderCol = hov ? Palette.ACCENT : Palette.BORDER;
+                Glass.fillRound(g, cx + 12, r.y, cw - 24, r.h, 8, borderCol);
+                Glass.fillRound(g, cx + 13, r.y + 1, cw - 26, r.h - 2, 7,
+                        hov ? Palette.tint(Palette.PANEL2, 0x99) : Palette.tint(Palette.PANEL2, 0x55));
+                g.drawString(this.font, r.module.name, cx + 26, r.y + 10, Palette.TEXT, false);
+                g.drawString(this.font, trunc(r.module.description, cw - 220), cx + 26, r.y + 28, Palette.MUTED, false);
                 if (r.module.risk != null) {
-                    g.drawString(this.font, "⚠ " + trunc(r.module.risk, cw - 60), cx + 22, r.y + 45, Palette.DANGER, false);
+                    g.drawString(this.font, "⚠ " + trunc(r.module.risk, cw - 60), cx + 26, r.y + 42, Palette.DANGER, false);
                 }
-                
+
                 if (r.module.locked) {
-                    g.drawString(this.font, "🔒", cx + cw - 56, r.y + (ROW_H - 28) / 2 + 6, Palette.MUTED, false);
+                    g.drawString(this.font, "🔒", cx + cw - 60, r.y + (ROW_H - 28) / 2 + 6, Palette.MUTED, false);
                 }
             } else {
-                g.drawString(this.font, r.setting.name, cx + 22, r.y + (r.h - this.font.lineHeight) / 2, Palette.TEXT, false);
+                g.drawString(this.font, r.setting.name, cx + 26, r.y + (r.h - this.font.lineHeight) / 2, Palette.TEXT, false);
                 String vt = r.setting.valueText();
                 if (!vt.isEmpty() && r.widget != null) {
-                    int vx = r.widget.getX() - 8 - this.font.width(vt);
+                    int vx = r.widget.getX() - 10 - this.font.width(vt);
                     g.drawString(this.font, vt, vx, r.y + (r.h - this.font.lineHeight) / 2, Palette.MUTED, false);
                 }
             }
         }
         g.disableScissor();
 
-        
         if (maxScroll > 0) {
             int trackTop = contentTop, trackBottom = contentBottom, trackH = trackBottom - trackTop;
-            int thumbH = Math.max(24, (int) ((double) trackH * trackH / (trackH + maxScroll)));
+            int thumbH = Math.max(28, (int) ((double) trackH * trackH / (trackH + maxScroll)));
             int thumbY = trackTop + (int) ((trackH - thumbH) * (scroll / (double) maxScroll));
-            Glass.fillRound(g, cx + cw - 5, thumbY, 3, thumbH, 2, Palette.tint(Palette.ACCENT, 0xCC));
+            Glass.scrollbarThumb(g, cx + cw - 6, thumbY, 4, thumbH, 2, false);
         }
 
         super.render(g, mx, my, pt);

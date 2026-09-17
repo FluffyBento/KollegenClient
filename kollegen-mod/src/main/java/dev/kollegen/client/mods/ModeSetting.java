@@ -1,10 +1,11 @@
 package dev.kollegen.client.mods;
 
 import com.google.gson.JsonObject;
+import dev.kollegen.client.ui.GlassButton;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
+
 
 public class ModeSetting extends Setting {
     public final String[] options;
@@ -45,15 +46,15 @@ public class ModeSetting extends Setting {
     @Override
     public AbstractWidget buildWidget(int px, int py, int cw, int rowH, Screen screen) {
         int w = Math.min(150, cw - 70);
-        int h = 24;
+        int h = 28;
         int x = px + cw - w - 8;
         int y = py + (rowH - h) / 2;
-        Button b = Button.builder(Component.literal(current()), btn -> {
+        GlassButton b = new GlassButton(x, y, w, h, Component.literal(current()), btn -> {
             index = (index + 1) % options.length;
             btn.setMessage(Component.literal(current()));
             if (onChange != null) onChange.accept(index);
             changed();
-        }).bounds(x, y, w, h).build();
+        });
         return b;
     }
 }
