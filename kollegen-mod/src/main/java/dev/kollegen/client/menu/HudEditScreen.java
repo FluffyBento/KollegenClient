@@ -12,6 +12,8 @@ import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 import org.lwjgl.glfw.GLFW;
 
+import java.util.stream.Collectors;
+
 
 public class HudEditScreen extends Screen {
     private final Screen parent;
@@ -64,12 +66,11 @@ public class HudEditScreen extends Screen {
     public void render(GuiGraphics g, int mx, int my, float pt) {
         ModuleManager.renderHud(g, pt);
 
-        for (ModuleManager.modules().stream()
+        for (HudModule hm : ModuleManager.modules().stream()
                 .filter(m -> m instanceof HudModule)
                 .map(m -> (HudModule) m)
-                .filter(hm -> hm.enabled && (hm.move.value || HudModule.editMode))
-                .toList()) {
-            HudModule hm = (HudModule) hm;
+                .filter(h -> h.enabled && (h.move.value || HudModule.editMode))
+                .collect(Collectors.toList())) {
             int x = hm.lastX;
             int y = hm.lastY;
             int w = hm.lastW;
