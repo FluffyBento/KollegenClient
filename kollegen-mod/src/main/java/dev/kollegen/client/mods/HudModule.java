@@ -15,7 +15,7 @@ public abstract class HudModule extends Module {
     protected final ColorSetting backgroundColor;
     public final SliderSetting offsetX;
     public final SliderSetting offsetY;
-    protected final BooleanSetting move;
+    public final BooleanSetting move;
 
     
     public int lastX, lastY, lastW, lastH;
