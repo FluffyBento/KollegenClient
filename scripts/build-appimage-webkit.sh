@@ -78,11 +78,11 @@ done
 
 echo "==> WebKit-Helper Wrapper erstellen (setzen LD_LIBRARY_PATH)"
 for p in WebKitWebProcess WebKitNetworkProcess; do
-  cat > "$APPDIR/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1/$p" <<'EOF'
+  cat > "$APPDIR/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1/$p" <<EOF
 #!/bin/sh
-HERE="$(dirname "$(readlink -f "$0")")"
-export LD_LIBRARY_PATH="$HERE/../..:$HERE/../../..:$HERE/../../../..:$HERE/../../../../lib:$HERE/../../../../lib/x86_64-linux-gnu${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
-exec "$HERE/$p.real" "$@"
+HERE="\$(dirname "\$(readlink -f "\$0")")"
+export LD_LIBRARY_PATH="\$HERE/../..:\$HERE/../../..:\$HERE/../../../..:\$HERE/../../../../lib:\$HERE/../../../../lib/x86_64-linux-gnu\${LD_LIBRARY_PATH:+:\$LD_LIBRARY_PATH}"
+exec "\$HERE/$p.real" "\$@"
 EOF
   chmod +x "$APPDIR/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1/$p"
 done
