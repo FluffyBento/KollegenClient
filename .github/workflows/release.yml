@@ -62,7 +62,11 @@ jobs:
           fi
           if [ -n "$JAR" ]; then
             cp "$JAR" kollegen-client-mod.jar
-            gh release upload "${{ github.ref_name }}" kollegen-client-mod.jar --clobber
+            for i in {1..3}; do
+              gh release upload "${{ github.ref_name }}" kollegen-client-mod.jar --clobber && break
+              echo "Upload attempt $i failed, retrying in 5s..."
+              sleep 5
+            done
             echo "Uploaded mod jar from: $JAR"
           else
             echo "No mod jar produced and none prebuilt; skipping mod upload."
