@@ -31,6 +31,9 @@ jobs:
           tag_name: ${{ github.ref_name }}
           name: Kollegen Client ${{ github.ref_name }}
           generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: "true"
 
   build-mod:
     needs: create-release
@@ -183,6 +186,9 @@ jobs:
           files: |
             release_artifacts/*
             dev.kollegen.Client.flatpak
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: "true"
 
   windows:
     needs: [create-release]
@@ -245,6 +251,9 @@ jobs:
           files: |
             KollegenClient.exe
             KollegenClient.exe.sig
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: "true"
 
   macos:
     needs: [create-release]
@@ -319,6 +328,9 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           files: "release_artifacts/*"
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: "true"
 
   updater-manifest:
     needs: [linux, windows, macos]
@@ -379,3 +391,6 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           files: "latest.json"
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: "true"
