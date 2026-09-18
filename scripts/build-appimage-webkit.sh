@@ -68,13 +68,42 @@ echo "==> linuxdeploy: Binary + libs + WebKit-Helpers in AppDir"
   --icon-file icons/icon.png \
   --plugin gtk
 
-echo "==> WebKit-Helper in WEBKIT_EXEC_PATH-Verzeichnis platzieren"
+echo "==> WebKit-Helfer in WEBKIT_EXEC_PATH-Verzeichnis platzieren"
 mkdir -p "$APPDIR/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1"
 for p in WebKitWebProcess WebKitNetworkProcess; do
   if [ -f "$APPDIR/usr/bin/$p" ]; then
     mv -f "$APPDIR/usr/bin/$p" "$APPDIR/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1/$p.real"
   fi
 done
+
+echo "==> ELF-Patch: Hardcoded WebKit-Pfad auf \$ORIGIN umschreiben"
+python3 - "$APPDIR" <<'PY'
+import os, sys
+root = sys.argv[1]
+old = b"/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1"
+new = b"$ORIGIN"
+targets = [
+    "usr/lib/x86_64-linux-gnu/webkit2gtk-4.1/WebKitWebProcess.real",
+    "usr/lib/x86_64-linux-gnu/webkit2gtk-4.1/WebKitNetworkProcess.real",
+]
+seen = 0
+for rel in targets:
+    p = os.path.join(root, rel)
+    if not os.path.exists(p):
+        continue
+    data = open(p, "rb").read()
+    n = data.count(old)
+    if n == 0:
+        continue
+    # Replace with $ORIGIN + null padding
+    replacement = new + b"\x00" * (len(old) - len(new))
+    data = data.replace(old, replacement)
+    open(p, "wb").write(data)
+    print(f"  patched {rel}: {n} occurrences")
+    seen += n
+if seen == 0:
+    print("WARNUNG: WebKit-Pfad nicht in den Binaries gefunden", file=sys.stderr)
+PY
 
 echo "==> WebKit-Helper Wrapper erstellen (setzen LD_LIBRARY_PATH)"
 for p in WebKitWebProcess WebKitNetworkProcess; do
@@ -116,7 +145,6 @@ echo "==> AppRun"
 cat > "$APPDIR/AppRun" <<'EORUN'
 HERE="$(dirname "$(readlink -f "$0")")"
 export LD_LIBRARY_PATH="$HERE/usr/lib:$HERE/usr/lib/x86_64-linux-gnu:$HERE/usr/lib64:$HERE/lib:$HERE/lib/x86_64-linux-gnu${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
-export WEBKIT_EXEC_PATH="$HERE/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1"
 export WEBKIT_FRAMEWORK_DIR="$HERE/usr/lib/x86_64-linux-gnu"
 export WEBKIT_USE_SINGLE_WEB_PROCESS="${WEBKIT_USE_SINGLE_WEB_PROCESS:-1}"
 export GDK_PIXBUF_MODULE_FILE="$HERE/usr/lib/x86_64-linux-gnu/gdk-pixbuf-2.0/2.10.0/loaders.cache"
