@@ -105,11 +105,12 @@ if seen == 0:
     print("WARNUNG: WebKit-Pfad nicht in den Binaries gefunden", file=sys.stderr)
 PY
 
-echo "==> WebKit-Helper Wrapper erstellen (setzen LD_LIBRARY_PATH)"
+echo "==> WebKit-Helper Wrapper erstellen (setzen LD_LIBRARY_PATH + WEBKIT_EXEC_PATH)"
 for p in WebKitWebProcess WebKitNetworkProcess; do
   cat > "$APPDIR/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1/$p" <<EOF
 #!/bin/sh
 HERE="\$(dirname "\$(readlink -f "\$0")")"
+export WEBKIT_EXEC_PATH="\$HERE"
 export LD_LIBRARY_PATH="\$HERE/../..:\$HERE/../../..:\$HERE/../../../..:\$HERE/../../../../lib:\$HERE/../../../../lib/x86_64-linux-gnu\${LD_LIBRARY_PATH:+:\$LD_LIBRARY_PATH}"
 exec "\$HERE/$p.real" "\$@"
 EOF
@@ -144,6 +145,10 @@ fi
 echo "==> AppRun"
 cat > "$APPDIR/AppRun" <<'EORUN'
 HERE="$(dirname "$(readlink -f "$0")")"
+
+# Set up WebKit exec path to our bundled directory
+export WEBKIT_EXEC_PATH="$HERE/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1"
+
 export LD_LIBRARY_PATH="$HERE/usr/lib:$HERE/usr/lib/x86_64-linux-gnu:$HERE/usr/lib64:$HERE/lib:$HERE/lib/x86_64-linux-gnu${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 export WEBKIT_FRAMEWORK_DIR="$HERE/usr/lib/x86_64-linux-gnu"
 export WEBKIT_USE_SINGLE_WEB_PROCESS="${WEBKIT_USE_SINGLE_WEB_PROCESS:-1}"
