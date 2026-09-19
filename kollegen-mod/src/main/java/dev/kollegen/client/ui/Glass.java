@@ -205,4 +205,40 @@ public final class Glass {
     public static void separator(GuiGraphics g, int x, int y, int w, int color) {
         g.fill(x, y, x + w, y + 1, tint(color, 0x40));
     }
+
+    public static void card(GuiGraphics g, int x, int y, int w, int h, int r,
+                            int borderColor, int fillColor, int hoverOverlay) {
+        fillRound(g, x, y, w, h, r, borderColor);
+        fillRound(g, x + 1, y + 1, w - 2, h - 2, Math.max(0, r - 1), fillColor);
+    }
+
+    public static void cardHover(GuiGraphics g, int x, int y, int w, int h, int r, int color, float alpha) {
+        fillRound(g, x, y, w, h, r, tint(color, (int) (alpha * 255)));
+    }
+
+    public static void badge(GuiGraphics g, int x, int y, int w, int h, int r,
+                             int bgColor, int textColor, Font font, String text) {
+        fillRound(g, x, y, w, h, r, bgColor);
+        int tw = font.width(text);
+        g.drawString(font, text, x + (w - tw) / 2, y + (h - font.lineHeight) / 2, textColor, false);
+    }
+
+    public static void iconBadge(GuiGraphics g, int x, int y, int size, int r,
+                                 int bgColor, int iconColor, String icon, Font font) {
+        fillRound(g, x, y, size, size, r, bgColor);
+        int ix = x + (size - font.width(icon)) / 2;
+        int iy = y + (size - font.lineHeight) / 2;
+        g.drawString(font, icon, ix, iy, iconColor, false);
+    }
+
+    public static void lerpColor(int from, int to, float t) {
+    }
+
+    public static float smoothStep(float t) {
+        return t * t * (3f - 2f * t);
+    }
+
+    public static float easeOutCubic(float t) {
+        return 1f - (float) Math.pow(1 - t, 3);
+    }
 }

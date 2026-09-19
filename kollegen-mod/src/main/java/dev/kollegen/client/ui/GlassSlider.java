@@ -29,14 +29,26 @@ public class GlassSlider extends AbstractSliderButton {
     @Override
     public void renderWidget(GuiGraphics g, int mx, int my, float pt) {
         int r = height / 2;
-        boolean hov = isMouseOver(mx, my);
+        boolean hov = isMouseOver(mx, my) || isFocused();
 
-        Glass.sliderTrack(g, getX(), getY(), width, height, r,
-                hov ? Glass.tint(Palette.PANEL2, 0xA0) : Glass.tint(Palette.BORDER, 0x80));
+        int trackBg = hov ? Palette.tint(Palette.PANEL2, 0xC0) : Palette.tint(Palette.BORDER, 0xA0);
+        Glass.fillRound(g, getX(), getY(), width, height, r, trackBg);
 
-        int thumb = height + 4;
-        int fx = getX() + (int) (this.value * (width - thumb));
-        Glass.sliderThumb(g, fx, getY() - 2, thumb, thumb / 2, accent, hov);
+        int trackFillW = (int) (this.value * (width - 4));
+        if (trackFillW > 0) {
+            Glass.fillRound(g, getX() + 2, getY() + 2, trackFillW, height - 4, r - 2, accent);
+        }
+
+        int thumb = height + 6;
+        int fx = getX() + 2 + (int) (this.value * (width - thumb - 2));
+        int fy = getY() - 3;
+
+        Glass.fillRound(g, fx, fy, thumb, thumb, thumb / 2, 0xFFFFFFFF);
+        Glass.fillRound(g, fx + 1, fy + 1, thumb - 2, thumb - 2, thumb / 2 - 1, accent);
+
+        if (hov) {
+            Glass.fillRound(g, fx - 1, fy - 1, thumb + 2, thumb + 2, thumb / 2 + 1, 0x1AFFFFFF);
+        }
     }
 
     @Override

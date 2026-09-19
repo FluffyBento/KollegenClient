@@ -79,30 +79,37 @@ public class HudEditScreen extends Screen {
             boolean isDragging = HudModule.dragging == hm;
             boolean hov = mx >= x && mx <= x + w && my >= y && my <= y + h;
 
+            int pad = 6;
+            int cx = x - pad;
+            int cy = y - pad;
+            int cw = w + pad * 2;
+            int ch = h + pad * 2;
+
             int borderCol = isDragging ? Palette.ACCENT : (hov ? Palette.ACCENT2 : Palette.BORDER);
-            int bgCol = isDragging ? Palette.tint(Palette.ACCENT, 0x40) : (hov ? Palette.tint(Palette.ACCENT, 0x20) : Palette.tint(Palette.BG, 0x80));
+            int bgCol = isDragging ? Palette.tint(Palette.ACCENT, 0x30) : (hov ? Palette.tint(Palette.ACCENT, 0x15) : Palette.tint(Palette.BG, 0x60));
 
-            Glass.fillRound(g, x - 4, y - 4, w + 8, h + 8, 6, borderCol);
-            Glass.fillRound(g, x - 3, y - 3, w + 6, h + 6, 5, bgCol);
+            Glass.dropShadow(g, cx - 2, cy - 2, cw + 4, ch + 4, 8, 2, 6);
+            Glass.fillRound(g, cx, cy, cw, ch, 8, borderCol);
+            Glass.fillRound(g, cx + 1, cy + 1, cw - 2, ch - 2, 7, bgCol);
 
-            Glass.drawSelectionQuad(g, x - 4, y - 4, w + 8, h + 8, Palette.ACCENT);
+            Glass.drawSelectionQuad(g, cx, cy, cw, ch, Palette.ACCENT);
 
             if (isDragging) {
-                g.drawString(this.font, "▌ Ziehen", x + w / 2 - this.font.width("▌ Ziehen") / 2, y - 16, Palette.ACCENT, true);
+                g.drawString(this.font, "▌ Verschieben", x + w / 2 - this.font.width("▌ Verschieben") / 2, cy - 20, Palette.ACCENT, true);
             } else if (hov) {
-                g.drawString(this.font, "✎ Ziehen zum Verschieben", x + w / 2 - this.font.width("✎ Ziehen zum Verschieben") / 2, y - 16, Palette.MUTED, true);
+                g.drawString(this.font, "✎ Ziehen zum Verschieben", x + w / 2 - this.font.width("✎ Ziehen zum Verschieben") / 2, cy - 20, Palette.MUTED, true);
             }
 
             String name = hm.name;
             int tw = this.font.width(name);
-            g.drawString(this.font, name, x + (w - tw) / 2, y + h + 4, Palette.TEXT, true);
+            g.drawString(this.font, name, x + (w - tw) / 2, y + h + 6, Palette.TEXT, true);
         }
 
         String hint = "HUD bearbeiten · Elemente ziehen · Esc = zurück · Rechtsklick auf Element = Einstellungen";
         int tx = (this.width - this.font.width(hint)) / 2;
-        int ty = this.height - 40;
-        Glass.fillRound(g, tx - 16, ty - 8, this.font.width(hint) + 32, this.font.lineHeight + 16, 8, Palette.tint(Palette.BG, 0xE0));
-        Glass.fillRound(g, tx - 15, ty - 7, this.font.width(hint) + 30, this.font.lineHeight + 14, 7, Palette.tint(Palette.PANEL, 0xF0));
+        int ty = this.height - 50;
+        Glass.fillRound(g, tx - 20, ty - 10, this.font.width(hint) + 40, this.font.lineHeight + 20, 10, Palette.tint(Palette.BG, 0xE0));
+        Glass.fillRound(g, tx - 19, ty - 9, this.font.width(hint) + 38, this.font.lineHeight + 18, 9, Palette.tint(Palette.PANEL, 0xF0));
         g.drawString(this.font, hint, tx, ty, Palette.TEXT, true);
 
         super.render(g, mx, my, pt);

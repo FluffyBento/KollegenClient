@@ -8,7 +8,6 @@ import dev.kollegen.client.ui.GlassSlider;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
@@ -21,7 +20,7 @@ public class ColorPickerScreen extends Screen {
     private int current;
 
     private GlassSlider sh, ss, sv;
-    private Button doneBtn;
+    private GlassButton doneBtn;
 
     public ColorPickerScreen(Screen parent, ColorSetting setting) {
         super(Component.literal("Farbe wählen"));
@@ -37,31 +36,21 @@ public class ColorPickerScreen extends Screen {
 
     @Override
     protected void init() {
-        int w = 380, hgt = 280;
+        int w = 400, hgt = 320;
         int x = (this.width - w) / 2;
         int y = (this.height - hgt) / 2;
 
-        sh = new GlassSlider(x + 24, y + 80, w - 48, 20, h).accent(Palette.ACCENT)
-                .onChanged(d -> {
-                    h = d.floatValue();
-                    update();
-                });
-        ss = new GlassSlider(x + 24, y + 135, w - 48, 20, s).accent(Palette.ACCENT)
-                .onChanged(d -> {
-                    s = d.floatValue();
-                    update();
-                });
-        sv = new GlassSlider(x + 24, y + 190, w - 48, 20, v).accent(Palette.ACCENT)
-                .onChanged(d -> {
-                    v = d.floatValue();
-                    update();
-                });
+        sh = new GlassSlider(x + 28, y + 95, w - 56, 22, h).accent(Palette.ACCENT)
+                .onChanged(d -> { h = d.floatValue(); update(); });
+        ss = new GlassSlider(x + 28, y + 155, w - 56, 22, s).accent(Palette.ACCENT)
+                .onChanged(d -> { s = d.floatValue(); update(); });
+        sv = new GlassSlider(x + 28, y + 215, w - 56, 22, v).accent(Palette.ACCENT)
+                .onChanged(d -> { v = d.floatValue(); update(); });
         addRenderableWidget(sh);
         addRenderableWidget(ss);
         addRenderableWidget(sv);
 
-        doneBtn = Button.builder(Component.literal("Fertig"), btn -> close())
-                .bounds(x + w - 110, y + hgt - 40, 90, 30).build();
+        doneBtn = new GlassButton(x + w - 110, y + hgt - 46, 90, 32, Component.literal("Fertig"), btn -> close());
         addRenderableWidget(doneBtn);
     }
 
@@ -79,66 +68,64 @@ public class ColorPickerScreen extends Screen {
     public void render(GuiGraphics g, int mx, int my, float pt) {
         g.fill(0, 0, this.width, this.height, Palette.tint(Palette.BG, 0xCC));
 
-        int w = 380, hgt = 280;
+        int w = 400, hgt = 320;
         int x = (this.width - w) / 2;
         int y = (this.height - hgt) / 2;
 
-        Glass.dropShadow(g, x, y, w, hgt, 14, 4, 8);
-        Glass.panelVanilla(g, x, y, w, hgt, 14);
+        Glass.dropShadow(g, x, y, w, hgt, 16, 6, 14);
+        Glass.panelVanilla(g, x, y, w, hgt, 16);
 
-        g.drawString(this.font, "Farbe wählen", x + (w - this.font.width("Farbe wählen")) / 2, y + 20, Palette.TEXT, false);
+        g.drawString(this.font, "Farbe wählen", x + (w - this.font.width("Farbe wählen")) / 2, y + 22, Palette.TEXT, false);
 
-        int hueX = x + 24;
-        int hueY = y + 64;
-        int hueW = w - 48;
-        int hueH = 18;
+        int hueX = x + 28;
+        int hueY = y + 75;
+        int hueW = w - 56;
+        int hueH = 22;
         for (int i = 0; i < hueW; i++) {
             float hue = (float) i / hueW;
             int col = hsvToRgb(hue, 1, 1);
             Glass.fillRound(g, hueX + i, hueY, 1, hueH, 2, col);
         }
-        g.drawString(this.font, "Farbton", hueX, hueY - 16, Palette.MUTED, false);
+        g.drawString(this.font, "Farbton", hueX, hueY - 18, Palette.MUTED, false);
 
-        int satX = x + 24;
-        int satY = y + 119;
-        int satW = w - 48;
-        int satH = 18;
+        int satX = x + 28;
+        int satY = y + 140;
+        int satW = w - 56;
+        int satH = 22;
         for (int i = 0; i < satW; i++) {
             float sat = (float) i / satW;
             int col = hsvToRgb(h, sat, 1);
             Glass.fillRound(g, satX + i, satY, 1, satH, 2, col);
         }
-        g.drawString(this.font, "Sättigung", satX, satY - 16, Palette.MUTED, false);
+        g.drawString(this.font, "Sättigung", satX, satY - 18, Palette.MUTED, false);
 
-        int valX = x + 24;
-        int valY = y + 174;
-        int valW = w - 48;
-        int valH = 18;
+        int valX = x + 28;
+        int valY = y + 205;
+        int valW = w - 56;
+        int valH = 22;
         for (int i = 0; i < valW; i++) {
             float val = (float) i / valW;
             int col = hsvToRgb(h, s, val);
             Glass.fillRound(g, valX + i, valY, 1, valH, 2, col);
         }
-        g.drawString(this.font, "Helligkeit", valX, valY - 16, Palette.MUTED, false);
+        g.drawString(this.font, "Helligkeit", valX, valY - 18, Palette.MUTED, false);
 
-        int previewX = x + 24;
-        int previewY = y + hgt - 56;
-        int previewW = 48;
-        int previewH = 28;
-        Glass.fillRound(g, previewX, previewY, previewW, previewH, 6, current);
-        Glass.fillRound(g, previewX + 1, previewY + 1, previewW - 2, previewH - 2, 5, current);
+        int previewX = x + 28;
+        int previewY = y + hgt - 68;
+        int previewW = 64;
+        int previewH = 36;
+        Glass.fillRound(g, previewX, previewY, previewW, previewH, 8, current);
+        Glass.fillRound(g, previewX + 1, previewY + 1, previewW - 2, previewH - 2, 7, current);
         g.drawString(this.font, "#" + Integer.toHexString(current & 0xFFFFFF).toUpperCase(),
-                previewX + previewW + 10, previewY + (previewH - this.font.lineHeight) / 2, Palette.MUTED, false);
+                previewX + previewW + 14, previewY + (previewH - this.font.lineHeight) / 2, Palette.MUTED, false);
 
-        int rgbX = x + w - 160;
-        int rgbY = y + hgt - 56;
+        int rgbX = x + w - 180;
+        int rgbY = y + hgt - 68;
         int r = (current >> 16) & 0xFF;
         int gr = (current >> 8) & 0xFF;
         int b = current & 0xFF;
-        g.drawString(this.font, "R: " + r + "  G: " + gr + "  B: " + b,
-                rgbX, rgbY, Palette.MUTED, false);
-        g.drawString(this.font, "H: " + Math.round(h * 360) + "°  S: " + Math.round(s * 100) + "%  V: " + Math.round(v * 100) + "%",
-                rgbX, rgbY + this.font.lineHeight + 2, Palette.MUTED, false);
+        g.drawString(this.font, "RGB: " + r + ", " + gr + ", " + b, rgbX, rgbY, Palette.MUTED, false);
+        g.drawString(this.font, "HSV: " + Math.round(h * 360) + "°, " + Math.round(s * 100) + "%, " + Math.round(v * 100) + "%", rgbX, rgbY + this.font.lineHeight + 4, Palette.MUTED, false);
 
         super.render(g, mx, my, pt);
     }

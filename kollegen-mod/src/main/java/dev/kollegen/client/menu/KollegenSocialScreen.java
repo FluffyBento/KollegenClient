@@ -32,9 +32,9 @@ import java.util.List;
 public class KollegenSocialScreen extends Screen {
     private final Screen parent;
 
-    private static final int SW = 190;
-    private static final int ROW_H = 34;
-    private static final int GAP = 6;
+    private static final int SW = 200;
+    private static final int ROW_H = 40;
+    private static final int GAP = 8;
     private static final String[] TABS = { "👥 Freunde", "📩 Anfragen", "🗂 Gruppen", "💬 Chats" };
 
     private final HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(6)).build();
@@ -108,73 +108,71 @@ public class KollegenSocialScreen extends Screen {
 
     @Override
     protected void init() {
-        int w = Math.min(this.width - 70, 940);
-        int h = Math.min(this.height - 70, 640);
-        int y = (this.height - h) / 2 - 24;
-        if (y < 8) y = 8;
+        int w = Math.min(this.width - 70, 980);
+        int h = Math.min(this.height - 70, 680);
+        int y = (this.height - h) / 2 - 20;
+        if (y < 12) y = 12;
         px = (this.width - w) / 2;
         py = y;
         pw = w;
         ph = h;
         cx = px + SW + 18;
         cw = pw - SW - 34;
+        int headerH = 60;
         sidebarTop = py + 64;
         sidebarBottom = py + ph - 16;
         contentTop = py + 56;
         contentBottom = py + ph - 34;
-        tabItemH = Math.max(32, (sidebarBottom - sidebarTop - 3 * GAP) / 4);
+        tabItemH = Math.max(36, (sidebarBottom - sidebarTop - 3 * GAP) / 4);
         buildWidgets();
         loadClient();
     }
 
     private void buildWidgets() {
         clearWidgets();
-        int bh = 26;
-        int by = py + 16;
-        refreshBtn = Button.builder(Component.literal("⟳"), btn -> {
+        int bh = 30;
+        int by = py + 14;
+        refreshBtn = new GlassButton(px + pw - 70, by, 28, bh, Component.literal("⟳"), btn -> {
             status = "Lade…";
             loadAll();
-        }).bounds(px + pw - 66, by, bh, bh).build();
-        backBtn = Button.builder(Component.literal("←"), btn -> {
+        });
+        backBtn = new GlassButton(px + pw - 102, by, 28, bh, Component.literal("←"), btn -> {
             inThread = false;
             threadId = "";
             groupSinceMsg = 0;
             rebuildEntries();
             buildWidgets();
-        }).bounds(px + pw - 96, by, bh, bh).build();
+        });
         backBtn.visible = inThread;
-        Button closeBtn = Button.builder(Component.literal("✕"), btn ->
-                Minecraft.getInstance().setScreen(parent)).bounds(px + pw - 38, by, bh, bh).build();
+        Button closeBtn = new GlassButton(px + pw - 38, by, 28, bh, Component.literal("✕"), btn ->
+                Minecraft.getInstance().setScreen(parent));
         addRenderableWidget(refreshBtn);
         addRenderableWidget(backBtn);
         addRenderableWidget(closeBtn);
 
-        int inpY = py + ph - 32;
-        int btnW = 150;
+        int inpY = py + ph - 40;
+        int btnW = 160;
         if (inThread) {
-            Button send = Button.builder(Component.literal("Senden"), btn -> sendThread())
-                    .bounds(cx + cw - btnW, inpY, btnW - 2, 24).build();
+            GlassButton send = new GlassButton(cx + cw - btnW, inpY, btnW - 2, 30, Component.literal("Senden"), btn -> sendThread());
             addRenderableWidget(send);
-            chatInp = new EditBox(this.font, cx + 14, inpY, cw - btnW - 22, 24, Component.literal("Nachricht"));
+            chatInp = new EditBox(this.font, cx + 14, inpY, cw - btnW - 22, 28, Component.literal("Nachricht"));
             chatInp.setMaxLength(2000);
             chatInp.setHint(Component.literal("Nachricht…"));
             addRenderableWidget(chatInp);
             chatInp.setFocused(true);
         } else if (tab == 0) {
-            codeInp = new EditBox(this.font, cx + 14, inpY, cw - btnW - 22, 24, Component.literal("Freundes-Code"));
+            codeInp = new EditBox(this.font, cx + 14, inpY, cw - btnW - 22, 28, Component.literal("Freundes-Code"));
             codeInp.setMaxLength(16);
             codeInp.setHint(Component.literal("Freundes-Code…"));
             addRenderableWidget(codeInp);
-            Button b = Button.builder(Component.literal("Hinzufügen"), btn -> apiAddFriend())
-                    .bounds(cx + cw - btnW, inpY, btnW - 2, 24).build();
+            GlassButton b = new GlassButton(cx + cw - btnW, inpY, btnW - 2, 30, Component.literal("Hinzufügen"), btn -> apiAddFriend());
             addRenderableWidget(b);
         } else if (tab == 2) {
-            groupInp = new EditBox(this.font, cx + 14, inpY, cw - btnW - 22, 24, Component.literal("Gruppenname"));
+            groupInp = new EditBox(this.font, cx + 14, inpY, cw - btnW - 22, 28, Component.literal("Gruppenname"));
             groupInp.setMaxLength(40);
             groupInp.setHint(Component.literal("Gruppenname…"));
             addRenderableWidget(groupInp);
-            Button b = Button.builder(Component.literal("Gruppe erstellen"), btn -> apiCreateGroup())
-                    .bounds(cx + cw - btnW, inpY, btnW - 2, 24).build();
+            GlassButton b = new GlassButton(cx + cw - btnW, inpY, btnW - 2, 30, Component.literal("Gruppe erstellen"), btn -> apiCreateGroup());
             addRenderableWidget(b);
         }
     }
@@ -237,46 +235,58 @@ public class KollegenSocialScreen extends Screen {
 
     @Override
     public void render(GuiGraphics g, int mx, int my, float pt) {
-        g.fill(0, 0, this.width, this.height, Palette.tint(Palette.BG, 0x20));
-        Glass.fillRound(g, px, py, pw, ph, 20, Palette.BORDER);
-        Glass.fillRound(g, px + 1, py + 1, pw - 2, ph - 2, 19, Palette.tint(Palette.PANEL, 0xF2));
+        g.fill(0, 0, this.width, this.height, Palette.tint(Palette.BG, 0xCC));
+
+        Glass.dropShadow(g, px, py, pw, ph, 22, 6, 12);
+        Glass.panelVanilla(g, px, py, pw, ph, 22);
+
+        int headerH = 60;
         Glass.fillRound(g, px + 8, py + 8, SW, ph - 16, 14, Palette.tint(Palette.PANEL2, 0xCC));
-        Glass.fillRound(g, px + 8, py + 8, SW, 6, 4, Palette.tint(Palette.ACCENT, 0xE0));
+        Glass.fillRound(g, px + 8, py + 8, SW, 4, 2, Palette.tint(Palette.ACCENT, 0xE0));
 
         g.drawString(this.font, "SOZIALES", px + 22, py + 26, Palette.ACCENT, false);
         g.drawString(this.font, "in-game", px + 22 + this.font.width("SOZIALES") + 6, py + 28, Palette.MUTED, false);
 
         g.drawString(this.font, inThread ? threadTitle : TABS[tab], cx + 14, py + 24, Palette.TEXT, false);
 
-        g.fill(cx + 14, py + 40, cx + cw - 14, py + 50, Palette.tint(Palette.PANEL2, 0xAA));
-        g.drawString(this.font, trunc(status, cw - 40), cx + 18, py + 43, authed ? Palette.GREEN : Palette.MUTED, false);
+        int statusBarY = py + headerH;
+        Glass.fillRound(g, cx + 12, statusBarY + 4, cw - 24, 36, 8, Palette.tint(Palette.PANEL2, 0xAA));
+        g.drawString(this.font, trunc(status, cw - 40), cx + 18, statusBarY + 15, authed ? Palette.GREEN : Palette.MUTED, false);
+
+        int sidebarTop = py + headerH + 50;
+        int sidebarBottom = py + ph - 16;
+        int tabItemH = Math.max(36, (sidebarBottom - sidebarTop - 3 * GAP) / 4);
 
         g.enableScissor(px + 10, sidebarTop, px + SW - 2, sidebarBottom);
         for (int i = 0; i < TABS.length; i++) {
             int by = sidebarTop + i * (tabItemH + GAP);
             boolean sel = i == tab;
-            Glass.fillRound(g, px + 14, by, SW - 28, tabItemH, 10,
-                    sel ? Palette.tint(Palette.ACCENT, 0xD8) : Palette.tint(Palette.PANEL2, 0x66));
+            boolean hov = mx >= px + 12 && mx <= px + SW - 12 && my >= by && my <= by + tabItemH;
+            int fill = sel ? Palette.tint(Palette.ACCENT, 0xE0) : (hov ? Palette.tint(Palette.ACCENT, 0x30) : Palette.tint(Palette.PANEL2, 0x50));
+            Glass.fillRound(g, px + 12, by, SW - 24, tabItemH, 10, fill);
             int ty = by + (tabItemH - this.font.lineHeight) / 2;
-            g.drawString(this.font, TABS[i], px + 26, ty, sel ? 0xffFFFFFF : Palette.TEXT, false);
+            g.drawString(this.font, TABS[i], px + 24, ty, sel ? 0xFFffffff : (hov ? Palette.TEXT : Palette.MUTED), false);
         }
         g.disableScissor();
 
-        int listTop = contentTop + 62;
-        int listBottom = contentBottom - 40;
+        int listTop = py + headerH + 10;
+        int listBottom = py + ph - 16;
         g.enableScissor(cx, listTop, cx + cw, listBottom);
         entryRects.clear();
-        int ex = cx + 10;
-        int ew = cw - 20;
+        int ex = cx + 12;
+        int ew = cw - 24;
         int ey = listTop + 2 - scroll;
         for (Entry e : entries) {
             boolean vis = ey + ROW_H > listTop && ey < listBottom;
             if (vis) {
                 boolean hov = mx >= ex && mx <= ex + ew && my >= ey && my <= ey + ROW_H;
-                Glass.fillRound(g, ex, ey, ew, ROW_H, 10, Palette.tint(Palette.PANEL2, hov ? 0x99 : 0x66));
-                g.drawString(this.font, e.title, ex + 12, ey + 5, e.color, false);
+                int borderCol = hov ? Palette.ACCENT : Palette.BORDER;
+                Glass.fillRound(g, ex, ey, ew, ROW_H, 10, borderCol);
+                Glass.fillRound(g, ex + 1, ey + 1, ew - 2, ROW_H - 2, 9,
+                        hov ? Palette.tint(Palette.PANEL2, 0x99) : Palette.tint(Palette.PANEL2, 0x55));
+                g.drawString(this.font, e.title, ex + 14, ey + 5, e.color, false);
                 if (e.sub != null && !e.sub.isEmpty()) {
-                    g.drawString(this.font, trunc(e.sub, ew - 24), ex + 12, ey + 18, Palette.MUTED, false);
+                    g.drawString(this.font, trunc(e.sub, ew - 28), ex + 14, ey + 19, Palette.MUTED, false);
                 }
             }
             if (e.act != null) entryRects.add(new Rect(ex, ey, ew, ROW_H, e.act));
@@ -286,9 +296,10 @@ public class KollegenSocialScreen extends Screen {
 
         if (maxScroll > 0) {
             int trackH = listBottom - listTop;
-            int thumbH = Math.max(22, (int) ((double) trackH * trackH / (trackH + maxScroll)));
+            int thumbH = Math.max(30, (int) ((double) trackH * trackH / (trackH + maxScroll)));
             int thumbY = listTop + (int) ((trackH - thumbH) * (scroll / (double) maxScroll));
-            Glass.fillRound(g, cx + cw - 5, thumbY, 3, thumbH, 2, Palette.tint(Palette.ACCENT, 0xCC));
+            Glass.scrollbarTrack(g, cx + cw - 6, listTop, 4, trackH, 2);
+            Glass.scrollbarThumb(g, cx + cw - 6, thumbY, 4, thumbH, 2, false);
         }
 
         if (inThread) pollGroupIfNeeded();

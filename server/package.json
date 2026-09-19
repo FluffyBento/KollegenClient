@@ -1,0 +1,13 @@
+{
+  "name": "kollegen-backend",
+  "version": "1.4.0",
+  "private": true,
+  "description": "Kollegen-Client Backend (Freundes-System + Badges)",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

@@ -1,0 +1,17 @@
+[Unit]
+Description=Kollegen Client Backend (Freundes-System + Badges)
+After=network.target
+
+[Service]
+Type=simple
+User=%i
+WorkingDirectory=/opt/kollegen-backend
+Environment=PORT=8080
+Environment=KOLLEGEN_DATA_DIR=/opt/kollegen-backend/data
+Environment=PRESENCE_TTL_MS=90000
+ExecStart=/usr/bin/node /opt/kollegen-backend/index.js
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
