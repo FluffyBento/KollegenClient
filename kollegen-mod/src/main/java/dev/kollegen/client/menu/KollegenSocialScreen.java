@@ -6,6 +6,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import dev.kollegen.client.mods.Palette;
 import dev.kollegen.client.ui.Glass;
+import dev.kollegen.client.ui.GlassButton;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
@@ -144,7 +145,7 @@ public class KollegenSocialScreen extends Screen {
             buildWidgets();
         });
         backBtn.visible = inThread;
-        Button closeBtn = new GlassButton(px + pw - 38, by, 28, bh, Component.literal("✕"), btn ->
+        GlassButton closeBtn = new GlassButton(px + pw - 38, by, 28, bh, Component.literal("✕"), btn ->
                 Minecraft.getInstance().setScreen(parent));
         addRenderableWidget(refreshBtn);
         addRenderableWidget(backBtn);
