@@ -67,7 +67,7 @@ echo "==> linuxdeploy: Binary + libs in AppDir"
   --plugin gtk
 
 echo "==> DEBUG: Dateien nach linuxdeploy:"
-find "$APPDIR" -name "*.so*" -o -name "WebKit*Process*" | head -20
+find "$APPDIR" -name "*.so*" -o -name "WebKit*Process*" 2>/dev/null | head -20 || true
 
 echo "==> WebKit-Helfer manuell kopieren"
 mkdir -p "$APPDIR/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1"
