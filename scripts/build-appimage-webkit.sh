@@ -58,12 +58,10 @@ mkdir -p "$APPDIR/usr/bin" "$APPDIR/usr/lib"
 mkdir -p "$APPDIR/usr/share/icons/hicolor/512x512/apps"
 cp icons/icon.png "$APPDIR/usr/share/icons/hicolor/512x512/apps/dev.kollegen.client.png"
 
-echo "==> linuxdeploy: Binary + libs + WebKit-Helpers in AppDir"
+echo "==> linuxdeploy: Binary + libs in AppDir"
 "$LDAI" \
   --appdir "$APPDIR" \
   --executable "$BIN" \
-  --executable "$WEBKIT_DIR/WebKitWebProcess" \
-  --executable "$WEBKIT_DIR/WebKitNetworkProcess" \
   --desktop-file dev.kollegen.client.desktop \
   --icon-file icons/icon.png \
   --plugin gtk
@@ -71,11 +69,42 @@ echo "==> linuxdeploy: Binary + libs + WebKit-Helpers in AppDir"
 echo "==> DEBUG: Dateien nach linuxdeploy:"
 find "$APPDIR" -name "*.so*" -o -name "WebKit*Process*" | head -20
 
+echo "==> WebKit-Helfer manuell kopieren"
+mkdir -p "$APPDIR/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1"
+for p in WebKitWebProcess WebKitNetworkProcess; do
+  if [ -f "$WEBKIT_DIR/$p" ]; then
+    cp -f "$WEBKIT_DIR/$p" "$APPDIR/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1/$p.real"
+    echo "  kopiert: $p"
+  else
+    echo "FEHLER: $p nicht gefunden in $WEBKIT_DIR"
+    exit 1
+  fi
+done
+
+# Auch die WebKit-Bibliotheken kopieren
+echo "==> WebKit-Bibliotheken kopieren"
+for lib in libwebkit2gtk-4.1.so.0 libjavascriptcoregtk-4.1.so.0; do
+  if [ -f "$WEBKIT_DIR/../$lib" ]; then
+    cp -f "$WEBKIT_DIR/../$lib" "$APPDIR/usr/lib/"
+    echo "  kopiert: $lib"
+  elif [ -f "/usr/lib/x86_64-linux-gnu/$lib" ]; then
+    cp -f "/usr/lib/x86_64-linux-gnu/$lib" "$APPDIR/usr/lib/"
+    echo "  kopiert: $lib (aus /usr/lib)"
+  else
+    echo "WARNUNG: $lib nicht gefunden"
+  fi
+done
+
 echo "==> WebKit-Helfer in WEBKIT_EXEC_PATH-Verzeichnis platzieren"
 mkdir -p "$APPDIR/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1"
 for p in WebKitWebProcess WebKitNetworkProcess; do
   if [ -f "$APPDIR/usr/bin/$p" ]; then
     mv -f "$APPDIR/usr/bin/$p" "$APPDIR/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1/$p.real"
+  elif [ -f "$APPDIR/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1/$p.real" ]; then
+    echo "  bereits vorhanden: $p.real"
+  else
+    echo "FEHLER: $p nicht gefunden in AppDir"
+    exit 1
   fi
 done
 
