@@ -85,6 +85,8 @@ new = b"$ORIGIN"
 targets = [
     "usr/lib/x86_64-linux-gnu/webkit2gtk-4.1/WebKitWebProcess.real",
     "usr/lib/x86_64-linux-gnu/webkit2gtk-4.1/WebKitNetworkProcess.real",
+    "usr/lib/libwebkit2gtk-4.1.so.0",
+    "usr/lib/libjavascriptcoregtk-4.1.so.0",
 ]
 seen = 0
 for rel in targets:
