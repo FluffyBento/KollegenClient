@@ -108,15 +108,14 @@ for p in WebKitWebProcess WebKitNetworkProcess; do
   fi
 done
 
-echo "==> ELF-Patch: Hardcoded WebKit-Pfad auf \$ORIGIN umschreiben"
+echo "==> ELF-Patch: Hardcoded WebKit-Pfad auf relativen Pfad umschreiben"
 python3 - "$APPDIR" <<'PY'
 import os, sys
 root = sys.argv[1]
 old = b"/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1"
-new = b"$ORIGIN"
+# Relative path from libwebkit2gtk-4.1.so.0 (in usr/lib/) to WebKitNetworkProcess (in usr/lib/x86_64-linux-gnu/webkit2gtk-4.1/)
+new = b"../x86_64-linux-gnu/webkit2gtk-4.1"
 targets = [
-    "usr/lib/x86_64-linux-gnu/webkit2gtk-4.1/WebKitWebProcess.real",
-    "usr/lib/x86_64-linux-gnu/webkit2gtk-4.1/WebKitNetworkProcess.real",
     "usr/lib/libwebkit2gtk-4.1.so.0",
     "usr/lib/libjavascriptcoregtk-4.1.so.0",
 ]
@@ -131,7 +130,6 @@ for rel in targets:
     if n == 0:
         print(f"  INFO: Kein Pfad gefunden in {rel}", file=sys.stderr)
         continue
-    # Replace with $ORIGIN + null padding
     replacement = new + b"\x00" * (len(old) - len(new))
     data = data.replace(old, replacement)
     open(p, "wb").write(data)
