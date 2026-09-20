@@ -68,6 +68,9 @@ echo "==> linuxdeploy: Binary + libs + WebKit-Helpers in AppDir"
   --icon-file icons/icon.png \
   --plugin gtk
 
+echo "==> DEBUG: Dateien nach linuxdeploy:"
+find "$APPDIR" -name "*.so*" -o -name "WebKit*Process*" | head -20
+
 echo "==> WebKit-Helfer in WEBKIT_EXEC_PATH-Verzeichnis platzieren"
 mkdir -p "$APPDIR/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1"
 for p in WebKitWebProcess WebKitNetworkProcess; do
@@ -92,16 +95,18 @@ seen = 0
 for rel in targets:
     p = os.path.join(root, rel)
     if not os.path.exists(p):
+        print(f"  FEHLER: Datei nicht gefunden: {p}", file=sys.stderr)
         continue
     data = open(p, "rb").read()
     n = data.count(old)
     if n == 0:
+        print(f"  INFO: Kein Pfad gefunden in {rel}", file=sys.stderr)
         continue
     # Replace with $ORIGIN + null padding
     replacement = new + b"\x00" * (len(old) - len(new))
     data = data.replace(old, replacement)
     open(p, "wb").write(data)
-    print(f"  patched {rel}: {n} occurrences")
+    print(f"  gepatcht {rel}: {n} Vorkommen")
     seen += n
 if seen == 0:
     print("WARNUNG: WebKit-Pfad nicht in den Binaries gefunden", file=sys.stderr)
