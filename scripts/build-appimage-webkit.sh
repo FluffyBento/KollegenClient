@@ -108,6 +108,10 @@ for p in WebKitWebProcess WebKitNetworkProcess; do
   fi
 done
 
+# Ensure libraries are copied before patching
+echo "==> DEBUG: Prüfe Bibliotheken vor Patch"
+ls -la "$APPDIR/usr/lib/libwebkit2gtk-4.1.so.0" "$APPDIR/usr/lib/libjavascriptcoregtk-4.1.so.0" 2>&1 || true
+
 echo "==> ELF-Patch: Hardcoded WebKit-Pfad auf relativen Pfad umschreiben"
 python3 - "$APPDIR" <<'PY'
 import os, sys
@@ -127,6 +131,7 @@ for rel in targets:
         continue
     data = open(p, "rb").read()
     n = data.count(old)
+    print(f"  DEBUG: {rel}: old={old}, new={new}, count={n}")
     if n == 0:
         print(f"  INFO: Kein Pfad gefunden in {rel}", file=sys.stderr)
         continue
