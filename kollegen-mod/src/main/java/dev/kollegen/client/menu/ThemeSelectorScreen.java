@@ -1,5 +1,6 @@
 package dev.kollegen.client.menu;
 
+import dev.kollegen.client.Version;
 import dev.kollegen.client.mods.Palette;
 import dev.kollegen.client.ui.Glass;
 import dev.kollegen.client.ui.GlassButton;
@@ -190,6 +191,8 @@ public class ThemeSelectorScreen extends Screen {
 
         GlassButton backBtn = new GlassButton(px + panelW - 110, py + panelH - 44, 90, 30, Component.literal("Zurück"), btn -> close());
         backBtn.render(g, mx, my, pt);
+
+        g.drawString(this.font, "v" + Version.get(), px + 16, py + panelH - 16, Palette.MUTED, false);
 
         super.render(g, mx, my, pt);
     }

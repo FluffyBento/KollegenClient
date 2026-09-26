@@ -1,5 +1,6 @@
 package dev.kollegen.client.menu;
 
+import dev.kollegen.client.Version;
 import dev.kollegen.client.mods.ColorSetting;
 import dev.kollegen.client.mods.Palette;
 import dev.kollegen.client.ui.Glass;
@@ -126,6 +127,8 @@ public class ColorPickerScreen extends Screen {
         int b = current & 0xFF;
         g.drawString(this.font, "RGB: " + r + ", " + gr + ", " + b, rgbX, rgbY, Palette.MUTED, false);
         g.drawString(this.font, "HSV: " + Math.round(h * 360) + "°, " + Math.round(s * 100) + "%, " + Math.round(v * 100) + "%", rgbX, rgbY + this.font.lineHeight + 4, Palette.MUTED, false);
+
+        g.drawString(this.font, "v" + Version.get(), x + 16, y + hgt - 16, Palette.MUTED, false);
 
         super.render(g, mx, my, pt);
     }
