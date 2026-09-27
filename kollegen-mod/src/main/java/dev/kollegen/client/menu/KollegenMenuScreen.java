@@ -295,9 +295,10 @@ public class KollegenMenuScreen extends Screen {
                 boolean overGear = mx >= gearX && mx <= gearX + GEAR_W && my >= ey && my <= ey + CARD_H;
                 boolean overCard = mx >= px + PADDING && mx <= px + PADDING + contentW && my >= ey && my <= ey + CARD_H;
 
-                // Let widget handle its own click (toggle, gear) - return false to consume click
+                // Entry clicks - check before scrollbar drag (critical fix!)
+                // Return true to consume click and prevent scrollbar interference
                 if (overToggle || overGear) {
-                    return false; // Let the widget handle it
+                    return true; // Consume click, prevent scrollbar drag
                 }
             }
         }
