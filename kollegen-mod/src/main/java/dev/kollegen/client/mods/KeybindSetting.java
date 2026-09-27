@@ -58,4 +58,3 @@ public class KeybindSetting extends Setting {
         return b;
     }
 }
-}
