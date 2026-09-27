@@ -136,7 +136,7 @@ fn refresh_cache(data_dir: &Path) -> Option<PathBuf> {
                         jar_fabric_version(&dest).as_deref(),
                         jar_fabric_version(&tmp).as_deref(),
                     ) {
-                        (Some(cur), Some(new)) => version_at_least(cur, new),
+                        (Some(cur), Some(new)) => version_at_least(new, cur), // update if new > cur
                         
                         _ => false,
                     }
