@@ -447,7 +447,7 @@ public class KollegenMenuScreen extends Screen {
                 // Status badge
                 int badgeX = px + pw - PADDING - SCROLLBAR_AREA_W - 100;
                 if (m.enabled) {
-                    Glass.vanillaBadge(g, badgeX, cardY + (cardH - 18) / 2, 88, 18, 9, 
+                    Glass.badge(g, badgeX, cardY + (cardH - 18) / 2, 88, 18, 9,
                             Palette.GREEN, 0xFFFFFFFF, Minecraft.getInstance().font, "Aktiv");
                 }
             } else {

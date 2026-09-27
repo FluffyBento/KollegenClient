@@ -55,7 +55,7 @@ public class KeybindSetting extends Setting {
             capturing = (capturing == this) ? null : this;
             btn.setMessage(Component.literal(capturing == this ? "…" : keyName(value)));
         });
-        b.selected(capturing == this);
         return b;
     }
+}
 }

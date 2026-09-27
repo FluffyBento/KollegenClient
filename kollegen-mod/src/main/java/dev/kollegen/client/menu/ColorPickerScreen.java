@@ -41,11 +41,11 @@ public class ColorPickerScreen extends Screen {
         int x = (this.width - w) / 2;
         int y = (this.height - hgt) / 2;
 
-        sh = new GlassSlider(x + 28, y + 95, w - 56, 22, h).accent(Palette.ACCENT)
+        sh = new GlassSlider(x + 28, y + 95, w - 56, 22, h)
                 .onChanged(d -> { h = d.floatValue(); update(); });
-        ss = new GlassSlider(x + 28, y + 155, w - 56, 22, s).accent(Palette.ACCENT)
+        ss = new GlassSlider(x + 28, y + 155, w - 56, 22, s)
                 .onChanged(d -> { s = d.floatValue(); update(); });
-        sv = new GlassSlider(x + 28, y + 215, w - 56, 22, v).accent(Palette.ACCENT)
+        sv = new GlassSlider(x + 28, y + 215, w - 56, 22, v)
                 .onChanged(d -> { v = d.floatValue(); update(); });
         addRenderableWidget(sh);
         addRenderableWidget(ss);

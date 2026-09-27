@@ -57,7 +57,7 @@ public class SliderSetting extends Setting {
         int y = py + (rowH - h) / 2;
         double norm = (value - min) / (max - min);
         GlassSlider s = new GlassSlider(x, y, w, h, Math.max(0, Math.min(1, norm)));
-        s.accent(Palette.ACCENT).onChanged(d -> {
+        s.onChanged(d -> {
             value = clamp(min + d * (max - min));
             if (onChange != null) onChange.accept(value);
             changed();
