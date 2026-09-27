@@ -353,5 +353,11 @@ public final class Glass {
         int textColor = selected ? 0xFFFFFFFF : (hovered ? 0xFFAAAAAA : 0xFFAAAAAA);
         int tw = font.width(label);
         g.drawString(font, label, x + (w - tw) / 2, y + (h - font.lineHeight) / 2, textColor, true);
+    // Vanilla-style badge (matches Minecraft's badges)
+    public static void badge(GuiGraphics g, int x, int y, int w, int h, int r,
+                             int bgColor, int textColor, Font font, String text) {
+        fillRound(g, x, y, w, h, r, bgColor);
+        int tw = font.width(text);
+        g.drawString(font, text, x + (w - tw) / 2, y + (h - font.lineHeight) / 2, textColor, false);
     }
 }
