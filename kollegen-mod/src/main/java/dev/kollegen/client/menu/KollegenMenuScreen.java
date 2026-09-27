@@ -1,6 +1,7 @@
 package dev.kollegen.client.menu;
 
 import com.mojang.blaze3d.platform.InputConstants;
+import dev.kollegen.client.Version;
 import dev.kollegen.client.KollegenMod;
 import dev.kollegen.client.mods.Category;
 import dev.kollegen.client.mods.HudModule;
@@ -286,8 +287,6 @@ public class KollegenMenuScreen extends Screen {
                 int ey = e.y;
                 if (ey + CARD_H < contentTop || ey > contentBottom) continue;
 
-                int contentX = px + PADDING;
-                int contentW = pw - PADDING * 2 - SCROLLBAR_AREA_W;
                 int cardX = px + PADDING;
                 int cardW = contentW;
                 int toggleX = cardX + contentW - TOGGLE_W - 8;
