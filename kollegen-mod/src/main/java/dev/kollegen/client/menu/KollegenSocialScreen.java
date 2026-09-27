@@ -178,7 +178,7 @@ public class KollegenSocialScreen extends Screen {
         }
     }
 
-    private void computeScroll() {
+private void computeScroll() {
         int visible = (contentBottom - 4) - (contentTop + 56);
         int need = entries.size() * (ROW_H + GAP);
         maxScroll = Math.max(0, need - visible);
@@ -192,7 +192,7 @@ public class KollegenSocialScreen extends Screen {
         double my = event.y();
         if (event.button() != 0) return super.mouseClicked(event, bl);
         
-        // Tab click in sidebar
+        // Tab click in sidebar - with safe hitbox
         if (mx >= px && mx <= px + SW && my >= sidebarTop && my <= sidebarBottom) {
             int idx = (int) ((my - sidebarTop) / (tabItemH + GAP));
             if (idx >= 0 && idx < TABS.length) {
@@ -209,7 +209,7 @@ public class KollegenSocialScreen extends Screen {
             }
         }
         
-        // Entry clicks
+        // Entry clicks - check before scrollbar drag
         for (Rect r : entryRects) {
             if (r.hit(mx, my) && r.act != null) {
                 r.act.run();

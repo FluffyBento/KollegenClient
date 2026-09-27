@@ -11,7 +11,6 @@ import dev.kollegen.client.mods.Palette;
 import dev.kollegen.client.mods.Setting;
 import dev.kollegen.client.ui.Glass;
 import dev.kollegen.client.ui.GlassButton;
-import dev.kollegen.client.ui.GlassSlider;
 import dev.kollegen.client.ui.GlassToggle;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
@@ -52,7 +51,7 @@ public class KollegenMenuScreen extends Screen {
     private static final int GEAR_H = 28;
 
     private EditBox search;
-    private Button closeBtn;
+    private GlassButton closeBtn;
 
     private int px, py, pw, ph;
     private int contentY, contentH, maxScroll, scroll = 0;
@@ -122,12 +121,12 @@ public class KollegenMenuScreen extends Screen {
         int contentTop = tabBarY + TAB_H + GAP;
         int contentBottom = py + ph - PADDING;
 
-        closeBtn = new GlassButton(px + pw - 44, py + 16, 28, 28, Component.literal("✕"), btn -> close());
+        closeBtn = new GlassButton(px + pw - 40, py + 12, 32, 32, Component.literal("✕"), btn -> close());
         addRenderableWidget(closeBtn);
 
-        search = new EditBox(this.font, px + PADDING + 12, py + 16, pw - PADDING * 2 - 60, 28, Component.literal(""));
+        search = new EditBox(this.font, px + PADDING + 10, py + 12, pw - PADDING * 2 - 50, 26, Component.literal(""));
         search.setMaxLength(40);
-        search.setHint(Component.literal("Module suchen…"));
+        search.setHint(Component.literal("Modul suchen…"));
         search.setValue(query);
         search.setResponder(t -> {
             query = t;
@@ -154,12 +153,12 @@ public class KollegenMenuScreen extends Screen {
         for (Module m : visibleModules) {
             boolean vis = y + CARD_H > contentTop && y < contentBottom;
             int contentW = pw - PADDING * 2 - SCROLLBAR_AREA_W;
-            
-            // Toggle on LEFT side of card (far from scrollbar)
-            int toggleX = px + PADDING + 8;
-            
-            // Gear button on right side of card (but left of scrollbar area)
-            int gearX = px + PADDING + pw - PADDING * 2 - SCROLLBAR_AREA_W - GEAR_W - 16;
+
+            // Toggle on LEFT side of card - positioned carefully to avoid scrollbar conflict
+            int toggleX = px + PADDING + 4;
+
+            // Gear button on right side of card, above scrollbar area with safe margin
+            int gearX = px + pw - PADDING - SCROLLBAR_AREA_W - GEAR_W - 8;
 
             if (!m.locked && vis) {
                 GlassToggle t = new GlassToggle(toggleX, y + (CARD_H - TOGGLE_H) / 2, TOGGLE_W, TOGGLE_H, m.enabled, on -> {
@@ -186,8 +185,8 @@ public class KollegenMenuScreen extends Screen {
                     boolean sv = y + SETTING_H > contentTop && y < contentBottom;
                     AbstractWidget w = null;
                     if (sv) {
-                        int settingW = pw - PADDING * 2 - SCROLLBAR_AREA_W - 24;
-                        w = s.buildWidget(px + PADDING + 12, y, pw - PADDING * 2 - SCROLLBAR_AREA_W - 24, SETTING_H, this);
+                        int settingW = pw - PADDING * 2 - SCROLLBAR_AREA_W - 20;
+                        w = s.buildWidget(px + PADDING + 10, y, pw - PADDING * 2 - SCROLLBAR_AREA_W - 20, SETTING_H, this);
                         addRenderableWidget(w);
                     }
                     entries.add(new Entry(false, m, s, y, SETTING_H, w, cardIdx));
@@ -244,6 +243,7 @@ public class KollegenMenuScreen extends Screen {
         int tabBarX = px + PADDING;
         int tabBarW = pw - PADDING * 2;
 
+        // Tab bar click - navigate between categories
         if (button == 0 && my >= tabBarY && my <= tabBarY + TAB_H && mx >= tabBarX && mx <= tabBarX + tabBarW) {
             int totalTabW = cats.length * 120;
             if (totalTabW > tabBarW && maxTabScroll > 0) {
@@ -272,13 +272,14 @@ public class KollegenMenuScreen extends Screen {
             tabX += tabW + 8;
         }
 
+        // --- ENTRY CLICKS FIRST (critical fix!) ---
+        // Check toggles and gears BEFORE scrollbar, so clicks always hit widgets first
         int contentTop = tabBarY + TAB_H + GAP;
         int contentBottom = py + ph - PADDING;
         int contentX = px + PADDING;
         int contentW = pw - PADDING * 2 - SCROLLBAR_AREA_W;
         int scrollbarX = px + pw - SCROLLBAR_W - 8;
 
-        // First check entry clicks (toggles, gears) BEFORE scrollbar drag
         if (button == 0) {
             for (Entry e : entries) {
                 if (!e.isModule) continue;
@@ -294,16 +295,17 @@ public class KollegenMenuScreen extends Screen {
                 boolean overGear = mx >= gearX && mx <= gearX + GEAR_W && my >= ey && my <= ey + CARD_H;
                 boolean overCard = mx >= px + PADDING && mx <= px + PADDING + contentW && my >= ey && my <= ey + CARD_H;
 
-                // Let widget handle its own click (toggle, gear)
+                // Let widget handle its own click (toggle, gear) - return false to consume click
                 if (overToggle || overGear) {
                     return false; // Let the widget handle it
                 }
             }
         }
 
-        // Then check scrollbar drag (only if not already handled by a widget)
+        // --- SCROLLBAR DRAG SECOND ---
+        // Only allow scroll drag if no widget was clicked above
         if (button == 0 && maxScroll > 0) {
-            // Extended hitbox with 2px padding, but only in the gap area between entries and scrollbar
+            // Extended hitbox with padding, but only in the gap area
             if (mx >= px + pw - PADDING - SCROLLBAR_AREA_W - 4 && mx <= px + pw - SCROLLBAR_W - 8 + SCROLLBAR_W + 4 && my >= contentTop && my <= contentBottom) {
                 draggingScroll = true;
                 dragStartY = (int) my;
