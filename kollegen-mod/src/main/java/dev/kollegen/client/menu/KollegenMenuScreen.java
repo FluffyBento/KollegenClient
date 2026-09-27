@@ -46,8 +46,10 @@ public class KollegenMenuScreen extends Screen {
     private static final int RADIUS = 10;
     private static final int SCROLLBAR_W = 6;
     private static final int SCROLLBAR_AREA_W = 16;
-    private static final int TOGGLE_W = 58;
+    private static final int TOGGLE_W = 28;
     private static final int TOGGLE_H = 28;
+    private static final int GEAR_W = 32;
+    private static final int GEAR_H = 28;
 
     private EditBox search;
     private Button closeBtn;
@@ -120,8 +122,7 @@ public class KollegenMenuScreen extends Screen {
         int contentTop = tabBarY + TAB_H + GAP;
         int contentBottom = py + ph - PADDING;
 
-        closeBtn = Button.builder(Component.literal("✕"), btn -> close())
-                .bounds(px + pw - 44, py + 16, 28, 28).build();
+        closeBtn = new GlassButton(px + pw - 44, py + 16, 28, 28, Component.literal("✕"), btn -> close());
         addRenderableWidget(closeBtn);
 
         search = new EditBox(this.font, px + PADDING + 12, py + 16, pw - PADDING * 2 - 60, 28, Component.literal(""));
@@ -153,8 +154,12 @@ public class KollegenMenuScreen extends Screen {
         for (Module m : visibleModules) {
             boolean vis = y + CARD_H > contentTop && y < contentBottom;
             int contentW = pw - PADDING * 2 - SCROLLBAR_AREA_W;
-            int toggleX = px + PADDING + contentW - TOGGLE_W - 8;
-            int gearX = toggleX - 40;
+            
+            // Toggle on LEFT side of card (far from scrollbar)
+            int toggleX = px + PADDING + 8;
+            
+            // Gear button on right side of card (but left of scrollbar area)
+            int gearX = px + PADDING + pw - PADDING * 2 - SCROLLBAR_AREA_W - GEAR_W - 16;
 
             if (!m.locked && vis) {
                 GlassToggle t = new GlassToggle(toggleX, y + (CARD_H - TOGGLE_H) / 2, TOGGLE_W, TOGGLE_H, m.enabled, on -> {
@@ -166,11 +171,11 @@ public class KollegenMenuScreen extends Screen {
                 addRenderableWidget(t);
             }
             if (vis) {
-                Button gear = Button.builder(Component.literal("⚙"), btn -> {
+                GlassButton gear = new GlassButton(gearX, y + (CARD_H - GEAR_H) / 2, GEAR_W, GEAR_H, Component.literal("⚙"), btn -> {
                     if (expanded.contains(m.id)) expanded.remove(m.id);
                     else expanded.add(m.id);
                     rebuild();
-                }).bounds(gearX, y + (CARD_H - 28) / 2, 32, 28).build();
+                });
                 addRenderableWidget(gear);
             }
             entries.add(new Entry(true, m, null, y, CARD_H, null, cardIdx++));
@@ -181,6 +186,7 @@ public class KollegenMenuScreen extends Screen {
                     boolean sv = y + SETTING_H > contentTop && y < contentBottom;
                     AbstractWidget w = null;
                     if (sv) {
+                        int settingW = pw - PADDING * 2 - SCROLLBAR_AREA_W - 24;
                         w = s.buildWidget(px + PADDING + 12, y, pw - PADDING * 2 - SCROLLBAR_AREA_W - 24, SETTING_H, this);
                         addRenderableWidget(w);
                     }
@@ -289,18 +295,16 @@ public class KollegenMenuScreen extends Screen {
 
                 int cardX = px + PADDING;
                 int cardW = contentW;
-                int toggleX = cardX + contentW - TOGGLE_W - 8;
-                int gearX = toggleX - 40;
+                int toggleX = px + PADDING + 8;
+                int gearX = px + PADDING + contentW - GEAR_W - 16;
 
                 boolean overToggle = mx >= toggleX && mx <= toggleX + TOGGLE_W && my >= ey && my <= ey + CARD_H;
-                boolean overGear = mx >= gearX && mx <= gearX + 32 && my >= ey && my <= ey + CARD_H;
-                boolean overCard = mx >= cardX && mx <= cardX + cardW && my >= ey && my <= ey + CARD_H;
+                boolean overGear = mx >= gearX && mx <= gearX + GEAR_W && my >= ey && my <= ey + CARD_H;
+                boolean overCard = mx >= px + PADDING && mx <= px + PADDING + contentW && my >= ey && my <= ey + CARD_H;
 
-                if (overToggle) {
-                    return false;
-                }
-                if (overGear) {
-                    return false;
+                // Let widget handle its own click (toggle, gear)
+                if (overToggle || overGear) {
+                    return false; // Let the widget handle it
                 }
             }
         }
@@ -366,13 +370,14 @@ public class KollegenMenuScreen extends Screen {
 
         g.fill(0, 0, this.width, this.height, Palette.tint(Palette.BG, 0xCC));
 
-        Glass.dropShadow(g, px, py, pw, ph, RADIUS + 2, 6, 12);
-        Glass.panelVanilla(g, px, py, pw, ph, RADIUS + 2);
+        // Main panel background
+        Glass.vanillaPanel(g, px, py, pw, ph);
 
         int tabBarY = py + HEADER_H;
         int tabBarX = px + PADDING;
         int tabBarW = pw - PADDING * 2;
 
+        // Tab bar background
         Glass.fillRound(g, tabBarX - 4, tabBarY - 4, tabBarW + 8, TAB_H + 8, 8, Palette.tint(Palette.PANEL2, 0x80));
 
         int totalTabW = cats.length * 118;
@@ -386,14 +391,8 @@ public class KollegenMenuScreen extends Screen {
             boolean sel = i == category;
             boolean hov = mx >= tabX && mx <= tabX + tabW && my >= tabBarY && my <= tabBarY + TAB_H;
 
-            if (sel || hov) {
-                Glass.fillRound(g, tabX, tabBarY + 2, tabW, TAB_H - 4, 6,
-                        sel ? Palette.tint(Palette.ACCENT, 0xE0) : Palette.tint(Palette.ACCENT, 0x40));
-            }
-            int iconX = tabX + (tabW - this.font.width(cats[i].icon + " " + cats[i].display)) / 2;
-            int iconY = tabBarY + (TAB_H - this.font.lineHeight) / 2;
-            g.drawString(this.font, cats[i].icon + " " + cats[i].display, iconX, iconY,
-                    sel ? 0xFFFFFFFF : (hov ? Palette.TEXT : Palette.MUTED), false);
+            Glass.vanillaTab(g, tabX, tabBarY + 2, tabW, TAB_H - 4, this.font, 
+                    cats[i].icon + " " + cats[i].display, sel, hov);
             tabX += tabW + 8;
         }
         g.disableScissor();
@@ -401,8 +400,8 @@ public class KollegenMenuScreen extends Screen {
         if (maxTabScroll > 0) {
             int thumbW = Math.max(40, (int) ((double) tabBarW * tabBarW / (tabBarW + maxTabScroll)));
             int thumbX = tabBarX + (int) ((tabBarW - thumbW) * (tabScroll / (double) maxTabScroll));
-            Glass.scrollbarTrack(g, tabBarX, tabBarY + TAB_H - 4, tabBarW, 4, 2);
-            Glass.scrollbarThumb(g, thumbX, tabBarY + TAB_H - 4, thumbW, 4, 2, draggingTabScroll);
+            Glass.vanillaScrollbar(g, tabBarX, tabBarY + TAB_H - 4, tabBarW, 4, 
+                    tabScroll, maxTabScroll, false, draggingTabScroll);
         }
 
         int contentTop = tabBarY + TAB_H + GAP;
@@ -425,9 +424,13 @@ public class KollegenMenuScreen extends Screen {
                 int cardY = ey;
                 int cardH = e.h;
 
-                Glass.fillRound(g, cardX, cardY, cardW, cardH, 8, Palette.BORDER);
-                Glass.fillRound(g, cardX + 1, cardY + 1, cardW - 2, cardH - 2, 7,
-                        hov ? Palette.tint(Palette.PANEL2, 0x99) : Palette.tint(Palette.PANEL2, 0x55));
+                // Vanilla-style panel
+                Glass.vanillaPanel(g, cardX, cardY, cardW, cardH);
+
+                // Hover overlay
+                if (hov) {
+                    Glass.fillRound(g, cardX, cardY, cardW, cardH, 8, 0x30FFFFFF);
+                }
 
                 if (m.locked) {
                     Glass.fillRound(g, cardX + 4, cardY + (cardH - 20) / 2, 20, 20, 4, Palette.tint(Palette.MUTED, 0x80));
@@ -441,10 +444,11 @@ public class KollegenMenuScreen extends Screen {
                     g.drawString(this.font, "⚠ " + trunc(m.risk, cardW - 80), titleX, cardY + 44, Palette.DANGER, false);
                 }
 
+                // Status badge
                 int badgeX = px + pw - PADDING - SCROLLBAR_AREA_W - 100;
                 if (m.enabled) {
-                    Glass.fillRound(g, badgeX, cardY + (cardH - 18) / 2, 88, 18, 9, Palette.tint(Palette.GREEN, 0xE0));
-                    g.drawString(this.font, "● Aktiv", badgeX + 18, cardY + (cardH - this.font.lineHeight) / 2, 0xFFFFFFFF, false);
+                    Glass.vanillaBadge(g, badgeX, cardY + (cardH - 18) / 2, 88, 18, 9, 
+                            Palette.GREEN, 0xFFFFFFFF, Minecraft.getInstance().font, "Aktiv");
                 }
             } else {
                 int cardW = pw - PADDING * 2 - SCROLLBAR_AREA_W;
@@ -471,10 +475,11 @@ public class KollegenMenuScreen extends Screen {
         if (maxScroll > 0) {
             int scrollbarX = px + pw - SCROLLBAR_W - 8;
             int trackH = contentBottom - contentTop;
+            float scrollRatio = maxScroll > 0 ? (float) scroll / maxScroll : 0;
             int thumbH = Math.max(40, (int) ((double) trackH * trackH / (trackH + maxScroll)));
-            int thumbY = contentTop + (int) ((trackH - thumbH) * (scroll / (double) maxScroll));
-            Glass.scrollbarTrack(g, px + pw - SCROLLBAR_W - 8, contentTop, SCROLLBAR_W, trackH, SCROLLBAR_W / 2);
-            Glass.scrollbarThumb(g, px + pw - SCROLLBAR_W - 8, thumbY, SCROLLBAR_W, thumbH, SCROLLBAR_W / 2, draggingScroll);
+            int thumbY = contentTop + (int) (scrollRatio * (trackH - thumbH));
+            Glass.vanillaScrollbar(g, px + pw - SCROLLBAR_W - 8, contentTop, SCROLLBAR_W, trackH, 
+                    scroll, maxScroll, false, draggingScroll);
         }
 
         String title = query.isEmpty() ? cats[category].display : "Suche: " + query;

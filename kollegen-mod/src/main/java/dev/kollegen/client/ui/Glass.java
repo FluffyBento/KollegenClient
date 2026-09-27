@@ -202,9 +202,159 @@ public final class Glass {
         g.fill(x + w - thick, y + h - corner, x + w, y + h, color);
     }
 
-    public static void separator(GuiGraphics g, int x, int y, int w, int color) {
+public static void separator(GuiGraphics g, int x, int y, int w, int color) {
         g.fill(x, y, x + w, y + 1, tint(color, 0x40));
     }
+
+    // Vanilla-style button (matches Minecraft's button rendering)
+    public static void vanillaButton(GuiGraphics g, int x, int y, int w, int h, Font font, String label,
+                                      boolean hovered, boolean focused, boolean disabled) {
+        // Button background - matches vanilla Minecraft button
+        int baseColor = 0xFF000000;
+        if (disabled) {
+            g.fill(x, y, x + w, y + h, 0xFF7F7F7F);
+        } else if (hovered) {
+            g.fill(x, y, x + w, y + h, 0xFF2A2A2A);
+        } else {
+            g.fill(x, y, x + w, y + h, 0xFF1A1A1A);
+        }
+        
+        // Border
+        g.fill(x, y, x + w, y + 1, 0xFF404040);
+        g.fill(x, y + h - 1, x + w, y + h, 0xFF404040);
+        g.fill(x, y, x + 1, y + h, 0xFF404040);
+        g.fill(x + w - 1, y, x + w, y + h, 0xFF404040);
+        
+        // Inner highlight
+        if (!disabled) {
+            g.fill(x + 1, y + 1, x + w - 1, y + 2, 0x30FFFFFF);
+        }
+        
+        // Text
+        int textColor = disabled ? 0xFF808080 : 0xFFE0E0E0;
+        int tw = font.width(label);
+        g.drawString(font, label, x + (w - tw) / 2, y + (h - font.lineHeight) / 2, textColor, true);
+    }
+
+    // Vanilla-style slider (matches Minecraft's options slider)
+    public static void vanillaSlider(GuiGraphics g, int x, int y, int w, int h,
+                                      float value, boolean hovered, boolean dragging) {
+        int trackY = y + h / 2 - 2;
+        int trackH = 4;
+        
+        // Track background
+        fillRound(g, x, trackY, w, trackH, 2, 0xFF3A3A3A);
+        fillRound(g, x + 1, trackY + 1, w - 2, trackH - 2, 1, 0xFF2A2A2A);
+        
+        // Track fill (progress)
+        int fillW = (int) (value * (w - 4));
+        if (fillW > 0) {
+            fillRound(g, x + 2, trackY + 1, fillW, trackH - 2, 1, 0xFF5555FF);
+        }
+        
+        // Thumb
+        int thumbW = 12;
+        int thumbH = 16;
+        int thumbX = x + 2 + (int) (value * (w - thumbW - 4));
+        int thumbY = y + (h - thumbH) / 2;
+        
+        int thumbColor = 0xFF8888FF;
+        if (dragging) thumbColor = 0xFFAAAAFF;
+        else if (hovered) thumbColor = 0xFF9999FF;
+        
+        fillRound(g, thumbX, thumbY, thumbW, thumbH, 3, 0xFF555555);
+        fillRound(g, thumbX + 1, thumbY + 1, thumbW - 2, thumbH - 2, 2, thumbColor);
+    }
+
+    // Vanilla-style checkbox/toggle (matches Minecraft's checkbox)
+    public static void vanillaCheckbox(GuiGraphics g, int x, int y, int size, boolean checked,
+                                        boolean hovered, boolean focused) {
+        // Box
+        int borderColor = focused ? 0xFF5555FF : (hovered ? 0xFF8888FF : 0xFF808080);
+        fillRound(g, x, y, size, size, 2, borderColor);
+        fillRound(g, x + 1, y + 1, size - 2, size - 2, 1, 0xFF1A1A1A);
+        
+        if (checked) {
+            // Checkmark
+            g.fill(x + size / 2 - 1, y + 2, x + size / 2 + 1, y + size - 2, 0xFF00FF00);
+            g.fill(x + 2, y + size / 2 - 1, x + size - 2, y + size / 2 + 1, 0xFF00FF00);
+        }
+        
+        if (focused) {
+            fillRound(g, x, y, size, size, 3, 0xFF5555FF);
+        }
+    }
+
+    // Vanilla-style scrollbar (matches Minecraft's scrollbar)
+    public static void vanillaScrollbar(GuiGraphics g, int x, int y, int w, int h,
+                                         float scroll, float maxScroll, boolean hovered, boolean dragging) {
+        if (maxScroll <= 0) return;
+        
+        int trackW = w;
+        int trackX = x;
+        int trackY = y;
+        int trackH = h;
+        
+        // Track
+        fillRound(g, trackX, trackY, trackW, trackH, 2, 0xFF1A1A1A);
+        
+        // Thumb
+        float scrollRatio = maxScroll > 0 ? scroll / maxScroll : 0;
+        int thumbH = Math.max(30, (int) ((float) trackH * trackH / (trackH + maxScroll)));
+        int thumbY = trackY + (int) (scrollRatio * (trackH - thumbH));
+        int thumbW = w - 4;
+        int thumbX = x + 2;
+        
+        int thumbColor = dragging ? 0xFF777777 : (hovered ? 0xFF666666 : 0xFF555555);
+        fillRound(g, thumbX, thumbY, thumbW, thumbH, 2, thumbColor);
+    }
+
+    // Vanilla-style tooltip background
+    public static void vanillaTooltip(GuiGraphics g, int x, int y, int w, int h) {
+        fillRound(g, x, y, w, h, 4, 0xFF323232);
+        fillRound(g, x + 1, y + 1, w - 2, h - 2, 3, 0xFF1E1E1E);
+        // Border
+        g.fill(x, y, x + w, y + 1, 0xFF505050);
+        g.fill(x, y + h - 1, x + w, y + h, 0xFF505050);
+        g.fill(x, y, x + 1, y + h, 0xFF505050);
+        g.fill(x + w - 1, y, x + w, y + h, 0xFF505050);
+    }
+
+    // Vanilla-style panel (matches Minecraft's GUI panel)
+    public static void vanillaPanel(GuiGraphics g, int x, int y, int w, int h) {
+        // Background
+        g.fill(x, y, x + w, y + h, 0xE0101010);
+        // Border
+        g.fill(x, y, x + w, y + 1, 0xFF505050);
+        g.fill(x, y + h - 1, x + w, y + h, 0xFF505050);
+        g.fill(x, y, x + 1, y + h, 0xFF505050);
+        g.fill(x + w - 1, y, x + w, y + h, 0xFF505050);
+        // Inner border
+        g.fill(x + 1, y + 1, x + w - 1, y + 2, 0xFF303030);
+        g.fill(x + 1, y + h - 2, x + w - 1, y + h - 1, 0xFF303030);
+        g.fill(x + 1, y + 1, x + 2, y + h - 1, 0xFF303030);
+        g.fill(x + w - 2, y + 1, x + w - 1, y + h - 1, 0xFF303030);
+    }
+
+    // Vanilla-style tab (matches Minecraft's tab buttons)
+    public static void vanillaTab(GuiGraphics g, int x, int y, int w, int h, Font font, String label,
+                                   boolean selected, boolean hovered) {
+        int bgColor = selected ? 0xFF3A3A3A : (hovered ? 0xFF2A2A2A : 0xFF1A1A1A);
+        g.fill(x, y, x + w, y + h, bgColor);
+        
+        // Border
+        int borderColor = selected ? 0xFF5555FF : 0xFF505050;
+        g.fill(x, y, x + w, y + 1, borderColor);
+        g.fill(x, y + h - 1, x + w, y + h, 0xFF505050);
+        g.fill(x, y, x + 1, y + h, 0xFF505050);
+        g.fill(x + w - 1, y, x + w, y + h, 0xFF505050);
+        
+        // Text
+        int textColor = selected ? 0xFFFFFFFF : (hovered ? 0xFFAAAAAA : 0xFFAAAAAA);
+        int tw = font.width(label);
+        g.drawString(font, label, x + (w - tw) / 2, y + (h - font.lineHeight) / 2, textColor, true);
+    }
+}
 
     public static void card(GuiGraphics g, int x, int y, int w, int h, int r,
                             int borderColor, int fillColor, int hoverOverlay) {
