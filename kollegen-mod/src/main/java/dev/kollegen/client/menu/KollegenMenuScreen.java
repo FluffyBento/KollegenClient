@@ -35,20 +35,20 @@ public class KollegenMenuScreen extends Screen {
     private String query = "";
     private final Set<String> expanded = new HashSet<>();
 
-    private static final int PANEL_W = 900;
-    private static final int PANEL_H = 580;
-    private static final int TAB_H = 40;
-    private static final int HEADER_H = 60;
-    private static final int CARD_H = 56;
-    private static final int SETTING_H = 40;
-    private static final int GAP = 12;
-    private static final int PADDING = 20;
-    private static final int RADIUS = 10;
+    private static final int PANEL_W = 920;
+    private static final int PANEL_H = 620;
+    private static final int TAB_H = 36;
+    private static final int HEADER_H = 56;
+    private static final int CARD_H = 52;
+    private static final int SETTING_H = 36;
+    private static final int GAP = 8;
+    private static final int PADDING = 16;
+    private static final int RADIUS = 8;
     private static final int SCROLLBAR_W = 6;
     private static final int SCROLLBAR_AREA_W = 16;
-    private static final int TOGGLE_W = 28;
-    private static final int TOGGLE_H = 28;
-    private static final int GEAR_W = 32;
+    private static final int TOGGLE_W = 24;
+    private static final int TOGGLE_H = 24;
+    private static final int GEAR_W = 28;
     private static final int GEAR_H = 28;
 
     private EditBox search;
@@ -99,8 +99,8 @@ public class KollegenMenuScreen extends Screen {
     }
 
     private int[] panel() {
-        int w = Math.min(this.width - 40, PANEL_W);
-        int h = Math.min(this.height - 40, PANEL_H);
+        int w = Math.min(this.width - 32, PANEL_W);
+        int h = Math.min(this.height - 32, PANEL_H);
         int x = (this.width - w) / 2;
         int y = (this.height - h) / 2;
         return new int[]{x, y, w, h};
@@ -278,15 +278,7 @@ public class KollegenMenuScreen extends Screen {
         int contentW = pw - PADDING * 2 - SCROLLBAR_AREA_W;
         int scrollbarX = px + pw - SCROLLBAR_W - 8;
 
-        if (button == 0 && maxScroll > 0) {
-            if (mx >= scrollbarX - 4 && mx <= scrollbarX + SCROLLBAR_W + 4 && my >= contentTop && my <= contentBottom) {
-                draggingScroll = true;
-                dragStartY = (int) my;
-                dragStartScroll = scroll;
-                return true;
-            }
-        }
-
+        // First check entry clicks (toggles, gears) BEFORE scrollbar drag
         if (button == 0) {
             for (Entry e : entries) {
                 if (!e.isModule) continue;
@@ -295,8 +287,8 @@ public class KollegenMenuScreen extends Screen {
 
                 int cardX = px + PADDING;
                 int cardW = contentW;
-                int toggleX = px + PADDING + 8;
-                int gearX = px + PADDING + contentW - GEAR_W - 16;
+                int toggleX = px + PADDING + 4;
+                int gearX = px + pw - PADDING - SCROLLBAR_AREA_W - GEAR_W - 8;
 
                 boolean overToggle = mx >= toggleX && mx <= toggleX + TOGGLE_W && my >= ey && my <= ey + CARD_H;
                 boolean overGear = mx >= gearX && mx <= gearX + GEAR_W && my >= ey && my <= ey + CARD_H;
@@ -306,6 +298,17 @@ public class KollegenMenuScreen extends Screen {
                 if (overToggle || overGear) {
                     return false; // Let the widget handle it
                 }
+            }
+        }
+
+        // Then check scrollbar drag (only if not already handled by a widget)
+        if (button == 0 && maxScroll > 0) {
+            // Extended hitbox with 2px padding, but only in the gap area between entries and scrollbar
+            if (mx >= px + pw - PADDING - SCROLLBAR_AREA_W - 4 && mx <= px + pw - SCROLLBAR_W - 8 + SCROLLBAR_W + 4 && my >= contentTop && my <= contentBottom) {
+                draggingScroll = true;
+                dragStartY = (int) my;
+                dragStartScroll = scroll;
+                return true;
             }
         }
 
@@ -325,6 +328,7 @@ public class KollegenMenuScreen extends Screen {
 
         int contentTop = tabBarY + TAB_H + GAP;
         int contentBottom = py + ph - PADDING;
+        // Only scroll if mouse is over the entries area, not the right-side gear/toggle area
         if (mx >= px + PADDING && mx <= px + pw - PADDING - SCROLLBAR_AREA_W && my >= contentTop && my <= contentBottom) {
             scroll = Math.max(0, Math.min(maxScroll, scroll - (int) (vertical * 30)));
             return true;
@@ -424,12 +428,12 @@ public class KollegenMenuScreen extends Screen {
                 int cardY = ey;
                 int cardH = e.h;
 
-                // Vanilla-style panel
-                Glass.vanillaPanel(g, cardX, cardY, cardW, cardH);
+                // Minecraft-style panel with gold accent
+                Glass.panelDark(g, cardX, cardY, cardW, cardH, 8);
 
                 // Hover overlay
                 if (hov) {
-                    Glass.fillRound(g, cardX, cardY, cardW, cardH, 8, 0x30FFFFFF);
+                    Glass.fillRound(g, cardX, cardY, cardW, cardH, RADIUS, 0x50FFFFFF);
                 }
 
                 if (m.locked) {
@@ -445,7 +449,7 @@ public class KollegenMenuScreen extends Screen {
                 }
 
                 // Status badge
-                int badgeX = px + pw - PADDING - SCROLLBAR_AREA_W - 100;
+                int badgeX = px + pw - PADDING - SCROLLBAR_AREA_W - 96;
                 if (m.enabled) {
                     Glass.badge(g, badgeX, cardY + (cardH - 18) / 2, 88, 18, 9,
                             Palette.GREEN, 0xFFFFFFFF, Minecraft.getInstance().font, "Aktiv");
@@ -476,8 +480,9 @@ public class KollegenMenuScreen extends Screen {
             int scrollbarX = px + pw - SCROLLBAR_W - 8;
             int trackH = contentBottom - contentTop;
             float scrollRatio = maxScroll > 0 ? (float) scroll / maxScroll : 0;
-            int thumbH = Math.max(40, (int) ((double) trackH * trackH / (trackH + maxScroll)));
+            int thumbH = Math.max(36, (int) ((double) trackH * trackH / (trackH + maxScroll)));
             int thumbY = contentTop + (int) (scrollRatio * (trackH - thumbH));
+            // Minecraft-style scrollbar with thinner thumb
             Glass.vanillaScrollbar(g, px + pw - SCROLLBAR_W - 8, contentTop, SCROLLBAR_W, trackH, 
                     scroll, maxScroll, false, draggingScroll);
         }

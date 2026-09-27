@@ -8,10 +8,8 @@ import dev.kollegen.client.ui.GlassButton;
 import dev.kollegen.client.ui.GlassSlider;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
-
 
 public class ColorPickerScreen extends Screen {
     private final Screen parent;
@@ -37,15 +35,15 @@ public class ColorPickerScreen extends Screen {
 
     @Override
     protected void init() {
-        int w = 400, hgt = 320;
+        int w = 420, hgt = 340;
         int x = (this.width - w) / 2;
         int y = (this.height - hgt) / 2;
 
-        sh = new GlassSlider(x + 28, y + 95, w - 56, 22, h)
+        sh = new GlassSlider(x + 30, y + 95, w - 60, 22, h)
                 .onChanged(d -> { h = d.floatValue(); update(); });
-        ss = new GlassSlider(x + 28, y + 155, w - 56, 22, s)
+        ss = new GlassSlider(x + 30, y + 155, w - 60, 22, s)
                 .onChanged(d -> { s = d.floatValue(); update(); });
-        sv = new GlassSlider(x + 28, y + 215, w - 56, 22, v)
+        sv = new GlassSlider(x + 30, y + 215, w - 60, 22, v)
                 .onChanged(d -> { v = d.floatValue(); update(); });
         addRenderableWidget(sh);
         addRenderableWidget(ss);
@@ -69,18 +67,18 @@ public class ColorPickerScreen extends Screen {
     public void render(GuiGraphics g, int mx, int my, float pt) {
         g.fill(0, 0, this.width, this.height, Palette.tint(Palette.BG, 0xCC));
 
-        int w = 400, hgt = 320;
+        int w = 420, hgt = 340;
         int x = (this.width - w) / 2;
         int y = (this.height - hgt) / 2;
 
         Glass.dropShadow(g, x, y, w, hgt, 16, 6, 14);
-        Glass.panelVanilla(g, x, y, w, hgt, 16);
+        Glass.panelDark(g, x, y, w, hgt, 16);
 
         g.drawString(this.font, "Farbe wählen", x + (w - this.font.width("Farbe wählen")) / 2, y + 22, Palette.TEXT, false);
 
-        int hueX = x + 28;
+        int hueX = x + 30;
         int hueY = y + 75;
-        int hueW = w - 56;
+        int hueW = w - 60;
         int hueH = 22;
         for (int i = 0; i < hueW; i++) {
             float hue = (float) i / hueW;
@@ -89,9 +87,9 @@ public class ColorPickerScreen extends Screen {
         }
         g.drawString(this.font, "Farbton", hueX, hueY - 18, Palette.MUTED, false);
 
-        int satX = x + 28;
+        int satX = x + 30;
         int satY = y + 140;
-        int satW = w - 56;
+        int satW = w - 60;
         int satH = 22;
         for (int i = 0; i < satW; i++) {
             float sat = (float) i / satW;
@@ -100,9 +98,9 @@ public class ColorPickerScreen extends Screen {
         }
         g.drawString(this.font, "Sättigung", satX, satY - 18, Palette.MUTED, false);
 
-        int valX = x + 28;
+        int valX = x + 30;
         int valY = y + 205;
-        int valW = w - 56;
+        int valW = w - 60;
         int valH = 22;
         for (int i = 0; i < valW; i++) {
             float val = (float) i / valW;
@@ -111,7 +109,7 @@ public class ColorPickerScreen extends Screen {
         }
         g.drawString(this.font, "Helligkeit", valX, valY - 18, Palette.MUTED, false);
 
-        int previewX = x + 28;
+        int previewX = x + 30;
         int previewY = y + hgt - 68;
         int previewW = 64;
         int previewH = 36;
@@ -120,7 +118,7 @@ public class ColorPickerScreen extends Screen {
         g.drawString(this.font, "#" + Integer.toHexString(current & 0xFFFFFF).toUpperCase(),
                 previewX + previewW + 14, previewY + (previewH - this.font.lineHeight) / 2, Palette.MUTED, false);
 
-        int rgbX = x + w - 180;
+        int rgbX = x + w - 170;
         int rgbY = y + hgt - 68;
         int r = (current >> 16) & 0xFF;
         int gr = (current >> 8) & 0xFF;
@@ -165,7 +163,6 @@ public class ColorPickerScreen extends Screen {
         else if (h < 120) { r = x; g = c; }
         else if (h < 180) { g = c; b = x; }
         else if (h < 240) { g = x; b = c; }
-        else if (h < 300) { r = x; b = c; }
         else { r = c; b = x; }
         int ri = Math.round((r + m) * 255);
         int gi = Math.round((g + m) * 255);
