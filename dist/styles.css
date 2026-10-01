@@ -463,10 +463,13 @@ pre {
   padding: 0.7rem;
   content-visibility: auto;
   contain-intrinsic-size: auto 96px;
+  transition: border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
 }
 
 .card:hover {
   border-color: var(--accent);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.35), 0 0 0 1px var(--accent);
 }
 
 .card-icon {
