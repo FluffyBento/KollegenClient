@@ -212,16 +212,16 @@ public class KollegenMenuScreen extends Screen {
     @Override
     public boolean mouseDragged(net.minecraft.client.input.MouseButtonEvent event, double dx, double dy) {
         if (draggingScroll && event.button() == 0) {
-            int delta = (int) Math.round(dy);
-            if (delta != 0) {
-                scroll = Math.max(0, Math.min(maxScroll, dragStartScroll + delta));
-            }
-            return true;
-        }
-        if (draggingTabScroll && event.button() == 0) {
-            int delta = (int) Math.round(dx);
-            if (delta != 0) {
-                tabScroll = Math.max(0, Math.min(maxTabScroll, dragStartScroll + delta));
+            int contentTop = py + HEADER_H + TAB_H + GAP;
+            int contentBottom = py + ph - PADDING;
+            int trackH = contentBottom - contentTop;
+            int thumbH = Math.max(36, (int) ((double) trackH * trackH / (trackH + maxScroll)));
+            int maxThumbY = trackH - thumbH;
+            if (maxThumbY > 0 && maxScroll > 0) {
+                double ratio = (event.y() - contentTop - thumbH / 2.0) / maxThumbY;
+                ratio = Math.max(0, Math.min(1, ratio));
+                scroll = (int) Math.round(ratio * maxScroll);
+                rebuild();
             }
             return true;
         }
@@ -293,6 +293,7 @@ public class KollegenMenuScreen extends Screen {
         int contentBottom = py + ph - PADDING;
         if (mx >= px + PADDING && mx <= px + pw - PADDING && my >= contentTop && my <= contentBottom) {
             scroll = Math.max(0, Math.min(maxScroll, scroll - (int) (vertical * 30)));
+            rebuild();
             return true;
         }
         return super.mouseScrolled(mx, my, horizontal, vertical);
