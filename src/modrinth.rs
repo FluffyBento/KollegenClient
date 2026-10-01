@@ -468,6 +468,30 @@ pub fn list_content(data_dir: &Path, instance_name: &str) -> Value {
 
 
 
+pub fn import_content_file(
+    data_dir: &Path,
+    instance_name: &str,
+    kind: &str,
+    path: &str,
+) -> Result<String> {
+    let dir_name = category_dir(kind)?;
+    let src = Path::new(path);
+    if !src.is_file() {
+        return Err(anyhow!("Datei nicht gefunden: {}", path));
+    }
+    let fname = src
+        .file_name()
+        .and_then(|n| n.to_str())
+        .ok_or_else(|| anyhow!("Ungültiger Dateiname"))?
+        .to_string();
+    let inst_dir = crate::utils::instance_dir(data_dir, instance_name);
+    let dest_dir = inst_dir.join(dir_name);
+    fs::create_dir_all(&dest_dir)?;
+    let dest = dest_dir.join(&fname);
+    fs::copy(src, &dest)?;
+    Ok(fname)
+}
+
 pub fn delete_content(
     data_dir: &Path,
     instance_name: &str,

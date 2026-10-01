@@ -1017,6 +1017,26 @@ fn open_logs_folder(state: State<'_, AppState>) -> Result<(), String> {
     open::that(dir.as_os_str()).map_err(|e| e.to_string())
 }
 
+#[tauri::command]
+fn open_instance_folder(state: State<'_, AppState>, instance_name: String) -> Result<(), String> {
+    let dir = crate::utils::instance_dir(&state.data_dir, &instance_name);
+    if !dir.exists() {
+        return Err(format!("Instanzordner '{}' nicht gefunden.", instance_name));
+    }
+    open::that(dir.as_os_str()).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn import_content_file(
+    state: State<'_, AppState>,
+    instance_name: String,
+    kind: String,
+    path: String,
+) -> Result<String, String> {
+    crate::modrinth::import_content_file(&state.data_dir, &instance_name, &kind, &path)
+        .map_err(|e| e.to_string())
+}
+
 
 
 
@@ -2063,6 +2083,8 @@ fn main() {
             cape_equip,
             get_minecraft_profile_by_name,
             open_logs_folder,
+            open_instance_folder,
+            import_content_file,
         ])
         .run(tauri::generate_context!())
         .unwrap_or_else(|e| {
