@@ -173,8 +173,8 @@ public final class Hud {
 
         @Override
         public void onRenderHud(GuiGraphics g, float td) {
-            int cx = mc.getWindow().getGuiScaledWidth() / 2;
-            int by = mc.getWindow().getGuiScaledHeight() - 70;
+            int cx = mc.getWindow().getGuiScaledWidth() / 2 + (int) offsetX.value;
+            int by = mc.getWindow().getGuiScaledHeight() - 70 + (int) offsetY.value;
             int s = 18, gap = 2;
             int baseX = cx - s - gap / 2;
             boolean w = mc.options.keyUp.isDown();
@@ -229,7 +229,6 @@ public final class Hud {
             int rowH = 20;
             int icon = 16;
             int textGap = 6;
-            int m = 6;
 
             int textW = 0;
             for (ItemStack s : armor) {
@@ -238,14 +237,9 @@ public final class Hud {
             }
             int w = (textW > 0 ? icon + textGap + textW : icon) + 6;
             int h = n * rowH;
-            int x = switch (position.index) {
-                case 1, 3 -> mc.getWindow().getGuiScaledWidth() - w - m;
-                default -> m;
-            };
-            int y = switch (position.index) {
-                case 2, 3 -> mc.getWindow().getGuiScaledHeight() - h - m - 48;
-                default -> m;
-            };
+            int[] a = anchor(mc.getWindow().getGuiScaledWidth(), mc.getWindow().getGuiScaledHeight(), w, h);
+            int x = a[0];
+            int y = a[1];
             if (background.value) {
                 Glass.fillRound(g, x - 4, y - 4, w + 8, h + 8, 6, backgroundColor.value);
             }

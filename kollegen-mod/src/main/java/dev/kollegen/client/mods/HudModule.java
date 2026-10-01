@@ -100,9 +100,9 @@ public abstract class HudModule extends Module {
 
     protected void panel(GuiGraphics g, int x, int y, int w, int h) {
         if (background.value) {
-            dev.kollegen.client.ui.Glass.fillRound(g, x - 5, y - 5, w + 10, h + 10, 6, backgroundColor.value);
+            dev.kollegen.client.ui.Glass.fillRound(g, x - 3, y - 3, w + 6, h + 6, 4, backgroundColor.value);
         }
-        markBounds(x - 5, y - 5, w + 10, h + 10);
+        markBounds(x - 3, y - 3, w + 6, h + 6);
     }
 
     protected void text(GuiGraphics g, String s, int x, int y) {
@@ -117,13 +117,13 @@ public abstract class HudModule extends Module {
 
     protected void renderLines(GuiGraphics g, List<String> lines, int x, int y) {
         int w = lineWidth(lines);
-        int h = lines.size() * (mc.font.lineHeight + 3);
+        int h = lines.size() * (mc.font.lineHeight + 2);
         int[] a = anchor(mc.getWindow().getGuiScaledWidth(), mc.getWindow().getGuiScaledHeight(), w, h);
         panel(g, a[0], a[1], w, h);
         int yy = a[1];
         for (String l : lines) {
             text(g, l, a[0], yy);
-            yy += mc.font.lineHeight + 3;
+            yy += mc.font.lineHeight + 2;
         }
     }
 }

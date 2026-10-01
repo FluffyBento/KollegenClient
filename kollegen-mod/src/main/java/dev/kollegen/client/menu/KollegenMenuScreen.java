@@ -124,7 +124,13 @@ public class KollegenMenuScreen extends Screen {
         closeBtn = new GlassButton(px + pw - 40, py + 12, 32, 32, Component.literal("✕"), btn -> close());
         addRenderableWidget(closeBtn);
 
-        search = new EditBox(this.font, px + PADDING + 10, py + 12, pw - PADDING * 2 - 50, 26, Component.literal(""));
+        GlassButton hudBtn = new GlassButton(px + pw - 148, py + 12, 104, 32, Component.literal("HUD bearbeiten"), btn -> {
+            HudModule.editMode = true;
+            Minecraft.getInstance().setScreen(new HudEditScreen(this));
+        });
+        addRenderableWidget(hudBtn);
+
+        search = new EditBox(this.font, px + PADDING + 10, py + 12, pw - PADDING * 2 - 158, 26, Component.literal(""));
         search.setMaxLength(40);
         search.setHint(Component.literal("Modul suchen…"));
         search.setValue(query);
@@ -285,7 +291,7 @@ public class KollegenMenuScreen extends Screen {
 
         int contentTop = tabBarY + TAB_H + GAP;
         int contentBottom = py + ph - PADDING;
-        if (mx >= px + PADDING && mx <= px + pw - PADDING - SCROLLBAR_AREA_W && my >= contentTop && my <= contentBottom) {
+        if (mx >= px + PADDING && mx <= px + pw - PADDING && my >= contentTop && my <= contentBottom) {
             scroll = Math.max(0, Math.min(maxScroll, scroll - (int) (vertical * 30)));
             return true;
         }
