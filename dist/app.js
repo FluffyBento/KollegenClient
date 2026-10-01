@@ -76,6 +76,11 @@ async function refreshInstances() {
       manage.textContent = "Verwalten";
       manage.onclick = () => openManage(inst);
 
+      const folder = document.createElement("button");
+      folder.textContent = "Ordner";
+      folder.title = "Instanz-Ordner öffnen";
+      folder.onclick = () => invoke("open_instance_folder", { instanceName: inst.name }).catch((e) => alert("Fehler: " + e));
+
       let opt = null;
       if (inst.loader === "fabric" || inst.loader === "quilt") {
         opt = document.createElement("button");
@@ -99,7 +104,7 @@ async function refreshInstances() {
       del.textContent = "Löschen";
       del.onclick = () => deleteInstance(inst.name, inst.id);
 
-      actions.append(launch, manage, ...(opt ? [opt] : []), del);
+      actions.append(launch, manage, folder, ...(opt ? [opt] : []), del);
       li.append(label, actions);
       list.append(li);
     }
@@ -2702,14 +2707,26 @@ function setManageTab(kind) {
   document.querySelectorAll(".tab").forEach((t) =>
     t.classList.toggle("active", t.dataset.kind === kind)
   );
-  manageSearch(true);
+  resetManageSearch();
   manageLoadInstalled();
+}
+
+function showManageOverview() {
+  $("manageOverview").style.display = "block";
+  $("manageBrowse").style.display = "none";
+}
+
+function showManageBrowse() {
+  $("manageOverview").style.display = "none";
+  $("manageBrowse").style.display = "block";
+  manageSearch(true);
 }
 
 function openManage(inst) {
   manageInst = inst;
   $("manageTitle").textContent = `Verwalten: ${inst.name}`;
   $("manageQuery").value = "";
+  showManageOverview();
   $("manageModal").style.display = "flex";
   stopBackgroundIntervals();
   setManageTab(inst.loader === "vanilla" ? "resourcepack" : "mod");
@@ -2725,11 +2742,55 @@ document.querySelectorAll(".tab").forEach((t) => {
   t.onclick = () => setManageTab(t.dataset.kind);
 });
 $("manageSearchBtn").onclick = () => manageSearch(true);
+$("manageBrowseBtn").onclick = () => showManageBrowse();
+$("browseBack").onclick = () => {
+  closeVersionMenu();
+  closeChangeMenu();
+  showManageOverview();
+  manageLoadInstalled();
+};
+$("manageImportBtn").onclick = async () => {
+  const open = window.__TAURI__.dialog?.open || window.__TAURI__.pluginDialog?.open;
+  if (!open) {
+    alert("Datei-Dialog nicht verfügbar.");
+    return;
+  }
+  const filters = {
+    mod: [{ name: "Mod (.jar)", extensions: ["jar"] }],
+    resourcepack: [{ name: "Resource Pack (.zip)", extensions: ["zip"] }],
+    shader: [{ name: "Shader Pack (.zip)", extensions: ["zip"] }],
+  };
+  let path;
+  try {
+    path = await open({
+      title: "Inhalt importieren",
+      multiple: false,
+      filters: filters[manageKind] || [{ name: "Datei", extensions: ["jar", "zip"] }],
+    });
+  } catch (e) {
+    alert("Fehler: " + e);
+    return;
+  }
+  if (!path) return;
+  try {
+    await invoke("import_content_file", {
+      instanceName: manageInst.name,
+      kind: manageKind,
+      path,
+    });
+    manageLoadInstalled();
+  } catch (e) {
+    alert("Import fehlgeschlagen: " + e);
+  }
+};
 
 function renderCard(p) {
   const card = document.createElement("div");
   card.className = "card";
   card.dataset.pid = p.id;
+  const installed = currentInstalled.has(p.id);
+  const iconWrap = document.createElement("div");
+  iconWrap.className = "card-icon-wrap";
   if (p.icon_url) {
     const img = document.createElement("img");
     img.src = p.icon_url;
@@ -2737,13 +2798,21 @@ function renderCard(p) {
     img.loading = "lazy";
     img.decoding = "async";
     img.onerror = () => img.remove();
-    card.append(img);
+    iconWrap.append(img);
   } else {
     const icon = document.createElement("div");
     icon.className = "card-icon placeholder";
     icon.textContent = (p.title || "?").trim().charAt(0).toUpperCase();
-    card.append(icon);
+    iconWrap.append(icon);
   }
+  if (installed) {
+    const badge = document.createElement("div");
+    badge.className = "installed-badge";
+    badge.textContent = "✓";
+    badge.title = "Installiert";
+    iconWrap.append(badge);
+  }
+  card.append(iconWrap);
   const body = document.createElement("div");
   body.className = "card-body";
   const title = document.createElement("div");
@@ -2761,8 +2830,14 @@ function renderCard(p) {
   installGroup.className = "install-group";
   installGroup.style.cssText = "position:relative; display:inline-flex; gap:6px;";
   const btn = document.createElement("button");
-  btn.textContent = "Installieren";
-  btn.onclick = () => manageInstall(p.id, p.title, null);
+  if (installed) {
+    btn.textContent = "Installiert";
+    btn.disabled = true;
+    btn.classList.add("installed-btn");
+  } else {
+    btn.textContent = "Installieren";
+    btn.onclick = () => manageInstall(p.id, p.title, null);
+  }
   const arrow = document.createElement("button");
   arrow.textContent = "▾";
   arrow.className = "ver-arrow";
@@ -2891,7 +2966,7 @@ async function fetchNextApiPage() {
   });
   const arr = hits || [];
   for (const p of arr) {
-    if (!currentInstalled.has(p.id)) manageAllHits.push(p);
+    manageAllHits.push(p);
   }
   manageApiOffset += MANAGE_PAGE;
   if (arr.length < MANAGE_PAGE) manageExhausted = true;

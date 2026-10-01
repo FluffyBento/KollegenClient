@@ -238,23 +238,34 @@
   </main>
 
   <div id="manageModal" class="modal" style="display:none;">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h2 id="manageTitle">Verwalten</h2>
-        <button id="manageClose">Schließen</button>
+    <div class="modal-content manage-content">
+      <div id="manageOverview">
+        <div class="modal-header">
+          <h2 id="manageTitle">Verwalten</h2>
+          <button id="manageClose">Schließen</button>
+        </div>
+        <div class="tabs">
+          <button class="tab active" data-kind="mod">Mods</button>
+          <button class="tab" data-kind="resourcepack">Resource Packs</button>
+          <button class="tab" data-kind="shader">Shader</button>
+        </div>
+        <div class="manage-actions">
+          <button id="manageImportBtn" class="manage-action">Importieren</button>
+          <button id="manageBrowseBtn" class="manage-action primary">Browse</button>
+        </div>
+        <h3 class="installed-heading">Installiert</h3>
+        <ul id="manageInstalled"></ul>
       </div>
-      <div class="tabs">
-        <button class="tab active" data-kind="mod">Mods</button>
-        <button class="tab" data-kind="resourcepack">Resource Packs</button>
-        <button class="tab" data-kind="shader">Shader</button>
+      <div id="manageBrowse" style="display:none;">
+        <div class="browse-topbar">
+          <button id="browseBack" class="back-btn" title="Zurück">←</button>
+          <div class="manage-search">
+            <input id="manageQuery" placeholder="Suchen..." />
+            <button id="manageSearchBtn">Suchen</button>
+          </div>
+        </div>
+        <div id="manageResults" class="cards"></div>
       </div>
-      <div class="manage-search">
-        <input id="manageQuery" placeholder="Suchen..." />
-        <button id="manageSearchBtn">Suchen</button>
-      </div>
-      <div id="manageResults" class="cards"></div>
-      <h3 style="margin:1rem 0 0.5rem;">Installiert</h3>
-      <ul id="manageInstalled"></ul>
       <div id="manageDetail" class="detail" style="display:none;"></div>
     </div>
   </div>

@@ -555,6 +555,117 @@ pre {
   color: #2a1a00;
 }
 
+.manage-actions {
+  display: flex;
+  gap: 0.75rem;
+  margin: 0.9rem 0 1.1rem;
+}
+
+.manage-action {
+  flex: 1;
+  padding: 0.75rem 1.2rem;
+  font-size: 1rem;
+  font-weight: 600;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--text);
+  cursor: pointer;
+  transition: transform 0.12s ease, border-color 0.12s ease, background 0.12s ease, filter 0.12s ease;
+}
+
+.manage-action:hover {
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+
+.manage-action.primary {
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  color: #2a1a00;
+  border-color: transparent;
+}
+
+.manage-action.primary:hover {
+  filter: brightness(1.06);
+}
+
+.installed-heading {
+  margin: 0.6rem 0 0.5rem;
+  color: var(--muted);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.browse-topbar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  position: sticky;
+  top: 0;
+  background: var(--panel-2);
+  padding: 0.6rem 0 0.8rem;
+  border-bottom: 1px solid var(--border);
+  z-index: 5;
+}
+
+.back-btn {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--text);
+  font-size: 1.3rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+
+.back-btn:hover {
+  background: var(--accent);
+  color: #2a1a00;
+  border-color: transparent;
+}
+
+.browse-topbar .manage-search {
+  flex: 1;
+  margin-bottom: 0;
+}
+
+.card-icon-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.installed-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #2ecc71;
+  color: #06310f;
+  font-size: 0.85rem;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--panel);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+button.installed-btn {
+  background: rgba(46, 204, 113, 0.14);
+  color: #2ecc71;
+  border: 1px solid rgba(46, 204, 113, 0.4);
+  cursor: default;
+}
+
 .detail {
   position: absolute;
   inset: 0;
