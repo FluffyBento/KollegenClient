@@ -154,10 +154,8 @@ public class KollegenMenuScreen extends Screen {
             boolean vis = y + CARD_H > contentTop && y < contentBottom;
             int contentW = pw - PADDING * 2 - SCROLLBAR_AREA_W;
 
-            // Toggle on LEFT side of card - positioned carefully to avoid scrollbar conflict
             int toggleX = px + PADDING + 4;
 
-            // Gear button on right side of card, above scrollbar area with safe margin
             int gearX = px + pw - PADDING - SCROLLBAR_AREA_W - GEAR_W - 8;
 
             if (!m.locked && vis) {
@@ -241,73 +239,29 @@ public class KollegenMenuScreen extends Screen {
 
         int tabBarY = py + HEADER_H;
         int tabBarX = px + PADDING;
-        int tabBarW = pw - PADDING * 2;
-
-        // Tab bar click - navigate between categories
-        if (button == 0 && my >= tabBarY && my <= tabBarY + TAB_H && mx >= tabBarX && mx <= tabBarX + tabBarW) {
-            int totalTabW = cats.length * 120;
-            if (totalTabW > tabBarW && maxTabScroll > 0) {
-                draggingTabScroll = true;
-                dragStartY = (int) mx;
-                dragStartScroll = tabScroll;
-                return true;
-            }
-        }
-
-        int tabX = tabBarX - tabScroll;
-        for (int i = 0; i < cats.length; i++) {
-            int tabW = 110;
-            if (mx >= tabX && mx <= tabX + tabW && my >= tabBarY && my <= tabBarY + TAB_H) {
-                if (i != category) {
-                    prevCategory = category;
-                    category = i;
-                    tabAnimProgress = 0f;
-                    scroll = 0;
-                    query = "";
-                    search.setValue("");
-                    rebuild();
-                }
-                return true;
-            }
-            tabX += tabW + 8;
-        }
-
-        // --- ENTRY CLICKS FIRST (critical fix!) ---
-        // Check toggles and gears BEFORE scrollbar, so clicks always hit widgets first
         int contentTop = tabBarY + TAB_H + GAP;
         int contentBottom = py + ph - PADDING;
-        int contentX = px + PADDING;
-        int contentW = pw - PADDING * 2 - SCROLLBAR_AREA_W;
-        int scrollbarX = px + pw - SCROLLBAR_W - 8;
 
         if (button == 0) {
-            for (Entry e : entries) {
-                if (!e.isModule) continue;
-                int ey = e.y;
-                if (ey + CARD_H < contentTop || ey > contentBottom) continue;
-
-                int cardX = px + PADDING;
-                int cardW = contentW;
-                int toggleX = px + PADDING + 4;
-                int gearX = px + pw - PADDING - SCROLLBAR_AREA_W - GEAR_W - 8;
-
-                boolean overToggle = mx >= toggleX && mx <= toggleX + TOGGLE_W && my >= ey && my <= ey + CARD_H;
-                boolean overGear = mx >= gearX && mx <= gearX + GEAR_W && my >= ey && my <= ey + CARD_H;
-                boolean overCard = mx >= px + PADDING && mx <= px + PADDING + contentW && my >= ey && my <= ey + CARD_H;
-
-                // Entry clicks - check before scrollbar drag (critical fix!)
-                // Return true to consume click and prevent scrollbar interference
-                if (overToggle || overGear) {
-                    return true; // Consume click, prevent scrollbar drag
+            int tabX = tabBarX - tabScroll;
+            for (int i = 0; i < cats.length; i++) {
+                int tabW = 110;
+                if (mx >= tabX && mx <= tabX + tabW && my >= tabBarY && my <= tabBarY + TAB_H) {
+                    if (i != category) {
+                        prevCategory = category;
+                        category = i;
+                        tabAnimProgress = 0f;
+                        scroll = 0;
+                        query = "";
+                        search.setValue("");
+                        rebuild();
+                    }
+                    return true;
                 }
+                tabX += tabW + 8;
             }
-        }
 
-        // --- SCROLLBAR DRAG SECOND ---
-        // Only allow scroll drag if no widget was clicked above
-        if (button == 0 && maxScroll > 0) {
-            // Extended hitbox with padding, but only in the gap area
-            if (mx >= px + pw - PADDING - SCROLLBAR_AREA_W - 4 && mx <= px + pw - SCROLLBAR_W - 8 + SCROLLBAR_W + 4 && my >= contentTop && my <= contentBottom) {
+            if (maxScroll > 0 && mx >= px + pw - 20 && my >= contentTop && my <= contentBottom) {
                 draggingScroll = true;
                 dragStartY = (int) my;
                 dragStartScroll = scroll;
@@ -331,7 +285,6 @@ public class KollegenMenuScreen extends Screen {
 
         int contentTop = tabBarY + TAB_H + GAP;
         int contentBottom = py + ph - PADDING;
-        // Only scroll if mouse is over the entries area, not the right-side gear/toggle area
         if (mx >= px + PADDING && mx <= px + pw - PADDING - SCROLLBAR_AREA_W && my >= contentTop && my <= contentBottom) {
             scroll = Math.max(0, Math.min(maxScroll, scroll - (int) (vertical * 30)));
             return true;
@@ -377,14 +330,12 @@ public class KollegenMenuScreen extends Screen {
 
         g.fill(0, 0, this.width, this.height, Palette.tint(Palette.BG, 0xCC));
 
-        // Main panel background
         Glass.vanillaPanel(g, px, py, pw, ph);
 
         int tabBarY = py + HEADER_H;
         int tabBarX = px + PADDING;
         int tabBarW = pw - PADDING * 2;
 
-        // Tab bar background
         Glass.fillRound(g, tabBarX - 4, tabBarY - 4, tabBarW + 8, TAB_H + 8, 8, Palette.tint(Palette.PANEL2, 0x80));
 
         int totalTabW = cats.length * 118;
@@ -431,10 +382,8 @@ public class KollegenMenuScreen extends Screen {
                 int cardY = ey;
                 int cardH = e.h;
 
-                // Minecraft-style panel with gold accent
                 Glass.panelDark(g, cardX, cardY, cardW, cardH, 8);
 
-                // Hover overlay
                 if (hov) {
                     Glass.fillRound(g, cardX, cardY, cardW, cardH, RADIUS, 0x50FFFFFF);
                 }
@@ -451,7 +400,6 @@ public class KollegenMenuScreen extends Screen {
                     g.drawString(this.font, "⚠ " + trunc(m.risk, cardW - 80), titleX, cardY + 44, Palette.DANGER, false);
                 }
 
-                // Status badge
                 int badgeX = px + pw - PADDING - SCROLLBAR_AREA_W - 96;
                 if (m.enabled) {
                     Glass.badge(g, badgeX, cardY + (cardH - 18) / 2, 88, 18, 9,
@@ -485,7 +433,6 @@ public class KollegenMenuScreen extends Screen {
             float scrollRatio = maxScroll > 0 ? (float) scroll / maxScroll : 0;
             int thumbH = Math.max(36, (int) ((double) trackH * trackH / (trackH + maxScroll)));
             int thumbY = contentTop + (int) (scrollRatio * (trackH - thumbH));
-            // Minecraft-style scrollbar with thinner thumb
             Glass.vanillaScrollbar(g, px + pw - SCROLLBAR_W - 8, contentTop, SCROLLBAR_W, trackH, 
                     scroll, maxScroll, false, draggingScroll);
         }
