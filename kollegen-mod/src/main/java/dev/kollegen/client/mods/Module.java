@@ -63,7 +63,11 @@ public abstract class Module {
         if (key != -1) o.addProperty("key", key);
         if (!settings.isEmpty()) {
             JsonObject s = new JsonObject();
-            for (Setting set : settings) set.save(s);
+            for (Setting set : settings) {
+                JsonObject so = new JsonObject();
+                set.save(so);
+                s.add(set.name, so);
+            }
             o.add("settings", s);
         }
     }

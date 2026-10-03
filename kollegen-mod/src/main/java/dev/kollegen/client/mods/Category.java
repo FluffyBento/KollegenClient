@@ -5,7 +5,6 @@ public enum Category {
     VISUAL("Visual", "🎨"),
     HUD("HUD", "📊"),
     GAMEPLAY("Gameplay", "🎮"),
-    PLAYER("Player", "🧍"),
     WORLD("Welt", "🌍"),
     CHAT("Chat", "💬"),
     PERFORMANCE("Performance", "⚡"),
