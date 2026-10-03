@@ -51,12 +51,12 @@ header {
   display: flex;
   align-items: center;
   gap: 1rem;
-  padding: 1rem 1.5rem;
-  background: rgba(14, 16, 23, 0.72);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  border-bottom: 2px solid var(--accent);
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.4), 0 0 22px rgba(245, 166, 35, 0.18);
+  padding: 0.85rem 1.5rem;
+  background: linear-gradient(180deg, rgba(20, 22, 30, 0.82), rgba(14, 16, 23, 0.72));
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45), 0 1px 0 rgba(245, 166, 35, 0.12);
   position: sticky;
   top: 0;
   z-index: 10;
@@ -461,15 +461,12 @@ pre {
   border: 1px solid var(--border);
   border-radius: 10px;
   padding: 0.7rem;
-  content-visibility: auto;
-  contain-intrinsic-size: auto 96px;
-  transition: border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+  transition: border-color 0.15s ease, background 0.15s ease;
 }
 
 .card:hover {
   border-color: var(--accent);
-  transform: translateY(-2px);
-  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.35), 0 0 0 1px var(--accent);
+  background: color-mix(in srgb, var(--panel) 92%, var(--accent) 8%);
 }
 
 .card-icon {
@@ -800,12 +797,13 @@ button.installed-btn {
   font-weight: 600;
   font-family: inherit;
   box-shadow: none;
-  transition: background 0.14s ease, color 0.14s ease, border-color 0.14s ease;
+  transition: background 0.14s ease, color 0.14s ease, border-color 0.14s ease, transform 0.14s ease;
 }
 .sidebar-link:hover {
   background: color-mix(in srgb, var(--accent) 16%, transparent);
   color: var(--text);
   border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+  transform: translateX(2px);
 }
 .sidebar-link.active {
   background: color-mix(in srgb, var(--accent) 22%, transparent);

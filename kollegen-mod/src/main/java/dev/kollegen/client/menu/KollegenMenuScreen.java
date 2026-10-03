@@ -37,7 +37,7 @@ public class KollegenMenuScreen extends Screen {
     private static final int PANEL_W = 920;
     private static final int PANEL_H = 620;
     private static final int TAB_H = 36;
-    private static final int HEADER_H = 56;
+    private static final int HEADER_H = 72;
     private static final int CARD_H = 52;
     private static final int SETTING_H = 36;
     private static final int GAP = 8;
@@ -121,16 +121,16 @@ public class KollegenMenuScreen extends Screen {
         int contentTop = tabBarY + TAB_H + GAP;
         int contentBottom = py + ph - PADDING;
 
-        closeBtn = new GlassButton(px + pw - 40, py + 12, 32, 32, Component.literal("✕"), btn -> close());
+        closeBtn = new GlassButton(px + pw - 40, py + 34, 32, 32, Component.literal("✕"), btn -> close());
         addRenderableWidget(closeBtn);
 
-        GlassButton hudBtn = new GlassButton(px + pw - 148, py + 12, 104, 32, Component.literal("HUD bearbeiten"), btn -> {
+        GlassButton hudBtn = new GlassButton(px + pw - 148, py + 34, 104, 32, Component.literal("HUD bearbeiten"), btn -> {
             HudModule.editMode = true;
             Minecraft.getInstance().setScreen(new HudEditScreen(this));
         });
         addRenderableWidget(hudBtn);
 
-        search = new EditBox(this.font, px + PADDING + 10, py + 12, pw - PADDING * 2 - 158, 26, Component.literal(""));
+        search = new EditBox(this.font, px + PADDING + 10, py + 34, pw - PADDING * 2 - 158, 24, Component.literal(""));
         search.setMaxLength(40);
         search.setHint(Component.literal("Modul suchen…"));
         search.setValue(query);
@@ -444,13 +444,9 @@ public class KollegenMenuScreen extends Screen {
                     scroll, maxScroll, false, draggingScroll);
         }
 
-        String title = query.isEmpty() ? cats[category].display : "Suche: " + query;
-        g.drawString(this.font, title, px + PADDING + 12, py + 38, Palette.TEXT, false);
-        g.drawString(this.font, visibleModules.size() + " Module", px + PADDING + 12 + this.font.width(title) + 16, py + 38, Palette.MUTED, false);
-
-        g.drawString(this.font, "KOLLEGEN", px + PADDING + 12, py + 18, Palette.ACCENT, false);
-        g.drawString(this.font, "Client", px + PADDING + 12 + this.font.width("KOLLEGEN") + 6, py + 18, Palette.MUTED, false);
-        g.drawString(this.font, "v" + Version.get(), px + pw - PADDING - this.font.width("v" + Version.get()) - 12, py + 18, Palette.MUTED, false);
+        g.drawString(this.font, "KOLLEGEN", px + PADDING + 12, py + 8, Palette.ACCENT, false);
+        g.drawString(this.font, "Client", px + PADDING + 12 + this.font.width("KOLLEGEN") + 6, py + 8, Palette.MUTED, false);
+        g.drawString(this.font, "v" + Version.get(), px + pw - PADDING - this.font.width("v" + Version.get()) - 12, py + 8, Palette.MUTED, false);
 
         super.render(g, mx, my, pt);
     }

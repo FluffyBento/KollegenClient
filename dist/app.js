@@ -2931,7 +2931,7 @@ async function toggleVersionMenu(p, arrow) {
 // buffer the remaining hits. Each visible page is then filled from that buffer,
 // pulling extra API pages as needed so gaps left by installed items are filled
 // by subsequent results (which then don't reappear on later pages).
-const MANAGE_PAGE = 24;
+const MANAGE_PAGE = 12;
 let manageAllHits = [];
 let manageApiOffset = 0;
 let manageExhausted = false;
