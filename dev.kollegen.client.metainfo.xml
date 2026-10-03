@@ -11,6 +11,15 @@
   <launchable type="desktop-id">dev.kollegen.client.desktop</launchable>
   <url type="homepage">https://github.com/FluffyBento/KollegenClient</url>
   <releases>
+    <release version="1.19.21" date="2026-10-03">
+      <description>
+        <p>Launcher- und Mod-Update:</p>
+        <ul>
+          <li>Companion-Mod: Menü-Scrollen repariert, HUD-Editor-Button, kleinere HUD-Elemente, Zwei-Zeilen-Menü-Header.</li>
+          <li>Launcher: Verwalten-Fenster entrümpelt und entstottert, neue UI-Akzente, Instanz-Ordner-Button, Import/Browse umgebaut.</li>
+        </ul>
+      </description>
+    </release>
     <release version="1.16.5" date="2026-09-16">
       <description>
         <p>Fehlerbehebung:</p>

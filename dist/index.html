@@ -563,14 +563,14 @@
       try {
         var t = window.__TAURI__;
         if (t && t.core && t.core.invoke) {
-          t.core.invoke('get_version').then(show).catch(function () { el.textContent = 'v1.16.5'; });
+          t.core.invoke('get_version').then(show).catch(function () { el.textContent = 'v…'; });
         } else if (t && t.invoke) {
-          t.invoke('get_version').then(show).catch(function () { el.textContent = 'v1.16.5'; });
+          t.invoke('get_version').then(show).catch(function () { el.textContent = 'v…'; });
         } else {
-          el.textContent = 'v1.16.5';
+          el.textContent = 'v…';
         }
       } catch (e) {
-        el.textContent = 'v1.16.5';
+        el.textContent = 'v…';
       }
     })();
   </script>

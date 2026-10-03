@@ -129,6 +129,9 @@ jobs:
           JAR=$(ls kollegen-mod/build/libs/kollegen-client-mod-*.jar 2>/dev/null | head -n1)
           if [ -n "$JAR" ]; then cp "$JAR" resources/kollegen-client-mod.jar; echo "Bundled $JAR"; else echo "Mod build failed"; exit 1; fi
 
+      - name: Set launcher version from tag
+        run: bash scripts/set-version.sh "${{ github.ref_name }}"
+
       - name: Build Linux bundles (RPM, DEB)
         run: tauri build --config tauri.conf.json --bundles deb,rpm
 
@@ -239,6 +242,9 @@ jobs:
           JAR=$(ls kollegen-mod/build/libs/kollegen-client-mod-*.jar 2>/dev/null | head -n1)
           if [ -n "$JAR" ]; then cp "$JAR" resources/kollegen-client-mod.jar; echo "Bundled $JAR"; else echo "Mod build failed"; exit 1; fi
 
+      - name: Set launcher version from tag
+        run: bash scripts/set-version.sh "${{ github.ref_name }}"
+
       - name: Build Windows installer (.exe)
         run: tauri build --config tauri.conf.json --bundles nsis
 
@@ -309,6 +315,9 @@ jobs:
           cd kollegen-mod && chmod +x ./gradlew && ./gradlew build --no-daemon && cd ..
           JAR=$(ls kollegen-mod/build/libs/kollegen-client-mod-*.jar 2>/dev/null | head -n1)
           if [ -n "$JAR" ]; then cp "$JAR" resources/kollegen-client-mod.jar; echo "Bundled $JAR"; else echo "Mod build failed"; exit 1; fi
+
+      - name: Set launcher version from tag
+        run: bash scripts/set-version.sh "${{ github.ref_name }}"
 
       - name: Build macOS Apple Silicon bundles (aarch64)
         run: tauri build --config tauri.conf.json --target aarch64-apple-darwin --bundles app,dmg
