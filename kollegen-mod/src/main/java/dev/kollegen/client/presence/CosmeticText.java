@@ -1,11 +1,17 @@
 package dev.kollegen.client.presence;
 
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.FontDescription;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.TextColor;
+import net.minecraft.resources.Identifier;
+
+import java.util.UUID;
 
 public final class CosmeticText {
+    public static final String LOGO_CHAR = "";
+    private static final FontDescription LOGO_FONT = new FontDescription.Resource(Identifier.fromNamespaceAndPath("kollegen", "logo"));
     private static final int FALLBACK_NAME = 0xFFFFFF;
     private static final int FALLBACK_BADGE = 0xFFD700;
     private static final int LEVEL_GRAY = 0xAAAAAA;
@@ -29,6 +35,32 @@ public final class CosmeticText {
         }
     }
 
+    public static Component decoratePlayer(Component base, UUID id) {
+        if (base == null || id == null) return base;
+        boolean kollege = KollegenPresence.isKollegen(id);
+        CosmeticData d = KollegenPresence.getCosmetics(id);
+        boolean hasData = d != null && !d.isEmpty();
+        if (!kollege && !hasData) return base;
+        String plain = null;
+        try {
+            plain = base.getString();
+        } catch (Throwable ignored) {
+        }
+        if (plain != null && plain.contains(LOGO_CHAR)) return base;
+        MutableComponent out = Component.empty();
+        if (kollege) {
+            out.append(Component.literal(LOGO_CHAR + " ")
+                    .withStyle(Style.EMPTY.withFont(LOGO_FONT).withColor(TextColor.fromRgb(0xFFFFFF))));
+        }
+        if (hasData) {
+            String nm = (plain == null || plain.isEmpty()) ? "?" : plain;
+            out.append(decorateName(nm, d));
+        } else {
+            out.append(base);
+        }
+        return out;
+    }
+
     public static Component decorate(Component base, CosmeticData d) {
         if (base == null) return base;
         if (d == null || d.isEmpty()) return base;
@@ -39,6 +71,10 @@ public final class CosmeticText {
             return base;
         }
         if (name == null || name.isEmpty()) return base;
+        return decorateName(name, d);
+    }
+
+    private static Component decorateName(String name, CosmeticData d) {
         int nameColor = parseColor(d.nameColor, FALLBACK_NAME);
         boolean bold = d.font != null && (d.font.toLowerCase().contains("bold") || d.font.toLowerCase().contains("fett"));
         boolean italic = d.font != null && (d.font.toLowerCase().contains("italic") || d.font.toLowerCase().contains("kursiv"));

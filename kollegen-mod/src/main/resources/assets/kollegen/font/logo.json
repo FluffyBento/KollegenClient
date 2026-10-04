@@ -1,0 +1,13 @@
+{
+  "providers": [
+    {
+      "type": "bitmap",
+      "file": "kollegen:textures/gui/logo_mark.png",
+      "height": 8,
+      "ascent": 7,
+      "chars": [
+        ""
+      ]
+    }
+  ]
+}

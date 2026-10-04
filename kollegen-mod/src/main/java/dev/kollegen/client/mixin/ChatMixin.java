@@ -1,9 +1,7 @@
 package dev.kollegen.client.mixin;
 
 import com.mojang.authlib.GameProfile;
-import dev.kollegen.client.presence.CosmeticData;
 import dev.kollegen.client.presence.CosmeticText;
-import dev.kollegen.client.presence.KollegenPresence;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.ChatComponent;
 import net.minecraft.client.multiplayer.PlayerInfo;
@@ -59,10 +57,10 @@ public class ChatMixin {
         for (PlayerInfo pi : mc.getConnection().getOnlinePlayers()) {
             GameProfile profile = pi.getProfile();
             if (profile == null || !plain.equals(profile.name())) continue;
-            CosmeticData d = KollegenPresence.getCosmetics(profile.id());
-            if (d == null || d.isEmpty()) return null;
+            Component next = CosmeticText.decoratePlayer(name, profile.id());
+            if (next == name) return null;
             Object[] rebuilt = args.clone();
-            rebuilt[0] = CosmeticText.decorate(name, d);
+            rebuilt[0] = next;
             return Component.translatable(key, rebuilt).withStyle(message.getStyle());
         }
         return null;
