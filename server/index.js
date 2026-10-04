@@ -1548,7 +1548,8 @@ if (pathname === '/internal/reset' && method === 'POST') {
     }
 
     if (pathname.startsWith('/presence/') && (method === 'POST' || method === 'DELETE')) {
-      const id = decodeURIComponent(pathname.slice('/presence/'.length).split('/')[0] || '');
+      const raw = decodeURIComponent(pathname.slice('/presence/'.length).split('/')[0] || '');
+      const id = raw.toLowerCase().replace(/-/g, '');
       if (!id) return sendJson(res, 400, { error: 'uuid_required' });
       if (method === 'DELETE') {
         delete store.presence[id];
