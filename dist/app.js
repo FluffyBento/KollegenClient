@@ -1535,15 +1535,15 @@ function readCssVar(name) {
 // Launcher-Farbe zur Laufzeit geändert wird).
 function pushTheme() {
   const theme = {
-    bg: readCssVar("--bg") || "#0d0d12",
-    panel: readCssVar("--panel") || "#1a1a24",
-    panel2: readCssVar("--panel-2") || "#21212e",
-    accent: readCssVar("--accent") || "#f5a623",
-    accent2: readCssVar("--accent2") || "#ff7a00",
-    text: readCssVar("--text") || "#f3e9d8",
-    muted: readCssVar("--muted") || "#b9a98c",
-    border: readCssVar("--border") || "#34303a",
-    danger: readCssVar("--danger") || "#ff5b6e",
+    bg: readCssVar("--bg") || "#0a0a0f",
+    panel: readCssVar("--panel") || "#12121a",
+    panel2: readCssVar("--panel-2") || readCssVar("--bg-elevated") || "#1c1c26",
+    accent: readCssVar("--accent") || "#00d4ff",
+    accent2: readCssVar("--accent-dim") || readCssVar("--accent2") || "#0099bb",
+    text: readCssVar("--text-primary") || readCssVar("--text") || "#ececf1",
+    muted: readCssVar("--text-secondary") || readCssVar("--muted") || "#a7a7b8",
+    border: readCssVar("--border-primary") || readCssVar("--border") || "#262633",
+    danger: readCssVar("--danger") || "#ff4455",
   };
   invoke("write_theme_file", { json: JSON.stringify(theme) }).catch(() => {});
 }
@@ -1588,15 +1588,25 @@ async function loadSettingsOnce() {
 function applyTheme(name) {
   const pal = THEMES[name] || THEMES.Kollegen;
   const r = document.documentElement.style;
+  const dim = pal.accent2 || pal.accent;
   r.setProperty("--bg", pal.bg);
+  r.setProperty("--bg-elevated", pal.panel2);
   r.setProperty("--panel", pal.panel);
+  r.setProperty("--panel-elevated", pal.panel2);
   r.setProperty("--panel-2", pal.panel2);
   r.setProperty("--accent", pal.accent);
+  r.setProperty("--accent-dim", dim);
+  r.setProperty("--accent-warm", pal.accent3 || dim);
   r.setProperty("--accent2", pal.accent2);
   r.setProperty("--accent3", pal.accent3 || pal.accent2 || pal.accent);
   r.setProperty("--text", pal.text);
+  r.setProperty("--text-primary", pal.text);
+  r.setProperty("--text-secondary", pal.muted);
+  r.setProperty("--text-muted", pal.muted);
   r.setProperty("--muted", pal.muted);
   r.setProperty("--border", pal.border);
+  r.setProperty("--border-primary", pal.border);
+  r.setProperty("--border-secondary", pal.border);
   r.setProperty("--danger", pal.danger);
   document.documentElement.setAttribute("data-theme", name);
   pushTheme();
@@ -2331,7 +2341,6 @@ $("msAddBtn").onclick = async () => {
         try { window.open(loginUrl, "_blank"); } catch (e) {}
         copyText(loginUrl);
         await showLoginQr(loginUrl);
-        $("loginInfo").style.display = "flex";
         alert("Microsoft Login:\n\nBrowser wurde geöffnet. Du kannst den QR-Code auch mit dem Handy scannen.");
       }
     }
