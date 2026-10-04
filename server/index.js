@@ -105,7 +105,8 @@ function levelOf(u) {
 }
 
 function presenceCosmetics(u) {
-  if (!u || !u.profile || u.profile.public === false) return null;
+  if (!u) return null;
+  if (u.profile && u.profile.public === false) return null;
   ensureUserExtras(u);
   const eq = u.equipped || {};
   const out = {};
