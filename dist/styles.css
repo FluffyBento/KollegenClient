@@ -1407,10 +1407,12 @@ button:disabled {
 .store-msg {
   grid-column: 1 / -1;
   text-align: center;
-  padding: 2.5rem 1rem;
+  padding: 2.5rem 1rem 0.5rem;
   color: var(--text-muted);
   font-size: 0.87rem;
 }
+
+.store-grid .btn-secondary { justify-self: center; }
 
 .store-card {
   position: relative;

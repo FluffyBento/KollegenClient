@@ -149,24 +149,19 @@ async function refreshInstances() {
 }
 
 function instIconSVG(name, loader) {
-  let h = 0;
-  const s = String(name || "?") + "|" + String(loader || "");
-  for (let i = 0; i < s.length; i++) h = ((h * 31 + s.charCodeAt(i)) >>> 0);
-  const greens = ["#6abe30", "#5da82a", "#79c74f", "#549625"];
-  const dirts = ["#8a5f3c", "#7d5535", "#957049", "#6b4423"];
-  let rects = "";
-  for (let y = 0; y < 8; y++) {
-    for (let x = 0; x < 8; x++) {
-      h = ((h * 1103515245 + 12345) >>> 0);
-      const grass = y < 3;
-      const pal = grass ? greens : dirts;
-      const edge = (x === 0 || y === 0 || (grass && y === 2 && ((h >> 3) & 1))) ? 1 : 0;
-      const c = pal[(h >> (x + y)) % pal.length];
-      const col = edge && grass ? "#3e7a1f" : c;
-      rects += `<rect x="${x}" y="${y}" width="1" height="1" fill="${col}"/>`;
-    }
-  }
-  return `<svg viewBox="0 0 8 8" shape-rendering="crispEdges" aria-hidden="true">${rects}</svg>`;
+  const l = String(loader || "vanilla").toLowerCase();
+  const top = l === "fabric" ? "#7ddc4f" : l === "forge" ? "#8fd14f" : l === "neoforge" ? "#a3e635" : "#6abe30";
+  return `<svg viewBox="0 0 64 64" aria-hidden="true">`
+    + `<polygon points="32,6 58,20 32,34 6,20" fill="${top}"/>`
+    + `<polygon points="20,13 46,27 32,33 14,23" fill="#86d95c" opacity="0.55"/>`
+    + `<polygon points="6,20 32,34 32,58 6,44" fill="#8a5f3c"/>`
+    + `<polygon points="58,20 32,34 32,58 58,44" fill="#5f3d24"/>`
+    + `<rect x="14" y="34" width="5" height="5" fill="#6b4423"/>`
+    + `<rect x="24" y="42" width="5" height="5" fill="#75502e"/>`
+    + `<rect x="40" y="38" width="5" height="5" fill="#4e3319"/>`
+    + `<rect x="47" y="46" width="4" height="4" fill="#6b4423"/>`
+    + `<rect x="18" y="48" width="4" height="4" fill="#75502e"/>`
+    + `</svg>`;
 }
 
 let activeInstance = null;
@@ -803,8 +798,7 @@ async function refreshLogs() {
         $("profilePublicToggle").checked = !!prof.public;
         $("profileServerUrl").value = prof.server_url || 'https://kollegen.me';
         $("profileServerToken").value = prof.server_token || '';
-        // initial state: editing off
-        setProfileEditMode(false);
+        setProfileEditMode(true);
       }).catch(()=>{});
     } catch (e) {}
 
@@ -820,7 +814,6 @@ async function refreshLogs() {
       d.textContent = (a.type === "discord" ? "Discord: " : "") + (a.name || a.id);
       acc.append(d);
     });
-    if (socialMe.mc_name) showSkinFromName(socialMe.mc_name);
   }
 
   // Profil-Modal: eigene Bearbeitung vs. Fremdansicht
@@ -1096,7 +1089,7 @@ async function refreshLogs() {
         canvas.style.display = "";
         const fb = canvas.parentElement.querySelector("img.skin-fallback");
         if (fb) fb.remove();
-        skinViewer = new sv3d.SkinViewer({ canvas: canvas, width: 300, height: 600 });
+        skinViewer = new sv3d.SkinViewer({ canvas: canvas, width: 240, height: 480 });
         // Dieser skinview3d-Build wertet die `skin`-Option nicht aus – die
         // Textur muss explizit via loadSkin() geladen werden.
         const p = skinViewer.loadSkin(url);
@@ -3569,7 +3562,13 @@ startBackgroundIntervals();
   window.kmCat = null;
 
   let kmStoreError = "";
-  async function loadStore() {
+  async function loadStore(force) {
+    if (force) {
+      kmCat = null;
+      window.kmCat = null;
+      kmState = null;
+      kmStoreError = "";
+    }
     if (!kmCat) {
       try {
         const d = await invoke("kollegen_store");
@@ -3820,7 +3819,25 @@ startBackgroundIntervals();
   function renderStore() {
     const grid = $("storeGridMain");
     if (!kmCat) {
-      if (grid) grid.innerHTML = `<div class="store-msg">${kmStoreError || "Lade Store…"}</div>`;
+      if (grid) {
+        grid.innerHTML = "";
+        const msg = document.createElement("div");
+        msg.className = "store-msg";
+        msg.textContent = kmStoreError || "Lade Store…";
+        grid.append(msg);
+        if (kmStoreError) {
+          const retry = document.createElement("button");
+          retry.className = "btn-secondary";
+          retry.textContent = "Erneut versuchen";
+          retry.onclick = async () => {
+            retry.disabled = true;
+            await loadStore(true);
+            renderKosmet();
+            renderStore();
+          };
+          grid.append(retry);
+        }
+      }
       const wallet = $("storeWalletMain");
       if (wallet) wallet.style.display = "none";
       const show = $("storeShow");
