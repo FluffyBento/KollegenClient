@@ -11,10 +11,6 @@
 </head>
 <body>
   <header>
-    <h1>
-      <img src="Kollegen.png" alt="Kollegen Client" class="brand-logo" />
-      Kollegen Client
-    </h1>
     <div class="header-actions">
       <button id="settingsBtn" class="icon-btn" title="Einstellungen" aria-label="Einstellungen">⚙</button>
       <button id="authBtn" class="btn-secondary">Mit Microsoft anmelden</button>
@@ -24,8 +20,8 @@
 
   <nav class="sidebar" aria-label="Hauptnavigation">
     <div class="sidebar-brand">
-      <img src="Kollegen.png" alt="Kollegen" class="sidebar-brand-img" />
-      <span class="sidebar-brand-text">Kollegen</span>
+      <img src="Kollegen.png" alt="Kollegen Client" class="sidebar-brand-img" />
+      <span class="sidebar-brand-text">Kollegen Client</span>
     </div>
     <div class="sidebar-nav">
       <button class="sidebar-link active" data-tab="home" title="Home">
@@ -62,12 +58,16 @@
   </nav>
 
   <main>
-    <section id="homePanel" class="panel tab-panel active" data-tab="home" aria-labelledby="homeTitle">
-      <header class="panel-header">
-        <h2 id="homeTitle">Instanzen</h2>
-        <button id="homeCreateBtn" class="btn-primary">＋ Neue Instanz</button>
-      </header>
-      <div id="instanceList" class="instance-grid" role="list"></div>
+    <section id="homePanel" class="tab-panel active" data-tab="home" aria-labelledby="homeTitle">
+      <h2 id="homeTitle" hidden>Instanzen</h2>
+      <div class="home-layout">
+        <div id="instanceList" class="instance-grid" role="list"></div>
+        <aside class="home-skin" aria-label="Dein Skin">
+          <canvas id="homeSkinCanvas" width="220" height="440"></canvas>
+          <div id="homeSkinName" class="home-skin-name">—</div>
+          <button id="homeSkinOpen" class="btn-secondary">Skin & Cape ändern</button>
+        </aside>
+      </div>
     </section>
 
     <section id="createPanel" class="panel tab-panel" data-tab="create" aria-labelledby="createTitle" hidden>
@@ -170,55 +170,6 @@
         </div>
 
         <div class="socials-section">
-          <h3 class="socials-subhead">Store</h3>
-          <p class="socials-hint">Kollegen-Points einlösen: Kosmetik kaufen und an deinem Profil ausrüsten.</p>
-          <div class="store-wallet" id="storeWallet" style="display:none;">
-            <span class="store-pts" id="storePts">★ 0</span>
-            <span class="store-lvl" id="storeLvl">Level 1</span>
-          </div>
-          <div class="store-show" id="storeShow" style="display:none;">
-            <div class="store-show-banner" id="storeShowBanner"></div>
-            <img id="storeShowAv" class="store-show-av" alt="" />
-            <div class="store-show-meta">
-              <div id="storeShowName" class="store-show-name">Dein Profil</div>
-              <div id="storeShowSub" class="store-show-sub"></div>
-              <div class="store-show-bar"><div id="storeShowFill" style="width:0%;"></div></div>
-              <div class="store-show-col"><span id="storeShowColl">0 gesammelt</span><span id="storeShowPct">0%</span></div>
-            </div>
-          </div>
-          <div class="store-tools">
-            <div class="store-rar" id="storeRarChips">
-              <button class="chip active" data-r="alle">Alle Raritäten</button>
-              <button class="chip" data-r="common">Gewöhnlich</button>
-              <button class="chip" data-r="rare">Selten</button>
-              <button class="chip" data-r="epic">Episch</button>
-              <button class="chip" data-r="legendary">Legendär</button>
-            </div>
-            <select id="storeSort" class="store-sort">
-              <option value="price-asc">Preis ↑</option>
-              <option value="price-desc">Preis ↓</option>
-              <option value="rarity">Seltenheit</option>
-              <option value="name">Name</option>
-            </select>
-          </div>
-          <div class="store-tabs" id="storeTabs" role="tablist">
-            <button class="tab active" data-f="alle" role="tab" aria-selected="true">Alle</button>
-            <button class="tab" data-f="title" role="tab" aria-selected="false">Titel</button>
-            <button class="tab" data-f="avatar_frame" role="tab" aria-selected="false">Avatar-Rahmen</button>
-            <button class="tab" data-f="avatar_theme" role="tab" aria-selected="false">Avatar-Hintergrund</button>
-            <button class="tab" data-f="badge" role="tab" aria-selected="false">Abzeichen</button>
-            <button class="tab" data-f="profile_frame" role="tab" aria-selected="false">Profil-Rahmen</button>
-            <button class="tab" data-f="profile_bg" role="tab" aria-selected="false">Profil-Hintergrund</button>
-            <button class="tab" data-f="banner" role="tab" aria-selected="false">Banner</button>
-            <button class="tab" data-f="profil_stil" role="tab" aria-selected="false">Profilstil</button>
-            <button class="tab" data-f="font" role="tab" aria-selected="false">Schriftart</button>
-            <button class="tab" data-f="name_color" role="tab" aria-selected="false">Namensfarbe</button>
-            <button class="tab" data-f="sticker" role="tab" aria-selected="false">Aufkleber</button>
-          </div>
-          <div class="store-grid" id="storeGrid" role="tabpanel"><div class="store-msg">Lade Store…</div></div>
-        </div>
-
-        <div class="socials-section">
           <h3 class="socials-subhead">Einladen</h3>
           <p class="socials-hint">Kennst du jemanden, der den Kollegen Client auch nutzen sollte?</p>
           <button id="inviteLauncherBtn" class="btn-secondary">Auf GitHub einladen</button>
@@ -234,6 +185,16 @@
           <span class="store-lvl" id="storeLvlMain">Level 1</span>
         </div>
       </header>
+      <div class="store-show" id="storeShow" style="display:none;">
+        <div class="store-show-banner" id="storeShowBanner"></div>
+        <img id="storeShowAv" class="store-show-av" alt="" />
+        <div class="store-show-meta">
+          <div id="storeShowName" class="store-show-name">Dein Profil</div>
+          <div id="storeShowSub" class="store-show-sub"></div>
+          <div class="store-show-bar"><div id="storeShowFill" style="width:0%;"></div></div>
+          <div class="store-show-col"><span id="storeShowColl">0 gesammelt</span><span id="storeShowPct">0%</span></div>
+        </div>
+      </div>
       <div class="store-tools">
         <div class="store-rar" id="storeRarChipsMain">
           <button class="chip active" data-r="alle">Alle Raritäten</button>
@@ -394,7 +355,7 @@
           <h3>Updates</h3>
           <button id="updateCheckBtn" class="btn-secondary">Jetzt auf Updates prüfen</button>
           <div id="updateStatus" class="socials-hint"></div>
-          <button id="updateInstallBtn" class="btn-primary" hidden>Update installieren</button>
+          <button id="updateInstallBtn" class="btn-primary" style="display:none;">Update installieren</button>
         </section>
         <section id="settingsSteamDeck" class="settings-section" role="tabpanel" hidden>
           <h3>SteamDeck / Konsolen-Modus</h3>
@@ -440,15 +401,15 @@
           <header class="dm-thread-head" id="dmThreadHead">
             <img id="dmThAv" alt="" style="display:none;" />
             <span id="dmThName">Konversation wählen</span>
-            <button id="dmCallBtn" class="btn-small" title="Anrufen" hidden><span>📶</span> Anrufen</button>
-            <a id="dmThProf" href="#" hidden>Profil</a>
+            <button id="dmCallBtn" class="btn-small" title="Anrufen" style="display:none;"><span>📶</span> Anrufen</button>
+            <a id="dmThProf" href="#" style="display:none;">Profil</a>
           </header>
-          <div id="dmCallBar" class="dm-callbar" hidden>
+          <div id="dmCallBar" class="dm-callbar" style="display:none;">
             <span id="dmCallState">Anruf wird aufgebaut…</span>
             <button id="dmCallEnd" class="btn-small">Auflegen</button>
           </div>
           <div id="dmMsgList" class="dm-msgs" role="log"><div class="dm-empty">Wähle links einen Chat oder öffne einen Freundes-Code.</div></div>
-          <div class="dm-input" id="dmInputBox" hidden>
+          <div class="dm-input" id="dmInputBox" style="display:none;">
             <input id="dmText" placeholder="Nachricht …" maxlength="2000" autocomplete="off" />
             <button id="dmSend" class="btn-primary">Senden</button>
           </div>
@@ -463,11 +424,11 @@
       <h2 id="groupTitle" style="margin-top:0;">Gruppe</h2>
       <div id="groupMembers" class="group-members" role="list"></div>
       <div id="groupMsgList" class="dm-msgs" role="log"><div class="dm-empty">Noch keine Nachrichten.</div></div>
-      <div class="dm-input" id="groupInputBox" hidden>
+      <div class="dm-input" id="groupInputBox" style="display:none;">
         <input id="groupText" placeholder="Nachricht …" maxlength="2000" autocomplete="off" />
         <button id="groupSend" class="btn-primary">Senden</button>
       </div>
-      <div id="groupCallBar" class="dm-callbar" hidden>
+      <div id="groupCallBar" class="dm-callbar" style="display:none;">
         <span id="groupCallState">Gruppenanruf wird aufgebaut…</span>
         <button id="groupCallEnd" class="btn-small">Auflegen</button>
       </div>

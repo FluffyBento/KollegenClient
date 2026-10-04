@@ -59,13 +59,27 @@ async function refreshInstances() {
     const list = $("instanceList");
     list.innerHTML = "";
     if (instances.length === 0) {
-      list.innerHTML = "<div class='instance-empty'>Keine Instanzen vorhanden. Erstelle deine erste Instanz.</div>";
+      const empty = document.createElement("div");
+      empty.className = "instance-empty";
+      const txt = document.createElement("div");
+      txt.textContent = "Keine Instanzen vorhanden.";
+      const btn = document.createElement("button");
+      btn.className = "btn-primary";
+      btn.textContent = "＋ Erste Instanz erstellen";
+      btn.onclick = () => switchTab("create");
+      empty.append(txt, btn);
+      list.append(empty);
       return;
     }
     for (const inst of instances) {
       const card = document.createElement("div");
       card.className = "instance-card";
 
+      const top = document.createElement("div");
+      top.className = "instance-card-top";
+      const icon = document.createElement("div");
+      icon.className = "inst-icon";
+      icon.innerHTML = instIconSVG(inst.name, inst.loader);
       const info = document.createElement("div");
       info.className = "instance-card-info";
       const name = document.createElement("div");
@@ -73,8 +87,12 @@ async function refreshInstances() {
       name.textContent = inst.name;
       const meta = document.createElement("div");
       meta.className = "instance-card-meta";
-      meta.textContent = `${inst.version} · ${inst.loader}`;
+      const badge = document.createElement("span");
+      badge.className = "loader-badge";
+      badge.textContent = inst.loader || "?";
+      meta.append(document.createTextNode(inst.version || "?"), document.createTextNode(" · "), badge);
       info.append(name, meta);
+      top.append(icon, info);
 
       const actions = document.createElement("div");
       actions.className = "instance-card-actions";
@@ -122,12 +140,33 @@ async function refreshInstances() {
       del.onclick = () => deleteInstance(inst.name, inst.id);
       actions.append(del);
 
-      card.append(info, actions);
+      card.append(top, actions);
       list.append(card);
     }
   } catch (e) {
     console.error(e);
   }
+}
+
+function instIconSVG(name, loader) {
+  let h = 0;
+  const s = String(name || "?") + "|" + String(loader || "");
+  for (let i = 0; i < s.length; i++) h = ((h * 31 + s.charCodeAt(i)) >>> 0);
+  const greens = ["#6abe30", "#5da82a", "#79c74f", "#549625"];
+  const dirts = ["#8a5f3c", "#7d5535", "#957049", "#6b4423"];
+  let rects = "";
+  for (let y = 0; y < 8; y++) {
+    for (let x = 0; x < 8; x++) {
+      h = ((h * 1103515245 + 12345) >>> 0);
+      const grass = y < 3;
+      const pal = grass ? greens : dirts;
+      const edge = (x === 0 || y === 0 || (grass && y === 2 && ((h >> 3) & 1))) ? 1 : 0;
+      const c = pal[(h >> (x + y)) % pal.length];
+      const col = edge && grass ? "#3e7a1f" : c;
+      rects += `<rect x="${x}" y="${y}" width="1" height="1" fill="${col}"/>`;
+    }
+  }
+  return `<svg viewBox="0 0 8 8" shape-rendering="crispEdges" aria-hidden="true">${rects}</svg>`;
 }
 
 let activeInstance = null;
@@ -219,6 +258,7 @@ async function refreshLogs() {
 
       const connected = s.oauth_logged_in || s.rpc_connected;
       const u = s.user;
+      if (u && u.avatar_url) discordAvatarFallback = u.avatar_url;
       if (connected && u) {
         const name = u.global_name || u.username;
         acct.textContent = `Discord: ${name}`;
@@ -406,11 +446,12 @@ async function refreshLogs() {
   // Das Backend liefert /me als {id,name,uuid,code,accounts} und /friends als
   // [{id,name,uuid,code,server,online}]. Die Anzeige erwartet mc_name /
   // friend_code / global_name / username / avatar – wir normalisieren hier zentral.
+  let discordAvatarFallback = "";
   function normalizeProfile(me) {
     if (!me) return me;
     const accts = Array.isArray(me.accounts) ? me.accounts : [];
     const disc = accts.find((a) => (a.type || "").toLowerCase().indexOf("discord") >= 0) || null;
-    const avatar = (disc && (disc.avatar_url || disc.avatar)) || me.avatar || "";
+    const avatar = me.avatar || (disc && (disc.avatar_url || disc.avatar)) || "";
     const name = me.name || me.mc_name || me.username || (disc && (disc.global_name || disc.username)) || "";
     return {
       id: me.id || (disc && disc.id) || "",
@@ -421,7 +462,21 @@ async function refreshLogs() {
       uuid: me.uuid || null,
       avatar,
       accounts: accts,
+      profile: me.profile && typeof me.profile === "object" ? me.profile : null,
     };
+  }
+
+  function resolveAvatar(me) {
+    if (!me) return "";
+    const prof = me.profile || {};
+    const choice = prof.avatar_choice || "discord";
+    const nm = me.mc_name || me.username || "";
+    if (choice === "minecraft" && nm) return `https://mc-heads.net/avatar/${encodeURIComponent(nm).replace(/%20/g, "_")}/128`;
+    if (choice === "upload" && prof.avatar_data_url) return prof.avatar_data_url;
+    const url = avatarUrl(me) || discordAvatarFallback;
+    if (url) return url;
+    if (nm) return `https://mc-heads.net/avatar/${encodeURIComponent(nm).replace(/%20/g, "_")}/128`;
+    return "";
   }
 
   function normalizeFriend(f) {
@@ -468,13 +523,19 @@ async function refreshLogs() {
         $("pwName").textContent = "nicht verbunden";
         $("pwDiscord").textContent = "";
       } else {
-        const url = avatarUrl(socialMe);
-        if (url) { $("pwAvatar").src = url; $("pwAvatar").style.display = ""; }
+        const url = resolveAvatar(socialMe);
+        if (url) {
+          const av = $("pwAvatar");
+          if (av.getAttribute("src") !== url) av.src = url;
+          av.style.display = "";
+          av.onerror = () => { av.style.display = "none"; };
+        } else {
+          $("pwAvatar").style.display = "none";
+        }
         $("pwName").textContent = socialMe.mc_name || socialMe.username || "—";
         $("pwDiscord").textContent = socialMe.global_name || socialMe.username || "";
       }
     }
-    // Profil-Block im Sozial-Panel (einziger Social-Hub, kein doppeltes HUD).
     const spName = $("spName");
     const spDiscord = $("spDiscord");
     const spAvatar = $("spAvatar");
@@ -487,12 +548,16 @@ async function refreshLogs() {
         spName.textContent = socialMe.mc_name || "—";
         if (spDiscord) spDiscord.textContent = socialMe.global_name || socialMe.username || "";
         if (spAvatar) {
-          const url = avatarUrl(socialMe);
-          if (url) { spAvatar.src = url; spAvatar.style.display = ""; }
-          else spAvatar.style.display = "none";
+          const url = resolveAvatar(socialMe);
+          if (url) {
+            if (spAvatar.getAttribute("src") !== url) spAvatar.src = url;
+            spAvatar.style.display = "";
+            spAvatar.onerror = () => { spAvatar.style.display = "none"; };
+          } else spAvatar.style.display = "none";
         }
       }
     }
+    loadHomeSkin(false);
   }
 
 // Wire profile UI controls (save/edit/view)
@@ -1011,6 +1076,10 @@ async function refreshLogs() {
   function showSkin(url) {
     const canvas = $("skinCanvas");
     if (!canvas || !url) return;
+    if (url === currentSkinUrl && skinViewer) {
+      applyCapeToViewer();
+      return;
+    }
     currentSkinUrl = url;
     const sv3d = window.skinview3d;
     // WebGL-Verfügbarkeit prüfen (SteamDeck/WebKit ohne GPU-Kontext → direkt
@@ -1049,6 +1118,83 @@ async function refreshLogs() {
   }
   function showSkinFromName(name) {
     if (name) showSkin(`https://mc-heads.net/skin/${encodeURIComponent(name)}`);
+  }
+
+  let homeSkinViewer = null;
+  let homeSkinKey = "";
+
+  async function loadHomeSkin(force) {
+    const canvas = $("homeSkinCanvas");
+    if (!canvas) return;
+    const nm = (socialMe && (socialMe.mc_name || socialMe.username)) || "";
+    const nameEl = $("homeSkinName");
+    if (nameEl) nameEl.textContent = nm || "—";
+    let url = null;
+    try {
+      const list = await invoke("skin_list");
+      const active = (list.skins || []).find((s) => s.name === list.active);
+      if (active && active.url) url = active.url;
+    } catch (e) {}
+    if (!url) {
+      try {
+        const prof = await invoke("skin_mc_profile");
+        const sk = ((prof && prof.skins) || []).find((x) => x.state === "ACTIVE") || ((prof && prof.skins) || [])[0];
+        if (sk && sk.url) url = sk.url;
+        const cp = ((prof && prof.capes) || []).find((x) => x.state === "ACTIVE");
+        if (cp && cp.url) currentCapeUrl = cp.url;
+      } catch (e) {}
+    }
+    if (!url && nm) url = `https://mc-heads.net/skin/${encodeURIComponent(nm)}`;
+    if (!url) return;
+    const key = url + "|" + (currentCapeUrl || "");
+    if (!force && key === homeSkinKey && homeSkinViewer) return;
+    homeSkinKey = key;
+    const sv3d = window.skinview3d;
+    let webglOk = false;
+    try {
+      const probe = document.createElement("canvas");
+      const g = probe.getContext("webgl2") || probe.getContext("webgl");
+      webglOk = !!(g && g.getParameter);
+    } catch (_) {}
+    const wrap = canvas.parentElement;
+    if (!(sv3d && sv3d.SkinViewer && sv3d.WalkingAnimation && webglOk)) {
+      let fb = wrap.querySelector("img.skin-fallback");
+      if (!fb) {
+        fb = new Image();
+        fb.className = "skin-fallback";
+        fb.alt = "";
+        wrap.insertBefore(fb, canvas);
+      }
+      fb.src = url;
+      canvas.style.display = "none";
+      return;
+    }
+    try {
+      if (homeSkinViewer) {
+        try { homeSkinViewer.dispose && homeSkinViewer.dispose(); } catch (_) {}
+        homeSkinViewer = null;
+      }
+      canvas.style.display = "";
+      const fb = wrap.querySelector("img.skin-fallback");
+      if (fb) fb.remove();
+      homeSkinViewer = new sv3d.SkinViewer({ canvas: canvas, width: 220, height: 440 });
+      const applyCape = () => {
+        if (!currentCapeUrl || !homeSkinViewer) return;
+        try {
+          const c = homeSkinViewer.loadCape(currentCapeUrl);
+          if (c && typeof c.catch === "function") c.catch(() => {});
+        } catch (_) {}
+      };
+      const p = homeSkinViewer.loadSkin(url);
+      if (p && typeof p.then === "function") p.then(applyCape).catch(applyCape);
+      else applyCape();
+      homeSkinViewer.animation = new sv3d.WalkingAnimation();
+      homeSkinViewer.animation.speed = 0.5;
+      homeSkinViewer.autoRotate = true;
+      homeSkinViewer.autoRotateSpeed = 1.0;
+    } catch (e) {
+      console.error("Home-Skin fehlgeschlagen:", e);
+    }
   }
 
   // ── Skin-Bibliothek + Cape-Wechsler im Profil ──
@@ -1119,6 +1265,7 @@ async function refreshLogs() {
       else if (r && r.ok) toast("Lokal gespeichert (kein MC-Upload möglich)", "ok");
       else if (r && r.error) toast(r.error, "error");
       loadSkinChanger();
+      loadHomeSkin(true);
     }).catch(e => toast("Skin wechseln fehlgeschlagen: " + e, "error"));
   }
 
@@ -1167,6 +1314,7 @@ async function refreshLogs() {
         toast("Cape ausgerüstet", "ok");
         if (url) { currentCapeUrl = url; applyCapeToViewer(); }
         loadSkinChanger();
+        loadHomeSkin(true);
       }
       else toast((r && r.error) || "Fehler", "error");
     }).catch(e => toast("Cape fehlgeschlagen: " + e, "error"));
@@ -1585,18 +1733,34 @@ async function loadSettingsOnce() {
   return currentSettings;
 }
 
+function hexRgb(hex) {
+  const m = /^#?([0-9a-f]{6})$/i.exec(String(hex || "").trim());
+  if (!m) return null;
+  const n = parseInt(m[1], 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+
+function shade(hex, f) {
+  const c = hexRgb(hex);
+  if (!c) return hex;
+  return "#" + c.map((v) => Math.round(Math.min(255, Math.max(0, v * f))).toString(16).padStart(2, "0")).join("");
+}
+
 function applyTheme(name) {
   const pal = THEMES[name] || THEMES.Kollegen;
   const r = document.documentElement.style;
-  const dim = pal.accent2 || pal.accent;
+  const accent = pal.accent3 || pal.accent2 || pal.accent;
+  const dim = shade(accent, 0.7);
+  const rgb = hexRgb(accent);
+  if (rgb) r.setProperty("--accent-rgb", rgb.join(", "));
   r.setProperty("--bg", pal.bg);
   r.setProperty("--bg-elevated", pal.panel2);
   r.setProperty("--panel", pal.panel);
   r.setProperty("--panel-elevated", pal.panel2);
   r.setProperty("--panel-2", pal.panel2);
-  r.setProperty("--accent", pal.accent);
+  r.setProperty("--accent", accent);
   r.setProperty("--accent-dim", dim);
-  r.setProperty("--accent-warm", pal.accent3 || dim);
+  r.setProperty("--accent-warm", accent);
   r.setProperty("--accent2", pal.accent2);
   r.setProperty("--accent3", pal.accent3 || pal.accent2 || pal.accent);
   r.setProperty("--text", pal.text);
@@ -2605,6 +2769,8 @@ const openProfileBtn = $("openProfileBtn");
 if (openProfileBtn) openProfileBtn.onclick = () => openProfileModal();
 const openProfileModalBtn = $("openProfileModalBtn");
 if (openProfileModalBtn) openProfileModalBtn.onclick = () => openProfileModal();
+const homeSkinOpen = $("homeSkinOpen");
+if (homeSkinOpen) homeSkinOpen.onclick = () => openProfileModal();
 $("profileClose").onclick = () => { $("profileModal").style.display = "none"; };
 $("pmCopy").onclick = () => { if (socialMe) copyText(socialMe.friend_code); };
 
@@ -3320,6 +3486,7 @@ refreshAuth();
 refreshDiscord();
 refreshDiscordLogin();
 refreshSocial();
+loadHomeSkin(false);
 startBackgroundIntervals();
 
 // ─── Kollegen-Sozial-Modul v2: Kosmetik-Editor, Profil-Viewer, DMs ───────────
@@ -3401,6 +3568,7 @@ startBackgroundIntervals();
   };
   window.kmCat = null;
 
+  let kmStoreError = "";
   async function loadStore() {
     if (!kmCat) {
       try {
@@ -3410,8 +3578,15 @@ startBackgroundIntervals();
           window.kmCat = kmCat;
           kmState = d;
           window.kmState = d;
+          kmStoreError = "";
+        } else if (d && d.error) {
+          kmStoreError = d.error === "not_authenticated"
+            ? "Bitte mit Discord verbinden, um den Store zu laden."
+            : "Store konnte nicht geladen werden: " + d.error;
         }
-      } catch (e) {}
+      } catch (e) {
+        kmStoreError = "Store konnte nicht geladen werden: " + e;
+      }
     }
     if (!kmMe) {
       try { kmMe = await invoke("kollegen_me"); } catch (e) {}
@@ -3435,12 +3610,20 @@ startBackgroundIntervals();
     const save = $("kosmetPreview");
     const pts = $("kosmetPts");
     const hint = $("kosmetHint");
-    if (!groups || !kmCat) return;
+    if (!groups || !save || !pts || !hint) return;
+    if (!kmCat) {
+      groups.innerHTML = "";
+      save.innerHTML = "";
+      pts.textContent = "";
+      hint.textContent = kmStoreError || "Kosmetik wird geladen…";
+      return;
+    }
     const st = kmState || {};
     const eq = st.equipped || {};
     groups.innerHTML = "";
     save.innerHTML = "";
-    const eqVal = (cat) => { const v = eq[cat]; return typeof v === "string" ? byId(v) : (v && v.id ? byId(v.id) : null); };
+    const eqId = (cat) => { const v = eq[cat]; return typeof v === "string" ? v : (v && v.id ? v.id : ""); };
+    const eqVal = (cat) => { const id = eqId(cat); return id ? byId(id) : null; };
     const ti = eqVal("title");
     const bd = eqVal("badge");
     const nc = eqVal("name_color");
@@ -3514,7 +3697,7 @@ startBackgroundIntervals();
       chips.append(none);
       for (const it of mine) {
         const ch = document.createElement("span");
-        ch.className = "kosmet-chip" + (eq[cat] === it.id ? " eq" : "");
+        ch.className = "kosmet-chip" + (eqId(cat) === it.id ? " eq" : "");
         const sw = document.createElement("span");
         sw.className = "sw";
         if (it.data && it.data.color1) sw.style.background = it.data.color1;
@@ -3635,23 +3818,28 @@ startBackgroundIntervals();
 
   window.renderKollegenStore = renderStore;
   function renderStore() {
-    if (!kmCat) return;
+    const grid = $("storeGridMain");
+    if (!kmCat) {
+      if (grid) grid.innerHTML = `<div class="store-msg">${kmStoreError || "Lade Store…"}</div>`;
+      const wallet = $("storeWalletMain");
+      if (wallet) wallet.style.display = "none";
+      const show = $("storeShow");
+      if (show) show.style.display = "none";
+      return;
+    }
     const items = storeFiltered();
-    for (const gid of ["storeGrid", "storeGridMain"]) {
-      const grid = $(gid);
-      if (!grid) continue;
+    if (grid) {
       grid.innerHTML = "";
-      if (!items.length) { grid.innerHTML = `<div class="store-msg">Keine Items in dieser Auswahl.</div>`; continue; }
-      for (const it of items) grid.append(storeCard(it));
+      if (!items.length) grid.innerHTML = `<div class="store-msg">Keine Items in dieser Auswahl.</div>`;
+      else for (const it of items) grid.append(storeCard(it));
     }
     const logged = kmState && !kmState.needsAuth && typeof kmState.level === "number";
-    for (const [w, p, l] of [["storeWallet", "storePts", "storeLvl"], ["storeWalletMain", "storePtsMain", "storeLvlMain"]]) {
-      const wallet = $(w);
-      if (!wallet) continue;
+    const wallet = $("storeWalletMain");
+    if (wallet) {
       if (logged) {
         wallet.style.display = "flex";
-        $(p).textContent = "★ " + (kmState.points || 0);
-        $(l).textContent = "Level " + kmState.level;
+        $("storePtsMain").textContent = "★ " + (kmState.points || 0);
+        $("storeLvlMain").textContent = "Level " + kmState.level;
       } else wallet.style.display = "none";
     }
     storeRenderShow();
@@ -3767,7 +3955,7 @@ startBackgroundIntervals();
   }
 
   function storeSyncChips() {
-    for (const id of ["storeRarChips", "storeRarChipsMain"]) {
+    for (const id of ["storeRarChipsMain"]) {
       const box = $(id);
       if (!box) continue;
       box.querySelectorAll(".chip").forEach((x) => {
@@ -3778,7 +3966,7 @@ startBackgroundIntervals();
     }
   }
   function storeSyncTabs() {
-    for (const id of ["storeTabs", "storeTabsMain"]) {
+    for (const id of ["storeTabsMain"]) {
       const box = $(id);
       if (!box) continue;
       box.querySelectorAll(".tab").forEach((x) => {
@@ -3790,7 +3978,7 @@ startBackgroundIntervals();
     }
   }
   function storeInit() {
-    for (const id of ["storeRarChips", "storeRarChipsMain"]) {
+    for (const id of ["storeRarChipsMain"]) {
       const rarBox = $(id);
       if (!rarBox || rarBox.dataset.bound) continue;
       rarBox.dataset.bound = "1";
@@ -3802,18 +3990,16 @@ startBackgroundIntervals();
         renderStore();
       });
     }
-    for (const id of ["storeSort", "storeSortMain"]) {
+    for (const id of ["storeSortMain"]) {
       const sort = $(id);
       if (!sort || sort.dataset.bound) continue;
       sort.dataset.bound = "1";
       sort.addEventListener("change", () => {
         storeSort = sort.value;
-        const other = $(id === "storeSort" ? "storeSortMain" : "storeSort");
-        if (other) other.value = storeSort;
         renderStore();
       });
     }
-    for (const id of ["storeTabs", "storeTabsMain"]) {
+    for (const id of ["storeTabsMain"]) {
       const tabs = $(id);
       if (!tabs || tabs.dataset.bound) continue;
       tabs.dataset.bound = "1";
@@ -4318,7 +4504,7 @@ startBackgroundIntervals();
 
   function showDmCallBar(text) {
     $("dmCallState").textContent = text;
-    $("dmCallBar").style.display = "";
+    $("dmCallBar").style.display = "flex";
   }
   function hideDmCallBar() {
     $("dmCallBar").style.display = "none";
@@ -4406,7 +4592,7 @@ startBackgroundIntervals();
 
   function showGroupCallBar(text) {
     $("groupCallState").textContent = text;
-    $("groupCallBar").style.display = "";
+    $("groupCallBar").style.display = "flex";
   }
   function hideGroupCallBar() {
     $("groupCallBar").style.display = "none";

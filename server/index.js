@@ -350,11 +350,15 @@ const server = http.createServer(async (req, res) => {
       const discord = await verifyDiscordToken(body.discord_token);
       if (!discord || !discord.id) return sendJson(res, 401, { error: 'invalid_discord_token' });
 
+      const discordAvatar = discord.avatar
+        ? 'https://cdn.discordapp.com/avatars/' + discord.id + '/' + discord.avatar + (String(discord.avatar).startsWith('a_') ? '.gif' : '.png')
+        : null;
       let user = store.users[discord.id];
       if (!user) {
         user = {
           discordId: discord.id,
           discordName: discord.global_name || discord.username,
+          discordAvatar,
           uuid: null,
           name: null,
           accounts: [],
@@ -366,6 +370,7 @@ const server = http.createServer(async (req, res) => {
         store.codes[user.code] = discord.id;
       } else {
         user.discordName = discord.global_name || discord.username;
+        if (discordAvatar) user.discordAvatar = discordAvatar;
       }
       ensureUserExtras(user);
 
@@ -438,6 +443,7 @@ const server = http.createServer(async (req, res) => {
         name: user.name || user.discordName,
         uuid: user.uuid,
         code: user.code,
+        avatar: user.discordAvatar || null,
         accounts: user.accounts,
         profile: user.profile || null,
         points: sv.points,
@@ -449,7 +455,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     
-    if (pathname === '/store' && method === 'GET') {
+    if ((pathname === '/store' || pathname === '/store/catalog') && method === 'GET') {
       let user = bearerUser(req);
       if (!user) {
         const dId = url.searchParams.get('discordId');
@@ -595,6 +601,7 @@ if (pathname === '/internal/user' && method === 'GET') {
     name: u.name || u.discordName,
     uuid: u.uuid || null,
     code: u.code,
+    avatar: u.discordAvatar || null,
     profile: u.profile || null,
     mc_name: u.name || null,
     points: u.points,

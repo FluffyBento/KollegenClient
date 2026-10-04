@@ -520,9 +520,7 @@ pub fn kollegen_dm_send(data_dir: &PathBuf, to_id: &str, text: &str) -> serde_js
 
 
 pub fn kollegen_store(data_dir: &PathBuf) -> serde_json::Value {
-    
-    
-    get_authed(data_dir, "/store/catalog", &[])
+    get_authed(data_dir, "/store", &[])
 }
 
 
