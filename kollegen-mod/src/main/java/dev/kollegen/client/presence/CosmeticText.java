@@ -35,6 +35,15 @@ public final class CosmeticText {
         }
     }
 
+    public static String safeIcon(String icon) {
+        if (icon == null || icon.isEmpty()) return null;
+        for (int i = 0; i < icon.length(); i++) {
+            char c = icon.charAt(i);
+            if (Character.isHighSurrogate(c) || Character.isLowSurrogate(c)) return "◆";
+        }
+        return icon;
+    }
+
     public static Component decoratePlayer(Component base, UUID id) {
         if (base == null || id == null) return base;
         boolean kollege = KollegenPresence.isKollegen(id);
@@ -78,9 +87,10 @@ public final class CosmeticText {
         int nameColor = parseColor(d.nameColor, FALLBACK_NAME);
         boolean bold = d.font != null && (d.font.toLowerCase().contains("bold") || d.font.toLowerCase().contains("fett"));
         boolean italic = d.font != null && (d.font.toLowerCase().contains("italic") || d.font.toLowerCase().contains("kursiv"));
+        String badge = safeIcon(d.badgeIcon);
         MutableComponent out = Component.empty();
-        if (d.badgeIcon != null) {
-            out.append(Component.literal(d.badgeIcon).withStyle(Style.EMPTY.withColor(TextColor.fromRgb(parseColor(d.badgeColor, FALLBACK_BADGE)))));
+        if (badge != null) {
+            out.append(Component.literal(badge).withStyle(Style.EMPTY.withColor(TextColor.fromRgb(parseColor(d.badgeColor, FALLBACK_BADGE)))));
             out.append(Component.literal(" "));
         }
         if (d.titleText != null) {
@@ -91,9 +101,10 @@ public final class CosmeticText {
         if (bold) nameStyle = nameStyle.withBold(true);
         if (italic) nameStyle = nameStyle.withItalic(true);
         out.append(Component.literal(name).withStyle(nameStyle));
-        if (d.stickerIcon != null) {
+        String sticker = safeIcon(d.stickerIcon);
+        if (sticker != null) {
             out.append(Component.literal(" "));
-            out.append(Component.literal(d.stickerIcon).withStyle(Style.EMPTY.withColor(TextColor.fromRgb(parseColor(d.stickerColor, FALLBACK_NAME)))));
+            out.append(Component.literal(sticker).withStyle(Style.EMPTY.withColor(TextColor.fromRgb(parseColor(d.stickerColor, FALLBACK_NAME)))));
         }
         if (d.level > 0) {
             out.append(Component.literal(" · Lv " + d.level).withStyle(Style.EMPTY.withColor(TextColor.fromRgb(LEVEL_GRAY))));
