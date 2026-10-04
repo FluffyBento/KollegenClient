@@ -104,6 +104,18 @@ function levelOf(u) {
   return 1 + Math.floor(t / 300);
 }
 
+function normUuid(s) {
+  const hex = String(s || '').toLowerCase().replace(/[^0-9a-f]/g, '');
+  if (hex.length !== 32) return null;
+  return hex.slice(0, 8) + '-' + hex.slice(8, 12) + '-' + hex.slice(12, 16) + '-' + hex.slice(16, 20) + '-' + hex.slice(20);
+}
+
+function sameUuid(a, b) {
+  const x = normUuid(a);
+  const y = normUuid(b);
+  return !!x && x === y;
+}
+
 function presenceCosmetics(u) {
   if (!u) return null;
   if (u.profile && u.profile.public === false) return null;
@@ -1535,8 +1547,7 @@ if (pathname === '/internal/reset' && method === 'POST') {
         const p = store.presence[key];
         if (!p || !p.uuid) continue;
         if (now - (p.ts || p.timestamp || 0) > 120000) continue;
-        const norm = String(p.uuid).toLowerCase().replace(/-/g, '');
-        const u = Object.values(store.users || {}).find((x) => x && x.uuid && String(x.uuid).toLowerCase().replace(/-/g, '') === norm) || null;
+        const u = Object.values(store.users || {}).find((x) => x && x.uuid && sameUuid(x.uuid, p.uuid)) || null;
         out.push({
           uuid: p.uuid,
           name: p.name || (u && (u.name || u.discordName)) || null,
@@ -1550,7 +1561,7 @@ if (pathname === '/internal/reset' && method === 'POST') {
 
     if (pathname.startsWith('/presence/') && (method === 'POST' || method === 'DELETE')) {
       const raw = decodeURIComponent(pathname.slice('/presence/'.length).split('/')[0] || '');
-      const id = raw.toLowerCase().replace(/-/g, '');
+      const id = normUuid(raw);
       if (!id) return sendJson(res, 400, { error: 'uuid_required' });
       if (method === 'DELETE') {
         delete store.presence[id];

@@ -117,6 +117,24 @@ public final class KollegenPresence {
         COSMETICS.clear();
     }
 
+    private static UUID parseUuid(String s) {
+        if (s == null) return null;
+        String t = s.trim();
+        try {
+            return UUID.fromString(t);
+        } catch (Throwable ignored) {
+        }
+        String hex = t.toLowerCase().replaceAll("[^0-9a-f]", "");
+        if (hex.length() != 32) return null;
+        String dashed = hex.substring(0, 8) + "-" + hex.substring(8, 12) + "-"
+                + hex.substring(12, 16) + "-" + hex.substring(16, 20) + "-" + hex.substring(20);
+        try {
+            return UUID.fromString(dashed);
+        } catch (Throwable ignored) {
+            return null;
+        }
+    }
+
     private static void fetch() {
         try {
             HttpRequest req = HttpRequest.newBuilder(URI.create(base() + "/presence/uuids"))
@@ -134,7 +152,8 @@ public final class KollegenPresence {
                     JsonObject o = el.getAsJsonObject();
                     if (o.has("uuid")) {
                         try {
-                            UUID uid = UUID.fromString(o.get("uuid").getAsString());
+                            UUID uid = parseUuid(o.get("uuid").getAsString());
+                            if (uid == null) continue;
                             USERS.add(uid);
                             CosmeticData d = CosmeticData.fromJson(o);
                             if (d != null) COSMETICS.put(uid, d);
