@@ -4,105 +4,110 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Kollegen Client</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Orbitron:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css" />
-  <style>
-    #versionBadge {
-      position: fixed;
-      right: 10px;
-      bottom: 8px;
-      z-index: 9999;
-      font-size: 11px;
-      letter-spacing: 0.3px;
-      color: #b9a98c;
-      background: rgba(13, 13, 18, 0.55);
-      border: 1px solid #34303a;
-      padding: 2px 8px;
-      border-radius: 6px;
-      pointer-events: none;
-      user-select: none;
-      font-family: inherit;
-    }
-  </style>
 </head>
 <body>
   <header>
-    <h1>Kollegen Client<img src="Kollegen.png" alt="Kollegen Client" class="brand-logo" /></h1>
-    <button id="settingsBtn" class="icon-btn settings-btn" title="Einstellungen">⚙</button>
-    <button id="authBtn">Mit Microsoft anmelden</button>
-    <span id="authStatus">nicht angemeldet</span>
-    <span id="discordAccount" class="discord-account">
-      <img id="discordAvatar" class="discord-avatar" alt="" style="display:none;" />
-      <span id="discordAccountName">Discord: nicht verbunden</span>
-    </span>
-    <div id="loginInfo" style="display:none; margin-top:0.5rem; flex-wrap:wrap; gap:0.5rem; align-items:center;">
-      <div style="display:flex; align-items:center; gap:0.25rem;">
-        <label for="loginUrl">Login-Link</label>
-        <input id="loginUrl" readonly style="width:320px;" />
-        <button id="copyUrlBtn">Kopieren</button>
-      </div>
-      <div id="loginQrWrap" style="display:none; flex-direction:column; align-items:center; gap:0.35rem; margin-top:0.4rem;">
-        <img id="loginQr" alt="QR-Code zum Scannen" style="width:180px; height:180px; image-rendering:pixelated; background:#fff; padding:8px; border-radius:8px;" />
-        <span style="font-size:0.85rem; opacity:0.75;">Mit dem Handy scannen, um dich anzumelden</span>
-      </div>
+    <h1>
+      <img src="Kollegen.png" alt="Kollegen Client" class="brand-logo" />
+      Kollegen Client
+    </h1>
+    <div class="header-actions">
+      <button id="settingsBtn" class="icon-btn" title="Einstellungen" aria-label="Einstellungen">⚙</button>
+      <button id="authBtn" class="btn-secondary">Mit Microsoft anmelden</button>
+      <span id="authStatus" class="auth-status">nicht angemeldet</span>
     </div>
   </header>
 
-  <nav class="sidebar">
-    <img src="Kollegen.png" alt="Kollegen" class="sidebar-brand-img" />
+  <nav class="sidebar" aria-label="Hauptnavigation">
+    <div class="sidebar-brand">
+      <img src="Kollegen.png" alt="Kollegen" class="sidebar-brand-img" />
+      <span class="sidebar-brand-text">Kollegen</span>
+    </div>
     <div class="sidebar-nav">
-      <a href="#" class="sidebar-link active" data-tab="home" title="Home">
-        <span class="side-ico">▦</span><span class="side-label">Home</span>
-      </a>
-      <a href="#" class="sidebar-link" data-tab="create" title="Erstellen">
-        <span class="side-ico">＋</span><span class="side-label">Erstellen</span>
-      </a>
-      <a href="#" class="sidebar-link" data-tab="socials" title="Soziales" id="socialsBtn">
-        <span class="side-ico"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M4 4h16a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H11l-5 4v-4H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/></svg></span><span class="side-label">Soziales</span>
-      </a>
-      <a href="#" class="sidebar-link" data-tab="logs" title="Logs" id="logsBtn">
-        <span class="side-ico">☰</span><span class="side-label">Logs</span>
-      </a>
+      <button class="sidebar-link active" data-tab="home" title="Home">
+        <span class="side-ico">⌂</span>
+        <span class="side-label">Home</span>
+      </button>
+      <button class="sidebar-link" data-tab="create" title="Erstellen">
+        <span class="side-ico">＋</span>
+        <span class="side-label">Erstellen</span>
+      </button>
+      <button class="sidebar-link" data-tab="socials" title="Soziales" id="socialsBtn">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M4 4h16a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H11l-5 4v-4H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/></svg>
+        <span class="side-label">Soziales</span>
+      </button>
+      <button class="sidebar-link" data-tab="store" title="Store">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M20 6L12 2 4 6v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6z"/><path fill="currentColor" d="M12 8v8M8 12h8"/></svg>
+        <span class="side-label">Store</span>
+      </button>
+      <button class="sidebar-link" data-tab="profile" title="Profil">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        <span class="side-label">Profil</span>
+      </button>
+      <button class="sidebar-link" data-tab="logs" title="Logs" id="logsBtn">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path fill="currentColor" d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg>
+        <span class="side-label">Logs</span>
+      </button>
+    </div>
+    <div class="sidebar-footer">
+      <div id="discordAccount" class="discord-account">
+        <img id="discordAvatar" class="discord-avatar" alt="" style="display:none;" />
+        <span id="discordAccountName">Discord: nicht verbunden</span>
+      </div>
     </div>
   </nav>
 
   <main>
-    <section id="homePanel" class="panel tab-panel active" data-tab="home">
-      <h2>Home</h2>
-      <ul id="instanceList"></ul>
+    <section id="homePanel" class="panel tab-panel active" data-tab="home" aria-labelledby="homeTitle">
+      <header class="panel-header">
+        <h2 id="homeTitle">Instanzen</h2>
+        <button id="homeCreateBtn" class="btn-primary">＋ Neue Instanz</button>
+      </header>
+      <div id="instanceList" class="instance-grid" role="list"></div>
     </section>
 
-    <section id="createPanel" class="panel tab-panel" data-tab="create">
-      <h2>Instanz erstellen</h2>
-      <label>Name</label>
-      <input id="iName" placeholder="Instanz Name" />
-
-      <label>Minecraft Version</label>
-      <select id="iVersion" aria-label="Minecraft Version"></select>
-
-      <label>Mod Loader</label>
-      <select id="iLoader" aria-label="Mod Loader">
-        <option value="vanilla">Vanilla</option>
-        <option value="fabric">Fabric</option>
-        <option value="forge">Forge</option>
-        <option value="neoforge">NeoForge</option>
-      </select>
-
-      <label>Loader-Version</label>
-      <select id="iLoaderVer" aria-label="Loader-Version">
-        <option value="">(Standard / Neueste)</option>
-      </select>
-
-      <div style="margin-top: 1rem;">
-        <button id="createBtn">Erstellen</button>
-      </div>
+    <section id="createPanel" class="panel tab-panel" data-tab="create" aria-labelledby="createTitle" hidden>
+      <header class="panel-header">
+        <h2 id="createTitle">Instanz erstellen</h2>
+      </header>
+      <form id="createForm" class="form-stack">
+        <div class="form-group">
+          <label for="iName">Name</label>
+          <input id="iName" placeholder="Instanz Name" required />
+        </div>
+        <div class="form-group">
+          <label for="iVersion">Minecraft Version</label>
+          <select id="iVersion" aria-label="Minecraft Version" required></select>
+        </div>
+        <div class="form-group">
+          <label for="iLoader">Mod Loader</label>
+          <select id="iLoader" aria-label="Mod Loader" required>
+            <option value="vanilla">Vanilla</option>
+            <option value="fabric">Fabric</option>
+            <option value="forge">Forge</option>
+            <option value="neoforge">NeoForge</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="iLoaderVer">Loader-Version</label>
+          <select id="iLoaderVer" aria-label="Loader-Version">
+            <option value="">(Standard / Neueste)</option>
+          </select>
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn-primary">Erstellen</button>
+        </div>
+      </form>
     </section>
 
-    <section id="socialsPanel" class="panel tab-panel" data-tab="socials">
-      <div class="socials-header">
-        <span class="socials-logo"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M4 4h16a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H11l-5 4v-4H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/></svg></span>
-        <h2>Soziales</h2>
-        <button id="socialsClose" class="icon-btn" title="Schließen">✕</button>
-      </div>
+    <section id="socialsPanel" class="panel tab-panel" data-tab="socials" aria-labelledby="socialsTitle" hidden>
+      <header class="panel-header">
+        <h2 id="socialsTitle">Soziales</h2>
+      </header>
       <div class="socials-body">
         <div class="socials-profile">
           <img id="spAvatar" class="socials-profile-avatar" alt="" style="display:none;" />
@@ -116,109 +121,167 @@
             </div>
             <div id="spCodeWrap" style="display:none;">
               <span class="socials-code">Freundes-Code: <code id="spCode"></code></span>
-              <button id="spCodeCopy" class="small-btn">Kopieren</button>
+              <button id="spCodeCopy" class="btn-small">Kopieren</button>
             </div>
           </div>
-          <button id="openProfileBtn" class="socials-profile-btn">Profil</button>
+          <button id="openProfileBtn" class="btn-secondary">Profil</button>
         </div>
 
         <div id="discordStatus" class="discord-status">nicht verbunden</div>
         <div id="discordCurrentServer" class="discord-server"></div>
-        <div id="discordLogin" style="margin-top:0.5rem;">
-          <button id="discordLoginBtn">Mit Discord verbinden</button>
+        <div id="discordLogin" style="margin-top:1rem;">
+          <button id="discordLoginBtn" class="btn-primary">Mit Discord verbinden</button>
           <div id="discordLoginStatus" class="discord-login-status"></div>
         </div>
 
-        <h3 class="socials-subhead">Freunde</h3>
-        <p class="socials-hint" id="friendsHint">Verbinde dich mit Discord, um zu sehen, welche Freunde den Kollegen Client nutzen und gerade spielen.</p>
-        <ul id="discordFriends" class="friend-list"></ul>
-
-        <h3 class="socials-subhead">Einladungen (Server beitreten)</h3>
-        <ul id="discordInvites" class="invite-list"><li style="color:#888;">Keine Einladungen</li></ul>
-
-        <h3 class="socials-subhead">Freunde</h3>
-        <p class="socials-hint" id="kollegenHint">Verbinde dich mit Discord, um Freunde zu sehen und hinzuzufügen.</p>
-        <div class="add-friend">
-          <input id="friendCodeInput" placeholder="Freundes-Code" autocomplete="off" />
-          <button id="friendCodeAdd">Hinzufügen</button>
+        <div class="socials-section">
+          <h3 class="socials-subhead">Freunde</h3>
+          <p class="socials-hint" id="friendsHint">Verbinde dich mit Discord, um zu sehen, welche Freunde den Kollegen Client nutzen und gerade spielen.</p>
+          <ul id="discordFriends" class="friend-list" role="list"></ul>
         </div>
-        <div id="kollegenRequestsWrap" style="display:none;">
-          <div class="socials-subhead" style="margin-top:0.4rem;margin-bottom:0.35rem;">Freundesanfragen</div>
-          <ul id="kollegenRequests" class="friend-list"></ul>
-        </div>
-        <ul id="kollegenFriends" class="friend-list"></ul>
 
-        <h3 class="socials-subhead">Gruppen</h3>
-        <p class="socials-hint">Erstelle eine Gruppe, um zusammen zu chatten oder anzurufen.</p>
-        <div class="add-friend">
-          <input id="groupNameInput" placeholder="Gruppenname" autocomplete="off" maxlength="60" />
-          <button id="groupCreateBtn">Erstellen</button>
+        <div class="socials-section">
+          <h3 class="socials-subhead">Einladungen (Server beitreten)</h3>
+          <ul id="discordInvites" class="invite-list" role="list"><li style="color:var(--text-muted);">Keine Einladungen</li></ul>
         </div>
-        <ul id="kollegenGroups" class="friend-list"><li style="color:#888;">Lade Gruppen…</li></ul>
 
-        <h3 class="socials-subhead">Store</h3>
-        <p class="socials-hint">Kollegen-Points einlösen: Kosmetik kaufen und an deinem Profil ausrüsten.</p>
-        <div class="store-wallet" id="storeWallet" style="display:none;">
-          <span class="store-pts" id="storePts">★ 0</span>
-          <span class="store-lvl" id="storeLvl">Level 1</span>
-        </div>
-        <div class="store-show" id="storeShow" style="display:none;">
-          <div class="store-show-banner" id="storeShowBanner"></div>
-          <img id="storeShowAv" class="store-show-av" alt="" />
-          <div class="store-show-meta">
-            <div id="storeShowName" class="store-show-name">Dein Profil</div>
-            <div id="storeShowSub" class="store-show-sub"></div>
-            <div class="store-show-bar"><div id="storeShowFill" style="width:0%;"></div></div>
-            <div class="store-show-col"><span id="storeShowColl">0 gesammelt</span><span id="storeShowPct">0%</span></div>
+        <div class="socials-section">
+          <h3 class="socials-subhead">Freunde verwalten</h3>
+          <p class="socials-hint" id="kollegenHint">Verbinde dich mit Discord, um Freunde zu sehen und hinzuzufügen.</p>
+          <div class="add-friend">
+            <input id="friendCodeInput" placeholder="Freundes-Code" autocomplete="off" />
+            <button id="friendCodeAdd" class="btn-primary">Hinzufügen</button>
           </div>
-        </div>
-        <div class="store-tools">
-          <div class="store-rar" id="storeRarChips">
-            <button class="chip on" data-r="alle">Alle Raritäten</button>
-            <button class="chip" data-r="common">Gewöhnlich</button>
-            <button class="chip" data-r="rare">Selten</button>
-            <button class="chip" data-r="epic">Episch</button>
-            <button class="chip" data-r="legendary">Legendär</button>
+          <div id="kollegenRequestsWrap" style="display:none;">
+            <div class="socials-subhead" style="margin-top:0.4rem;margin-bottom:0.35rem;">Freundesanfragen</div>
+            <ul id="kollegenRequests" class="friend-list" role="list"></ul>
           </div>
-          <select id="storeSort" class="store-sort">
-            <option value="price-asc">Preis ↑</option>
-            <option value="price-desc">Preis ↓</option>
-            <option value="rarity">Seltenheit</option>
-            <option value="name">Name</option>
-          </select>
+          <ul id="kollegenFriends" class="friend-list" role="list"></ul>
         </div>
-        <div class="store-tabs" id="storeTabs">
-          <button class="tab on" data-f="alle">Alle</button>
-          <button class="tab" data-f="title">Titel</button>
-          <button class="tab" data-f="avatar_frame">Avatar-Rahmen</button>
-          <button class="tab" data-f="avatar_theme">Avatar-Hintergrund</button>
-          <button class="tab" data-f="badge">Abzeichen</button>
-          <button class="tab" data-f="profile_frame">Profil-Rahmen</button>
-          <button class="tab" data-f="profile_bg">Profil-Hintergrund</button>
-          <button class="tab" data-f="banner">Banner</button>
-          <button class="tab" data-f="profil_stil">Profilstil</button>
-          <button class="tab" data-f="font">Schriftart</button>
-          <button class="tab" data-f="name_color">Namensfarbe</button>
-          <button class="tab" data-f="sticker">Aufkleber</button>
-        </div>
-        <div class="store-grid" id="storeGrid"><div class="store-msg">Lade Store…</div></div>
 
-        <div class="socials-invite">
+        <div class="socials-section">
+          <h3 class="socials-subhead">Gruppen</h3>
+          <p class="socials-hint">Erstelle eine Gruppe, um zusammen zu chatten oder anzurufen.</p>
+          <div class="add-friend">
+            <input id="groupNameInput" placeholder="Gruppenname" autocomplete="off" maxlength="60" />
+            <button id="groupCreateBtn" class="btn-primary">Erstellen</button>
+          </div>
+          <ul id="kollegenGroups" class="friend-list" role="list"><li style="color:var(--text-muted);">Lade Gruppen…</li></ul>
+        </div>
+
+        <div class="socials-section">
+          <h3 class="socials-subhead">Store</h3>
+          <p class="socials-hint">Kollegen-Points einlösen: Kosmetik kaufen und an deinem Profil ausrüsten.</p>
+          <div class="store-wallet" id="storeWallet" style="display:none;">
+            <span class="store-pts" id="storePts">★ 0</span>
+            <span class="store-lvl" id="storeLvl">Level 1</span>
+          </div>
+          <div class="store-show" id="storeShow" style="display:none;">
+            <div class="store-show-banner" id="storeShowBanner"></div>
+            <img id="storeShowAv" class="store-show-av" alt="" />
+            <div class="store-show-meta">
+              <div id="storeShowName" class="store-show-name">Dein Profil</div>
+              <div id="storeShowSub" class="store-show-sub"></div>
+              <div class="store-show-bar"><div id="storeShowFill" style="width:0%;"></div></div>
+              <div class="store-show-col"><span id="storeShowColl">0 gesammelt</span><span id="storeShowPct">0%</span></div>
+            </div>
+          </div>
+          <div class="store-tools">
+            <div class="store-rar" id="storeRarChips">
+              <button class="chip active" data-r="alle">Alle Raritäten</button>
+              <button class="chip" data-r="common">Gewöhnlich</button>
+              <button class="chip" data-r="rare">Selten</button>
+              <button class="chip" data-r="epic">Episch</button>
+              <button class="chip" data-r="legendary">Legendär</button>
+            </div>
+            <select id="storeSort" class="store-sort">
+              <option value="price-asc">Preis ↑</option>
+              <option value="price-desc">Preis ↓</option>
+              <option value="rarity">Seltenheit</option>
+              <option value="name">Name</option>
+            </select>
+          </div>
+          <div class="store-tabs" id="storeTabs" role="tablist">
+            <button class="tab active" data-f="alle" role="tab" aria-selected="true">Alle</button>
+            <button class="tab" data-f="title" role="tab" aria-selected="false">Titel</button>
+            <button class="tab" data-f="avatar_frame" role="tab" aria-selected="false">Avatar-Rahmen</button>
+            <button class="tab" data-f="avatar_theme" role="tab" aria-selected="false">Avatar-Hintergrund</button>
+            <button class="tab" data-f="badge" role="tab" aria-selected="false">Abzeichen</button>
+            <button class="tab" data-f="profile_frame" role="tab" aria-selected="false">Profil-Rahmen</button>
+            <button class="tab" data-f="profile_bg" role="tab" aria-selected="false">Profil-Hintergrund</button>
+            <button class="tab" data-f="banner" role="tab" aria-selected="false">Banner</button>
+            <button class="tab" data-f="profil_stil" role="tab" aria-selected="false">Profilstil</button>
+            <button class="tab" data-f="font" role="tab" aria-selected="false">Schriftart</button>
+            <button class="tab" data-f="name_color" role="tab" aria-selected="false">Namensfarbe</button>
+            <button class="tab" data-f="sticker" role="tab" aria-selected="false">Aufkleber</button>
+          </div>
+          <div class="store-grid" id="storeGrid" role="tabpanel"><div class="store-msg">Lade Store…</div></div>
+        </div>
+
+        <div class="socials-section">
+          <h3 class="socials-subhead">Einladen</h3>
           <p class="socials-hint">Kennst du jemanden, der den Kollegen Client auch nutzen sollte?</p>
-          <button id="inviteLauncherBtn" class="invite-launcher-btn">Auf GitHub einladen</button>
+          <button id="inviteLauncherBtn" class="btn-secondary">Auf GitHub einladen</button>
         </div>
       </div>
     </section>
 
-    <section id="logsPanel" class="panel tab-panel" data-tab="logs">
-      <div class="logs-header">
-        <h2>Logs &amp; Updates</h2>
-        <div class="logs-actions">
-          <button id="refreshLogsBtn" class="icon-btn" title="Aktualisieren">↻</button>
-          <button id="copyLogsBtn" class="icon-btn" title="Kopieren">⧉</button>
-          <button id="openLogFolderBtn" class="icon-btn" title="Ordner öffnen">📁</button>
+    <section id="storePanel" class="panel tab-panel" data-tab="store" aria-labelledby="storeTitle" hidden>
+      <header class="panel-header">
+        <h2 id="storeTitle">Store</h2>
+        <div class="store-wallet" id="storeWalletMain" style="display:none;">
+          <span class="store-pts" id="storePtsMain">★ 0</span>
+          <span class="store-lvl" id="storeLvlMain">Level 1</span>
         </div>
+      </header>
+      <div class="store-tools">
+        <div class="store-rar" id="storeRarChipsMain">
+          <button class="chip active" data-r="alle">Alle Raritäten</button>
+          <button class="chip" data-r="common">Gewöhnlich</button>
+          <button class="chip" data-r="rare">Selten</button>
+          <button class="chip" data-r="epic">Episch</button>
+          <button class="chip" data-r="legendary">Legendär</button>
+        </div>
+        <select id="storeSortMain" class="store-sort">
+          <option value="price-asc">Preis ↑</option>
+          <option value="price-desc">Preis ↓</option>
+          <option value="rarity">Seltenheit</option>
+          <option value="name">Name</option>
+        </select>
       </div>
+      <div class="store-tabs" id="storeTabsMain" role="tablist">
+        <button class="tab active" data-f="alle" role="tab" aria-selected="true">Alle</button>
+        <button class="tab" data-f="title" role="tab" aria-selected="false">Titel</button>
+        <button class="tab" data-f="avatar_frame" role="tab" aria-selected="false">Avatar-Rahmen</button>
+        <button class="tab" data-f="avatar_theme" role="tab" aria-selected="false">Avatar-Hintergrund</button>
+        <button class="tab" data-f="badge" role="tab" aria-selected="false">Abzeichen</button>
+        <button class="tab" data-f="profile_frame" role="tab" aria-selected="false">Profil-Rahmen</button>
+        <button class="tab" data-f="profile_bg" role="tab" aria-selected="false">Profil-Hintergrund</button>
+        <button class="tab" data-f="banner" role="tab" aria-selected="false">Banner</button>
+        <button class="tab" data-f="profil_stil" role="tab" aria-selected="false">Profilstil</button>
+        <button class="tab" data-f="font" role="tab" aria-selected="false">Schriftart</button>
+        <button class="tab" data-f="name_color" role="tab" aria-selected="false">Namensfarbe</button>
+        <button class="tab" data-f="sticker" role="tab" aria-selected="false">Aufkleber</button>
+      </div>
+      <div class="store-grid" id="storeGridMain" role="tabpanel"><div class="store-msg">Lade Store…</div></div>
+    </section>
+
+    <section id="profilePanel" class="panel tab-panel" data-tab="profile" aria-labelledby="profileTitle" hidden>
+      <header class="panel-header">
+        <h2 id="profileTitle">Profil</h2>
+      </header>
+      <button id="openProfileModalBtn" class="btn-primary" style="width:100%; max-width:300px;">Profil öffnen & bearbeiten</button>
+    </section>
+
+    <section id="logsPanel" class="panel tab-panel" data-tab="logs" aria-labelledby="logsTitle" hidden>
+      <header class="panel-header">
+        <h2 id="logsTitle">Logs & Updates</h2>
+        <div class="logs-actions">
+          <button id="refreshLogsBtn" class="icon-btn" title="Aktualisieren" aria-label="Aktualisieren">↻</button>
+          <button id="copyLogsBtn" class="icon-btn" title="Kopieren" aria-label="Kopieren">⧉</button>
+          <button id="openLogFolderBtn" class="icon-btn" title="Ordner öffnen" aria-label="Ordner öffnen">📁</button>
+        </div>
+      </header>
       <div class="update-status">
         <div class="update-row">
           <span class="update-label">Launcher-Version:</span>
@@ -226,10 +289,10 @@
         </div>
         <div class="update-row">
           <span class="update-label">Mod-Update:</span>
-          <span class="update-value">wird bei jedem Start automatisch geprüft &amp; installiert</span>
+          <span class="update-value">wird bei jedem Start automatisch geprüft & installiert</span>
         </div>
         <div class="update-row update-actions">
-          <button id="checkUpdateBtn" class="small-btn">Launcher-Update prüfen</button>
+          <button id="checkUpdateBtn" class="btn-small">Launcher-Update prüfen</button>
           <span id="updateResult" class="update-result"></span>
         </div>
       </div>
@@ -237,70 +300,70 @@
     </section>
   </main>
 
-  <div id="manageModal" class="modal" style="display:none;">
+  <div id="manageModal" class="modal" hidden>
     <div class="modal-content manage-content">
       <div id="manageOverview">
-        <div class="modal-header">
+        <header class="modal-header">
           <h2 id="manageTitle">Verwalten</h2>
-          <button id="manageClose">Schließen</button>
-        </div>
-        <div class="tabs">
-          <button class="tab active" data-kind="mod">Mods</button>
-          <button class="tab" data-kind="resourcepack">Resource Packs</button>
-          <button class="tab" data-kind="shader">Shader</button>
+          <button id="manageClose" class="icon-btn" aria-label="Schließen">✕</button>
+        </header>
+        <div class="tabs" role="tablist">
+          <button class="tab active" data-kind="mod" role="tab" aria-selected="true">Mods</button>
+          <button class="tab" data-kind="resourcepack" role="tab" aria-selected="false">Resource Packs</button>
+          <button class="tab" data-kind="shader" role="tab" aria-selected="false">Shader</button>
         </div>
         <div class="manage-actions">
-          <button id="manageImportBtn" class="manage-action">Importieren</button>
-          <button id="manageBrowseBtn" class="manage-action primary">Browse</button>
+          <button id="manageImportBtn" class="btn-secondary">Importieren</button>
+          <button id="manageBrowseBtn" class="btn-primary">Browse</button>
         </div>
         <h3 class="installed-heading">Installiert</h3>
-        <ul id="manageInstalled"></ul>
+        <ul id="manageInstalled" role="list"></ul>
       </div>
-      <div id="manageBrowse" style="display:none;">
+      <div id="manageBrowse" hidden>
         <div class="browse-topbar">
-          <button id="browseBack" class="back-btn" title="Zurück">←</button>
+          <button id="browseBack" class="btn-icon" title="Zurück" aria-label="Zurück">←</button>
           <div class="manage-search">
             <input id="manageQuery" placeholder="Suchen..." />
-            <button id="manageSearchBtn">Suchen</button>
+            <button id="manageSearchBtn" class="btn-primary">Suchen</button>
           </div>
         </div>
-        <div id="manageResults" class="cards"></div>
+        <div id="manageResults" class="cards" role="list"></div>
       </div>
-      <div id="manageDetail" class="detail" style="display:none;"></div>
+      <div id="manageDetail" class="detail" hidden></div>
     </div>
   </div>
 
-  <div id="joinFriendModal" class="modal" style="display:none;">
+  <div id="joinFriendModal" class="modal" hidden>
     <div class="modal-content">
-      <div class="modal-header">
+      <header class="modal-header">
         <h2 id="joinFriendTitle">Freund beitreten</h2>
-        <button id="joinFriendClose">Schließen</button>
-      </div>
+        <button id="joinFriendClose" class="icon-btn" aria-label="Schließen">✕</button>
+      </header>
       <p class="socials-hint" id="joinFriendHint"></p>
-      <ul id="joinFriendInstances" class="instance-pick"></ul>
+      <ul id="joinFriendInstances" class="instance-pick" role="list"></ul>
     </div>
   </div>
 
-  <div id="settingsModal" class="modal" style="display:none;">
+  <div id="settingsModal" class="modal" hidden>
     <div class="modal-content settings-content">
-      <div class="modal-header">
+      <header class="modal-header">
         <h2>Einstellungen</h2>
-        <button id="settingsClose" class="icon-btn">✕</button>
-      </div>
-      <div class="settings-tabs">
-        <button class="settings-tab active" data-tab="connections">Verbindungen</button>
-        <button class="settings-tab" data-tab="themes">Themes</button>
-        <button class="settings-tab" data-tab="import">Importieren</button>
-        <button class="settings-tab" data-tab="updates">Updates</button>
-        <button class="settings-tab" data-tab="steamdeck">SteamDeck</button>
+        <button id="settingsClose" class="icon-btn" aria-label="Schließen">✕</button>
+      </header>
+      <div class="settings-tabs" role="tablist">
+        <button class="settings-tab active" data-tab="connections" role="tab" aria-selected="true">Verbindungen</button>
+        <button class="settings-tab" data-tab="themes" role="tab" aria-selected="false">Themes</button>
+        <button class="settings-tab" data-tab="import" role="tab" aria-selected="false">Importieren</button>
+        <button class="settings-tab" data-tab="updates" role="tab" aria-selected="false">Updates</button>
+        <button class="settings-tab" data-tab="steamdeck" role="tab" aria-selected="false">SteamDeck</button>
       </div>
       <div class="settings-body">
-        <section id="settingsConnections" class="settings-section">
+        <section id="settingsConnections" class="settings-section" role="tabpanel">
           <h3>Microsoft-Accounts</h3>
-          <button id="msAddBtn" class="settings-action">Microsoft-Account hinzufügen</button>
-          <ul id="msAccountList" class="account-list"></ul>
+          <button id="msAddBtn" class="btn-secondary">Microsoft-Account hinzufügen</button>
+          <ul id="msAccountList" class="account-list" role="list"></ul>
           <h3>Discord</h3>
-          <button id="discordLogoutBtn" class="settings-action danger">Discord abmelden</button>
+          <button id="discordLogoutBtn" class="btn-danger">Discord abmelden</button>
           <h3>Begleit-Mod</h3>
           <label class="settings-check">
             <input type="checkbox" id="companionModToggle" />
@@ -314,26 +377,26 @@
           </label>
           <p class="socials-hint">Bei Fabric-/Quilt-Instanzen werden die stärksten bekannten Performance-Mods vorinstalliert. Bestehende Instanzen lassen sich über den „Optimize"-Knopf nachrüsten.</p>
         </section>
-        <section id="settingsThemes" class="settings-section" style="display:none;">
+        <section id="settingsThemes" class="settings-section" role="tabpanel" hidden>
           <h3>Theme (Farbschema)</h3>
-          <div id="themeList" class="theme-list"></div>
+          <div id="themeList" class="theme-list" role="list"></div>
           <h3>Darstellung</h3>
           <div id="layoutOptions" class="layout-options"></div>
         </section>
-        <section id="settingsImport" class="settings-section" style="display:none;">
-          <button id="importScanBtn" class="settings-action">Instance von anderem Launcher importieren</button>
-          <button id="importPackBtn" class="settings-action">Modpack importieren (.mrpack / .zip)</button>
+        <section id="settingsImport" class="settings-section" role="tabpanel" hidden>
+          <button id="importScanBtn" class="btn-secondary">Instance von anderem Launcher importieren</button>
+          <button id="importPackBtn" class="btn-secondary">Modpack importieren (.mrpack / .zip)</button>
           <div id="importLauncherList" class="import-list"></div>
           <div id="importInstanceList" class="import-list"></div>
           <div id="importStatus" class="socials-hint"></div>
         </section>
-        <section id="settingsUpdates" class="settings-section" style="display:none;">
+        <section id="settingsUpdates" class="settings-section" role="tabpanel" hidden>
           <h3>Updates</h3>
-          <button id="updateCheckBtn" class="settings-action">Jetzt auf Updates prüfen</button>
+          <button id="updateCheckBtn" class="btn-secondary">Jetzt auf Updates prüfen</button>
           <div id="updateStatus" class="socials-hint"></div>
-          <button id="updateInstallBtn" class="settings-action" style="display:none;">Update installieren</button>
+          <button id="updateInstallBtn" class="btn-primary" hidden>Update installieren</button>
         </section>
-        <section id="settingsSteamDeck" class="settings-section" style="display:none;">
+        <section id="settingsSteamDeck" class="settings-section" role="tabpanel" hidden>
           <h3>SteamDeck / Konsolen-Modus</h3>
           <label class="settings-check">
             <input type="checkbox" id="steamdeckToggle" />
@@ -348,11 +411,9 @@
 
   <div id="versionBadge">v…</div>
 
-  <!-- 3D-Skin-Anzeige im Profil-Modal (lokal gebündelt, da CSP externe Scripts blockt) -->
   <script src="skinview3d.bundle.js"></script>
 
-  <!-- Profil (oben rechts) -->
-  <div id="profileWidget" class="hud-widget hud-profile" title="Profil öffnen">
+  <div id="profileWidget" class="hud-widget hud-profile" title="Profil öffnen" role="button" tabindex="0" aria-label="Profil öffnen">
     <img id="pwAvatar" class="hud-avatar" alt="" />
     <div class="hud-meta">
       <div id="pwName" class="hud-name">nicht verbunden</div>
@@ -360,77 +421,75 @@
     </div>
   </div>
 
-  <!-- Freunde (oben links) -->
-  <div id="friendsWidget" class="hud-widget hud-friends">
+  <div id="friendsWidget" class="hud-widget hud-friends" hidden>
     <div class="hud-friends-head">Freunde</div>
-    <ul id="fwList" class="friend-list"></ul>
+    <ul id="fwList" class="friend-list" role="list"></ul>
   </div>
 
-  <!-- Profil-Modal -->
-  <div id="dmModal" class="modal" style="display:none;">
+  <div id="dmModal" class="modal" hidden>
     <div class="modal-content dm-modal">
-      <button id="dmClose" class="icon-btn" title="Schließen">✕</button>
+      <button id="dmClose" class="icon-btn" aria-label="Schließen">✕</button>
       <h2 style="margin-top:0;">Nachrichten</h2>
       <div class="dm-cols">
         <div class="dm-convs">
           <div class="dm-convs-head">Chats</div>
-          <div id="dmConvList" class="dm-conv-list"><div class="dm-empty">Keine Chats.</div></div>
+          <div id="dmConvList" class="dm-conv-list" role="list"><div class="dm-empty">Keine Chats.</div></div>
           <input id="dmConvCode" placeholder="Freundes-Code öffnen" autocomplete="off" />
         </div>
         <div class="dm-thread">
-          <div class="dm-thread-head" id="dmThreadHead">
+          <header class="dm-thread-head" id="dmThreadHead">
             <img id="dmThAv" alt="" style="display:none;" />
             <span id="dmThName">Konversation wählen</span>
-            <button id="dmCallBtn" class="small-btn" title="Anrufen" style="display:none;"><span>📶</span> Anrufen</button>
-            <a id="dmThProf" href="#" style="display:none;">Profil</a>
-          </div>
-          <div id="dmCallBar" class="dm-callbar" style="display:none;">
+            <button id="dmCallBtn" class="btn-small" title="Anrufen" hidden><span>📶</span> Anrufen</button>
+            <a id="dmThProf" href="#" hidden>Profil</a>
+          </header>
+          <div id="dmCallBar" class="dm-callbar" hidden>
             <span id="dmCallState">Anruf wird aufgebaut…</span>
-            <button id="dmCallEnd" class="small-btn">Auflegen</button>
+            <button id="dmCallEnd" class="btn-small">Auflegen</button>
           </div>
-          <div id="dmMsgList" class="dm-msgs"><div class="dm-empty">Wähle links einen Chat oder öffne einen Freundes-Code.</div></div>
-          <div class="dm-input" id="dmInputBox" style="display:none;">
+          <div id="dmMsgList" class="dm-msgs" role="log"><div class="dm-empty">Wähle links einen Chat oder öffne einen Freundes-Code.</div></div>
+          <div class="dm-input" id="dmInputBox" hidden>
             <input id="dmText" placeholder="Nachricht …" maxlength="2000" autocomplete="off" />
-            <button id="dmSend">Senden</button>
+            <button id="dmSend" class="btn-primary">Senden</button>
           </div>
         </div>
       </div>
     </div>
   </div>
 
-  <div id="groupModal" class="modal" style="display:none;">
+  <div id="groupModal" class="modal" hidden>
     <div class="modal-content dm-modal">
-      <button id="groupClose" class="icon-btn" title="Schließen">✕</button>
+      <button id="groupClose" class="icon-btn" aria-label="Schließen">✕</button>
       <h2 id="groupTitle" style="margin-top:0;">Gruppe</h2>
-      <div id="groupMembers" class="group-members"></div>
-      <div id="groupMsgList" class="dm-msgs"><div class="dm-empty">Noch keine Nachrichten.</div></div>
-      <div class="dm-input" id="groupInputBox" style="display:none;">
+      <div id="groupMembers" class="group-members" role="list"></div>
+      <div id="groupMsgList" class="dm-msgs" role="log"><div class="dm-empty">Noch keine Nachrichten.</div></div>
+      <div class="dm-input" id="groupInputBox" hidden>
         <input id="groupText" placeholder="Nachricht …" maxlength="2000" autocomplete="off" />
-        <button id="groupSend">Senden</button>
+        <button id="groupSend" class="btn-primary">Senden</button>
       </div>
-      <div id="groupCallBar" class="dm-callbar" style="display:none;">
+      <div id="groupCallBar" class="dm-callbar" hidden>
         <span id="groupCallState">Gruppenanruf wird aufgebaut…</span>
-        <button id="groupCallEnd" class="small-btn">Auflegen</button>
+        <button id="groupCallEnd" class="btn-small">Auflegen</button>
       </div>
       <div class="group-actions">
         <input id="groupAddCode" placeholder="Freundes-Code hinzufügen" autocomplete="off" maxlength="10" />
-        <button id="groupAddBtn">Hinzufügen</button>
-        <button id="groupCallBtn">Anrufen</button>
-        <button id="groupLeaveBtn">Verlassen</button>
+        <button id="groupAddBtn" class="btn-secondary">Hinzufügen</button>
+        <button id="groupCallBtn" class="btn-primary">Anrufen</button>
+        <button id="groupLeaveBtn" class="btn-danger">Verlassen</button>
       </div>
     </div>
   </div>
 
-  <div id="storeItemModal" class="modal" style="display:none;">
+  <div id="storeItemModal" class="modal" hidden>
     <div class="modal-content store-item-content">
-      <button id="storeItemClose" class="icon-btn" title="Schließen">✕</button>
+      <button id="storeItemClose" class="icon-btn" aria-label="Schließen">✕</button>
       <div id="storeItemBody"></div>
     </div>
   </div>
 
-  <div id="profileModal" class="modal" style="display:none;">
+  <div id="profileModal" class="modal" hidden>
     <div class="modal-content profile-modal">
-      <button id="profileClose" class="icon-btn">✕</button>
+      <button id="profileClose" class="icon-btn" aria-label="Schließen">✕</button>
       <div class="profile-skin" id="profileSkinCol">
         <canvas id="skinCanvas" width="200" height="400"></canvas>
       </div>
@@ -441,99 +500,97 @@
           <div class="profile-code">
             <span>Freundes-Code:</span>
             <code id="pmCode"></code>
-            <button id="pmCopy">Kopieren</button>
+            <button id="pmCopy" class="btn-small">Kopieren</button>
           </div>
           <h4>Verbundene Accounts</h4>
           <div id="pmAccounts" class="profile-accounts"></div>
         </div>
 
-      <!-- Neues Profilediting: Bio, Banner, Avatar, Öffentlich -->
-      <div class="profile-customize" id="profileCustomize">
-        <h4>Profil anpassen</h4>
-        <label for="profileBio">Bio</label>
-        <textarea id="profileBio" placeholder="Beschreibe dich in ein paar Worten..." rows="3"></textarea>
+        <div class="profile-customize" id="profileCustomize">
+          <h4>Profil anpassen</h4>
+          <label for="profileBio">Bio</label>
+          <textarea id="profileBio" placeholder="Beschreibe dich in ein paar Worten..." rows="3"></textarea>
 
-        <label>Banner (optional)</label>
-        <div class="banner-picker">
-          <input id="profileBannerInput" type="file" accept="image/*" />
-          <div id="profileBannerPreviewWrap"><img id="profileBannerPreview" alt="Banner Vorschau" style="display:none; max-width:100%; border-radius:6px;" /></div>
+          <label>Banner (optional)</label>
+          <div class="banner-picker">
+            <input id="profileBannerInput" type="file" accept="image/*" />
+            <div id="profileBannerPreviewWrap"><img id="profileBannerPreview" alt="Banner Vorschau" style="display:none; max-width:100%; border-radius:var(--radius-md);" /></div>
+          </div>
+
+          <label>Avatar</label>
+          <div class="avatar-options">
+            <select id="profileAvatarChoice">
+              <option value="discord">Discord-Avatar</option>
+              <option value="minecraft">Minecraft-Head (Aktueller Skin)</option>
+              <option value="upload">Hochladen</option>
+            </select>
+            <input id="profileAvatarUpload" type="file" accept="image/*" hidden />
+            <div id="profileAvatarPreviewWrap"><img id="profileAvatarPreview" alt="Avatar Vorschau" style="display:none; width:64px; height:64px; border-radius:var(--radius-md);" /></div>
+          </div>
+
+          <label class="settings-check"><input type="checkbox" id="profilePublicToggle" /> Öffentliches Profil (sichtbar für andere)</label>
+
+          <div style="margin-top:0.5rem; display:flex; gap:0.5rem; align-items:center;">
+            <button id="profileEditToggle" class="btn-secondary">Bearbeiten</button>
+            <button id="profileSaveBtn" class="btn-primary" hidden>Speichern</button>
+            <button id="profileCancelBtn" class="btn-secondary" hidden>Abbrechen</button>
+            <button id="profilePublishBtn" class="btn-primary" style="margin-left:auto;">Publizieren</button>
+          </div>
+
+          <div style="margin-top:0.5rem; display:flex; gap:0.5rem; align-items:center;">
+            <input id="profileServerUrl" placeholder="Backend-URL (z. B. https://kollegen.example.com)" style="flex:1;" />
+            <input id="profileServerToken" placeholder="Server-Token (optional)" style="width:220px;" />
+          </div>
         </div>
 
-        <label>Avatar</label>
-        <div class="avatar-options">
-          <select id="profileAvatarChoice">
-            <option value="discord">Discord-Avatar</option>
-            <option value="minecraft">Minecraft-Head (Aktueller Skin)</option>
-            <option value="upload">Hochladen</option>
-          </select>
-          <input id="profileAvatarUpload" type="file" accept="image/*" style="display:none;" />
-          <div id="profileAvatarPreviewWrap"><img id="profileAvatarPreview" alt="Avatar Vorschau" style="display:none; width:64px; height:64px; border-radius:8px;" /></div>
+        <div style="margin-top:1rem;" class="kosmet-box" id="kosmetBox">
+          <h4>Kosmetik (Profil ausrüsten)</h4>
+          <div class="kosmet-preview" id="kosmetPreview"></div>
+          <div id="kosmetGroups"></div>
+          <div class="kosmet-pts" id="kosmetPts"></div>
+          <div class="kosmet-hint" id="kosmetHint"></div>
+          <button id="kosmetViewBtn" class="btn-secondary" style="margin-top:0.5rem;">👁 So sehen dich andere</button>
         </div>
 
-        <label class="settings-check"><input type="checkbox" id="profilePublicToggle" /> Öffentliches Profil (sichtbar für andere)</label>
-
-        <div style="margin-top:0.5rem; display:flex; gap:0.5rem; align-items:center;">
-          <button id="profileEditToggle">Bearbeiten</button>
-          <button id="profileSaveBtn" style="display:none;">Speichern</button>
-          <button id="profileCancelBtn" style="display:none;">Abbrechen</button>
-          <button id="profilePublishBtn" style="display:inline-block; margin-left:auto;">Publizieren</button>
+        <div style="margin-top:1rem;">
+          <h4>Profil anderer ansehen</h4>
+          <div style="display:flex; gap:0.5rem; align-items:center;">
+            <input id="viewProfileName" placeholder="Minecraft-Name" />
+            <button id="viewProfileBtn" class="btn-secondary">Anzeigen</button>
+          </div>
+          <div style="display:flex; gap:0.5rem; align-items:center; margin-top:0.4rem;">
+            <input id="browseProfileSearch" placeholder="Server-Durchsuchung (Code oder Name)" style="flex:1;" />
+            <button id="browseProfileBtn" class="btn-secondary">Öffentliche durchsuchen</button>
+          </div>
+          <div id="viewProfileResult" style="margin-top:0.5rem;"></div>
         </div>
 
-        <div style="margin-top:0.5rem; display:flex; gap:0.5rem; align-items:center;">
-          <input id="profileServerUrl" placeholder="Backend-URL (z. B. https://kollegen.example.com)" style="flex:1;" />
-          <input id="profileServerToken" placeholder="Server-Token (optional)" style="width:220px;" />
+        <div class="skin-changer" id="skinChanger">
+          <h4>Skin wechseln</h4>
+          <div class="skin-actions">
+            <button id="skinDownloadBtn" class="btn-secondary">Download</button>
+            <button id="skinUploadBtn" class="btn-secondary">Upload</button>
+            <input id="skinFileInput" type="file" accept="image/png" hidden />
+          </div>
+          <div id="skinLibrary" class="skin-library" role="list"></div>
+        </div>
+
+        <div class="cape-changer" id="capeChanger">
+          <h4>Capes</h4>
+          <div id="capeList" class="cape-list" role="list"></div>
         </div>
       </div>
-
-      <div style="margin-top:1rem;" class="kosmet-box" id="kosmetBox">
-        <h4>Kosmetik (Profil ausrüsten)</h4>
-        <div class="kosmet-preview" id="kosmetPreview"></div>
-        <div id="kosmetGroups"></div>
-        <div class="kosmet-pts" id="kosmetPts"></div>
-        <div class="kosmet-hint" id="kosmetHint"></div>
-        <button id="kosmetViewBtn" class="socials-profile-btn" style="margin-top:0.5rem;">👁 So sehen dich andere</button>
-      </div>
-
-      <div style="margin-top:1rem;">
-        <h4>Profil anderer ansehen</h4>
-        <div style="display:flex; gap:0.5rem; align-items:center;">
-          <input id="viewProfileName" placeholder="Minecraft-Name" />
-          <button id="viewProfileBtn">Anzeigen</button>
-        </div>
-        <div style="display:flex; gap:0.5rem; align-items:center; margin-top:0.4rem;">
-          <input id="browseProfileSearch" placeholder="Server-Durchsuchung (Code oder Name)" style="flex:1;" />
-          <button id="browseProfileBtn">Öffentliche durchsuchen</button>
-        </div>
-        <div id="viewProfileResult" style="margin-top:0.5rem;"></div>
-      </div>
-
-      <div class="skin-changer" id="skinChanger">
-        <h4>Skin wechseln</h4>
-        <div class="skin-actions">
-          <button id="skinDownloadBtn">Download</button>
-          <button id="skinUploadBtn">Upload</button>
-          <input id="skinFileInput" type="file" accept="image/png" style="display:none;" />
-        </div>
-        <div id="skinLibrary" class="skin-library"></div>
-      </div>
-
-      <div class="cape-changer" id="capeChanger">
-        <h4>Capes</h4>
-        <div id="capeList" class="cape-list"></div>
-      </div>
-    </div>
     </div>
   </div>
 
-  <div id="toast" class="toast"></div>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <!-- QR-Login als Popup (im Konsolenmodus, da dort der Header ausgeblendet ist) -->
-  <div id="loginQrModal" class="modal" style="display:none;">
+  <div id="loginQrModal" class="modal" hidden>
     <div class="modal-content login-qr-content">
-      <div class="modal-header">
+      <header class="modal-header">
         <h2>Mit dem Handy anmelden</h2>
-        <button id="loginQrClose" class="icon-btn" title="Schließen">✕</button>
-      </div>
+        <button id="loginQrClose" class="icon-btn" aria-label="Schließen">✕</button>
+      </header>
       <img id="loginQrModalImg" class="qr-img" alt="QR-Code zum Scannen" />
       <div class="login-qr-code">
         <span>Code:</span>
@@ -543,13 +600,12 @@
     </div>
   </div>
 
-  <!-- Auswahl-Popup für Dropdowns (Konsolenmodus: D-Pad scrollt, A wählt) -->
-  <div id="pickModal" class="modal" style="display:none;">
+  <div id="pickModal" class="modal" hidden>
     <div class="modal-content picker-content">
-      <div class="modal-header">
+      <header class="modal-header">
         <h2 id="pickTitle">Auswahl</h2>
-        <button id="pickClose" class="icon-btn" title="Schließen">✕</button>
-      </div>
+        <button id="pickClose" class="icon-btn" aria-label="Schließen">✕</button>
+      </header>
       <div id="pickList"></div>
     </div>
   </div>

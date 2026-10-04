@@ -59,14 +59,25 @@ async function refreshInstances() {
     const list = $("instanceList");
     list.innerHTML = "";
     if (instances.length === 0) {
-      list.innerHTML = "<li style='color: #888; justify-content: center;'>Keine Instanzen vorhanden</li>";
+      list.innerHTML = "<div class='instance-empty'>Keine Instanzen vorhanden. Erstelle deine erste Instanz.</div>";
       return;
     }
     for (const inst of instances) {
-      const li = document.createElement("li");
-      const label = document.createElement("span");
-      label.textContent = `${inst.name} — ${inst.version} (${inst.loader})`;
-      const actions = document.createElement("span");
+      const card = document.createElement("div");
+      card.className = "instance-card";
+
+      const info = document.createElement("div");
+      info.className = "instance-card-info";
+      const name = document.createElement("div");
+      name.className = "instance-card-name";
+      name.textContent = inst.name;
+      const meta = document.createElement("div");
+      meta.className = "instance-card-meta";
+      meta.textContent = `${inst.version} · ${inst.loader}`;
+      info.append(name, meta);
+
+      const actions = document.createElement("div");
+      actions.className = "instance-card-actions";
 
       const launch = document.createElement("button");
       launch.textContent = "Starten";
@@ -74,17 +85,21 @@ async function refreshInstances() {
 
       const manage = document.createElement("button");
       manage.textContent = "Verwalten";
+      manage.className = "ghost";
       manage.onclick = () => openManage(inst);
 
       const folder = document.createElement("button");
       folder.textContent = "Ordner";
+      folder.className = "ghost";
       folder.title = "Instanz-Ordner öffnen";
       folder.onclick = () => invoke("open_instance_folder", { instanceName: inst.name }).catch((e) => alert("Fehler: " + e));
 
-      let opt = null;
+      actions.append(launch, manage, folder);
+
       if (inst.loader === "fabric" || inst.loader === "quilt") {
-        opt = document.createElement("button");
+        const opt = document.createElement("button");
         opt.textContent = "Optimize";
+        opt.className = "ghost";
         opt.title = "Performance-Modpack installieren";
         opt.onclick = async () => {
           opt.disabled = true;
@@ -98,15 +113,17 @@ async function refreshInstances() {
           opt.disabled = false;
           opt.textContent = "Optimize";
         };
+        actions.append(opt);
       }
 
       const del = document.createElement("button");
       del.textContent = "Löschen";
+      del.className = "ghost danger";
       del.onclick = () => deleteInstance(inst.name, inst.id);
+      actions.append(del);
 
-      actions.append(launch, manage, folder, ...(opt ? [opt] : []), del);
-      li.append(label, actions);
-      list.append(li);
+      card.append(info, actions);
+      list.append(card);
     }
   } catch (e) {
     console.error(e);
@@ -173,7 +190,8 @@ async function refreshLogs() {
         ? `Angemeldet: ${status.username || ""}`
         : `Status: ${status.state} ${status.msg ? '(' + status.msg + ')' : ''}`;
       if (status.state === "done") {
-        $("loginInfo").style.display = "none";
+        const li = $("loginInfo");
+        if (li) li.style.display = "none";
         $("authBtn").style.display = "none";
         const qrModal = $("loginQrModal");
         if (qrModal && qrModal.style.display !== "none") {
@@ -1331,26 +1349,25 @@ async function createInstance() {
   const loaderVersion = $("iLoaderVer").value || null;
   if (!name || !version) return alert("Name und Version erforderlich");
   
+  const submitBtn = document.querySelector("#createForm button[type=submit]");
   try {
-    $("createBtn").disabled = true;
-    $("createBtn").textContent = "Erstelle...";
-    
+    if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = "Erstelle..."; }
+
     // 1. Create instance in json and show immediately
     await invoke("create_instance", { name, version, loader, loaderVersion });
     await refreshInstances();
 
     // 2. Install files
-    $("createBtn").textContent = "Installiere...";
+    if (submitBtn) submitBtn.textContent = "Installiere...";
     await invoke("install_instance", { name, version, loader, loaderVersion });
-    
+
     alert("Instanz erfolgreich erstellt und installiert!");
     $("iName").value = "";
     await refreshInstances();
   } catch (e) {
     alert("Fehler bei Instanz-Installation: " + e);
   } finally {
-    $("createBtn").disabled = false;
-    $("createBtn").textContent = "Erstellen";
+    if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = "Erstellen"; }
   }
 }
 
@@ -1424,12 +1441,8 @@ async function showLoginQr(url) {
   const src = local || "https://api.qrserver.com/v1/create-qr-code/?size=460x460&margin=8&data=" + encodeURIComponent(url);
   const modal = $("loginQrModal");
   const modalImg = $("loginQrModalImg");
-  // Im Konsolenmodus ist der Header (wo sonst der QR sitzt) ausgeblendet:
-  // den QR als großes Popup anzeigen, damit man ihn vom Sofa scannen kann.
-  if (consoleNavActive && modal && modalImg) {
-    // Darunterliegendes Modal (z. B. Einstellungen) schließen, damit B/SELECT
-    // später das QR-Popup schließt und der Fokus dort landet.
-    if (typeof consoleCloseModal === "function") consoleCloseModal();
+  if (modal && modalImg) {
+    if (typeof consoleCloseModal === "function" && consoleNavActive) consoleCloseModal();
     modalImg.src = src;
     const code = (url.match(/[?&]otc=([^&]+)/) || [])[1] || "";
     const codeEl = $("loginQrCode");
@@ -1459,8 +1472,6 @@ $("authBtn").onclick = async () => {
         showLoginQr(loginUrl);
         refreshConsoleFocusables();
       } else {
-        $("loginUrl").value = loginUrl;
-        $("loginInfo").style.display = "flex";
         try { window.open(loginUrl, '_blank'); } catch (e) {}
         copyText(loginUrl);
         await showLoginQr(loginUrl);
@@ -1487,10 +1498,12 @@ async function copyText(text) {
   }
 }
 
-$("copyUrlBtn").onclick = () => {
-  copyText($("loginUrl").value);
-  $("copyUrlBtn").textContent = "Kopiert!";
-  setTimeout(() => ($("copyUrlBtn").textContent = "Kopieren"), 1500);
+const _copyUrlBtn = $("copyUrlBtn");
+if (_copyUrlBtn) _copyUrlBtn.onclick = () => {
+  const lu = $("loginUrl");
+  if (lu) copyText(lu.value);
+  _copyUrlBtn.textContent = "Kopiert!";
+  setTimeout(() => (_copyUrlBtn.textContent = "Kopieren"), 1500);
 };
 
 // Vollbild umschalten mit F11 (kein extra Button mehr).
@@ -1505,7 +1518,10 @@ document.addEventListener("keydown", async (e) => {
   }
 });
 
-$("createBtn").onclick = createInstance;
+const _createForm = $("createForm");
+if (_createForm) _createForm.addEventListener("submit", (e) => { e.preventDefault(); createInstance(); });
+const _homeCreateBtn = $("homeCreateBtn");
+if (_homeCreateBtn) _homeCreateBtn.onclick = () => switchTab("create");
 
 $("discordLoginBtn").onclick = discordOauthStart;
 
@@ -1851,7 +1867,7 @@ function computeConsoleFocusables() {
   const modals = Array.from(document.querySelectorAll(".modal"));
   const openModal = modals.find((m) => m.style.display && m.style.display !== "none");
   const root = openModal || document.body;
-  const sel = "a.sidebar-link, button, select, input[type=checkbox], input[type=text], " +
+  const sel = ".sidebar-link, button, select, input[type=checkbox], input[type=text], " +
     "input:not([type]), textarea, [tabindex], label.settings-check";
   root.querySelectorAll(sel).forEach((el) => {
     const r = el.getBoundingClientRect();
@@ -2544,7 +2560,10 @@ applySavedTheme()
       l.classList.toggle("active", l.dataset.tab === name);
     });
     document.querySelectorAll(".tab-panel[data-tab]").forEach((p) => {
-      p.classList.toggle("active", p.dataset.tab === name);
+      const on = p.dataset.tab === name;
+      p.classList.toggle("active", on);
+      if (on) p.removeAttribute("hidden");
+      else p.setAttribute("hidden", "");
     });
     if (document.body.classList.contains("console-mode")) {
       const dock = document.getElementById("ps5Dock");
@@ -2557,6 +2576,9 @@ applySavedTheme()
     if (name === "socials") {
       renderSocialAll();
       refreshSocial();
+    }
+    if (name === "store" && window.renderKollegenStore) {
+      try { window.renderKollegenStore(); } catch (e) {}
     }
     if (name === "home" && document.body.classList.contains("console-mode")) {
       renderConsoleHome();
@@ -2572,6 +2594,8 @@ applySavedTheme()
 $("profileWidget").onclick = () => openProfileModal();
 const openProfileBtn = $("openProfileBtn");
 if (openProfileBtn) openProfileBtn.onclick = () => openProfileModal();
+const openProfileModalBtn = $("openProfileModalBtn");
+if (openProfileModalBtn) openProfileModalBtn.onclick = () => openProfileModal();
 $("profileClose").onclick = () => { $("profileModal").style.display = "none"; };
 $("pmCopy").onclick = () => { if (socialMe) copyText(socialMe.friend_code); };
 
@@ -2640,7 +2664,8 @@ function toast(msg, kind) {
   if (toastTimer) clearTimeout(toastTimer);
   toastTimer = setTimeout(() => { el.className = "toast"; }, 3200);
 }
-  $("socialsClose").onclick = () => switchTab("home");
+  const _socialsClose = $("socialsClose");
+  if (_socialsClose) _socialsClose.onclick = () => switchTab("home");
 
   const logsEl = $("logs");
   if ($("refreshLogsBtn")) $("refreshLogsBtn").onclick = () => refreshLogs();
@@ -3601,18 +3626,23 @@ startBackgroundIntervals();
 
   window.renderKollegenStore = renderStore;
   function renderStore() {
-    const grid = $("storeGrid");
-    if (!grid || !kmCat) return;
+    if (!kmCat) return;
     const items = storeFiltered();
-    grid.innerHTML = "";
-    if (!items.length) { grid.innerHTML = `<div class="store-msg">Keine Items in dieser Auswahl.</div>`; return; }
-    for (const it of items) grid.append(storeCard(it));
-    const wallet = $("storeWallet");
-    if (wallet) {
-      if (kmState && !kmState.needsAuth && typeof kmState.level === "number") {
+    for (const gid of ["storeGrid", "storeGridMain"]) {
+      const grid = $(gid);
+      if (!grid) continue;
+      grid.innerHTML = "";
+      if (!items.length) { grid.innerHTML = `<div class="store-msg">Keine Items in dieser Auswahl.</div>`; continue; }
+      for (const it of items) grid.append(storeCard(it));
+    }
+    const logged = kmState && !kmState.needsAuth && typeof kmState.level === "number";
+    for (const [w, p, l] of [["storeWallet", "storePts", "storeLvl"], ["storeWalletMain", "storePtsMain", "storeLvlMain"]]) {
+      const wallet = $(w);
+      if (!wallet) continue;
+      if (logged) {
         wallet.style.display = "flex";
-        $("storePts").textContent = "★ " + (kmState.points || 0);
-        $("storeLvl").textContent = "Level " + kmState.level;
+        $(p).textContent = "★ " + (kmState.points || 0);
+        $(l).textContent = "Level " + kmState.level;
       } else wallet.style.display = "none";
     }
     storeRenderShow();
@@ -3727,27 +3757,67 @@ startBackgroundIntervals();
     if (m) m.style.display = "none";
   }
 
+  function storeSyncChips() {
+    for (const id of ["storeRarChips", "storeRarChipsMain"]) {
+      const box = $(id);
+      if (!box) continue;
+      box.querySelectorAll(".chip").forEach((x) => {
+        const on = x.getAttribute("data-r") === storeRar;
+        x.classList.toggle("on", on);
+        x.classList.toggle("active", on);
+      });
+    }
+  }
+  function storeSyncTabs() {
+    for (const id of ["storeTabs", "storeTabsMain"]) {
+      const box = $(id);
+      if (!box) continue;
+      box.querySelectorAll(".tab").forEach((x) => {
+        const on = x.getAttribute("data-f") === storeFilter;
+        x.classList.toggle("on", on);
+        x.classList.toggle("active", on);
+        x.setAttribute("aria-selected", on ? "true" : "false");
+      });
+    }
+  }
   function storeInit() {
-    const rarBox = $("storeRarChips");
-    if (rarBox) rarBox.addEventListener("click", (e) => {
-      const c = e.target.closest(".chip");
-      if (!c) return;
-      rarBox.querySelectorAll(".chip").forEach((x) => x.classList.remove("on"));
-      c.classList.add("on");
-      storeRar = c.getAttribute("data-r");
-      renderStore();
-    });
-    const sort = $("storeSort");
-    if (sort) sort.addEventListener("change", () => { storeSort = sort.value; renderStore(); });
-    const tabs = $("storeTabs");
-    if (tabs) tabs.addEventListener("click", (e) => {
-      const t = e.target.closest(".tab");
-      if (!t) return;
-      tabs.querySelectorAll(".tab").forEach((x) => x.classList.remove("on"));
-      t.classList.add("on");
-      storeFilter = t.getAttribute("data-f");
-      renderStore();
-    });
+    for (const id of ["storeRarChips", "storeRarChipsMain"]) {
+      const rarBox = $(id);
+      if (!rarBox || rarBox.dataset.bound) continue;
+      rarBox.dataset.bound = "1";
+      rarBox.addEventListener("click", (e) => {
+        const c = e.target.closest(".chip");
+        if (!c) return;
+        storeRar = c.getAttribute("data-r");
+        storeSyncChips();
+        renderStore();
+      });
+    }
+    for (const id of ["storeSort", "storeSortMain"]) {
+      const sort = $(id);
+      if (!sort || sort.dataset.bound) continue;
+      sort.dataset.bound = "1";
+      sort.addEventListener("change", () => {
+        storeSort = sort.value;
+        const other = $(id === "storeSort" ? "storeSortMain" : "storeSort");
+        if (other) other.value = storeSort;
+        renderStore();
+      });
+    }
+    for (const id of ["storeTabs", "storeTabsMain"]) {
+      const tabs = $(id);
+      if (!tabs || tabs.dataset.bound) continue;
+      tabs.dataset.bound = "1";
+      tabs.addEventListener("click", (e) => {
+        const t = e.target.closest(".tab");
+        if (!t) return;
+        storeFilter = t.getAttribute("data-f");
+        storeSyncTabs();
+        renderStore();
+      });
+    }
+    storeSyncChips();
+    storeSyncTabs();
     const close = $("storeItemClose");
     if (close) close.onclick = storeCloseModal;
     const modal = $("storeItemModal");
