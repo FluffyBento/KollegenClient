@@ -25,7 +25,10 @@ import java.util.WeakHashMap;
 
 public final class KollegenPresence {
     private static final Set<UUID> USERS = ConcurrentHashMap.newKeySet();
-    private static boolean registered = false;
+    private static final Map<UUID, CosmeticData> COSMETICS = new ConcurrentHashMap<>();
+    private static volatile boolean registered = false;
+    private static volatile UUID selfId = null;
+    private static volatile String selfName = null;
     private static final HttpClient HTTP = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(5))
             .build();
@@ -39,6 +42,10 @@ public final class KollegenPresence {
 
     public static Set<UUID> users() {
         return USERS;
+    }
+
+    public static CosmeticData getCosmetics(UUID id) {
+        return id == null ? null : COSMETICS.get(id);
     }
 
     
@@ -69,12 +76,23 @@ public final class KollegenPresence {
         if (mc.player == null) return;
         UUID id = mc.player.getUUID();
         String name = mc.player.getName().getString();
+        selfId = id;
+        selfName = name;
         registered = true;
         String url = base() + "/presence/" + id;
         String body = "{\"name\":\"" + name.replace("\"", "") + "\"}";
         thread(() -> {
-            post(url, body);
-            fetch();
+            while (registered) {
+                post(url, body);
+                fetch();
+                try {
+                    Thread.sleep(30000);
+                } catch (InterruptedException e) {
+                    return;
+                } catch (Throwable ignored) {
+                    return;
+                }
+            }
         });
     }
 
@@ -82,6 +100,8 @@ public final class KollegenPresence {
     public static void leave() {
         if (!registered) return;
         registered = false;
+        selfId = null;
+        selfName = null;
         Minecraft mc = Minecraft.getInstance();
         UUID id = mc.player != null ? mc.player.getUUID() : null;
         if (id != null) {
@@ -89,6 +109,7 @@ public final class KollegenPresence {
             thread(() -> delete(base() + "/presence/" + finalId));
         }
         USERS.clear();
+        COSMETICS.clear();
     }
 
     private static void fetch() {
@@ -102,12 +123,16 @@ public final class KollegenPresence {
             if (!e.isJsonArray()) return;
             JsonArray arr = e.getAsJsonArray();
             USERS.clear();
+            COSMETICS.clear();
             for (JsonElement el : arr) {
                 if (el.isJsonObject()) {
                     JsonObject o = el.getAsJsonObject();
                     if (o.has("uuid")) {
                         try {
-                            USERS.add(UUID.fromString(o.get("uuid").getAsString()));
+                            UUID uid = UUID.fromString(o.get("uuid").getAsString());
+                            USERS.add(uid);
+                            CosmeticData d = CosmeticData.fromJson(o);
+                            if (d != null) COSMETICS.put(uid, d);
                         } catch (Throwable ignored) {
                         }
                     }

@@ -1,6 +1,8 @@
 package dev.kollegen.client.mixin;
 
 import com.mojang.blaze3d.vertex.PoseStack;
+import dev.kollegen.client.presence.CosmeticData;
+import dev.kollegen.client.presence.CosmeticText;
 import dev.kollegen.client.presence.KollegenPresence;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.SubmitNodeCollector;
@@ -28,6 +30,16 @@ public class NametagMixin {
     private void kollegen$capture(Entity entity, EntityRenderState state, float f, CallbackInfo ci) {
         boolean kollege = entity instanceof Player p && KollegenPresence.isKollegen(p.getUUID());
         KollegenPresence.markKollegen(state, kollege);
+        if (entity instanceof Player p) {
+            try {
+                CosmeticData d = KollegenPresence.getCosmetics(p.getUUID());
+                if (d != null && !d.isEmpty()) {
+                    Component base = state.nameTag != null ? state.nameTag : p.getDisplayName();
+                    state.nameTag = CosmeticText.decorate(base, d);
+                }
+            } catch (Throwable ignored) {
+            }
+        }
     }
 
     @Inject(method = "submitNameTag(Lnet/minecraft/client/renderer/entity/state/EntityRenderState;Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/SubmitNodeCollector;Lnet/minecraft/client/renderer/state/CameraRenderState;)V",

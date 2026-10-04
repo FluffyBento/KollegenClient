@@ -104,6 +104,26 @@ function levelOf(u) {
   return 1 + Math.floor(t / 300);
 }
 
+function presenceCosmetics(u) {
+  if (!u || !u.profile || u.profile.public === false) return null;
+  ensureUserExtras(u);
+  const eq = u.equipped || {};
+  const out = {};
+  const t = eq.title && catById(eq.title);
+  if (t && t.data && t.data.text) out.title = { text: t.data.text };
+  const b = eq.badge && catById(eq.badge);
+  if (b && b.data) out.badge = { icon: b.data.icon || null, color: b.data.color || null };
+  const nc = eq.name_color && catById(eq.name_color);
+  const stil = eq.profil_stil && catById(eq.profil_stil);
+  const accent = (nc && nc.data && nc.data.accent) || (stil && stil.data && stil.data.accent) || null;
+  if (accent) out.nameColor = accent;
+  const fn = eq.font && catById(eq.font);
+  if (fn && fn.data && fn.data.font) out.font = fn.data.font;
+  const sk = eq.sticker && catById(eq.sticker);
+  if (sk && sk.data) out.sticker = { icon: sk.data.icon || null, color: sk.data.color || null };
+  return out;
+}
+
 
 function socialView(u) {
   ensureUserExtras(u);
@@ -1505,6 +1525,41 @@ if (pathname === '/internal/reset' && method === 'POST') {
         if (p.name) names.push(p.name);
       }
       return sendJson(res, 200, names);
+    }
+
+    if (pathname === '/presence/uuids' && method === 'GET') {
+      const now = Date.now();
+      const out = [];
+      for (const key of Object.keys(store.presence || {})) {
+        const p = store.presence[key];
+        if (!p || !p.uuid) continue;
+        if (now - (p.ts || p.timestamp || 0) > 120000) continue;
+        const norm = String(p.uuid).toLowerCase().replace(/-/g, '');
+        const u = Object.values(store.users || {}).find((x) => x && x.uuid && String(x.uuid).toLowerCase().replace(/-/g, '') === norm) || null;
+        out.push({
+          uuid: p.uuid,
+          name: p.name || (u && (u.name || u.discordName)) || null,
+          level: u ? levelOf(u) : null,
+          cosmetics: presenceCosmetics(u),
+        });
+      }
+      return sendJson(res, 200, out);
+    }
+
+    if (pathname.startsWith('/presence/') && (method === 'POST' || method === 'DELETE')) {
+      const id = decodeURIComponent(pathname.slice('/presence/'.length).split('/')[0] || '');
+      if (!id) return sendJson(res, 400, { error: 'uuid_required' });
+      if (method === 'DELETE') {
+        delete store.presence[id];
+        return sendJson(res, 200, { ok: true });
+      }
+      const body = await readBody(req);
+      store.presence[id] = {
+        uuid: id,
+        name: typeof body.name === 'string' ? body.name.slice(0, 16) : null,
+        ts: Date.now(),
+      };
+      return sendJson(res, 200, { ok: true });
     }if (pathname === '/groups' && method === 'GET') {
       const me = bearerUser(req);
       if (!me) return sendJson(res, 401, { error: 'not_authenticated' });

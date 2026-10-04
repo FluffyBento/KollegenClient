@@ -12,6 +12,8 @@
     "KeyboardInputMixin",
     "ClientInputAccessor",
     "NametagMixin",
+    "TablistMixin",
+    "ChatMixin",
     "BiomeMixin",
     "LogoRendererMixin",
     "FogRendererMixin",
