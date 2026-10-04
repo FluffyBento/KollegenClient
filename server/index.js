@@ -1542,6 +1542,7 @@ if (pathname === '/internal/reset' && method === 'POST') {
           name: p.name || (u && (u.name || u.discordName)) || null,
           level: u ? levelOf(u) : null,
           cosmetics: presenceCosmetics(u),
+          mod: p.mod || null,
         });
       }
       return sendJson(res, 200, out);
@@ -1559,6 +1560,7 @@ if (pathname === '/internal/reset' && method === 'POST') {
       store.presence[id] = {
         uuid: id,
         name: typeof body.name === 'string' ? body.name.slice(0, 16) : null,
+        mod: typeof body.mod === 'string' ? body.mod.slice(0, 24) : null,
         ts: Date.now(),
       };
       return sendJson(res, 200, { ok: true });

@@ -80,7 +80,12 @@ public final class KollegenPresence {
         selfName = name;
         registered = true;
         String url = base() + "/presence/" + id;
-        String body = "{\"name\":\"" + name.replace("\"", "") + "\"}";
+        String mod = "unknown";
+        try {
+            mod = dev.kollegen.client.Version.get().replace("\"", "");
+        } catch (Throwable ignored) {
+        }
+        String body = "{\"name\":\"" + name.replace("\"", "") + "\",\"mod\":\"" + mod + "\"}";
         thread(() -> {
             while (registered) {
                 post(url, body);

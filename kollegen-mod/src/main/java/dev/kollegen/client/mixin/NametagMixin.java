@@ -24,6 +24,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public class NametagMixin {
 
     private static final Identifier ICON = Identifier.fromNamespaceAndPath("kollegen", "kollegen");
+    private static final java.util.Map<EntityRenderState, java.util.UUID> STATE_UUID = new java.util.WeakHashMap<>();
 
     @Inject(method = "extractRenderState(Lnet/minecraft/world/entity/Entity;Lnet/minecraft/client/renderer/entity/state/EntityRenderState;F)V",
             at = @At("RETURN"))
@@ -31,14 +32,38 @@ public class NametagMixin {
         boolean kollege = entity instanceof Player p && KollegenPresence.isKollegen(p.getUUID());
         KollegenPresence.markKollegen(state, kollege);
         if (entity instanceof Player p) {
+            STATE_UUID.put(state, p.getUUID());
+            kollegen$applyCosmetics(state, p.getUUID(), p.getDisplayName());
+        }
+    }
+
+    private static void kollegen$applyCosmetics(EntityRenderState state, java.util.UUID id, Component fallback) {
+        try {
+            CosmeticData d = KollegenPresence.getCosmetics(id);
+            if (d == null || d.isEmpty()) return;
+            Component base = state.nameTag != null ? state.nameTag : fallback;
+            if (base == null) return;
+            String plain;
             try {
-                CosmeticData d = KollegenPresence.getCosmetics(p.getUUID());
-                if (d != null && !d.isEmpty()) {
-                    Component base = state.nameTag != null ? state.nameTag : p.getDisplayName();
-                    state.nameTag = CosmeticText.decorate(base, d);
-                }
+                plain = base.getString();
             } catch (Throwable ignored) {
+                return;
             }
+            if (plain == null || plain.isEmpty() || plain.contains(" · Lv ")) return;
+            state.nameTag = CosmeticText.decorate(base, d);
+        } catch (Throwable ignored) {
+        }
+    }
+
+    @Inject(method = "submitNameTag(Lnet/minecraft/client/renderer/entity/state/EntityRenderState;Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/SubmitNodeCollector;Lnet/minecraft/client/renderer/state/CameraRenderState;)V",
+            at = @At("HEAD"))
+    private void kollegen$decorateEarly(EntityRenderState state, PoseStack poseStack, SubmitNodeCollector collector,
+                                        CameraRenderState camera, CallbackInfo ci) {
+        try {
+            java.util.UUID id = STATE_UUID.get(state);
+            if (id == null) return;
+            kollegen$applyCosmetics(state, id, null);
+        } catch (Throwable ignored) {
         }
     }
 
