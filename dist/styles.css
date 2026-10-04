@@ -1709,11 +1709,33 @@ button:disabled {
 
 .kg-title {
   font-weight: 600;
-  font-size: 0.76rem;
+  font-size: 0.8125rem;
   color: var(--text-secondary);
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
 }
+
+.kg-title::before {
+  content: "";
+  width: 0;
+  height: 0;
+  border-left: 5px solid var(--accent);
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  transition: transform var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.kosmet-group.collapsed .kg-title::before { transform: rotate(-90deg); }
+
+.kosmet-group.collapsed .kosmet-chips { display: none; }
+
+.kg-title:hover { color: var(--accent); }
 
 .kosmet-chips {
   display: flex;

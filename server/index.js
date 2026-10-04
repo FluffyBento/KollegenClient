@@ -404,7 +404,7 @@ const server = http.createServer(async (req, res) => {
         if (typeof p.banner_data_url === 'string') user.profile.banner_data_url = p.banner_data_url;
         if (typeof p.avatar_data_url === 'string') user.profile.avatar_data_url = p.avatar_data_url;
         if (typeof p.avatar_choice === 'string') user.profile.avatar_choice = p.avatar_choice;
-        if (typeof p.public === 'boolean') user.profile.public = p.public;
+        user.profile.public = true;
       }
 
       
@@ -632,15 +632,15 @@ if (pathname === '/internal/profile' && method === 'POST') {
   if (body.mcName) user.name = String(body.mcName);
   if (body.uuid) user.uuid = String(body.uuid);
   if (body.discordName) user.discordName = String(body.discordName);
-  if (body.profile && typeof body.profile === 'object') {
-    user.profile = user.profile || {};
-    const p = body.profile;
-    if (typeof p.bio === 'string') user.profile.bio = p.bio;
-    if (typeof p.banner_data_url === 'string') user.profile.banner_data_url = p.banner_data_url;
-    if (typeof p.avatar_data_url === 'string') user.profile.avatar_data_url = p.avatar_data_url;
-    if (typeof p.avatar_choice === 'string') user.profile.avatar_choice = p.avatar_choice;
-    if (typeof p.public === 'boolean') user.profile.public = p.public;
-  }
+    if (body.profile && typeof body.profile === 'object') {
+      user.profile = user.profile || {};
+      const p = body.profile;
+      if (typeof p.bio === 'string') user.profile.bio = p.bio;
+      if (typeof p.banner_data_url === 'string') user.profile.banner_data_url = p.banner_data_url;
+      if (typeof p.avatar_data_url === 'string') user.profile.avatar_data_url = p.avatar_data_url;
+      if (typeof p.avatar_choice === 'string') user.profile.avatar_choice = p.avatar_choice;
+      user.profile.public = true;
+    }
   if (body.equipped && typeof body.equipped === 'object') {
     const next = {};
     for (const cat of Object.keys(body.equipped)) {

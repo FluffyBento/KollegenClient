@@ -578,14 +578,18 @@ async function refreshLogs() {
   if (avatarChoice) avatarChoice.onchange = () => {
     const v = avatarChoice.value;
     if (v === 'upload') { avatarUpload.style.display = ''; } else { avatarUpload.style.display = 'none'; }
+    const av = $("profileAvatarPreview");
+    if (!av) return;
     if (v === 'minecraft') {
-      // Standard-Avatar: eigener Kopf aus dem aktuellen Skin.
       const nm = (socialMe && socialMe.mc_name) || "";
       if (nm) {
-        const head = `https://mc-heads.net/avatar/${encodeURIComponent(nm).replace(/%20/g, "_")}/128`;
-        const av = $("profileAvatarPreview");
-        if (av) { av.src = head; av.style.display = ""; }
+        av.src = `https://mc-heads.net/avatar/${encodeURIComponent(nm).replace(/%20/g, "_")}/128`;
+        av.style.display = "";
       }
+    } else if (v === 'discord') {
+      const url = avatarUrl(socialMe) || discordAvatarFallback;
+      if (url) { av.src = url; av.style.display = ""; }
+      else { av.removeAttribute("src"); av.style.display = "none"; }
     }
   };
 
@@ -781,9 +785,7 @@ async function refreshLogs() {
     if (!m) return;
     m.style.display = "flex";
     pmSetView(false);
-    // Skin + Capes laden – das funktioniert unabhängig von socialMe
-    // (Microsoft-Konto reicht), darf also NICHT hinter dem socialMe-Guard hängen.
-    loadSkinChanger();
+    setTimeout(() => loadSkinChanger(false), 60);
 
     // Load profile customization from settings
     try {
@@ -795,9 +797,6 @@ async function refreshLogs() {
         } else { $("profileBannerPreview").style.display = "none"; }
         $("profileAvatarChoice").value = prof.avatar_choice || "discord";
         if (prof.avatar_data_url) { $("profileAvatarPreview").src = prof.avatar_data_url; $("profileAvatarPreview").style.display = ""; }
-        $("profilePublicToggle").checked = !!prof.public;
-        $("profileServerUrl").value = prof.server_url || 'https://kollegen.me';
-        $("profileServerToken").value = prof.server_token || '';
         setProfileEditMode(true);
       }).catch(()=>{});
     } catch (e) {}
@@ -832,7 +831,7 @@ async function refreshLogs() {
     const editBtn = $("profileEditToggle");
     const saveBtn = $("profileSaveBtn");
     const cancelBtn = $("profileCancelBtn");
-    const inputs = ["profileBio","profileBannerInput","profileAvatarChoice","profileAvatarUpload","profilePublicToggle","viewProfileName","viewProfileBtn"];
+    const inputs = ["profileBio","profileBannerInput","profileAvatarChoice","profileAvatarUpload","viewProfileName","viewProfileBtn"];
     if (on) {
       editBtn.textContent = "Bearbeiten (An)";
       saveBtn.style.display = "inline-block";
@@ -852,88 +851,65 @@ async function refreshLogs() {
       const s = await invoke('get_settings');
       const profile = (s && s.profile) ? s.profile : {};
       profile.bio = $("profileBio").value.trim();
-      profile.public = !!$("profilePublicToggle").checked;
+      profile.public = true;
       profile.avatar_choice = $("profileAvatarChoice").value;
       if ($("profileBannerPreview").src) profile.banner_data_url = $("profileBannerPreview").src;
-      if ($("profileAvatarPreview").src) profile.avatar_data_url = $("profileAvatarPreview").src;
-      profile.server_url = $("profileServerUrl").value.trim() || "";
-      profile.server_token = $("profileServerToken").value.trim() || "";
+      if (profile.avatar_choice === "upload" && $("profileAvatarPreview").src) {
+        profile.avatar_data_url = $("profileAvatarPreview").src;
+      }
       s.profile = profile;
       await invoke('save_settings', { settings: s });
+      if (socialMe) {
+        socialMe.profile = Object.assign({}, socialMe.profile, {
+          bio: profile.bio,
+          banner_data_url: profile.banner_data_url || null,
+          avatar_data_url: profile.avatar_data_url || null,
+          avatar_choice: profile.avatar_choice,
+          public: true,
+        });
+      }
+      renderProfileWidget();
       toast('Profil gespeichert', 'ok');
       setProfileEditMode(false);
     } catch (e) { toast('Speichern fehlgeschlagen: '+e, 'error'); }
   }
 
-  // Publish profile to the Kollegen-Cloud (default) or a custom backend.
+  // Publish profile to the Kollegen-Cloud via Launcher-Discord-Session.
   async function publishProfileToServer() {
-    const serverUrl = $("profileServerUrl").value.trim();
-    const token = $("profileServerToken").value.trim();
-
+    const choice = $("profileAvatarChoice").value;
     const profile = {
       uuid: socialMe && socialMe.uuid ? socialMe.uuid : null,
       name: socialMe && socialMe.mc_name ? socialMe.mc_name : (socialMe && socialMe.username ? socialMe.username : null),
       accounts: socialMe && socialMe.accounts ? socialMe.accounts : [],
       profile: {
         bio: $("profileBio").value.trim(),
-        banner_data_url: $("profileBannerPreview").src || null,
-        avatar_data_url: $("profileAvatarPreview").src || null,
-        avatar_choice: $("profileAvatarChoice").value,
-        public: !!$("profilePublicToggle").checked,
+        banner_data_url: $("profileBannerPreview").getAttribute("src") || null,
+        avatar_data_url: choice === "upload" ? ($("profileAvatarPreview").getAttribute("src") || null) : null,
+        avatar_choice: choice,
+        public: true,
       }
     };
 
-    // Kein eigenes Backend/Token hinterlegt → Kollegen-Cloud via Launcher-
-    // Discord-Session (kein manuelles Token nötig).
-    if (!serverUrl || !token) {
-      const j = await invoke("kollegen_publish_profile", { profile });
-      if (j && j.ok) {
-        toast('Profil veröffentlicht (Kollegen-Cloud)', 'ok');
-        refreshSocial(true);
-      } else {
-        toast('Publish fehlgeschlagen: ' + ((j && j.error) || 'unbekannt'), 'error');
+    const j = await invoke("kollegen_publish_profile", { profile });
+    if (j && j.ok) {
+      if (socialMe) {
+        socialMe.profile = Object.assign({}, socialMe.profile, profile.profile);
       }
-      return;
+      renderProfileWidget();
+      toast('Profil veröffentlicht', 'ok');
+      refreshSocial(true);
+    } else {
+      toast('Publish fehlgeschlagen: ' + ((j && j.error) || 'unbekannt'), 'error');
     }
-
-    try {
-      const res = await fetch(serverUrl.replace(/\/$/, '') + '/profile', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ' + token,
-        },
-        body: JSON.stringify(profile),
-      });
-      const j = await res.json();
-      if (res.ok) {
-        toast('Profil veröffentlicht', 'ok');
-      } else {
-        toast('Publish fehlgeschlagen: ' + (j.error || res.status), 'error');
-      }
-    } catch (e) { toast('Verbindung zum Server fehlgeschlagen: ' + e, 'error'); }
   }
 
-  // Browse public profiles on the provided server
+  // Browse public profiles in the Kollegen-Cloud via Launcher-Backend.
   async function browsePublicProfiles(search) {
-    const serverUrl = $("profileServerUrl").value.trim();
     const wrap = $("viewProfileResult");
     wrap.innerHTML = "";
-    if (!serverUrl) {
-      // Default: Kollegen-Cloud (https://kollegen.me) via Launcher-Backend.
-      const j = await invoke("kollegen_browse_profiles", { search: search || "" });
-      if (j && j.error) return alert('Fehler beim Laden: ' + j.error);
-      renderProfileItems(j && j.items ? j.items : [], wrap, true);
-      return;
-    }
-    const q = new URL(serverUrl.replace(/\/$/, '') + '/profiles');
-    if (search) q.searchParams.set('search', search);
-    try {
-      const res = await fetch(q.toString());
-      const j = await res.json();
-      if (!res.ok) return alert('Fehler beim Laden: ' + (j.error || res.status));
-      renderProfileItems(j.items || [], wrap, false);
-    } catch (e) { alert('Fehler: ' + e); }
+    const j = await invoke("kollegen_browse_profiles", { search: search || "" });
+    if (j && j.error) return alert('Fehler beim Laden: ' + j.error);
+    renderProfileItems(j && j.items ? j.items : [], wrap, true);
   }
 
   function renderProfileItems(items, wrap, isCloud) {
@@ -957,13 +933,7 @@ async function refreshLogs() {
       const btns = document.createElement('div'); btns.style.marginTop = '0.4rem'; btns.style.display = 'flex'; btns.style.gap = '0.4rem';
       const viewBtn = document.createElement('button');
       viewBtn.textContent = 'Öffnen';
-      if (isCloud) {
-        // In der App öffnen statt im Browser tab
-        viewBtn.onclick = () => showCloudProfile(p);
-      } else {
-        const b = $("profileServerUrl").value.trim().replace(/\/$/, '');
-        viewBtn.onclick = () => { window.open(b + '/profiles/' + p.id, '_blank'); };
-      }
+      viewBtn.onclick = () => showCloudProfile(p);
       btns.append(viewBtn);
       el.append(btns);
       wrap.append(el);
@@ -1021,10 +991,9 @@ async function refreshLogs() {
     invoke('get_settings').then(s => {
       const prof = (s && s.profile) ? s.profile : {};
       $("profileBio").value = prof.bio || "";
-      if (prof.banner_data_url) { $("profileBannerPreview").src = prof.banner_data_url; $("profileBannerPreview").style.display = ""; } else { $("profileBannerPreview").style.display = "none"; }
+      if (prof.banner_data_url) { $("profileBannerPreview").src = prof.banner_data_url; $("profileBannerPreview").style.display = ""; } else { $("profileBannerPreview").removeAttribute("src"); $("profileBannerPreview").style.display = "none"; }
       $("profileAvatarChoice").value = prof.avatar_choice || "discord";
       if (prof.avatar_data_url) { $("profileAvatarPreview").src = prof.avatar_data_url; $("profileAvatarPreview").style.display = ""; }
-      $("profilePublicToggle").checked = !!prof.public;
       setProfileEditMode(false);
     }).catch(()=>{});
   }
@@ -1191,10 +1160,13 @@ async function refreshLogs() {
   }
 
   // ── Skin-Bibliothek + Cape-Wechsler im Profil ──
-  function loadSkinChanger() {
+  let skinChangerLoaded = false;
+  function loadSkinChanger(force) {
+    if (!force && skinChangerLoaded) return;
+    skinChangerLoaded = true;
     // Capes IMMER laden – unabhängig von der Skin-Bibliothek, damit sie auch
     // dann erscheinen, wenn `skin_list` fehlschlägt oder leer ist.
-    invoke("skin_mc_profile").then(renderCapes).catch(() => renderCapes({}));
+    invoke("skin_mc_profile").then(renderCapes).catch(() => { skinChangerLoaded = false; renderCapes({}); });
 
     invoke("skin_list").then(list => {
       renderSkinLibrary(list);
@@ -1224,7 +1196,7 @@ async function refreshLogs() {
         }
       };
       fromName();
-    }).catch(() => {});
+    }).catch(() => { skinChangerLoaded = false; });
   }
 
   function renderSkinLibrary(list) {
@@ -1257,7 +1229,7 @@ async function refreshLogs() {
       if (r && r.mc_uploaded) toast("Skin gewechselt", "ok");
       else if (r && r.ok) toast("Lokal gespeichert (kein MC-Upload möglich)", "ok");
       else if (r && r.error) toast(r.error, "error");
-      loadSkinChanger();
+      loadSkinChanger(true);
       loadHomeSkin(true);
     }).catch(e => toast("Skin wechseln fehlgeschlagen: " + e, "error"));
   }
@@ -1306,7 +1278,7 @@ async function refreshLogs() {
       if (r && r.ok) {
         toast("Cape ausgerüstet", "ok");
         if (url) { currentCapeUrl = url; applyCapeToViewer(); }
-        loadSkinChanger();
+        loadSkinChanger(true);
         loadHomeSkin(true);
       }
       else toast((r && r.error) || "Fehler", "error");
@@ -3680,14 +3652,28 @@ startBackgroundIntervals();
     else pts.textContent = "Nicht angemeldet – keine Kollegen-Points sichtbar.";
 
     const owned = kmCat.filter((it) => it.owned);
+    let collapsed = {};
+    try { collapsed = JSON.parse(localStorage.getItem("kosmetCollapsed") || "{}"); } catch (e) { collapsed = {}; }
+    const isCollapsed = (cat) => collapsed[cat] !== false;
+    const setCollapsed = (cat, v) => {
+      collapsed[cat] = v;
+      try { localStorage.setItem("kosmetCollapsed", JSON.stringify(collapsed)); } catch (e) {}
+    };
     let anyGroup = false;
     for (const cat of ORDER) {
       const mine = owned.filter((it) => it.category === cat);
       if (!mine.length) continue;
       anyGroup = true;
       const g = document.createElement("div");
-      g.className = "kosmet-group";
-      g.innerHTML = `<div class="kg-title">${CATNAMES[cat] || cat}</div><div class="kosmet-chips"></div>`;
+      g.className = "kosmet-group" + (isCollapsed(cat) ? " collapsed" : "");
+      g.innerHTML = `<div class="kg-title" role="button" tabindex="0">${CATNAMES[cat] || cat}</div><div class="kosmet-chips"></div>`;
+      const title = g.querySelector(".kg-title");
+      const toggle = () => {
+        const c = g.classList.toggle("collapsed");
+        setCollapsed(cat, c);
+      };
+      title.onclick = toggle;
+      title.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); } };
       const chips = g.querySelector(".kosmet-chips");
       const none = document.createElement("span");
       none.className = "kosmet-chip" + (eq[cat] ? "" : " eq");
