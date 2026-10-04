@@ -76,7 +76,8 @@ public class NametagMixin {
         try {
             int s = 8;
             Component nameTag = state.nameTag;
-            int tw = nameTag != null ? Minecraft.getInstance().font.width(nameTag) : 0;
+            if (nameTag == null) return;
+            int tw = Minecraft.getInstance().font.width(nameTag);
             float x = -tw / 2f - s - 2;
             float y = -s / 2f;
             collector.submitCustomGeometry(poseStack, RenderTypes.textSeeThrough(LOGO), (pose, vc) -> {
