@@ -61,6 +61,95 @@ public final class CosmeticText {
         return out;
     }
 
+    public static Component decorateNametag(Component base, UUID id) {
+        if (base == null || id == null) return base;
+        CosmeticData d = KollegenPresence.getCosmetics(id);
+        if (d == null || d.isEmpty()) return base;
+        String plain;
+        try {
+            plain = base.getString();
+        } catch (Throwable ignored) {
+            return base;
+        }
+        if (plain == null || plain.isEmpty() || plain.contains("· Lv ")) return base;
+        int nameColor = parseColor(d.nameColor, FALLBACK_NAME);
+        MutableComponent titleLine = Component.empty();
+        if (d.badgeIcon != null) {
+            titleLine.append(Component.literal(d.badgeIcon).withStyle(Style.EMPTY.withColor(TextColor.fromRgb(parseColor(d.badgeColor, FALLBACK_BADGE)))));
+            titleLine.append(Component.literal(" "));
+        }
+        if (d.titleText != null) {
+            titleLine.append(Component.literal(d.titleText).withStyle(Style.EMPTY.withColor(TextColor.fromRgb(nameColor)).withBold(true)));
+        }
+        MutableComponent out = Component.empty();
+        boolean hasTitle = d.badgeIcon != null || d.titleText != null;
+        if (hasTitle) {
+            out.append(titleLine);
+            out.append(Component.literal("\n"));
+        }
+        out.append(Component.literal(plain).withStyle(nameStyle(nameColor, d.font)));
+        if (d.stickerIcon != null) {
+            out.append(Component.literal(" "));
+            out.append(Component.literal(d.stickerIcon).withStyle(Style.EMPTY.withColor(TextColor.fromRgb(parseColor(d.stickerColor, FALLBACK_NAME)))));
+        }
+        if (d.level > 0) {
+            out.append(Component.literal("\n"));
+            out.append(Component.literal("· Lv " + d.level).withStyle(Style.EMPTY.withColor(TextColor.fromRgb(LEVEL_GRAY))));
+        }
+        return out;
+    }
+
+    public static Component decorateTab(Component base, UUID id) {
+        if (base == null || id == null) return base;
+        boolean kollege = KollegenPresence.isKollegen(id);
+        CosmeticData d = KollegenPresence.getCosmetics(id);
+        boolean hasData = d != null && !d.isEmpty();
+        boolean useful = d != null && (d.badgeIcon != null || d.nameColor != null || d.stickerIcon != null);
+        if (!kollege && !useful) return base;
+        String plain = null;
+        try {
+            plain = base.getString();
+        } catch (Throwable ignored) {
+        }
+        if (plain != null && plain.contains(LOGO_CHAR)) return base;
+        MutableComponent out = Component.empty();
+        if (kollege) {
+            out.append(Component.literal(LOGO_CHAR + " ")
+                    .withStyle(Style.EMPTY.withFont(LOGO_FONT).withColor(TextColor.fromRgb(0xFFFFFF))));
+        }
+        if (hasData) {
+            if (d.badgeIcon != null) {
+                out.append(Component.literal(d.badgeIcon).withStyle(Style.EMPTY.withColor(TextColor.fromRgb(parseColor(d.badgeColor, FALLBACK_BADGE)))));
+                out.append(Component.literal(" "));
+            }
+            int nameColor = parseColor(d.nameColor, FALLBACK_NAME);
+            if (d.nameColor != null) {
+                String nm = (plain == null || plain.isEmpty()) ? "?" : plain;
+                out.append(Component.literal(nm).withStyle(nameStyle(nameColor, d.font)));
+            } else if (plain != null && !plain.isEmpty()) {
+                out.append(Component.literal(plain));
+            } else {
+                out.append(base);
+            }
+            if (d.stickerIcon != null) {
+                out.append(Component.literal(" "));
+                out.append(Component.literal(d.stickerIcon).withStyle(Style.EMPTY.withColor(TextColor.fromRgb(parseColor(d.stickerColor, FALLBACK_NAME)))));
+            }
+        } else if (plain != null && !plain.isEmpty()) {
+            out.append(Component.literal(plain));
+        } else {
+            out.append(base);
+        }
+        return out;
+    }
+
+    private static Style nameStyle(int nameColor, String font) {
+        Style s = Style.EMPTY.withColor(TextColor.fromRgb(nameColor));
+        if (font != null && (font.toLowerCase().contains("bold") || font.toLowerCase().contains("fett"))) s = s.withBold(true);
+        if (font != null && (font.toLowerCase().contains("italic") || font.toLowerCase().contains("kursiv"))) s = s.withItalic(true);
+        return s;
+    }
+
     public static Component decorate(Component base, CosmeticData d) {
         if (base == null) return base;
         if (d == null || d.isEmpty()) return base;

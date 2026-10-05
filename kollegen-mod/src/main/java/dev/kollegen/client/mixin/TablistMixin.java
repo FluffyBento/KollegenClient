@@ -19,7 +19,7 @@ public class TablistMixin {
             if (info == null || info.getProfile() == null) return;
             Component current = cir.getReturnValue();
             if (current == null) return;
-            Component next = CosmeticText.decoratePlayer(current, info.getProfile().id());
+            Component next = CosmeticText.decorateTab(current, info.getProfile().id());
             if (next != current) cir.setReturnValue(next);
         } catch (Throwable ignored) {
         }

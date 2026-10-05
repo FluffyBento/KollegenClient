@@ -1,7 +1,6 @@
 package dev.kollegen.client.mixin;
 
 import com.mojang.blaze3d.vertex.PoseStack;
-import dev.kollegen.client.presence.CosmeticData;
 import dev.kollegen.client.presence.CosmeticText;
 import dev.kollegen.client.presence.KollegenPresence;
 import net.minecraft.client.Minecraft;
@@ -39,18 +38,9 @@ public class NametagMixin {
 
     private static void kollegen$applyCosmetics(EntityRenderState state, java.util.UUID id) {
         try {
-            CosmeticData d = KollegenPresence.getCosmetics(id);
-            if (d == null || d.isEmpty()) return;
             Component cur = state.nameTag;
             if (cur == null) return;
-            String plain;
-            try {
-                plain = cur.getString();
-            } catch (Throwable ignored) {
-                return;
-            }
-            if (plain == null || plain.isEmpty() || plain.contains(" · Lv ")) return;
-            Component next = CosmeticText.decorate(cur, d);
+            Component next = CosmeticText.decorateNametag(cur, id);
             if (next != cur) state.nameTag = next;
         } catch (Throwable ignored) {
         }
