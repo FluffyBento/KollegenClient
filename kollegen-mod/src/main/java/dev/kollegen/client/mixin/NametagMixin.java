@@ -41,16 +41,29 @@ public class NametagMixin {
     private void kollegen$extras(AvatarRenderState state, PoseStack poseStack, SubmitNodeCollector collector,
                                  CameraRenderState camera, CallbackInfo ci) {
         try {
-            if (state.isDiscrete) return;
+            if (state.isDiscrete) {
+                kollegen$dbg("skip-discrete");
+                return;
+            }
             java.util.UUID id = STATE_ID.get(state);
             if (id == null) id = kollegen$resolve(state);
-            if (id == null) return;
+            if (id == null) {
+                kollegen$dbg("skip-no-id");
+                return;
+            }
             CosmeticData d = KollegenPresence.getCosmetics(id);
             boolean hasData = d != null && !d.isEmpty();
-            if (!KollegenPresence.isKollegen(id) && !hasData) return;
+            if (!KollegenPresence.isKollegen(id) && !hasData) {
+                kollegen$dbg("skip-nothing");
+                return;
+            }
             boolean matchedA = kollegen$matches(state.scoreText, id);
             boolean matchedW = !matchedA && kollegen$matches(state.nameTag, id);
-            if (!matchedA && !matchedW) return;
+            if (!matchedA && !matchedW) {
+                kollegen$dbg("skip-no-match");
+                return;
+            }
+            KollegenPresence.dbgRender = "render";
             if (hasData) {
                 if (matchedA) state.scoreText = CosmeticText.decorateNameLine(state.scoreText, id);
                 else state.nameTag = CosmeticText.decorateNameLine(state.nameTag, id);
@@ -79,6 +92,13 @@ public class NametagMixin {
                 }
                 kollegen$logo(poseStack, collector, anchor, nameY, tw, camera.orientation);
             }
+        } catch (Throwable ignored) {
+        }
+    }
+
+    private static void kollegen$dbg(String s) {
+        try {
+            if (!"render".equals(KollegenPresence.dbgRender)) KollegenPresence.dbgRender = s;
         } catch (Throwable ignored) {
         }
     }

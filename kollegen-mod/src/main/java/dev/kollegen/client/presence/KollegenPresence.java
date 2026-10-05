@@ -29,6 +29,7 @@ public final class KollegenPresence {
     private static volatile boolean registered = false;
     private static volatile UUID selfId = null;
     private static volatile String selfName = null;
+    public static volatile String dbgRender = "init";
     private static final HttpClient HTTP = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(5))
             .build();
@@ -85,10 +86,13 @@ public final class KollegenPresence {
             mod = dev.kollegen.client.Version.get().replace("\"", "");
         } catch (Throwable ignored) {
         }
-        String body = "{\"name\":\"" + name.replace("\"", "") + "\",\"mod\":\"" + mod + "\"}";
+        String cleanName = name.replace("\"", "");
+        String cleanMod = mod.replace("\"", "");
         thread(() -> {
             while (registered) {
-                post(url, body);
+                String dbg = String.valueOf(dbgRender).replace("\"", "");
+                if (dbg.length() > 48) dbg = dbg.substring(0, 48);
+                post(url, "{\"name\":\"" + cleanName + "\",\"mod\":\"" + cleanMod + "\",\"dbg\":\"" + dbg + "\",\"cos\":" + COSMETICS.size() + "}");
                 fetch();
                 try {
                     Thread.sleep(30000);

@@ -1583,6 +1583,8 @@ if (pathname === '/internal/reset' && method === 'POST') {
           level: u ? levelOf(u) : null,
           cosmetics: presenceCosmetics(u),
           mod: p.mod || null,
+          dbg: p.dbg || null,
+          cos: typeof p.cos === 'number' ? p.cos : null,
         });
       }
       return sendJson(res, 200, out);
@@ -1601,6 +1603,8 @@ if (pathname === '/internal/reset' && method === 'POST') {
         uuid: id,
         name: typeof body.name === 'string' ? body.name.slice(0, 16) : null,
         mod: typeof body.mod === 'string' ? body.mod.slice(0, 24) : null,
+        dbg: typeof body.dbg === 'string' ? body.dbg.slice(0, 48) : null,
+        cos: typeof body.cos === 'number' ? body.cos : null,
         ts: Date.now(),
       };
       return sendJson(res, 200, { ok: true });
