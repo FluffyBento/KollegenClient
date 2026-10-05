@@ -116,14 +116,29 @@ function sameUuid(a, b) {
   return !!x && x === y;
 }
 
+const GRANTED_TITLES = {
+  '734794262188785741': 'Kollege',
+};
+
+function grantedTitle(u) {
+  if (!u) return null;
+  const t = GRANTED_TITLES[String(u.discordId)] || (u.grantedTitle ? String(u.grantedTitle) : null);
+  return t || null;
+}
+
 function presenceCosmetics(u) {
   if (!u) return null;
   if (u.profile && u.profile.public === false) return null;
   ensureUserExtras(u);
   const eq = u.equipped || {};
   const out = {};
-  const t = eq.title && catById(eq.title);
-  if (t && t.data && t.data.text) out.title = { text: t.data.text };
+  const granted = grantedTitle(u);
+  if (granted) {
+    out.title = { text: granted };
+  } else {
+    const t = eq.title && catById(eq.title);
+    if (t && t.data && t.data.text) out.title = { text: t.data.text };
+  }
   const b = eq.badge && catById(eq.badge);
   if (b && b.data) out.badge = { icon: b.data.icon || null, color: b.data.color || null };
   const nc = eq.name_color && catById(eq.name_color);
