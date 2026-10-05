@@ -1,18 +1,19 @@
 package dev.kollegen.client.mixin;
 
+import com.mojang.authlib.GameProfile;
 import com.mojang.blaze3d.vertex.PoseStack;
+import dev.kollegen.client.presence.CosmeticData;
 import dev.kollegen.client.presence.CosmeticText;
 import dev.kollegen.client.presence.KollegenPresence;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.PlayerInfo;
 import net.minecraft.client.renderer.SubmitNodeCollector;
-import net.minecraft.client.renderer.entity.EntityRenderer;
-import net.minecraft.client.renderer.entity.state.EntityRenderState;
+import net.minecraft.client.renderer.entity.player.AvatarRenderer;
+import net.minecraft.client.renderer.entity.state.AvatarRenderState;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.client.renderer.state.CameraRenderState;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -20,80 +21,97 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 
-@Mixin(EntityRenderer.class)
+@Mixin(AvatarRenderer.class)
 public class NametagMixin {
 
-    private static final java.util.Map<EntityRenderState, java.util.UUID> STATE_UUID = new java.util.WeakHashMap<>();
     private static final Identifier LOGO = Identifier.fromNamespaceAndPath("kollegen", "textures/gui/logo_mark.png");
 
-    @Inject(method = "extractRenderState(Lnet/minecraft/world/entity/Entity;Lnet/minecraft/client/renderer/entity/state/EntityRenderState;F)V",
-            at = @At("RETURN"))
-    private void kollegen$capture(Entity entity, EntityRenderState state, float f, CallbackInfo ci) {
-        boolean kollege = entity instanceof Player p && KollegenPresence.isKollegen(p.getUUID());
-        KollegenPresence.markKollegen(state, kollege);
-        if (entity instanceof Player p) {
-            STATE_UUID.put(state, p.getUUID());
-            kollegen$applyCosmetics(state, p.getUUID());
-        }
-    }
-
-    private static void kollegen$applyCosmetics(EntityRenderState state, java.util.UUID id) {
-        try {
-            Component cur = state.nameTag;
-            if (cur == null) return;
-            Component next = CosmeticText.decorateNameLine(cur, id);
-            if (next != cur) state.nameTag = next;
-        } catch (Throwable ignored) {
-        }
-    }
-
-    @Inject(method = "submitNameTag(Lnet/minecraft/client/renderer/entity/state/EntityRenderState;Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/SubmitNodeCollector;Lnet/minecraft/client/renderer/state/CameraRenderState;)V",
+    @Inject(method = "submitNameTag(Lnet/minecraft/client/renderer/entity/state/AvatarRenderState;Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/SubmitNodeCollector;Lnet/minecraft/client/renderer/state/CameraRenderState;)V",
             at = @At("HEAD"))
-    private void kollegen$decorateEarly(EntityRenderState state, PoseStack poseStack, SubmitNodeCollector collector,
-                                        CameraRenderState camera, CallbackInfo ci) {
-        try {
-            java.util.UUID id = STATE_UUID.get(state);
-            if (id == null) return;
-            kollegen$applyCosmetics(state, id);
-        } catch (Throwable ignored) {
-        }
-    }
-
-    @Inject(method = "submitNameTag(Lnet/minecraft/client/renderer/entity/state/EntityRenderState;Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/SubmitNodeCollector;Lnet/minecraft/client/renderer/state/CameraRenderState;)V",
-            at = @At("RETURN"))
-    private void kollegen$extras(EntityRenderState state, PoseStack poseStack, SubmitNodeCollector collector,
+    private void kollegen$extras(AvatarRenderState state, PoseStack poseStack, SubmitNodeCollector collector,
                                  CameraRenderState camera, CallbackInfo ci) {
-        if (!KollegenPresence.isKollegen(state)) return;
         try {
-            if (state.nameTag == null) return;
-            java.util.UUID id = STATE_UUID.get(state);
+            if (state.isDiscrete) return;
+            java.util.UUID id = kollegen$resolve(state);
             if (id == null) return;
+            CosmeticData d = KollegenPresence.getCosmetics(id);
+            boolean hasData = d != null && !d.isEmpty();
+            if (!KollegenPresence.isKollegen(id) && !hasData) return;
+            boolean matchedA = kollegen$matches(state.scoreText, id);
+            boolean matchedW = !matchedA && kollegen$matches(state.nameTag, id);
+            if (!matchedA && !matchedW) return;
+            if (hasData) {
+                if (matchedA) state.scoreText = CosmeticText.decorateNameLine(state.scoreText, id);
+                else state.nameTag = CosmeticText.decorateNameLine(state.nameTag, id);
+            }
             Vec3 anchor = state.nameTagAttachment;
             if (anchor == null) return;
-            Component title = CosmeticText.titleComponent(id);
+            double nameY = anchor.y + (matchedW ? 0.259 : 0.0);
+            Component title = hasData ? CosmeticText.titleComponent(id) : null;
             if (title != null) {
                 collector.submitNameTag(poseStack,
-                        new Vec3(anchor.x, anchor.y + 0.32, anchor.z),
+                        new Vec3(anchor.x, anchor.y + 0.62, anchor.z),
                         0, title, !state.isDiscrete, state.lightCoords, state.distanceToCameraSq, camera);
             }
-            Component level = CosmeticText.levelComponent(id);
+            Component level = hasData ? CosmeticText.levelComponent(id) : null;
             if (level != null) {
                 collector.submitNameTag(poseStack,
-                        new Vec3(anchor.x, anchor.y - 0.34, anchor.z),
+                        new Vec3(anchor.x, anchor.y - 0.32, anchor.z),
                         0, level, !state.isDiscrete, state.lightCoords, state.distanceToCameraSq, camera);
             }
-            kollegen$logo(state, poseStack, collector, anchor, camera.orientation);
+            if (KollegenPresence.isKollegen(id)) {
+                Component nameLine = matchedW ? state.nameTag : state.scoreText;
+                int tw = 60;
+                try {
+                    if (nameLine != null) tw = Minecraft.getInstance().font.width(nameLine);
+                } catch (Throwable ignored) {
+                }
+                kollegen$logo(poseStack, collector, anchor, nameY, tw, camera.orientation);
+            }
         } catch (Throwable ignored) {
         }
     }
 
-    private static void kollegen$logo(EntityRenderState state, PoseStack poseStack, SubmitNodeCollector collector, Vec3 anchor, org.joml.Quaternionf orientation) {
+    private static java.util.UUID kollegen$resolve(AvatarRenderState state) {
         try {
-            Component nameTag = state.nameTag;
-            if (nameTag == null || orientation == null) return;
-            int tw = Minecraft.getInstance().font.width(nameTag);
+            String a = state.scoreText != null ? state.scoreText.getString() : null;
+            String w = state.nameTag != null ? state.nameTag.getString() : null;
+            Minecraft mc = Minecraft.getInstance();
+            if (mc.getConnection() == null) return null;
+            for (PlayerInfo pi : mc.getConnection().getOnlinePlayers()) {
+                GameProfile profile = pi.getProfile();
+                if (profile == null) continue;
+                String n = profile.name();
+                if ((a != null && a.equals(n)) || (w != null && w.equals(n))) return profile.id();
+            }
+        } catch (Throwable ignored) {
+        }
+        return null;
+    }
+
+    private static boolean kollegen$matches(Component line, java.util.UUID id) {
+        try {
+            if (line == null) return false;
+            String plain = line.getString();
+            if (plain == null || plain.isEmpty()) return false;
+            Minecraft mc = Minecraft.getInstance();
+            if (mc.getConnection() == null) return false;
+            for (PlayerInfo pi : mc.getConnection().getOnlinePlayers()) {
+                GameProfile profile = pi.getProfile();
+                if (profile == null) continue;
+                if (!profile.id().equals(id)) continue;
+                return plain.equals(profile.name());
+            }
+        } catch (Throwable ignored) {
+        }
+        return false;
+    }
+
+    private static void kollegen$logo(PoseStack poseStack, SubmitNodeCollector collector, Vec3 anchor, double nameY, int tw, org.joml.Quaternionf orientation) {
+        try {
+            if (orientation == null) return;
             poseStack.pushPose();
-            poseStack.translate(anchor.x, anchor.y, anchor.z);
+            poseStack.translate(anchor.x, nameY, anchor.z);
             poseStack.mulPose(orientation);
             poseStack.scale(0.025F, -0.025F, 0.025F);
             int s = 8;
