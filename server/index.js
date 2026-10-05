@@ -26,6 +26,7 @@ const CATALOG = [
   { id: 'title_veteran', category: 'title', name: 'Veteran', desc: 'Viele Stunden im Nether überlebt.', price: 450, rarity: 'rare', data: { text: 'Veteran' } },
   { id: 'title_champion', category: 'title', name: 'Champion', desc: 'Unbesiegt in deiner Arena.', price: 900, rarity: 'epic', data: { text: 'Champion' } },
   { id: 'title_legende', category: 'title', name: 'Legende', desc: 'Eine Legende unter den Kollegen.', price: 1600, rarity: 'legendary', featured: true, data: { text: 'Legende' } },
+  { id: 'title_kollege', category: 'title', name: 'Kollege', desc: 'Exklusiv verliehen, nicht käuflich.', price: 0, rarity: 'legendary', hidden: true, data: { text: 'Kollege' } },
   
   { id: 'frame_bronze', category: 'avatar_frame', name: 'Bronzen', desc: 'Bronzefarbener Avatar-Rahmen.', price: 200, rarity: 'common', data: { color1: '#cd7f32', color2: '#7a5630' } },
   { id: 'frame_silber', category: 'avatar_frame', name: 'Silbern', desc: 'Silberner Avatar-Rahmen.', price: 500, rarity: 'rare', data: { color1: '#c0c0c0', color2: '#7f7f8a' } },
@@ -124,6 +125,15 @@ function grantedTitle(u) {
   if (!u) return null;
   const t = GRANTED_TITLES[String(u.discordId)] || (u.grantedTitle ? String(u.grantedTitle) : null);
   return t || null;
+}
+
+function grantSpecialTitle(u) {
+  if (!u || !grantedTitle(u)) return;
+  ensureUserExtras(u);
+  if (!u.cosmetics.some((x) => x && x.id === 'title_kollege')) {
+    u.cosmetics.push({ id: 'title_kollege', boughtAt: Date.now() });
+  }
+  u.equipped.title = 'title_kollege';
 }
 
 function presenceCosmetics(u) {
@@ -421,6 +431,7 @@ const server = http.createServer(async (req, res) => {
         if (discordAvatar) user.discordAvatar = discordAvatar;
       }
       ensureUserExtras(user);
+      grantSpecialTitle(user);
 
       if (body.profile && typeof body.profile === 'object') {
         if (body.profile.uuid) user.uuid = String(body.profile.uuid);
@@ -512,6 +523,7 @@ const server = http.createServer(async (req, res) => {
       const hasUser = !!user;
       if (user) ensureUserExtras(user);
       const items = (store.catalog || CATALOG)
+        .filter((c) => !c.hidden)
         .map((c) => Object.assign({}, c, {
           owned: hasUser ? user.cosmetics.some((x) => x && x.id === c.id) : false,
           equippedCategory: hasUser ? user.equipped[c.category] === c.id : false,
@@ -530,6 +542,7 @@ const server = http.createServer(async (req, res) => {
       const itemId = String(body.item_id || '').trim();
       const item = catById(itemId);
       if (!item) return sendJson(res, 404, { error: 'item_not_found' });
+      if (item.hidden) return sendJson(res, 400, { error: 'not_buyable' });
       if (user.cosmetics.some((x) => x && x.id === itemId)) return sendJson(res, 400, { error: 'already_owned' });
       if (user.points < item.price) return sendJson(res, 400, { error: 'not_enough_points', points: user.points, price: item.price });
       user.points -= item.price;

@@ -49,8 +49,9 @@ public final class CosmeticText {
         if (plain != null && plain.contains(LOGO_CHAR)) return base;
         MutableComponent out = Component.empty();
         if (kollege) {
-            out.append(Component.literal(LOGO_CHAR + " ")
+            out.append(Component.literal(LOGO_CHAR)
                     .withStyle(Style.EMPTY.withFont(LOGO_FONT).withColor(TextColor.fromRgb(0xFFFFFF))));
+            out.append(Component.literal(" "));
         }
         if (hasData) {
             String nm = (plain == null || plain.isEmpty()) ? "?" : plain;
@@ -73,28 +74,24 @@ public final class CosmeticText {
         }
         if (plain == null || plain.isEmpty() || plain.contains("· Lv ")) return base;
         int nameColor = parseColor(d.nameColor, FALLBACK_NAME);
-        MutableComponent titleLine = Component.empty();
-        if (d.badgeIcon != null) {
-            titleLine.append(Component.literal(d.badgeIcon).withStyle(Style.EMPTY.withColor(TextColor.fromRgb(parseColor(d.badgeColor, FALLBACK_BADGE)))));
-            titleLine.append(Component.literal(" "));
-        }
-        if (d.titleText != null) {
-            titleLine.append(Component.literal(d.titleText).withStyle(Style.EMPTY.withColor(TextColor.fromRgb(nameColor)).withBold(true)));
-        }
         MutableComponent out = Component.empty();
-        boolean hasTitle = d.badgeIcon != null || d.titleText != null;
-        if (hasTitle) {
-            out.append(titleLine);
+        if (d.titleText != null) {
+            out.append(Component.literal(d.titleText).withStyle(Style.EMPTY.withColor(TextColor.fromRgb(nameColor)).withBold(true)));
             out.append(Component.literal("\n"));
+        }
+        out.append(Component.literal(LOGO_CHAR)
+                .withStyle(Style.EMPTY.withFont(LOGO_FONT).withColor(TextColor.fromRgb(0xFFFFFF))));
+        out.append(Component.literal(" "));
+        if (d.badgeIcon != null) {
+            out.append(Component.literal(d.badgeIcon).withStyle(Style.EMPTY.withColor(TextColor.fromRgb(parseColor(d.badgeColor, FALLBACK_BADGE)))));
         }
         out.append(Component.literal(plain).withStyle(nameStyle(nameColor, d.font)));
         if (d.stickerIcon != null) {
-            out.append(Component.literal(" "));
             out.append(Component.literal(d.stickerIcon).withStyle(Style.EMPTY.withColor(TextColor.fromRgb(parseColor(d.stickerColor, FALLBACK_NAME)))));
         }
         if (d.level > 0) {
             out.append(Component.literal("\n"));
-            out.append(Component.literal("· Lv " + d.level).withStyle(Style.EMPTY.withColor(TextColor.fromRgb(LEVEL_GRAY))));
+            out.append(Component.literal("· Lv " + d.level + " ·").withStyle(Style.EMPTY.withColor(TextColor.fromRgb(LEVEL_GRAY))));
         }
         return out;
     }
@@ -114,8 +111,9 @@ public final class CosmeticText {
         if (plain != null && plain.contains(LOGO_CHAR)) return base;
         MutableComponent out = Component.empty();
         if (kollege) {
-            out.append(Component.literal(LOGO_CHAR + " ")
+            out.append(Component.literal(LOGO_CHAR)
                     .withStyle(Style.EMPTY.withFont(LOGO_FONT).withColor(TextColor.fromRgb(0xFFFFFF))));
+            out.append(Component.literal(" "));
         }
         if (hasData) {
             if (d.badgeIcon != null) {
