@@ -83,7 +83,7 @@ public class NametagMixin {
                         new Vec3(anchor.x, anchor.y - 0.32, anchor.z),
                         0, level, !state.isDiscrete, state.lightCoords, state.distanceToCameraSq, camera);
             }
-            if (KollegenPresence.isKollegen(id)) {
+            if (false && KollegenPresence.isKollegen(id)) {
                 Component nameLine = matchedW ? state.nameTag : state.scoreText;
                 int tw = 60;
                 try {
