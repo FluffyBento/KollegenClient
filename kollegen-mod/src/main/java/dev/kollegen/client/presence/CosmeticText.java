@@ -62,6 +62,57 @@ public final class CosmeticText {
         return out;
     }
 
+    public static int levelTierColor(int level) {
+        if (level >= 80) return 0xFFAA00;
+        if (level >= 60) return 0xAA55FF;
+        if (level >= 30) return 0x5555FF;
+        if (level >= 10) return 0x55FF55;
+        return 0x9AA0A6;
+    }
+
+    public static Component decorateNameLine(Component base, UUID id) {
+        if (base == null || id == null) return base;
+        CosmeticData d = KollegenPresence.getCosmetics(id);
+        if (d == null || d.isEmpty()) return base;
+        String plain;
+        try {
+            plain = base.getString();
+        } catch (Throwable ignored) {
+            return base;
+        }
+        if (plain == null || plain.isEmpty()) return base;
+        int nameColor = parseColor(d.nameColor, FALLBACK_NAME);
+        MutableComponent out = Component.empty();
+        if (d.badgeIcon != null) {
+            out.append(Component.literal(d.badgeIcon).withStyle(Style.EMPTY.withColor(TextColor.fromRgb(parseColor(d.badgeColor, FALLBACK_BADGE)))));
+        }
+        out.append(Component.literal(plain).withStyle(nameStyle(nameColor, d.font)));
+        if (d.stickerIcon != null) {
+            out.append(Component.literal(d.stickerIcon).withStyle(Style.EMPTY.withColor(TextColor.fromRgb(parseColor(d.stickerColor, FALLBACK_NAME)))));
+        }
+        return out;
+    }
+
+    public static Component titleComponent(UUID id) {
+        CosmeticData d = id == null ? null : KollegenPresence.getCosmetics(id);
+        if (d == null || d.titleText == null) return null;
+        int nameColor = parseColor(d.nameColor, FALLBACK_NAME);
+        return Component.literal(d.titleText)
+                .withStyle(Style.EMPTY.withColor(TextColor.fromRgb(nameColor)).withBold(true));
+    }
+
+    public static Component levelComponent(UUID id) {
+        CosmeticData d = id == null ? null : KollegenPresence.getCosmetics(id);
+        if (d == null || d.level <= 0) return null;
+        int tier = levelTierColor(d.level);
+        MutableComponent out = Component.empty();
+        out.append(Component.literal("[").withStyle(Style.EMPTY.withColor(TextColor.fromRgb(0x555555))));
+        out.append(Component.literal("Lv ").withStyle(Style.EMPTY.withColor(TextColor.fromRgb(0xDDDDDD))));
+        out.append(Component.literal(String.valueOf(d.level)).withStyle(Style.EMPTY.withColor(TextColor.fromRgb(tier)).withBold(true)));
+        out.append(Component.literal("]").withStyle(Style.EMPTY.withColor(TextColor.fromRgb(0x555555))));
+        return out;
+    }
+
     public static Component decorateNametag(Component base, UUID id) {
         if (base == null || id == null) return base;
         CosmeticData d = KollegenPresence.getCosmetics(id);
