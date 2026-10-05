@@ -522,8 +522,9 @@ const server = http.createServer(async (req, res) => {
       }
       const hasUser = !!user;
       if (user) ensureUserExtras(user);
+      const ownedIds = hasUser ? new Set(user.cosmetics.map((x) => x && x.id)) : new Set();
       const items = (store.catalog || CATALOG)
-        .filter((c) => !c.hidden)
+        .filter((c) => !c.hidden || ownedIds.has(c.id))
         .map((c) => Object.assign({}, c, {
           owned: hasUser ? user.cosmetics.some((x) => x && x.id === c.id) : false,
           equippedCategory: hasUser ? user.equipped[c.category] === c.id : false,
