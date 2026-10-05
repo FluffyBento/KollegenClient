@@ -119,6 +119,7 @@ function sameUuid(a, b) {
 
 const GRANTED_TITLES = {
   '734794262188785741': 'Kollege',
+  '624247056566976522': 'Kollege',
 };
 
 function grantedTitle(u) {
