@@ -35,6 +35,11 @@ public final class CosmeticText {
         }
     }
 
+    public static Component logoComponent() {
+        return Component.literal(LOGO_CHAR)
+                .withStyle(Style.EMPTY.withFont(LOGO_FONT).withColor(TextColor.fromRgb(0xFFFFFF))));
+    }
+
     public static Component decoratePlayer(Component base, UUID id) {
         if (base == null || id == null) return base;
         boolean kollege = KollegenPresence.isKollegen(id);
@@ -49,8 +54,7 @@ public final class CosmeticText {
         if (plain != null && plain.contains(LOGO_CHAR)) return base;
         MutableComponent out = Component.empty();
         if (kollege) {
-            out.append(Component.literal(LOGO_CHAR)
-                    .withStyle(Style.EMPTY.withFont(LOGO_FONT).withColor(TextColor.fromRgb(0xFFFFFF))));
+            out.append(logoComponent());
             out.append(Component.literal(" "));
         }
         if (hasData) {
@@ -162,8 +166,7 @@ public final class CosmeticText {
         if (plain != null && plain.contains(LOGO_CHAR)) return base;
         MutableComponent out = Component.empty();
         if (kollege) {
-            out.append(Component.literal(LOGO_CHAR)
-                    .withStyle(Style.EMPTY.withFont(LOGO_FONT).withColor(TextColor.fromRgb(0xFFFFFF))));
+            out.append(logoComponent());
             out.append(Component.literal(" "));
         }
         if (hasData) {

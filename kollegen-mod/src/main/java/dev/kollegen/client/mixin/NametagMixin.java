@@ -13,6 +13,7 @@ import net.minecraft.client.renderer.entity.state.AvatarRenderState;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.client.renderer.state.CameraRenderState;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.phys.Vec3;
 import org.spongepowered.asm.mixin.Mixin;
@@ -67,8 +68,12 @@ public class NametagMixin {
             KollegenPresence.dbgRender = "render";
             if (hasData) {
                 Component decorated = CosmeticText.decorateNameLine(line, id);
-                if (useW) state.nameTag = decorated;
-                else state.scoreText = decorated;
+                MutableComponent withLogo = Component.empty();
+                withLogo.append(CosmeticText.logoComponent());
+                withLogo.append(Component.literal(" "));
+                withLogo.append(decorated);
+                if (useW) state.nameTag = withLogo;
+                else state.scoreText = withLogo;
             }
             Vec3 anchor = state.nameTagAttachment;
             if (anchor == null) return;
