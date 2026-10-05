@@ -37,7 +37,7 @@ public final class CosmeticText {
 
     public static Component logoComponent() {
         return Component.literal(LOGO_CHAR)
-                .withStyle(Style.EMPTY.withFont(LOGO_FONT).withColor(TextColor.fromRgb(0xFFFFFF))));
+                .withStyle(Style.EMPTY.withFont(LOGO_FONT).withColor(TextColor.fromRgb(0xFFFFFF)));
     }
 
     public static Component decoratePlayer(Component base, UUID id) {
