@@ -25,6 +25,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public class NametagMixin {
 
     private static final Identifier LOGO = Identifier.fromNamespaceAndPath("kollegen", "textures/gui/logo_mark.png");
+    private static final net.minecraft.client.renderer.rendertype.RenderType LOGO_TYPE = RenderTypes.textSeeThrough(LOGO);
     private static final java.util.Map<AvatarRenderState, java.util.UUID> STATE_ID = new java.util.WeakHashMap<>();
 
     @Inject(method = "extractRenderState(Lnet/minecraft/world/entity/Avatar;Lnet/minecraft/client/renderer/entity/state/AvatarRenderState;F)V",
@@ -75,16 +76,16 @@ public class NametagMixin {
             Component title = hasData ? CosmeticText.titleComponent(id) : null;
             if (title != null) {
                 collector.submitNameTag(poseStack,
-                        new Vec3(anchor.x, anchor.y + 0.62, anchor.z),
+                        new Vec3(anchor.x, anchor.y + 0.50, anchor.z),
                         0, title, !state.isDiscrete, state.lightCoords, state.distanceToCameraSq, camera);
             }
             Component level = hasData ? CosmeticText.levelComponent(id) : null;
             if (level != null) {
                 collector.submitNameTag(poseStack,
-                        new Vec3(anchor.x, anchor.y - 0.32, anchor.z),
+                        new Vec3(anchor.x, anchor.y - 0.26, anchor.z),
                         0, level, !state.isDiscrete, state.lightCoords, state.distanceToCameraSq, camera);
             }
-            if (false && KollegenPresence.isKollegen(id)) {
+            if (KollegenPresence.isKollegen(id)) {
                 Component nameLine = useW ? state.nameTag : state.scoreText;
                 int tw = 60;
                 try {
@@ -149,7 +150,7 @@ public class NametagMixin {
             int s = 8;
             float x = -tw / 2f - s - 2;
             float y = -s / 2f;
-            collector.submitCustomGeometry(poseStack, RenderTypes.textSeeThrough(LOGO), (pose, vc) -> {
+            collector.submitCustomGeometry(poseStack, LOGO_TYPE, (pose, vc) -> {
                 vc.addVertex(pose, x, y + s, 0f).setColor(255, 255, 255, 255).setUv(0, 1);
                 vc.addVertex(pose, x + s, y + s, 0f).setColor(255, 255, 255, 255).setUv(1, 1);
                 vc.addVertex(pose, x + s, y, 0f).setColor(255, 255, 255, 255).setUv(1, 0);
