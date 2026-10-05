@@ -33,7 +33,8 @@ public final class World {
 
         @Override
         public void onTick() {
-            if (mc.level != null) mc.level.getLevelData().setDayTime((long) time.value);
+            if (mc.level != null && mc.level.getLevelData() instanceof net.minecraft.client.multiplayer.ClientLevel.ClientLevelData d)
+                d.setGameTime((long) time.value);
         }
     }
 

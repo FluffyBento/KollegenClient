@@ -13,7 +13,7 @@ import dev.kollegen.client.ui.Glass;
 import dev.kollegen.client.ui.GlassButton;
 import dev.kollegen.client.ui.GlassToggle;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
@@ -126,7 +126,7 @@ public class KollegenMenuScreen extends Screen {
 
         GlassButton hudBtn = new GlassButton(px + pw - 148, py + 34, 104, 32, Component.literal("HUD bearbeiten"), btn -> {
             HudModule.editMode = true;
-            Minecraft.getInstance().setScreen(new HudEditScreen(this));
+            Minecraft.getInstance().setScreenAndShow(new HudEditScreen(this));
         });
         addRenderableWidget(hudBtn);
 
@@ -206,7 +206,7 @@ public class KollegenMenuScreen extends Screen {
     }
 
     private void close() {
-        Minecraft.getInstance().setScreen(parent);
+        Minecraft.getInstance().setScreenAndShow(parent);
     }
 
     @Override
@@ -332,7 +332,7 @@ public class KollegenMenuScreen extends Screen {
     }
 
     @Override
-    public void render(GuiGraphics g, int mx, int my, float pt) {
+    public void extractRenderState(GuiGraphicsExtractor g, int mx, int my, float pt) {
         tabAnimProgress = Math.min(1f, tabAnimProgress + pt * 8f);
 
         g.fill(0, 0, this.width, this.height, Palette.tint(Palette.BG, 0xCC));
@@ -397,14 +397,14 @@ public class KollegenMenuScreen extends Screen {
 
                 if (m.locked) {
                     Glass.fillRound(g, cardX + 4, cardY + (cardH - 20) / 2, 20, 20, 4, Palette.tint(Palette.MUTED, 0x80));
-                    g.drawString(this.font, "🔒", cardX + 8, cardY + (cardH - this.font.lineHeight) / 2, Palette.MUTED, false);
+                    g.text(this.font, "🔒", cardX + 8, cardY + (cardH - this.font.lineHeight) / 2, Palette.MUTED, false);
                 }
 
                 int titleX = cardX + 16 + (m.locked ? 24 : 0);
-                g.drawString(this.font, m.name, titleX, cardY + 10, Palette.TEXT, false);
-                g.drawString(this.font, trunc(m.description, cardW - 200), titleX, cardY + 28, Palette.MUTED, false);
+                g.text(this.font, m.name, titleX, cardY + 10, Palette.TEXT, false);
+                g.text(this.font, trunc(m.description, cardW - 200), titleX, cardY + 28, Palette.MUTED, false);
                 if (m.risk != null) {
-                    g.drawString(this.font, "⚠ " + trunc(m.risk, cardW - 80), titleX, cardY + 44, Palette.DANGER, false);
+                    g.text(this.font, "⚠ " + trunc(m.risk, cardW - 80), titleX, cardY + 44, Palette.DANGER, false);
                 }
 
                 int badgeX = px + pw - PADDING - SCROLLBAR_AREA_W - 96;
@@ -422,13 +422,13 @@ public class KollegenMenuScreen extends Screen {
                 Glass.fillRound(g, cardX + 1, cardY + 1, cardW - 2, cardH - 2, 5,
                         Palette.tint(Palette.PANEL2, 0x70));
 
-                g.drawString(this.font, e.setting.name, cardX + 16, cardY + (cardH - this.font.lineHeight) / 2, Palette.TEXT, false);
+                g.text(this.font, e.setting.name, cardX + 16, cardY + (cardH - this.font.lineHeight) / 2, Palette.TEXT, false);
 
                 String vt = e.setting.valueText();
                 if (!vt.isEmpty() && e.widget != null) {
                     int vx = e.widget.getX() - 12 - this.font.width(vt);
                     if (vx < cardX + cardW / 2) vx = cardX + cardW / 2;
-                    g.drawString(this.font, vt, vx, cardY + (cardH - this.font.lineHeight) / 2, Palette.MUTED, false);
+                    g.text(this.font, vt, vx, cardY + (cardH - this.font.lineHeight) / 2, Palette.MUTED, false);
                 }
             }
         }
@@ -444,11 +444,11 @@ public class KollegenMenuScreen extends Screen {
                     scroll, maxScroll, false, draggingScroll);
         }
 
-        g.drawString(this.font, "KOLLEGEN", px + PADDING + 12, py + 8, Palette.ACCENT, false);
-        g.drawString(this.font, "Client", px + PADDING + 12 + this.font.width("KOLLEGEN") + 6, py + 8, Palette.MUTED, false);
-        g.drawString(this.font, "v" + Version.get(), px + pw - PADDING - this.font.width("v" + Version.get()) - 12, py + 8, Palette.MUTED, false);
+        g.text(this.font, "KOLLEGEN", px + PADDING + 12, py + 8, Palette.ACCENT, false);
+        g.text(this.font, "Client", px + PADDING + 12 + this.font.width("KOLLEGEN") + 6, py + 8, Palette.MUTED, false);
+        g.text(this.font, "v" + Version.get(), px + pw - PADDING - this.font.width("v" + Version.get()) - 12, py + 8, Palette.MUTED, false);
 
-        super.render(g, mx, my, pt);
+        super.extractRenderState(g, mx, my, pt);
     }
 
     private static String trunc(String s, int max) {

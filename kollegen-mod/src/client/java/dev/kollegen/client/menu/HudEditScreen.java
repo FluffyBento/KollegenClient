@@ -5,7 +5,7 @@ import dev.kollegen.client.mods.ModuleManager;
 import dev.kollegen.client.mods.Palette;
 import dev.kollegen.client.ui.Glass;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
@@ -56,14 +56,14 @@ public class HudEditScreen extends Screen {
         if (ki.key() == GLFW.GLFW_KEY_ESCAPE) {
             HudModule.editMode = false;
             ModuleManager.save();
-            Minecraft.getInstance().setScreen(parent != null ? parent : new KollegenMenuScreen(null));
+            Minecraft.getInstance().setScreenAndShow(parent != null ? parent : new KollegenMenuScreen(null));
             return true;
         }
         return super.keyPressed(ki);
     }
 
     @Override
-    public void render(GuiGraphics g, int mx, int my, float pt) {
+    public void extractRenderState(GuiGraphicsExtractor g, int mx, int my, float pt) {
         ModuleManager.renderHud(g, pt);
 
         for (HudModule hm : ModuleManager.modules().stream()
@@ -95,14 +95,14 @@ public class HudEditScreen extends Screen {
             Glass.drawSelectionQuad(g, cx, cy, cw, ch, Palette.ACCENT);
 
             if (isDragging) {
-                g.drawString(this.font, "▌ Verschieben", x + w / 2 - this.font.width("▌ Verschieben") / 2, cy - 20, Palette.ACCENT, true);
+                g.text(this.font, "▌ Verschieben", x + w / 2 - this.font.width("▌ Verschieben") / 2, cy - 20, Palette.ACCENT, true);
             } else if (hov) {
-                g.drawString(this.font, "✎ Ziehen zum Verschieben", x + w / 2 - this.font.width("✎ Ziehen zum Verschieben") / 2, cy - 20, Palette.MUTED, true);
+                g.text(this.font, "✎ Ziehen zum Verschieben", x + w / 2 - this.font.width("✎ Ziehen zum Verschieben") / 2, cy - 20, Palette.MUTED, true);
             }
 
             String name = hm.name;
             int tw = this.font.width(name);
-            g.drawString(this.font, name, x + (w - tw) / 2, y + h + 6, Palette.TEXT, true);
+            g.text(this.font, name, x + (w - tw) / 2, y + h + 6, Palette.TEXT, true);
         }
 
         String hint = "HUD bearbeiten · Elemente ziehen · Esc = zurück · Rechtsklick auf Element = Einstellungen";
@@ -110,9 +110,9 @@ public class HudEditScreen extends Screen {
         int ty = this.height - 50;
         Glass.fillRound(g, tx - 20, ty - 10, this.font.width(hint) + 40, this.font.lineHeight + 20, 10, Palette.tint(Palette.BG, 0xE0));
         Glass.fillRound(g, tx - 19, ty - 9, this.font.width(hint) + 38, this.font.lineHeight + 18, 9, Palette.tint(Palette.PANEL, 0xF0));
-        g.drawString(this.font, hint, tx, ty, Palette.TEXT, true);
+        g.text(this.font, hint, tx, ty, Palette.TEXT, true);
 
-        super.render(g, mx, my, pt);
+        super.extractRenderState(g, mx, my, pt);
     }
 
     @Override

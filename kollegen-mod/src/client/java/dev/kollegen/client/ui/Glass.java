@@ -2,7 +2,7 @@ package dev.kollegen.client.ui;
 
 import dev.kollegen.client.mods.Palette;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 
 public final class Glass {
 
@@ -22,7 +22,7 @@ public final class Glass {
         return (0xFF << 24) | (r << 16) | (g << 8) | bl;
     }
 
-    public static void fillRound(GuiGraphics g, int x, int y, int w, int h, int r, int color) {
+    public static void fillRound(GuiGraphicsExtractor g, int x, int y, int w, int h, int r, int color) {
         if (w <= 0 || h <= 0) return;
         r = Math.min(r, w / 2);
         r = Math.min(r, h / 2);
@@ -37,7 +37,7 @@ public final class Glass {
         }
     }
 
-    public static void fillRoundGradient(GuiGraphics g, int x, int y, int w, int h, int r,
+    public static void fillRoundGradient(GuiGraphicsExtractor g, int x, int y, int w, int h, int r,
                                          int topColor, int bottomColor) {
         if (w <= 0 || h <= 0) return;
         r = Math.min(r, w / 2);
@@ -55,7 +55,7 @@ public final class Glass {
         }
     }
 
-    public static void panel(GuiGraphics g, int x, int y, int w, int h, int r,
+    public static void panel(GuiGraphicsExtractor g, int x, int y, int w, int h, int r,
                              int fill, int border, int sheen) {
         fillRound(g, x, y, w, h, r, border);
         fillRound(g, x + 1, y + 1, w - 2, h - 2, Math.max(0, r - 1), fill);
@@ -69,7 +69,7 @@ public final class Glass {
         }
     }
 
-    public static void panelVanilla(GuiGraphics g, int x, int y, int w, int h, int r) {
+    public static void panelVanilla(GuiGraphicsExtractor g, int x, int y, int w, int h, int r) {
         fillRound(g, x, y, w, h, r, Palette.BORDER);
         fillRound(g, x + 1, y + 1, w - 2, h - 2, Math.max(0, r - 1), Palette.PANEL);
         int sheenH = Math.max(8, h / 3);
@@ -82,12 +82,12 @@ public final class Glass {
         }
     }
 
-    public static void panelDark(GuiGraphics g, int x, int y, int w, int h, int r) {
+    public static void panelDark(GuiGraphicsExtractor g, int x, int y, int w, int h, int r) {
         fillRound(g, x, y, w, h, r, Palette.BORDER);
         fillRound(g, x + 1, y + 1, w - 2, h - 2, Math.max(0, r - 1), Palette.PANEL);
     }
 
-    public static void shadow(GuiGraphics g, int x, int y, int w, int h, int r, int radius) {
+    public static void shadow(GuiGraphicsExtractor g, int x, int y, int w, int h, int r, int radius) {
         int layers = Math.min(radius, 8);
         for (int i = layers; i > 0; i--) {
             int alpha = (int) (0x18 * (1f - (float) i / layers));
@@ -96,7 +96,7 @@ public final class Glass {
         }
     }
 
-    public static void dropShadow(GuiGraphics g, int x, int y, int w, int h, int r, int offset, int radius) {
+    public static void dropShadow(GuiGraphicsExtractor g, int x, int y, int w, int h, int r, int offset, int radius) {
         int layers = Math.min(radius, 8);
         for (int i = layers; i > 0; i--) {
             int alpha = (int) (0x20 * (1f - (float) i / layers));
@@ -105,7 +105,7 @@ public final class Glass {
         }
     }
 
-    public static void button(GuiGraphics g, int x, int y, int w, int h, int r,
+    public static void button(GuiGraphicsExtractor g, int x, int y, int w, int h, int r,
                               int fill, int border, int text, Font font, String label,
                               boolean hover, boolean selected) {
         int f = selected ? tint(fill, 0xE6) : (hover ? tint(fill, 0xB0) : fill);
@@ -113,10 +113,10 @@ public final class Glass {
         fillRound(g, x, y, w, h, r, b);
         fillRound(g, x + 1, y + 1, w - 2, h - 2, Math.max(0, r - 1), f);
         int tw = font.width(label);
-        g.drawString(font, label, x + (w - tw) / 2, y + (h - font.lineHeight) / 2, text, false);
+        g.text(font, label, x + (w - tw) / 2, y + (h - font.lineHeight) / 2, text, false);
     }
 
-    public static void buttonVanilla(GuiGraphics g, int x, int y, int w, int h, int r,
+    public static void buttonVanilla(GuiGraphicsExtractor g, int x, int y, int w, int h, int r,
                                      Font font, String label, boolean hover, boolean selected,
                                      boolean disabled) {
         int baseFill = selected ? Palette.ACCENT : Palette.PANEL2;
@@ -139,10 +139,10 @@ public final class Glass {
         }
 
         int tw = font.width(label);
-        g.drawString(font, label, x + (w - tw) / 2, y + (h - font.lineHeight) / 2, textCol, false);
+        g.text(font, label, x + (w - tw) / 2, y + (h - font.lineHeight) / 2, textCol, false);
     }
 
-    public static void checkbox(GuiGraphics g, int x, int y, int size, boolean checked,
+    public static void checkbox(GuiGraphicsExtractor g, int x, int y, int size, boolean checked,
                                 boolean hover, boolean focused) {
         int borderCol = focused ? Palette.FOCUS_BORDER : (hover ? Palette.ACCENT : Palette.BORDER);
         int fillCol = checked ? Palette.ACCENT : Palette.PANEL2;
@@ -155,11 +155,11 @@ public final class Glass {
         }
     }
 
-    public static void sliderTrack(GuiGraphics g, int x, int y, int w, int h, int r, int color) {
+    public static void sliderTrack(GuiGraphicsExtractor g, int x, int y, int w, int h, int r, int color) {
         fillRound(g, x, y, w, h, r, color);
     }
 
-    public static void sliderThumb(GuiGraphics g, int x, int y, int size, int r, int color, boolean hover) {
+    public static void sliderThumb(GuiGraphicsExtractor g, int x, int y, int size, int r, int color, boolean hover) {
         int col = hover ? tint(color, 0xE0) : color;
         fillRound(g, x, y, size, size, r, col);
         if (hover) {
@@ -167,29 +167,29 @@ public final class Glass {
         }
     }
 
-    public static void scrollbarTrack(GuiGraphics g, int x, int y, int w, int h, int r) {
+    public static void scrollbarTrack(GuiGraphicsExtractor g, int x, int y, int w, int h, int r) {
         fillRound(g, x, y, w, h, r, Palette.SCROLL_TRACK);
     }
 
-    public static void scrollbarThumb(GuiGraphics g, int x, int y, int w, int h, int r, boolean hover) {
+    public static void scrollbarThumb(GuiGraphicsExtractor g, int x, int y, int w, int h, int r, boolean hover) {
         int col = hover ? Palette.SCROLL_THUMB_HOVER : Palette.SCROLL_THUMB;
         fillRound(g, x, y, w, h, r, col);
     }
 
-    public static void tooltipBackground(GuiGraphics g, int x, int y, int w, int h, int r) {
+    public static void tooltipBackground(GuiGraphicsExtractor g, int x, int y, int w, int h, int r) {
         fillRound(g, x, y, w, h, r, Palette.BORDER);
         fillRound(g, x + 1, y + 1, w - 2, h - 2, Math.max(0, r - 1), tint(Palette.BG, 0xF0));
         dropShadow(g, x, y, w, h, r, 2, 6);
     }
 
-    public static void drawHollowRect(GuiGraphics g, int x, int y, int w, int h, int color) {
+    public static void drawHollowRect(GuiGraphicsExtractor g, int x, int y, int w, int h, int color) {
         g.fill(x, y, x + w, y + 1, color);
         g.fill(x, y + h - 1, x + w, y + h, color);
         g.fill(x, y, x + 1, y + h, color);
         g.fill(x + w - 1, y, x + w, y + h, color);
     }
 
-    public static void drawSelectionQuad(GuiGraphics g, int x, int y, int w, int h, int color) {
+    public static void drawSelectionQuad(GuiGraphicsExtractor g, int x, int y, int w, int h, int color) {
         int thick = 2;
         int corner = 8;
         g.fill(x, y, x + corner, y + thick, color);
@@ -202,12 +202,12 @@ public final class Glass {
         g.fill(x + w - thick, y + h - corner, x + w, y + h, color);
     }
 
-    public static void separator(GuiGraphics g, int x, int y, int w, int color) {
+    public static void separator(GuiGraphicsExtractor g, int x, int y, int w, int color) {
         g.fill(x, y, x + w, y + 1, tint(color, 0x40));
     }
 
     // Vanilla-style button (matches Minecraft's button rendering)
-    public static void vanillaButton(GuiGraphics g, int x, int y, int w, int h, Font font, String label,
+    public static void vanillaButton(GuiGraphicsExtractor g, int x, int y, int w, int h, Font font, String label,
                                       boolean hovered, boolean focused, boolean disabled) {
         // Button background - matches vanilla Minecraft button
         int baseColor = 0xFF000000;
@@ -233,11 +233,11 @@ public final class Glass {
         // Text
         int textColor = disabled ? 0xFF808080 : 0xFFE0E0E0;
         int tw = font.width(label);
-        g.drawString(font, label, x + (w - tw) / 2, y + (h - font.lineHeight) / 2, textColor, true);
+        g.text(font, label, x + (w - tw) / 2, y + (h - font.lineHeight) / 2, textColor, true);
     }
 
     // Vanilla-style slider (matches Minecraft's options slider)
-    public static void vanillaSlider(GuiGraphics g, int x, int y, int w, int h,
+    public static void vanillaSlider(GuiGraphicsExtractor g, int x, int y, int w, int h,
                                       float value, boolean hovered, boolean dragging) {
         int trackY = y + h / 2 - 2;
         int trackH = 4;
@@ -267,7 +267,7 @@ public final class Glass {
     }
 
     // Vanilla-style checkbox/toggle (matches Minecraft's checkbox)
-    public static void vanillaCheckbox(GuiGraphics g, int x, int y, int size, boolean checked,
+    public static void vanillaCheckbox(GuiGraphicsExtractor g, int x, int y, int size, boolean checked,
                                         boolean hovered, boolean focused) {
         // Box
         int borderColor = focused ? 0xFF5555FF : (hovered ? 0xFF8888FF : 0xFF808080);
@@ -286,7 +286,7 @@ public final class Glass {
     }
 
     // Vanilla-style scrollbar (matches Minecraft's scrollbar)
-    public static void vanillaScrollbar(GuiGraphics g, int x, int y, int w, int h,
+    public static void vanillaScrollbar(GuiGraphicsExtractor g, int x, int y, int w, int h,
                                          float scroll, float maxScroll, boolean hovered, boolean dragging) {
         if (maxScroll <= 0) return;
         
@@ -310,7 +310,7 @@ public final class Glass {
     }
 
     // Vanilla-style tooltip background
-    public static void vanillaTooltip(GuiGraphics g, int x, int y, int w, int h) {
+    public static void vanillaTooltip(GuiGraphicsExtractor g, int x, int y, int w, int h) {
         fillRound(g, x, y, w, h, 4, 0xFF323232);
         fillRound(g, x + 1, y + 1, w - 2, h - 2, 3, 0xFF1E1E1E);
         // Border
@@ -321,7 +321,7 @@ public final class Glass {
     }
 
     // Vanilla-style panel (matches Minecraft's GUI panel)
-    public static void vanillaPanel(GuiGraphics g, int x, int y, int w, int h) {
+    public static void vanillaPanel(GuiGraphicsExtractor g, int x, int y, int w, int h) {
         // Background
         g.fill(x, y, x + w, y + h, 0xE0101010);
         // Border
@@ -337,7 +337,7 @@ public final class Glass {
     }
 
     // Vanilla-style tab (matches Minecraft's tab buttons)
-    public static void vanillaTab(GuiGraphics g, int x, int y, int w, int h, Font font, String label,
+    public static void vanillaTab(GuiGraphicsExtractor g, int x, int y, int w, int h, Font font, String label,
                                    boolean selected, boolean hovered) {
         int bgColor = selected ? 0xFF3A3A3A : (hovered ? 0xFF2A2A2A : 0xFF1A1A1A);
         g.fill(x, y, x + w, y + h, bgColor);
@@ -352,14 +352,14 @@ public final class Glass {
         // Text
         int textColor = selected ? 0xFFFFFFFF : (hovered ? 0xFFAAAAAA : 0xFFAAAAAA);
         int tw = font.width(label);
-        g.drawString(font, label, x + (w - tw) / 2, y + (h - font.lineHeight) / 2, textColor, true);
+        g.text(font, label, x + (w - tw) / 2, y + (h - font.lineHeight) / 2, textColor, true);
     }
 
     // Vanilla-style badge (matches Minecraft's badges)
-    public static void badge(GuiGraphics g, int x, int y, int w, int h, int r,
+    public static void badge(GuiGraphicsExtractor g, int x, int y, int w, int h, int r,
                              int bgColor, int textColor, Font font, String text) {
         fillRound(g, x, y, w, h, r, bgColor);
         int tw = font.width(text);
-        g.drawString(font, text, x + (w - tw) / 2, y + (h - font.lineHeight) / 2, textColor, false);
+        g.text(font, text, x + (w - tw) / 2, y + (h - font.lineHeight) / 2, textColor, false);
     }
 }

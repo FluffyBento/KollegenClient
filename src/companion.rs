@@ -29,7 +29,7 @@ pub const COMPANION_MOD_PREFIX: &str = "kollegen-client";
 
 
 
-pub const COMPANION_TARGET_MC_VERSION: &str = "1.21.11";
+pub const COMPANION_TARGET_MC_VERSION: &str = "26.2";
 
 const GITHUB_DOWNLOAD_URL: &str =
     "https://github.com/FluffyBento/KollegenClient/releases/latest/download/kollegen-client-mod.jar";

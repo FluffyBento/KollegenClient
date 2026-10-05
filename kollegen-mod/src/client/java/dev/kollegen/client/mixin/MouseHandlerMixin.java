@@ -46,7 +46,7 @@ public class MouseHandlerMixin {
         
         if (button == 0) {
             Minecraft mc = Minecraft.getInstance();
-            if (mc.screen == null) {
+            if (mc.gui.screen() == null) {
                 if (press) {
                     HudModule hm = HudModule.moduleAt(HudModule.cursorX, HudModule.cursorY);
                     if (hm != null) {

@@ -115,7 +115,7 @@ public final class ControllerMode {
 
             
             try {
-                if (mc.screen != null) {
+                if (mc.gui.screen() != null) {
                     
                     int sw = mc.getWindow().getScreenWidth();
                     int gw = mc.getWindow().getGuiScaledWidth();
@@ -135,7 +135,7 @@ public final class ControllerMode {
                         if (scrollAmount != 0.0) {
                             
                             
-                            mc.screen.mouseScrolled(guiX, guiY, 0.0, scrollAmount);
+                            mc.gui.screen().mouseScrolled(guiX, guiY, 0.0, scrollAmount);
                             lastScrollAt = now;
                         }
                     }

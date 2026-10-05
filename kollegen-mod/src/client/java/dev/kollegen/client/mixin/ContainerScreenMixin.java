@@ -1,7 +1,7 @@
 package dev.kollegen.client.mixin;
 
 import dev.kollegen.client.mods.modules.InventoryColor;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.renderer.RenderPipelines;
 import org.spongepowered.asm.mixin.Mixin;
@@ -25,12 +25,9 @@ public class ContainerScreenMixin {
     
     
     
-    @Inject(method = "renderContents",
-            at = @At(value = "INVOKE",
-                    target = "Lnet/minecraft/client/gui/screens/inventory/AbstractContainerScreen;renderBg(Lnet/minecraft/client/gui/GuiGraphics;FII)V",
-                    shift = At.Shift.AFTER),
-            require = 0)
-    private void kollegen$tintBackground(GuiGraphics gui, int mouseX, int mouseY, float partialTick,
+    @Inject(method = "extractRenderState(Lnet/minecraft/client/gui/GuiGraphicsExtractor;IIF)V",
+            at = @At("RETURN"))
+    private void kollegen$tintBackground(GuiGraphicsExtractor gui, int mouseX, int mouseY, float partialTick,
                                          CallbackInfo ci) {
         if (!InventoryColor.enabled) return;
         int lx = this.leftPos;

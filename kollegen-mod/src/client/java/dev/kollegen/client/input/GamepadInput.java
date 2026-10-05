@@ -62,7 +62,7 @@ public final class GamepadInput {
     public static boolean takeOverMovement() {
         Minecraft mc = Minecraft.getInstance();
         if (mc == null || mc.player == null || mc.level == null) return false;
-        if (mc.screen != null) return false;
+        if (mc.gui.screen() != null) return false;
         if (!ControllerMode.isActive()) return false;
         return isAnyGamepadPresent();
     }
@@ -122,7 +122,7 @@ public final class GamepadInput {
     
     public static void onFrame(Minecraft mc) {
         if (mc == null || mc.player == null || mc.level == null) return;
-        if (mc.screen != null) return;
+        if (mc.gui.screen() != null) return;
         if (!ControllerMode.isActive()) return;
         if (!isAnyGamepadPresent()) return;
         turnCamera(mc);
@@ -131,7 +131,7 @@ public final class GamepadInput {
     
     public static void tick(Minecraft mc) {
         if (mc == null || mc.player == null || mc.level == null) return;
-        if (mc.screen != null) return; 
+        if (mc.gui.screen() != null) return; 
         if (!ControllerMode.isActive()) return;
         if (!isAnyGamepadPresent()) return;
 
@@ -232,7 +232,7 @@ public final class GamepadInput {
     private static void handleInventory(Minecraft mc, boolean held) {
         if (!(held && !previousInventoryHeld)) return;
         try {
-            mc.setScreen(new net.minecraft.client.gui.screens.inventory.InventoryScreen(mc.player));
+            mc.setScreenAndShow(new net.minecraft.client.gui.screens.inventory.InventoryScreen(mc.player));
         } catch (Throwable ignored) {
         }
     }
@@ -240,7 +240,7 @@ public final class GamepadInput {
     private static void handleChat(Minecraft mc, boolean held) {
         if (!(held && !previousChatHeld)) return;
         try {
-            mc.setScreen(new net.minecraft.client.gui.screens.ChatScreen("", false));
+            mc.setScreenAndShow(new net.minecraft.client.gui.screens.ChatScreen("", false));
         } catch (Throwable ignored) {
         }
     }
@@ -248,7 +248,7 @@ public final class GamepadInput {
     private static void handlePause(Minecraft mc, boolean held) {
         if (!(held && !previousPauseHeld)) return;
         try {
-            mc.setScreen(new net.minecraft.client.gui.screens.PauseScreen(true));
+            mc.setScreenAndShow(new net.minecraft.client.gui.screens.PauseScreen(true));
         } catch (Throwable ignored) {
         }
     }

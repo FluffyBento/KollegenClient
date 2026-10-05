@@ -1,7 +1,7 @@
 package dev.kollegen.client.ui;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
@@ -30,7 +30,7 @@ public class GlassToggle extends AbstractWidget {
     }
 
     @Override
-    protected void renderWidget(GuiGraphics g, int mx, int my, float pt) {
+    protected void extractWidgetRenderState(GuiGraphicsExtractor g, int mx, int my, float pt) {
         Glass.vanillaCheckbox(g, getX(), getY(), height, state, isMouseOver(mx, my), isFocused());
     }
 

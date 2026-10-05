@@ -1,7 +1,7 @@
 package dev.kollegen.client.ui;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.network.chat.Component;
 
@@ -19,7 +19,7 @@ public class GlassButton extends Button {
     }
 
     @Override
-    protected void renderContents(GuiGraphics g, int mx, int my, float pt) {
+    protected void extractContents(GuiGraphicsExtractor g, int mx, int my, float pt) {
         boolean hovered = isMouseOver(mx, my) && active;
         Glass.vanillaButton(g, getX(), getY(), width, height,
                 Minecraft.getInstance().font, getMessage().getString(),

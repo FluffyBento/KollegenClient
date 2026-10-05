@@ -7,7 +7,7 @@ import dev.kollegen.client.ui.Glass;
 import dev.kollegen.client.ui.GlassButton;
 import dev.kollegen.client.ui.GlassSlider;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
@@ -60,11 +60,11 @@ public class ColorPickerScreen extends Screen {
     }
 
     private void close() {
-        Minecraft.getInstance().setScreen(parent);
+        Minecraft.getInstance().setScreenAndShow(parent);
     }
 
     @Override
-    public void render(GuiGraphics g, int mx, int my, float pt) {
+    public void extractRenderState(GuiGraphicsExtractor g, int mx, int my, float pt) {
         g.fill(0, 0, this.width, this.height, Palette.tint(Palette.BG, 0xCC));
 
         int w = 420, hgt = 340;
@@ -74,7 +74,7 @@ public class ColorPickerScreen extends Screen {
         Glass.dropShadow(g, x, y, w, hgt, 16, 6, 14);
         Glass.panelDark(g, x, y, w, hgt, 16);
 
-        g.drawString(this.font, "Farbe wählen", x + (w - this.font.width("Farbe wählen")) / 2, y + 22, Palette.TEXT, false);
+        g.text(this.font, "Farbe wählen", x + (w - this.font.width("Farbe wählen")) / 2, y + 22, Palette.TEXT, false);
 
         int hueX = x + 30;
         int hueY = y + 75;
@@ -85,7 +85,7 @@ public class ColorPickerScreen extends Screen {
             int col = hsvToRgb(hue, 1, 1);
             Glass.fillRound(g, hueX + i, hueY, 1, hueH, 2, col);
         }
-        g.drawString(this.font, "Farbton", hueX, hueY - 18, Palette.MUTED, false);
+        g.text(this.font, "Farbton", hueX, hueY - 18, Palette.MUTED, false);
 
         int satX = x + 30;
         int satY = y + 140;
@@ -96,7 +96,7 @@ public class ColorPickerScreen extends Screen {
             int col = hsvToRgb(h, sat, 1);
             Glass.fillRound(g, satX + i, satY, 1, satH, 2, col);
         }
-        g.drawString(this.font, "Sättigung", satX, satY - 18, Palette.MUTED, false);
+        g.text(this.font, "Sättigung", satX, satY - 18, Palette.MUTED, false);
 
         int valX = x + 30;
         int valY = y + 205;
@@ -107,7 +107,7 @@ public class ColorPickerScreen extends Screen {
             int col = hsvToRgb(h, s, val);
             Glass.fillRound(g, valX + i, valY, 1, valH, 2, col);
         }
-        g.drawString(this.font, "Helligkeit", valX, valY - 18, Palette.MUTED, false);
+        g.text(this.font, "Helligkeit", valX, valY - 18, Palette.MUTED, false);
 
         int previewX = x + 30;
         int previewY = y + hgt - 68;
@@ -115,7 +115,7 @@ public class ColorPickerScreen extends Screen {
         int previewH = 36;
         Glass.fillRound(g, previewX, previewY, previewW, previewH, 8, current);
         Glass.fillRound(g, previewX + 1, previewY + 1, previewW - 2, previewH - 2, 7, current);
-        g.drawString(this.font, "#" + Integer.toHexString(current & 0xFFFFFF).toUpperCase(),
+        g.text(this.font, "#" + Integer.toHexString(current & 0xFFFFFF).toUpperCase(),
                 previewX + previewW + 14, previewY + (previewH - this.font.lineHeight) / 2, Palette.MUTED, false);
 
         int rgbX = x + w - 170;
@@ -123,12 +123,12 @@ public class ColorPickerScreen extends Screen {
         int r = (current >> 16) & 0xFF;
         int gr = (current >> 8) & 0xFF;
         int b = current & 0xFF;
-        g.drawString(this.font, "RGB: " + r + ", " + gr + ", " + b, rgbX, rgbY, Palette.MUTED, false);
-        g.drawString(this.font, "HSV: " + Math.round(h * 360) + "°, " + Math.round(s * 100) + "%, " + Math.round(v * 100) + "%", rgbX, rgbY + this.font.lineHeight + 4, Palette.MUTED, false);
+        g.text(this.font, "RGB: " + r + ", " + gr + ", " + b, rgbX, rgbY, Palette.MUTED, false);
+        g.text(this.font, "HSV: " + Math.round(h * 360) + "°, " + Math.round(s * 100) + "%, " + Math.round(v * 100) + "%", rgbX, rgbY + this.font.lineHeight + 4, Palette.MUTED, false);
 
-        g.drawString(this.font, "v" + Version.get(), x + 16, y + hgt - 16, Palette.MUTED, false);
+        g.text(this.font, "v" + Version.get(), x + 16, y + hgt - 16, Palette.MUTED, false);
 
-        super.render(g, mx, my, pt);
+        super.extractRenderState(g, mx, my, pt);
     }
 
     @Override

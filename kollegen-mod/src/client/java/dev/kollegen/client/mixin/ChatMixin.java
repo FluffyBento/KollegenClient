@@ -8,7 +8,7 @@ import net.minecraft.client.multiplayer.PlayerInfo;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MessageSignature;
 import net.minecraft.network.chat.contents.TranslatableContents;
-import net.minecraft.client.GuiMessageTag;
+import net.minecraft.client.multiplayer.chat.GuiMessageTag;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -20,7 +20,7 @@ public class ChatMixin {
 
     private static boolean kollegen$busy = false;
 
-    @Inject(method = "addMessage(Lnet/minecraft/network/chat/Component;Lnet/minecraft/network/chat/MessageSignature;Lnet/minecraft/client/GuiMessageTag;)V",
+    @Inject(method = "addPlayerMessage(Lnet/minecraft/network/chat/Component;Lnet/minecraft/network/chat/MessageSignature;Lnet/minecraft/client/multiplayer/chat/GuiMessageTag;)V",
             at = @At("HEAD"), cancellable = true)
     private void kollegen$chat(Component message, MessageSignature signature, GuiMessageTag tag, CallbackInfo ci) {
         if (kollegen$busy) return;
@@ -30,7 +30,7 @@ public class ChatMixin {
             ci.cancel();
             kollegen$busy = true;
             try {
-                ((ChatComponent) (Object) this).addMessage(out, signature, tag);
+                ((ChatComponent) (Object) this).addPlayerMessage(out, signature, tag);
             } finally {
                 kollegen$busy = false;
             }

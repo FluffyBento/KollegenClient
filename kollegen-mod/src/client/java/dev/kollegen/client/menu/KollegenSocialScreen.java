@@ -8,7 +8,7 @@ import dev.kollegen.client.mods.Palette;
 import dev.kollegen.client.ui.Glass;
 import dev.kollegen.client.ui.GlassButton;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
@@ -146,7 +146,7 @@ public class KollegenSocialScreen extends Screen {
         });
         backBtn.visible = inThread;
         GlassButton closeBtn = new GlassButton(px + pw - 30, by, 26, bh, Component.literal("✕"), btn ->
-                Minecraft.getInstance().setScreen(parent));
+                Minecraft.getInstance().setScreenAndShow(parent));
         addRenderableWidget(refreshBtn);
         addRenderableWidget(backBtn);
         addRenderableWidget(closeBtn);
@@ -241,7 +241,7 @@ private void computeScroll() {
     }
 
     @Override
-    public void render(GuiGraphics g, int mx, int my, float pt) {
+    public void extractRenderState(GuiGraphicsExtractor g, int mx, int my, float pt) {
         g.fill(0, 0, this.width, this.height, Palette.tint(Palette.BG, 0xCC));
 
         // Main panel with Minecraft-style design
@@ -253,16 +253,16 @@ private void computeScroll() {
         Glass.fillRound(g, px + 8, py + 8, SW, ph - 16, 12, Palette.tint(Palette.PANEL2, 0xBB));
         Glass.fillRound(g, px + 8, py + 8, SW, 4, 3, Palette.tint(Palette.ACCENT, 0xDD));
 
-        g.drawString(this.font, "SOZIALES", px + 22, py + 24, Palette.ACCENT, false);
-        g.drawString(this.font, "in-game", px + 22 + this.font.width("SOZIALES") + 6, py + 26, Palette.MUTED, false);
+        g.text(this.font, "SOZIALES", px + 22, py + 24, Palette.ACCENT, false);
+        g.text(this.font, "in-game", px + 22 + this.font.width("SOZIALES") + 6, py + 26, Palette.MUTED, false);
 
         // Tab selection in sidebar
-        g.drawString(this.font, inThread ? threadTitle : TABS[tab], cx + 14, py + 22, Palette.TEXT, false);
+        g.text(this.font, inThread ? threadTitle : TABS[tab], cx + 14, py + 22, Palette.TEXT, false);
 
         // Status bar
         int statusBarY = py + headerH;
         Glass.fillRound(g, cx + 8, statusBarY + 2, cw - 16, 32, 6, Palette.tint(Palette.PANEL2, 0xAA));
-        g.drawString(this.font, trunc(status, cw - 32), cx + 12, statusBarY + 13, authed ? Palette.GREEN : Palette.MUTED, false);
+        g.text(this.font, trunc(status, cw - 32), cx + 12, statusBarY + 13, authed ? Palette.GREEN : Palette.MUTED, false);
 
         // Sidebar tabs
         int sidebarTop = py + headerH + 44;
@@ -278,7 +278,7 @@ private void computeScroll() {
             int fill = sel ? Palette.ACCENT : (hov ? Palette.ACCENT : Palette.PANEL2);
             Glass.fillRound(g, px + 10, by, SW - 20, tabItemH, 8, fill);
             int ty = by + (tabItemH - this.font.lineHeight) / 2;
-            g.drawString(this.font, TABS[i], px + 22, ty, sel ? 0xFFFFFFFF : ( hov ? Palette.TEXT : Palette.MUTED), false);
+            g.text(this.font, TABS[i], px + 22, ty, sel ? 0xFFFFFFFF : ( hov ? Palette.TEXT : Palette.MUTED), false);
         }
         g.disableScissor();
 
@@ -299,9 +299,9 @@ private void computeScroll() {
                 Glass.fillRound(g, ex, ey, ew, ROW_H, 8, borderCol);
                 Glass.fillRound(g, ex + 1, ey + 1, ew - 2, ROW_H - 2, 7,
                         hov ? Palette.tint(Palette.PANEL2, 0x88) : Palette.tint(Palette.PANEL2, 0x66));
-                g.drawString(this.font, e.title, ex + 14, ey + 5, e.color, false);
+                g.text(this.font, e.title, ex + 14, ey + 5, e.color, false);
                 if (e.sub != null && !e.sub.isEmpty()) {
-                    g.drawString(this.font, trunc(e.sub, ew - 28), ex + 14, ey + 19, Palette.MUTED, false);
+                    g.text(this.font, trunc(e.sub, ew - 28), ex + 14, ey + 19, Palette.MUTED, false);
                 }
             }
             if (e.act != null) entryRects.add(new Rect(ex, ey, ew, ROW_H, e.act));
@@ -321,7 +321,7 @@ private void computeScroll() {
 
         if (inThread) pollGroupIfNeeded();
 
-        super.render(g, mx, my, pt);
+        super.extractRenderState(g, mx, my, pt);
     }
 
     

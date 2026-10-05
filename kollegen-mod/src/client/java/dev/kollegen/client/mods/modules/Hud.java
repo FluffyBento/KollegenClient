@@ -12,7 +12,7 @@ import dev.kollegen.client.mods.Palette;
 import dev.kollegen.client.mods.SliderSetting;
 import dev.kollegen.client.ui.Glass;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.multiplayer.ServerData;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.effect.MobEffectInstance;
@@ -58,7 +58,7 @@ public final class Hud {
         }
 
         @Override
-        public void onRenderHud(GuiGraphics g, float td) {
+        public void onRenderHud(GuiGraphicsExtractor g, float td) {
             if (mc.player == null || mc.level == null) return;
             List<String> lines = new ArrayList<>();
             lines.add(String.format("X: %.1f", mc.player.getX()));
@@ -76,7 +76,7 @@ public final class Hud {
         }
 
         @Override
-        public void onRenderHud(GuiGraphics g, float td) {
+        public void onRenderHud(GuiGraphicsExtractor g, float td) {
             List<String> lines = new ArrayList<>();
             lines.add("FPS: " + mc.getFps());
             renderLines(g, lines, 0, 0);
@@ -89,7 +89,7 @@ public final class Hud {
         }
 
         @Override
-        public void onRenderHud(GuiGraphics g, float td) {
+        public void onRenderHud(GuiGraphicsExtractor g, float td) {
             List<String> lines = new ArrayList<>();
             int p = -1;
             try {
@@ -123,7 +123,7 @@ public final class Hud {
         }
 
         @Override
-        public void onRenderHud(GuiGraphics g, float td) {
+        public void onRenderHud(GuiGraphicsExtractor g, float td) {
             List<String> lines = new ArrayList<>();
             lines.add("TPS: " + Math.round(tps));
             renderLines(g, lines, 0, 0);
@@ -136,7 +136,7 @@ public final class Hud {
         }
 
         @Override
-        public void onRenderHud(GuiGraphics g, float td) {
+        public void onRenderHud(GuiGraphicsExtractor g, float td) {
             if (mc.player == null) return;
             float yaw = mc.player.getYRot();
             int y = (int) Math.floor(yaw);
@@ -158,7 +158,7 @@ public final class Hud {
         }
 
         @Override
-        public void onRenderHud(GuiGraphics g, float td) {
+        public void onRenderHud(GuiGraphicsExtractor g, float td) {
             java.time.LocalTime t = java.time.LocalTime.now();
             List<String> lines = new ArrayList<>();
             lines.add(String.format("%02d:%02d:%02d", t.getHour(), t.getMinute(), t.getSecond()));
@@ -172,7 +172,7 @@ public final class Hud {
         }
 
         @Override
-        public void onRenderHud(GuiGraphics g, float td) {
+        public void onRenderHud(GuiGraphicsExtractor g, float td) {
             int cx = mc.getWindow().getGuiScaledWidth() / 2 + (int) offsetX.value;
             int by = mc.getWindow().getGuiScaledHeight() - 70 + (int) offsetY.value;
             int s = 18, gap = 2;
@@ -191,10 +191,10 @@ public final class Hud {
             markBounds(baseX - s - gap, by - s - gap, s * 3 + gap * 2, s * 3 + gap * 2);
         }
 
-        private void drawKey(GuiGraphics g, String label, int x, int y, boolean pressed) {
+        private void drawKey(GuiGraphicsExtractor g, String label, int x, int y, boolean pressed) {
             int s = 18;
             Glass.fillRound(g, x, y, s, s, 4, pressed ? Palette.tint(Palette.ACCENT, 0xD8) : Palette.tint(Palette.PANEL2, 0xCC));
-            g.drawString(mc.font, label, x + (s - mc.font.width(label)) / 2, y + (s - mc.font.lineHeight) / 2, pressed ? 0xffffffff : Palette.TEXT, true);
+            g.text(mc.font, label, x + (s - mc.font.width(label)) / 2, y + (s - mc.font.lineHeight) / 2, pressed ? 0xffffffff : Palette.TEXT, true);
         }
     }
 
@@ -204,7 +204,7 @@ public final class Hud {
         }
 
         @Override
-        public void onRenderHud(GuiGraphics g, float td) {
+        public void onRenderHud(GuiGraphicsExtractor g, float td) {
             List<String> lines = new ArrayList<>();
             lines.add("Links: " + ClickTracker.cps(ClickTracker.LEFT) + " CPS");
             lines.add("Rechts: " + ClickTracker.cps(ClickTracker.RIGHT) + " CPS");
@@ -218,7 +218,7 @@ public final class Hud {
         }
 
         @Override
-        public void onRenderHud(GuiGraphics g, float td) {
+        public void onRenderHud(GuiGraphicsExtractor g, float td) {
             if (mc.player == null) return;
             var armor = java.util.List.of(
                     mc.player.getItemBySlot(net.minecraft.world.entity.EquipmentSlot.HEAD),
@@ -247,14 +247,14 @@ public final class Hud {
             for (int i = 0; i < n; i++) {
                 ItemStack stack = armor.get(i);
                 int ry = y + i * rowH;
-                g.renderItem(stack, x, ry + (rowH - icon) / 2);
+                g.item(stack, x, ry + (rowH - icon) / 2);
                 String t = durabilityText(stack);
                 if (!t.isEmpty()) {
                     int dmg = stack.getDamageValue();
                     int max = Math.max(1, stack.getMaxDamage());
                     float f = 1f - (float) dmg / max;
                     int col = f > 0.5 ? Palette.GREEN : (f > 0.25 ? Palette.ACCENT : Palette.DANGER);
-                    g.drawString(mc.font, t, x + icon + textGap, ry + (rowH - mc.font.lineHeight) / 2, col, true);
+                    g.text(mc.font, t, x + icon + textGap, ry + (rowH - mc.font.lineHeight) / 2, col, true);
                 }
             }
         }
@@ -272,7 +272,7 @@ public final class Hud {
         }
 
         @Override
-        public void onRenderHud(GuiGraphics g, float td) {
+        public void onRenderHud(GuiGraphicsExtractor g, float td) {
             if (mc.player == null) return;
             List<String> lines = new ArrayList<>();
             for (MobEffectInstance e : mc.player.getActiveEffects()) {
@@ -306,7 +306,7 @@ public final class Hud {
         }
 
         @Override
-        public void onRenderHud(GuiGraphics g, float td) {
+        public void onRenderHud(GuiGraphicsExtractor g, float td) {
             List<String> lines = new ArrayList<>();
             lines.add("Speed: " + String.format("%.1f", speed) + " m/s");
             renderLines(g, lines, 0, 0);
@@ -345,7 +345,7 @@ public final class Hud {
         }
 
         @Override
-        public void onRenderHud(GuiGraphics g, float td) {
+        public void onRenderHud(GuiGraphicsExtractor g, float td) {
             int cx = mc.getWindow().getGuiScaledWidth() / 2;
             int cy = mc.getWindow().getGuiScaledHeight() / 2;
             int s = (int) size.value;
@@ -370,7 +370,7 @@ public final class Hud {
         }
 
         @Override
-        public void onRenderHud(GuiGraphics g, float td) {
+        public void onRenderHud(GuiGraphicsExtractor g, float td) {
             Runtime r = Runtime.getRuntime();
             long used = (r.totalMemory() - r.freeMemory()) / (1024 * 1024);
             long total = r.maxMemory() / (1024 * 1024);
@@ -386,7 +386,7 @@ public final class Hud {
         }
 
         @Override
-        public void onRenderHud(GuiGraphics g, float td) {
+        public void onRenderHud(GuiGraphicsExtractor g, float td) {
             List<String> lines = new ArrayList<>();
             if (mc.level != null && mc.player != null) {
                 try {
@@ -409,7 +409,7 @@ public final class Hud {
         }
 
         @Override
-        public void onRenderHud(GuiGraphics g, float td) {
+        public void onRenderHud(GuiGraphicsExtractor g, float td) {
             List<String> lines = new ArrayList<>();
             int n = 0;
             if (mc.level != null) {
@@ -443,14 +443,14 @@ public final class Hud {
         }
 
         @Override
-        public void onRenderHud(GuiGraphics g, float td) {
+        public void onRenderHud(GuiGraphicsExtractor g, float td) {
             List<String> lines = new ArrayList<>();
             double d = -1;
             try {
                 var hr = mc.hitResult;
                 if (hr != null) {
                     if (hr.getType() == net.minecraft.world.phys.HitResult.Type.BLOCK) {
-                        var center = ((net.minecraft.world.phys.BlockHitResult) hr).getBlockPos().getCenter();
+                        var center = net.minecraft.world.phys.Vec3.atCenterOf(((net.minecraft.world.phys.BlockHitResult) hr).getBlockPos());
                         d = mc.player.position().distanceTo(center);
                     } else if (hr.getType() == net.minecraft.world.phys.HitResult.Type.ENTITY) {
                         var e = ((net.minecraft.world.phys.EntityHitResult) hr).getEntity();
@@ -470,7 +470,7 @@ public final class Hud {
         }
 
         @Override
-        public void onRenderHud(GuiGraphics g, float td) {
+        public void onRenderHud(GuiGraphicsExtractor g, float td) {
             List<String> lines = new ArrayList<>();
             long now = System.currentTimeMillis();
             int c = 0;
@@ -489,7 +489,7 @@ public final class Hud {
         }
 
         @Override
-        public void onRenderHud(GuiGraphics g, float td) {
+        public void onRenderHud(GuiGraphicsExtractor g, float td) {
             List<String> lines = new ArrayList<>();
             if (mc.player != null) {
                 var food = mc.player.getFoodData();
@@ -521,7 +521,7 @@ public final class Hud {
         }
 
         @Override
-        public void onRenderHud(GuiGraphics g, float td) {
+        public void onRenderHud(GuiGraphicsExtractor g, float td) {
             List<String> lines = new ArrayList<>();
             ServerData srv = mc.getCurrentServer();
             if (srv != null) {
@@ -544,7 +544,7 @@ public final class Hud {
         }
 
         @Override
-        public void onRenderHud(GuiGraphics g, float td) {
+        public void onRenderHud(GuiGraphicsExtractor g, float td) {
             List<String> lines = new ArrayList<>();
             try {
                 var hr = mc.hitResult;

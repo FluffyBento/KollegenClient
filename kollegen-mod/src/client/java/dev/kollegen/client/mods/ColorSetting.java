@@ -30,7 +30,7 @@ public class ColorSetting extends Setting {
         int x = px + cw - w - 8;
         int y = py + (rowH - h) / 2;
         return new ColorButton(x, y, w, h, value, () -> {
-            net.minecraft.client.Minecraft.getInstance().setScreen(
+            net.minecraft.client.Minecraft.getInstance().setScreenAndShow(
                     new dev.kollegen.client.menu.ColorPickerScreen(screen, this));
         });
     }

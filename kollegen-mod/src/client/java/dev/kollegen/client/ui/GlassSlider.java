@@ -1,6 +1,6 @@
 package dev.kollegen.client.ui;
 
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractSliderButton;
 import net.minecraft.network.chat.Component;
 
@@ -20,7 +20,7 @@ public class GlassSlider extends AbstractSliderButton {
     }
 
     @Override
-    public void renderWidget(GuiGraphics g, int mx, int my, float pt) {
+    public void extractWidgetRenderState(GuiGraphicsExtractor g, int mx, int my, float pt) {
         boolean hovered = isMouseOver(mx, my);
         boolean dragging = isFocused();
         Glass.vanillaSlider(g, getX(), getY(), width, height, (float) value, hovered, dragging);

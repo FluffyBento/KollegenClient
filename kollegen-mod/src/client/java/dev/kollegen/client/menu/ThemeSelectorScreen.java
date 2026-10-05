@@ -5,7 +5,7 @@ import dev.kollegen.client.mods.Palette;
 import dev.kollegen.client.ui.Glass;
 import dev.kollegen.client.ui.GlassButton;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
@@ -139,11 +139,11 @@ public class ThemeSelectorScreen extends Screen {
     }
 
     private void close() {
-        Minecraft.getInstance().setScreen(parent);
+        Minecraft.getInstance().setScreenAndShow(parent);
     }
 
     @Override
-    public void render(GuiGraphics g, int mx, int my, float pt) {
+    public void extractRenderState(GuiGraphicsExtractor g, int mx, int my, float pt) {
         g.fill(0, 0, this.width, this.height, Palette.tint(Palette.BG, 0xCC));
 
         int panelW = Math.min(this.width - 40, COLS * THEME_W + (COLS - 1) * GAP + 60);
@@ -154,8 +154,8 @@ public class ThemeSelectorScreen extends Screen {
         Glass.dropShadow(g, px, py, panelW, panelH, 14, 6, 12);
         Glass.panelDark(g, px, py, panelW, panelH, 12);
 
-        g.drawString(this.font, "Thema auswählen", px + (panelW - this.font.width("Thema auswählen")) / 2, py + 22, Palette.TEXT, false);
-        g.drawString(this.font, "Klicke auf eine Karte für Live-Vorschau", px + (panelW - this.font.width("Klicke auf eine Karte für Live-Vorschau")) / 2, py + 42, Palette.MUTED, false);
+        g.text(this.font, "Thema auswählen", px + (panelW - this.font.width("Thema auswählen")) / 2, py + 22, Palette.TEXT, false);
+        g.text(this.font, "Klicke auf eine Karte für Live-Vorschau", px + (panelW - this.font.width("Klicke auf eine Karte für Live-Vorschau")) / 2, py + 42, Palette.MUTED, false);
 
         int startX = px + (panelW - (COLS * THEME_W + (COLS - 1) * GAP)) / 2;
         int startY = py + 55 - scroll;
@@ -191,12 +191,12 @@ public class ThemeSelectorScreen extends Screen {
             Glass.fillRound(g, x + 76, y + 8 + previewH - 28, 18, 18, 4, t.green);
 
             int textY = y + 8 + previewH + 6;
-            g.drawString(this.font, t.name, x + 14, textY, Palette.TEXT, false);
-            g.drawString(this.font, t.description, x + 14, textY + this.font.lineHeight + 2, Palette.MUTED, false);
+            g.text(this.font, t.name, x + 14, textY, Palette.TEXT, false);
+            g.text(this.font, t.description, x + 14, textY + this.font.lineHeight + 2, Palette.MUTED, false);
 
             if (isCurrent) {
                 Glass.fillRound(g, x, y, THEME_W, THEME_H, 10, Palette.ACCENT);
-                g.drawString(this.font, "✓ Aktiv", x + THEME_W - 16 - this.font.width("✓ Aktiv"), textY, Palette.ACCENT, false);
+                g.text(this.font, "✓ Aktiv", x + THEME_W - 16 - this.font.width("✓ Aktiv"), textY, Palette.ACCENT, false);
             }
         }
 
@@ -215,11 +215,11 @@ public class ThemeSelectorScreen extends Screen {
 
         // Close button with Minecraft style
         GlassButton backBtn = new GlassButton(px + panelW - 100, py + panelH - 36, 90, 30, Component.literal("Zurück"), btn -> close());
-        backBtn.render(g, mx, my, pt);
+        backBtn.extractRenderState(g, mx, my, pt);
 
-        g.drawString(this.font, "v" + Version.get(), px + 16, py + panelH - 14, Palette.MUTED, false);
+        g.text(this.font, "v" + Version.get(), px + 16, py + panelH - 14, Palette.MUTED, false);
 
-        super.render(g, mx, my, pt);
+        super.extractRenderState(g, mx, my, pt);
     }
 
     @Override

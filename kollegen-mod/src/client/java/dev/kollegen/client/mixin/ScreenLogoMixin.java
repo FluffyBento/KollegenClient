@@ -1,7 +1,7 @@
 package dev.kollegen.client.mixin;
 
 import dev.kollegen.client.ui.LogoDraw;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.TitleScreen;
 import net.minecraft.client.gui.screens.inventory.ContainerScreen;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
@@ -14,8 +14,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin({InventoryScreen.class, ContainerScreen.class, TitleScreen.class})
 public class ScreenLogoMixin {
 
-    @Inject(method = "render(Lnet/minecraft/client/gui/GuiGraphics;IIF)V", at = @At("RETURN"))
-    private void kollegen$drawLogo(GuiGraphics gui, int mouseX, int mouseY, float partialTick, CallbackInfo ci) {
+    @Inject(method = "render(Lnet/minecraft/client/gui/GuiGraphicsExtractor;IIF)V", at = @At("RETURN"))
+    private void kollegen$drawLogo(GuiGraphicsExtractor gui, int mouseX, int mouseY, float partialTick, CallbackInfo ci) {
         try {
             int[] dim = LogoDraw.dims();
             int targetW = 72;

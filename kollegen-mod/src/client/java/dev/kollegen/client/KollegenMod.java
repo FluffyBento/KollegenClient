@@ -54,8 +54,8 @@ public class KollegenMod implements ClientModInitializer {
         
         boolean shiftDown = dev.kollegen.client.input.KollegenKeybind.isRightShiftHeld();
         if (shiftDown && !shiftWasDown) {
-            if (!(mc.screen instanceof KollegenMenuScreen)) {
-                mc.setScreen(new KollegenMenuScreen(mc.screen));
+            if (!(mc.gui.screen() instanceof KollegenMenuScreen)) {
+                mc.setScreenAndShow(new KollegenMenuScreen(mc.gui.screen()));
             }
         }
         shiftWasDown = shiftDown;

@@ -11,7 +11,7 @@ import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.entity.player.AvatarRenderer;
 import net.minecraft.client.renderer.entity.state.AvatarRenderState;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
-import net.minecraft.client.renderer.state.CameraRenderState;
+import net.minecraft.client.renderer.state.level.CameraRenderState;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.resources.Identifier;
@@ -82,13 +82,13 @@ public class NametagMixin {
             if (title != null) {
                 collector.submitNameTag(poseStack,
                         new Vec3(anchor.x, anchor.y + 0.50, anchor.z),
-                        0, title, !state.isDiscrete, state.lightCoords, state.distanceToCameraSq, camera);
+                        0, title, !state.isDiscrete, state.lightCoords, camera);
             }
             Component level = hasData ? CosmeticText.levelComponent(id) : null;
             if (level != null) {
                 collector.submitNameTag(poseStack,
                         new Vec3(anchor.x, anchor.y - 0.26, anchor.z),
-                        0, level, !state.isDiscrete, state.lightCoords, state.distanceToCameraSq, camera);
+                        0, level, !state.isDiscrete, state.lightCoords, camera);
             }
             if (false && KollegenPresence.isKollegen(id)) {
                 Component nameLine = useW ? state.nameTag : state.scoreText;

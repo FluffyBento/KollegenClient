@@ -35,8 +35,8 @@ public final class Chat {
         @Override
         public void onKey() {
             try {
-                if (mc.gui != null && mc.gui.getChat() != null) {
-                    mc.gui.getChat().clearMessages(false);
+                if (mc.gui != null && mc.gui.hud.getChat() != null) {
+                    mc.gui.hud.getChat().clearMessages(false);
                 }
             } catch (Throwable ignored) {
             }
@@ -78,12 +78,12 @@ public final class Chat {
             if (text == null || text.isEmpty()) return;
             Minecraft mc = Minecraft.getInstance();
             if (mc == null) return;
-            if (mc.screen instanceof ChatScreen && activeChatInput != null) {
+            if (mc.gui.screen() instanceof ChatScreen && activeChatInput != null) {
                 String cur = activeChatInput.getValue();
                 activeChatInput.setValue(cur.isEmpty() ? text : cur + " " + text);
                 return;
             }
-            mc.setScreen(new ChatScreen(text, false));
+            mc.setScreenAndShow(new ChatScreen(text, false));
         }
 
         private static class Slot {

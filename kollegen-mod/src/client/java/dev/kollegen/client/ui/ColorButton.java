@@ -2,7 +2,7 @@ package dev.kollegen.client.ui;
 
 import dev.kollegen.client.mods.Palette;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.network.chat.Component;
 
@@ -16,7 +16,7 @@ public class ColorButton extends Button {
     }
 
     @Override
-    protected void renderContents(GuiGraphics g, int mx, int my, float pt) {
+    protected void extractContents(GuiGraphicsExtractor g, int mx, int my, float pt) {
         boolean hov = isMouseOver(mx, my);
         int r = height / 2;
 

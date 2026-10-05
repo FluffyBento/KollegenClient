@@ -5,7 +5,7 @@ import dev.kollegen.client.mods.Category;
 import dev.kollegen.client.mods.ColorSetting;
 import dev.kollegen.client.mods.Module;
 import dev.kollegen.client.mods.ModuleManager;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.world.food.FoodProperties;
@@ -49,8 +49,8 @@ public final class Appleskin extends Module {
     }
 
     @Override
-    public void onRenderHud(GuiGraphics g, float td) {
-        if (mc.player == null || mc.options == null || mc.options.hideGui) return;
+    public void onRenderHud(GuiGraphicsExtractor g, float td) {
+        if (mc.player == null || mc.options == null || mc.gui.hud.isHidden()) return;
         int w = g.guiWidth();
         int h = g.guiHeight();
 
@@ -83,7 +83,7 @@ public final class Appleskin extends Module {
                             previewColor.value);
                 }
                 String label = "+" + fp.nutrition();
-                g.drawString(mc.font, label, x1, h - 51, previewColor.value, true);
+                g.text(mc.font, label, x1, h - 51, previewColor.value, true);
             }
         }
     }

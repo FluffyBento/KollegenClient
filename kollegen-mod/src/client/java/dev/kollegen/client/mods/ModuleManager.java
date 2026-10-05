@@ -5,7 +5,7 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -68,10 +68,10 @@ public final class ModuleManager {
         }
     }
 
-    public static void renderHud(GuiGraphics g, float tickDelta) {
+    public static void renderHud(GuiGraphicsExtractor g, float tickDelta) {
         Minecraft mc = Minecraft.getInstance();
         if (mc == null || mc.player == null || mc.level == null) return;
-        if (mc.options != null && mc.options.hideGui) return;
+        if (mc.gui != null && mc.gui.hud.isHidden()) return;
         for (Module m : MODULES) {
             if (m.enabled) {
                 try {

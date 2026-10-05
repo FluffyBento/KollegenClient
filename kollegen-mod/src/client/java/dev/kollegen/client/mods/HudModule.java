@@ -2,7 +2,7 @@ package dev.kollegen.client.mods;
 
 import dev.kollegen.client.mods.BooleanSetting;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -98,15 +98,15 @@ public abstract class HudModule extends Module {
         ModuleManager.save();
     }
 
-    protected void panel(GuiGraphics g, int x, int y, int w, int h) {
+    protected void panel(GuiGraphicsExtractor g, int x, int y, int w, int h) {
         if (background.value) {
             dev.kollegen.client.ui.Glass.fillRound(g, x - 3, y - 3, w + 6, h + 6, 4, backgroundColor.value);
         }
         markBounds(x - 3, y - 3, w + 6, h + 6);
     }
 
-    protected void text(GuiGraphics g, String s, int x, int y) {
-        g.drawString(mc.font, s, x, y, color.value, true);
+    protected void text(GuiGraphicsExtractor g, String s, int x, int y) {
+        g.text(mc.font, s, x, y, color.value, true);
     }
 
     protected int lineWidth(List<String> lines) {
@@ -115,7 +115,7 @@ public abstract class HudModule extends Module {
         return w;
     }
 
-    protected void renderLines(GuiGraphics g, List<String> lines, int x, int y) {
+    protected void renderLines(GuiGraphicsExtractor g, List<String> lines, int x, int y) {
         int w = lineWidth(lines);
         int h = lines.size() * (mc.font.lineHeight + 2);
         int[] a = anchor(mc.getWindow().getGuiScaledWidth(), mc.getWindow().getGuiScaledHeight(), w, h);
