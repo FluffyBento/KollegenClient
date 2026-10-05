@@ -25,6 +25,16 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public class NametagMixin {
 
     private static final Identifier LOGO = Identifier.fromNamespaceAndPath("kollegen", "textures/gui/logo_mark.png");
+    private static final java.util.Map<AvatarRenderState, java.util.UUID> STATE_ID = new java.util.WeakHashMap<>();
+
+    @Inject(method = "extractRenderState(Lnet/minecraft/world/entity/Avatar;Lnet/minecraft/client/renderer/entity/state/AvatarRenderState;F)V",
+            at = @At("RETURN"))
+    private void kollegen$track(net.minecraft.world.entity.Avatar entity, AvatarRenderState state, float f, CallbackInfo ci) {
+        try {
+            if (entity instanceof net.minecraft.world.entity.player.Player p) STATE_ID.put(state, p.getUUID());
+        } catch (Throwable ignored) {
+        }
+    }
 
     @Inject(method = "submitNameTag(Lnet/minecraft/client/renderer/entity/state/AvatarRenderState;Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/SubmitNodeCollector;Lnet/minecraft/client/renderer/state/CameraRenderState;)V",
             at = @At("HEAD"))
@@ -32,7 +42,8 @@ public class NametagMixin {
                                  CameraRenderState camera, CallbackInfo ci) {
         try {
             if (state.isDiscrete) return;
-            java.util.UUID id = kollegen$resolve(state);
+            java.util.UUID id = STATE_ID.get(state);
+            if (id == null) id = kollegen$resolve(state);
             if (id == null) return;
             CosmeticData d = KollegenPresence.getCosmetics(id);
             boolean hasData = d != null && !d.isEmpty();
