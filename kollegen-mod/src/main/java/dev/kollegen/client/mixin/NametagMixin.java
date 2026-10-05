@@ -57,20 +57,21 @@ public class NametagMixin {
                 kollegen$dbg("skip-nothing");
                 return;
             }
-            boolean matchedA = kollegen$matches(state.scoreText, id);
-            boolean matchedW = !matchedA && kollegen$matches(state.nameTag, id);
-            if (!matchedA && !matchedW) {
-                kollegen$dbg("skip-no-match");
+            boolean useW = state.scoreText == null && state.nameTag != null;
+            Component line = useW ? state.nameTag : state.scoreText;
+            if (line == null) {
+                kollegen$dbg("skip-no-line");
                 return;
             }
             KollegenPresence.dbgRender = "render";
             if (hasData) {
-                if (matchedA) state.scoreText = CosmeticText.decorateNameLine(state.scoreText, id);
-                else state.nameTag = CosmeticText.decorateNameLine(state.nameTag, id);
+                Component decorated = CosmeticText.decorateNameLine(line, id);
+                if (useW) state.nameTag = decorated;
+                else state.scoreText = decorated;
             }
             Vec3 anchor = state.nameTagAttachment;
             if (anchor == null) return;
-            double nameY = anchor.y + (matchedW ? 0.259 : 0.0);
+            double nameY = anchor.y + (useW ? 0.259 : 0.0);
             Component title = hasData ? CosmeticText.titleComponent(id) : null;
             if (title != null) {
                 collector.submitNameTag(poseStack,
@@ -84,7 +85,7 @@ public class NametagMixin {
                         0, level, !state.isDiscrete, state.lightCoords, state.distanceToCameraSq, camera);
             }
             if (false && KollegenPresence.isKollegen(id)) {
-                Component nameLine = matchedW ? state.nameTag : state.scoreText;
+                Component nameLine = useW ? state.nameTag : state.scoreText;
                 int tw = 60;
                 try {
                     if (nameLine != null) tw = Minecraft.getInstance().font.width(nameLine);
