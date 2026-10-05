@@ -393,7 +393,8 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'OPTIONS') return sendJson(res, 204, {});
 
   const url = new URL(req.url, 'http://localhost');
-  const pathname = url.pathname;
+  let pathname = url.pathname;
+  if (pathname === '/api/store' || pathname.startsWith('/api/store/')) pathname = pathname.slice(4);
   const method = req.method;
 
   try {

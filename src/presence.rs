@@ -520,7 +520,7 @@ pub fn kollegen_dm_send(data_dir: &PathBuf, to_id: &str, text: &str) -> serde_js
 
 
 pub fn kollegen_store(data_dir: &PathBuf) -> serde_json::Value {
-    get_authed(data_dir, "/store", &[])
+    get_authed(data_dir, "/api/store", &[])
 }
 
 
@@ -529,7 +529,7 @@ pub fn kollegen_store_equip(data_dir: &PathBuf, item_id: &str, category: &str) -
         Some(x) => x,
         None => return serde_json::json!({ "error": "not_authenticated" }),
     };
-    let url = format!("{}/store/equip", backend);
+    let url = format!("{}/api/store/equip", backend);
     let body = if item_id.is_empty() {
         serde_json::json!({ "category": category })
     } else {
@@ -553,7 +553,7 @@ pub fn kollegen_store_equip(data_dir: &PathBuf, item_id: &str, category: &str) -
 
 
 pub fn kollegen_store_buy(data_dir: &PathBuf, item_id: &str) -> serde_json::Value {
-    post_authed(data_dir, "/store/buy", serde_json::json!({ "item_id": item_id }))
+    post_authed(data_dir, "/api/store/buy", serde_json::json!({ "item_id": item_id }))
 }
 
 
