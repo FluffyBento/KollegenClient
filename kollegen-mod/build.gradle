@@ -41,6 +41,13 @@ loom {
             sourceSet sourceSets.client
         }
     }
+
+    mappings = project.hasProperty('mappings') ? project.mappings : (project.minecraft_version.startsWith('26.') ? 'official' : 'yarn')
+    if (project.hasProperty('mappings_version')) {
+        mappings += ":" + project.mappings_version
+    } else if (!project.hasProperty('mappings') && !project.minecraft_version.startsWith('26.')) {
+        mappings += ":" + project.yarn_mappings
+    }
 }
 
 dependencies {

@@ -53,14 +53,14 @@ jobs:
         run: |
           cd kollegen-mod
           chmod +x ./gradlew
-          ./gradlew build --no-daemon --stacktrace -Pminecraft_version=1.21.11 -Pfabric_version=0.141.6+1.21.11 -Pyarn_mappings=1.21.11+build.1 -Parchives_base_name=kollegen-client-mod-1.21.11
+          ./gradlew build --no-daemon --stacktrace -Pminecraft_version=1.21.11 -Pfabric_version=0.141.6+1.21.11 -Pyarn_mappings=1.21.11+build.1 -Pmappings=yarn -Parchives_base_name=kollegen-client-mod-1.21.11
 
       - name: Build Kollegen Client companion mod for MC 26.2 (Fabric)
         id: buildmod_26_2
         run: |
           cd kollegen-mod
           chmod +x ./gradlew
-          ./gradlew build --no-daemon --stacktrace -Pminecraft_version=26.2 -Pfabric_version=0.161.0+26.2 -Pyarn_mappings=1.21.11+build.1 -Parchives_base_name=kollegen-client-mod-26.2
+          ./gradlew build --no-daemon --stacktrace -Pminecraft_version=26.2 -Pfabric_version=0.161.0+26.2 -Pmappings=official -Parchives_base_name=kollegen-client-mod-26.2
 
       - name: Publish companion mod jars
         env:
@@ -123,8 +123,8 @@ jobs:
         run: |
           mkdir -p resources
           cd kollegen-mod && chmod +x ./gradlew
-          ./gradlew build --no-daemon -Pminecraft_version=1.21.11 -Pfabric_version=0.141.6+1.21.11 -Pyarn_mappings=1.21.11+build.1 -Parchives_base_name=kollegen-client-mod-1.21.11
-          ./gradlew build --no-daemon -Pminecraft_version=26.2 -Pfabric_version=0.161.0+26.2 -Pyarn_mappings=1.21.11+build.1 -Parchives_base_name=kollegen-client-mod-26.2
+          ./gradlew build --no-daemon -Pminecraft_version=1.21.11 -Pfabric_version=0.141.6+1.21.11 -Pyarn_mappings=1.21.11+build.1 -Pmappings=yarn -Parchives_base_name=kollegen-client-mod-1.21.11
+          ./gradlew build --no-daemon -Pminecraft_version=26.2 -Pfabric_version=0.161.0+26.2 -Pmappings=official -Parchives_base_name=kollegen-client-mod-26.2
           cp kollegen-mod/build/libs/kollegen-client-mod-1.21.11.jar resources/kollegen-client-mod-1.21.11.jar
           cp kollegen-mod/build/libs/kollegen-client-mod-26.2.jar resources/kollegen-client-mod-26.2.jar
           echo "Bundled both mod JARs"
@@ -240,8 +240,8 @@ jobs:
         run: |
           mkdir -p resources
           cd kollegen-mod && chmod +x ./gradlew
-          ./gradlew build --no-daemon -Pminecraft_version=1.21.11 -Pfabric_version=0.141.6+1.21.11 -Pyarn_mappings=1.21.11+build.1 -Parchives_base_name=kollegen-client-mod-1.21.11
-          ./gradlew build --no-daemon -Pminecraft_version=26.2 -Pfabric_version=0.161.0+26.2 -Pyarn_mappings=1.21.11+build.1 -Parchives_base_name=kollegen-client-mod-26.2
+          ./gradlew build --no-daemon -Pminecraft_version=1.21.11 -Pfabric_version=0.141.6+1.21.11 -Pyarn_mappings=1.21.11+build.1 -Pmappings=yarn -Parchives_base_name=kollegen-client-mod-1.21.11
+          ./gradlew build --no-daemon -Pminecraft_version=26.2 -Pfabric_version=0.161.0+26.2 -Pmappings=official -Parchives_base_name=kollegen-client-mod-26.2
           cp kollegen-mod/build/libs/kollegen-client-mod-1.21.11.jar resources/kollegen-client-mod-1.21.11.jar
           cp kollegen-mod/build/libs/kollegen-client-mod-26.2.jar resources/kollegen-client-mod-26.2.jar
           echo "Bundled both mod JARs"
@@ -317,8 +317,8 @@ jobs:
         run: |
           mkdir -p resources
           cd kollegen-mod && chmod +x ./gradlew
-          ./gradlew build --no-daemon -Pminecraft_version=1.21.11 -Pfabric_version=0.141.6+1.21.11 -Pyarn_mappings=1.21.11+build.1 -Parchives_base_name=kollegen-client-mod-1.21.11
-          ./gradlew build --no-daemon -Pminecraft_version=26.2 -Pfabric_version=0.161.0+26.2 -Pyarn_mappings=1.21.11+build.1 -Parchives_base_name=kollegen-client-mod-26.2
+          ./gradlew build --no-daemon -Pminecraft_version=1.21.11 -Pfabric_version=0.141.6+1.21.11 -Pyarn_mappings=1.21.11+build.1 -Pmappings=yarn -Parchives_base_name=kollegen-client-mod-1.21.11
+          ./gradlew build --no-daemon -Pminecraft_version=26.2 -Pfabric_version=0.161.0+26.2 -Pmappings=official -Parchives_base_name=kollegen-client-mod-26.2
           cp kollegen-mod/build/libs/kollegen-client-mod-1.21.11.jar resources/kollegen-client-mod-1.21.11.jar
           cp kollegen-mod/build/libs/kollegen-client-mod-26.2.jar resources/kollegen-client-mod-26.2.jar
           echo "Bundled both mod JARs"
