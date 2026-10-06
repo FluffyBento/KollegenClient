@@ -59,7 +59,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          cp kollegen-mod/build/libs/kollegen-client-mod-26.2.jar kollegen-client-mod-26.2.jar
+          JAR26=$(ls kollegen-mod/build/libs/kollegen-client-mod-26.2*.jar 2>/dev/null | head -n1)
+          if [ -z "$JAR26" ]; then echo "ERROR: no 26.2 jar built"; ls kollegen-mod/build/libs/; exit 1; fi
+          cp "$JAR26" kollegen-client-mod-26.2.jar
           cp resources/kollegen-client-mod-1.21.11.jar kollegen-client-mod-1.21.11.jar
           for jar in kollegen-client-mod-1.21.11.jar kollegen-client-mod-26.2.jar; do
             for i in {1..3}; do
@@ -120,7 +122,9 @@ jobs:
           mkdir -p resources
           cd kollegen-mod && chmod +x ./gradlew
           ./gradlew build --no-daemon -Pminecraft_version=26.2 -Pfabric_version=0.161.0+26.2 -Ploader_version=0.19.5 -Parchives_base_name=kollegen-client-mod-26.2
-          cp kollegen-mod/build/libs/kollegen-client-mod-26.2.jar resources/kollegen-client-mod-26.2.jar
+          JAR26=$(ls kollegen-mod/build/libs/kollegen-client-mod-26.2*.jar 2>/dev/null | head -n1)
+          if [ -z "$JAR26" ]; then echo "ERROR: no 26.2 jar built"; ls kollegen-mod/build/libs/; exit 1; fi
+          cp "$JAR26" resources/kollegen-client-mod-26.2.jar
           echo "Bundled 26.2 mod + prebuilt 1.21.11 mod (already in resources/)"
 
       - name: Set launcher version from tag
@@ -235,7 +239,9 @@ jobs:
           mkdir -p resources
           cd kollegen-mod && chmod +x ./gradlew
           ./gradlew build --no-daemon -Pminecraft_version=26.2 -Pfabric_version=0.161.0+26.2 -Ploader_version=0.19.5 -Parchives_base_name=kollegen-client-mod-26.2
-          cp kollegen-mod/build/libs/kollegen-client-mod-26.2.jar resources/kollegen-client-mod-26.2.jar
+          JAR26=$(ls kollegen-mod/build/libs/kollegen-client-mod-26.2*.jar 2>/dev/null | head -n1)
+          if [ -z "$JAR26" ]; then echo "ERROR: no 26.2 jar built"; ls kollegen-mod/build/libs/; exit 1; fi
+          cp "$JAR26" resources/kollegen-client-mod-26.2.jar
           echo "Bundled 26.2 mod + prebuilt 1.21.11 mod"
 
       - name: Set launcher version from tag
@@ -316,7 +322,9 @@ jobs:
           mkdir -p resources
           cd kollegen-mod && chmod +x ./gradlew
           ./gradlew build --no-daemon -Pminecraft_version=26.2 -Pfabric_version=0.161.0+26.2 -Ploader_version=0.19.5 -Parchives_base_name=kollegen-client-mod-26.2
-          cp kollegen-mod/build/libs/kollegen-client-mod-26.2.jar resources/kollegen-client-mod-26.2.jar
+          JAR26=$(ls kollegen-mod/build/libs/kollegen-client-mod-26.2*.jar 2>/dev/null | head -n1)
+          if [ -z "$JAR26" ]; then echo "ERROR: no 26.2 jar built"; ls kollegen-mod/build/libs/; exit 1; fi
+          cp "$JAR26" resources/kollegen-client-mod-26.2.jar
           echo "Bundled 26.2 mod + prebuilt 1.21.11 mod (already in resources/)"
 
       - name: Set launcher version from tag
