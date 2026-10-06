@@ -306,7 +306,7 @@ fn get_logs(state: State<'_, AppState>) -> Result<Vec<String>, String> {
 }
 
 #[tauri::command]
-fn clone_instance(
+fn clone_instance_v2(
     state: State<'_, AppState>,
     source_name: String,
     new_name: String,
@@ -2081,7 +2081,7 @@ fn main() {
             create_instance,
             delete_instance,
             get_logs,
-            clone_instance,
+            clone_instance_v2,
             get_available_versions,
             get_loaders_for_version,
             install_instance,
