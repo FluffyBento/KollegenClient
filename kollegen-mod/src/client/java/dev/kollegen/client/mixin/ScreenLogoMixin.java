@@ -14,8 +14,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin({InventoryScreen.class, ContainerScreen.class, TitleScreen.class})
 public class ScreenLogoMixin {
 
-    @Inject(method = "render(Lnet/minecraft/client/gui/GuiGraphicsExtractor;IIF)V", at = @At("RETURN"))
-    private void kollegen$drawLogo(GuiGraphicsExtractor gui, int mouseX, int mouseY, float partialTick, CallbackInfo ci) {
+    private void kollegen$drawLogoInner(GuiGraphicsExtractor gui) {
         try {
             int[] dim = LogoDraw.dims();
             int targetW = 72;
@@ -26,5 +25,15 @@ public class ScreenLogoMixin {
         } catch (Exception ignored) {
             
         }
+    }
+
+    @Inject(method = "render(Lnet/minecraft/client/gui/GuiGraphicsExtractor;IIF)V", at = @At("RETURN"), require = 0)
+    private void kollegen$drawLogoLegacy(GuiGraphicsExtractor gui, int mouseX, int mouseY, float partialTick, CallbackInfo ci) {
+        kollegen$drawLogoInner(gui);
+    }
+
+    @Inject(method = "extractRenderState(Lnet/minecraft/client/gui/GuiGraphicsExtractor;IIF)V", at = @At("RETURN"), require = 0)
+    private void kollegen$drawLogoExtract(GuiGraphicsExtractor gui, int mouseX, int mouseY, float partialTick, CallbackInfo ci) {
+        kollegen$drawLogoInner(gui);
     }
 }

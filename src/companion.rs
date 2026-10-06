@@ -183,6 +183,31 @@ fn refresh_cache(data_dir: &Path) -> Option<PathBuf> {
 
 
 
+fn jar_mc_constraint(p: &Path) -> Option<String> {
+    let file = std::fs::File::open(p).ok()?;
+    let mut archive = zip::ZipArchive::new(file).ok()?;
+    let mut entry = archive.by_name("fabric.mod.json").ok()?;
+    let mut text = String::new();
+    use std::io::Read;
+    entry.read_to_string(&mut text).ok()?;
+    let v: serde_json::Value = serde_json::from_str(&text).ok()?;
+    v.get("depends")?.get("minecraft")?.as_str().map(|s| s.to_string())
+}
+
+fn jar_supports_mc(p: &Path, version: &str) -> bool {
+    let constraint = match jar_mc_constraint(p) {
+        Some(c) => c,
+        None => return true,
+    };
+    if version.starts_with("1.21.") {
+        return constraint.contains("1.21");
+    }
+    if version.starts_with("26.") {
+        return constraint.contains("26");
+    }
+    constraint.contains(version)
+}
+
 pub fn companion_jar(data_dir: &Path, version: &str) -> Option<PathBuf> {
     let filename = companion_filename_for_version(version);
     
@@ -197,10 +222,16 @@ pub fn companion_jar(data_dir: &Path, version: &str) -> Option<PathBuf> {
             for cand in [
                 dir.join("resources").join(filename),
                 dir.join(filename),
+            ] {
+                if is_valid_jar(&cand) && jar_supports_mc(&cand, version) {
+                    return Some(cand);
+                }
+            }
+            for cand in [
                 dir.join("resources").join(COMPANION_MOD_FILENAME),
                 dir.join(COMPANION_MOD_FILENAME),
             ] {
-                if is_valid_jar(&cand) {
+                if is_valid_jar(&cand) && jar_supports_mc(&cand, version) {
                     return Some(cand);
                 }
             }
@@ -231,7 +262,7 @@ pub fn companion_jar(data_dir: &Path, version: &str) -> Option<PathBuf> {
                     .map(|n| is_companion_mod_name(n))
                     .unwrap_or(false)
             })
-            .filter(|p| is_valid_jar(p))
+            .filter(|p| is_valid_jar(p) && jar_supports_mc(p, version))
         {
             return Some(p);
         }
@@ -241,7 +272,7 @@ pub fn companion_jar(data_dir: &Path, version: &str) -> Option<PathBuf> {
         manifest.join("resources").join(filename),
         manifest.join("resources").join(COMPANION_MOD_FILENAME),
     ] {
-        if is_valid_jar(&cand) {
+        if is_valid_jar(&cand) && jar_supports_mc(&cand, version) {
             return Some(cand);
         }
     }

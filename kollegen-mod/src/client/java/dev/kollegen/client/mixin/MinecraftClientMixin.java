@@ -17,8 +17,8 @@ public class MinecraftClientMixin {
     }
 
     
-    @Inject(method = "runTick", at = @At("TAIL"))
-    private void kollegen_client$onFrame(boolean tickIn, CallbackInfo ci) {
+    @Inject(method = "tick", at = @At("TAIL"))
+    private void kollegen_client$onFrame(CallbackInfo ci) {
         KollegenMod.onFrame();
     }
 }

@@ -314,7 +314,6 @@ fn clone_instance_v2(
     new_loader: String,
     new_loader_version: Option<String>,
 ) -> Result<types::Instance, String> {
-    let path = utils::instances_file(&state.data_dir);
     let mut instances = utils::load_json::<Vec<types::Instance>>(
         &utils::instances_file(&state.data_dir),
         vec![],
@@ -332,26 +331,38 @@ fn clone_instance_v2(
     std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
     
     let source_dir = utils::instance_dir(&state.data_dir, &source_name);
+    let new_dir = utils::instance_dir(&state.data_dir, &new_name);
     
-    let copy_dir = |src: &std::path::Path, dst: &std::path::Path| -> Result<(), String> {
+    fn copy_dir_recursive(src: &std::path::Path, dst: &std::path::Path) -> Result<(), String> {
         if !src.exists() {
             return Ok(());
         }
-        std::fs::create_dir_all(&dst).map_err(|e| e.to_string())?;
+        if src.is_file() {
+            if let Some(parent) = dst.parent() {
+                std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+            }
+            if !dst.exists() {
+                std::fs::copy(src, dst).map_err(|e| e.to_string())?;
+            }
+            return Ok(());
+        }
+        std::fs::create_dir_all(dst).map_err(|e| e.to_string())?;
         let entries = std::fs::read_dir(src).map_err(|e| e.to_string())?;
         for entry in entries.flatten() {
-            let src = entry.path();
-            let dst = dst.join(entry.file_name());
-            if !dst.exists() {
-                std::fs::copy(&src, &dst).map_err(|e| e.to_string())?;
+            let s = entry.path();
+            let d = dst.join(entry.file_name());
+            if s.is_dir() {
+                copy_dir_recursive(&s, &d)?;
+            } else if !d.exists() {
+                std::fs::copy(&s, &d).map_err(|e| e.to_string())?;
             }
         }
         Ok(())
-    };
+    }
     
-    copy_dir(&source_dir.join("mods"), &utils::instance_dir(&state.data_dir, &new_name).join("mods"))?;
-    copy_dir(&source_dir.join("resourcepacks"), &utils::instance_dir(&state.data_dir, &new_name).join("resourcepacks"))?;
-    copy_dir(&source_dir.join("shaderpacks"), &utils::instance_dir(&state.data_dir, &new_name).join("shaderpacks"))?;
+    copy_dir_recursive(&source_dir.join("mods"), &new_dir.join("mods"))?;
+    copy_dir_recursive(&source_dir.join("resourcepacks"), &new_dir.join("resourcepacks"))?;
+    copy_dir_recursive(&source_dir.join("shaderpacks"), &new_dir.join("shaderpacks"))?;
     
     let mut new_inst = types::Instance {
         id: uuid::Uuid::new_v4().to_string(),

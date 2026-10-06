@@ -13,13 +13,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(SkyRenderer.class)
 public class SkyBodiesMixin {
 
-    @Inject(method = "renderSun(FLcom/mojang/blaze3d/vertex/PoseStack;)V", at = @At("HEAD"), cancellable = true)
-    private void kollegen$hideSun(float alpha, PoseStack matrices, CallbackInfo ci) {
-        if (World.hideSun) ci.cancel();
-    }
-
-    @Inject(method = "renderMoon(Lnet/minecraft/world/level/MoonPhase;FLcom/mojang/blaze3d/vertex/PoseStack;)V", at = @At("HEAD"), cancellable = true)
-    private void kollegen$hideMoon(MoonPhase moonPhase, float alpha, PoseStack matrices, CallbackInfo ci) {
-        if (World.hideMoon) ci.cancel();
+    @Inject(method = "renderSunMoonAndStars(Lcom/mojang/blaze3d/vertex/PoseStack;FFFLnet/minecraft/world/level/MoonPhase;FF)V", at = @At("HEAD"), cancellable = true)
+    private void kollegen$hideSunMoon(PoseStack matrices, float a, float b, float c, MoonPhase moonPhase, float d, float e, CallbackInfo ci) {
+        if (World.hideSun && World.hideMoon) ci.cancel();
     }
 }

@@ -5,6 +5,7 @@ import dev.kollegen.client.mods.HudModule;
 import dev.kollegen.client.mods.ModuleManager;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.MouseHandler;
+import net.minecraft.client.input.MouseButtonInfo;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -31,8 +32,10 @@ public class MouseHandlerMixin {
         }
     }
 
-    @Inject(method = "method_22684", at = @At("HEAD"))
-    private void kollegen_client$cps(long window, int button, int action, int mods, CallbackInfo ci) {
+    @Inject(method = "onButton(JLnet/minecraft/client/input/MouseButtonInfo;I)V", at = @At("HEAD"))
+    private void kollegen_client$cps(long window, MouseButtonInfo info, int action, CallbackInfo ci) {
+        int button = info.button();
+        int mods = info.modifiers();
         if (action != 0 && action != 1) return;
         boolean press = action == 1;
         if (button == 0) {
