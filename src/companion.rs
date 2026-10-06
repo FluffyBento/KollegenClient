@@ -237,6 +237,15 @@ pub fn companion_jar(data_dir: &Path, version: &str) -> Option<PathBuf> {
         }
     }
 
+    for cand in [
+        manifest.join("resources").join(filename),
+        manifest.join("resources").join(COMPANION_MOD_FILENAME),
+    ] {
+        if is_valid_jar(&cand) {
+            return Some(cand);
+        }
+    }
+
     
     try_download(data_dir)
 }
