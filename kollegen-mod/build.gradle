@@ -6,7 +6,7 @@ buildscript {
     }
     dependencies {
         classpath 'org.ow2.asm:asm:9.7.1'
-        classpath 'net.fabricmc:fabric-loom:1.18.2'
+        classpath ("net.fabricmc:fabric-loom:${findProperty('loom_version') ?: '1.18.2'}")
     }
 }
 
@@ -42,10 +42,16 @@ loom {
         }
     }
 
-    def useOfficial = project.minecraft_version.startsWith('26.')
+    def useOfficial = project.minecraft_version.startsWith('26.') || (project.hasProperty('mappings') && project.mappings == 'official')
     def mappingsName = project.hasProperty('mappings') ? project.mappings : (useOfficial ? 'official' : 'yarn')
-    def mappingsVersion = project.hasProperty('mappings_version') ? project.mappings_version : (!useOfficial ? project.yarn_mappings : null)
-    mappings = mappingsVersion ? "${mappingsName}:${mappingsVersion}" : mappingsName
+    def mappingsVersion = null
+    if (mappingsName == 'yarn') {
+        mappingsVersion = project.hasProperty('mappings_version') ? project.mappings_version : project.yarn_mappings
+        mappings = "net.fabricmc:yarn:${mappingsVersion}"
+    } else {
+        mappings = 'official'
+    }
+    println("Kollegen Mappings: ${mappings} (MC ${project.minecraft_version}, Loom ${findProperty('loom_version') ?: '1.18.2'})")
 }
 
 dependencies {

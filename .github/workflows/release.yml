@@ -42,10 +42,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Java 21
+      - name: Set up Java 21 for MC 1.21.11 build
         uses: actions/setup-java@v4
         with:
-          java-version: '25'
+          java-version: '21'
           distribution: 'temurin'
 
       - name: Build Kollegen Client companion mod for MC 1.21.11 (Fabric)
@@ -53,14 +53,20 @@ jobs:
         run: |
           cd kollegen-mod
           chmod +x ./gradlew
-          ./gradlew build --no-daemon --stacktrace -Pminecraft_version=1.21.11 -Pfabric_version=0.141.6+1.21.11 -Pmappings=yarn -Pmappings_version=1.21.11+build.1 -Parchives_base_name=kollegen-client-mod-1.21.11
+          ./gradlew build --no-daemon --stacktrace -Pminecraft_version=1.21.11 -Pfabric_version=0.141.6+1.21.11 -Ploader_version=0.16.10 -Ploom_version=1.14.10 -Pmappings=official -Parchives_base_name=kollegen-client-mod-1.21.11
+
+      - name: Set up Java 25 for MC 26.2 build
+        uses: actions/setup-java@v4
+        with:
+          java-version: '25'
+          distribution: 'temurin'
 
       - name: Build Kollegen Client companion mod for MC 26.2 (Fabric)
         id: buildmod_26_2
         run: |
           cd kollegen-mod
           chmod +x ./gradlew
-          ./gradlew build --no-daemon --stacktrace -Pminecraft_version=26.2 -Pfabric_version=0.161.0+26.2 -Pmappings=official -Parchives_base_name=kollegen-client-mod-26.2
+          ./gradlew build --no-daemon --stacktrace -Pminecraft_version=26.2 -Pfabric_version=0.161.0+26.2 -Ploader_version=0.19.5 -Ploom_version=1.18.2 -Pmappings=official -Parchives_base_name=kollegen-client-mod-26.2
 
       - name: Publish companion mod jars
         env:
@@ -119,13 +125,30 @@ jobs:
           java-version: '25'
           distribution: 'temurin'
 
-      - name: Bundle companion mods for both MC versions (build locally)
+      - name: Set up Java 21 for MC 1.21.11 mod
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Build MC 1.21.11 companion mod
         run: |
           mkdir -p resources
           cd kollegen-mod && chmod +x ./gradlew
-          ./gradlew build --no-daemon -Pminecraft_version=1.21.11 -Pfabric_version=0.141.6+1.21.11 -Pmappings=yarn -Pmappings_version=1.21.11+build.1 -Parchives_base_name=kollegen-client-mod-1.21.11
-          ./gradlew build --no-daemon -Pminecraft_version=26.2 -Pfabric_version=0.161.0+26.2 -Pmappings=official -Parchives_base_name=kollegen-client-mod-26.2
+          ./gradlew build --no-daemon -Pminecraft_version=1.21.11 -Pfabric_version=0.141.6+1.21.11 -Ploader_version=0.16.10 -Ploom_version=1.14.10 -Pmappings=official -Parchives_base_name=kollegen-client-mod-1.21.11
           cp kollegen-mod/build/libs/kollegen-client-mod-1.21.11.jar resources/kollegen-client-mod-1.21.11.jar
+          echo "Built 1.21.11 mod"
+
+      - name: Set up Java 25 for MC 26.2 mod
+        uses: actions/setup-java@v4
+        with:
+          java-version: '25'
+          distribution: 'temurin'
+
+      - name: Build MC 26.2 companion mod
+        run: |
+          cd kollegen-mod && chmod +x ./gradlew
+          ./gradlew build --no-daemon -Pminecraft_version=26.2 -Pfabric_version=0.161.0+26.2 -Ploader_version=0.19.5 -Ploom_version=1.18.2 -Pmappings=official -Parchives_base_name=kollegen-client-mod-26.2
           cp kollegen-mod/build/libs/kollegen-client-mod-26.2.jar resources/kollegen-client-mod-26.2.jar
           echo "Bundled both mod JARs"
 
@@ -235,14 +258,32 @@ jobs:
           java-version: '25'
           distribution: 'temurin'
 
-      - name: Bundle companion mods for both MC versions (build locally)
+      - name: Set up Java 21 for MC 1.21.11 mod
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Build MC 1.21.11 companion mod
         shell: bash
         run: |
           mkdir -p resources
           cd kollegen-mod && chmod +x ./gradlew
-          ./gradlew build --no-daemon -Pminecraft_version=1.21.11 -Pfabric_version=0.141.6+1.21.11 -Pmappings=yarn -Pmappings_version=1.21.11+build.1 -Parchives_base_name=kollegen-client-mod-1.21.11
-          ./gradlew build --no-daemon -Pminecraft_version=26.2 -Pfabric_version=0.161.0+26.2 -Pmappings=official -Parchives_base_name=kollegen-client-mod-26.2
+          ./gradlew build --no-daemon -Pminecraft_version=1.21.11 -Pfabric_version=0.141.6+1.21.11 -Ploader_version=0.16.10 -Ploom_version=1.14.10 -Pmappings=official -Parchives_base_name=kollegen-client-mod-1.21.11
           cp kollegen-mod/build/libs/kollegen-client-mod-1.21.11.jar resources/kollegen-client-mod-1.21.11.jar
+          echo "Built 1.21.11 mod"
+
+      - name: Set up Java 25 for MC 26.2 mod
+        uses: actions/setup-java@v4
+        with:
+          java-version: '25'
+          distribution: 'temurin'
+
+      - name: Build MC 26.2 companion mod
+        shell: bash
+        run: |
+          cd kollegen-mod && chmod +x ./gradlew
+          ./gradlew build --no-daemon -Pminecraft_version=26.2 -Pfabric_version=0.161.0+26.2 -Ploader_version=0.19.5 -Ploom_version=1.18.2 -Pmappings=official -Parchives_base_name=kollegen-client-mod-26.2
           cp kollegen-mod/build/libs/kollegen-client-mod-26.2.jar resources/kollegen-client-mod-26.2.jar
           echo "Bundled both mod JARs"
 
@@ -313,13 +354,30 @@ jobs:
           java-version: '25'
           distribution: 'temurin'
 
-      - name: Bundle companion mods for both MC versions (build locally)
+      - name: Set up Java 21 for MC 1.21.11 mod
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Build MC 1.21.11 companion mod
         run: |
           mkdir -p resources
           cd kollegen-mod && chmod +x ./gradlew
-          ./gradlew build --no-daemon -Pminecraft_version=1.21.11 -Pfabric_version=0.141.6+1.21.11 -Pmappings=yarn -Pmappings_version=1.21.11+build.1 -Parchives_base_name=kollegen-client-mod-1.21.11
-          ./gradlew build --no-daemon -Pminecraft_version=26.2 -Pfabric_version=0.161.0+26.2 -Pmappings=official -Parchives_base_name=kollegen-client-mod-26.2
+          ./gradlew build --no-daemon -Pminecraft_version=1.21.11 -Pfabric_version=0.141.6+1.21.11 -Ploader_version=0.16.10 -Ploom_version=1.14.10 -Pmappings=official -Parchives_base_name=kollegen-client-mod-1.21.11
           cp kollegen-mod/build/libs/kollegen-client-mod-1.21.11.jar resources/kollegen-client-mod-1.21.11.jar
+          echo "Built 1.21.11 mod"
+
+      - name: Set up Java 25 for MC 26.2 mod
+        uses: actions/setup-java@v4
+        with:
+          java-version: '25'
+          distribution: 'temurin'
+
+      - name: Build MC 26.2 companion mod
+        run: |
+          cd kollegen-mod && chmod +x ./gradlew
+          ./gradlew build --no-daemon -Pminecraft_version=26.2 -Pfabric_version=0.161.0+26.2 -Ploader_version=0.19.5 -Ploom_version=1.18.2 -Pmappings=official -Parchives_base_name=kollegen-client-mod-26.2
           cp kollegen-mod/build/libs/kollegen-client-mod-26.2.jar resources/kollegen-client-mod-26.2.jar
           echo "Bundled both mod JARs"
 
