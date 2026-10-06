@@ -42,12 +42,10 @@ loom {
         }
     }
 
-    mappings = project.hasProperty('mappings') ? project.mappings : (project.minecraft_version.startsWith('26.') ? 'official' : 'yarn')
-    if (project.hasProperty('mappings_version')) {
-        mappings += ":" + project.mappings_version
-    } else if (!project.hasProperty('mappings') && !project.minecraft_version.startsWith('26.')) {
-        mappings += ":" + project.yarn_mappings
-    }
+    def useOfficial = project.minecraft_version.startsWith('26.')
+    def mappingsName = project.hasProperty('mappings') ? project.mappings : (useOfficial ? 'official' : 'yarn')
+    def mappingsVersion = project.hasProperty('mappings_version') ? project.mappings_version : (!useOfficial ? project.yarn_mappings : null)
+    mappings = mappingsVersion ? "${mappingsName}:${mappingsVersion}" : mappingsName
 }
 
 dependencies {
