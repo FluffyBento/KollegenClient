@@ -41,23 +41,13 @@ loom {
             sourceSet sourceSets.client
         }
     }
-
-    def useOfficial = project.minecraft_version.startsWith('26.') || (project.hasProperty('mappings') && project.mappings == 'official')
-    def mappingsName = project.hasProperty('mappings') ? project.mappings : (useOfficial ? 'official' : 'yarn')
-    def mappingsVersion = null
-    if (mappingsName == 'yarn') {
-        mappingsVersion = project.hasProperty('mappings_version') ? project.mappings_version : project.yarn_mappings
-        mappings = "net.fabricmc:yarn:${mappingsVersion}"
-    } else {
-        mappings = 'official'
-    }
-    println("Kollegen Mappings: ${mappings} (MC ${project.minecraft_version}, Loom ${findProperty('loom_version') ?: '1.18.2'})")
 }
 
 dependencies {
     minecraft "com.mojang:minecraft:${project.minecraft_version}"
-    implementation "net.fabricmc:fabric-loader:${project.loader_version}"
-    implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+    mappings loom.officialMojangMappings()
+    modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+    modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
 
     implementation('dev.kollegen:discord-rpc:1.3.6') { transitive = false }
     include('dev.kollegen:discord-rpc:1.3.6') { transitive = false }
