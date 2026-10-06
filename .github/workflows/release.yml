@@ -42,19 +42,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Java 21 for MC 1.21.11 build
-        uses: actions/setup-java@v4
-        with:
-          java-version: '21'
-          distribution: 'temurin'
-
-      - name: Build Kollegen Client companion mod for MC 1.21.11 (Fabric)
-        id: buildmod_1_21
-        run: |
-          cd kollegen-mod
-          chmod +x ./gradlew
-          ./gradlew build --no-daemon --stacktrace -Pminecraft_version=1.21.11 -Pfabric_version=0.141.6+1.21.11 -Ploader_version=0.16.10 -Ploom_version=1.14.10 -Parchives_base_name=kollegen-client-mod-1.21.11
-
       - name: Set up Java 25 for MC 26.2 build
         uses: actions/setup-java@v4
         with:
@@ -66,24 +53,21 @@ jobs:
         run: |
           cd kollegen-mod
           chmod +x ./gradlew
-          ./gradlew build --no-daemon --stacktrace -Pminecraft_version=26.2 -Pfabric_version=0.161.0+26.2 -Ploader_version=0.19.5 -Ploom_version=1.18.2 -Parchives_base_name=kollegen-client-mod-26.2
+          ./gradlew build --no-daemon --stacktrace -Pminecraft_version=26.2 -Pfabric_version=0.161.0+26.2 -Ploader_version=0.19.5 -Parchives_base_name=kollegen-client-mod-26.2
 
-      - name: Publish companion mod jars
+      - name: Publish companion mod jars (fresh 26.2 + prebuilt 1.21.11)
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          for jar in kollegen-mod/build/libs/kollegen-client-mod-1.21.11.jar kollegen-mod/build/libs/kollegen-client-mod-26.2.jar; do
-            if [ -f "$jar" ]; then
-              cp "$jar" "$(basename "$jar")"
-              for i in {1..3}; do
-                gh release upload "${{ github.ref_name }}" "$(basename "$jar")" --clobber && break
-                echo "Upload attempt $i failed, retrying in 5s..."
-                sleep 5
-              done
-              echo "Uploaded $(basename "$jar")"
-            else
-              echo "Missing: $jar"
-            fi
+          cp kollegen-mod/build/libs/kollegen-client-mod-26.2.jar kollegen-client-mod-26.2.jar
+          cp resources/kollegen-client-mod-1.21.11.jar kollegen-client-mod-1.21.11.jar
+          for jar in kollegen-client-mod-1.21.11.jar kollegen-client-mod-26.2.jar; do
+            for i in {1..3}; do
+              gh release upload "${{ github.ref_name }}" "$jar" --clobber && break
+              echo "Upload attempt $i failed, retrying in 5s..."
+              sleep 5
+            done
+            echo "Uploaded $jar"
           done
 
   linux:
@@ -125,32 +109,19 @@ jobs:
           java-version: '25'
           distribution: 'temurin'
 
-      - name: Set up Java 21 for MC 1.21.11 mod
-        uses: actions/setup-java@v4
-        with:
-          java-version: '21'
-          distribution: 'temurin'
-
-      - name: Build MC 1.21.11 companion mod
-        run: |
-          mkdir -p resources
-          cd kollegen-mod && chmod +x ./gradlew
-          ./gradlew build --no-daemon -Pminecraft_version=1.21.11 -Pfabric_version=0.141.6+1.21.11 -Ploader_version=0.16.10 -Ploom_version=1.14.10 -Parchives_base_name=kollegen-client-mod-1.21.11
-          cp kollegen-mod/build/libs/kollegen-client-mod-1.21.11.jar resources/kollegen-client-mod-1.21.11.jar
-          echo "Built 1.21.11 mod"
-
       - name: Set up Java 25 for MC 26.2 mod
         uses: actions/setup-java@v4
         with:
           java-version: '25'
           distribution: 'temurin'
 
-      - name: Build MC 26.2 companion mod
+      - name: Build MC 26.2 companion mod, copy prebuilt 1.21.11 mod
         run: |
+          mkdir -p resources
           cd kollegen-mod && chmod +x ./gradlew
-          ./gradlew build --no-daemon -Pminecraft_version=26.2 -Pfabric_version=0.161.0+26.2 -Ploader_version=0.19.5 -Ploom_version=1.18.2 -Parchives_base_name=kollegen-client-mod-26.2
+          ./gradlew build --no-daemon -Pminecraft_version=26.2 -Pfabric_version=0.161.0+26.2 -Ploader_version=0.19.5 -Parchives_base_name=kollegen-client-mod-26.2
           cp kollegen-mod/build/libs/kollegen-client-mod-26.2.jar resources/kollegen-client-mod-26.2.jar
-          echo "Bundled both mod JARs"
+          echo "Bundled 26.2 mod + prebuilt 1.21.11 mod (already in resources/)"
 
       - name: Set launcher version from tag
         run: bash scripts/set-version.sh "${{ github.ref_name }}"
@@ -258,34 +229,14 @@ jobs:
           java-version: '25'
           distribution: 'temurin'
 
-      - name: Set up Java 21 for MC 1.21.11 mod
-        uses: actions/setup-java@v4
-        with:
-          java-version: '21'
-          distribution: 'temurin'
-
-      - name: Build MC 1.21.11 companion mod
+      - name: Build MC 26.2 companion mod (1.21.11 prebuilt in repo)
         shell: bash
         run: |
           mkdir -p resources
           cd kollegen-mod && chmod +x ./gradlew
-          ./gradlew build --no-daemon -Pminecraft_version=1.21.11 -Pfabric_version=0.141.6+1.21.11 -Ploader_version=0.16.10 -Ploom_version=1.14.10 -Parchives_base_name=kollegen-client-mod-1.21.11
-          cp kollegen-mod/build/libs/kollegen-client-mod-1.21.11.jar resources/kollegen-client-mod-1.21.11.jar
-          echo "Built 1.21.11 mod"
-
-      - name: Set up Java 25 for MC 26.2 mod
-        uses: actions/setup-java@v4
-        with:
-          java-version: '25'
-          distribution: 'temurin'
-
-      - name: Build MC 26.2 companion mod
-        shell: bash
-        run: |
-          cd kollegen-mod && chmod +x ./gradlew
-          ./gradlew build --no-daemon -Pminecraft_version=26.2 -Pfabric_version=0.161.0+26.2 -Ploader_version=0.19.5 -Ploom_version=1.18.2 -Parchives_base_name=kollegen-client-mod-26.2
+          ./gradlew build --no-daemon -Pminecraft_version=26.2 -Pfabric_version=0.161.0+26.2 -Ploader_version=0.19.5 -Parchives_base_name=kollegen-client-mod-26.2
           cp kollegen-mod/build/libs/kollegen-client-mod-26.2.jar resources/kollegen-client-mod-26.2.jar
-          echo "Bundled both mod JARs"
+          echo "Bundled 26.2 mod + prebuilt 1.21.11 mod"
 
       - name: Set launcher version from tag
         run: bash scripts/set-version.sh "${{ github.ref_name }}"
@@ -354,32 +305,19 @@ jobs:
           java-version: '25'
           distribution: 'temurin'
 
-      - name: Set up Java 21 for MC 1.21.11 mod
-        uses: actions/setup-java@v4
-        with:
-          java-version: '21'
-          distribution: 'temurin'
-
-      - name: Build MC 1.21.11 companion mod
-        run: |
-          mkdir -p resources
-          cd kollegen-mod && chmod +x ./gradlew
-          ./gradlew build --no-daemon -Pminecraft_version=1.21.11 -Pfabric_version=0.141.6+1.21.11 -Ploader_version=0.16.10 -Ploom_version=1.14.10 -Parchives_base_name=kollegen-client-mod-1.21.11
-          cp kollegen-mod/build/libs/kollegen-client-mod-1.21.11.jar resources/kollegen-client-mod-1.21.11.jar
-          echo "Built 1.21.11 mod"
-
       - name: Set up Java 25 for MC 26.2 mod
         uses: actions/setup-java@v4
         with:
           java-version: '25'
           distribution: 'temurin'
 
-      - name: Build MC 26.2 companion mod
+      - name: Build MC 26.2 companion mod, copy prebuilt 1.21.11 mod
         run: |
+          mkdir -p resources
           cd kollegen-mod && chmod +x ./gradlew
-          ./gradlew build --no-daemon -Pminecraft_version=26.2 -Pfabric_version=0.161.0+26.2 -Ploader_version=0.19.5 -Ploom_version=1.18.2 -Parchives_base_name=kollegen-client-mod-26.2
+          ./gradlew build --no-daemon -Pminecraft_version=26.2 -Pfabric_version=0.161.0+26.2 -Ploader_version=0.19.5 -Parchives_base_name=kollegen-client-mod-26.2
           cp kollegen-mod/build/libs/kollegen-client-mod-26.2.jar resources/kollegen-client-mod-26.2.jar
-          echo "Bundled both mod JARs"
+          echo "Bundled 26.2 mod + prebuilt 1.21.11 mod (already in resources/)"
 
       - name: Set launcher version from tag
         run: bash scripts/set-version.sh "${{ github.ref_name }}"

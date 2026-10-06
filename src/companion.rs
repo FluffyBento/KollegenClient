@@ -19,26 +19,50 @@ use std::path::{Path, PathBuf};
 
 
 pub const COMPANION_MOD_FILENAME: &str = "kollegen-client-mod.jar";
-
 pub const COMPANION_MOD_PREFIX: &str = "kollegen-client";
+pub const COMPANION_MOD_FILENAME_1_21: &str = "kollegen-client-mod-1.21.11.jar";
+pub const COMPANION_MOD_FILENAME_26_2: &str = "kollegen-client-mod-26.2.jar";
 
+pub fn companion_target_versions() -> &'static [&'static str] {
+    &["1.21.11", "26.2"]
+}
 
+pub fn is_version_supported(version: &str) -> bool {
+    companion_target_versions().iter().any(|&v| version_compatible(version, v))
+}
 
+fn version_compatible(instance_version: &str, target_version: &str) -> bool {
+    if instance_version == target_version {
+        return true;
+    }
+    if target_version == "1.21.11" && instance_version.starts_with("1.21.") {
+        return true;
+    }
+    if target_version == "26.2" && (instance_version.starts_with("26.") || instance_version == "1.21.11") {
+        return true;
+    }
+    false
+}
 
-
-
-
-
-pub const COMPANION_TARGET_MC_VERSION: &str = "26.2";
+fn companion_filename_for_version(version: &str) -> &'static str {
+    if version.starts_with("1.21.") {
+        COMPANION_MOD_FILENAME_1_21
+    } else if version.starts_with("26.") || version == "1.21.11" {
+        COMPANION_MOD_FILENAME_26_2
+    } else {
+        COMPANION_MOD_FILENAME
+    }
+}
 
 const GITHUB_DOWNLOAD_URL: &str =
     "https://github.com/FluffyBento/KollegenClient/releases/latest/download/kollegen-client-mod.jar";
 
 
-
 pub fn is_companion_mod_name(filename: &str) -> bool {
     let lc = filename.to_ascii_lowercase();
     lc == COMPANION_MOD_FILENAME
+        || lc == COMPANION_MOD_FILENAME_1_21
+        || lc == COMPANION_MOD_FILENAME_26_2
         || (lc.starts_with(COMPANION_MOD_PREFIX) && lc.ends_with(".jar"))
 }
 
@@ -159,9 +183,10 @@ fn refresh_cache(data_dir: &Path) -> Option<PathBuf> {
 
 
 
-pub fn companion_jar(data_dir: &Path) -> Option<PathBuf> {
+pub fn companion_jar(data_dir: &Path, version: &str) -> Option<PathBuf> {
+    let filename = companion_filename_for_version(version);
     
-    let cached = cache_dir(data_dir).join(COMPANION_MOD_FILENAME);
+    let cached = cache_dir(data_dir).join(filename);
     if is_valid_jar(&cached) {
         return Some(cached);
     }
@@ -170,6 +195,8 @@ pub fn companion_jar(data_dir: &Path) -> Option<PathBuf> {
     if let Ok(exe) = std::env::current_exe() {
         if let Some(dir) = exe.parent() {
             for cand in [
+                dir.join("resources").join(filename),
+                dir.join(filename),
                 dir.join("resources").join(COMPANION_MOD_FILENAME),
                 dir.join(COMPANION_MOD_FILENAME),
             ] {
@@ -193,8 +220,8 @@ pub fn companion_jar(data_dir: &Path) -> Option<PathBuf> {
         candidates.sort_by_key(|p| {
             p.file_name()
                 .and_then(|n| n.to_str())
-                .map(|n| if n == COMPANION_MOD_FILENAME { 0 } else { 1 })
-                .unwrap_or(2)
+                .map(|n| if n == filename { 0 } else if n == COMPANION_MOD_FILENAME { 1 } else { 2 })
+                .unwrap_or(3)
         });
         if let Some(p) = candidates
             .into_iter()
@@ -302,13 +329,7 @@ fn version_major_minor(version: &str) -> Option<(u32, u32)> {
 
 
 pub fn is_compatible_version(version: &str) -> bool {
-    match (
-        version_major_minor(version),
-        version_major_minor(COMPANION_TARGET_MC_VERSION),
-    ) {
-        (Some(a), Some(b)) => a == b,
-        _ => false,
-    }
+    is_version_supported(version)
 }
 
 
@@ -322,7 +343,7 @@ pub fn is_compatible_version(version: &str) -> bool {
 
 
 pub fn bundles_compatible(version: &str) -> bool {
-    version == COMPANION_TARGET_MC_VERSION
+    is_version_supported(version)
 }
 
 
@@ -357,9 +378,9 @@ pub fn install_companion_mod(data_dir: &Path, instance_name: &str, version: &str
         warn!(
             "Kollegen-Client-Mod bei MC {v} übersprungen: die Mod (Mixins) ist nur mit Minecraft {t} kompatibel. \
              Eine Installation auf {v} würde beim Start mit einer Mixin-'Critical injection failure' abstürzen. \
-             Bitte eine Instanz mit {t} nutzen (die Integrations-Bundles folgen derselben Regel).",
+             Bitte eine Instanz mit einer unterstützten Version nutzen (die Integrations-Bundles folgen derselben Regel).",
             v = version,
-            t = COMPANION_TARGET_MC_VERSION
+            t = companion_target_versions().join(", ")
         );
         
         
@@ -387,7 +408,7 @@ pub fn install_companion_mod(data_dir: &Path, instance_name: &str, version: &str
     
     let _ = refresh_cache(data_dir);
 
-    let source = match companion_jar(data_dir) {
+    let source = match companion_jar(data_dir, version) {
         Some(j) => j,
         None => {
             warn!(
@@ -411,7 +432,7 @@ pub fn install_companion_mod(data_dir: &Path, instance_name: &str, version: &str
         return;
     }
 
-    let target = mods_dir.join(COMPANION_MOD_FILENAME);
+    let target = mods_dir.join(companion_filename_for_version(version));
 
     
     

@@ -1075,7 +1075,7 @@ pub(crate) fn enforce_bundled_mods(mods_dir: &Path, mc_version: &str, companion_
         warn!(
             "Integrations-Bundles bei MC {} übersprungen: die gebündelten Jars sind exakt für {} kompiliert/remapped. \
              Lade keine Bundles anderer MC-Versionen in diese Instanz.",
-            mc_version, crate::companion::COMPANION_TARGET_MC_VERSION
+            mc_version, crate::companion::companion_target_versions().join(", ")
         );
         remove_bundle_jars(mods_dir);
         return;
@@ -1319,7 +1319,7 @@ pub fn launch(
     
     
     
-    let companion_jar = crate::companion::companion_jar(data_dir);
+    let companion_jar = crate::companion::companion_jar(data_dir, &inst.version);
     enforce_bundled_mods(&mods_dir, &inst.version, companion_jar.as_deref());
     
     
