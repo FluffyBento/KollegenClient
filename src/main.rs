@@ -490,11 +490,17 @@ fn auto_resolve_conflict(
             let _ = std::fs::remove_file(&bundle);
             let comp = crate::companion::companion_jar(&state.data_dir, &mc_version);
             crate::instance::enforce_bundled_mods(&mods_dir, &mc_version, comp.as_deref());
-            if mods_dir.join(&bname).is_file() {
+            // „Erneuert" nur melden, wenn die bereitgestellte Datei wirklich
+            // zur Instanz-Version passt – sonst wäre es eine neue Loop-Runde.
+            let redeployed = mods_dir.join(&bname);
+            if redeployed.is_file()
+                && crate::companion::jar_supports_mc(&redeployed, &mc_version)
+            {
                 fixed.push(format!("{} → {} (Bundle erneuert)", label, bname));
             } else {
+                let _ = std::fs::remove_file(&redeployed);
                 removed.push(format!(
-                    "{} (entfernt – Bundle wird beim nächsten Start neu bereitgestellt)",
+                    "{} (entfernt – keine passende Version verfügbar)",
                     label
                 ));
             }

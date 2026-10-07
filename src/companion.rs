@@ -194,11 +194,7 @@ fn jar_mc_constraint(p: &Path) -> Option<String> {
     v.get("depends")?.get("minecraft")?.as_str().map(|s| s.to_string())
 }
 
-fn jar_supports_mc(p: &Path, version: &str) -> bool {
-    let constraint = match jar_mc_constraint(p) {
-        Some(c) => c,
-        None => return true,
-    };
+fn mc_constraint_supports(constraint: &str, version: &str) -> bool {
     if version.starts_with("1.21.") {
         return constraint.contains("1.21");
     }
@@ -208,14 +204,66 @@ fn jar_supports_mc(p: &Path, version: &str) -> bool {
     constraint.contains(version)
 }
 
+pub(crate) fn jar_supports_mc(p: &Path, version: &str) -> bool {
+    let constraint = match jar_mc_constraint(p) {
+        Some(c) => c,
+        None => return true,
+    };
+    mc_constraint_supports(&constraint, version)
+}
+
+/// Liest die MC-Version einer eingebetteten Bundle-Payload (.bin ist selbst ein Jar).
+fn bin_mc_constraint(jar: &Path, bin_path: &str) -> Option<String> {
+    use std::io::Read;
+    let file = std::fs::File::open(jar).ok()?;
+    let mut archive = zip::ZipArchive::new(file).ok()?;
+    let mut entry = archive.by_name(bin_path).ok()?;
+    let mut bytes = Vec::new();
+    entry.read_to_end(&mut bytes).ok()?;
+    let cursor = std::io::Cursor::new(bytes);
+    let mut inner = zip::ZipArchive::new(cursor).ok()?;
+    let mut fmj = String::new();
+    inner
+        .by_name("fabric.mod.json")
+        .ok()?
+        .read_to_string(&mut fmj)
+        .ok()?;
+    let v: serde_json::Value = serde_json::from_str(&fmj).ok()?;
+    v.get("depends")?
+        .get("minecraft")?
+        .as_str()
+        .map(str::to_string)
+}
+
+/// Prüft zusätzlich die eingebetteten Bundle-Payloads: Ein Jar mit umgeschriebener
+/// fabric.mod.json (relaxed) fällt durch reine Metadaten-Checks – die .bins
+/// verraten die wahre MC-Version. Fehlende/ungültige Bins gelten als OK (lenient).
+pub(crate) fn companion_bins_support_mc(jar: &Path, version: &str) -> bool {
+    for bin in [
+        "dev/kollegen/client/chatheads.bin",
+        "dev/kollegen/client/silk.bin",
+    ] {
+        if let Some(c) = bin_mc_constraint(jar, bin) {
+            if !mc_constraint_supports(&c, version) {
+                return false;
+            }
+        }
+    }
+    true
+}
+
 pub fn companion_jar(data_dir: &Path, version: &str) -> Option<PathBuf> {
     let filename = companion_filename_for_version(version);
     
     let cached = cache_dir(data_dir).join(filename);
     // Hinweis: Dateiname allein genügt nicht – eine veraltete/wrong-version
     // Datei im Cache (z. B. 26.2-Build unter 1.21.11-Name) würde sonst falsche
-    // Bundles in die Instanz extrahieren.
-    if is_valid_jar(&cached) && jar_supports_mc(&cached, version) {
+    // Bundles in die Instanz extrahieren. Es zählen auch die .bin-Payloads,
+    // weil ein relaxed Jar falsche Metadaten tragen kann.
+    if is_valid_jar(&cached)
+        && jar_supports_mc(&cached, version)
+        && companion_bins_support_mc(&cached, version)
+    {
         return Some(cached);
     }
 
@@ -226,7 +274,10 @@ pub fn companion_jar(data_dir: &Path, version: &str) -> Option<PathBuf> {
                 dir.join("resources").join(filename),
                 dir.join(filename),
             ] {
-                if is_valid_jar(&cand) && jar_supports_mc(&cand, version) {
+                if is_valid_jar(&cand)
+                    && jar_supports_mc(&cand, version)
+                    && companion_bins_support_mc(&cand, version)
+                {
                     return Some(cand);
                 }
             }
@@ -265,7 +316,11 @@ pub fn companion_jar(data_dir: &Path, version: &str) -> Option<PathBuf> {
                     .map(|n| is_companion_mod_name(n))
                     .unwrap_or(false)
             })
-            .filter(|p| is_valid_jar(p) && jar_supports_mc(p, version))
+            .filter(|p| {
+                is_valid_jar(p)
+                    && jar_supports_mc(p, version)
+                    && companion_bins_support_mc(p, version)
+            })
         {
             return Some(p);
         }
@@ -275,7 +330,10 @@ pub fn companion_jar(data_dir: &Path, version: &str) -> Option<PathBuf> {
         manifest.join("resources").join(filename),
         manifest.join("resources").join(COMPANION_MOD_FILENAME),
     ] {
-        if is_valid_jar(&cand) && jar_supports_mc(&cand, version) {
+        if is_valid_jar(&cand)
+            && jar_supports_mc(&cand, version)
+            && companion_bins_support_mc(&cand, version)
+        {
             return Some(cand);
         }
     }

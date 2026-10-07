@@ -1308,6 +1308,21 @@ pub(crate) fn enforce_bundled_mods(mods_dir: &Path, mc_version: &str, companion_
     
     
     
+    // Backstop: niemals MC-fremde Bundles liegen lassen (z. B. 26.2-Payloads
+    // aus einem falsch zugeordneten Companion-Jar in einer 1.21.11-Instanz).
+    // Falsche Dateien werden entfernt – der nächste Start ist dann zumindest
+    // konfliktfrei; mit korrektem Companion werden sie neu bereitgestellt.
+    for &(_flag_key, jar_name, _bin_path) in BUNDLED_MODS {
+        let p = mods_dir.join(jar_name);
+        if p.is_file() && !crate::companion::jar_supports_mc(&p, mc_version) {
+            warn!(
+                "Entferne versionsfremdes Bundle {} aus {}-Instanz.",
+                jar_name, mc_version
+            );
+            let _ = fs::remove_file(&p);
+        }
+    }
+
     for name in [
         "kollegen-bundle-spotify.jar",
         "kollegen-bundle-spotify.jar.disabled",
