@@ -1,0 +1,40 @@
+name: Remove old artifacts
+
+on:
+  schedule:
+    # Every day at 1am UTC
+    - cron: '0 1 * * *'
+  workflow_dispatch:
+    # Allow manual trigger from the Actions tab
+
+jobs:
+  remove-old-artifacts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    # Grant permissions to delete artifacts
+    permissions:
+      actions: write
+      repository_projects: read
+
+    steps:
+      - name: Remove old GitHub Actions artifacts
+        uses: c-hive/gha-remove-artifacts@v1
+        with:
+          # Remove artifacts older than specified age
+          # Options: '90 days', '30 days', '1 month', '2 years', etc.
+          # parsed by Moment.js format
+          age: '60 days'
+
+          # Optional: Keep release (tagged) artifacts
+          # skip-tags: true
+
+          # Optional: Keep recent artifacts
+          # skip-recent: 5         # Keep 5 most recent artifacts per workflow
+          # skip-recent-commits: 3  # Keep artifacts from 3 most recent commits
+
+          # Optional: Max retries for rate limiting
+          # max-retries: 5
+
+          # Optional: Dry run mode (preview only, no deletion)
+          # dry-run: true
