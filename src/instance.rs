@@ -1029,7 +1029,7 @@ fn remove_bundle_jars(mods_dir: &Path) {
         }
         let name = e.file_name().to_string_lossy().to_lowercase();
         if name.starts_with("kollegen-bundle-") {
-            info!("Entferne 1.21.x-Bundle aus inkompatibler Instanz: {}", name);
+            info!("Entferne Bundle aus inkompatibler Instanz: {}", name);
             let _ = fs::remove_file(&p);
         }
     }
@@ -1074,8 +1074,8 @@ pub(crate) fn enforce_bundled_mods(mods_dir: &Path, mc_version: &str, companion_
     if !crate::companion::bundles_compatible(mc_version) {
         warn!(
             "Integrations-Bundles bei MC {} übersprungen: die gebündelten Jars sind exakt für {} kompiliert/remapped. \
-             Lade keine 1.21.x-Jars in diese Instanz.",
-            mc_version, crate::companion::COMPANION_TARGET_MC_VERSION
+             Lade keine Bundles anderer MC-Versionen in diese Instanz.",
+            mc_version, crate::companion::companion_target_versions().join(", ")
         );
         remove_bundle_jars(mods_dir);
         return;
@@ -1319,7 +1319,7 @@ pub fn launch(
     
     
     
-    let companion_jar = crate::companion::companion_jar(data_dir);
+    let companion_jar = crate::companion::companion_jar(data_dir, &inst.version);
     enforce_bundled_mods(&mods_dir, &inst.version, companion_jar.as_deref());
     
     

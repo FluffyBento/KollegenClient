@@ -306,6 +306,94 @@ fn get_logs(state: State<'_, AppState>) -> Result<Vec<String>, String> {
 }
 
 #[tauri::command]
+fn clone_instance_v2(
+    state: State<'_, AppState>,
+    source_name: String,
+    new_name: String,
+    new_version: String,
+    new_loader: String,
+    new_loader_version: Option<String>,
+) -> Result<types::Instance, String> {
+    let mut instances = utils::load_json::<Vec<types::Instance>>(
+        &utils::instances_file(&state.data_dir),
+        vec![],
+    );
+    
+    let source = instances.iter().find(|i| i.name == source_name)
+        .ok_or_else(|| format!("Instanz '{}' nicht gefunden.", source_name))?
+        .clone();
+    
+    if instances.iter().any(|i| i.name == new_name) {
+        return Err(format!("Eine Instanz mit dem Namen '{}' existiert bereits.", new_name));
+    }
+    
+    let dir = utils::instance_dir(&state.data_dir, &new_name);
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    
+    let source_dir = utils::instance_dir(&state.data_dir, &source_name);
+    let new_dir = utils::instance_dir(&state.data_dir, &new_name);
+    
+    fn copy_dir_recursive(src: &std::path::Path, dst: &std::path::Path) -> Result<(), String> {
+        if !src.exists() {
+            return Ok(());
+        }
+        if src.is_file() {
+            if let Some(parent) = dst.parent() {
+                std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+            }
+            if !dst.exists() {
+                std::fs::copy(src, dst).map_err(|e| e.to_string())?;
+            }
+            return Ok(());
+        }
+        std::fs::create_dir_all(dst).map_err(|e| e.to_string())?;
+        let entries = std::fs::read_dir(src).map_err(|e| e.to_string())?;
+        for entry in entries.flatten() {
+            let s = entry.path();
+            let d = dst.join(entry.file_name());
+            if s.is_dir() {
+                copy_dir_recursive(&s, &d)?;
+            } else if !d.exists() {
+                std::fs::copy(&s, &d).map_err(|e| e.to_string())?;
+            }
+        }
+        Ok(())
+    }
+    
+    copy_dir_recursive(&source_dir.join("mods"), &new_dir.join("mods"))?;
+    copy_dir_recursive(&source_dir.join("resourcepacks"), &new_dir.join("resourcepacks"))?;
+    copy_dir_recursive(&source_dir.join("shaderpacks"), &new_dir.join("shaderpacks"))?;
+    
+    let mut new_inst = types::Instance {
+        id: uuid::Uuid::new_v4().to_string(),
+        name: new_name.clone(),
+        version: new_version.clone(),
+        loader: new_loader.clone(),
+        loader_version: new_loader_version.clone(),
+        description: source.description.clone(),
+        mods: source.mods.clone(),
+        vulkan_enabled: source.vulkan_enabled,
+        memory_min: source.memory_min.clone(),
+        memory_max: source.memory_max.clone(),
+        created_at: chrono::Utc::now().to_rfc3339(),
+        last_played: None,
+        java_args: source.java_args.clone(),
+        server: source.server.clone(),
+    };
+    
+    let mut instances = utils::load_json::<Vec<types::Instance>>(
+        &utils::instances_file(&state.data_dir),
+        vec![],
+    );
+    instances.push(new_inst.clone());
+    utils::save_json(&utils::instances_file(&state.data_dir), &instances).map_err(|e| e.to_string())?;
+    
+    crate::instance::ensure_kollegen_mod(&state.data_dir, &new_name, &new_loader, &new_version);
+    
+    Ok(new_inst)
+}
+
+#[tauri::command]
 fn get_game_log(state: State<'_, AppState>, instance_name: String) -> String {
     let p = crate::utils::instance_dir(&state.data_dir, &instance_name)
         .join("logs")
@@ -2004,6 +2092,7 @@ fn main() {
             create_instance,
             delete_instance,
             get_logs,
+            clone_instance_v2,
             get_available_versions,
             get_loaders_for_version,
             install_instance,

@@ -1,0 +1,569 @@
+package dev.kollegen.client.mods.modules;
+
+import dev.kollegen.client.mods.BooleanSetting;
+import dev.kollegen.client.mods.Category;
+import dev.kollegen.client.mods.ClickTracker;
+import dev.kollegen.client.mods.ColorSetting;
+import dev.kollegen.client.mods.HudModule;
+import dev.kollegen.client.mods.ModeSetting;
+import dev.kollegen.client.mods.Module;
+import dev.kollegen.client.mods.ModuleManager;
+import dev.kollegen.client.mods.Palette;
+import dev.kollegen.client.mods.SliderSetting;
+import dev.kollegen.client.ui.Glass;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.multiplayer.ServerData;
+import net.minecraft.resources.Identifier;
+import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.world.food.FoodProperties;
+
+import java.util.ArrayList;
+import java.util.List;
+
+public final class Hud {
+
+    private Hud() {
+    }
+
+    public static void register() {
+        ModuleManager.register(new Coordinates());
+        ModuleManager.register(new Fps());
+        ModuleManager.register(new Ping());
+        ModuleManager.register(new Tps());
+        ModuleManager.register(new Direction());
+        ModuleManager.register(new Clock());
+        ModuleManager.register(new Keystrokes());
+        ModuleManager.register(new Cps());
+        ModuleManager.register(new ArmorHud());
+        ModuleManager.register(new PotionHud());
+        ModuleManager.register(new Speed());
+        ModuleManager.register(new Crosshair());
+        ModuleManager.register(new Memory());
+        ModuleManager.register(new Biome());
+        ModuleManager.register(new EntityCount());
+        ModuleManager.register(new Reach());
+        ModuleManager.register(new Combo());
+        ModuleManager.register(new Saturation());
+        ModuleManager.register(new ServerInfo());
+        ModuleManager.register(new TargetInfo());
+    }
+
+    private static class Coordinates extends HudModule {
+        Coordinates() {
+            super("coordinates", "Koordinaten", "Zeigt X / Y / Z und Dimension.");
+        }
+
+        @Override
+        public void onRenderHud(GuiGraphicsExtractor g, float td) {
+            if (mc.player == null || mc.level == null) return;
+            List<String> lines = new ArrayList<>();
+            lines.add(String.format("X: %.1f", mc.player.getX()));
+            lines.add(String.format("Y: %.1f", mc.player.getY()));
+            lines.add(String.format("Z: %.1f", mc.player.getZ()));
+            Identifier dim = mc.level.dimension().identifier();
+            lines.add(dim.getNamespace().equals("minecraft") ? dim.getPath() : dim.toString());
+            renderLines(g, lines, 0, 0);
+        }
+    }
+
+    private static class Fps extends HudModule {
+        Fps() {
+            super("fps", "FPS", "Bildwiederholrate anzeigen.");
+        }
+
+        @Override
+        public void onRenderHud(GuiGraphicsExtractor g, float td) {
+            List<String> lines = new ArrayList<>();
+            lines.add("FPS: " + mc.getFps());
+            renderLines(g, lines, 0, 0);
+        }
+    }
+
+    private static class Ping extends HudModule {
+        Ping() {
+            super("ping", "Ping", "Latenz zum Server in ms.");
+        }
+
+        @Override
+        public void onRenderHud(GuiGraphicsExtractor g, float td) {
+            List<String> lines = new ArrayList<>();
+            int p = -1;
+            try {
+                if (mc.getConnection() != null && mc.player != null) {
+                    var info = mc.getConnection().getPlayerInfo(mc.player.getUUID());
+                    if (info != null) p = info.getLatency();
+                }
+            } catch (Throwable ignored) {
+            }
+            lines.add("Ping: " + (p < 0 ? "–" : p + " ms"));
+            renderLines(g, lines, 0, 0);
+        }
+    }
+
+    private static class Tps extends HudModule {
+        private long lastTickReal = -1;
+        private double tps = 20;
+
+        Tps() {
+            super("tps", "TPS", "Server-Ticks pro Sekunde.");
+        }
+
+        @Override
+        public void onTick() {
+            long now = System.currentTimeMillis();
+            if (lastTickReal != -1) {
+                long dt = now - lastTickReal;
+                if (dt > 0) tps = tps * 0.9 + (1000.0 / dt) * 0.1;
+            }
+            lastTickReal = now;
+        }
+
+        @Override
+        public void onRenderHud(GuiGraphicsExtractor g, float td) {
+            List<String> lines = new ArrayList<>();
+            lines.add("TPS: " + Math.round(tps));
+            renderLines(g, lines, 0, 0);
+        }
+    }
+
+    private static class Direction extends HudModule {
+        Direction() {
+            super("direction", "Richtung", "Blickrichtung (Himmelsrichtung + Yaw).");
+        }
+
+        @Override
+        public void onRenderHud(GuiGraphicsExtractor g, float td) {
+            if (mc.player == null) return;
+            float yaw = mc.player.getYRot();
+            int y = (int) Math.floor(yaw);
+            if (y < 0) y += 360;
+            String cardinal;
+            if (y >= 315 || y < 45) cardinal = "S";
+            else if (y < 135) cardinal = "W";
+            else if (y < 225) cardinal = "N";
+            else cardinal = "E";
+            List<String> lines = new ArrayList<>();
+            lines.add("Blick: " + cardinal + " (" + ((int) yaw) + "°)");
+            renderLines(g, lines, 0, 0);
+        }
+    }
+
+    private static class Clock extends HudModule {
+        Clock() {
+            super("clock", "Uhrzeit", "Echte Uhrzeit (HH:MM:SS).");
+        }
+
+        @Override
+        public void onRenderHud(GuiGraphicsExtractor g, float td) {
+            java.time.LocalTime t = java.time.LocalTime.now();
+            List<String> lines = new ArrayList<>();
+            lines.add(String.format("%02d:%02d:%02d", t.getHour(), t.getMinute(), t.getSecond()));
+            renderLines(g, lines, 0, 0);
+        }
+    }
+
+    private static class Keystrokes extends HudModule {
+        Keystrokes() {
+            super("keystrokes", "Keystrokes", "Zeigt gedrückte Tasten (W/A/S/D, Maus).");
+        }
+
+        @Override
+        public void onRenderHud(GuiGraphicsExtractor g, float td) {
+            int cx = mc.getWindow().getGuiScaledWidth() / 2 + (int) offsetX.value;
+            int by = mc.getWindow().getGuiScaledHeight() - 70 + (int) offsetY.value;
+            int s = 18, gap = 2;
+            int baseX = cx - s - gap / 2;
+            boolean w = mc.options.keyUp.isDown();
+            boolean a = mc.options.keyLeft.isDown();
+            boolean sD = mc.options.keyDown.isDown();
+            boolean d = mc.options.keyRight.isDown();
+            drawKey(g, "W", baseX, by - s - gap, w);
+            drawKey(g, "A", baseX - s - gap, by, a);
+            drawKey(g, "S", baseX, by, sD);
+            drawKey(g, "D", baseX + s + gap, by, d);
+            boolean ml = ClickTracker.leftDown, mr = ClickTracker.rightDown;
+            drawKey(g, "L", baseX - s - gap, by + s + gap, ml);
+            drawKey(g, "R", baseX, by + s + gap, mr);
+            markBounds(baseX - s - gap, by - s - gap, s * 3 + gap * 2, s * 3 + gap * 2);
+        }
+
+        private void drawKey(GuiGraphicsExtractor g, String label, int x, int y, boolean pressed) {
+            int s = 18;
+            Glass.fillRound(g, x, y, s, s, 4, pressed ? Palette.tint(Palette.ACCENT, 0xD8) : Palette.tint(Palette.PANEL2, 0xCC));
+            g.text(mc.font, label, x + (s - mc.font.width(label)) / 2, y + (s - mc.font.lineHeight) / 2, pressed ? 0xffffffff : Palette.TEXT, true);
+        }
+    }
+
+    private static class Cps extends HudModule {
+        Cps() {
+            super("cps", "CPS", "Klicks pro Sekunde (links/rechts).");
+        }
+
+        @Override
+        public void onRenderHud(GuiGraphicsExtractor g, float td) {
+            List<String> lines = new ArrayList<>();
+            lines.add("Links: " + ClickTracker.cps(ClickTracker.LEFT) + " CPS");
+            lines.add("Rechts: " + ClickTracker.cps(ClickTracker.RIGHT) + " CPS");
+            renderLines(g, lines, 0, 0);
+        }
+    }
+
+    private static class ArmorHud extends HudModule {
+        ArmorHud() {
+            super("armor", "Rüstung", "Zeigt die getragene Rüstung + Haltbarkeit untereinander.");
+        }
+
+        @Override
+        public void onRenderHud(GuiGraphicsExtractor g, float td) {
+            if (mc.player == null) return;
+            var armor = java.util.List.of(
+                    mc.player.getItemBySlot(net.minecraft.world.entity.EquipmentSlot.HEAD),
+                    mc.player.getItemBySlot(net.minecraft.world.entity.EquipmentSlot.CHEST),
+                    mc.player.getItemBySlot(net.minecraft.world.entity.EquipmentSlot.LEGS),
+                    mc.player.getItemBySlot(net.minecraft.world.entity.EquipmentSlot.FEET));
+            int n = armor.size();
+            int rowH = 20;
+            int icon = 16;
+            int textGap = 6;
+
+            int textW = 0;
+            for (ItemStack s : armor) {
+                String t = durabilityText(s);
+                if (!t.isEmpty()) textW = Math.max(textW, mc.font.width(t));
+            }
+            int w = (textW > 0 ? icon + textGap + textW : icon) + 6;
+            int h = n * rowH;
+            int[] a = anchor(mc.getWindow().getGuiScaledWidth(), mc.getWindow().getGuiScaledHeight(), w, h);
+            int x = a[0];
+            int y = a[1];
+            if (background.value) {
+                Glass.fillRound(g, x - 4, y - 4, w + 8, h + 8, 6, backgroundColor.value);
+            }
+            markBounds(x - 4, y - 4, w + 8, h + 8);
+            for (int i = 0; i < n; i++) {
+                ItemStack stack = armor.get(i);
+                int ry = y + i * rowH;
+                g.item(stack, x, ry + (rowH - icon) / 2);
+                String t = durabilityText(stack);
+                if (!t.isEmpty()) {
+                    int dmg = stack.getDamageValue();
+                    int max = Math.max(1, stack.getMaxDamage());
+                    float f = 1f - (float) dmg / max;
+                    int col = f > 0.5 ? Palette.GREEN : (f > 0.25 ? Palette.ACCENT : Palette.DANGER);
+                    g.text(mc.font, t, x + icon + textGap, ry + (rowH - mc.font.lineHeight) / 2, col, true);
+                }
+            }
+        }
+
+        private static String durabilityText(ItemStack s) {
+            if (s.isEmpty() || !s.isDamageableItem()) return "";
+            int left = s.getMaxDamage() - s.getDamageValue();
+            return left + "/" + s.getMaxDamage();
+        }
+    }
+
+    private static class PotionHud extends HudModule {
+        PotionHud() {
+            super("potions", "Effekte", "Aktive Statuseffekte + Restdauer.");
+        }
+
+        @Override
+        public void onRenderHud(GuiGraphicsExtractor g, float td) {
+            if (mc.player == null) return;
+            List<String> lines = new ArrayList<>();
+            for (MobEffectInstance e : mc.player.getActiveEffects()) {
+                String name = e.getEffect().value().getDisplayName().getString();
+                int sec = e.getDuration() / 20;
+                lines.add(name + " " + (sec / 60) + ":" + String.format("%02d", sec % 60));
+            }
+            if (lines.isEmpty()) lines.add("Keine Effekte");
+            renderLines(g, lines, 0, 0);
+        }
+    }
+
+    private static class Speed extends HudModule {
+        private double lastX = Double.NaN, lastZ = Double.NaN;
+        private double speed = 0;
+
+        Speed() {
+            super("speed", "Speed", "Bewegungsgeschwindigkeit in m/s.");
+        }
+
+        @Override
+        public void onTick() {
+            if (mc.player == null) return;
+            double x = mc.player.getX(), z = mc.player.getZ();
+            if (!Double.isNaN(lastX)) {
+                double d = Math.hypot(x - lastX, z - lastZ) * 20;
+                speed = d;
+            }
+            lastX = x;
+            lastZ = z;
+        }
+
+        @Override
+        public void onRenderHud(GuiGraphicsExtractor g, float td) {
+            List<String> lines = new ArrayList<>();
+            lines.add("Speed: " + String.format("%.1f", speed) + " m/s");
+            renderLines(g, lines, 0, 0);
+        }
+    }
+
+    private static class Crosshair extends HudModule {
+        private final SliderSetting size = new SliderSetting("Größe", "", 4, 1, 20, 1);
+        private final SliderSetting gap = new SliderSetting("Lücke", "", 2, 0, 12, 1);
+        private final ModeSetting type = new ModeSetting("Typ", "", new String[]{"Kreuz", "Punkt", "Viereck"}, 0);
+        private final BooleanSetting canHitEnabled = new BooleanSetting("Farbwechsel bei Treffer",
+                "Fadenkreuz färbt sich um, wenn die anvisierte Person schlagbar ist.", false);
+        private final ColorSetting canHitColor = new ColorSetting("Treffer-Farbe", "", 0xFFff5b6e);
+
+        Crosshair() {
+            super("crosshair", "Fadenkreuz", "Eigenes Fadenkreuz über dem Vanilla-Kreuz.");
+            add(size);
+            add(gap);
+            add(type);
+            add(canHitEnabled);
+            add(canHitColor);
+        }
+
+        private boolean canHit() {
+            try {
+                var hr = mc.hitResult;
+                if (hr != null && hr.getType() == net.minecraft.world.phys.HitResult.Type.ENTITY) {
+                    var e = ((net.minecraft.world.phys.EntityHitResult) hr).getEntity();
+                    if (e != mc.player && !(e instanceof net.minecraft.world.entity.player.Player p && p.isSpectator())) {
+                        return true;
+                    }
+                }
+            } catch (Throwable ignored) {
+            }
+            return false;
+        }
+
+        @Override
+        public void onRenderHud(GuiGraphicsExtractor g, float td) {
+            int cx = mc.getWindow().getGuiScaledWidth() / 2;
+            int cy = mc.getWindow().getGuiScaledHeight() / 2;
+            int s = (int) size.value;
+            int gp = (int) gap.value;
+            int c = (canHitEnabled.value && canHit()) ? canHitColor.value : color.value;
+            if (type.index == 1) {
+                g.fill(cx - s / 2, cy - s / 2, cx + s / 2, cy + s / 2, c);
+            } else if (type.index == 2) {
+                Glass.fillRound(g, cx - s, cy - s, s * 2, s * 2, s, c);
+            } else {
+                g.fill(cx - s, cy - gp - s, cx + s, cy - gp, c);
+                g.fill(cx - s, cy + gp, cx + s, cy + gp + s, c);
+                g.fill(cx - gp - s, cy - s, cx - gp, cy + s, c);
+                g.fill(cx + gp, cy - s, cx + gp + s, cy + s, c);
+            }
+        }
+    }
+
+    private static class Memory extends HudModule {
+        Memory() {
+            super("memory", "Arbeitsspeicher", "Zeigt belegten RAM (MB) an.");
+        }
+
+        @Override
+        public void onRenderHud(GuiGraphicsExtractor g, float td) {
+            Runtime r = Runtime.getRuntime();
+            long used = (r.totalMemory() - r.freeMemory()) / (1024 * 1024);
+            long total = r.maxMemory() / (1024 * 1024);
+            List<String> lines = new ArrayList<>();
+            lines.add("RAM: " + used + " / " + total + " MB");
+            renderLines(g, lines, 0, 0);
+        }
+    }
+
+    private static class Biome extends HudModule {
+        Biome() {
+            super("biome", "Biom", "Aktuelles Biom an der Spielerposition.");
+        }
+
+        @Override
+        public void onRenderHud(GuiGraphicsExtractor g, float td) {
+            List<String> lines = new ArrayList<>();
+            if (mc.level != null && mc.player != null) {
+                try {
+                    var holder = mc.level.getBiome(mc.player.blockPosition());
+                    String name = holder.getRegisteredName();
+                    lines.add("Biom: " + name);
+                } catch (Throwable ignored) {
+                    lines.add("Biom: ?");
+                }
+            } else {
+                lines.add("Biom: –");
+            }
+            renderLines(g, lines, 0, 0);
+        }
+    }
+
+    private static class EntityCount extends HudModule {
+        EntityCount() {
+            super("entitycount", "Entitäten", "Anzahl geladener Entitäten.");
+        }
+
+        @Override
+        public void onRenderHud(GuiGraphicsExtractor g, float td) {
+            List<String> lines = new ArrayList<>();
+            int n = 0;
+            if (mc.level != null) {
+                net.minecraft.world.level.entity.EntityTypeTest<net.minecraft.world.entity.Entity, net.minecraft.world.entity.Entity> test =
+                        new net.minecraft.world.level.entity.EntityTypeTest<net.minecraft.world.entity.Entity, net.minecraft.world.entity.Entity>() {
+                            public boolean test(net.minecraft.world.entity.EntityType<net.minecraft.world.entity.Entity> t) {
+                                return true;
+                            }
+
+                            public Class<net.minecraft.world.entity.Entity> getBaseClass() {
+                                return net.minecraft.world.entity.Entity.class;
+                            }
+
+                            public net.minecraft.world.entity.Entity tryCast(net.minecraft.world.entity.Entity e) {
+                                return e;
+                            }
+                        };
+                var all = mc.level.getEntities(test,
+                        new net.minecraft.world.phys.AABB(-3.0E7, -3.0E7, -3.0E7, 3.0E7, 3.0E7, 3.0E7),
+                        e -> true);
+                n = all.size();
+            }
+            lines.add("Entitäten: " + n);
+            renderLines(g, lines, 0, 0);
+        }
+    }
+
+    private static class Reach extends HudModule {
+        Reach() {
+            super("reach", "Reichweite", "Distanz zum anvisierten Ziel (Block/Entität).");
+        }
+
+        @Override
+        public void onRenderHud(GuiGraphicsExtractor g, float td) {
+            List<String> lines = new ArrayList<>();
+            double d = -1;
+            try {
+                var hr = mc.hitResult;
+                if (hr != null) {
+                    if (hr.getType() == net.minecraft.world.phys.HitResult.Type.BLOCK) {
+                        var center = net.minecraft.world.phys.Vec3.atCenterOf(((net.minecraft.world.phys.BlockHitResult) hr).getBlockPos());
+                        d = mc.player.position().distanceTo(center);
+                    } else if (hr.getType() == net.minecraft.world.phys.HitResult.Type.ENTITY) {
+                        var e = ((net.minecraft.world.phys.EntityHitResult) hr).getEntity();
+                        d = mc.player.position().distanceTo(e.position());
+                    }
+                }
+            } catch (Throwable ignored) {
+            }
+            lines.add("Reichweite: " + (d < 0 ? "–" : String.format("%.2f", d) + " m"));
+            renderLines(g, lines, 0, 0);
+        }
+    }
+
+    private static class Combo extends HudModule {
+        Combo() {
+            super("combo", "Combo", "Aufeinanderfolgende Linksklicks (letzte 2 s).");
+        }
+
+        @Override
+        public void onRenderHud(GuiGraphicsExtractor g, float td) {
+            List<String> lines = new ArrayList<>();
+            long now = System.currentTimeMillis();
+            int c = 0;
+            for (Long t : ClickTracker.LEFT) {
+                if (now - t <= 2000) c++;
+                else break;
+            }
+            lines.add("Combo: " + c);
+            renderLines(g, lines, 0, 0);
+        }
+    }
+
+    private static class Saturation extends HudModule {
+        Saturation() {
+            super("saturation", "Sättigung", "Aktuelle Nahrungssättigung und wie viel die gehaltene Speise auffüllt.");
+        }
+
+        @Override
+        public void onRenderHud(GuiGraphicsExtractor g, float td) {
+            List<String> lines = new ArrayList<>();
+            if (mc.player != null) {
+                var food = mc.player.getFoodData();
+                float s = food.getSaturationLevel();
+                int h = food.getFoodLevel();
+                lines.add("Sättigung: " + String.format("%.1f", s));
+                lines.add("Hunger: " + h + "/20");
+
+                var held = mc.player.getMainHandItem();
+                FoodProperties fp = held.get(DataComponents.FOOD);
+                if (fp != null) {
+                    int addH = fp.nutrition();
+                    float addS = fp.saturation();
+                    int newH = Math.min(20, h + addH);
+                    float newS = Math.min(newH, s + addS);
+                    lines.add("Speise: +" + addH + " Hunger, +" + String.format("%.1f", addS) + " Sat");
+                    lines.add("Danach: " + newH + "/20, " + String.format("%.1f", newS) + " Sat");
+                }
+            } else {
+                lines.add("Sättigung: –");
+            }
+            renderLines(g, lines, 0, 0);
+        }
+    }
+
+    private static class ServerInfo extends HudModule {
+        ServerInfo() {
+            super("serverinfo", "Server-Info", "Adresse und Spielerzahl des Servers.");
+        }
+
+        @Override
+        public void onRenderHud(GuiGraphicsExtractor g, float td) {
+            List<String> lines = new ArrayList<>();
+            ServerData srv = mc.getCurrentServer();
+            if (srv != null) {
+                lines.add("Server: " + srv.ip);
+                try {
+                    int n = mc.getConnection().getOnlinePlayers().size();
+                    lines.add("Spieler: " + n);
+                } catch (Throwable ignored) {
+                }
+            } else {
+                lines.add("Modus: Einzelspieler");
+            }
+            renderLines(g, lines, 0, 0);
+        }
+    }
+
+    private static class TargetInfo extends HudModule {
+        TargetInfo() {
+            super("targetinfo", "Ziel-Info", "Name & Leben des anvisierten Lebewesens.");
+        }
+
+        @Override
+        public void onRenderHud(GuiGraphicsExtractor g, float td) {
+            List<String> lines = new ArrayList<>();
+            try {
+                var hr = mc.hitResult;
+                if (hr != null && hr.getType() == net.minecraft.world.phys.HitResult.Type.ENTITY) {
+                    var e = ((net.minecraft.world.phys.EntityHitResult) hr).getEntity();
+                    if (e instanceof LivingEntity le) {
+                        lines.add(le.getName().getString());
+                        lines.add("Leben: " + String.format("%.1f", le.getHealth()) + " / "
+                                + String.format("%.1f", le.getMaxHealth()));
+                    } else {
+                        lines.add(e.getName().getString());
+                    }
+                } else {
+                    lines.add("Kein Ziel");
+                }
+            } catch (Throwable ignored) {
+                lines.add("Kein Ziel");
+            }
+            renderLines(g, lines, 0, 0);
+        }
+    }
+}

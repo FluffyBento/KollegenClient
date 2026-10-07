@@ -6,8 +6,6 @@ pluginManagement {
     }
 }
 
-plugins {
-        id 'fabric-loom' version '1.14.10' apply false
-}
+
 
 rootProject.name = 'kollegen-client-mod'

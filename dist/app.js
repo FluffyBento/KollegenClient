@@ -2949,6 +2949,106 @@ $("manageImportBtn").onclick = async () => {
   }
 };
 
+$("manageCloneBtn").onclick = async () => {
+  const open = window.__TAURI__.dialog?.open || window.__TAURI__.pluginDialog?.open;
+  if (!open) {
+    alert("Datei-Dialog nicht verfügbar.");
+    return;
+  }
+  // Get available versions
+  let versions = [];
+  try {
+    const response = await invoke("get_available_versions");
+    versions = response || [];
+  } catch (e) {
+    console.warn("Could not fetch versions:", e);
+  }
+  
+  const cloneDialog = document.createElement("div");
+  cloneDialog.className = "clone-dialog";
+  cloneDialog.innerHTML = `
+    <h3>Instanz klonen</h3>
+    <div style="margin-top: 1rem;">
+      <label>Neuer Instanz-Name:</label>
+      <input type="text" id="cloneName" placeholder="Neuer Instanz-Name" style="width: 100%; padding: 0.5rem; margin-top: 0.5rem;" />
+    </div>
+    <div style="margin-top: 1rem;">
+      <label>Ziel-Version:</label>
+      <select id="cloneVersion" style="width: 100%; padding: 0.5rem; margin-top: 0.5rem;">
+        ${versions.map(v => `<option value="${v}">${v}</option>`).join('')}
+      </select>
+    </div>
+    <div style="margin-top: 1rem;">
+      <label>Mod-Loader:</label>
+      <select id="cloneLoader" style="width: 100%; padding: 0.5rem; margin-top: 0.5rem;">
+        <option value="fabric">Fabric</option>
+        <option value="forge">Forge</option>
+        <option value="neoforge">NeoForge</option>
+        <option value="quilt">Quilt</option>
+        <option value="vanilla">Vanilla</option>
+      </select>
+    </div>
+    <div style="margin-top: 1.5rem; display: flex; gap: 0.5rem; justify-content: flex-end;">
+      <button id="cloneCancel" class="btn-secondary">Abbrechen</button>
+      <button id="cloneConfirm" class="btn-primary">Klonen</button>
+    </div>
+  `;
+  
+  const cloneModal = document.createElement("div");
+  cloneModal.className = "modal";
+  cloneModal.style.display = "flex";
+  const modalContent = document.createElement("div");
+  modalContent.className = "modal-content";
+  modalContent.appendChild(cloneDialog);
+  cloneModal.appendChild(modalContent);
+  document.body.appendChild(cloneModal);
+  
+  return new Promise((resolve) => {
+    const cancelBtn = cloneDialog.querySelector("#cloneCancel");
+    const confirmBtn = cloneDialog.querySelector("#cloneConfirm");
+    const nameInput = cloneDialog.querySelector("#cloneName");
+    const versionSelect = cloneDialog.querySelector("#cloneVersion");
+    const loaderSelect = cloneDialog.querySelector("#cloneLoader");
+    
+    const cleanup = () => {
+      document.body.removeChild(cloneModal);
+      resolve(null);
+    };
+    
+    cancelBtn.onclick = cleanup;
+    cloneModal.onclick = (e) => { if (e.target === cloneModal) cleanup(); };
+    
+    confirmBtn.onclick = async () => {
+      const name = nameInput.value.trim();
+      const version = versionSelect.value;
+      const loader = loaderSelect.value;
+      
+      if (!name) {
+        alert("Bitte einen Namen eingeben.");
+        return;
+      }
+      
+      try {
+        const newInst = await invoke("clone_instance_v2", {
+          sourceName: manageInst.name,
+          newName: name,
+          newVersion: version,
+          newLoader: loader,
+          newLoaderVersion: null,
+        });
+        toast(`Instanz "${name}" erfolgreich geklont!`, "ok");
+        manageLoadInstalled();
+        resolve(newInst);
+      } catch (e) {
+        alert("Klonen fehlgeschlagen: " + e);
+      }
+      cleanup();
+    };
+    
+    nameInput.focus();
+  });
+};
+
 function renderCard(p) {
   const card = document.createElement("div");
   card.className = "card";

@@ -18,7 +18,7 @@ pub struct Account {
     pub client_id: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Instance {
     
     
