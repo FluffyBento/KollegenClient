@@ -23,7 +23,7 @@ jobs:
           # Remove artifacts older than specified age
           # Options: '90 days', '30 days', '1 month', '2 years', etc.
           # parsed by Moment.js format
-          age: '20 days'
+          age: '15 days'
 
           # Optional: Keep release (tagged) artifacts
           # skip-tags: true
