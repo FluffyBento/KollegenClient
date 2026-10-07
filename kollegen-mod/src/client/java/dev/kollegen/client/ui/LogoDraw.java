@@ -1,7 +1,7 @@
 package dev.kollegen.client.ui;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.resources.Identifier;
 
@@ -37,7 +37,7 @@ public final class LogoDraw {
         return DIMS;
     }
 
-    public static void draw(DrawContext gui, int x, int y, int targetW) {
+    public static void draw(GuiGraphicsExtractor gui, int x, int y, int targetW) {
         int[] dim = dims();
         float scale = (float) targetW / dim[0];
         var pose = gui.pose();
