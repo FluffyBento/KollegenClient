@@ -646,6 +646,15 @@ fn parse_conflict_targets(text: &str) -> Vec<(String, String)> {
 fn find_mod_jar(mods_dir: &Path, modid: &str, name: &str) -> Option<PathBuf> {
     let mid = modid.to_lowercase();
     let nm = name.to_lowercase();
+    // Trennzeichen-ignoranter Vergleich: Mod-IDs aus dem Fabric-Log
+    // (`chat_heads`) matchen sonst nie Dateinamen (`chat-heads-1.3.2.jar`).
+    let norm = |s: &str| {
+        s.chars()
+            .filter(|c| *c != '-' && *c != '_' && *c != ' ' && *c != '.')
+            .collect::<String>()
+    };
+    let mid_n = norm(&mid);
+    let nm_n = norm(&nm);
     if let Ok(entries) = std::fs::read_dir(mods_dir) {
         for e in entries.flatten() {
             let p = e.path();
@@ -653,9 +662,9 @@ fn find_mod_jar(mods_dir: &Path, modid: &str, name: &str) -> Option<PathBuf> {
             if !fname.ends_with(".jar") {
                 continue;
             }
-            
-            
-            
+
+
+
             if crate::modrinth::is_managed_renderer_mod(&fname) {
                 continue;
             }
@@ -663,6 +672,13 @@ fn find_mod_jar(mods_dir: &Path, modid: &str, name: &str) -> Option<PathBuf> {
                 return Some(p);
             }
             if nm.len() > 2 && fname.contains(&nm) {
+                return Some(p);
+            }
+            let fname_n = norm(&fname);
+            if mid_n.len() >= 3 && fname_n.contains(&mid_n) {
+                return Some(p);
+            }
+            if nm_n.len() >= 3 && fname_n.contains(&nm_n) {
                 return Some(p);
             }
         }
