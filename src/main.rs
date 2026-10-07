@@ -478,6 +478,28 @@ fn auto_resolve_conflict(
         } else {
             modid.clone()
         };
+        // Launcher-Bundles zuerst: Mod-IDs aus dem Fabric-Log (z. B. `chat_heads`,
+        // `silk-all`) matchen nie als Substring auf `kollegen-bundle-*.jar`.
+        // Falsche Version löschen – beim Neustart wird sie aus der Begleit-Mod
+        // korrekt neu bereitgestellt.
+        if let Some(bundle) = crate::instance::find_bundle_jar(&mods_dir, &modid, &name) {
+            let bname = bundle
+                .file_name()
+                .map(|s| s.to_string_lossy().to_string())
+                .unwrap_or_else(|| "Bundle".to_string());
+            let _ = std::fs::remove_file(&bundle);
+            let comp = crate::companion::companion_jar(&state.data_dir, &mc_version);
+            crate::instance::enforce_bundled_mods(&mods_dir, &mc_version, comp.as_deref());
+            if mods_dir.join(&bname).is_file() {
+                fixed.push(format!("{} → {} (Bundle erneuert)", label, bname));
+            } else {
+                removed.push(format!(
+                    "{} (entfernt – Bundle wird beim nächsten Start neu bereitgestellt)",
+                    label
+                ));
+            }
+            continue;
+        }
         let jar = match find_mod_jar(&mods_dir, &modid, &name) {
             Some(j) => j,
             None => {

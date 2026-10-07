@@ -212,7 +212,10 @@ pub fn companion_jar(data_dir: &Path, version: &str) -> Option<PathBuf> {
     let filename = companion_filename_for_version(version);
     
     let cached = cache_dir(data_dir).join(filename);
-    if is_valid_jar(&cached) {
+    // Hinweis: Dateiname allein genügt nicht – eine veraltete/wrong-version
+    // Datei im Cache (z. B. 26.2-Build unter 1.21.11-Name) würde sonst falsche
+    // Bundles in die Instanz extrahieren.
+    if is_valid_jar(&cached) && jar_supports_mc(&cached, version) {
         return Some(cached);
     }
 

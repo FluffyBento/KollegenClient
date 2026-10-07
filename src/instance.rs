@@ -973,6 +973,59 @@ const LEGACY_BUNDLE_JARS: &[&str] = &["kollegen-bundle-flk.jar"];
 
 
 
+fn norm_mod_key(s: &str) -> String {
+    s.to_lowercase()
+        .chars()
+        .filter(|c| *c != '-' && *c != '_' && *c != ' ' && *c != '.')
+        .collect()
+}
+
+/// Mod-ID-Familien pro Bundle (deckt Yarn-/Modrinth-Namensvarianten ab,
+/// z. B. `chat_heads` vs. `chatheads`, `silk-all` vs. `silk`).
+fn bundle_mod_families(jar_name: &str) -> &'static [&'static str] {
+    match jar_name {
+        "kollegen-bundle-chatheads.jar" => &["chatheads"],
+        "kollegen-bundle-silk.jar" => &["silk"],
+        "kollegen-bundle-clothconfig.jar" => &["clothconfig"],
+        "kollegen-bundle-modmenu.jar" => &["modmenu"],
+        "kollegen-bundle-owo.jar" => &["owo", "owolib"],
+        "kollegen-bundle-tpa.jar" => &["placeholder", "tpa"],
+        "kollegen-bundle-fabric-api.jar" => &["fabricapi"],
+        "kollegen-bundle-flk.jar" => &["fabriclanguagekotlin"],
+        _ => &[],
+    }
+}
+
+/// Findet ein Launcher-Bundle anhand von Mod-ID/Name aus dem Fabric-Konfliktlog.
+/// Normale Dateisuche (`find_mod_jar`) scheitert hier, weil z. B. die Mod-ID
+/// `chat_heads` nicht in `kollegen-bundle-chatheads.jar` als Substring vorkommt
+/// (Unterstrich) und `silk-all` nicht in `kollegen-bundle-silk.jar`.
+pub(crate) fn find_bundle_jar(mods_dir: &Path, modid: &str, name: &str) -> Option<PathBuf> {
+    let mid = norm_mod_key(modid);
+    let nm = norm_mod_key(name);
+    if mid.len() < 3 && nm.len() < 3 {
+        return None;
+    }
+    for &(_flag_key, jar_name, _bin_path) in BUNDLED_MODS {
+        let hit = bundle_mod_families(jar_name).iter().any(|f| {
+            (!mid.is_empty() && (mid.starts_with(f) || f.starts_with(&mid)))
+                || (!nm.is_empty() && (nm.contains(f) || f.contains(&nm)))
+        });
+        if !hit {
+            continue;
+        }
+        let p = mods_dir.join(jar_name);
+        if p.is_file() {
+            return Some(p);
+        }
+        let dis = mods_dir.join(format!("{}.disabled", jar_name));
+        if dis.is_file() {
+            return Some(dis);
+        }
+    }
+    None
+}
+
 fn bundle_standalone_prefixes(jar_name: &str) -> &'static [&'static str] {
     match jar_name {
         "kollegen-bundle-chatheads.jar" => &["chat_heads", "chat-heads"],
