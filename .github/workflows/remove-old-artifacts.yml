@@ -23,7 +23,7 @@ jobs:
           # Remove artifacts older than specified age
           # Options: '90 days', '30 days', '1 month', '2 years', etc.
           # parsed by Moment.js format
-          age: '30 days'
+          age: '20 days'
 
           # Optional: Keep release (tagged) artifacts
           # skip-tags: true
@@ -36,4 +36,4 @@ jobs:
           # max-retries: 5
 
           # Optional: Dry run mode (preview only, no deletion)
-          # dry-run: true
+          dry-run: true
