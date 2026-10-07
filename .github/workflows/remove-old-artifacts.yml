@@ -15,7 +15,6 @@ jobs:
     # Grant permissions to delete artifacts
     permissions:
       actions: write
-      repository_projects: read
 
     steps:
       - name: Remove old GitHub Actions artifacts
