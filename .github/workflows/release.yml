@@ -53,7 +53,7 @@ jobs:
         run: |
           cd kollegen-mod
           chmod +x ./gradlew
-          ./gradlew build --no-daemon --stacktrace -Pminecraft_version=26.2 -Pfabric_version=0.161.0+26.2 -Ploader_version=0.19.5 -Parchives_base_name=kollegen-client-mod-26.2
+          ./gradlew build --no-daemon --stacktrace -Pminecraft_version=26.2 -Pfabric_version=0.161.0+26.2 -Ploader_version=0.19.5 -Parchives_base_name=kollegen-client-mod-26.2 -PmouseHandlerClickMethod=lambda\$setup\$2
 
       - name: Publish companion mod jars (fresh 26.2 + prebuilt 1.21.11)
         env:
@@ -130,7 +130,7 @@ jobs:
         run: |
           mkdir -p resources
           cd kollegen-mod && chmod +x ./gradlew
-          ./gradlew build --no-daemon -Pminecraft_version=26.2 -Pfabric_version=0.161.0+26.2 -Ploader_version=0.19.5 -Parchives_base_name=kollegen-client-mod-26.2
+          ./gradlew build --no-daemon -Pminecraft_version=26.2 -Pfabric_version=0.161.0+26.2 -Ploader_version=0.19.5 -Parchives_base_name=kollegen-client-mod-26.2 -PmouseHandlerClickMethod=lambda\$setup\$2
           cd ..
           JAR26=$(ls kollegen-mod/build/libs/kollegen-client-mod-26.2*.jar 2>/dev/null | head -n1)
           if [ -z "$JAR26" ]; then echo "ERROR: no 26.2 jar built"; ls kollegen-mod/build/libs/; exit 1; fi
@@ -248,7 +248,7 @@ jobs:
         run: |
           mkdir -p resources
           cd kollegen-mod && chmod +x ./gradlew
-          ./gradlew build --no-daemon -Pminecraft_version=26.2 -Pfabric_version=0.161.0+26.2 -Ploader_version=0.19.5 -Parchives_base_name=kollegen-client-mod-26.2
+          ./gradlew build --no-daemon -Pminecraft_version=26.2 -Pfabric_version=0.161.0+26.2 -Ploader_version=0.19.5 -Parchives_base_name=kollegen-client-mod-26.2 -PmouseHandlerClickMethod=lambda\$setup\$2
           cd ..
           JAR26=$(ls kollegen-mod/build/libs/kollegen-client-mod-26.2*.jar 2>/dev/null | head -n1)
           if [ -z "$JAR26" ]; then echo "ERROR: no 26.2 jar built"; ls kollegen-mod/build/libs/; exit 1; fi
@@ -332,7 +332,7 @@ jobs:
         run: |
           mkdir -p resources
           cd kollegen-mod && chmod +x ./gradlew
-          ./gradlew build --no-daemon -Pminecraft_version=26.2 -Pfabric_version=0.161.0+26.2 -Ploader_version=0.19.5 -Parchives_base_name=kollegen-client-mod-26.2
+          ./gradlew build --no-daemon -Pminecraft_version=26.2 -Pfabric_version=0.161.0+26.2 -Ploader_version=0.19.5 -Parchives_base_name=kollegen-client-mod-26.2 -PmouseHandlerClickMethod=lambda\$setup\$2
           cd ..
           JAR26=$(ls kollegen-mod/build/libs/kollegen-client-mod-26.2*.jar 2>/dev/null | head -n1)
           if [ -z "$JAR26" ]; then echo "ERROR: no 26.2 jar built"; ls kollegen-mod/build/libs/; exit 1; fi
