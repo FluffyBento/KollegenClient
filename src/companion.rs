@@ -316,13 +316,22 @@ fn jar_code_is_unmapped(jar: &Path) -> bool {
     unmapped > 0 && mapped == 0
 }
 
+/// Laufzeit-Namensschema: Seit MC 26 liefert Mojang unobfuskierte Jars
+/// (keine client_mappings, kein Yarn, Klarnamen im Jar, Loader meldet
+/// "Mappings not present!"). Dort ist ungemappter Mojang-Code KORREKT.
+/// Ältere Versionen (1.21.x) laufen unter Intermediary-Namen und brauchen
+/// Loom-geremappte Jars – ungemappte crashen dort garantiert.
+fn mc_runtime_uses_mojang_names(version: &str) -> bool {
+    version.starts_with("26.")
+}
+
 /// Vollvalidierung eines Companion-Kandidaten für eine MC-Version:
-/// gültiges Jar + MC-Constraint + .bin-Payloads + Loom-Remapping im Code.
+/// gültiges Jar + MC-Constraint + .bin-Payloads + (wo nötig) Remapping.
 fn companion_candidate_ok(p: &Path, version: &str) -> bool {
     is_valid_jar(p)
         && jar_supports_mc(p, version)
         && companion_bins_support_mc(p, version)
-        && !jar_code_is_unmapped(p)
+        && (mc_runtime_uses_mojang_names(version) || !jar_code_is_unmapped(p))
 }
 
 /// Prüft zusätzlich die eingebetteten Bundle-Payloads: Ein Jar mit umgeschriebener
@@ -565,18 +574,18 @@ pub fn install_companion_mod(data_dir: &Path, instance_name: &str, version: &str
                     continue;
                 }
                 let name = e.file_name().to_string_lossy().to_lowercase();
-                if is_companion_mod_name(&name) && jar_code_is_unmapped(&p) {
+                if is_companion_mod_name(&name) && !companion_candidate_ok(&p, version) {
                     warn!(
-                        "Entferne kaputte Companion-Altlast (ohne Remapping, crasht den Start): {}",
-                        name
+                        "Entferne unpassende Companion-Altlast für MC {}: {}",
+                        version, name
                     );
                     let _ = std::fs::remove_file(&p);
                 }
             }
         }
         let stale_cache = cache_dir(data_dir).join(COMPANION_MOD_FILENAME);
-        if stale_cache.is_file() && jar_code_is_unmapped(&stale_cache) {
-            warn!("Entferne kaputte Companion-Cache-Leiche (ohne Remapping).");
+        if stale_cache.is_file() && !companion_candidate_ok(&stale_cache, version) {
+            warn!("Entferne unpassende Companion-Cache-Leiche.");
             let _ = std::fs::remove_file(&stale_cache);
         }
     }
