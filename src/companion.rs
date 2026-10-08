@@ -126,15 +126,41 @@ fn version_at_least(a: &str, b: &str) -> bool {
     true
 }
 
-fn try_download(data_dir: &Path) -> Option<PathBuf> {
-    let dest = cache_dir(data_dir).join(COMPANION_MOD_FILENAME);
-    if is_valid_jar(&dest) {
+fn try_download(data_dir: &Path, version: &str) -> Option<PathBuf> {
+    // Primär: versionierter Cache + versionierter Download (alle OS).
+    // Der alte generische Dateiname hat version-fremde Dateien angeliefert.
+    let filename = companion_filename_for_version(version);
+    let dest = cache_dir(data_dir).join(filename);
+    if companion_candidate_ok(&dest, version) {
         return Some(dest);
     }
-    info!("Lade Kollegen Client Mod von GitHub Releases herunter…");
-    match crate::utils::download_file(GITHUB_DOWNLOAD_URL, &dest) {
-        Ok(()) if is_valid_jar(&dest) => Some(dest),
+    let _ = std::fs::create_dir_all(cache_dir(data_dir));
+    let url = format!(
+        "https://github.com/FluffyBento/KollegenClient/releases/latest/download/{}",
+        filename
+    );
+    info!(
+        "Lade Kollegen Client Mod ({}) von GitHub Releases herunter…",
+        filename
+    );
+    let tmp = cache_dir(data_dir).join(format!("{}.tmp", filename));
+    match crate::utils::download_file(&url, &tmp) {
+        Ok(()) if companion_candidate_ok(&tmp, version) => {
+            let _ = std::fs::rename(&tmp, &dest);
+            Some(dest)
+        }
         _ => {
+            let _ = std::fs::remove_file(&tmp);
+            // Letzter Notnagel: legacy generischer Cache – aber nur validiert!
+            // (Eine kaputte Datei hier hat früher Crash-Loops verursacht.)
+            let legacy = cache_dir(data_dir).join(COMPANION_MOD_FILENAME);
+            if companion_candidate_ok(&legacy, version) {
+                warn!(
+                    "Nutze legacy Companion-Cache ({}).",
+                    COMPANION_MOD_FILENAME
+                );
+                return Some(legacy);
+            }
             warn!("Kollegen Mod-Download fehlgeschlagen.");
             None
         }
@@ -235,6 +261,70 @@ fn bin_mc_constraint(jar: &Path, bin_path: &str) -> Option<String> {
         .map(str::to_string)
 }
 
+/// Erkennt Companion-Jars, deren Code nie durch Loom geremapped wurde
+/// (Mojang-Namen im Klartext statt Intermediary-`class_`-Namen).
+/// Solche Jars crashen zur Laufzeit garantiert mit NoClassDefFoundError –
+/// sie dürfen weder deployed noch als Quelle verwendet werden.
+/// Gibt nur bei positivem Befund `true` zurück (Mod-Code mit Mojang-Refs
+/// aber ohne einzige Intermediary-Ref); unbekannte Inhalte gelten als OK.
+fn jar_code_is_unmapped(jar: &Path) -> bool {
+    use std::io::Read;
+    let file = match std::fs::File::open(jar) {
+        Ok(f) => f,
+        Err(_) => return false,
+    };
+    let mut archive = match zip::ZipArchive::new(file) {
+        Ok(a) => a,
+        Err(_) => return false,
+    };
+    const NEEDLE: &[u8] = b"net/minecraft/";
+    let mut mapped = 0u32;
+    let mut unmapped = 0u32;
+    let mut checked = 0u32;
+    for i in 0..archive.len() {
+        let bytes = match archive.by_index(i) {
+            Ok(mut entry) => {
+                let name = entry.name().to_string();
+                if !name.starts_with("dev/kollegen/") || !name.ends_with(".class") {
+                    continue;
+                }
+                let mut bytes = Vec::new();
+                if entry.read_to_end(&mut bytes).is_err() {
+                    continue;
+                }
+                bytes
+            }
+            Err(_) => continue,
+        };
+        for (idx, w) in bytes.windows(NEEDLE.len()).enumerate() {
+            if w == NEEDLE {
+                if bytes[idx + NEEDLE.len()..].starts_with(b"class_") {
+                    mapped += 1;
+                    if mapped > 0 {
+                        return false;
+                    }
+                } else {
+                    unmapped += 1;
+                }
+            }
+        }
+        checked += 1;
+        if checked >= 40 {
+            break;
+        }
+    }
+    unmapped > 0 && mapped == 0
+}
+
+/// Vollvalidierung eines Companion-Kandidaten für eine MC-Version:
+/// gültiges Jar + MC-Constraint + .bin-Payloads + Loom-Remapping im Code.
+fn companion_candidate_ok(p: &Path, version: &str) -> bool {
+    is_valid_jar(p)
+        && jar_supports_mc(p, version)
+        && companion_bins_support_mc(p, version)
+        && !jar_code_is_unmapped(p)
+}
+
 /// Prüft zusätzlich die eingebetteten Bundle-Payloads: Ein Jar mit umgeschriebener
 /// fabric.mod.json (relaxed) fällt durch reine Metadaten-Checks – die .bins
 /// verraten die wahre MC-Version. Fehlende/ungültige Bins gelten als OK (lenient).
@@ -260,32 +350,36 @@ pub fn companion_jar(data_dir: &Path, version: &str) -> Option<PathBuf> {
     // Datei im Cache (z. B. 26.2-Build unter 1.21.11-Name) würde sonst falsche
     // Bundles in die Instanz extrahieren. Es zählen auch die .bin-Payloads,
     // weil ein relaxed Jar falsche Metadaten tragen kann.
-    if is_valid_jar(&cached)
-        && jar_supports_mc(&cached, version)
-        && companion_bins_support_mc(&cached, version)
-    {
+    if companion_candidate_ok(&cached, version) {
         return Some(cached);
     }
 
     
     if let Ok(exe) = std::env::current_exe() {
         if let Some(dir) = exe.parent() {
+            // Ressourcen liegen je nach Paketformat woanders (alle OS abgedeckt):
+            // Windows NSIS / AppImage / Flatpak: neben der Binary (resources/),
+            // macOS .app-Bundle: Contents/Resources,
+            // Linux deb/rpm: /usr/lib/<Produkt>/resources.
             for cand in [
                 dir.join("resources").join(filename),
                 dir.join(filename),
+                dir.join("../Resources").join(filename),
+                dir.join("../lib/Kollegen Client/resources").join(filename),
+                dir.join("../lib/kollegen-client/resources").join(filename),
             ] {
-                if is_valid_jar(&cand)
-                    && jar_supports_mc(&cand, version)
-                    && companion_bins_support_mc(&cand, version)
-                {
+                if companion_candidate_ok(&cand, version) {
                     return Some(cand);
                 }
             }
             for cand in [
                 dir.join("resources").join(COMPANION_MOD_FILENAME),
                 dir.join(COMPANION_MOD_FILENAME),
+                dir.join("../Resources").join(COMPANION_MOD_FILENAME),
+                dir.join("../lib/Kollegen Client/resources").join(COMPANION_MOD_FILENAME),
+                dir.join("../lib/kollegen-client/resources").join(COMPANION_MOD_FILENAME),
             ] {
-                if is_valid_jar(&cand) && jar_supports_mc(&cand, version) {
+                if companion_candidate_ok(&cand, version) {
                     return Some(cand);
                 }
             }
@@ -316,11 +410,7 @@ pub fn companion_jar(data_dir: &Path, version: &str) -> Option<PathBuf> {
                     .map(|n| is_companion_mod_name(n))
                     .unwrap_or(false)
             })
-            .filter(|p| {
-                is_valid_jar(p)
-                    && jar_supports_mc(p, version)
-                    && companion_bins_support_mc(p, version)
-            })
+            .filter(|p| companion_candidate_ok(p, version))
         {
             return Some(p);
         }
@@ -330,16 +420,13 @@ pub fn companion_jar(data_dir: &Path, version: &str) -> Option<PathBuf> {
         manifest.join("resources").join(filename),
         manifest.join("resources").join(COMPANION_MOD_FILENAME),
     ] {
-        if is_valid_jar(&cand)
-            && jar_supports_mc(&cand, version)
-            && companion_bins_support_mc(&cand, version)
-        {
+        if companion_candidate_ok(&cand, version) {
             return Some(cand);
         }
     }
 
-    
-    try_download(data_dir)
+
+    try_download(data_dir, version)
 }
 
 
@@ -463,6 +550,35 @@ pub fn install_companion_mod(data_dir: &Path, instance_name: &str, version: &str
             loader
         );
         return;
+    }
+
+    // DAU-sicher: kaputte Altlasten entfernen. Eine Companion ohne
+    // Loom-Remapping crasht garantiert (NoClassDefFoundError) – sie darf
+    // weder deployed bleiben noch je wieder als Quelle dienen.
+    // Es werden ausschließlich eigene kollegen-client*.jar-Dateien angefasst.
+    {
+        let mods_dir = crate::utils::instance_dir(data_dir, instance_name).join("mods");
+        if let Ok(entries) = std::fs::read_dir(&mods_dir) {
+            for e in entries.flatten() {
+                let p = e.path();
+                if !p.is_file() {
+                    continue;
+                }
+                let name = e.file_name().to_string_lossy().to_lowercase();
+                if is_companion_mod_name(&name) && jar_code_is_unmapped(&p) {
+                    warn!(
+                        "Entferne kaputte Companion-Altlast (ohne Remapping, crasht den Start): {}",
+                        name
+                    );
+                    let _ = std::fs::remove_file(&p);
+                }
+            }
+        }
+        let stale_cache = cache_dir(data_dir).join(COMPANION_MOD_FILENAME);
+        if stale_cache.is_file() && jar_code_is_unmapped(&stale_cache) {
+            warn!("Entferne kaputte Companion-Cache-Leiche (ohne Remapping).");
+            let _ = std::fs::remove_file(&stale_cache);
+        }
     }
     
     
