@@ -111,7 +111,7 @@ public final class CosmeticText {
         MutableComponent out = Component.empty();
         out.append(Component.literal("[").withStyle(Style.EMPTY.withColor(TextColor.fromRgb(0x555555))));
         out.append(Component.literal("lv ").withStyle(Style.EMPTY.withColor(TextColor.fromRgb(LEVEL_GRAY))));
-        out.append(Component.literal(String.valueOf(d.level)).withStyle(Style.EMPTY.withColor(TextColor.fromRgb(0x7DD3FC))));
+        out.append(Component.literal(String.valueOf(d.level)).withStyle(Style.EMPTY.withColor(TextColor.fromRgb(0x7EE787))));
         out.append(Component.literal("]").withStyle(Style.EMPTY.withColor(TextColor.fromRgb(0x555555))));
         return out;
     }
