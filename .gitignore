@@ -25,3 +25,6 @@ Inspiration/
 
 Das/
 
+
+# Kompilierte Klassen nie committen (Build-Artefakte)
+*.class
