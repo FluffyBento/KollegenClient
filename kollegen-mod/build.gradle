@@ -14,7 +14,11 @@ plugins {
     id 'maven-publish'
 }
 
-apply plugin: 'net.fabricmc.fabric-loom'
+if (project.minecraft_version.startsWith('1.21')) {
+    apply plugin: 'net.fabricmc.fabric-loom-remap'
+} else {
+    apply plugin: 'net.fabricmc.fabric-loom'
+}
 
 version = project.mod_version
 group = project.maven_group
@@ -50,6 +54,123 @@ dependencies {
 
     implementation('dev.kollegen:discord-rpc:1.3.6') { transitive = false }
     include('dev.kollegen:discord-rpc:1.3.6') { transitive = false }
+}
+
+if (project.minecraft_version.startsWith('1.21')) {
+    dependencies {
+        mappings loom.officialMojangMappings()
+        clientImplementation "net.fabricmc:sponge-mixin:0.15.2+mixin.0.8.7"
+    }
+
+    def portDir = file("${buildDir}/port1211-src")
+    tasks.register('portSources1211') {
+        doLast {
+            delete(portDir)
+            copy {
+                from('src/main/java')
+                into("${portDir}/main/java")
+            }
+            copy {
+                from('src/client/java')
+                into("${portDir}/client/java")
+            }
+            fileTree("${portDir}").matching { include '**/*.java' }.each { File f ->
+                String rel = portDir.toPath().relativize(f.toPath()).toString().replace(File.separator, '/')
+                String t = f.getText('UTF-8')
+                t = t.replace('GuiGraphicsExtractor', 'GuiGraphics')
+                    .replace('.text(', '.drawString(')
+                    .replace('.item(', '.renderItem(')
+                    .replace('.gui.screen()', '.screen')
+                    .replace('renderer.state.level.CameraRenderState', 'renderer.state.CameraRenderState')
+                    .replace('renderer.state.level.SkyRenderState', 'renderer.state.SkyRenderState')
+                    .replace('net.minecraft.client.multiplayer.chat.GuiMessageTag', 'net.minecraft.client.GuiMessageTag')
+                    .replace('client/multiplayer/chat/GuiMessageTag', 'client/GuiMessageTag')
+                    .replace('addPlayerMessage(', 'addMessage(')
+                    .replace('.gui.hud.isHidden()', '.options.hideGui')
+                    .replace('.gui.hud.getChat()', '.gui.getChat()')
+                if (rel.endsWith('mixin/HudMixin.java')) {
+                    t = t.replace('extractRenderState(Lnet/minecraft/client/gui/GuiGraphics;Lnet/minecraft/client/DeltaTracker;)V', 'render(Lnet/minecraft/client/gui/GuiGraphics;Lnet/minecraft/client/DeltaTracker;)V')
+                    t = t.replace('@Mixin(Hud.class)', '@Mixin(Gui.class)')
+                    t = t.replace('import net.minecraft.client.gui.Hud;', 'import net.minecraft.client.gui.Gui;')
+                }
+                if (rel.endsWith('mixin/ContainerScreenMixin.java')) {
+                    t = t.replace('extractRenderState(Lnet/minecraft/client/gui/GuiGraphics;IIF)V', 'renderBackground(Lnet/minecraft/client/gui/GuiGraphics;IIF)V')
+                }
+                if (rel.contains('/menu/')) {
+                    if (rel.endsWith('menu/ThemeSelectorScreen.java')) {
+                        t = t.replace('backBtn.extractRenderState(', 'backBtn.renderContents(')
+                    }
+                    t = t.replace('extractRenderState(', 'renderBackground(')
+                }
+                if (rel.endsWith('ui/GlassSlider.java') || rel.endsWith('ui/GlassToggle.java')) {
+                    t = t.replace('extractWidgetRenderState(', 'renderWidget(')
+                }
+                if (rel.endsWith('ui/ColorButton.java') || rel.endsWith('ui/GlassButton.java')) {
+                    t = t.replace('extractContents(', 'renderContents(')
+                    t = t.replace('protected void renderContents(', 'public void renderContents(')
+                }
+                if (rel.endsWith('mixin/NametagMixin.java')) {
+                    t = t.replace('''            Component title = hasData ? CosmeticText.titleComponent(id) : null;
+            if (title != null) {
+                collector.submitNameTag(poseStack,
+                        new Vec3(anchor.x, anchor.y + 0.50, anchor.z),
+                        0, title, !state.isDiscrete, state.lightCoords, camera);
+            }
+            Component level = hasData ? CosmeticText.levelComponent(id) : null;
+            if (level != null) {
+                collector.submitNameTag(poseStack,
+                        new Vec3(anchor.x, anchor.y - 0.26, anchor.z),
+                        0, level, !state.isDiscrete, state.lightCoords, camera);
+            }
+''', '')
+                }
+                f.write(t, 'UTF-8')
+            }
+        }
+    }
+    sourceSets {
+        main { java { srcDirs = ["${portDir}/main/java"] } }
+        client {
+            java {
+                srcDirs = ["${portDir}/client/java"]
+                exclude '**/FogRendererMixin.java'
+                exclude '**/GameRendererMixin.java'
+            }
+        }
+    }
+    tasks.named('compileJava') { dependsOn('portSources1211') }
+    tasks.named('compileClientJava') { dependsOn('portSources1211') }
+
+    tasks.register('fixup1211Jar') {
+        dependsOn('build')
+        doLast {
+            def jarFile = file("${buildDir}/libs/kollegen-client-mod-1.21.11-${project.mod_version}.jar")
+            def infos = []
+            def data = [:]
+            new java.util.zip.ZipFile(jarFile).withCloseable { z ->
+                z.entries().each { e ->
+                    infos << e.name
+                    data[e.name] = z.getInputStream(e).bytes
+                }
+            }
+            def slurper = new groovy.json.JsonSlurper()
+            def mix = slurper.parseText(new String(data['kollegen.mixins.json'], 'UTF-8'))
+            mix.mixins = mix.mixins.findAll { !(it in ['FogRendererMixin', 'GameRendererMixin']) }
+            mix.remove('refmap')
+            data['kollegen.mixins.json'] = (groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(mix)) + '\n').getBytes('UTF-8')
+            def fmj = slurper.parseText(new String(data['fabric.mod.json'], 'UTF-8'))
+            fmj.depends = [fabricloader: '>=0.16.0', minecraft: '>=1.21', java: '>=21']
+            data['fabric.mod.json'] = (groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(fmj)) + '\n').getBytes('UTF-8')
+            jarFile.delete()
+            new java.util.zip.ZipOutputStream(new FileOutputStream(jarFile)).withCloseable { out ->
+                infos.each { name ->
+                    out.putNextEntry(new java.util.zip.ZipEntry(name))
+                    out.write(data[name])
+                    out.closeEntry()
+                }
+            }
+        }
+    }
 }
 
 
@@ -388,12 +509,14 @@ processResources.dependsOn vendorVulkanMod, sodiumTask, irisTask, berylTask,
         flkTask, fabricApiTask, owoTask, modMenuTask,
         tpaTask, silkTask, clothConfigTask, chatHeadsTask
 
+def javaRelease = project.minecraft_version.startsWith('1.21') ? 21 : 25
+
 java {
-    sourceCompatibility = JavaVersion.VERSION_25
-    targetCompatibility = JavaVersion.VERSION_25
+    sourceCompatibility = JavaVersion.toVersion(javaRelease)
+    targetCompatibility = JavaVersion.toVersion(javaRelease)
 }
 
 tasks.withType(JavaCompile).configureEach {
     it.options.encoding = 'UTF-8'
-    it.options.release = 25
+    it.options.release = javaRelease
 }
