@@ -108,11 +108,10 @@ public final class CosmeticText {
     public static Component levelComponent(UUID id) {
         CosmeticData d = id == null ? null : KollegenPresence.getCosmetics(id);
         if (d == null || d.level <= 0) return null;
-        int tier = levelTierColor(d.level);
         MutableComponent out = Component.empty();
         out.append(Component.literal("[").withStyle(Style.EMPTY.withColor(TextColor.fromRgb(0x555555))));
         out.append(Component.literal("lv ").withStyle(Style.EMPTY.withColor(TextColor.fromRgb(LEVEL_GRAY))));
-        out.append(Component.literal(String.valueOf(d.level)).withStyle(Style.EMPTY.withColor(TextColor.fromRgb(tier))));
+        out.append(Component.literal(String.valueOf(d.level)).withStyle(Style.EMPTY.withColor(TextColor.fromRgb(0x7DD3FC))));
         out.append(Component.literal("]").withStyle(Style.EMPTY.withColor(TextColor.fromRgb(0x555555))));
         return out;
     }

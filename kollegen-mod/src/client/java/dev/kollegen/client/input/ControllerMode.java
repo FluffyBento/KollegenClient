@@ -3,6 +3,7 @@ package dev.kollegen.client.input;
 import dev.kollegen.client.KollegenMod;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.input.MouseButtonInfo;
 import org.lwjgl.glfw.GLFW;
 import org.lwjgl.glfw.GLFWGamepadState;
 
@@ -175,7 +176,7 @@ public final class ControllerMode {
             }
             try {
                 ((dev.kollegen.client.mixin.MouseHandlerAccessor) mc.mouseHandler)
-                        .kollegen$click(window, clickButton, GLFW.GLFW_PRESS, 0);
+                        .kollegen$click(window, new MouseButtonInfo(clickButton, 0), GLFW.GLFW_PRESS);
             } catch (Throwable ignored) {
             }
             clickPressed = true;
@@ -183,7 +184,7 @@ public final class ControllerMode {
         } else if (now >= releaseAfter) {
             try {
                 ((dev.kollegen.client.mixin.MouseHandlerAccessor) mc.mouseHandler)
-                        .kollegen$click(window, clickButton, GLFW.GLFW_RELEASE, 0);
+                        .kollegen$click(window, new MouseButtonInfo(clickButton, 0), GLFW.GLFW_RELEASE);
             } catch (Throwable ignored) {
             }
             clickQueued = false;
