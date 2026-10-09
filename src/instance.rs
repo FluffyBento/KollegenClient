@@ -1370,7 +1370,7 @@ pub fn launch(
     inst: &Instance,
     java_path: &str,
     settings: &Settings,
-) -> Result<String> {
+) -> Result<(String, u32)> {
     let inst_dir = crate::utils::instance_dir(data_dir, &inst.name);
     
     ensure_kollegen_mod(data_dir, &inst.name, &inst.loader, &inst.version);
@@ -2030,7 +2030,7 @@ pub fn launch(
     }
     let _ = crate::utils::save_json(&path, &instances);
 
-    Ok(format!("Minecraft started (PID: {})", pid))
+    Ok((format!("Minecraft started (PID: {})", pid), pid))
 }
 
 

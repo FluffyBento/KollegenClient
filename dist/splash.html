@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Game Started</title>
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    background: transparent;
+    overflow: hidden;
+    font-family: "Space Grotesk", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    user-select: none;
+    cursor: pointer;
+  }
+  #stage {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 350ms ease;
+  }
+  #stage.visible {
+    opacity: 1;
+  }
+  #glow {
+    position: absolute;
+    inset: -20%;
+    background:
+      radial-gradient(ellipse 55% 40% at 50% 42%, var(--glow), transparent 70%),
+      radial-gradient(ellipse 30% 26% at 50% 92%, var(--glow), transparent 70%);
+    animation: glowPulse 3.2s ease-in-out infinite alternate;
+    pointer-events: none;
+  }
+  #box {
+    position: relative;
+    text-align: center;
+    padding: 0 24px;
+    transform: translateY(14px);
+    transition: transform 350ms ease;
+  }
+  #stage.visible #box {
+    transform: translateY(0);
+  }
+  #eyebrow {
+    font-size: 13px;
+    letter-spacing: 0.45em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 14px;
+  }
+  #title {
+    font-family: Orbitron, "Space Grotesk", system-ui, sans-serif;
+    font-size: clamp(38px, 7vw, 74px);
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    color: var(--text);
+    text-shadow: 0 0 34px var(--glow-strong), 0 2px 18px rgba(0, 0, 0, 0.8);
+    line-height: 1.05;
+  }
+  #instance {
+    margin-top: 12px;
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--accent);
+    text-shadow: 0 1px 12px rgba(0, 0, 0, 0.9);
+  }
+  #status {
+    margin: 26px auto 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    max-width: 640px;
+    font-size: 14px;
+    color: var(--muted);
+    text-shadow: 0 1px 8px rgba(0, 0, 0, 0.9);
+  }
+  #dot {
+    flex: none;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 12px var(--accent);
+    animation: dotPulse 1.1s ease-in-out infinite;
+  }
+  #statusText {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+    font-size: 13px;
+  }
+  #pid {
+    margin-top: 14px;
+    font-size: 12px;
+    letter-spacing: 0.2em;
+    color: var(--muted);
+    text-shadow: 0 1px 8px rgba(0, 0, 0, 0.9);
+  }
+  #hint {
+    margin-top: 26px;
+    font-size: 12px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+    opacity: 0.7;
+  }
+  @keyframes dotPulse {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(0.55); opacity: 0.45; }
+  }
+  @keyframes glowPulse {
+    from { transform: scale(1); opacity: 0.85; }
+    to { transform: scale(1.08); opacity: 1; }
+  }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="glow"></div>
+  <div id="box">
+    <div id="eyebrow">Kollegen Client</div>
+    <div id="title">Game Started</div>
+    <div id="instance"></div>
+    <div id="status"><span id="dot"></span><span id="statusText">Minecraft wird gestartet …</span></div>
+    <div id="pid"></div>
+    <div id="hint">Klicken zum Schließen</div>
+  </div>
+</div>
+<script>
+  (function () {
+    var q = new URLSearchParams(location.search);
+    var instance = q.get("instance") || "";
+    var pid = q.get("pid") || "";
+    var accent = q.get("accent") || "#f5c518";
+    var rgb = q.get("rgb") || "245, 197, 24";
+    var root = document.documentElement.style;
+    root.setProperty("--accent", accent);
+    root.setProperty("--glow", "rgba(" + rgb + ", 0.16)");
+    root.setProperty("--glow-strong", "rgba(" + rgb + ", 0.45)");
+    root.setProperty("--text", "#ededed");
+    root.setProperty("--muted", "#9ca3af");
+    document.getElementById("instance").textContent = instance;
+    if (pid) document.getElementById("pid").textContent = "PID " + pid;
+    else document.getElementById("pid").remove();
+    var stage = document.getElementById("stage");
+    var closed = false;
+    function closeSplash() {
+      if (closed) return;
+      closed = true;
+      try {
+        window.__TAURI__.window.getCurrentWindow().close();
+      } catch (e) {
+        window.close();
+      }
+    }
+    document.addEventListener("click", closeSplash);
+    requestAnimationFrame(function () { stage.classList.add("visible"); });
+    var markers = ["backend library: lwjgl", "using graphics device", "created window"];
+    var startedAt = Date.now();
+    var timer = setInterval(function () {
+      if (Date.now() - startedAt > 180000) {
+        clearInterval(timer);
+        closeSplash();
+        return;
+      }
+      if (!instance) return;
+      window.__TAURI__.core.invoke("get_game_log", { instanceName: instance }).then(function (log) {
+        var lines = String(log || "").split("\n").map(function (s) { return s.trim(); }).filter(Boolean);
+        var last = lines.length ? lines[lines.length - 1].slice(-140) : "";
+        if (last) document.getElementById("statusText").textContent = last;
+        var low = String(log || "").toLowerCase();
+        for (var i = 0; i < markers.length; i++) {
+          if (low.indexOf(markers[i]) >= 0) {
+            clearInterval(timer);
+            closeSplash();
+            return;
+          }
+        }
+      }).catch(function () {});
+    }, 1000);
+  })();
+</script>
+</body>
+</html>

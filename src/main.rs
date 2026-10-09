@@ -850,9 +850,12 @@ fn required_java_for_version(version: &str) -> u32 {
 
 #[tauri::command]
 fn launch_game(
+    app: tauri::AppHandle,
     state: State<'_, AppState>,
     instance_name: String,
     server: Option<String>,
+    theme_accent: Option<String>,
+    theme_rgb: Option<String>,
 ) -> Result<String, String> {
     let path = utils::instances_file(&state.data_dir);
     let instances = utils::load_json::<Vec<types::Instance>>(&path, vec![]);
@@ -963,12 +966,51 @@ fn launch_game(
 
     let launch_result = instance::launch(&state, &state.data_dir, &inst, &java_path, &settings);
     match launch_result {
-        Ok(result) => Ok(result),
+        Ok((result, pid)) => {
+            open_game_splash(&app, &instance_name, pid, theme_accent, theme_rgb);
+            Ok(result)
+        }
         Err(e) => {
             utils::append_log(&state, &format!("Launch fehlgeschlagen: {}", e));
             Err(e.to_string())
         }
     }
+}
+
+fn open_game_splash(
+    app: &tauri::AppHandle,
+    instance_name: &str,
+    pid: u32,
+    theme_accent: Option<String>,
+    theme_rgb: Option<String>,
+) {
+    if let Some(existing) = app.get_webview_window("game-splash") {
+        let _ = existing.close();
+    }
+    let accent = theme_accent
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| "#f5c518".to_string());
+    let rgb = theme_rgb
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| "245, 197, 24".to_string());
+    let url = format!(
+        "splash.html?instance={}&pid={}&accent={}&rgb={}",
+        urlencoding::encode(instance_name),
+        pid,
+        urlencoding::encode(&accent),
+        urlencoding::encode(&rgb),
+    );
+    let _ = tauri::WebviewWindowBuilder::new(app, "game-splash", tauri::WebviewUrl::App(url.into()))
+        .title("Kollegen Client - Game Started")
+        .fullscreen(true)
+        .transparent(true)
+        .decorations(false)
+        .always_on_top(true)
+        .skip_taskbar(true)
+        .focused(false)
+        .build();
 }
 
 
@@ -1352,12 +1394,13 @@ fn discord_social(state: State<'_, AppState>) -> Result<Value, String> {
 
 #[tauri::command]
 fn discord_join(
+    app: tauri::AppHandle,
     state: State<'_, AppState>,
     instance_name: String,
     server: String,
 ) -> Result<String, String> {
     let _ = discord::write_join_request(&state.data_dir, &server);
-    launch_game(state, instance_name, Some(server))
+    launch_game(app, state, instance_name, Some(server), None, None)
 }
 
 #[tauri::command]
