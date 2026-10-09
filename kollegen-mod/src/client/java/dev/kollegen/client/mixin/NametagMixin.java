@@ -116,15 +116,34 @@ public class NametagMixin {
             String w = state.nameTag != null ? state.nameTag.getString() : null;
             Minecraft mc = Minecraft.getInstance();
             if (mc.getConnection() == null) return null;
+            if (mc.player != null) {
+                String self = mc.player.getName().getString();
+                if ((a != null && kollegen$nameMatches(a, self)) || (w != null && kollegen$nameMatches(w, self))) {
+                    return mc.player.getUUID();
+                }
+            }
             for (PlayerInfo pi : mc.getConnection().getOnlinePlayers()) {
                 GameProfile profile = pi.getProfile();
                 if (profile == null) continue;
                 String n = profile.name();
-                if ((a != null && a.equals(n)) || (w != null && w.equals(n))) return profile.id();
+                if (n == null || n.isEmpty()) continue;
+                if ((a != null && kollegen$nameMatches(a, n)) || (w != null && kollegen$nameMatches(w, n))) return profile.id();
             }
         } catch (Throwable ignored) {
         }
         return null;
+    }
+
+    private static boolean kollegen$nameMatches(String line, String name) {
+        try {
+            if (line == null || name == null || name.isEmpty()) return false;
+            if (line.equals(name)) return true;
+            String stripped = line.replaceAll("(?i)\\u00A7[0-9A-FK-OR]", "");
+            if (stripped.equals(name) || stripped.contains(name)) return true;
+            return line.contains(name);
+        } catch (Throwable ignored) {
+        }
+        return false;
     }
 
     private static boolean kollegen$matches(Component line, java.util.UUID id) {
@@ -138,7 +157,7 @@ public class NametagMixin {
                 GameProfile profile = pi.getProfile();
                 if (profile == null) continue;
                 if (!profile.id().equals(id)) continue;
-                return plain.equals(profile.name());
+                return kollegen$nameMatches(plain, profile.name());
             }
         } catch (Throwable ignored) {
         }
