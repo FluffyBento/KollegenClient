@@ -63,7 +63,20 @@ if (project.minecraft_version.startsWith('1.21')) {
     }
 
     def portDir = file("${buildDir}/port1211-src")
+    tasks.register('cleanVendoredBins1211') {
+        doLast {
+            fileTree('src/main/resources/dev/kollegen/client').matching { include '*.bin' }.each { File f ->
+                if (!f.name.equals('vulkanmod.bin')) {
+                    f.delete()
+                }
+            }
+        }
+    }
+    tasks.matching { it.name.startsWith('vendor') }.configureEach {
+        dependsOn('cleanVendoredBins1211')
+    }
     tasks.register('portSources1211') {
+        dependsOn('cleanVendoredBins1211')
         doLast {
             delete(portDir)
             copy {
@@ -278,8 +291,7 @@ def vendorModResource(String resourceRel, String slug, String urlOverride = null
 
 
 
-def sodiumUrl = "https://cdn.modrinth.com/data/AANobbMI/versions/xJZxADzI/sodium-fabric-0.9.2%2Bmc${project.minecraft_version}.jar"
-def sodiumTask = vendorModResource('dev/kollegen/client/sodium.bin', 'sodium', sodiumUrl)
+def sodiumTask = vendorModResource('dev/kollegen/client/sodium.bin', 'sodium')
 def irisTask = vendorModResource('dev/kollegen/client/iris.bin', 'iris')
 def berylTask = vendorModResource('dev/kollegen/client/beryl.bin', 'beryl')
 
