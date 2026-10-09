@@ -54,10 +54,6 @@ fn companion_filename_for_version(version: &str) -> &'static str {
     }
 }
 
-const GITHUB_DOWNLOAD_URL: &str =
-    "https://github.com/FluffyBento/KollegenClient/releases/latest/download/kollegen-client-mod.jar";
-
-
 pub fn is_companion_mod_name(filename: &str) -> bool {
     let lc = filename.to_ascii_lowercase();
     lc == COMPANION_MOD_FILENAME
@@ -170,24 +166,29 @@ fn try_download(data_dir: &Path, version: &str) -> Option<PathBuf> {
 
 
 
-fn refresh_cache(data_dir: &Path) -> Option<PathBuf> {
+fn refresh_cache(data_dir: &Path, version: &str) -> Option<PathBuf> {
     let dir = cache_dir(data_dir);
     let _ = std::fs::create_dir_all(&dir);
-    let dest = dir.join(COMPANION_MOD_FILENAME);
-    let tmp = dir.join("kollegen-client-mod.jar.tmp");
-    match crate::utils::download_file(GITHUB_DOWNLOAD_URL, &tmp) {
-        Ok(()) if is_valid_jar(&tmp) => {
-            
-            
-            
-            let keep_cached = is_valid_jar(&dest)
+    let filename = companion_filename_for_version(version);
+    let dest = dir.join(filename);
+    let tmp = dir.join(format!("{}.tmp", filename));
+    let url = format!(
+        "https://github.com/FluffyBento/KollegenClient/releases/latest/download/{}",
+        filename
+    );
+    match crate::utils::download_file(&url, &tmp) {
+        Ok(()) if companion_candidate_ok(&tmp, version) => {
+
+
+
+            let keep_cached = companion_candidate_ok(&dest, version)
                 .then(|| {
                     match (
                         jar_fabric_version(&dest).as_deref(),
                         jar_fabric_version(&tmp).as_deref(),
                     ) {
                         (Some(cur), Some(new)) => version_at_least(cur, new),
-                        
+
                         _ => false,
                     }
                 })
@@ -632,7 +633,7 @@ pub fn install_companion_mod(data_dir: &Path, instance_name: &str, version: &str
 
     
     
-    let _ = refresh_cache(data_dir);
+    let _ = refresh_cache(data_dir, version);
 
     let source = match companion_jar(data_dir, version) {
         Some(j) => j,
