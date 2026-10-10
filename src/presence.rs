@@ -97,7 +97,11 @@ fn refresh_discord_token(refresh: &str, data_dir: &PathBuf) -> Option<String> {
         ("grant_type", "refresh_token"),
         ("refresh_token", refresh),
     ];
-    let client = reqwest::blocking::Client::new();
+    let client = reqwest::blocking::Client::builder()
+        .timeout(Duration::from_secs(10))
+        .connect_timeout(Duration::from_secs(3))
+        .build()
+        .unwrap_or_else(|_| reqwest::blocking::Client::new());
     let resp = client
         .post("https://discord.com/api/v10/oauth2/token")
         .form(&params)
