@@ -96,6 +96,8 @@ if (project.minecraft_version.startsWith('1.21')) {
                     .replace('.gui.screen()', '.screen')
                     .replace('renderer.state.level.CameraRenderState', 'renderer.state.CameraRenderState')
                     .replace('renderer.state.level.SkyRenderState', 'renderer.state.SkyRenderState')
+                    .replace('renderer/state/level/CameraRenderState', 'renderer/state/CameraRenderState')
+                    .replace('renderer/state/level/SkyRenderState', 'renderer/state/SkyRenderState')
                     .replace('net.minecraft.client.multiplayer.chat.GuiMessageTag', 'net.minecraft.client.GuiMessageTag')
                     .replace('client/multiplayer/chat/GuiMessageTag', 'client/GuiMessageTag')
                     .replace('addPlayerMessage(', 'addMessage(')
