@@ -3898,6 +3898,8 @@ startBackgroundIntervals();
   const STORE_RANK = { common: 0, rare: 1, epic: 2, legendary: 3 };
 
   let storeFilter = "alle";
+  let storeGroup = "profil";
+  const STORE_INGAME_CATS = ["pet", "clothing", "effect"];
   let storeRar = "alle";
   let storeSort = "price-asc";
 
@@ -3919,7 +3921,8 @@ startBackgroundIntervals();
   }
 
   function storeFiltered() {
-    const items = (kmCat || []).filter((i) => (storeFilter === "alle" || i.category === storeFilter) && (storeRar === "alle" || i.rarity === storeRar));
+    const ingame = (c) => STORE_INGAME_CATS.includes(c);
+    const items = (kmCat || []).filter((i) => (storeGroup === "ingame" ? ingame(i.category) : !ingame(i.category)) && (storeFilter === "alle" || i.category === storeFilter) && (storeRar === "alle" || i.rarity === storeRar));
     items.sort((a, b) => {
       if (storeSort === "price-asc") return a.price - b.price;
       if (storeSort === "price-desc") return b.price - a.price;
@@ -4150,12 +4153,22 @@ startBackgroundIntervals();
       const box = $(id);
       if (!box) continue;
       box.querySelectorAll(".tab").forEach((x) => {
-        const on = x.getAttribute("data-f") === storeFilter;
+        const f = x.getAttribute("data-f");
+        const on = f === storeFilter;
         x.classList.toggle("on", on);
         x.classList.toggle("active", on);
         x.setAttribute("aria-selected", on ? "true" : "false");
+        const show = !f || f === "alle" || (storeGroup === "ingame" ? STORE_INGAME_CATS.includes(f) : !STORE_INGAME_CATS.includes(f));
+        x.style.display = show ? "" : "none";
       });
     }
+    const grp = $("storeGroupMain");
+    if (grp) grp.querySelectorAll(".tab").forEach((x) => {
+      const on = x.getAttribute("data-g") === storeGroup;
+      x.classList.toggle("on", on);
+      x.classList.toggle("active", on);
+      x.setAttribute("aria-selected", on ? "true" : "false");
+    });
   }
   function storeInit() {
     for (const id of ["storeRarChipsMain"]) {
@@ -4191,6 +4204,19 @@ startBackgroundIntervals();
         renderStore();
       });
     }
+    for (const id of ["storeGroupMain"]) {
+      const grp = $(id);
+      if (!grp || grp.dataset.bound) continue;
+      grp.dataset.bound = "1";
+      grp.addEventListener("click", (e) => {
+        const t = e.target.closest(".tab");
+        if (!t || !t.getAttribute("data-g")) return;
+        storeGroup = t.getAttribute("data-g");
+        storeFilter = "alle";
+        storeSyncTabs();
+        renderStore();
+      });
+    }
     storeSyncChips();
     storeSyncTabs();
     const close = $("storeItemClose");
@@ -4204,18 +4230,37 @@ startBackgroundIntervals();
   let cosmSkinKey = "";
   async function renderCosmetics() {
     const box = $("cosmOwned");
+    if (box) box.innerHTML = '<div class="store-msg">Lade …</div>';
     let me = null;
     let store = null;
+    let errText = "";
     try {
-      const r = await Promise.all([
-        invoke("kollegen_me").catch(() => null),
-        invoke("kollegen_store").catch(() => null),
-      ]);
-      me = r[0] && !r[0].error ? r[0] : null;
-      store = r[1] && !r[1].error && Array.isArray(r[1].catalog) ? r[1] : null;
-    } catch (e) {}
+      const r = await invoke("kollegen_me").catch((e) => ({ error: String((e && e.message) || e) }));
+      if (r && !r.error) me = r;
+      else errText = (r && r.error) || "unbekannt";
+    } catch (e) {
+      errText = String((e && e.message) || e);
+    }
+    try {
+      const r = await invoke("kollegen_store").catch((e) => ({ error: String((e && e.message) || e) }));
+      if (r && !r.error && Array.isArray(r.catalog)) store = r;
+      else if (!errText) errText = (r && r.error) || "unbekannt";
+    } catch (e) {
+      if (!errText) errText = String((e && e.message) || e);
+    }
     if (!me || !store) {
-      if (box) box.innerHTML = '<div class="store-msg">Anmelden, um deine Gegenstände zu sehen.</div>';
+      if (box) {
+        box.innerHTML = "";
+        const msg = document.createElement("div");
+        msg.className = "store-msg";
+        msg.textContent = "Laden fehlgeschlagen" + (errText ? ": " + errText : "") + ".";
+        box.appendChild(msg);
+        const retry = document.createElement("button");
+        retry.className = "btn-secondary";
+        retry.textContent = "Erneut versuchen";
+        retry.onclick = () => renderCosmetics();
+        box.appendChild(retry);
+      }
       return;
     }
     const equipped = me.equipped || {};
