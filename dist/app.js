@@ -1353,16 +1353,21 @@ async function refreshLogs() {
   }
 
   // ── Discord OAuth (browser login) ──
+  let discordLoginWaiting = false;
   async function discordOauthStart() {
+    if (discordLoginWaiting) return;
     try {
       await invoke("discord_oauth_start");
+      discordLoginWaiting = true;
       renderDiscordLogin({ state: "waiting" });
     } catch (e) {
+      discordLoginWaiting = false;
       renderDiscordLogin({ state: "error", message: String(e) });
     }
   }
 
   async function discordOauthLogout() {
+    discordLoginWaiting = false;
     try {
       await invoke("discord_oauth_logout");
     } catch (e) {
@@ -1377,7 +1382,15 @@ async function refreshLogs() {
     box.textContent = "";
     if (info.state === "waiting") {
       btn.style.display = "none";
-      box.textContent = "Browser wurde geöffnet – bitte bei Discord anmelden…";
+      box.textContent = "Browser wurde geöffnet – bitte bei Discord anmelden… ";
+      const cancel = document.createElement("button");
+      cancel.className = "btn-secondary";
+      cancel.textContent = "Abbrechen";
+      cancel.onclick = () => {
+        discordLoginWaiting = false;
+        renderDiscordLogin({ state: "idle" });
+      };
+      box.appendChild(cancel);
     } else if (info.state === "done") {
       // Verbunden-Status zeigt #discordStatus an; "Abmelden" ist bewusst nur in
       // den Einstellungen (Verbindungen → Discord abmelden) zu finden.
@@ -1393,11 +1406,18 @@ async function refreshLogs() {
   async function refreshDiscordLogin() {
     try {
       const s = await invoke("discord_oauth_status");
-      if (s.logged_in && s.user) {
+      const loggedIn = !!(s && s.logged_in && s.user);
+      if (loggedIn) {
         renderDiscordLogin({ state: "done", user: s.user });
+      } else if (discordLoginWaiting) {
+        renderDiscordLogin({ state: "waiting" });
       } else {
         renderDiscordLogin({ state: "idle" });
       }
+      const loginSet = $("discordLoginBtnSettings");
+      const logoutSet = $("discordLogoutBtn");
+      if (loginSet) loginSet.style.display = loggedIn ? "none" : "";
+      if (logoutSet) logoutSet.style.display = loggedIn ? "" : "none";
     } catch (e) {
       console.error(e);
     }
@@ -1711,6 +1731,7 @@ const _homeCreateBtn = $("homeCreateBtn");
 if (_homeCreateBtn) _homeCreateBtn.onclick = () => switchTab("create");
 
 $("discordLoginBtn").onclick = discordOauthStart;
+if ($("discordLoginBtnSettings")) $("discordLoginBtnSettings").onclick = discordOauthStart;
 
 // ─=== Akzentfarbe (wird auch in die Theme-Datei für den In-Game-Mod geschrieben) ===
 function readCssVar(name) {

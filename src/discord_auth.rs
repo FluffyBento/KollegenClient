@@ -512,6 +512,17 @@ pub fn start_flow(data_dir: std::path::PathBuf) -> Result<String, String> {
     });
 
     
+    match TcpListener::bind(("127.0.0.1", CALLBACK_PORT)) {
+        Ok(probe) => drop(probe),
+        Err(_) => {
+            *OAUTH_SESSION.lock().unwrap() = None;
+            return Err(format!(
+                "Port {} ist belegt (andere Launcher-Instanz offen?). Diese schließen und erneut versuchen.",
+                CALLBACK_PORT
+            ));
+        }
+    }
+
     thread::spawn(move || {
         run_callback_server(data_dir);
     });
