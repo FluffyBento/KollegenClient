@@ -118,6 +118,8 @@ if (project.minecraft_version.startsWith('1.21')) {
                 }
                 if (rel.endsWith('presence/PetRenderer.java')) {
                     t = t.replace('collector.submitNameTag(poseStack, new Vec3(x, y + 2.2, z), 0, nameComp, true, 15728880, camera);', 'collector.submitNameTag(poseStack, new Vec3(x, y + 2.2, z), 0, nameComp, true, 15728880, ownerState.distanceToCameraSq, camera);')
+                    t = t.replace('import net.minecraft.world.entity.EntityTypes;', 'import net.minecraft.world.entity.EntityType;')
+                    t = t.replace('EntityTypes.ENDER_DRAGON', 'EntityType.ENDER_DRAGON')
                 }
                 if (rel.endsWith('mixin/LogoRendererMixin.java')) {
                     t = t.replace('extractRenderState(Lnet/minecraft/client/gui/GuiGraphics;IF)V', 'renderLogo(Lnet/minecraft/client/gui/GuiGraphics;IF)V')

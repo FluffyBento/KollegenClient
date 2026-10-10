@@ -8,7 +8,7 @@ import net.minecraft.client.renderer.state.level.CameraRenderState;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.TextColor;
-import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.boss.enderdragon.EnderDragon;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
@@ -67,7 +67,7 @@ public final class PetRenderer {
             Level lvl = LEVELS.get(ownerId);
             EnderDragon dragon = PETS.get(ownerId);
             if (dragon == null || lvl != mc.level) {
-                dragon = new EnderDragon(EntityType.ENDER_DRAGON, mc.level);
+                dragon = new EnderDragon(EntityTypes.ENDER_DRAGON, mc.level);
                 PETS.put(ownerId, dragon);
                 LEVELS.put(ownerId, mc.level);
             }
