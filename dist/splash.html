@@ -170,6 +170,14 @@
         closeSplash();
         return;
       }
+      if (pid) {
+        window.__TAURI__.core.invoke("splash_should_close", { pid: parseInt(pid, 10) }).then(function (gone) {
+          if (gone) {
+            clearInterval(timer);
+            closeSplash();
+          }
+        }).catch(function () {});
+      }
       if (!instance) return;
       window.__TAURI__.core.invoke("get_game_log", { instanceName: instance }).then(function (log) {
         var lines = String(log || "").split("\n").map(function (s) { return s.trim(); }).filter(Boolean);

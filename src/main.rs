@@ -1002,15 +1002,41 @@ fn open_game_splash(
         urlencoding::encode(&accent),
         urlencoding::encode(&rgb),
     );
-    let _ = tauri::WebviewWindowBuilder::new(app, "game-splash", tauri::WebviewUrl::App(url.into()))
-        .title("Kollegen Client - Game Started")
-        .fullscreen(true)
-        .transparent(true)
-        .decorations(false)
-        .always_on_top(true)
-        .skip_taskbar(true)
-        .focused(false)
-        .build();
+    let mut builder =
+        tauri::WebviewWindowBuilder::new(app, "game-splash", tauri::WebviewUrl::App(url.into()))
+            .title("Kollegen Client - Game Started")
+            .transparent(true)
+            .decorations(false)
+            .always_on_top(true)
+            .skip_taskbar(true)
+            .focused(false);
+    match app.primary_monitor() {
+        Ok(Some(monitor)) => {
+            let size = monitor.size();
+            builder = builder
+                .inner_size(size.width as f64, size.height as f64)
+                .position(0.0, 0.0);
+        }
+        _ => {
+            builder = builder.fullscreen(true);
+        }
+    }
+    let _ = builder.build();
+}
+
+#[tauri::command]
+fn splash_should_close(pid: u32) -> bool {
+    !process_alive(pid)
+}
+
+#[cfg(target_os = "linux")]
+fn process_alive(pid: u32) -> bool {
+    std::path::Path::new(&format!("/proc/{}", pid)).exists()
+}
+
+#[cfg(not(target_os = "linux"))]
+fn process_alive(_pid: u32) -> bool {
+    true
 }
 
 
@@ -2199,6 +2225,7 @@ fn main() {
             open_url,
             write_theme_file,
             get_game_log,
+            splash_should_close,
             auto_resolve_conflict,
             toggle_fullscreen,
             set_discord_presence,
