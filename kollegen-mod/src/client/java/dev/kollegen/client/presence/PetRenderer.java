@@ -44,6 +44,14 @@ public final class PetRenderer {
             Minecraft mc = Minecraft.getInstance();
             if (mc == null || mc.level == null) return;
             Vec3 base = LASTPOS.get(ownerId);
+            if (base == null) {
+                try {
+                    if (mc.player != null && mc.player.getUUID().equals(ownerId)) {
+                        base = mc.player.position();
+                    }
+                } catch (Throwable ignored) {
+                }
+            }
             if (base == null) return;
             String mode = d.petMode != null ? d.petMode : "follow";
             double bob = 0.0;
