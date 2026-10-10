@@ -102,7 +102,6 @@ public final class PetRenderer {
             try {
                 poseStack.translate(x, y, z);
                 poseStack.scale((float) scale, (float) scale, (float) scale);
-                poseStack.translate(-x, -y, -z);
                 Object st = mc.getEntityRenderDispatcher().extractEntity(dragon, 0.0F);
                 if (st instanceof net.minecraft.client.renderer.entity.state.EntityRenderState renderState) {
                     mc.getEntityRenderDispatcher().submit(renderState, camera, 0.0, 0.0, 0.0, poseStack, collector);
