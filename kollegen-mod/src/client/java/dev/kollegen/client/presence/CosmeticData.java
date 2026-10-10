@@ -11,9 +11,15 @@ public final class CosmeticData {
     public final String stickerIcon;
     public final String stickerColor;
     public final String font;
+    public final String petKind;
+    public final double petScale;
+    public final String petMode;
+    public final String petName;
+    public final String petNameColor;
 
     public CosmeticData(int level, String titleText, String nameColor, String badgeIcon,
-                        String badgeColor, String stickerIcon, String stickerColor, String font) {
+                        String badgeColor, String stickerIcon, String stickerColor, String font,
+                        String petKind, double petScale, String petMode, String petName, String petNameColor) {
         this.level = level;
         this.titleText = titleText;
         this.nameColor = nameColor;
@@ -22,6 +28,11 @@ public final class CosmeticData {
         this.stickerIcon = stickerIcon;
         this.stickerColor = stickerColor;
         this.font = font;
+        this.petKind = petKind;
+        this.petScale = petScale;
+        this.petMode = petMode;
+        this.petName = petName;
+        this.petNameColor = petNameColor;
     }
 
     public boolean isEmpty() {
@@ -35,7 +46,7 @@ public final class CosmeticData {
                 ? safeInt(root.get("level").getAsInt()) : 0;
         JsonObject c = root.has("cosmetics") && root.get("cosmetics").isJsonObject()
                 ? root.getAsJsonObject("cosmetics") : null;
-        if (c == null) return level > 0 ? new CosmeticData(level, null, null, null, null, null, null, null) : null;
+        if (c == null) return level > 0 ? new CosmeticData(level, null, null, null, null, null, null, null, null, 0.2, null, null, null) : null;
         String titleText = textOf(c, "title", "text");
         String nameColor = strOf(c, "nameColor");
         String badgeIcon = textOf(c, "badge", "icon");
@@ -43,8 +54,31 @@ public final class CosmeticData {
         String stickerIcon = textOf(c, "sticker", "icon");
         String stickerColor = textOf(c, "sticker", "color");
         String font = strOf(c, "font");
-        CosmeticData d = new CosmeticData(level, titleText, nameColor, badgeIcon, badgeColor, stickerIcon, stickerColor, font);
-        return d.isEmpty() ? null : d;
+        String petKind = null;
+        double petScale = 0.2;
+        String petMode = null;
+        String petName = null;
+        String petNameColor = null;
+        if (c.has("pet") && !c.get("pet").isJsonNull() && c.get("pet").isJsonObject()) {
+            try {
+                JsonObject p = c.getAsJsonObject("pet");
+                petKind = strOf(p, "kind");
+                if (p.has("scale") && !p.get("scale").isJsonNull()) {
+                    try {
+                        petScale = p.get("scale").getAsDouble();
+                    } catch (Throwable ignored) {
+                    }
+                }
+                if (petScale <= 0.0 || petScale > 1.0) petScale = 0.2;
+                petMode = strOf(p, "mode");
+                petName = strOf(p, "name");
+                petNameColor = strOf(p, "nameColor");
+            } catch (Throwable ignored) {
+            }
+        }
+        CosmeticData d = new CosmeticData(level, titleText, nameColor, badgeIcon, badgeColor, stickerIcon, stickerColor, font, petKind, petScale, petMode, petName, petNameColor);
+        if (d.isEmpty() && petKind == null) return null;
+        return d;
     }
 
     private static int safeInt(int v) {

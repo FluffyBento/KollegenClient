@@ -557,6 +557,30 @@ pub fn kollegen_store_buy(data_dir: &PathBuf, item_id: &str) -> serde_json::Valu
 }
 
 
+pub fn kollegen_pet_config(
+    data_dir: &PathBuf,
+    mode: Option<&str>,
+    name: Option<&str>,
+    color: Option<&str>,
+) -> serde_json::Value {
+    let mut body = serde_json::Map::new();
+    if let Some(m) = mode {
+        body.insert("mode".into(), serde_json::Value::String(m.to_string()));
+    }
+    if let Some(n) = name {
+        body.insert("name".into(), serde_json::Value::String(n.to_string()));
+    }
+    if let Some(c) = color {
+        body.insert("nameColor".into(), serde_json::Value::String(c.to_string()));
+    }
+    post_authed(
+        data_dir,
+        "/api/pet-config",
+        serde_json::Value::Object(body),
+    )
+}
+
+
 fn urlencode(s: &str) -> String {
     let mut out = String::new();
     for b in s.bytes() {

@@ -1545,6 +1545,12 @@ async fn kollegen_store_buy(app: tauri::AppHandle, item_id: String) -> Result<se
 }
 
 #[tauri::command]
+async fn kollegen_pet_config(app: tauri::AppHandle, mode: Option<String>, name: Option<String>, color: Option<String>) -> Result<serde_json::Value, String> {
+    let data_dir = app.state::<AppState>().data_dir.clone();
+    Ok(crate::presence::kollegen_pet_config(&data_dir, mode.as_deref(), name.as_deref(), color.as_deref()))
+}
+
+#[tauri::command]
 async fn kollegen_groups(app: tauri::AppHandle) -> Result<serde_json::Value, String> {
     let data_dir = app.state::<AppState>().data_dir.clone();
     Ok(crate::presence::kollegen_groups(&data_dir))
@@ -2208,6 +2214,7 @@ fn main() {
             kollegen_store,
             kollegen_store_equip,
             kollegen_store_buy,
+            kollegen_pet_config,
             kollegen_groups,
             kollegen_group_create,
             kollegen_group_view,

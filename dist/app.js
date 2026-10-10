@@ -2792,6 +2792,9 @@ applySavedTheme()
     if (name === "store" && window.renderKollegenStore) {
       try { window.renderKollegenStore(); } catch (e) {}
     }
+    if (name === "cosmetics") {
+      try { renderCosmetics(); } catch (e) {}
+    }
     if (name === "home" && document.body.classList.contains("console-mode")) {
       renderConsoleHome();
     }
@@ -4195,6 +4198,193 @@ startBackgroundIntervals();
     const modal = $("storeItemModal");
     if (modal) modal.addEventListener("click", (e) => { if (e.target === modal) storeCloseModal(); });
     document.addEventListener("keydown", (e) => { if (e.key === "Escape") storeCloseModal(); });
+  }
+
+  let cosmSkinViewer = null;
+  let cosmSkinKey = "";
+  async function renderCosmetics() {
+    const box = $("cosmOwned");
+    let me = null;
+    let store = null;
+    try {
+      const r = await Promise.all([
+        invoke("kollegen_me").catch(() => null),
+        invoke("kollegen_store").catch(() => null),
+      ]);
+      me = r[0] && !r[0].error ? r[0] : null;
+      store = r[1] && !r[1].error && Array.isArray(r[1].catalog) ? r[1] : null;
+    } catch (e) {}
+    if (!me || !store) {
+      if (box) box.innerHTML = '<div class="store-msg">Anmelden, um deine Gegenstände zu sehen.</div>';
+      return;
+    }
+    const equipped = me.equipped || {};
+    const owned = store.catalog.filter((it) => it.owned);
+    if (box) {
+      box.innerHTML = "";
+      if (!owned.length) box.innerHTML = '<div class="store-msg">Noch keine Gegenstände – schau im Store vorbei.</div>';
+      for (const it of owned) {
+        const row = document.createElement("div");
+        row.className = "cosm-item";
+        const isEq = equipped[it.category] === it.id;
+        row.innerHTML = '<span class="cosm-item-name"></span><span class="cosm-item-cat"></span>';
+        row.querySelector(".cosm-item-name").textContent = it.name || it.id;
+        row.querySelector(".cosm-item-cat").textContent = it.category || "";
+        const btn = document.createElement("button");
+        btn.className = "btn-secondary";
+        btn.textContent = isEq ? "Abwählen" : "Ausrüsten";
+        btn.onclick = async () => {
+          btn.disabled = true;
+          try {
+            if (isEq) await invoke("kollegen_store_equip", { itemId: "", category: it.category });
+            else await invoke("kollegen_store_equip", { itemId: it.id, category: it.category || "" });
+          } catch (e) {}
+          renderCosmetics();
+          if (window.renderKollegenStore) { try { window.renderKollegenStore(); } catch (e) {} }
+        };
+        row.appendChild(btn);
+        box.appendChild(row);
+      }
+    }
+    const petOwned = owned.find((it) => it.category === "pet");
+    const petBox = $("cosmPetBox");
+    if (petBox) {
+      const cfg = (me.petConfig && typeof me.petConfig === "object") ? me.petConfig : {};
+      if (petOwned) {
+        petBox.style.display = "";
+        const modeEl = $("cosmPetMode");
+        if (modeEl) modeEl.value = cfg.mode || "follow";
+        const nameEl = $("cosmPetName");
+        if (nameEl && document.activeElement !== nameEl) nameEl.value = cfg.name || "";
+        const colorEl = $("cosmPetColor");
+        if (colorEl) colorEl.value = /^#[0-9a-fA-F]{6}$/.test(cfg.nameColor || "") ? cfg.nameColor : "#ffffff";
+        const save = $("cosmPetSave");
+        if (save && !save.dataset.bound) {
+          save.dataset.bound = "1";
+          save.onclick = async () => {
+            save.disabled = true;
+            try {
+              await invoke("kollegen_pet_config", {
+                mode: ($("cosmPetMode") || {}).value || null,
+                name: ($("cosmPetName") || {}).value || null,
+                color: ($("cosmPetColor") || {}).value || null,
+              });
+              toast("Pet gespeichert", "ok");
+            } catch (e) {
+              toast("Speichern fehlgeschlagen", "error");
+            }
+            save.disabled = false;
+            renderCosmetics();
+          };
+        }
+      } else petBox.style.display = "none";
+    }
+    renderCosmSkin(me);
+    renderCosmName(me, store.catalog);
+  }
+
+  function cosmCatById(list, id) {
+    if (!id || !Array.isArray(list)) return null;
+    return list.find((c) => c && c.id === id) || null;
+  }
+
+  function renderCosmName(me, catalog) {
+    const el = $("cosmNamePreview");
+    if (!el || !me) return;
+    const eq = me.equipped || {};
+    const parts = [];
+    const badge = cosmCatById(catalog, eq.badge);
+    if (badge && badge.data && badge.data.icon) parts.push({ t: badge.data.icon + " ", c: badge.data.color || "#FFD700" });
+    const nc = cosmCatById(catalog, eq.name_color);
+    const stil = cosmCatById(catalog, eq.profil_stil);
+    const accent = (nc && nc.data && nc.data.accent) || (stil && stil.data && stil.data.accent) || "#FFFFFF";
+    parts.push({ t: me.name || me.mc_name || "Spieler", c: accent, b: true });
+    const sticker = cosmCatById(catalog, eq.sticker);
+    if (sticker && sticker.data && sticker.data.icon) parts.push({ t: " " + sticker.data.icon, c: sticker.data.color || "#FFFFFF" });
+    el.innerHTML = "";
+    for (const p of parts) {
+      const s = document.createElement("span");
+      s.textContent = p.t;
+      s.style.color = p.c;
+      if (p.b) s.style.fontWeight = "800";
+      el.appendChild(s);
+    }
+    const title = cosmCatById(catalog, eq.title);
+    if (title && title.data && title.data.text) {
+      const t = document.createElement("div");
+      t.className = "cosm-titlepreview";
+      t.textContent = title.data.text;
+      t.style.color = accent;
+      el.appendChild(t);
+    }
+    if (typeof me.level === "number") {
+      const l = document.createElement("div");
+      l.className = "cosm-levelpreview";
+      l.textContent = "[lv " + me.level + "]";
+      el.appendChild(l);
+    }
+  }
+
+  async function renderCosmSkin(me) {
+    const canvas = $("cosmSkinCanvas");
+    if (!canvas) return;
+    let url = null;
+    try {
+      const list = await invoke("skin_list");
+      const active = (list.skins || []).find((s) => s.name === list.active);
+      if (active && active.url) url = active.url;
+    } catch (e) {}
+    if (!url) {
+      try {
+        const prof = await invoke("skin_mc_profile");
+        const sk = ((prof && prof.skins) || []).find((x) => x.state === "ACTIVE") || ((prof && prof.skins) || [])[0];
+        if (sk && sk.url) url = sk.url;
+      } catch (e) {}
+    }
+    const nm = (me && (me.name || me.mc_name)) || "";
+    if (!url && nm) url = `https://mc-heads.net/skin/${encodeURIComponent(nm)}`;
+    if (!url) return;
+    const key = url;
+    if (key === cosmSkinKey && cosmSkinViewer) return;
+    cosmSkinKey = key;
+    const sv3d = window.skinview3d;
+    let webglOk = false;
+    try {
+      const probe = document.createElement("canvas");
+      const g = probe.getContext("webgl2") || probe.getContext("webgl");
+      webglOk = !!(g && g.getParameter);
+    } catch (_) {}
+    const wrap = canvas.parentElement;
+    if (!(sv3d && sv3d.SkinViewer && sv3d.WalkingAnimation && webglOk)) {
+      let fb = wrap.querySelector("img.skin-fallback");
+      if (!fb) {
+        fb = new Image();
+        fb.className = "skin-fallback";
+        fb.alt = "";
+        wrap.insertBefore(fb, canvas);
+      }
+      fb.src = url;
+      canvas.style.display = "none";
+      return;
+    }
+    try {
+      if (cosmSkinViewer) {
+        try { cosmSkinViewer.dispose && cosmSkinViewer.dispose(); } catch (_) {}
+        cosmSkinViewer = null;
+      }
+      canvas.style.display = "";
+      const fb = wrap.querySelector("img.skin-fallback");
+      if (fb) fb.remove();
+      cosmSkinViewer = new sv3d.SkinViewer({ canvas: canvas, width: 220, height: 440 });
+      const p = cosmSkinViewer.loadSkin(url);
+      if (p && typeof p.then === "function") p.catch(() => {});
+      cosmSkinViewer.animation = new sv3d.WalkingAnimation();
+      cosmSkinViewer.animation.speed = 0.5;
+      cosmSkinViewer.autoRotate = true;
+      cosmSkinViewer.autoRotateSpeed = 1.0;
+    } catch (e) {
+      console.error("Cosmetics-Skin fehlgeschlagen:", e);
+    }
   }
 
   window.renderKollegenSummary = renderProfileSummary;

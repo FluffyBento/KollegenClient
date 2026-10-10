@@ -119,6 +119,7 @@ public final class KollegenPresence {
         }
         USERS.clear();
         COSMETICS.clear();
+        PetRenderer.clear();
     }
 
     private static UUID parseUuid(String s) {

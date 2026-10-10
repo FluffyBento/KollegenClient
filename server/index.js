@@ -82,6 +82,8 @@ const CATALOG = [
   { id: 'font_serif', category: 'font', name: 'Klassische Buchstaben', desc: 'Serifen für die Ewigkeit.', price: 250, rarity: 'rare', data: { font: '"Georgia","Times New Roman",serif' } },
   { id: 'font_typewriter', category: 'font', name: 'Typewriter', desc: 'Wie auf einer Schreibmaschine.', price: 600, rarity: 'epic', data: { font: '"Courier New",monospace' } },
   { id: 'font_banner', category: 'font', name: 'Banner-Bliter', desc: 'Groß, fett, auffällig.', price: 1600, rarity: 'legendary', data: { font: 'Impact,"Arial Narrow Bold",sans-serif' } },
+
+  { id: 'pet_drache', category: 'pet', name: 'Enderdrache', desc: 'Ein winziger Enderdrache als Begleiter. Sichtbar für alle mit Kollegen-Client.', price: 5000, rarity: 'legendary', featured: true, data: { kind: 'enderdragon', scale: 0.2 } },
 ];
 
 function catById(id) {
@@ -96,6 +98,7 @@ function ensureUserExtras(u) {
   if (typeof u.points_total !== 'number') u.points_total = typeof u.points === 'number' ? u.points : START_POINTS;
   if (!Array.isArray(u.cosmetics)) u.cosmetics = [];
   if (!u.equipped || typeof u.equipped !== 'object') u.equipped = {};
+  if (!u.petConfig || typeof u.petConfig !== 'object') u.petConfig = { mode: 'follow', name: null, nameColor: null };
   if (!Array.isArray(u.friend_requests)) u.friend_requests = [];
   return u;
 }
@@ -160,6 +163,18 @@ function presenceCosmetics(u) {
   if (fn && fn.data && fn.data.font) out.font = fn.data.font;
   const sk = eq.sticker && catById(eq.sticker);
   if (sk && sk.data) out.sticker = { icon: sk.data.icon || null, color: sk.data.color || null };
+  const pet = eq.pet && catById(eq.pet);
+  if (pet && pet.category === 'pet' && pet.data && pet.data.kind) {
+    const cfg = (u.petConfig && typeof u.petConfig === 'object') ? u.petConfig : {};
+    const modes = ['follow', 'shoulder', 'head', 'hover'];
+    out.pet = {
+      kind: pet.data.kind,
+      scale: typeof pet.data.scale === 'number' ? pet.data.scale : 0.2,
+      mode: modes.includes(cfg.mode) ? cfg.mode : 'follow',
+      name: typeof cfg.name === 'string' && cfg.name ? String(cfg.name).slice(0, 16) : null,
+      nameColor: typeof cfg.nameColor === 'string' && /^#[0-9a-fA-F]{6}$/.test(cfg.nameColor) ? cfg.nameColor : null,
+    };
+  }
   return out;
 }
 
@@ -512,6 +527,7 @@ const server = http.createServer(async (req, res) => {
         level: sv.level,
         cosmetics: sv.cosmetics,
         equipped: sv.equipped,
+        petConfig: (user.petConfig && typeof user.petConfig === 'object') ? user.petConfig : { mode: 'follow', name: null, nameColor: null },
       });
     }
 
@@ -584,6 +600,31 @@ const server = http.createServer(async (req, res) => {
       user.equipped[item.category] = itemId;
       saveStore();
       return sendJson(res, 200, { ok: true, equipped: user.equipped });
+    }
+
+    
+    if (pathname === '/pet-config' && method === 'POST') {
+      const user = bearerUser(req);
+      if (!user) return sendJson(res, 401, { error: 'not_authenticated' });
+      ensureUserExtras(user);
+      const body = await readBody(req);
+      const cfg = (user.petConfig && typeof user.petConfig === 'object') ? user.petConfig : (user.petConfig = { mode: 'follow', name: null, nameColor: null });
+      if (body.mode !== undefined) {
+        const mode = String(body.mode || '');
+        if (!['follow', 'shoulder', 'head', 'hover'].includes(mode)) return sendJson(res, 400, { error: 'invalid_mode' });
+        cfg.mode = mode;
+      }
+      if (body.name !== undefined) {
+        const name = String(body.name || '').trim().slice(0, 16);
+        cfg.name = name || null;
+      }
+      if (body.nameColor !== undefined) {
+        const color = String(body.nameColor || '').trim();
+        if (color && !/^#[0-9a-fA-F]{6}$/.test(color)) return sendJson(res, 400, { error: 'invalid_color' });
+        cfg.nameColor = color || null;
+      }
+      saveStore();
+      return sendJson(res, 200, { ok: true, petConfig: cfg });
     }
 
     
@@ -764,6 +805,33 @@ if (pathname === '/internal/store-equip' && method === 'POST') {
   user.equipped[item.category] = itemId;
   saveStore();
   return sendJson(res, 200, { ok: true, equipped: user.equipped });
+}
+
+
+if (pathname === '/internal/pet-config' && method === 'POST') {
+  if (!internalAuthorized(req)) return sendJson(res, 403, { error: 'forbidden' });
+  const body = await readBody(req);
+  const discordId = String(body.discordId || '');
+  const user = discordId ? store.users[discordId] : null;
+  if (!user) return sendJson(res, 404, { error: 'user_not_found' });
+  ensureUserExtras(user);
+  const cfg = (user.petConfig && typeof user.petConfig === 'object') ? user.petConfig : (user.petConfig = { mode: 'follow', name: null, nameColor: null });
+  if (body.mode !== undefined) {
+    const mode = String(body.mode || '');
+    if (!['follow', 'shoulder', 'head', 'hover'].includes(mode)) return sendJson(res, 400, { error: 'invalid_mode' });
+    cfg.mode = mode;
+  }
+  if (body.name !== undefined) {
+    const name = String(body.name || '').trim().slice(0, 16);
+    cfg.name = name || null;
+  }
+  if (body.nameColor !== undefined) {
+    const color = String(body.nameColor || '').trim();
+    if (color && !/^#[0-9a-fA-F]{6}$/.test(color)) return sendJson(res, 400, { error: 'invalid_color' });
+    cfg.nameColor = color || null;
+  }
+  saveStore();
+  return sendJson(res, 200, { ok: true, petConfig: cfg });
 }
 
 
