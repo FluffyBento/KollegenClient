@@ -36,11 +36,24 @@ public final class PetRenderer {
         LASTPOS.put(id, pos);
     }
 
+    private static void mark(String stage) {
+        try {
+            String base = String.valueOf(KollegenPresence.dbgRender);
+            if (base == null || base.isEmpty() || "init".equals(base)) base = "render";
+            if (base.length() > 30) base = base.substring(0, 30);
+            KollegenPresence.dbgRender = base + "|" + stage;
+        } catch (Throwable ignored) {
+        }
+    }
+
     public static void renderFor(UUID ownerId, AvatarRenderState ownerState, PoseStack poseStack, SubmitNodeCollector collector, CameraRenderState camera) {
         try {
             if (ownerId == null) return;
             CosmeticData d = KollegenPresence.getCosmetics(ownerId);
-            if (d == null || d.petKind == null) return;
+            if (d == null || d.petKind == null) {
+                mark("pet-nodata");
+                return;
+            }
             Minecraft mc = Minecraft.getInstance();
             if (mc == null || mc.level == null) return;
             Vec3 base = LASTPOS.get(ownerId);
@@ -52,7 +65,10 @@ public final class PetRenderer {
                 } catch (Throwable ignored) {
                 }
             }
-            if (base == null) return;
+            if (base == null) {
+                mark("pet-nopos");
+                return;
+            }
             String mode = d.petMode != null ? d.petMode : "follow";
             double bob = 0.0;
             double ox = 1.2;
@@ -100,7 +116,12 @@ public final class PetRenderer {
                         .withStyle(Style.EMPTY.withColor(TextColor.fromRgb(nameColor)));
                 collector.submitNameTag(poseStack, new Vec3(x, y + 2.2, z), 0, nameComp, true, 15728880, camera);
             }
-        } catch (Throwable ignored) {
+            mark("pet-ok");
+        } catch (Throwable t) {
+            try {
+                mark("pet-err-" + t.getClass().getSimpleName());
+            } catch (Throwable ignored) {
+            }
         }
     }
 }
