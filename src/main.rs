@@ -1029,6 +1029,13 @@ fn splash_should_close(pid: u32) -> bool {
     !process_alive(pid)
 }
 
+#[tauri::command]
+fn close_splash(app: tauri::AppHandle) {
+    if let Some(win) = app.get_webview_window("game-splash") {
+        let _ = win.close();
+    }
+}
+
 #[cfg(target_os = "linux")]
 fn process_alive(pid: u32) -> bool {
     std::path::Path::new(&format!("/proc/{}", pid)).exists()
@@ -2226,6 +2233,7 @@ fn main() {
             write_theme_file,
             get_game_log,
             splash_should_close,
+            close_splash,
             auto_resolve_conflict,
             toggle_fullscreen,
             set_discord_presence,

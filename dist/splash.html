@@ -155,9 +155,12 @@
       if (closed) return;
       closed = true;
       try {
+        window.__TAURI__.core.invoke("close_splash");
+      } catch (e) {}
+      try {
         window.__TAURI__.window.getCurrentWindow().close();
       } catch (e) {
-        window.close();
+        try { window.close(); } catch (e2) {}
       }
     }
     document.addEventListener("click", closeSplash);
