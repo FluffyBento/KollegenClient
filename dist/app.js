@@ -1357,9 +1357,9 @@ async function refreshLogs() {
   async function discordOauthStart() {
     if (discordLoginWaiting) return;
     try {
-      await invoke("discord_oauth_start");
+      const url = await invoke("discord_oauth_start");
       discordLoginWaiting = true;
-      renderDiscordLogin({ state: "waiting" });
+      renderDiscordLogin({ state: "waiting", url });
     } catch (e) {
       discordLoginWaiting = false;
       renderDiscordLogin({ state: "error", message: String(e) });
@@ -1391,6 +1391,24 @@ async function refreshLogs() {
         renderDiscordLogin({ state: "idle" });
       };
       box.appendChild(cancel);
+      if (info.url) {
+        const wrap = document.createElement("div");
+        wrap.className = "socials-hint";
+        wrap.textContent = "Öffnet sich kein Browser, Link kopieren und manuell öffnen: ";
+        const link = document.createElement("button");
+        link.className = "btn-secondary";
+        link.textContent = "Login-Link kopieren";
+        link.onclick = async () => {
+          try {
+            await navigator.clipboard.writeText(info.url);
+            link.textContent = "Kopiert ✓";
+          } catch (e) {
+            prompt("Login-Link kopieren:", info.url);
+          }
+        };
+        wrap.appendChild(link);
+        box.appendChild(wrap);
+      }
     } else if (info.state === "done") {
       // Verbunden-Status zeigt #discordStatus an; "Abmelden" ist bewusst nur in
       // den Einstellungen (Verbindungen → Discord abmelden) zu finden.

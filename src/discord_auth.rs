@@ -498,7 +498,7 @@ pub fn start_flow(data_dir: std::path::PathBuf) -> Result<String, String> {
         AUTHORIZE_ENDPOINT,
         client_id,
         urlencoding::encode(REDIRECT_URI),
-        SCOPES,
+        urlencoding::encode(SCOPES),
         state,
         challenge
     );
