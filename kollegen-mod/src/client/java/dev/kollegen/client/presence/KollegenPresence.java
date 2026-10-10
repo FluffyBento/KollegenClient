@@ -120,6 +120,7 @@ public final class KollegenPresence {
         USERS.clear();
         COSMETICS.clear();
         PetRenderer.clear();
+        dbgRender = "init";
     }
 
     private static UUID parseUuid(String s) {

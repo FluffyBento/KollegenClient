@@ -110,7 +110,8 @@ public class NametagMixin {
 
     private static void kollegen$dbg(String s) {
         try {
-            if (!"render".equals(KollegenPresence.dbgRender)) KollegenPresence.dbgRender = s;
+            String cur = String.valueOf(KollegenPresence.dbgRender);
+            if (!"render".equals(cur) && cur.indexOf('|') < 0) KollegenPresence.dbgRender = s;
         } catch (Throwable ignored) {
         }
     }
