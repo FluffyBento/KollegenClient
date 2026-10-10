@@ -111,6 +111,9 @@ if (project.minecraft_version.startsWith('1.21')) {
                 if (rel.endsWith('mixin/ContainerScreenMixin.java')) {
                     t = t.replace('extractRenderState(Lnet/minecraft/client/gui/GuiGraphics;IIF)V', 'renderBackground(Lnet/minecraft/client/gui/GuiGraphics;IIF)V')
                 }
+                if (rel.endsWith('mixin/NametagMixin.java')) {
+                    t = t.replace('method = "submitNameDisplay(', 'method = "submitNameTag(')
+                }
                 if (rel.endsWith('mixin/LogoRendererMixin.java')) {
                     t = t.replace('extractRenderState(Lnet/minecraft/client/gui/GuiGraphics;IF)V', 'renderLogo(Lnet/minecraft/client/gui/GuiGraphics;IF)V')
                     t = t.replace('extractRenderState(Lnet/minecraft/client/gui/GuiGraphics;IFI)V', 'renderLogo(Lnet/minecraft/client/gui/GuiGraphics;IFI)V')
