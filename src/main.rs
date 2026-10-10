@@ -1002,26 +1002,17 @@ fn open_game_splash(
         urlencoding::encode(&accent),
         urlencoding::encode(&rgb),
     );
-    let mut builder =
-        tauri::WebviewWindowBuilder::new(app, "game-splash", tauri::WebviewUrl::App(url.into()))
-            .title("Kollegen Client - Game Started")
-            .transparent(true)
-            .decorations(false)
-            .always_on_top(true)
-            .skip_taskbar(true)
-            .focused(false);
-    match app.primary_monitor() {
-        Ok(Some(monitor)) => {
-            let size = monitor.size();
-            builder = builder
-                .inner_size(size.width as f64, size.height as f64)
-                .position(0.0, 0.0);
-        }
-        _ => {
-            builder = builder.fullscreen(true);
-        }
-    }
-    let _ = builder.build();
+    let _ = tauri::WebviewWindowBuilder::new(app, "game-splash", tauri::WebviewUrl::App(url.into()))
+        .title("Kollegen Client - Game Started")
+        .inner_size(620.0, 460.0)
+        .center()
+        .resizable(false)
+        .transparent(true)
+        .decorations(false)
+        .always_on_top(true)
+        .skip_taskbar(true)
+        .focused(false)
+        .build();
 }
 
 #[tauri::command]

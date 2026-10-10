@@ -39,7 +39,13 @@
   #box {
     position: relative;
     text-align: center;
-    padding: 0 24px;
+    width: 556px;
+    max-width: calc(100vw - 64px);
+    padding: 40px 32px 30px;
+    background: linear-gradient(165deg, #151823 0%, #0c0e15 100%);
+    border: 1px solid #2b3048;
+    border-radius: 22px;
+    box-shadow: 0 24px 80px rgba(0, 0, 0, 0.65), 0 0 60px var(--glow);
     transform: translateY(14px);
     transition: transform 350ms ease;
   }
@@ -55,7 +61,7 @@
   }
   #title {
     font-family: Orbitron, "Space Grotesk", system-ui, sans-serif;
-    font-size: clamp(38px, 7vw, 74px);
+    font-size: 40px;
     font-weight: 800;
     letter-spacing: 0.04em;
     color: var(--text);
