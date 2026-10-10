@@ -850,12 +850,9 @@ fn required_java_for_version(version: &str) -> u32 {
 
 #[tauri::command]
 fn launch_game(
-    app: tauri::AppHandle,
     state: State<'_, AppState>,
     instance_name: String,
     server: Option<String>,
-    theme_accent: Option<String>,
-    theme_rgb: Option<String>,
 ) -> Result<String, String> {
     let path = utils::instances_file(&state.data_dir);
     let instances = utils::load_json::<Vec<types::Instance>>(&path, vec![]);
@@ -966,10 +963,7 @@ fn launch_game(
 
     let launch_result = instance::launch(&state, &state.data_dir, &inst, &java_path, &settings);
     match launch_result {
-        Ok((result, pid)) => {
-            open_game_splash(&app, &instance_name, pid, theme_accent, theme_rgb);
-            Ok(result)
-        }
+        Ok((result, _pid)) => Ok(result),
         Err(e) => {
             utils::append_log(&state, &format!("Launch fehlgeschlagen: {}", e));
             Err(e.to_string())
@@ -977,54 +971,9 @@ fn launch_game(
     }
 }
 
-fn open_game_splash(
-    app: &tauri::AppHandle,
-    instance_name: &str,
-    pid: u32,
-    theme_accent: Option<String>,
-    theme_rgb: Option<String>,
-) {
-    if let Some(existing) = app.get_webview_window("game-splash") {
-        let _ = existing.close();
-    }
-    let accent = theme_accent
-        .map(|s| s.trim().to_string())
-        .filter(|s| !s.is_empty())
-        .unwrap_or_else(|| "#f5c518".to_string());
-    let rgb = theme_rgb
-        .map(|s| s.trim().to_string())
-        .filter(|s| !s.is_empty())
-        .unwrap_or_else(|| "245, 197, 24".to_string());
-    let url = format!(
-        "splash.html?instance={}&pid={}&accent={}&rgb={}",
-        urlencoding::encode(instance_name),
-        pid,
-        urlencoding::encode(&accent),
-        urlencoding::encode(&rgb),
-    );
-    let _ = tauri::WebviewWindowBuilder::new(app, "game-splash", tauri::WebviewUrl::App(url.into()))
-        .title("Kollegen Client - Game Started")
-        .inner_size(620.0, 460.0)
-        .center()
-        .resizable(false)
-        .transparent(true)
-        .decorations(false)
-        .always_on_top(true)
-        .skip_taskbar(true)
-        .focused(false)
-        .build();
-}
-
 #[tauri::command]
 fn splash_should_close(pid: u32) -> bool {
     !process_alive(pid)
-}
-
-#[tauri::command]
-fn close_splash(app: tauri::AppHandle) {
-    if let Some(win) = app.get_webview_window("game-splash") {
-        let _ = win.close();
-    }
 }
 
 #[cfg(target_os = "linux")]
@@ -1418,13 +1367,12 @@ fn discord_social(state: State<'_, AppState>) -> Result<Value, String> {
 
 #[tauri::command]
 fn discord_join(
-    app: tauri::AppHandle,
     state: State<'_, AppState>,
     instance_name: String,
     server: String,
 ) -> Result<String, String> {
     let _ = discord::write_join_request(&state.data_dir, &server);
-    launch_game(app, state, instance_name, Some(server), None, None)
+    launch_game(state, instance_name, Some(server))
 }
 
 #[tauri::command]
@@ -2224,7 +2172,6 @@ fn main() {
             write_theme_file,
             get_game_log,
             splash_should_close,
-            close_splash,
             auto_resolve_conflict,
             toggle_fullscreen,
             set_discord_presence,

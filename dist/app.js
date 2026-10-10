@@ -1507,18 +1507,86 @@ async function launchGame(name, isAuto) {
     }
 
   try {
-    const cs = getComputedStyle(document.documentElement);
-    const result = await invoke("launch_game", {
-      instanceName: name,
-      server: null,
-      themeAccent: cs.getPropertyValue("--accent").trim() || null,
-      themeRgb: cs.getPropertyValue("--accent-rgb").trim() || null,
-    });
-    void result;
+    const result = await invoke("launch_game", { instanceName: name, server: null });
+    showGameSplash(name, result);
   } catch (e) {
+    hideGameSplash();
     alert("Launch fehlgeschlagen: " + e);
   }
   refreshLogs();
+}
+
+let gameSplashTimer = null;
+let gameSplashToken = 0;
+
+function showGameSplash(instanceName, launchResult) {
+  hideGameSplash();
+  const token = ++gameSplashToken;
+  let pid = 0;
+  try {
+    const m = String(launchResult || "").match(/PID:\s*(\d+)/);
+    if (m) pid = parseInt(m[1], 10) || 0;
+  } catch (e) {}
+  const overlay = document.createElement("div");
+  overlay.id = "gameSplash";
+  overlay.innerHTML =
+    '<div class="gs-glow"></div>' +
+    '<div class="gs-inner">' +
+    '<div class="gs-eyebrow">Kollegen Client</div>' +
+    '<div class="gs-title">Game Started</div>' +
+    '<div class="gs-instance">' + escapeHtml(instanceName) + '</div>' +
+    '<div class="gs-status"><span class="gs-dot"></span><span id="gsStatusText">Minecraft wird gestartet …</span></div>' +
+    '<div class="gs-hint">Klicken zum Schließen</div>' +
+    '</div>';
+  overlay.addEventListener("click", () => hideGameSplash());
+  document.body.appendChild(overlay);
+  requestAnimationFrame(() => overlay.classList.add("gs-visible"));
+  const startedAt = Date.now();
+  const markers = ["backend library: lwjgl", "using graphics device", "created window"];
+  gameSplashTimer = setInterval(async () => {
+    if (token !== gameSplashToken) {
+      clearInterval(gameSplashTimer);
+      gameSplashTimer = null;
+      return;
+    }
+    if (Date.now() - startedAt > 180000) {
+      hideGameSplash();
+      return;
+    }
+    if (pid > 0) {
+      try {
+        const gone = await invoke("splash_should_close", { pid });
+        if (gone) {
+          hideGameSplash();
+          return;
+        }
+      } catch (e) {}
+    }
+    try {
+      const log = await invoke("get_game_log", { instanceName });
+      const lines = String(log || "").split("\n").map((s) => s.trim()).filter(Boolean);
+      const last = lines.length ? lines[lines.length - 1].slice(-140) : "";
+      const statusEl = document.getElementById("gsStatusText");
+      if (statusEl && last) statusEl.textContent = last;
+      const low = String(log || "").toLowerCase();
+      if (markers.some((mk) => low.includes(mk))) hideGameSplash();
+    } catch (e) {}
+  }, 1000);
+}
+
+function hideGameSplash() {
+  gameSplashToken++;
+  if (gameSplashTimer) {
+    clearInterval(gameSplashTimer);
+    gameSplashTimer = null;
+  }
+  const overlay = document.getElementById("gameSplash");
+  if (!overlay) return;
+  overlay.classList.remove("gs-visible");
+  setTimeout(() => {
+    const el = document.getElementById("gameSplash");
+    if (el) el.remove();
+  }, 350);
 }
 
 async function deleteInstance(name, id) {
