@@ -295,15 +295,15 @@ public final class PetRenderer {
                     double ddx = wx - ep.x;
                     double ddy = wy - ep.y;
                     double ddz = wz - ep.z;
-                    rethink = ddx * ddx + ddy * ddy + ddz * ddz < 0.25;
+                    rethink = ddx * ddx + ddy * ddy + ddz * ddz < 0.64;
                 }
                 if (rethink) {
                     double wa = Math.random() * Math.PI * 2.0;
-                    double wr = (dxo * dxo + dzo * dzo) > 25.0 ? 1.2 : (1.0 + Math.random() * 2.5);
+                    double wr = (dxo * dxo + dzo * dzo) > 25.0 ? 1.2 : (0.8 + Math.random() * 1.2);
                     wx = ownerPos.x + Math.cos(wa) * wr;
                     wy = ownerPos.y + 0.6 + Math.random() * 1.2;
                     wz = ownerPos.z + Math.sin(wa) * wr;
-                    wanderUntil = now + 2500 + (long) (Math.random() * 3500);
+                    wanderUntil = now + 4000 + (long) (Math.random() * 5000);
                 }
             }
 
@@ -357,7 +357,7 @@ public final class PetRenderer {
                 double dz = z - cur.z;
                 double dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
                 if (dist > 0.001) {
-                    double step = Math.min(dist, 0.2);
+                    double step = Math.min(dist, 0.15);
                     faceDx = dx / dist * step;
                     faceDz = dz / dist * step;
                     entity.setPos(cur.x + faceDx, cur.y + dy / dist * step, cur.z + faceDz);
@@ -374,7 +374,7 @@ public final class PetRenderer {
             }
             entity.setYRot(lookYaw);
             entity.setXRot(0);
-            entity.setDeltaMovement(-Math.sin(rad) * 0.05, 0, Math.cos(rad) * 0.05);
+            entity.setDeltaMovement(-Math.sin(rad) * 0.02, 0, Math.cos(rad) * 0.02);
             try {
                 entity.yRotO = lookYaw;
                 entity.setYBodyRot(lookYaw);
