@@ -291,8 +291,8 @@ public final class PetRenderer {
                 orbitX = Math.cos(orbit) * 0.7;
                 orbitZ = Math.sin(orbit) * 0.7;
                 double anchorA = now / 6000.0;
-                anchorX = Math.cos(anchorA) * 1.6;
-                anchorZ = Math.sin(anchorA) * 1.6;
+                anchorX = Math.cos(anchorA) * 2.0;
+                anchorZ = Math.sin(anchorA) * 2.0;
                 ox = 0.0;
             }
 
@@ -310,6 +310,8 @@ public final class PetRenderer {
                 }
             } catch (Throwable ignored) {
             }
+            double faceDx = 0.0;
+            double faceDz = 0.0;
             boolean snap;
             try {
                 snap = !placed || entity.position().distanceToSqr(x, y, z) > 144.0;
@@ -335,22 +337,28 @@ public final class PetRenderer {
                 double dz = z - cur.z;
                 double dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
                 if (dist > 0.001) {
-                    double step = Math.min(dist, 0.25);
-                    entity.setPos(cur.x + dx / dist * step, cur.y + dy / dist * step, cur.z + dz / dist * step);
+                    double step = Math.min(dist, 0.2);
+                    faceDx = dx / dist * step;
+                    faceDz = dz / dist * step;
+                    entity.setPos(cur.x + faceDx, cur.y + dy / dist * step, cur.z + faceDz);
                 } else {
                     entity.setPos(x, y, z);
                 }
             }
-            long lookNow = System.currentTimeMillis();
-            float lookYaw = ownerYaw + (float) (Math.sin(lookNow / 1700.0) * 50.0);
-            float headYaw = lookYaw + (float) (Math.sin(lookNow / 900.0) * 15.0);
+            double faceSpeed = Math.sqrt(faceDx * faceDx + faceDz * faceDz);
+            float lookYaw;
+            if (faceSpeed > 0.03) {
+                lookYaw = (float) (Math.toDegrees(Math.atan2(faceDz, faceDx)) - 90.0);
+            } else {
+                lookYaw = entity.getYRot();
+            }
             entity.setYRot(lookYaw);
             entity.setXRot(0);
             entity.setDeltaMovement(-Math.sin(rad) * 0.05, 0, Math.cos(rad) * 0.05);
             try {
                 entity.yRotO = lookYaw;
                 entity.setYBodyRot(lookYaw);
-                entity.setYHeadRot(headYaw);
+                entity.setYHeadRot(lookYaw);
             } catch (Throwable ignored) {
             }
             try {
