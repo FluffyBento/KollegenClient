@@ -29,7 +29,8 @@
     "SlotAccessor",
     "GameRendererMixin",
     "ScreenTooltipMixin",
-    "XaeroWorldMapMixin"
+    "XaeroWorldMapMixin",
+    "LevelRendererMixin"
   ],
   "injectors": {
     "defaultRequire": 1

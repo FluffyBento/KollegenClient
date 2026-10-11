@@ -50,6 +50,8 @@ public class KollegenMod implements ClientModInitializer {
         dev.kollegen.client.input.ControllerMode.tick(mc);
         
         dev.kollegen.client.input.GamepadInput.tick(mc);
+        
+        dev.kollegen.client.presence.PetRenderer.onTick(mc);
 
         
         boolean shiftDown = dev.kollegen.client.input.KollegenKeybind.isRightShiftHeld();

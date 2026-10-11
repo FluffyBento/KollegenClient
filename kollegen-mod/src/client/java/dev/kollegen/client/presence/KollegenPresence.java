@@ -153,6 +153,8 @@ public final class KollegenPresence {
             JsonArray arr = e.getAsJsonArray();
             USERS.clear();
             COSMETICS.clear();
+            Minecraft mc = Minecraft.getInstance();
+            Level level = mc != null ? mc.level : null;
             for (JsonElement el : arr) {
                 if (el.isJsonObject()) {
                     JsonObject o = el.getAsJsonObject();
@@ -162,7 +164,12 @@ public final class KollegenPresence {
                             if (uid == null) continue;
                             USERS.add(uid);
                             CosmeticData d = CosmeticData.fromJson(o);
-                            if (d != null) COSMETICS.put(uid, d);
+                            if (d != null) {
+                                COSMETICS.put(uid, d);
+                                if (level != null && d.petKind != null) {
+                                    PetRenderer.ensurePetExists(uid, level, d.petKind);
+                                }
+                            }
                         } catch (Throwable ignored) {
                         }
                     }

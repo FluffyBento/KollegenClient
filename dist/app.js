@@ -4285,21 +4285,31 @@ startBackgroundIntervals();
     let me = null;
     let store = null;
     let errText = "";
-    try {
-      const r = await invoke("kollegen_me").catch((e) => ({ error: String((e && e.message) || e) }));
+
+    const withTimeout = (promise, ms, label) => Promise.race([
+      promise,
+      new Promise((_, reject) => setTimeout(() => reject(new Error(label + " timeout")), ms))
+    ]);
+
+    const [meRes, storeRes] = await Promise.allSettled([
+      withTimeout(invoke("kollegen_me").catch((e) => ({ error: String((e && e.message) || e) })), 8000, "kollegen_me"),
+      withTimeout(invoke("kollegen_store").catch((e) => ({ error: String((e && e.message) || e) })), 8000, "kollegen_store")
+    ]);
+
+    if (meRes.status === "fulfilled") {
+      const r = meRes.value;
       if (r && !r.error) { me = r; meState = "ok"; }
       else { errText = (r && r.error) || "unbekannt"; meState = "fehler"; }
-    } catch (e) {
-      errText = String((e && e.message) || e);
-      meState = "fehler";
+    } else {
+      errText = meRes.reason?.message || "timeout"; meState = "fehler";
     }
-    try {
-      const r = await invoke("kollegen_store").catch((e) => ({ error: String((e && e.message) || e) }));
+
+    if (storeRes.status === "fulfilled") {
+      const r = storeRes.value;
       if (r && !r.error && Array.isArray(r.catalog)) { store = r; storeState = "ok"; }
       else { if (!errText) errText = (r && r.error) || "unbekannt"; storeState = "fehler"; }
-    } catch (e) {
-      if (!errText) errText = String((e && e.message) || e);
-      storeState = "fehler";
+    } else {
+      if (!errText) errText = storeRes.reason?.message || "timeout"; storeState = "fehler";
     }
     if (!me || !store) {
       stopDbg();

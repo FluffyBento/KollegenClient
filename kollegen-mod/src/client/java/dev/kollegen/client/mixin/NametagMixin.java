@@ -5,7 +5,6 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import dev.kollegen.client.presence.CosmeticData;
 import dev.kollegen.client.presence.CosmeticText;
 import dev.kollegen.client.presence.KollegenPresence;
-import dev.kollegen.client.presence.PetRenderer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.PlayerInfo;
 import net.minecraft.client.renderer.SubmitNodeCollector;
@@ -36,7 +35,7 @@ public class NametagMixin {
         try {
             if (entity instanceof net.minecraft.world.entity.player.Player p) {
                 STATE_ID.put(state, p.getUUID());
-                PetRenderer.notePosition(p.getUUID(), p.position());
+                PetRenderer.notePosition(p.getUUID(), p.position(), p.getYRot());
             }
         } catch (Throwable ignored) {
         }
@@ -94,7 +93,6 @@ public class NametagMixin {
                         new Vec3(anchor.x, anchor.y - 0.26, anchor.z),
                         0, level, !state.isDiscrete, state.lightCoords, camera);
             }
-            PetRenderer.renderFor(id, state, poseStack, collector, camera);
             if (false && KollegenPresence.isKollegen(id)) {
                 Component nameLine = useW ? state.nameTag : state.scoreText;
                 int tw = 60;
