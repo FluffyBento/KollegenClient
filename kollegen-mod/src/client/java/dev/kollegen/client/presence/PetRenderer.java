@@ -25,11 +25,13 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public final class PetRenderer {
     private static final Map<UUID, PetInstance> PETS = new ConcurrentHashMap<>();
+    private static final AtomicInteger NEXT_FAKE_ID = new AtomicInteger(-1000000);
     private static final Map<UUID, Vec3> LASTPOS = new ConcurrentHashMap<>();
     private static final Map<UUID, Float> LAST_YAW = new ConcurrentHashMap<>();
     private static final Map<UUID, Level> LEVELS = new ConcurrentHashMap<>();
@@ -266,6 +268,7 @@ public final class PetRenderer {
                 throw new RuntimeException("Failed to create pet entity", t);
             }
             if (this.entity != null) {
+                this.entity.setId(NEXT_FAKE_ID.getAndDecrement());
                 this.entity.setNoAi(true);
                 this.entity.setInvulnerable(true);
                 this.entity.setSilent(true);
