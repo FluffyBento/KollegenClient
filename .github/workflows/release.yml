@@ -232,7 +232,7 @@ build-mod-262:
           done
 
   windows:
-    needs: [create-release]
+    needs: [create-release, build-mod-1211, build-mod-262]
     runs-on: windows-latest
     env:
       TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
@@ -267,16 +267,13 @@ build-mod-262:
           java-version: '25'
           distribution: 'temurin'
 
-      - name: Build MC 26.2 companion mod (1.21.11 prebuilt in repo)
+      - name: Download mod jars from release
         shell: bash
         run: |
           mkdir -p resources
-          cd kollegen-mod && chmod +x ./gradlew
-          ./gradlew build --no-daemon -Pminecraft_version=26.2 -Pfabric_version=0.161.0+26.2 -Ploader_version=0.19.5 -Parchives_base_name=kollegen-client-mod-26.2 -PmouseHandlerClickMethod=lambda\$setup\$2
-          cd ..
-          JAR26=$(ls kollegen-mod/build/libs/kollegen-client-mod-26.2*.jar 2>/dev/null | head -n1)
-          if [ -z "$JAR26" ]; then echo "ERROR: no 26.2 jar built"; ls kollegen-mod/build/libs/; exit 1; fi
-          cp "$JAR26" resources/kollegen-client-mod-26.2.jar
+          gh release download "${{ github.ref_name }}" --repo "${{ github.repository }}" --pattern "kollegen-client-mod-1.21.11.jar" --dir resources
+          gh release download "${{ github.ref_name }}" --repo "${{ github.repository }}" --pattern "kollegen-client-mod-26.2.jar" --dir resources
+          ls -la resources/
           echo "Bundled 26.2 mod + prebuilt 1.21.11 mod"
 
       - name: Set launcher version from tag
@@ -352,16 +349,12 @@ build-mod-262:
           java-version: '25'
           distribution: 'temurin'
 
-      - name: Build MC 26.2 companion mod, copy prebuilt 1.21.11 mod
+      - name: Download mod jars from release
         run: |
           mkdir -p resources
-          cd kollegen-mod && chmod +x ./gradlew
-          ./gradlew build --no-daemon -Pminecraft_version=26.2 -Pfabric_version=0.161.0+26.2 -Ploader_version=0.19.5 -Parchives_base_name=kollegen-client-mod-26.2 -PmouseHandlerClickMethod=lambda\$setup\$2
-          cd ..
-          JAR26=$(ls kollegen-mod/build/libs/kollegen-client-mod-26.2*.jar 2>/dev/null | head -n1)
-          if [ -z "$JAR26" ]; then echo "ERROR: no 26.2 jar built"; ls kollegen-mod/build/libs/; exit 1; fi
-          cp "$JAR26" resources/kollegen-client-mod-26.2.jar
-          echo "Bundled 26.2 mod + prebuilt 1.21.11 mod (already in resources/)"
+          gh release download "${{ github.ref_name }}" --repo "${{ github.repository }}" --pattern "kollegen-client-mod-1.21.11.jar" --dir resources
+          gh release download "${{ github.ref_name }}" --repo "${{ github.repository }}" --pattern "kollegen-client-mod-26.2.jar" --dir resources
+          ls -la resources/
 
       - name: Set launcher version from tag
         run: bash scripts/set-version.sh "${{ github.ref_name }}"
