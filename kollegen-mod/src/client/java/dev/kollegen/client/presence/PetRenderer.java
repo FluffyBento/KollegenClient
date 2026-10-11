@@ -238,6 +238,7 @@ public final class PetRenderer {
         private final Mob entity;
         private final Level level;
         private int tickCount = 0;
+        private boolean placed = false;
 
         PetInstance(EntityType<? extends Mob> type, Level level) {
             this.level = level;
@@ -305,7 +306,7 @@ public final class PetRenderer {
             }
             boolean snap;
             try {
-                snap = entity.position().distanceToSqr(x, y, z) > 64.0;
+                snap = !placed || entity.position().distanceToSqr(x, y, z) > 144.0;
             } catch (Throwable ignored) {
                 snap = true;
             }
@@ -315,26 +316,24 @@ public final class PetRenderer {
                     entity.setOldPosAndRot();
                 } catch (Throwable ignored) {
                 }
+                placed = true;
+                entity.setDeltaMovement(0, 0, 0);
             } else {
-                try {
-                    entity.setOldPosAndRot();
-                } catch (Throwable ignored) {
-                }
                 Vec3 cur = entity.position();
                 double dx = x - cur.x;
                 double dy = y - cur.y;
                 double dz = z - cur.z;
-                double dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
-                if (dist > 0.001) {
-                    double step = Math.min(dist, 0.3);
-                    entity.setPos(cur.x + dx / dist * step, cur.y + dy / dist * step, cur.z + dz / dist * step);
+                double distSq = dx * dx + dy * dy + dz * dz;
+                if (distSq > 0.000001) {
+                    double dist = Math.sqrt(distSq);
+                    double speed = Math.min(dist, 0.35);
+                    entity.setDeltaMovement(dx / dist * speed, dy / dist * speed, dz / dist * speed);
                 } else {
-                    entity.setPos(x, y, z);
+                    entity.setDeltaMovement(0, 0, 0);
                 }
             }
             entity.setYRot(ownerYaw);
             entity.setXRot(0);
-            entity.setDeltaMovement(-Math.sin(rad) * 0.05, 0, Math.cos(rad) * 0.05);
             try {
                 entity.yRotO = ownerYaw;
                 entity.setYBodyRot(ownerYaw);
