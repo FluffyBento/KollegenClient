@@ -15,18 +15,32 @@ import net.minecraft.network.chat.TextColor;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.ai.attributes.AttributeInstance;
+import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.boss.enderdragon.EnderDragon;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public final class PetRenderer {
     private static final Map<UUID, PetInstance> PETS = new ConcurrentHashMap<>();
     private static final Map<UUID, Vec3> LASTPOS = new ConcurrentHashMap<>();
     private static final Map<UUID, Float> LAST_YAW = new ConcurrentHashMap<>();
     private static final Map<UUID, Level> LEVELS = new ConcurrentHashMap<>();
+
+    private static final Logger PETLOG = LoggerFactory.getLogger("kollegen-pet");
+    private static boolean loggedOnTick = false;
+    private static boolean loggedTickOk = false;
+    private static boolean loggedTickFail = false;
+    private static boolean loggedExtract = false;
+    private static boolean loggedSubmit = false;
+    private static final Set<UUID> loggedRender = ConcurrentHashMap.newKeySet();
 
     private PetRenderer() {}
 
@@ -45,6 +59,10 @@ public final class PetRenderer {
 
     public static void onTick(Minecraft mc) {
         if (mc.level == null) return;
+        if (!loggedOnTick) {
+            loggedOnTick = true;
+            PETLOG.info("pet onTick active pets={}", PETS.size());
+        }
 
         for (Map.Entry<UUID, PetInstance> entry : PETS.entrySet()) {
             UUID ownerId = entry.getKey();
@@ -68,14 +86,13 @@ public final class PetRenderer {
             }
 
             Vec3 base = LASTPOS.get(ownerId);
-            if (base == null) {
-                if (mc.player != null && mc.player.getUUID().equals(ownerId)) {
-                    base = mc.player.position();
-                }
+            float yaw = LAST_YAW.getOrDefault(ownerId, 0f);
+            if (mc.player != null && mc.player.getUUID().equals(ownerId)) {
+                base = mc.player.position();
+                yaw = mc.player.getYRot();
             }
             if (base == null) continue;
 
-            float yaw = LAST_YAW.getOrDefault(ownerId, 0f);
             pet.updatePosition(base, yaw, d);
         }
     }
@@ -102,19 +119,70 @@ public final class PetRenderer {
             PetInstance pet = entry.getValue();
             if (pet == null || pet.entity == null) continue;
 
-            CosmeticData d = KollegenPresence.getCosmetics(ownerId);
-            if (d == null || d.petKind == null) continue;
+        CosmeticData d = KollegenPresence.getCosmetics(ownerId);
+        if (d == null || d.petKind == null) continue;
+        if (!loggedExtract) {
+            loggedExtract = true;
+            int dragons = 0;
+            for (PetInstance p : PETS.values()) {
+                if (p != null && p.entity instanceof EnderDragon) dragons++;
+            }
+            PETLOG.info("pet extract active total={} dragonsSkipped={}", PETS.size(), dragons);
+        }
+        if (pet.entity instanceof EnderDragon) continue;
 
             try {
                 EntityRenderState renderState = dispatcher.extractEntity(pet.entity, partial);
                 if (renderState != null) {
                     double scale = d.petScale > 0.0 ? d.petScale : 0.2;
+                    String kind = d.petKind != null ? d.petKind.toLowerCase() : "";
+                    if (kind.equals("ender_dragon") || kind.equals("dragon") || kind.equals("enderdragon")) {
+                        if (scale < 0.5) scale = 0.5;
+                    }
                     if (renderState instanceof LivingEntityRenderState living) {
                         living.scale = (float) scale;
                     }
                     state.entityRenderStates.add(renderState);
                 }
             } catch (Throwable ignored) {
+            }
+        }
+    }
+
+    public static void submitDragons(Minecraft mc, PoseStack poseStack, LevelRenderState state, SubmitNodeCollector collector) {
+        if (mc.level == null || state == null) return;
+        if (!loggedSubmit) {
+            loggedSubmit = true;
+            PETLOG.info("pet submitHook active");
+        }
+        EntityRenderDispatcher dispatcher;
+        try {
+            dispatcher = mc.getEntityRenderDispatcher();
+        } catch (Throwable ignored) {
+            return;
+        }
+        if (dispatcher == null) return;
+        for (Map.Entry<UUID, PetInstance> entry : PETS.entrySet()) {
+            UUID ownerId = entry.getKey();
+            PetInstance pet = entry.getValue();
+            if (pet == null || pet.entity == null) continue;
+            if (!(pet.entity instanceof EnderDragon)) continue;
+            CosmeticData d = KollegenPresence.getCosmetics(ownerId);
+            if (d == null || d.petKind == null) continue;
+            double scale = d.petScale > 0.0 ? d.petScale : 0.2;
+            if (scale > 1.0) scale = 1.0;
+            Vec3 pos = pet.entity.position();
+            poseStack.pushPose();
+            try {
+                poseStack.translate(pos.x, pos.y, pos.z);
+                poseStack.scale((float) scale, (float) scale, (float) scale);
+                EntityRenderState renderState = dispatcher.extractEntity(pet.entity, 0.0F);
+                if (renderState != null) {
+                    dispatcher.submit(renderState, state.cameraRenderState, 0.0, 0.0, 0.0, poseStack, collector);
+                }
+            } catch (Throwable ignored) {
+            } finally {
+                poseStack.popPose();
             }
         }
     }
@@ -132,6 +200,9 @@ public final class PetRenderer {
             }
         }
         if (base == null) return;
+        if (loggedRender.add(ownerId)) {
+            PETLOG.info("pet renderFor {} kind={} scale={}", ownerId, d.petKind, d.petScale);
+        }
         float yaw = LAST_YAW.getOrDefault(ownerId, 0f);
         PetInstance pet = PETS.get(ownerId);
         if (pet == null || pet.level != mc.level) {
@@ -145,6 +216,7 @@ public final class PetRenderer {
         }
         pet.updatePosition(base, yaw, d);
         if (pet.entity == null) return;
+        if (!(pet.entity instanceof EnderDragon)) return;
         Vec3 pos = pet.entity.position();
         double scale = d.petScale > 0.0 ? d.petScale : 0.2;
         poseStack.pushPose();
@@ -207,15 +279,59 @@ public final class PetRenderer {
                 bob = Math.sin(System.currentTimeMillis() / 450.0) * 0.25;
             }
 
-            double rad = Math.toRadians(ownerYaw + 180);
-            double x = ownerPos.x - Math.sin(rad) * ox;
-            double y = ownerPos.y + oy + bob;
-            double z = ownerPos.z + Math.cos(rad) * ox;
+            double sway = 0.0;
+            if ("follow".equals(mode)) {
+                long now = System.currentTimeMillis();
+                bob = Math.sin(now / 600.0) * 0.15;
+                sway = Math.sin(now / 900.0) * 0.3;
+            }
 
-            entity.setPos(x, y, z);
+            double rad = Math.toRadians(ownerYaw + 180);
+            double x = ownerPos.x - Math.sin(rad) * ox + Math.cos(rad) * sway;
+            double y = ownerPos.y + oy + bob;
+            double z = ownerPos.z + Math.cos(rad) * ox + Math.sin(rad) * sway;
+
+            double scale = d.petScale > 0.0 ? d.petScale : 0.2;
+            if (scale > 1.0) scale = 1.0;
+            try {
+                AttributeInstance attr = entity.getAttribute(Attributes.SCALE);
+                if (attr != null && Math.abs(attr.getBaseValue() - scale) > 0.001) {
+                    attr.setBaseValue(scale);
+                }
+            } catch (Throwable ignored) {
+            }
+            boolean snap;
+            try {
+                snap = entity.position().distanceToSqr(x, y, z) > 64.0;
+            } catch (Throwable ignored) {
+                snap = true;
+            }
+            if (snap) {
+                entity.setPos(x, y, z);
+                try {
+                    entity.setOldPosAndRot();
+                } catch (Throwable ignored) {
+                }
+            } else {
+                try {
+                    entity.setOldPosAndRot();
+                } catch (Throwable ignored) {
+                }
+                Vec3 cur = entity.position();
+                double dx = x - cur.x;
+                double dy = y - cur.y;
+                double dz = z - cur.z;
+                double dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+                if (dist > 0.001) {
+                    double step = Math.min(dist, 0.45);
+                    entity.setPos(cur.x + dx / dist * step, cur.y + dy / dist * step, cur.z + dz / dist * step);
+                } else {
+                    entity.setPos(x, y, z);
+                }
+            }
             entity.setYRot(ownerYaw);
             entity.setXRot(0);
-            entity.setDeltaMovement(0, 0, 0);
+            entity.setDeltaMovement(-Math.sin(rad) * 0.08, 0, Math.cos(rad) * 0.08);
             try {
                 entity.yRotO = ownerYaw;
                 entity.setYBodyRot(ownerYaw);
@@ -225,15 +341,18 @@ public final class PetRenderer {
             try {
                 entity.tick();
                 tickCount = entity.tickCount;
+                if (!loggedTickOk) {
+                    loggedTickOk = true;
+                    PETLOG.info("pet tick ok {}", entity.getClass().getSimpleName());
+                }
             } catch (Throwable ignored) {
                 tickCount++;
                 entity.tickCount = tickCount;
+                if (!loggedTickFail) {
+                    loggedTickFail = true;
+                    PETLOG.info("pet tick failed {}", entity.getClass().getSimpleName());
+                }
             }
-            try {
-                entity.setOldPosAndRot();
-            } catch (Throwable ignored) {
-            }
-
             if (d.petName != null && !d.petName.isEmpty()) {
                 int nameColor = CosmeticText.parseColor(d.petNameColor, 0xFFFFFF);
                 try {
@@ -252,17 +371,17 @@ public final class PetRenderer {
     }
 
     private static EntityType<? extends Mob> getPetType(String petKind) {
-        if (petKind == null) return EntityType.ENDER_DRAGON;
+        if (petKind == null) return EntityType.ALLAY;
 
         return switch (petKind.toLowerCase()) {
-            case "ender_dragon", "dragon", "enderdragon" -> EntityType.ENDER_DRAGON;
+            case "ender_dragon", "dragon", "enderdragon" -> EntityType.ALLAY;
             case "wolf", "dog" -> EntityType.WOLF;
             case "cat", "ocelot" -> EntityType.CAT;
             case "parrot" -> EntityType.PARROT;
             case "fox" -> EntityType.FOX;
             case "rabbit", "bunny" -> EntityType.RABBIT;
             case "shulker" -> EntityType.SHULKER;
-            default -> EntityType.ENDER_DRAGON;
+            default -> EntityType.ALLAY;
         };
     }
 

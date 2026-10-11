@@ -139,6 +139,12 @@ if (rel.endsWith('presence/PetRenderer.java')) {
                         t = t.replace('import dev.kollegen.client.presence.KollegenPresence;', 'import dev.kollegen.client.presence.KollegenPresence;\nimport dev.kollegen.client.presence.PetRenderer;')
                     }
                 }
+                if (rel.endsWith('mixin/GameRendererMixin.java')) {
+                    t = t.replace('@Mixin(Camera.class)', '@Mixin(GameRenderer.class)')
+                    t = t.replace('import net.minecraft.client.Camera;', 'import net.minecraft.client.Camera;\nimport net.minecraft.client.renderer.GameRenderer;')
+                    t = t.replace('method = "getFov"', 'method = "getFov(Lnet/minecraft/client/Camera;FZ)F"')
+                    t = t.replace('private void kollegen$zoomFov(CallbackInfoReturnable<Float> cir) {', 'private void kollegen$zoomFov(Camera camera, float partialTick, boolean allowZoom, CallbackInfoReturnable<Float> cir) {')
+                }
                 if (rel.endsWith('presence/KollegenPresence.java')) {
                     t = t.replace('import net.minecraft.client.renderer.entity.state.EntityRenderState;', 'import net.minecraft.client.renderer.entity.state.EntityRenderState;\nimport net.minecraft.world.level.Level;')
                     t = t.replace('Level level = mc != null ? mc.level : null;', 'net.minecraft.world.level.Level level = mc != null ? mc.level : null;')
@@ -248,7 +254,9 @@ if (is262) {
                 if (rel.endsWith('presence/PetRenderer.java')) {
                     t = t.replace('import net.minecraft.client.renderer.state.LevelRenderState;', 'import net.minecraft.client.renderer.state.level.LevelRenderState;')
                     t = t.replace('return EntityType.ENDER_DRAGON;', 'return EntityTypes.ENDER_DRAGON;')
+                    t = t.replace('if (petKind == null) return EntityType.ALLAY;', 'if (petKind == null) return EntityTypes.ALLAY;')
                     t = t.replace('case "ender_dragon", "dragon", "enderdragon" -> EntityType.ENDER_DRAGON;', 'case "ender_dragon", "dragon", "enderdragon" -> EntityTypes.ENDER_DRAGON;')
+                    t = t.replace('case "ender_dragon", "dragon", "enderdragon" -> EntityType.ALLAY;', 'case "ender_dragon", "dragon", "enderdragon" -> EntityTypes.ALLAY;')
                     t = t.replace('case "wolf", "dog" -> EntityType.WOLF;', 'case "wolf", "dog" -> EntityTypes.WOLF;')
                     t = t.replace('case "cat", "ocelot" -> EntityType.CAT;', 'case "cat", "ocelot" -> EntityTypes.CAT;')
                     t = t.replace('case "parrot" -> EntityType.PARROT;', 'case "parrot" -> EntityTypes.PARROT;')
@@ -256,12 +264,12 @@ if (is262) {
                     t = t.replace('case "rabbit", "bunny" -> EntityType.RABBIT;', 'case "rabbit", "bunny" -> EntityTypes.RABBIT;')
                     t = t.replace('case "shulker" -> EntityType.SHULKER;', 'case "shulker" -> EntityTypes.SHULKER;')
                     t = t.replace('default -> EntityType.ENDER_DRAGON;', 'default -> EntityTypes.ENDER_DRAGON;')
+                    t = t.replace('default -> EntityType.ALLAY;', 'default -> EntityTypes.ALLAY;')
                     if (!t.contains('import net.minecraft.world.entity.EntityTypes;')) {
                         t = t.replace('import net.minecraft.world.entity.EntityType;', 'import net.minecraft.world.entity.EntityType;\nimport net.minecraft.world.entity.EntityTypes;')
                     }
                 }
                 if (rel.endsWith('mixin/NametagMixin.java')) {
-                    t = t.replace('if (false && KollegenPresence.isKollegen(id)) {', 'try { PetRenderer.renderFor(id, poseStack, collector, camera); } catch (Throwable ignored) {} if (false && KollegenPresence.isKollegen(id)) {')
                     if (!t.contains('import dev.kollegen.client.presence.PetRenderer;')) {
                         t = t.replace('import dev.kollegen.client.presence.KollegenPresence;', 'import dev.kollegen.client.presence.KollegenPresence;\nimport dev.kollegen.client.presence.PetRenderer;')
                     }
