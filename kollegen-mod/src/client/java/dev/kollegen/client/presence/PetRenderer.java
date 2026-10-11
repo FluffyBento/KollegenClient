@@ -243,6 +243,7 @@ public final class PetRenderer {
         private double wy = 0.0;
         private double wz = 0.0;
         private long wanderUntil = 0;
+        private boolean resting = false;
 
         PetInstance(EntityType<? extends Mob> type, Level level) {
             this.level = level;
@@ -290,20 +291,30 @@ public final class PetRenderer {
                 Vec3 ep = entity.position();
                 double dxo = ep.x - ownerPos.x;
                 double dzo = ep.z - ownerPos.z;
-                boolean rethink = now >= wanderUntil;
-                if (!rethink) {
+                double ownerDistSq = dxo * dxo + dzo * dzo;
+                boolean rethink = now >= wanderUntil || ownerDistSq > 36.0;
+                if (!rethink && !resting) {
                     double ddx = wx - ep.x;
                     double ddy = wy - ep.y;
                     double ddz = wz - ep.z;
                     rethink = ddx * ddx + ddy * ddy + ddz * ddz < 0.64;
                 }
                 if (rethink) {
-                    double wa = Math.random() * Math.PI * 2.0;
-                    double wr = (dxo * dxo + dzo * dzo) > 25.0 ? 1.2 : (0.8 + Math.random() * 1.2);
-                    wx = ownerPos.x + Math.cos(wa) * wr;
-                    wy = ownerPos.y + 0.6 + Math.random() * 1.2;
-                    wz = ownerPos.z + Math.sin(wa) * wr;
-                    wanderUntil = now + 4000 + (long) (Math.random() * 5000);
+                    if (!resting && ownerDistSq <= 36.0 && Math.random() < 0.6) {
+                        wx = ep.x;
+                        wy = ep.y;
+                        wz = ep.z;
+                        wanderUntil = now + 3000 + (long) (Math.random() * 4000);
+                        resting = true;
+                    } else {
+                        double wa = Math.random() * Math.PI * 2.0;
+                        double wr = ownerDistSq > 25.0 ? 1.2 : (1.0 + Math.random() * 2.5);
+                        wx = ownerPos.x + Math.cos(wa) * wr;
+                        wy = ownerPos.y + 0.6 + Math.random() * 1.2;
+                        wz = ownerPos.z + Math.sin(wa) * wr;
+                        wanderUntil = now + 4000 + (long) (Math.random() * 5000);
+                        resting = false;
+                    }
                 }
             }
 
@@ -357,7 +368,10 @@ public final class PetRenderer {
                 double dz = z - cur.z;
                 double dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
                 if (dist > 0.001) {
-                    double step = Math.min(dist, 0.15);
+                    double oxo = ownerPos.x - cur.x;
+                    double ozo = ownerPos.z - cur.z;
+                    double cap = (oxo * oxo + ozo * ozo) > 9.0 ? 0.3 : 0.05;
+                    double step = Math.min(dist, cap);
                     faceDx = dx / dist * step;
                     faceDz = dz / dist * step;
                     entity.setPos(cur.x + faceDx, cur.y + dy / dist * step, cur.z + faceDz);
