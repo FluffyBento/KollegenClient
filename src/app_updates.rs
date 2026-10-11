@@ -9,6 +9,9 @@
 
 use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_updater::UpdaterExt;
+use std::process::Command;
+use std::time::Duration;
+use log::info;
 
 
 
@@ -221,6 +224,72 @@ pub async fn install(app: &tauri::AppHandle) -> Result<(), String> {
     app.restart()
 }
 
+async fn install_rpm_deb(app: &tauri::AppHandle, version: &str) -> Result<(), String> {
+    let format = install_format();
+    let (asset_name, install_cmd) = if format == "deb-rpm" {
+        if std::env::consts::FAMILY == "unix" {
+            if Command::new("which")
+                .arg("dnf")
+                .output()
+                .map(|o| o.status.success())
+                .unwrap_or(false)
+            {
+                ("KollegenClient.rpm", vec!["dnf", "install", "-y"])
+            } else if Command::new("which")
+                .arg("apt")
+                .output()
+                .map(|o| o.status.success())
+                .unwrap_or(false)
+            {
+                ("KollegenClient.deb", vec!["apt", "install", "-y"])
+            } else {
+                return Err("Weder dnf noch apt gefunden.".into());
+            }
+        } else {
+            return Err("Auto-Install nur auf Linux.".into());
+        }
+    } else {
+        return Err("Auto-Install nur für .deb/.rpm.".into());
+    };
+
+    let url = format!(
+        "https://github.com/FluffyBento/KollegenClient/releases/download/v{}/{}",
+        version, asset_name
+    );
+    
+    let update_dir = std::env::temp_dir().join("kollegen-update");
+    std::fs::create_dir_all(&update_dir).map_err(|e| e.to_string())?;
+    let dest = update_dir.join(asset_name);
+    
+    info!("Lade {} herunter: {}", asset_name, url);
+    
+    let client = reqwest::blocking::Client::builder()
+        .user_agent(crate::USER_AGENT)
+        .timeout(Duration::from_secs(120))
+        .build()
+        .map_err(|e| e.to_string())?;
+    
+    let resp = client.get(&url).send().map_err(|e| e.to_string())?;
+    if !resp.status().is_success() {
+        return Err(format!("Download fehlgeschlagen: HTTP {}", resp.status()));
+    }
+    let bytes = resp.bytes().map_err(|e| e.to_string())?;
+    std::fs::write(&dest, &bytes).map_err(|e| e.to_string())?;
+    
+    info!("Führe {} aus...", install_cmd.join(" "));
+    let mut cmd = Command::new("sudo");
+    cmd.args(&install_cmd).arg(&dest);
+    let output = cmd.output().map_err(|e| e.to_string())?;
+    
+    if !output.status.success() {
+        let err = String::from_utf8_lossy(&output.stderr);
+        return Err(format!("Installation fehlgeschlagen: {}", err));
+    }
+    
+    info!("Update erfolgreich installiert. Starte neu...");
+    app.restart()
+}
+
 async fn check_and_prompt(app: &tauri::AppHandle) -> tauri_plugin_updater::Result<()> {
     let update = match app.updater()?.check().await? {
         Some(u) => u,
@@ -251,19 +320,13 @@ async fn check_and_prompt(app: &tauri::AppHandle) -> tauri_plugin_updater::Resul
             .download_and_install(|_chunk_length, _content_length| {}, || {})
             .await?;
         app.restart()
-    } else {
+    } else if is_flatpak() {
         
         
         let (tx, rx) = std::sync::mpsc::channel::<bool>();
-        let body = if is_flatpak() {
-            format!(
-                "Update verfügbar\n\nEine neue Version {version} des Kollegen Clients ist verfügbar.\n\n{notes}\n\nDa diese Installation ein Flatpak ist, kann sie nicht direkt aktualisiert werden. Die neue Version herunterladen (Flatpak-Bundle) und danach installieren:\n\n  flatpak install --user ./dev.kollegen.Client.flatpak"
-            )
-        } else {
-            format!(
-                "Update verfügbar\n\nEine neue Version {version} des Kollegen Clients ist verfügbar.\n\n{notes}\n\nDa diese Installation über einen Paketmanager (.deb/.rpm) erfolgte, kann sie nicht direkt aktualisiert werden. Die neue Version auf GitHub öffnen?"
-            )
-        };
+        let body = format!(
+            "Update verfügbar\n\nEine neue Version {version} des Kollegen Clients ist verfügbar.\n\n{notes}\n\nDa diese Installation ein Flatpak ist, kann sie nicht direkt aktualisiert werden. Die neue Version herunterladen (Flatpak-Bundle) und danach installieren:\n\n  flatpak install --user ./dev.kollegen.Client.flatpak"
+        );
         app.dialog()
             .message(body)
             .buttons(tauri_plugin_dialog::MessageDialogButtons::OkCancelCustom(
@@ -275,6 +338,24 @@ async fn check_and_prompt(app: &tauri::AppHandle) -> tauri_plugin_updater::Resul
             });
         if rx.recv().unwrap_or(false) {
             let _ = open::that(RELEASE_URL);
+        }
+        Ok(())
+    } else {
+        let (tx, rx) = std::sync::mpsc::channel::<bool>();
+        let body = format!(
+            "Update verfügbar\n\nEine neue Version {version} des Kollegen Clients ist verfügbar.\n\n{notes}\n\nDiese Installation erfolgte über Paketmanager (.deb/.rpm).\nMöchtest du das Update automatisch herunterladen und per sudo installieren?"
+        );
+        app.dialog()
+            .message(body)
+            .buttons(tauri_plugin_dialog::MessageDialogButtons::OkCancelCustom(
+                "Auto-Install (sudo)".to_string(),
+                "Später".to_string(),
+            ))
+            .show(move |yes| {
+                let _ = tx.send(yes);
+            });
+        if rx.recv().unwrap_or(false) {
+            let _ = install_rpm_deb(app, &version).await;
         }
         Ok(())
     }

@@ -140,10 +140,16 @@ public final class PetRenderer {
             entity.setXRot(0);
             entity.setDeltaMovement(0, 0, 0);
             
-            try {
-                entity.tick();
-            } catch (Throwable ignored) {
+            boolean isDragon = entity.getType() == net.minecraft.world.entity.EntityType.ENDER_DRAGON;
+            if (!isDragon) {
+                try {
+                    entity.tick();
+                } catch (Throwable ignored) {
+                    tickCount++;
+                }
+            } else {
                 tickCount++;
+                entity.tickCount = tickCount;
             }
             entity.setPos(x, y, z);
         }
@@ -181,7 +187,7 @@ public final class PetRenderer {
         if (petKind == null) return EntityType.ENDER_DRAGON;
         
         return switch (petKind.toLowerCase()) {
-            case "ender_dragon", "dragon" -> EntityType.ENDER_DRAGON;
+            case "ender_dragon", "dragon", "enderdragon" -> EntityType.ENDER_DRAGON;
             case "wolf", "dog" -> EntityType.WOLF;
             case "cat", "ocelot" -> EntityType.CAT;
             case "parrot" -> EntityType.PARROT;

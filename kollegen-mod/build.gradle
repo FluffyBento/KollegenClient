@@ -130,6 +130,16 @@ if (rel.endsWith('presence/PetRenderer.java')) {
                     t = t.replace('import net.minecraft.client.renderer.entity.state.EntityRenderState;', 'import net.minecraft.client.renderer.entity.state.EntityRenderState;\nimport net.minecraft.world.level.Level;')
                     t = t.replace('Level level = mc != null ? mc.level : null;', 'net.minecraft.world.level.Level level = mc != null ? mc.level : null;')
                 }
+if (rel.endsWith('mixin/MinecraftAccessor.java')) {
+                    t = t.replace('import net.minecraft.client.renderer.state.CameraRenderState;', 'import net.minecraft.client.renderer.state.CameraRenderState;')
+                    t = t.replace('net.minecraft.client.renderer.GameRenderer', 'net.minecraft.client.renderer.GameRenderer')
+                    t = t.replace('net.minecraft.client.renderer.SubmitNodeCollector', 'net.minecraft.client.renderer.SubmitNodeCollector')
+                }
+                if (rel.endsWith('mixin/PetLevelRendererMixin.java')) {
+                    t = t.replace('import net.minecraft.client.renderer.state.CameraRenderState;', 'import net.minecraft.client.renderer.state.CameraRenderState;')
+                    t = t.replace('dev.kollegen.client.mixin.MinecraftAccessor accessor = (dev.kollegen.client.mixin.MinecraftAccessor) mc;', 'dev.kollegen.client.mixin.MinecraftAccessor accessor = (dev.kollegen.client.mixin.MinecraftAccessor) mc;')
+                    t = t.replace('net.minecraft.client.renderer.GameRenderer gameRenderer = accessor.kollegen$getGameRenderer();', 'net.minecraft.client.renderer.GameRenderer gameRenderer = accessor.kollegen$getGameRenderer();')
+                }
                 if (rel.endsWith('mixin/LevelRendererMixin.java')) {
                     t = t.replace('renderLevel(Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/SubmitNodeCollector;Lnet/minecraft/client/renderer/state/level/CameraRenderState;FZ)V', 'renderLevel(Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/SubmitNodeCollector;Lnet/minecraft/client/renderer/state/CameraRenderState;FZ)V')
                     t = t.replace('renderer.state.level.CameraRenderState', 'renderer.state.CameraRenderState')

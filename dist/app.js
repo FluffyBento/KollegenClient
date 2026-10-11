@@ -2511,6 +2511,28 @@ $("updateInstallBtn").onclick = async () => {
   }
 };
 
+$("clearCacheBtn").onclick = async () => {
+  const status = $("clearCacheStatus");
+  const btn = $("clearCacheBtn");
+  status.textContent = "Leere Cache...";
+  btn.disabled = true;
+  try {
+    const result = await invoke("clear_companion_cache");
+    if (result && result.success) {
+      status.textContent = result.message + (result.cleared && result.cleared.length ? "\nGeleert: " + result.cleared.join(", ") : "");
+      status.style.color = "var(--accent)";
+    } else {
+      status.textContent = "Fehler: " + (result.errors ? result.errors.join(", ") : "unbekannt");
+      status.style.color = "var(--danger)";
+    }
+  } catch (e) {
+    status.textContent = "Fehler: " + e;
+    status.style.color = "var(--danger)";
+  } finally {
+    btn.disabled = false;
+  }
+};
+
 // ─ Verbindungen (Microsoft / Discord) ─
 async function refreshSettingsAccounts() {
   const list = $("msAccountList");

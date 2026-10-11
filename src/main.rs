@@ -1640,6 +1640,51 @@ async fn kollegen_call_direct_active(app: tauri::AppHandle) -> Result<serde_json
     Ok(crate::presence::kollegen_call_direct_active(&data_dir))
 }
 
+#[tauri::command]
+async fn clear_companion_cache(app: tauri::AppHandle) -> Result<serde_json::Value, String> {
+    let data_dir = app.state::<AppState>().data_dir.clone();
+    let mut cleared = Vec::new();
+    let mut errors = Vec::new();
+    
+    // Global companion cache
+    let global_cache = data_dir.join("companion");
+    if global_cache.exists() {
+        match std::fs::remove_dir_all(&global_cache) {
+            Ok(_) => cleared.push(global_cache.to_string_lossy().to_string()),
+            Err(e) => errors.push(format!("global: {}", e)),
+        }
+    }
+    
+    // Per-instance companion caches
+    let instances_dir = data_dir.join("instances");
+    if instances_dir.exists() {
+        if let Ok(entries) = std::fs::read_dir(&instances_dir) {
+            for entry in entries.flatten() {
+                let instance_cache = entry.path().join("companion");
+                if instance_cache.exists() {
+                    match std::fs::remove_dir_all(&instance_cache) {
+                        Ok(_) => cleared.push(instance_cache.to_string_lossy().to_string()),
+                        Err(e) => errors.push(format!("instance {}: {}", entry.file_name().to_string_lossy(), e)),
+                    }
+                }
+            }
+        }
+    }
+    
+    if !errors.is_empty() {
+        Ok(serde_json::json!({
+            "success": false,
+            "cleared": cleared,
+            "errors": errors
+        }))
+    } else {
+        Ok(serde_json::json!({
+            "success": true,
+            "cleared": cleared,
+            "message": if cleared.is_empty() { "Kein Cache gefunden" } else { "Cache erfolgreich geleert" }
+        }))
+    }
+}
 
 #[tauri::command]
 fn skin_list(state: State<'_, AppState>) -> Value {
@@ -2227,6 +2272,7 @@ fn main() {
             kollegen_call_join,
             kollegen_call_leave,
             kollegen_call_signal,
+            clear_companion_cache,
             kollegen_call_direct_open,
             kollegen_call_direct_poll,
             kollegen_call_direct_active,

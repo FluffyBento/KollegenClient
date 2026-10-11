@@ -5,32 +5,17 @@ import dev.kollegen.client.presence.PetRenderer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.SubmitNodeCollector;
-import net.minecraft.client.renderer.state.level.CameraRenderState;
+import net.minecraft.client.renderer.state.CameraRenderState;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(LevelRenderer.class)
-public class LevelRendererMixin {
+public class PetLevelRendererMixin {
 
-    @Inject(method = "renderLevel(Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/SubmitNodeCollector;Lnet/minecraft/client/renderer/state/level/CameraRenderState;FZ)V", at = @At("TAIL"))
+    @Inject(method = "renderLevel(Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/SubmitNodeCollector;Lnet/minecraft/client/renderer/state/CameraRenderState;FZ)V", at = @At("TAIL"))
     private void kollegen$renderPets(PoseStack poseStack, SubmitNodeCollector collector, CameraRenderState camera, float partialTick, boolean renderBlockOutline, CallbackInfo ci) {
-        renderPetsInternal(poseStack, collector, camera);
-    }
-
-    @Inject(method = "renderLevel", at = @At("TAIL"))
-    private void kollegen$renderPetsFallback(CallbackInfo ci) {
-        try {
-            Minecraft mc = Minecraft.getInstance();
-            if (mc == null || mc.level == null) return;
-            // Try to get render context from Minecraft
-            // This fallback may not have the correct render state
-        } catch (Throwable ignored) {
-        }
-    }
-
-    private void renderPetsInternal(PoseStack poseStack, SubmitNodeCollector collector, CameraRenderState camera) {
         try {
             Minecraft mc = Minecraft.getInstance();
             if (mc == null || mc.level == null) return;
