@@ -282,18 +282,24 @@ public final class PetRenderer {
 
             double orbitX = 0.0;
             double orbitZ = 0.0;
+            double anchorX = 0.0;
+            double anchorZ = 0.0;
             if ("follow".equals(mode)) {
                 long now = System.currentTimeMillis();
                 bob = Math.sin(now / 1000.0) * 0.12;
                 double orbit = now / 2800.0;
                 orbitX = Math.cos(orbit) * 0.7;
                 orbitZ = Math.sin(orbit) * 0.7;
+                double anchorA = now / 6000.0;
+                anchorX = Math.cos(anchorA) * 1.6;
+                anchorZ = Math.sin(anchorA) * 1.6;
+                ox = 0.0;
             }
 
             double rad = Math.toRadians(ownerYaw + 180);
-            double x = ownerPos.x - Math.sin(rad) * ox + orbitX;
+            double x = ownerPos.x - Math.sin(rad) * ox + orbitX + anchorX;
             double y = ownerPos.y + oy + bob;
-            double z = ownerPos.z + Math.cos(rad) * ox + orbitZ;
+            double z = ownerPos.z + Math.cos(rad) * ox + orbitZ + anchorZ;
 
             double scale = d.petScale > 0.0 ? d.petScale : 0.2;
             if (scale > 1.0) scale = 1.0;
@@ -319,25 +325,32 @@ public final class PetRenderer {
                 placed = true;
                 entity.setDeltaMovement(0, 0, 0);
             } else {
+                try {
+                    entity.setOldPosAndRot();
+                } catch (Throwable ignored) {
+                }
                 Vec3 cur = entity.position();
                 double dx = x - cur.x;
                 double dy = y - cur.y;
                 double dz = z - cur.z;
-                double distSq = dx * dx + dy * dy + dz * dz;
-                if (distSq > 0.000001) {
-                    double dist = Math.sqrt(distSq);
-                    double speed = Math.min(dist, 0.35);
-                    entity.setDeltaMovement(dx / dist * speed, dy / dist * speed, dz / dist * speed);
+                double dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+                if (dist > 0.001) {
+                    double step = Math.min(dist, 0.25);
+                    entity.setPos(cur.x + dx / dist * step, cur.y + dy / dist * step, cur.z + dz / dist * step);
                 } else {
-                    entity.setDeltaMovement(0, 0, 0);
+                    entity.setPos(x, y, z);
                 }
             }
-            entity.setYRot(ownerYaw);
+            long lookNow = System.currentTimeMillis();
+            float lookYaw = ownerYaw + (float) (Math.sin(lookNow / 1700.0) * 50.0);
+            float headYaw = lookYaw + (float) (Math.sin(lookNow / 900.0) * 15.0);
+            entity.setYRot(lookYaw);
             entity.setXRot(0);
+            entity.setDeltaMovement(-Math.sin(rad) * 0.05, 0, Math.cos(rad) * 0.05);
             try {
-                entity.yRotO = ownerYaw;
-                entity.setYBodyRot(ownerYaw);
-                entity.setYHeadRot(ownerYaw);
+                entity.yRotO = lookYaw;
+                entity.setYBodyRot(lookYaw);
+                entity.setYHeadRot(headYaw);
             } catch (Throwable ignored) {
             }
             try {
