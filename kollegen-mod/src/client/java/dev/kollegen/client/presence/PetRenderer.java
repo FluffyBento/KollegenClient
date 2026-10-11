@@ -279,17 +279,20 @@ public final class PetRenderer {
                 bob = Math.sin(System.currentTimeMillis() / 450.0) * 0.25;
             }
 
-            double sway = 0.0;
+            double orbitX = 0.0;
+            double orbitZ = 0.0;
             if ("follow".equals(mode)) {
                 long now = System.currentTimeMillis();
-                bob = Math.sin(now / 600.0) * 0.15;
-                sway = Math.sin(now / 900.0) * 0.3;
+                bob = Math.sin(now / 1000.0) * 0.12;
+                double orbit = now / 2800.0;
+                orbitX = Math.cos(orbit) * 0.7;
+                orbitZ = Math.sin(orbit) * 0.7;
             }
 
             double rad = Math.toRadians(ownerYaw + 180);
-            double x = ownerPos.x - Math.sin(rad) * ox + Math.cos(rad) * sway;
+            double x = ownerPos.x - Math.sin(rad) * ox + orbitX;
             double y = ownerPos.y + oy + bob;
-            double z = ownerPos.z + Math.cos(rad) * ox + Math.sin(rad) * sway;
+            double z = ownerPos.z + Math.cos(rad) * ox + orbitZ;
 
             double scale = d.petScale > 0.0 ? d.petScale : 0.2;
             if (scale > 1.0) scale = 1.0;
@@ -323,7 +326,7 @@ public final class PetRenderer {
                 double dz = z - cur.z;
                 double dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
                 if (dist > 0.001) {
-                    double step = Math.min(dist, 0.45);
+                    double step = Math.min(dist, 0.3);
                     entity.setPos(cur.x + dx / dist * step, cur.y + dy / dist * step, cur.z + dz / dist * step);
                 } else {
                     entity.setPos(x, y, z);
@@ -331,7 +334,7 @@ public final class PetRenderer {
             }
             entity.setYRot(ownerYaw);
             entity.setXRot(0);
-            entity.setDeltaMovement(-Math.sin(rad) * 0.08, 0, Math.cos(rad) * 0.08);
+            entity.setDeltaMovement(-Math.sin(rad) * 0.05, 0, Math.cos(rad) * 0.05);
             try {
                 entity.yRotO = ownerYaw;
                 entity.setYBodyRot(ownerYaw);
