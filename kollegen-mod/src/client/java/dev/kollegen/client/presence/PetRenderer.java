@@ -96,7 +96,13 @@ public final class PetRenderer {
                 LEVELS.put(ownerId, mc.level);
             }
             dragon.setPos(x, y, z);
-            dragon.tickCount++;
+            dragon.setDeltaMovement(0.0, 0.0, 0.0);
+            try {
+                dragon.tick();
+            } catch (Throwable ignored) {
+                dragon.tickCount++;
+            }
+            dragon.setPos(x, y, z);
             double scale = d.petScale > 0.0 ? d.petScale : 0.2;
             poseStack.pushPose();
             try {
