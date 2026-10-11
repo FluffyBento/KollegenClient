@@ -40,6 +40,8 @@ public final class PetRenderer {
     private static boolean loggedTickFail = false;
     private static boolean loggedExtract = false;
     private static boolean loggedSubmit = false;
+    private static boolean loggedExtractFail = false;
+    private static boolean loggedExtractAdded = false;
     private static final Set<UUID> loggedRender = ConcurrentHashMap.newKeySet();
 
     private PetRenderer() {}
@@ -143,8 +145,19 @@ public final class PetRenderer {
                         living.scale = (float) scale;
                     }
                     state.entityRenderStates.add(renderState);
+                    if (!loggedExtractAdded) {
+                        loggedExtractAdded = true;
+                        PETLOG.info("pet extract added {}", pet.entity.getClass().getSimpleName());
+                    }
+                } else if (!loggedExtractFail) {
+                    loggedExtractFail = true;
+                    PETLOG.warn("pet extract null {}", pet.entity.getClass().getSimpleName());
                 }
-            } catch (Throwable ignored) {
+            } catch (Throwable t) {
+                if (!loggedExtractFail) {
+                    loggedExtractFail = true;
+                    PETLOG.warn("pet extract failed {}", pet.entity.getClass().getSimpleName(), t);
+                }
             }
         }
     }
