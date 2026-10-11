@@ -59,9 +59,14 @@ dependencies {
 def is121 = project.minecraft_version.startsWith('1.21')
 def is262 = project.minecraft_version.startsWith('26.')
 
-if (is121 || is262) {
+if (is121) {
     dependencies {
         mappings loom.officialMojangMappings()
+        clientImplementation "net.fabricmc:sponge-mixin:0.15.2+mixin.0.8.7"
+    }
+}
+if (is262) {
+    dependencies {
         clientImplementation "net.fabricmc:sponge-mixin:0.15.2+mixin.0.8.7"
     }
 }
