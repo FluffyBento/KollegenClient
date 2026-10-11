@@ -239,6 +239,10 @@ public final class PetRenderer {
         private final Level level;
         private int tickCount = 0;
         private boolean placed = false;
+        private double wx = 0.0;
+        private double wy = 0.0;
+        private double wz = 0.0;
+        private long wanderUntil = 0;
 
         PetInstance(EntityType<? extends Mob> type, Level level) {
             this.level = level;
@@ -280,26 +284,42 @@ public final class PetRenderer {
                 bob = Math.sin(System.currentTimeMillis() / 450.0) * 0.25;
             }
 
-            double orbitX = 0.0;
-            double orbitZ = 0.0;
-            double anchorX = 0.0;
-            double anchorZ = 0.0;
             if ("follow".equals(mode)) {
                 long now = System.currentTimeMillis();
                 bob = Math.sin(now / 1000.0) * 0.12;
-                double orbit = now / 2800.0;
-                orbitX = Math.cos(orbit) * 0.7;
-                orbitZ = Math.sin(orbit) * 0.7;
-                double anchorA = now / 6000.0;
-                anchorX = Math.cos(anchorA) * 2.0;
-                anchorZ = Math.sin(anchorA) * 2.0;
-                ox = 0.0;
+                Vec3 ep = entity.position();
+                double dxo = ep.x - ownerPos.x;
+                double dzo = ep.z - ownerPos.z;
+                boolean rethink = now >= wanderUntil;
+                if (!rethink) {
+                    double ddx = wx - ep.x;
+                    double ddy = wy - ep.y;
+                    double ddz = wz - ep.z;
+                    rethink = ddx * ddx + ddy * ddy + ddz * ddz < 0.25;
+                }
+                if (rethink) {
+                    double wa = Math.random() * Math.PI * 2.0;
+                    double wr = (dxo * dxo + dzo * dzo) > 25.0 ? 1.2 : (1.0 + Math.random() * 2.5);
+                    wx = ownerPos.x + Math.cos(wa) * wr;
+                    wy = ownerPos.y + 0.6 + Math.random() * 1.2;
+                    wz = ownerPos.z + Math.sin(wa) * wr;
+                    wanderUntil = now + 2500 + (long) (Math.random() * 3500);
+                }
             }
 
             double rad = Math.toRadians(ownerYaw + 180);
-            double x = ownerPos.x - Math.sin(rad) * ox + orbitX + anchorX;
-            double y = ownerPos.y + oy + bob;
-            double z = ownerPos.z + Math.cos(rad) * ox + orbitZ + anchorZ;
+            double x;
+            double y;
+            double z;
+            if ("follow".equals(mode)) {
+                x = wx;
+                y = wy + bob;
+                z = wz;
+            } else {
+                x = ownerPos.x - Math.sin(rad) * ox;
+                y = ownerPos.y + oy + bob;
+                z = ownerPos.z + Math.cos(rad) * ox;
+            }
 
             double scale = d.petScale > 0.0 ? d.petScale : 0.2;
             if (scale > 1.0) scale = 1.0;
