@@ -128,10 +128,13 @@ if (is121) {
                 }
 if (rel.endsWith('presence/PetRenderer.java')) {
                     t = t.replace('collector.submitNameTag(poseStack, new Vec3(pos.x, pos.y + 2.2, pos.z), 0, nameComp, true, 15728880, camera);', 'collector.submitNameTag(poseStack, new Vec3(pos.x, pos.y + 2.2, pos.z), 0, nameComp, true, 15728880, 0.0, camera);')
-                    t = t.replace('type.create(level)', 'type.create(level, net.minecraft.world.entity.EntitySpawnReason.LOAD)')
+                    if (!t.contains('EntitySpawnReason')) {
+                        t = t.replace('type.create(level)', 'type.create(level, net.minecraft.world.entity.EntitySpawnReason.LOAD)')
+                    }
                 }
                 if (rel.endsWith('mixin/NametagMixin.java')) {
                     t = t.replace('method = "submitNameDisplay(', 'method = "submitNameTag(')
+                    t = t.replace('renderer/state/level/CameraRenderState;)V', 'renderer/state/CameraRenderState;)V')
                     if (!t.contains('import dev.kollegen.client.presence.PetRenderer;')) {
                         t = t.replace('import dev.kollegen.client.presence.KollegenPresence;', 'import dev.kollegen.client.presence.KollegenPresence;\nimport dev.kollegen.client.presence.PetRenderer;')
                     }
@@ -175,121 +178,16 @@ if (rel.endsWith('mixin/MinecraftAccessor.java')) {
             }
         }
     }
-    if (is262) {
-        tasks.register('portSources262') {
-            dependsOn('cleanVendoredBins1211')
-            doLast {
-                delete(portDir)
-                copy {
-                    from('src/main/java')
-                    into("${portDir}/main/java")
-                }
-                copy {
-                    from('src/client/java')
-                    into("${portDir}/client/java")
-                }
-                fileTree("${portDir}").matching { include '**/*.java' }.each { File f ->
-                    String rel = portDir.toPath().relativize(f.toPath()).toString().replace(File.separator, '/')
-                    String t = f.getText('UTF-8')
-                    t = t.replace('GuiGraphicsExtractor', 'GuiGraphics')
-                        .replace('.text(', '.drawString(')
-                        .replace('.item(', '.renderItem(')
-                        .replace('.gui.screen()', '.screen')
-                        .replace('renderer.state.level.CameraRenderState', 'renderer.state.CameraRenderState')
-                        .replace('renderer.state.level.SkyRenderState', 'renderer.state.SkyRenderState')
-                        .replace('renderer/state/level/CameraRenderState', 'renderer/state/CameraRenderState')
-                        .replace('renderer/state/level/SkyRenderState', 'renderer/state/SkyRenderState')
-                        .replace('net.minecraft.client.multiplayer.chat.GuiMessageTag', 'net.minecraft.client.GuiMessageTag')
-                        .replace('client/multiplayer/chat/GuiMessageTag', 'client/GuiMessageTag')
-                        .replace('addPlayerMessage(', 'addMessage(')
-                        .replace('.gui.hud.isHidden()', '.options.hideGui')
-                        .replace('.gui.hud.getChat()', '.gui.getChat()')
-                        .replace('0, title, !state.isDiscrete, state.lightCoords, camera);', '0, title, !state.isDiscrete, state.lightCoords, state.distanceToCameraSq, camera);')
-                        .replace('0, level, !state.isDiscrete, state.lightCoords, camera);', '0, level, !state.isDiscrete, state.lightCoords, state.distanceToCameraSq, camera);')
-                    if (rel.endsWith('mixin/HudMixin.java')) {
-                        t = t.replace('extractRenderState(Lnet/minecraft/client/gui/GuiGraphics;Lnet/minecraft/client/DeltaTracker;)V', 'render(Lnet/minecraft/client/gui/GuiGraphics;Lnet/minecraft/client/DeltaTracker;)V')
-                        t = t.replace('@Mixin(Hud.class)', '@Mixin(Gui.class)')
-                        t = t.replace('import net.minecraft.client.gui.Hud;', 'import net.minecraft.client.gui.Gui;')
-                    }
-                    if (rel.endsWith('mixin/ContainerScreenMixin.java')) {
-                        t = t.replace('extractRenderState(Lnet/minecraft/client/gui/GuiGraphics;IIF)V', 'renderBackground(Lnet/minecraft/client/gui/GuiGraphics;IIF)V')
-                    }
-                    if (rel.endsWith('mixin/NametagMixin.java')) {
-                        t = t.replace('method = "submitNameDisplay(', 'method = "submitNameTag(')
-                    }
-                    if (rel.endsWith('presence/PetRenderer.java')) {
-                        t = t.replace('collector.submitNameTag(poseStack, new Vec3(pos.x, pos.y + 2.2, pos.z), 0, nameComp, true, 15728880, camera);', 'collector.submitNameTag(poseStack, new Vec3(pos.x, pos.y + 2.2, pos.z), 0, nameComp, true, 15728880, 0.0, camera);')
-                        t = t.replace('type.create(level)', 'type.create(level, net.minecraft.world.entity.EntitySpawnReason.LOAD)')
-                    }
-                    if (rel.endsWith('mixin/NametagMixin.java')) {
-                        t = t.replace('method = "submitNameDisplay(', 'method = "submitNameTag(')
-                        if (!t.contains('import dev.kollegen.client.presence.PetRenderer;')) {
-                            t = t.replace('import dev.kollegen.client.presence.KollegenPresence;', 'import dev.kollegen.client.presence.KollegenPresence;\nimport dev.kollegen.client.presence.PetRenderer;')
-                        }
-                    }
-                    if (rel.endsWith('presence/KollegenPresence.java')) {
-                        t = t.replace('import net.minecraft.client.renderer.entity.state.EntityRenderState;', 'import net.minecraft.client.renderer.entity.state.EntityRenderState;\nimport net.minecraft.world.level.Level;')
-                        t = t.replace('Level level = mc != null ? mc.level : null;', 'net.minecraft.world.level.Level level = mc != null ? mc.level : null;')
-                    }
-                    if (rel.endsWith('mixin/MinecraftAccessor.java')) {
-                        t = t.replace('import net.minecraft.client.renderer.state.CameraRenderState;', 'import net.minecraft.client.renderer.state.CameraRenderState;')
-                        t = t.replace('net.minecraft.client.renderer.GameRenderer', 'net.minecraft.client.renderer.GameRenderer')
-                        t = t.replace('net.minecraft.client.renderer.SubmitNodeCollector', 'net.minecraft.client.renderer.SubmitNodeCollector')
-                    }
-                    if (rel.endsWith('mixin/PetLevelRendererMixin.java')) {
-                        t = t.replace('import net.minecraft.client.renderer.state.CameraRenderState;', 'import net.minecraft.client.renderer.state.CameraRenderState;')
-                        t = t.replace('dev.kollegen.client.mixin.MinecraftAccessor accessor = (dev.kollegen.client.mixin.MinecraftAccessor) mc;', 'dev.kollegen.client.mixin.MinecraftAccessor accessor = (dev.kollegen.client.mixin.MinecraftAccessor) mc;')
-                        t = t.replace('net.minecraft.client.renderer.GameRenderer gameRenderer = accessor.kollegen$getGameRenderer();', 'net.minecraft.client.renderer.GameRenderer gameRenderer = accessor.kollegen$getGameRenderer();')
-                    }
-                    if (rel.endsWith('mixin/LevelRendererMixin.java')) {
-                        t = t.replace('renderLevel(Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/SubmitNodeCollector;Lnet/minecraft/client/renderer/state/level/CameraRenderState;FZ)V', 'renderLevel(Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/SubmitNodeCollector;Lnet/minecraft/client/renderer/state/CameraRenderState;FZ)V')
-                        t = t.replace('renderer.state.level.CameraRenderState', 'renderer.state.CameraRenderState')
-                    }
-                    if (rel.endsWith('mixin/LogoRendererMixin.java')) {
-                        t = t.replace('extractRenderState(Lnet/minecraft/client/gui/GuiGraphics;IF)V', 'renderLogo(Lnet/minecraft/client/gui/GuiGraphics;IF)V')
-                        t = t.replace('extractRenderState(Lnet/minecraft/client/gui/GuiGraphics;IFI)V', 'renderLogo(Lnet/minecraft/client/gui/GuiGraphics;IFI)V')
-                    }
-                    if (rel.contains('/menu/')) {
-                        if (rel.endsWith('menu/ThemeSelectorScreen.java')) {
-                            t = t.replace('backBtn.extractRenderState(', 'backBtn.renderContents(')
-                        }
-                        t = t.replace('extractRenderState(', 'renderBackground(')
-                    }
-                    if (rel.endsWith('ui/GlassSlider.java') || rel.endsWith('ui/GlassToggle.java')) {
-                        t = t.replace('extractWidgetRenderState(', 'renderWidget(')
-                    }
-                    if (rel.endsWith('ui/ColorButton.java') || rel.endsWith('ui/GlassButton.java')) {
-                        t = t.replace('extractContents(', 'renderContents(')
-                        t = t.replace('protected void renderContents(', 'public void renderContents(')
-                    }
-                    f.write(t, 'UTF-8')
-                }
-            }
-        }
-        sourceSets {
-            main { java { srcDirs = ["${portDir}/main/java"] } }
-            client {
-                java {
-                    srcDirs = ["${portDir}/client/java"]
-                    exclude '**/FogRendererMixin.java'
-                    exclude '**/GameRendererMixin.java'
-                }
-            }
-        }
-        tasks.named('compileJava') { dependsOn('portSources262') }
-        tasks.named('compileClientJava') { dependsOn('portSources262') }
-    }
     sourceSets {
         main { java { srcDirs = ["${portDir}/main/java"] } }
         client {
             java {
-                srcDirs = ["${portDir}/client/java"]
-                exclude '**/FogRendererMixin.java'
-                exclude '**/GameRendererMixin.java'
+                    srcDirs = ["${portDir}/client/java"]
+                    exclude '**/FogRendererMixin.java'
+                }
             }
         }
-    }
-    tasks.named('compileJava') { dependsOn('portSources1211') }
+        tasks.named('compileJava') { dependsOn('portSources1211') }
     tasks.named('compileClientJava') { dependsOn('portSources1211') }
 
     tasks.register('fixup1211Jar') {
@@ -306,7 +204,6 @@ if (rel.endsWith('mixin/MinecraftAccessor.java')) {
             }
             def slurper = new groovy.json.JsonSlurper()
             def mix = slurper.parseText(new String(data['kollegen.mixins.json'], 'UTF-8'))
-            mix.mixins = mix.mixins.findAll { !(it in ['FogRendererMixin', 'GameRendererMixin']) }
             mix.remove('refmap')
             data['kollegen.mixins.json'] = (groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(mix)) + '\n').getBytes('UTF-8')
             def fmj = slurper.parseText(new String(data['fabric.mod.json'], 'UTF-8'))
@@ -322,6 +219,70 @@ if (rel.endsWith('mixin/MinecraftAccessor.java')) {
             }
         }
     }
+}
+
+if (is262) {
+    def portDir = file("${buildDir}/port262-src")
+    tasks.register('cleanVendoredBins262') {
+        doLast {
+            fileTree('src/main/resources/dev/kollegen/client').matching { include '*.bin' }.each { File f ->
+                f.delete()
+            }
+        }
+    }
+    tasks.register('portSources262') {
+        dependsOn('cleanVendoredBins262')
+        doLast {
+            delete(portDir)
+            copy {
+                from('src/main/java')
+                into("${portDir}/main/java")
+            }
+            copy {
+                from('src/client/java')
+                into("${portDir}/client/java")
+            }
+            fileTree("${portDir}").matching { include '**/*.java' }.each { File f ->
+                String rel = portDir.toPath().relativize(f.toPath()).toString().replace(File.separator, '/')
+                String t = f.getText('UTF-8')
+                if (rel.endsWith('presence/PetRenderer.java')) {
+                    t = t.replace('import net.minecraft.client.renderer.state.LevelRenderState;', 'import net.minecraft.client.renderer.state.level.LevelRenderState;')
+                    t = t.replace('return EntityType.ENDER_DRAGON;', 'return EntityTypes.ENDER_DRAGON;')
+                    t = t.replace('case "ender_dragon", "dragon", "enderdragon" -> EntityType.ENDER_DRAGON;', 'case "ender_dragon", "dragon", "enderdragon" -> EntityTypes.ENDER_DRAGON;')
+                    t = t.replace('case "wolf", "dog" -> EntityType.WOLF;', 'case "wolf", "dog" -> EntityTypes.WOLF;')
+                    t = t.replace('case "cat", "ocelot" -> EntityType.CAT;', 'case "cat", "ocelot" -> EntityTypes.CAT;')
+                    t = t.replace('case "parrot" -> EntityType.PARROT;', 'case "parrot" -> EntityTypes.PARROT;')
+                    t = t.replace('case "fox" -> EntityType.FOX;', 'case "fox" -> EntityTypes.FOX;')
+                    t = t.replace('case "rabbit", "bunny" -> EntityType.RABBIT;', 'case "rabbit", "bunny" -> EntityTypes.RABBIT;')
+                    t = t.replace('case "shulker" -> EntityType.SHULKER;', 'case "shulker" -> EntityTypes.SHULKER;')
+                    t = t.replace('default -> EntityType.ENDER_DRAGON;', 'default -> EntityTypes.ENDER_DRAGON;')
+                    if (!t.contains('import net.minecraft.world.entity.EntityTypes;')) {
+                        t = t.replace('import net.minecraft.world.entity.EntityType;', 'import net.minecraft.world.entity.EntityType;\nimport net.minecraft.world.entity.EntityTypes;')
+                    }
+                }
+                if (rel.endsWith('mixin/NametagMixin.java')) {
+                    t = t.replace('if (false && KollegenPresence.isKollegen(id)) {', 'try { PetRenderer.renderFor(id, poseStack, collector, camera); } catch (Throwable ignored) {} if (false && KollegenPresence.isKollegen(id)) {')
+                    if (!t.contains('import dev.kollegen.client.presence.PetRenderer;')) {
+                        t = t.replace('import dev.kollegen.client.presence.KollegenPresence;', 'import dev.kollegen.client.presence.KollegenPresence;\nimport dev.kollegen.client.presence.PetRenderer;')
+                    }
+                }
+                if (rel.endsWith('mixin/PetLevelRendererMixin.java')) {
+                    t = 'package dev.kollegen.client.mixin;\n\nimport net.minecraft.client.renderer.LevelRenderer;\nimport org.spongepowered.asm.mixin.Mixin;\n\n@Mixin(LevelRenderer.class)\npublic class PetLevelRendererMixin {\n}\n'
+                }
+                f.write(t, 'UTF-8')
+            }
+        }
+    }
+    sourceSets {
+        main { java { srcDirs = ["${portDir}/main/java"] } }
+        client {
+            java {
+                    srcDirs = ["${portDir}/client/java"]
+                }
+            }
+        }
+        tasks.named('compileJava') { dependsOn('portSources262') }
+    tasks.named('compileClientJava') { dependsOn('portSources262') }
 }
 
 
@@ -387,7 +348,7 @@ def vendorModResource(String resourceRel, String slug, String urlOverride = null
             
             def cacheDir = file("${buildDir}/vendor-patch/${slug}")
             cacheDir.mkdirs()
-            def download = new File(cacheDir, "${safeSlug}-orig.jar")
+            def download = new File(cacheDir, "${safeSlug}-${project.minecraft_version}-orig.jar")
             if (!download.exists()) {
                 ant.get(src: url, dest: download, verbose: true)
             }
@@ -482,6 +443,20 @@ processResources {
     inputs.property 'version', project.version
     filesMatching('fabric.mod.json') {
         expand(['version': project.version])
+    }
+}
+
+if (is121) {
+    tasks.named('processResources') {
+        doLast {
+            def f = file("${buildDir}/resources/main/kollegen.mixins.json")
+            if (f.exists()) {
+                def slurper = new groovy.json.JsonSlurper()
+                def mix = slurper.parseText(f.getText('UTF-8'))
+                mix.mixins = mix.mixins.findAll { !(it in ['FogRendererMixin']) }
+                f.write(groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(mix)) + '\n', 'UTF-8')
+            }
+        }
     }
 }
 

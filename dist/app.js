@@ -4313,9 +4313,10 @@ startBackgroundIntervals();
       new Promise((_, reject) => setTimeout(() => reject(new Error(label + " timeout")), ms))
     ]);
 
+    const safeInvoke = (cmd) => Promise.resolve().then(() => invoke(cmd)).catch((e) => ({ error: String((e && e.message) || e) }));
     const [meRes, storeRes] = await Promise.allSettled([
-      withTimeout(invoke("kollegen_me").catch((e) => ({ error: String((e && e.message) || e) })), 8000, "kollegen_me"),
-      withTimeout(invoke("kollegen_store").catch((e) => ({ error: String((e && e.message) || e) })), 8000, "kollegen_store")
+      withTimeout(safeInvoke("kollegen_me"), 8000, "kollegen_me"),
+      withTimeout(safeInvoke("kollegen_store"), 8000, "kollegen_store")
     ]);
 
     if (meRes.status === "fulfilled") {
