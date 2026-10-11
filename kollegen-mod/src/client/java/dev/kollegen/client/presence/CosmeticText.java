@@ -102,7 +102,7 @@ public final class CosmeticText {
         if (d == null || d.titleText == null) return null;
         int nameColor = parseColor(d.nameColor, FALLBACK_NAME);
         return Component.literal(d.titleText)
-                .withStyle(Style.EMPTY.withColor(TextColor.fromRgb(nameColor)).withBold(true));
+                .withStyle(Style.EMPTY.withColor(TextColor.fromRgb(nameColor)));
     }
 
     public static Component levelComponent(UUID id) {
