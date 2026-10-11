@@ -35,7 +35,41 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
           ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: "true"
 
-  build-mod:
+  build-mod-1211:
+    needs: create-release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java 25 for MC 1.21.11 build
+        uses: actions/setup-java@v4
+        with:
+          java-version: '25'
+          distribution: 'temurin'
+
+      - name: Build Kollegen Client companion mod for MC 1.21.11 (Fabric)
+        id: buildmod_1211
+        run: |
+          cd kollegen-mod
+          chmod +x ./gradlew
+          ./gradlew build --no-daemon --stacktrace -Pminecraft_version=1.21.11 -Pfabric_version=0.141.6+1.21.11 -Ploader_version=0.16.10 -Parchives_base_name=kollegen-client-mod-1.21.11
+
+      - name: Publish 1.21.11 mod jar
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          JAR1211=$(ls kollegen-mod/build/libs/kollegen-client-mod-1.21.11*.jar 2>/dev/null | head -n1)
+          if [ -z "$JAR1211" ]; then echo "ERROR: no 1.21.11 jar built"; ls kollegen-mod/build/libs/; exit 1; fi
+          cp "$JAR1211" kollegen-client-mod-1.21.11.jar
+          for i in {1..3}; do
+            gh release upload "${{ github.ref_name }}" "$JAR1211" --clobber && break
+            echo "Upload attempt $i failed, retrying in 5s..."
+            sleep 5
+          done
+          echo "Uploaded kollegen-client-mod-1.21.11.jar"
+
+build-mod-262:
     needs: create-release
     runs-on: ubuntu-latest
     steps:
@@ -55,22 +89,19 @@ jobs:
           chmod +x ./gradlew
           ./gradlew build --no-daemon --stacktrace -Pminecraft_version=26.2 -Pfabric_version=0.161.0+26.2 -Ploader_version=0.19.5 -Parchives_base_name=kollegen-client-mod-26.2 -PmouseHandlerClickMethod=lambda\$setup\$2
 
-      - name: Publish companion mod jars (fresh 26.2 + prebuilt 1.21.11)
+      - name: Publish 26.2 mod jar
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           JAR26=$(ls kollegen-mod/build/libs/kollegen-client-mod-26.2*.jar 2>/dev/null | head -n1)
           if [ -z "$JAR26" ]; then echo "ERROR: no 26.2 jar built"; ls kollegen-mod/build/libs/; exit 1; fi
           cp "$JAR26" kollegen-client-mod-26.2.jar
-          cp resources/kollegen-client-mod-1.21.11.jar kollegen-client-mod-1.21.11.jar
-          for jar in kollegen-client-mod-1.21.11.jar kollegen-client-mod-26.2.jar; do
-            for i in {1..3}; do
-              gh release upload "${{ github.ref_name }}" "$jar" --clobber && break
-              echo "Upload attempt $i failed, retrying in 5s..."
-              sleep 5
-            done
-            echo "Uploaded $jar"
+          for i in {1..3}; do
+            gh release upload "${{ github.ref_name }}" "$JAR26" --clobber && break
+            echo "Upload attempt $i failed, retrying in 5s..."
+            sleep 5
           done
+          echo "Uploaded kollegen-client-mod-26.2.jar"
 
   linux:
     needs: [create-release]
