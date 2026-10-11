@@ -115,7 +115,7 @@ public final class PetRenderer {
                         .withStyle(Style.EMPTY.withColor(TextColor.fromRgb(nameColor)));
                 collector.submitNameTag(poseStack, new Vec3(x, y + 2.2, z), 0, nameComp, true, 15728880, camera);
             }
-            mark("pet-ok");
+            mark("pok@" + Math.round(x) + "," + Math.round(y) + "," + Math.round(z));
         } catch (Throwable t) {
             try {
                 mark("pet-err-" + t.getClass().getSimpleName());

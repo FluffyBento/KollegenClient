@@ -4269,25 +4269,40 @@ startBackgroundIntervals();
   let cosmSkinKey = "";
   async function renderCosmetics() {
     const box = $("cosmOwned");
-    if (box) box.innerHTML = '<div class="store-msg">Lade …</div>';
+    if (box) box.innerHTML = '<div class="store-msg">Lade …</div><div class="store-msg" id="cosmDbg"></div>';
+    const t0 = Date.now();
+    let meState = "…";
+    let storeState = "…";
+    const dbgTimer = setInterval(() => {
+      const el = $("cosmDbg");
+      if (el) el.textContent = "Lade … (" + Math.round((Date.now() - t0) / 1000) + "s) me:" + meState + " store:" + storeState;
+    }, 1000);
+    const stopDbg = () => {
+      clearInterval(dbgTimer);
+      const el = $("cosmDbg");
+      if (el) el.remove();
+    };
     let me = null;
     let store = null;
     let errText = "";
     try {
       const r = await invoke("kollegen_me").catch((e) => ({ error: String((e && e.message) || e) }));
-      if (r && !r.error) me = r;
-      else errText = (r && r.error) || "unbekannt";
+      if (r && !r.error) { me = r; meState = "ok"; }
+      else { errText = (r && r.error) || "unbekannt"; meState = "fehler"; }
     } catch (e) {
       errText = String((e && e.message) || e);
+      meState = "fehler";
     }
     try {
       const r = await invoke("kollegen_store").catch((e) => ({ error: String((e && e.message) || e) }));
-      if (r && !r.error && Array.isArray(r.catalog)) store = r;
-      else if (!errText) errText = (r && r.error) || "unbekannt";
+      if (r && !r.error && Array.isArray(r.catalog)) { store = r; storeState = "ok"; }
+      else { if (!errText) errText = (r && r.error) || "unbekannt"; storeState = "fehler"; }
     } catch (e) {
       if (!errText) errText = String((e && e.message) || e);
+      storeState = "fehler";
     }
     if (!me || !store) {
+      stopDbg();
       if (box) {
         box.innerHTML = "";
         const msg = document.createElement("div");
@@ -4363,6 +4378,7 @@ startBackgroundIntervals();
         }
       } else petBox.style.display = "none";
     }
+    stopDbg();
     renderCosmSkin(me);
     renderCosmName(me, store.catalog);
   }
