@@ -4376,7 +4376,7 @@ startBackgroundIntervals();
       const s = String(c || "").replace(/_/g, " ").trim();
       return s ? s.charAt(0).toUpperCase() + s.slice(1) : "";
     };
-    const cosmOrder = ["pet", "title", "badge", "sticker", "name_color", "profil_stil"];
+    const cosmOrder = ["title", "badge", "sticker", "name_color", "profil_stil"];
     let cosmCollapsed = {};
     try { cosmCollapsed = JSON.parse(localStorage.getItem("kosmetCollapsed") || "{}"); } catch (e) { cosmCollapsed = {}; }
     const cosmIsCollapsed = (cat) => cosmCollapsed[cat] !== false;
@@ -4493,6 +4493,11 @@ startBackgroundIntervals();
     const petOwned = owned.filter((it) => it.category === "pet");
     const petBox = $("cosmPetBox");
     if (petBox) {
+      const noneBtn = $("cosmPetNone");
+      if (noneBtn && !noneBtn.dataset.bound) {
+        noneBtn.dataset.bound = "1";
+        noneBtn.onclick = () => cosmEquip("pet", "", null);
+      }
       const cards = $("cosmPetCards");
       if (!petOwned.length) {
         petBox.style.display = "none";

@@ -3254,6 +3254,31 @@ button:disabled {
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
 }
 
+.pet-headrow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.pet-headrow h3 {
+  margin: 0;
+}
+
+.pet-nonebtn {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: transparent;
+  color: #9AA0A6;
+  font-size: 0.8rem;
+  padding: 3px 10px;
+  cursor: pointer;
+}
+
+.pet-nonebtn:hover {
+  border-color: var(--accent);
+  color: #c9d4e3;
+}
+
 .pet-card {
   cursor: pointer;
 }
