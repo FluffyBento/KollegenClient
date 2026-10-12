@@ -3303,6 +3303,12 @@ button:disabled {
   margin-top: 8px;
 }
 
+.pet-subname {
+  color: #9AA0A6;
+  font-size: 0.8rem;
+  margin-top: -2px;
+}
+
 .cosm-row {
   display: flex;
   align-items: center;

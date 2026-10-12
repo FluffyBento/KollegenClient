@@ -4369,7 +4369,7 @@ startBackgroundIntervals();
       return;
     }
     const equipped = me.equipped || {};
-    const owned = store.catalog.filter((it) => it.owned && ["pet", "name_color", "badge", "sticker", "title", "profil_stil"].includes(it.category));
+    const owned = store.catalog.filter((it) => it.owned && ["pet", "pet_skin", "name_color", "badge", "sticker", "title", "profil_stil"].includes(it.category));
     const cosmCatLabel = (c) => {
       const known = { pet: "Haustier", title: "Titel", name_color: "Namensfarbe", badge: "Abzeichen", profile_frame: "Profil-Rahmen", profile_bg: "Profil-Hintergrund", banner: "Banner", profil_stil: "Profilstil", font: "Schriftart", sticker: "Aufkleber", avatar_theme: "Avatar-Hintergrund" };
       if (c && known[c]) return known[c];
@@ -4493,8 +4493,15 @@ startBackgroundIntervals();
           body.className = "store-card-body";
           const t = document.createElement("div");
           t.className = "store-card-title";
-          t.textContent = it.name || it.id;
+          t.textContent = cfg.name || it.name || it.id;
+          if (cfg.name && /^#[0-9a-fA-F]{6}$/.test(cfg.nameColor || "")) t.style.color = cfg.nameColor;
           body.append(t);
+          if (cfg.name && it.name && cfg.name !== it.name) {
+            const sub = document.createElement("div");
+            sub.className = "pet-subname";
+            sub.textContent = it.name;
+            body.append(sub);
+          }
           const nameIn = document.createElement("input");
           nameIn.className = "store-sort pet-name";
           nameIn.maxLength = 16;
