@@ -18,8 +18,12 @@ public final class BlubPets {
     public static void register() {
         try {
             if (BLUB_ITEM != null) return;
-            BLUB_ITEM = Registry.register(BuiltInRegistries.ITEM, Identifier.fromNamespaceAndPath(KollegenMod.MOD_ID, "blub"), new Item(new Item.Properties()));
-        } catch (Throwable ignored) {
+            BLUB_ITEM = Registry.register(BuiltInRegistries.ITEM, Identifier.fromNamespaceAndPath("kollegen", "blub"), new Item(new Item.Properties()));
+        } catch (Throwable t) {
+            try {
+                KollegenMod.LOGGER.warn("Blub item registration failed", t);
+            } catch (Throwable ignored) {
+            }
         }
     }
 
