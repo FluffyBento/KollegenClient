@@ -153,6 +153,10 @@ public final class PetRenderer {
                     }
                     if (renderState instanceof LivingEntityRenderState living) {
                         living.scale = (float) scale;
+                        if (pet.kind != null && isGroundKind(pet.kind)) {
+                            living.walkAnimationPos = (float) pet.stridePhase;
+                            living.walkAnimationSpeed = (float) pet.strideAmount;
+                        }
                     }
                     state.entityRenderStates.add(renderState);
                     if (!loggedExtractAdded) {
@@ -283,6 +287,10 @@ public final class PetRenderer {
         private float hopYaw = 0.0f;
         private float yawCur = 0.0f;
         private double vy = 0.0;
+        private double stridePhase = 0.0;
+        private double strideAmount = 0.0;
+        private int pounceT = 0;
+        private int idleT = 0;
         private double hopPeak = 0.3;
         private int flapT = 0;
         private int flapCd = 200;
@@ -442,6 +450,12 @@ public final class PetRenderer {
                     double tnx = cur.x + dx / dist * step;
                     double tny = cur.y + dy / dist * step;
                     double tnz = cur.z + dz / dist * step;
+                    if (pounceT <= 0 && idleT > 40 && Math.random() < 0.02) pounceT = 6;
+                    if (pounceT > 0) {
+                        pounceT--;
+                        tny += 0.18 * Math.sin(Math.PI * (1.0 - (double) pounceT / 6.0));
+                    }
+                    idleT = 0;
                     if ("follow".equals(mode) || "hover".equals(mode)) {
                         double gy = groundTop(level, tnx, tny, tnz);
                         if (!Double.isNaN(gy) && tny < gy + 0.02) tny = gy + 0.02;
@@ -457,8 +471,12 @@ public final class PetRenderer {
                     faceDx = cl[0] - cur.x;
                     faceDz = cl[1] - cur.z;
                     entity.setPos(cl[0], tny, cl[1]);
+                    stridePhase += step * 3.0;
+                    strideAmount = Math.min(1.0, step * 4.0);
                 } else {
                     entity.setPos(x, y, z);
+                    idleT++;
+                    strideAmount = Math.max(0.0, strideAmount - 0.1);
                 }
             }
             double faceSpeed = Math.sqrt(faceDx * faceDx + faceDz * faceDz);
@@ -468,7 +486,17 @@ public final class PetRenderer {
             } else if (faceSpeed > 0.03) {
                 lookYaw = (float) (Math.toDegrees(Math.atan2(faceDz, faceDx)) - 90.0);
             } else {
-                lookYaw = entity.getYRot();
+                Vec3 ep = null;
+                try {
+                    ep = entity.position();
+                } catch (Throwable ignored) {
+                }
+                if (ep != null) {
+                    double lx = ownerPos.x - ep.x;
+                    double lz = ownerPos.z - ep.z;
+                    if (lx * lx + lz * lz > 0.01) lookYaw = (float) (Math.toDegrees(Math.atan2(lz, lx)) - 90.0);
+                    else lookYaw = entity.getYRot();
+                } else lookYaw = entity.getYRot();
             }
             entity.setYRot(lookYaw);
             entity.setXRot(0);
