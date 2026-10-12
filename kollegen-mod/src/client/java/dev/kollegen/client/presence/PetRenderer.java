@@ -364,7 +364,7 @@ public final class PetRenderer {
                         wz = ownerPos.z + Math.sin(wa) * wr;
                         if (groundFollow) {
                             double g = groundTop(level, wx, ownerPos.y, wz);
-                            wy = Double.isNaN(g) ? ownerPos.y : g + 0.1;
+                            wy = Double.isNaN(g) ? ownerPos.y : g;
                         } else {
                             wy = Math.max(ownerPos.y - 0.2, ownerPos.y + 0.6 + Math.random() * 1.2);
                         }
