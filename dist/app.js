@@ -4460,10 +4460,35 @@ startBackgroundIntervals();
       try {
         const r = await invoke("kollegen_pet_config", Object.assign({ pet: petId }, patch));
         if (r && r.error) toast("Pet speichern fehlgeschlagen: " + r.error, "error");
-        else if (r && r.petConfigs) me.petConfigs = r.petConfigs;
+        else if (r && r.petConfigs) {
+          me.petConfigs = r.petConfigs;
+          refreshPetCardTitle(petId);
+        }
       } catch (e) {
         toast("Pet speichern fehlgeschlagen", "error");
       }
+    };
+    const refreshPetCardTitle = (petId) => {
+      const cardsEl = $("cosmPetCards");
+      const card = cardsEl ? cardsEl.querySelector('[data-pet-card="' + petId + '"]') : null;
+      if (!card) return;
+      const base = card.dataset.petBase || petId;
+      const cfgs = (me.petConfigs && typeof me.petConfigs === "object") ? me.petConfigs : {};
+      const cfg = (cfgs[petId] && typeof cfgs[petId] === "object") ? cfgs[petId] : {};
+      const t = card.querySelector("[data-pet-title]");
+      if (t) {
+        t.textContent = cfg.name || base;
+        t.style.color = (cfg.name && /^#[0-9a-fA-F]{6}$/.test(cfg.nameColor || "")) ? cfg.nameColor : "";
+      }
+      let sub = card.querySelector(".pet-subname");
+      if (cfg.name && cfg.name !== base) {
+        if (!sub) {
+          sub = document.createElement("div");
+          sub.className = "pet-subname";
+          if (t && t.parentElement) t.parentElement.insertBefore(sub, t.nextSibling);
+        }
+        if (sub) sub.textContent = base;
+      } else if (sub) sub.remove();
     };
     const petOwned = owned.filter((it) => it.category === "pet");
     const petBox = $("cosmPetBox");
@@ -4485,6 +4510,8 @@ startBackgroundIntervals();
           const cfg = getCfg(it.id);
           const card = document.createElement("div");
           card.className = "store-card pet-card" + (equipped === it.id ? " equipped" : "");
+          card.dataset.petCard = it.id;
+          card.dataset.petBase = it.name || it.id;
           const pv = document.createElement("div");
           pv.className = "store-pv pet-pv";
           pv.textContent = PET_ICON[it.id] || "🐾";
@@ -4493,6 +4520,7 @@ startBackgroundIntervals();
           body.className = "store-card-body";
           const t = document.createElement("div");
           t.className = "store-card-title";
+          t.dataset.petTitle = it.id;
           t.textContent = cfg.name || it.name || it.id;
           if (cfg.name && /^#[0-9a-fA-F]{6}$/.test(cfg.nameColor || "")) t.style.color = cfg.nameColor;
           body.append(t);
@@ -4510,6 +4538,7 @@ startBackgroundIntervals();
           nameIn.dataset.petKind = "name";
           nameIn.value = (focusPet === it.id && focusKind === "name" && focusVal !== null) ? focusVal : (cfg.name || "");
           nameIn.addEventListener("change", () => petSave(it.id, { name: nameIn.value || null }));
+          nameIn.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); nameIn.blur(); } });
           body.append(nameIn);
           const row = document.createElement("div");
           row.className = "pet-optrow";
