@@ -505,8 +505,8 @@ public final class PetRenderer {
                         double hdx = x - cur.x;
                         double hdz = z - cur.z;
                         double hdist = Math.sqrt(hdx * hdx + hdz * hdz);
-                        double hopLen = Math.min(hdist, 1.2);
-                        hopDur = Math.max(6, Math.min(15, 6 + (int) (hdist * 7.0)));
+                        double hopLen = Math.min(hdist, 2.5);
+                        hopDur = Math.max(8, Math.min(15, 8 + (int) (hopLen * 2.0)));
                         hopT = hopDur;
                         hopX0 = cur.x;
                         hopY0 = cur.y;
@@ -520,7 +520,7 @@ public final class PetRenderer {
                             hopX1 = x;
                             hopZ1 = z;
                         }
-                        hopCd = hdist > 2.0 ? 3 : 6;
+                        hopCd = hdist > 4.0 ? 1 : (hdist > 2.0 ? 3 : 6);
                         hopPeak = Math.min(0.25, 0.10 + hopLen * 0.10);
                     }
                     hopT--;
