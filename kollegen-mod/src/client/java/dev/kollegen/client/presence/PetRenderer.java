@@ -335,9 +335,10 @@ public final class PetRenderer {
                 bob = Math.sin(System.currentTimeMillis() / 450.0) * 0.25;
             }
 
+            boolean groundFollow = "follow".equals(mode) && isGroundKind(d.petKind);
             if ("follow".equals(mode)) {
                 long now = System.currentTimeMillis();
-                bob = Math.sin(now / 1000.0) * 0.12;
+                bob = groundFollow ? 0.0 : Math.sin(now / 1000.0) * 0.12;
                 Vec3 ep = entity.position();
                 double dxo = ep.x - ownerPos.x;
                 double dzo = ep.z - ownerPos.z;
@@ -360,8 +361,13 @@ public final class PetRenderer {
                         double wa = Math.random() * Math.PI * 2.0;
                         double wr = ownerDistSq > 25.0 ? 1.2 : (1.0 + Math.random() * 2.5);
                         wx = ownerPos.x + Math.cos(wa) * wr;
-                        wy = Math.max(ownerPos.y - 0.2, ownerPos.y + 0.6 + Math.random() * 1.2);
                         wz = ownerPos.z + Math.sin(wa) * wr;
+                        if (groundFollow) {
+                            double g = groundTop(level, wx, ownerPos.y, wz);
+                            wy = Double.isNaN(g) ? ownerPos.y : g + 0.1;
+                        } else {
+                            wy = Math.max(ownerPos.y - 0.2, ownerPos.y + 0.6 + Math.random() * 1.2);
+                        }
                         wanderUntil = now + 4000 + (long) (Math.random() * 5000);
                         resting = false;
                     }
@@ -712,6 +718,15 @@ public final class PetRenderer {
         } catch (Throwable ignored) {
         }
         return out;
+    }
+
+    private static boolean isGroundKind(String petKind) {
+        if (petKind == null) return false;
+        return switch (petKind.toLowerCase()) {
+            case "cat", "ocelot", "dog", "wolf", "chicken", "hen", "rabbit", "bunny",
+                 "fox", "axolotl", "copper_golem", "coppergolem", "golem", "shulker" -> true;
+            default -> false;
+        };
     }
 
     private static void applyVariant(Entity entity, String variant) {

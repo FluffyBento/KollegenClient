@@ -91,7 +91,7 @@ const CATALOG = [
   { id: 'pet_rabbit', category: 'pet', name: 'Kaninchen', desc: 'Ein hüpfendes Kaninchen als Begleiter.', price: 2400, rarity: 'legendary', data: { kind: 'rabbit', scale: 0.4 } },
   { id: 'pet_axolotl', category: 'pet', name: 'Axolotl', desc: 'Ein Axolotl als Begleiter. Farbe als Skin wählbar.', price: 5000, rarity: 'legendary', data: { kind: 'axolotl', scale: 0.5 } },
   { id: 'pet_bat', category: 'pet', name: 'Fledermaus', desc: 'Eine Fledermaus als Begleiter. Fliegt nebenher.', price: 5000, rarity: 'legendary', data: { kind: 'bat', scale: 0.6 } },
-  { id: 'pet_fox', category: 'pet', name: 'Fuchs', desc: 'Ein Fuchs als Begleiter.', price: 5000, rarity: 'legendary', data: { kind: 'fox', scale: 0.35 } },
+  { id: 'pet_fox', category: 'pet', name: 'Fuchs', desc: 'Ein Fuchs als Begleiter.', price: 5000, rarity: 'legendary', data: { kind: 'fox', scale: 0.5 } },
   { id: 'pet_parrot', category: 'pet', name: 'Papagei', desc: 'Ein Papagei als Begleiter. Fliegt nebenher.', price: 5000, rarity: 'legendary', data: { kind: 'parrot', scale: 0.5 } },
   { id: 'pet_bee', category: 'pet', name: 'Biene', desc: 'Eine Biene als Begleiter. Fliegt nebenher.', price: 5000, rarity: 'legendary', data: { kind: 'bee', scale: 0.6 } },
   { id: 'pet_squid', category: 'pet', name: 'Tintenfisch', desc: 'Ein Tintenfisch als Begleiter. Schwebt nebenher.', price: 5000, rarity: 'legendary', data: { kind: 'squid', scale: 0.3 } },
