@@ -84,6 +84,7 @@ const CATALOG = [
   { id: 'font_banner', category: 'font', name: 'Banner-Bliter', desc: 'Groß, fett, auffällig.', price: 1600, rarity: 'legendary', data: { font: 'Impact,"Arial Narrow Bold",sans-serif' } },
 
   { id: 'pet_allay', category: 'pet', name: 'Allay', desc: 'Ein winziges Allay als Begleiter. Sichtbar für alle mit Kollegen-Client.', price: 5000, rarity: 'legendary', featured: true, data: { kind: 'enderdragon', scale: 0.2 } },
+  { id: 'pet_blub', category: 'pet', name: 'Blub', desc: 'Ein Blub als Begleiter. Exklusiv verliehen, nicht käuflich.', price: 0, rarity: 'legendary', hidden: true, data: { kind: 'blub', scale: 1.0 } },
 ];
 
 function catById(id) {

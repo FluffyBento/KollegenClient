@@ -31,7 +31,8 @@
     "ScreenTooltipMixin",
     "XaeroWorldMapMixin",
     "PetLevelRendererMixin",
-    "PetLevelExtractorMixin"
+    "PetLevelExtractorMixin",
+    "ItemDisplayAccessor"
   ],
   "injectors": {
     "defaultRequire": 1

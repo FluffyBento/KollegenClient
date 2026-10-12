@@ -14,6 +14,7 @@ import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.TextColor;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.EntitySpawnReason;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.Attributes;
@@ -250,7 +251,7 @@ public final class PetRenderer {
     }
 
     private static class PetInstance {
-        private final Mob entity;
+        private final Entity entity;
         private final Level level;
         private int tickCount = 0;
         private boolean placed = false;
@@ -260,7 +261,7 @@ public final class PetRenderer {
         private long wanderUntil = 0;
         private boolean resting = false;
 
-        PetInstance(EntityType<? extends Mob> type, Level level) {
+        PetInstance(EntityType<?> type, Level level) {
             this.level = level;
             try {
                 this.entity = type.create(level, EntitySpawnReason.LOAD);
@@ -269,17 +270,18 @@ public final class PetRenderer {
             }
             if (this.entity != null) {
                 this.entity.setId(NEXT_FAKE_ID.getAndDecrement());
-                this.entity.setNoAi(true);
+                if (this.entity instanceof Mob mob) mob.setNoAi(true);
                 this.entity.setInvulnerable(true);
                 this.entity.setSilent(true);
                 this.entity.setNoGravity(true);
+                BlubPets.setupDisplay(this.entity);
             }
         }
 
         void updatePosition(Vec3 ownerPos, float ownerYaw, CosmeticData d) {
             if (entity == null) return;
 
-            entity.setNoAi(true);
+            if (entity instanceof Mob mob) mob.setNoAi(true);
             entity.setInvulnerable(true);
             entity.setSilent(true);
             entity.setNoGravity(true);
@@ -350,12 +352,14 @@ public final class PetRenderer {
 
             double scale = d.petScale > 0.0 ? d.petScale : 0.2;
             if (scale > 1.0) scale = 1.0;
-            try {
-                AttributeInstance attr = entity.getAttribute(Attributes.SCALE);
-                if (attr != null && Math.abs(attr.getBaseValue() - scale) > 0.001) {
-                    attr.setBaseValue(scale);
+            if (entity instanceof Mob mob) {
+                try {
+                    AttributeInstance attr = mob.getAttribute(Attributes.SCALE);
+                    if (attr != null && Math.abs(attr.getBaseValue() - scale) > 0.001) {
+                        attr.setBaseValue(scale);
+                    }
+                } catch (Throwable ignored) {
                 }
-            } catch (Throwable ignored) {
             }
             double faceDx = 0.0;
             double faceDz = 0.0;
@@ -405,11 +409,13 @@ public final class PetRenderer {
             entity.setYRot(lookYaw);
             entity.setXRot(0);
             entity.setDeltaMovement(-Math.sin(rad) * 0.02, 0, Math.cos(rad) * 0.02);
-            try {
-                entity.yRotO = lookYaw;
-                entity.setYBodyRot(lookYaw);
-                entity.setYHeadRot(lookYaw);
-            } catch (Throwable ignored) {
+            if (entity instanceof Mob mob) {
+                try {
+                    mob.yRotO = lookYaw;
+                    mob.setYBodyRot(lookYaw);
+                    mob.setYHeadRot(lookYaw);
+                } catch (Throwable ignored) {
+                }
             }
             try {
                 entity.tick();
@@ -443,10 +449,11 @@ public final class PetRenderer {
         }
     }
 
-    private static EntityType<? extends Mob> getPetType(String petKind) {
+    private static EntityType<?> getPetType(String petKind) {
         if (petKind == null) return EntityType.ALLAY;
 
         return switch (petKind.toLowerCase()) {
+            case "blub" -> EntityType.ITEM_DISPLAY;
             case "ender_dragon", "dragon", "enderdragon" -> EntityType.ALLAY;
             case "wolf", "dog" -> EntityType.WOLF;
             case "cat", "ocelot" -> EntityType.CAT;
@@ -464,7 +471,7 @@ public final class PetRenderer {
         PetInstance existing = PETS.get(ownerId);
         if (existing != null && existing.level == level) return;
 
-        EntityType<? extends Mob> type = getPetType(petKind);
+        EntityType<?> type = getPetType(petKind);
         PETS.put(ownerId, new PetInstance(type, level));
         LEVELS.put(ownerId, level);
     }

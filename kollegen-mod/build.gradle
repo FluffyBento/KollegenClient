@@ -257,6 +257,7 @@ if (is262) {
                     t = t.replace('if (petKind == null) return EntityType.ALLAY;', 'if (petKind == null) return EntityTypes.ALLAY;')
                     t = t.replace('case "ender_dragon", "dragon", "enderdragon" -> EntityType.ENDER_DRAGON;', 'case "ender_dragon", "dragon", "enderdragon" -> EntityTypes.ENDER_DRAGON;')
                     t = t.replace('case "ender_dragon", "dragon", "enderdragon" -> EntityType.ALLAY;', 'case "ender_dragon", "dragon", "enderdragon" -> EntityTypes.ALLAY;')
+                    t = t.replace('case "blub" -> EntityType.ITEM_DISPLAY;', 'case "blub" -> EntityTypes.ITEM_DISPLAY;')
                     t = t.replace('case "wolf", "dog" -> EntityType.WOLF;', 'case "wolf", "dog" -> EntityTypes.WOLF;')
                     t = t.replace('case "cat", "ocelot" -> EntityType.CAT;', 'case "cat", "ocelot" -> EntityTypes.CAT;')
                     t = t.replace('case "parrot" -> EntityType.PARROT;', 'case "parrot" -> EntityTypes.PARROT;')
