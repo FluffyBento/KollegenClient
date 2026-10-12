@@ -19,7 +19,11 @@ import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.boss.enderdragon.EnderDragon;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.Map;
@@ -271,6 +275,7 @@ public final class PetRenderer {
         private double hopY1 = 0.0;
         private float hopYaw = 0.0f;
         private float yawCur = 0.0f;
+        private double vy = 0.0;
         private double hopPeak = 0.3;
         private int flapT = 0;
         private int flapCd = 200;
@@ -303,6 +308,7 @@ public final class PetRenderer {
             entity.setNoGravity(true);
 
             String mode = d.petMode != null ? d.petMode : "follow";
+            if (BlubPets.isBlubDisplay(entity) && !"follow".equals(mode)) mode = "follow";
             double bob = 0.0;
             double ox = 1.2;
             double oy = 0.5;
@@ -390,7 +396,12 @@ public final class PetRenderer {
                 snap = true;
             }
             if (snap && !blub) {
-                entity.setPos(x, y, z);
+                double sy = y;
+                if ("follow".equals(mode) || "hover".equals(mode)) {
+                    double gy = groundTop(level, x, y, z);
+                    if (!Double.isNaN(gy) && sy < gy + 0.25) sy = gy + 0.25;
+                }
+                entity.setPos(x, sy, z);
                 try {
                     entity.setOldPosAndRot();
                 } catch (Throwable ignored) {
@@ -412,16 +423,33 @@ public final class PetRenderer {
                     double ozo = ownerPos.z - cur.z;
                     double cap = (oxo * oxo + ozo * ozo) > 9.0 ? 0.3 : 0.05;
                     double step = Math.min(dist, cap);
-                    faceDx = dx / dist * step;
-                    faceDz = dz / dist * step;
-                    entity.setPos(cur.x + faceDx, cur.y + dy / dist * step, cur.z + faceDz);
+                    double tnx = cur.x + dx / dist * step;
+                    double tny = cur.y + dy / dist * step;
+                    double tnz = cur.z + dz / dist * step;
+                    if ("follow".equals(mode) || "hover".equals(mode)) {
+                        double gy = groundTop(level, tnx, tny, tnz);
+                        if (!Double.isNaN(gy) && tny < gy + 0.25) tny = gy + 0.25;
+                    }
+                    double[] cl = clipHorizontal(level, entity, cur, Math.max(cur.y, tny), tnx, tnz, 0.8);
+                    if (Math.abs(cl[0] - cur.x) + Math.abs(cl[1] - cur.z) < 0.02) {
+                        double[] cx = clipHorizontal(level, entity, cur, Math.max(cur.y, tny), tnx, cur.z, 0.8);
+                        double[] cz = clipHorizontal(level, entity, cur, Math.max(cur.y, tny), cur.x, tnz, 0.8);
+                        if (Math.abs(cx[0] - cur.x) > 0.02) cl = new double[]{cx[0], cur.z};
+                        else if (Math.abs(cz[1] - cur.z) > 0.02) cl = new double[]{cur.x, cz[1]};
+                        else cl = new double[]{cur.x, cur.z};
+                    }
+                    faceDx = cl[0] - cur.x;
+                    faceDz = cl[1] - cur.z;
+                    entity.setPos(cl[0], tny, cl[1]);
                 } else {
                     entity.setPos(x, y, z);
                 }
             }
             double faceSpeed = Math.sqrt(faceDx * faceDx + faceDz * faceDz);
             float lookYaw;
-            if (faceSpeed > 0.03) {
+            if (blub) {
+                lookYaw = yawCur;
+            } else if (faceSpeed > 0.03) {
                 lookYaw = (float) (Math.toDegrees(Math.atan2(faceDz, faceDx)) - 90.0);
             } else {
                 lookYaw = entity.getYRot();
@@ -469,72 +497,120 @@ public final class PetRenderer {
         }
 
         void blubHopMove(double xin, double yin, double zin, float baseScale) {
-            double x = xin;
-            double y = yin - 0.4;
-            double z = zin;
             Vec3 cur = null;
             try {
                 cur = entity.position();
             } catch (Throwable ignored) {
             }
             if (cur == null) return;
-            double dx0 = x - cur.x;
-            double dy0 = y - cur.y;
-            double dz0 = z - cur.z;
-            double distSq = dx0 * dx0 + dy0 * dy0 + dz0 * dz0;
-            boolean settled = resting || distSq < 0.04;
+            double gHere = groundTop(level, cur.x, cur.y, cur.z);
+            boolean hasGround = !Double.isNaN(gHere);
+            if (hasGround && cur.y < gHere - 0.02) {
+                entity.setPos(cur.x, gHere, cur.z);
+                try {
+                    entity.setOldPosAndRot();
+                } catch (Throwable ignored) {
+                }
+                cur = entity.position();
+                vy = 0.0;
+            }
+            boolean grounded = hasGround && cur.y <= gHere + 0.05;
+            double hdx = xin - cur.x;
+            double hdz = zin - cur.z;
+            double hdist = Math.sqrt(hdx * hdx + hdz * hdz);
+            double dyy = yin - 0.4 - cur.y;
+            double distSq = hdx * hdx + dyy * dyy + hdz * hdz;
+            boolean settled = hdist < 0.3 && grounded;
             if (!placed || distSq > 144.0) {
-                entity.setPos(x, y, z);
+                double gT = groundTop(level, xin, yin, zin);
+                double ty = Double.isNaN(gT) ? yin - 0.4 : Math.max(yin - 0.4, gT);
+                entity.setPos(xin, ty, zin);
                 try {
                     entity.setOldPosAndRot();
                 } catch (Throwable ignored) {
                 }
                 placed = true;
                 entity.setDeltaMovement(0, 0, 0);
+                vy = 0.0;
                 hopT = 0;
                 hopCd = 0;
                 if (happyT <= 0) {
                     happyT = 15;
                     happyCd = 900 + (int) (Math.random() * 900);
                 }
-            } else if (!settled) {
-                if (hopT <= 0 && hopCd > 0) {
+            } else if (hopT > 0) {
+                hopT--;
+                double p = 1.0 - (double) Math.max(hopT, 0) / (double) hopDur;
+                double q = p * p * (3.0 - 2.0 * p);
+                double tnx = hopX0 + (hopX1 - hopX0) * q;
+                double tnz = hopZ0 + (hopZ1 - hopZ0) * q;
+                vy -= 0.05;
+                if (vy < -0.5) vy = -0.5;
+                double tny = cur.y + vy;
+                double[] cl = clipHorizontal(level, entity, cur, Math.max(cur.y, tny), tnx, tnz, 1.0);
+                boolean walled = Math.abs(cl[0] - tnx) + Math.abs(cl[1] - tnz) > 0.05;
+                double g = groundTop(level, cl[0], tny, cl[1]);
+                if (!Double.isNaN(g) && tny <= g) {
+                    entity.setPos(cl[0], g, cl[1]);
+                    hopT = 0;
+                    vy = 0.0;
+                    hopCd = 4;
+                } else if (walled && hopT > 2) {
+                    entity.setPos(cl[0], tny, cl[1]);
+                    hopT = 0;
+                    vy = Math.min(vy, 0.0);
+                    hopCd = 8;
+                } else {
+                    entity.setPos(cl[0], tny, cl[1]);
+                }
+                try {
+                    entity.setOldPosAndRot();
+                } catch (Throwable ignored) {
+                }
+            } else if (hdist > 0.3 && grounded) {
+                if (hopCd > 0) {
                     hopCd--;
                 } else {
-                    if (hopT <= 0) {
-                        double hdx = x - cur.x;
-                        double hdz = z - cur.z;
-                        double hdist = Math.sqrt(hdx * hdx + hdz * hdz);
-                        double hopLen = Math.min(hdist, 2.5);
-                        hopDur = Math.max(8, Math.min(15, 8 + (int) (hopLen * 2.0)));
-                        hopT = hopDur;
-                        hopX0 = cur.x;
-                        hopY0 = cur.y;
-                        hopZ0 = cur.z;
-                        hopY1 = y;
-                        if (hdist > 0.001) {
-                            hopX1 = cur.x + hdx / hdist * hopLen;
-                            hopZ1 = cur.z + hdz / hdist * hopLen;
-                            hopYaw = (float) (Math.toDegrees(Math.atan2(hopZ1 - hopZ0, hopX1 - hopX0)) + 90.0);
-                        } else {
-                            hopX1 = x;
-                            hopZ1 = z;
-                        }
-                        hopCd = hdist > 4.0 ? 1 : (hdist > 2.0 ? 3 : 6);
-                        hopPeak = Math.min(0.25, 0.10 + hopLen * 0.10);
-                    }
-                    hopT--;
-                    double p = 1.0 - (double) Math.max(hopT, 0) / (double) hopDur;
-                    double q = p * p * (3.0 - 2.0 * p);
-                    entity.setPos(hopX0 + (hopX1 - hopX0) * q, hopY0 + (hopY1 - hopY0) * q + 4.0 * hopPeak * q * (1.0 - q), hopZ0 + (hopZ1 - hopZ0) * q);
-                    try {
-                        entity.setOldPosAndRot();
-                    } catch (Throwable ignored) {
-                    }
+                    double hopLen = Math.min(hdist, 2.5);
+                    hopDur = Math.max(8, Math.min(15, 8 + (int) (hopLen * 2.0)));
+                    hopT = hopDur;
+                    hopX0 = cur.x;
+                    hopY0 = cur.y;
+                    hopZ0 = cur.z;
+                    hopY1 = cur.y;
+                    hopX1 = cur.x + hdx / hdist * hopLen;
+                    hopZ1 = cur.z + hdz / hdist * hopLen;
+                    hopYaw = (float) (Math.toDegrees(Math.atan2(hdz, hdx)) - 90.0);
+                    vy = Math.min(0.22, 0.15 + hopLen * 0.03);
+                    hopCd = hdist > 4.0 ? 1 : (hdist > 2.0 ? 3 : 6);
+                }
+            } else if (!grounded) {
+                vy -= 0.05;
+                if (vy < -0.5) vy = -0.5;
+                double tny = cur.y + vy;
+                double drift = Math.min(hdist, 0.08);
+                double tnx = cur.x;
+                double tnz = cur.z;
+                if (hdist > 0.001) {
+                    tnx = cur.x + hdx / hdist * drift;
+                    tnz = cur.z + hdz / hdist * drift;
+                }
+                double[] cl = clipHorizontal(level, entity, cur, Math.max(cur.y, tny), tnx, tnz, 1.0);
+                double g = groundTop(level, cl[0], tny, cl[1]);
+                if (!Double.isNaN(g) && tny <= g) {
+                    entity.setPos(cl[0], g, cl[1]);
+                    vy = 0.0;
+                } else {
+                    entity.setPos(cl[0], tny, cl[1]);
+                }
+                try {
+                    entity.setOldPosAndRot();
+                } catch (Throwable ignored) {
                 }
             } else {
+                vy = 0.0;
                 hopT = 0;
-                hopCd = 0;
+                if (hopCd > 0) hopCd--;
             }
             if (flapT > 0) {
                 flapT--;
@@ -561,7 +637,7 @@ public final class PetRenderer {
                 yawCur += turn;
                 targetYawDeg = yawCur;
             }
-            float yaw = targetYawDeg * ((float) Math.PI / 180.0f);
+            float yaw = (float) Math.PI - targetYawDeg * ((float) Math.PI / 180.0f);
             float sy = baseScale;
             if (settled) sy = baseScale * 0.94f;
             if (hopT > 0) {
@@ -574,11 +650,58 @@ public final class PetRenderer {
             }
             if (happyT > 0) {
                 double hp = 1.0 - (double) happyT / 15.0;
-                yaw = targetYawDeg * ((float) Math.PI / 180.0f) + (float) (hp * Math.PI * 2.0);
+                yaw = (float) Math.PI - targetYawDeg * ((float) Math.PI / 180.0f) + (float) (hp * Math.PI * 2.0);
                 sy = baseScale * (float) (1.0 + 0.12 * Math.sin(hp * Math.PI));
             }
             BlubPets.applyDisplayPose(entity, baseScale, sy, sy, yaw);
         }
+    }
+
+    private static double groundTop(Level level, double x, double yRef, double z) {
+        if (level == null) return Double.NaN;
+        try {
+            int bx = (int) Math.floor(x);
+            int bz = (int) Math.floor(z);
+            int start = (int) Math.floor(yRef) + 1;
+            for (int i = 0; i < 10; i++) {
+                int by = start - i;
+                BlockPos bp = new BlockPos(bx, by, bz);
+                if (!level.getBlockState(bp).getCollisionShape(level, bp).isEmpty()) return by + 1.0;
+            }
+        } catch (Throwable ignored) {
+        }
+        return Double.NaN;
+    }
+
+    private static double[] clipHorizontal(Level level, Entity ent, Vec3 from, double yBase, double nx, double nz, double height) {
+        double[] out = new double[]{nx, nz};
+        if (level == null || ent == null || from == null) return out;
+        try {
+            double dx = nx - from.x;
+            double dz = nz - from.z;
+            double lenSq = dx * dx + dz * dz;
+            if (lenSq < 0.00000001) return out;
+            double len = Math.sqrt(lenSq);
+            double best = 1.0;
+            double[] offs = new double[]{0.25, Math.max(0.3, height - 0.15)};
+            for (double off : offs) {
+                Vec3 a = new Vec3(from.x, yBase + off, from.z);
+                Vec3 b = new Vec3(nx, yBase + off, nz);
+                BlockHitResult hit = level.clip(new ClipContext(a, b, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, ent));
+                if (hit != null && hit.getType() == HitResult.Type.BLOCK) {
+                    Vec3 loc = hit.getLocation();
+                    double dot = (loc.x - a.x) * dx + (loc.z - a.z) * dz;
+                    double t = dot / lenSq - 0.15 / len;
+                    if (t < best) best = t;
+                }
+            }
+            if (best < 1.0) {
+                if (best < 0.02) return new double[]{from.x, from.z};
+                out = new double[]{from.x + dx * best, from.z + dz * best};
+            }
+        } catch (Throwable ignored) {
+        }
+        return out;
     }
 
     private static EntityType<?> getPetType(String petKind) {
