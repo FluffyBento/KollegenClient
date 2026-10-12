@@ -1,0 +1,29 @@
+{
+  "display": {
+    "icon": {
+      "id": "the_sift:dry_healthy_sculk_growth"
+    },
+    "title": {
+      "translate": "advancement.the_sift.root.title"
+    },
+    "description": {
+      "translate": "advancement.the_sift.root.description"
+    },
+    "background": "the_sift:block/dry_healthy_sculk",
+    "show_toast": false,
+    "announce_to_chat": false
+  },
+  "criteria": {
+    "entered_sift": {
+      "trigger": "minecraft:changed_dimension",
+      "conditions": {
+        "to": "the_sift:the_sift"
+      }
+    }
+  },
+  "requirements": [
+    [
+      "entered_sift"
+    ]
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "parent": "minecraft:block/cube_bottom_top",
+  "textures": {
+    "particle": "the_sift:block/sonorous_deepslate_side_horn",
+    "side": "the_sift:block/sonorous_deepslate_side_horn",
+    "top": "the_sift:block/sonorous_deepslate_top",
+    "bottom": "the_sift:block/sonorous_deepslate_bottom"
+  }
+}

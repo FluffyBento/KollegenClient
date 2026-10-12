@@ -1,0 +1,32 @@
+{
+  "feature": "the_sift:ichor_spring",
+  "placement": [
+    {
+      "type": "minecraft:count",
+      "count": 16
+    },
+    {
+      "type": "minecraft:in_square"
+    },
+    {
+      "type": "minecraft:height_range",
+      "height": {
+        "type": "minecraft:uniform",
+        "max_inclusive": {
+          "absolute": 110
+        },
+        "min_inclusive": {
+          "absolute": 15
+        }
+      }
+    },
+    {
+      "type": "minecraft:surface_relative_threshold_filter",
+      "heightmap": "WORLD_SURFACE_WG",
+      "max_inclusive": -12
+    },
+    {
+      "type": "minecraft:biome"
+    }
+  ]
+}

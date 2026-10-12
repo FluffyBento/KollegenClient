@@ -1,0 +1,82 @@
+import { createHashRouter, Navigate } from "react-router-dom";
+import { App } from "../App";
+import { RouteErrorBoundary } from "../components/RouteErrorBoundary";
+import { PlayTab } from "../components/tabs/PlayTab";
+import ModrinthTabV2 from "../components/tabs/ModrinthTabV2";
+import { SkinsTab } from "../components/tabs/SkinsTab";
+import { StoreTab } from "../components/tabs/StoreTab";
+import { ClipsPage } from "../components/tabs/ClipsPage";
+import { BrowseTabWrapper } from "../components/profiles/BrowseTabWrapper";
+import { ProfilesTabV2 } from "../components/tabs/ProfilesTabV2";
+import { ProfileDetailViewV2Wrapper } from "../components/profiles/ProfileDetailViewV2Wrapper";
+// DISABLED: Advent Calendar (seasonal feature)
+// import { AdventCalendarTab } from "../components/advent-calendar/AdventCalendarTab";
+import { ModDetailPage } from "../components/mods/ModDetailPage";
+import { SyncPacksPage } from "../components/sync-packs/SyncPacksPage";
+
+export const router = createHashRouter([
+  {
+    path: "/",
+    element: <App />,
+    errorElement: <RouteErrorBoundary />,
+    children: [
+      {
+        index: true,
+        element: <Navigate to="/play" replace />,
+      },
+      {
+        path: "play",
+        element: <PlayTab />,
+      },
+      {
+        path: "profiles",
+        element: <ProfilesTabV2 />,
+      },
+      {
+        path: "profilesv2/:profileId",
+        element: <ProfileDetailViewV2Wrapper />,
+      },
+      {
+        path: "profiles/:profileId",
+        element: <ProfileDetailViewV2Wrapper />,
+      },
+      {
+        path: "profilesv2/:profileId/browse/:contentType",
+        element: <BrowseTabWrapper />,
+      },
+      {
+        path: "profiles/:profileId/browse/:contentType",
+        element: <BrowseTabWrapper />,
+      },
+      {
+        path: "sync-packs",
+        element: <SyncPacksPage />,
+      },
+      {
+        path: "mods",
+        element: <ModrinthTabV2 />,
+      },
+      {
+        path: "mods/:source/:projectId",
+        element: <ModDetailPage />,
+      },
+      {
+        path: "skins",
+        element: <SkinsTab />,
+      },
+      {
+        path: "capes",
+        element: <StoreTab />,
+      },
+      {
+        path: "clips",
+        element: <ClipsPage />,
+      },
+      // DISABLED: Advent Calendar (seasonal feature)
+      // {
+      //   path: "advent-calendar",
+      //   element: <AdventCalendarTab />,
+      // },
+    ],
+  },
+]);

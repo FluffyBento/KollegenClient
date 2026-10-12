@@ -1,0 +1,13 @@
+{
+  "type": "minecraft:mul",
+  "argument1": "the_sift:mountain_ridge_shape",
+  "argument2": {
+    "type": "minecraft:add",
+    "argument1": 0.9,
+    "argument2": {
+      "type": "minecraft:mul",
+      "argument1": 0.2,
+      "argument2": "the_sift:mountain_twist_shape"
+    }
+  }
+}

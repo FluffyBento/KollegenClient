@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:block/fence_post",
+  "textures": {
+    "texture": "the_sift:block/overgrown_willow_planks"
+  }
+}

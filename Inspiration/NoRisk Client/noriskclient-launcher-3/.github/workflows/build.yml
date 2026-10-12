@@ -1,0 +1,565 @@
+name: Build and Release
+
+on:
+  push:
+    branches:
+      - '**' # Build on push to v3 branch
+    tags:
+      - "v*"  # Release on v* tags
+  workflow_dispatch: {} # Allow manual dispatch
+
+jobs:
+  # --- JOB 0: Rust tests ---
+  test:
+    runs-on: ubuntu-22.04
+    # cargo test executes every dependency's build.rs, so this job must not hold a
+    # write-scoped token — actions/checkout persists it into .git/config.
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf
+
+      - name: install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+
+      - name: cargo test
+        working-directory: ./src-tauri
+        run: cargo test --workspace
+
+  # --- JOB 0b: compile the macOS 26 app icon ---
+  # actool only understands Icon Composer .icon documents when it comes from
+  # Xcode 26, which macos-latest does not carry yet. Compiling here keeps
+  # NoRiskLauncher.icon as the single source of truth and keeps the rest of the
+  # matrix on macos-latest.
+  macos-icon:
+    needs: test
+    runs-on: macos-26
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # The very script contributors run locally, so the two can never drift.
+      # It finds its own Xcode 26, verifies the catalog carries the bolt, and
+      # writes src-tauri/Assets.car over the committed copy.
+      - name: Compile Assets.car from NoRiskLauncher.icon
+        run: bash src-tauri/icons/build-macos-icon.sh
+
+      - name: Upload the compiled catalog
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-assets-car
+          path: ./src-tauri/Assets.car
+          if-no-files-found: error
+          retention-days: 1
+
+  # --- JOB 1: Build & Rename ---
+  build:
+    needs: [test, macos-icon]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: 'macos-latest'
+            target: aarch64-apple-darwin
+            output_path: ./src-tauri/target/aarch64-apple-darwin/release/bundle
+            asset_name_base: NoRiskClient-MacOS-arm64
+          - platform: 'macos-latest'
+            target: x86_64-apple-darwin
+            output_path: ./src-tauri/target/x86_64-apple-darwin/release/bundle
+            asset_name_base: NoRiskClient-MacOS-x86_64
+          - platform: 'ubuntu-22.04'
+            target: '' # Kein explizites Target für Linux x86_64
+            output_path: ./src-tauri/target/release/bundle
+            asset_name_base: NoRiskClient-Linux
+          - platform: 'windows-latest'
+            target: '' # Kein explizites Target für Windows x86_64
+            output_path: ./src-tauri/target/release/bundle
+            asset_name_base: NoRiskClient-Windows-setup
+
+    runs-on: ${{ matrix.platform }}
+    # The environment exists to give the GitHub OIDC token a stable subject
+    # (repo:NoRiskClient@76866278/noriskclient-launcher@683336999:environment:signing)
+    # so one Azure federated credential covers every branch and tag.
+    # Leave it without deployment-branch restrictions: this job also runs on plain
+    # branch pushes, and a restricted environment would fail those outright.
+    environment: signing
+    permissions:
+      contents: read
+      id-token: write # Azure OIDC login for Artifact Signing
+    env:
+      WINDOWS_LAUNCHER_EXE: ${{ github.workspace }}\src-tauri\target\release\noriskclient-launcher-v3.exe
+      WINDOWS_CAPTURE_EXE: ${{ github.workspace }}\src-tauri\binaries\norisk-capture-x86_64-pc-windows-msvc.exe
+      CAPTURE_RUNTIME_ASSET: NoRiskClient-Windows-capture-runtime.zip
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Replaces the committed placeholder with the catalog built from
+      # NoRiskLauncher.icon, so the shipped icon always matches the .icon source.
+      - name: Fetch the compiled macOS icon catalog
+        if: matrix.platform == 'macos-latest'
+        uses: actions/download-artifact@v4
+        with:
+          name: macos-assets-car
+          path: ./src-tauri
+
+      - name: install dependencies (ubuntu only)
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf
+
+      - name: setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: 'yarn' # Switch cache to yarn
+
+      - name: install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Clean workspace (including node_modules)
+        run: git clean -fdx
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+
+      - name: install frontend dependencies
+        # If you don't have `beforeBuildCommand` configured you may want to build your frontend here too.
+        run: yarn install --frozen-lockfile # Use yarn install
+
+      - name: Stage the capture runtime
+        if: matrix.platform == 'windows-latest' && startsWith(github.ref, 'refs/tags/')
+        run: yarn native-deps && yarn stage-native
+
+      - name: Azure login (OIDC federated credential)
+        if: matrix.platform == 'windows-latest' && startsWith(github.ref, 'refs/tags/')
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Sign norisk-capture.exe with Azure Artifact Signing
+        if: matrix.platform == 'windows-latest' && startsWith(github.ref, 'refs/tags/')
+        uses: azure/artifact-signing-action@v2
+        with:
+          endpoint: ${{ vars.AZURE_SIGNING_ENDPOINT }}
+          signing-account-name: ${{ vars.AZURE_SIGNING_ACCOUNT }}
+          certificate-profile-name: ${{ vars.AZURE_CERT_PROFILE }}
+          files: ${{ env.WINDOWS_CAPTURE_EXE }}
+          file-digest: SHA256
+          timestamp-rfc3161: http://timestamp.acs.microsoft.com
+          timestamp-digest: SHA256
+
+      - name: Azure logout and pack the capture runtime
+        if: matrix.platform == 'windows-latest' && startsWith(github.ref, 'refs/tags/')
+        shell: pwsh
+        run: |
+          az logout
+          az account clear
+          $signature = Get-AuthenticodeSignature -FilePath $env:WINDOWS_CAPTURE_EXE
+          if ($signature.Status -ne 'Valid') { throw "norisk-capture.exe is in state $($signature.Status) after signing" }
+
+          $outDir = Join-Path $env:RUNNER_TEMP "capture-runtime"
+          yarn pack-capture-runtime --out $outDir
+          if ($LASTEXITCODE -ne 0) { throw "packing the capture runtime failed" }
+          $zip = Join-Path $outDir $env:CAPTURE_RUNTIME_ASSET
+          $hash = (Get-Content "$zip.sha256" -Raw).Trim()
+          if ($hash -notmatch '^[0-9a-f]{64}$') { throw "the capture runtime hash is not a SHA256 digest: '$hash'" }
+
+          echo "CAPTURE_RUNTIME_ZIP=$zip" >> $env:GITHUB_ENV
+          echo "NRC_CAPTURE_RUNTIME_SHA256=$hash" >> $env:GITHUB_ENV
+          echo "NRC_CAPTURE_RUNTIME_URL=https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/$env:CAPTURE_RUNTIME_ASSET" >> $env:GITHUB_ENV
+
+      - name: Stage the macOS capture engine
+        if: matrix.platform == 'macos-latest'
+        run: node scripts/stage-native-deps.mjs --target ${{ matrix.target }}
+
+      - name: Build the Windows app
+        if: matrix.platform == 'windows-latest' && startsWith(github.ref, 'refs/tags/')
+        run: yarn tauri build --verbose --no-bundle
+
+      - name: Verify the launcher carries the capture runtime hash
+        if: matrix.platform == 'windows-latest' && startsWith(github.ref, 'refs/tags/')
+        shell: pwsh
+        run: |
+          $bytes = [System.IO.File]::ReadAllBytes($env:WINDOWS_LAUNCHER_EXE)
+          $text = [System.Text.Encoding]::ASCII.GetString($bytes)
+          if (-not $text.Contains($env:NRC_CAPTURE_RUNTIME_SHA256)) {
+            throw "the launcher was built without the current capture runtime hash; a cached build must have been reused"
+          }
+          Write-Host "launcher carries capture runtime $env:NRC_CAPTURE_RUNTIME_SHA256"
+
+      - name: Azure login (OIDC federated credential)
+        if: matrix.platform == 'windows-latest' && startsWith(github.ref, 'refs/tags/')
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Sign the launcher with Azure Artifact Signing
+        if: matrix.platform == 'windows-latest' && startsWith(github.ref, 'refs/tags/')
+        uses: azure/artifact-signing-action@v2
+        with:
+          endpoint: ${{ vars.AZURE_SIGNING_ENDPOINT }}
+          signing-account-name: ${{ vars.AZURE_SIGNING_ACCOUNT }}
+          certificate-profile-name: ${{ vars.AZURE_CERT_PROFILE }}
+          files: ${{ env.WINDOWS_LAUNCHER_EXE }}
+          file-digest: SHA256
+          timestamp-rfc3161: http://timestamp.acs.microsoft.com
+          timestamp-digest: SHA256
+
+      - name: Azure logout and record the signed launcher
+        if: matrix.platform == 'windows-latest' && startsWith(github.ref, 'refs/tags/')
+        shell: pwsh
+        run: |
+          az logout
+          az account clear
+          $signature = Get-AuthenticodeSignature -FilePath $env:WINDOWS_LAUNCHER_EXE
+          if ($signature.Status -ne 'Valid') { throw "the launcher is in state $($signature.Status) after signing" }
+          echo "SIGNED_LAUNCHER_SHA256=$((Get-FileHash -Algorithm SHA256 $env:WINDOWS_LAUNCHER_EXE).Hash)" >> $env:GITHUB_ENV
+          echo "SIGNED_LAUNCHER_THUMBPRINT=$($signature.SignerCertificate.Thumbprint)" >> $env:GITHUB_ENV
+
+      - name: Bundle the Windows app
+        if: matrix.platform == 'windows-latest' && startsWith(github.ref, 'refs/tags/')
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+        run: yarn tauri bundle --verbose
+
+      # Tauri Action now handles build and sign
+      - name: Build and Sign Tauri App
+        if: ${{ !(matrix.platform == 'windows-latest' && startsWith(github.ref, 'refs/tags/')) }}
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Wird evtl. intern von Tauri benötigt
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+          RUSTFLAGS: ${{ matrix.platform == 'ubuntu-22.04' && '-C link-arg=-Wl,--no-as-needed -C link-arg=-layatana-appindicator3 -C link-arg=-Wl,--as-needed' || '' }}
+        with:
+          # Revert to using packageManager and args
+          args: --verbose ${{ matrix.target != '' && format('--target {0}', matrix.target) || '' }} # Füge --target hinzu, wenn es gesetzt ist
+          packageManager: yarn # Set packageManager to yarn
+      
+      - name: Fix AppImage (Remove Wayland libs & Resign)
+        if: matrix.platform == 'ubuntu-22.04'
+        env:
+          # Pass the secrets directly to the environment
+          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+          TAURI_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+        run: |
+          echo "--- Fix AppImage Started ---"
+          
+          BUNDLE_DIR="$(pwd)/${{ matrix.output_path }}/appimage"
+          cd "$BUNDLE_DIR"
+          APPIMAGE=$(ls *.AppImage | head -n 1)
+          echo "Target: $APPIMAGE"
+          
+          chmod +x "$APPIMAGE"
+          ./"$APPIMAGE" --appimage-extract > /dev/null
+          
+          echo "Removing conflicting libraries..."
+          find squashfs-root -name "*wayland*" -delete
+          
+          wget -q https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage
+          chmod +x appimagetool-x86_64.AppImage
+          
+          export ARCH=x86_64
+          ./appimagetool-x86_64.AppImage squashfs-root/ "$APPIMAGE"
+          
+          echo "Re-signing..."
+          
+          cd - > /dev/null
+          
+          yarn tauri signer sign "$BUNDLE_DIR/$APPIMAGE"
+          
+          cd "$BUNDLE_DIR"
+          rm -rf squashfs-root appimagetool-x86_64.AppImage
+          
+          echo "--- Fix Complete ---"
+
+      - name: Verify the launcher and stage the capture runtime
+        if: matrix.platform == 'windows-latest' && startsWith(github.ref, 'refs/tags/')
+        shell: pwsh
+        run: |
+          $hash = (Get-FileHash -Algorithm SHA256 $env:WINDOWS_LAUNCHER_EXE).Hash
+          $signature = Get-AuthenticodeSignature -FilePath $env:WINDOWS_LAUNCHER_EXE
+          if ($hash -ne $env:SIGNED_LAUNCHER_SHA256) {
+            throw "the launcher does not match the signed file (expected $env:SIGNED_LAUNCHER_SHA256, got $hash)"
+          }
+          if ($signature.Status -ne 'Valid' -or $signature.SignerCertificate.Thumbprint -ne $env:SIGNED_LAUNCHER_THUMBPRINT) {
+            throw "the launcher signature check failed ($($signature.Status))"
+          }
+          Write-Host "launcher verified, signed by $($signature.SignerCertificate.Subject)"
+
+          $zipHash = (Get-FileHash -Algorithm SHA256 $env:CAPTURE_RUNTIME_ZIP).Hash.ToLower()
+          if ($zipHash -ne $env:NRC_CAPTURE_RUNTIME_SHA256) {
+            throw "the capture runtime archive changed after its hash was compiled in"
+          }
+          Copy-Item $env:CAPTURE_RUNTIME_ZIP "${{ matrix.output_path }}\nsis\"
+          Write-Host "capture runtime $env:CAPTURE_RUNTIME_ASSET ($zipHash) staged for upload"
+
+      # --- Code Signing (Windows) via Azure Artifact Signing ---
+      - name: Find Windows EXE for Signing
+        if: matrix.platform == 'windows-latest' && startsWith(github.ref, 'refs/tags/')
+        id: find_exe
+        run: |
+          $NsisDir = "${{ github.workspace }}\src-tauri\target\release\bundle\nsis"
+          $ExeFile = Get-ChildItem -Path $NsisDir -Filter "*.exe" | Where-Object { $_.Name -notlike "*.sig" } | Select-Object -First 1
+          echo "EXE_PATH=$($ExeFile.FullName)" >> $env:GITHUB_OUTPUT
+          echo "NSIS_DIR=$NsisDir" >> $env:GITHUB_OUTPUT
+          echo "Found EXE: $($ExeFile.FullName)"
+        shell: pwsh
+
+      - name: Azure login (OIDC federated credential)
+        if: matrix.platform == 'windows-latest' && startsWith(github.ref, 'refs/tags/')
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Sign Windows EXE with Azure Artifact Signing
+        if: matrix.platform == 'windows-latest' && startsWith(github.ref, 'refs/tags/')
+        uses: azure/artifact-signing-action@v2
+        with:
+          endpoint: ${{ vars.AZURE_SIGNING_ENDPOINT }}
+          signing-account-name: ${{ vars.AZURE_SIGNING_ACCOUNT }}
+          certificate-profile-name: ${{ vars.AZURE_CERT_PROFILE }}
+          files: ${{ steps.find_exe.outputs.EXE_PATH }}
+          file-digest: SHA256
+          timestamp-rfc3161: http://timestamp.acs.microsoft.com
+          timestamp-digest: SHA256
+
+      # tauri-action generated the .exe.sig before code signing changed the binary,
+      # so the updater signature no longer matches and has to be regenerated.
+      - name: Re-sign Windows EXE for Tauri Updater
+        if: matrix.platform == 'windows-latest' && startsWith(github.ref, 'refs/tags/')
+        env:
+          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+          TAURI_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+        run: |
+          echo "Re-signing EXE for Tauri updater after code signing..."
+          yarn tauri signer sign "${{ steps.find_exe.outputs.EXE_PATH }}"
+          echo "Re-signing complete."
+        shell: bash
+
+      - name: Verify the Windows signature
+        if: matrix.platform == 'windows-latest' && startsWith(github.ref, 'refs/tags/')
+        shell: pwsh
+        run: |
+          $sig = Get-AuthenticodeSignature "${{ steps.find_exe.outputs.EXE_PATH }}"
+          $sig | Format-List Status, StatusMessage
+          $sig.SignerCertificate | Format-List Subject, Issuer, NotAfter
+          if ($sig.Status -ne 'Valid') { throw "Signature status is $($sig.Status)" }
+
+      # --- Umbenennen und Artefakte vorbereiten ---
+      - name: Rename Linux Artifacts
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          echo "--- Listing content BEFORE rename ---"
+          echo "Output path: ${{ matrix.output_path }}"
+          ls -R "${{ matrix.output_path }}" || true
+          echo "-----------------------------------"
+          
+          APP_BASE_NAME="NoRisk Launcher" # Dein productName
+          APPIMAGE_DIR=${{ matrix.output_path }}/appimage
+          DEB_DIR=${{ matrix.output_path }}/deb
+          
+          echo "Listing content of $APPIMAGE_DIR and $DEB_DIR"
+          ls -R "$APPIMAGE_DIR" || true
+          ls -R "$DEB_DIR" || true
+          
+          # Verschiebe und benenne AppImage um (verwende einfachen Wildcard)
+          mv "$APPIMAGE_DIR"/*.AppImage "$APPIMAGE_DIR"/${{ matrix.asset_name_base }}.AppImage
+          
+          # Verschiebe und benenne AppImage Signatur um (verwende einfachen Wildcard)
+          mv "$APPIMAGE_DIR"/*.AppImage.sig "$APPIMAGE_DIR"/${{ matrix.asset_name_base }}.AppImage.sig
+          
+          # Verschiebe und benenne Deb Paket um
+          mv "$DEB_DIR"/*.deb "$APPIMAGE_DIR"/${{ matrix.asset_name_base }}.deb
+          
+          # Verschiebe und benenne Deb Signatur um
+          mv "$DEB_DIR"/*.deb.sig "$APPIMAGE_DIR"/${{ matrix.asset_name_base }}.deb.sig
+          
+          echo "Final content of $APPIMAGE_DIR after moves"
+          ls -R "$APPIMAGE_DIR" || true
+          
+          echo "--- Listing content AFTER rename ---"
+          echo "Output path: ${{ matrix.output_path }}"
+          ls -R "${{ matrix.output_path }}" || true
+          echo "-----------------------------------"
+        shell: bash
+        
+      - name: Rename Windows Artifacts
+        if: matrix.platform == 'windows-latest'
+        run: |
+          echo "--- Listing content BEFORE rename ---"
+          echo "Output path: ${{ matrix.output_path }}"
+          Get-ChildItem -Path "${{ matrix.output_path }}\release\bundle" -Recurse -ErrorAction SilentlyContinue
+          echo "-----------------------------------"
+          
+          $ARTIFACT_DIR = "${{ matrix.output_path }}\nsis"
+          echo "Listing content of $ARTIFACT_DIR"
+          Get-ChildItem -Path $ARTIFACT_DIR -Recurse
+          # Finde die Originalnamen (angenommen nur eine .exe und eine .exe.sig)
+          $ExeFile = Get-ChildItem -Path $ARTIFACT_DIR -Filter *.exe
+          $SigFile = Get-ChildItem -Path $ARTIFACT_DIR -Filter *.exe.sig
+
+          # Benenne .exe um
+          Move-Item -Path $ExeFile.FullName -Destination "$ARTIFACT_DIR\${{ matrix.asset_name_base }}.exe"
+          # Benenne .exe.sig um
+          Move-Item -Path $SigFile.FullName -Destination "$ARTIFACT_DIR\${{ matrix.asset_name_base }}.exe.sig"
+
+          echo "Final content of $ARTIFACT_DIR after move"
+          Get-ChildItem -Path $ARTIFACT_DIR -Recurse
+          
+          echo "--- Listing content AFTER rename ---"
+          echo "Output path: ${{ matrix.output_path }}"
+          Get-ChildItem -Path "${{ matrix.output_path }}" -Recurse -ErrorAction SilentlyContinue
+          echo "-----------------------------------"
+        shell: pwsh
+        
+      - name: Rename macOS Artifacts
+        if: matrix.platform == 'macos-latest'
+        run: |
+          echo "--- Listing content BEFORE rename ---"
+          echo "Output path: ${{ matrix.output_path }}"
+          ls -R "${{ matrix.output_path }}" || true 
+          echo "-----------------------------------"
+          
+          APP_BASE_NAME="NoRisk Launcher" # Dein productName
+          ARTIFACT_DIR_DMG=${{ matrix.output_path }}/dmg
+          ARTIFACT_DIR_APP=${{ matrix.output_path }}/macos
+          RENAMED_DIR="$ARTIFACT_DIR_APP/renamed"
+          
+          echo "Listing content of $ARTIFACT_DIR_DMG and $ARTIFACT_DIR_APP"
+          ls -R "$ARTIFACT_DIR_DMG" || true
+          ls -R "$ARTIFACT_DIR_APP" || true
+          mkdir -p "$RENAMED_DIR"
+          
+          # Verschiebe DMG (Wildcard sollte ok sein)
+          mv "$ARTIFACT_DIR_DMG"/*.dmg "$RENAMED_DIR"/${{ matrix.asset_name_base }}.dmg
+          
+          # Verschiebe App Tarball (expliziter Name)
+          mv "$ARTIFACT_DIR_APP/${APP_BASE_NAME}.app.tar.gz" "$RENAMED_DIR"/${{ matrix.asset_name_base }}.app.tar.gz
+          
+          # Verschiebe App Tarball Signatur (expliziter Name, ignoriere Fehler)
+          mv "$ARTIFACT_DIR_APP/${APP_BASE_NAME}.app.tar.gz.sig" "$RENAMED_DIR"/${{ matrix.asset_name_base }}.app.tar.gz.sig
+          
+          echo "Final content of $RENAMED_DIR after move"
+          ls -R "$RENAMED_DIR" || true
+          
+          echo "--- Listing content AFTER rename ---"
+          echo "Output path: ${{ matrix.output_path }}"
+          ls -R "${{ matrix.output_path }}" || true
+          echo "-----------------------------------"
+        shell: bash
+
+      # --- Artefakte hochladen --- 
+      - name: Upload Linux Artifact
+        uses: actions/upload-artifact@v4
+        if: matrix.platform == 'ubuntu-22.04'
+        with:
+          name: artifact-${{ matrix.platform }}
+          path: ${{ matrix.output_path }}/appimage/${{ matrix.asset_name_base }}.*
+          if-no-files-found: error
+
+      - name: Upload Windows Artifact
+        uses: actions/upload-artifact@v4
+        if: matrix.platform == 'windows-latest'
+        with:
+          name: artifact-${{ matrix.platform }}
+          path: |
+            ${{ matrix.output_path }}\nsis\${{ matrix.asset_name_base }}.*
+            ${{ startsWith(github.ref, 'refs/tags/') && format('{0}\nsis\{1}', matrix.output_path, env.CAPTURE_RUNTIME_ASSET) || '' }}
+          if-no-files-found: error
+          
+      - name: Upload macOS Artifact
+        uses: actions/upload-artifact@v4
+        if: matrix.platform == 'macos-latest'
+        with:
+          name: artifact-${{ matrix.platform }}-${{ matrix.target }}
+          path: ${{ matrix.output_path }}/macos/renamed/${{ matrix.asset_name_base }}.*
+          if-no-files-found: error
+
+  # --- JOB 2: Create Release --- 
+  release:
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    needs: build # Abhängigkeit vom Build-Job
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # Benötigt für Release-Erstellung
+    steps:
+      - name: Checkout repository (needed for release notes maybe)
+        uses: actions/checkout@v4 
+        
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts # Alle Artefakte in ein Unterverzeichnis herunterladen
+          # Kein expliziter Name, lädt alle hochgeladenen Artefakte herunter
+
+      - name: List downloaded artifacts
+        run: ls -R artifacts
+        
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref_name }} # Verwendet den Tag, der den Workflow ausgelöst hat
+          name: Release ${{ github.ref_name }} # Name des Releases
+          body: | # Optional: Release Notes
+            Automated release for tag ${{ github.ref_name }}
+            See assets below.
+          draft: false
+          # Setze auf true, wenn der Tag '-alpha', '-beta' oder '-rc' enthält
+          prerelease: ${{ contains(github.ref_name, '-alpha') || contains(github.ref_name, '-beta') || contains(github.ref_name, '-rc') }}
+          files: artifacts/**/* # Lädt alle heruntergeladenen Artefakte hoch
+
+      # --- Schritt: Produktions-Backend benachrichtigen --- 
+      - name: Notify Production Backend
+        if: success() # Nur wenn Release-Erstellung erfolgreich war
+        run: |
+          echo "Sending notification to PRODUCTION backend for tag ${{ github.ref_name }}"
+          curl -X POST \
+               -H "Content-Type: application/json" \
+               -H "Authorization: Bearer ${{ secrets.BACKEND_API_KEY }}" \
+               https://api.norisk.gg/api/v1/launcher/releases/update
+        shell: bash
+
+  # --- JOB 3: Staging-Backend benachrichtigen ---
+  notify_staging: # Neuer Job für Staging/Manual
+    # Läuft bei Push zu staging ODER bei manuellem Start
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/staging') || (github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    needs: build # Stellt sicher, dass Builds abgeschlossen sind (oder fehlgeschlagen sind)
+    steps:
+      - name: Notify Staging Backend
+        run: |
+          echo "Sending notification to STAGING backend for ref ${{ github.ref_name }}"
+          curl -X POST \
+               -H "Content-Type: application/json" \
+               -H "Authorization: Bearer ${{ secrets.BACKEND_API_KEY }}" \
+               https://api-staging.norisk.gg/api/v1/launcher/releases/update
+        shell: bash

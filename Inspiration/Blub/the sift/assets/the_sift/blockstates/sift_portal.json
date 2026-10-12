@@ -1,0 +1,10 @@
+{
+  "variants": {
+    "axis=x": {
+      "model": "the_sift:block/sift_portal_particle"
+    },
+    "axis=z": {
+      "model": "the_sift:block/sift_portal_particle"
+    }
+  }
+}

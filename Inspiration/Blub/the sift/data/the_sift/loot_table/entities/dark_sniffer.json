@@ -1,0 +1,15 @@
+{
+  "type": "minecraft:entity",
+  "pools": [
+    {
+      "rolls": 1.0,
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:sculk"
+        }
+      ]
+    }
+  ],
+  "random_sequence": "the_sift:entities/dark_sniffer"
+}

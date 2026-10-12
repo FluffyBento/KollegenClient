@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:smithing_transform",
+  "addition": "the_sift:siftite_ingot",
+  "base": "minecraft:netherite_axe",
+  "result": {
+    "id": "the_sift:siftite_axe"
+  },
+  "template": "the_sift:siftite_upgrade_smithing_template"
+}

@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:add",
+  "argument1": 1.0,
+  "argument2": {
+    "type": "minecraft:mul",
+    "argument1": -0.42,
+    "argument2": "the_sift:biome_flatness"
+  }
+}

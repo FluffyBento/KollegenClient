@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:block/pressure_plate_down",
+  "textures": {
+    "texture": "the_sift:block/overgrown_willow_planks"
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "model": {
+    "type": "minecraft:select",
+    "property": "minecraft:block_state",
+    "block_state_property": "mode",
+    "cases": [
+      {
+        "when": "horn",
+        "model": {
+          "type": "minecraft:model",
+          "model": "the_sift:block/sonorous_deepslate_horn"
+        }
+      },
+      {
+        "when": "note",
+        "model": {
+          "type": "minecraft:model",
+          "model": "the_sift:block/sonorous_deepslate_note"
+        }
+      }
+    ],
+    "fallback": {
+      "type": "minecraft:model",
+      "model": "the_sift:block/sonorous_deepslate_horn"
+    }
+  }
+}

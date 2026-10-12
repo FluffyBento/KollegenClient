@@ -1,0 +1,7 @@
+{
+  "parent": "minecraft:block/cross",
+  "textures": {
+    "cross": "the_sift:block/overgrown_chard"
+  },
+  "render_type": "minecraft:cutout"
+}

@@ -1,0 +1,22 @@
+{
+  "variants": {
+    "": [
+      {
+        "model": "the_sift:block/whisperbloom",
+        "y": 0
+      },
+      {
+        "model": "the_sift:block/whisperbloom",
+        "y": 90
+      },
+      {
+        "model": "the_sift:block/whisperbloom",
+        "y": 180
+      },
+      {
+        "model": "the_sift:block/whisperbloom",
+        "y": 270
+      }
+    ]
+  }
+}

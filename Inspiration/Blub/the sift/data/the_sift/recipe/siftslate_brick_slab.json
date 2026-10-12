@@ -1,0 +1,14 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "building",
+  "pattern": [
+    "###"
+  ],
+  "key": {
+    "#": "the_sift:siftslate_bricks"
+  },
+  "result": {
+    "id": "the_sift:siftslate_brick_slab",
+    "count": 6
+  }
+}

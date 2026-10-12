@@ -1,0 +1,10 @@
+{
+  "type": "minecraft:mul",
+  "argument1": 0.12,
+  "argument2": {
+    "type": "minecraft:noise",
+    "noise": "the_sift:regional_elevation",
+    "xz_scale": 0.52,
+    "y_scale": 0.0
+  }
+}

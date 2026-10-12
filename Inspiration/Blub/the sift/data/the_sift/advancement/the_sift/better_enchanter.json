@@ -1,0 +1,25 @@
+{
+  "parent": "the_sift:the_sift/kinda_purpleish",
+  "display": {
+    "icon": {
+      "id": "the_sift:charoite"
+    },
+    "title": {
+      "translate": "advancement.the_sift.better_enchanter.title"
+    },
+    "description": {
+      "translate": "advancement.the_sift.better_enchanter.description"
+    },
+    "frame": "goal"
+  },
+  "criteria": {
+    "event": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "requirements": [
+    [
+      "event"
+    ]
+  ]
+}

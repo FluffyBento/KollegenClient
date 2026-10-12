@@ -1,0 +1,11 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "redstone",
+  "group": "wooden_button",
+  "ingredients": [
+    "the_sift:overgrown_willow_planks"
+  ],
+  "result": {
+    "id": "the_sift:overgrown_willow_button"
+  }
+}

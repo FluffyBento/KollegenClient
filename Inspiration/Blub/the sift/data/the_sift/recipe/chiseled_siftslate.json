@@ -1,0 +1,14 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "building",
+  "pattern": [
+    "#",
+    "#"
+  ],
+  "key": {
+    "#": "the_sift:siftslate_brick_slab"
+  },
+  "result": {
+    "id": "the_sift:chiseled_siftslate"
+  }
+}

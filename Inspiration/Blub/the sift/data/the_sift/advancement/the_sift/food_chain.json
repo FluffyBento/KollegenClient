@@ -1,0 +1,25 @@
+{
+  "parent": "the_sift:the_sift/blub",
+  "display": {
+    "icon": {
+      "id": "the_sift:dark_sniffer_spawn_egg"
+    },
+    "title": {
+      "translate": "advancement.the_sift.food_chain.title"
+    },
+    "description": {
+      "translate": "advancement.the_sift.food_chain.description"
+    },
+    "frame": "challenge"
+  },
+  "criteria": {
+    "event": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "requirements": [
+    [
+      "event"
+    ]
+  ]
+}

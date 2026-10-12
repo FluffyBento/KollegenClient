@@ -1,0 +1,31 @@
+{
+  "parent": "the_sift:the_sift/certified_sifter",
+  "display": {
+    "icon": {
+      "id": "the_sift:sculkflower_seeds"
+    },
+    "title": {
+      "translate": "advancement.the_sift.smells_creepy.title"
+    },
+    "description": {
+      "translate": "advancement.the_sift.smells_creepy.description"
+    }
+  },
+  "criteria": {
+    "seeds": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": "the_sift:sculkflower_seeds"
+          }
+        ]
+      }
+    }
+  },
+  "requirements": [
+    [
+      "seeds"
+    ]
+  ]
+}

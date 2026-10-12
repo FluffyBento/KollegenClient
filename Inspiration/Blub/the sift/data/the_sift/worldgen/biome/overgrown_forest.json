@@ -1,0 +1,125 @@
+{
+  "attributes": {
+    "minecraft:visual/sky_color": "#ffffff",
+    "minecraft:visual/ambient_particles": [
+      {
+        "particle": {
+          "type": "the_sift:sift_note"
+        },
+        "probability": 0.00044000
+      }
+    ]
+  },
+  "carvers": [
+    "the_sift:cave",
+    "the_sift:cave_extra_underground",
+    "the_sift:canyon"
+  ],
+  "creature_spawn_probability": 0.08,
+  "downfall": 0.8,
+  "effects": {
+    "water_color": "#4adce8"
+  },
+  "features": [
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [
+      "the_sift:siftslate_coal_ore",
+      "the_sift:siftslate_coal_ore_surface",
+      "the_sift:siftslate_diamond_ore",
+      "the_sift:siftslate_emerald_ore",
+      "the_sift:siftslate_charoite_ore",
+      "the_sift:siftslate_siftite_ore",
+      "the_sift:cobbled_siftslate_blob",
+      "the_sift:sift_rubble_blob",
+      "the_sift:healthy_sculk_underground_blob",
+      "the_sift:dry_healthy_sculk_underground_blob",
+      "the_sift:sift_fossil"
+    ],
+    [
+      "the_sift:soul_canyon",
+      "the_sift:sniffer_cave_overgrown",
+      "the_sift:ichor_underground_lake",
+      "the_sift:siftslate_hanging_roots_cave",
+      "the_sift:overgrown_hanging_roots_forest",
+      "the_sift:siftslate_stalks_cave",
+      "the_sift:healthy_sculk_sprouts_cave",
+      "the_sift:dry_healthy_sculk_sprouts_cave",
+      "the_sift:siftslate_stalks_on_healthy_cave",
+      "the_sift:siftslate_stalks_on_dry_cave"
+    ],
+    [
+      "the_sift:ichor_spring"
+    ],
+    [
+      "the_sift:abandoned_main_portal",
+      "the_sift:ichor_lake",
+      "the_sift:lush_monolith_overgrown",
+      "the_sift:bare_monolith_overgrown",
+      "the_sift:dry_sculk_spikes_overgrown",
+      "the_sift:cliff_arch",
+      "the_sift:healthy_sculk_medium_blob_forest",
+      "the_sift:dry_healthy_sculk_medium_blob_forest",
+      "the_sift:overgrown_willow_trees_dense",
+      "the_sift:siftslate_stalks_surface",
+      "the_sift:overgrown_fronds_forest",
+      "the_sift:siftslate_stalks_on_healthy",
+      "the_sift:siftslate_stalks_on_dry",
+      "the_sift:healthy_sculk_sprouts_main",
+      "the_sift:healthy_sculk_sprouts_on_dry",
+      "the_sift:dry_healthy_sculk_sprouts_main",
+      "the_sift:dry_healthy_sculk_sprouts_on_healthy",
+      "the_sift:overgrown_chard_dense",
+      "the_sift:overgrown_stalks_dense",
+      "the_sift:sift_flower_patch",
+      "the_sift:siftslate_plant_patch",
+      "the_sift:sniffer_plant_patch"
+    ],
+    [
+      "the_sift:covered_growth_cleanup",
+      "the_sift:lava_floor",
+      "the_sift:surface_sculk_region"
+    ]
+  ],
+  "has_precipitation": true,
+  "spawn_costs": {
+    "minecraft:sniffer": {
+      "charge": 0.7,
+      "energy_budget": 0.15
+    }
+  },
+  "spawners": {
+    "ambient": [],
+    "axolotls": [],
+    "creature": [
+      {
+        "type": "the_sift:echo_golem",
+        "maxCount": 1,
+        "minCount": 1,
+        "weight": 1
+      },
+      {
+        "type": "minecraft:sniffer",
+        "maxCount": 3,
+        "minCount": 2,
+        "weight": 5
+      },
+      {
+        "type": "the_sift:blub",
+        "maxCount": 4,
+        "minCount": 2,
+        "weight": 5
+      }
+    ],
+    "misc": [],
+    "monster": [],
+    "underground_water_creature": [],
+    "water_ambient": [],
+    "water_creature": []
+  },
+  "temperature": 0.72
+}

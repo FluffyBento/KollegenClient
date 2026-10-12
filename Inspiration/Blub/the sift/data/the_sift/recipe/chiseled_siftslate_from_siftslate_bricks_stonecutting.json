@@ -1,0 +1,7 @@
+{
+  "type": "minecraft:stonecutting",
+  "ingredient": "the_sift:siftslate_bricks",
+  "result": {
+    "id": "the_sift:chiseled_siftslate"
+  }
+}

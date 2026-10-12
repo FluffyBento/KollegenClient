@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:block/wall_inventory",
+  "textures": {
+    "wall": "the_sift:block/cobbled_siftslate"
+  }
+}

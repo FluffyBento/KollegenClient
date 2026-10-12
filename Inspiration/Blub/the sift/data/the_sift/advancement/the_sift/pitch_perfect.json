@@ -1,0 +1,24 @@
+{
+  "parent": "the_sift:the_sift/friend_of_the_sift",
+  "display": {
+    "icon": {
+      "id": "the_sift:singer_spawn_egg"
+    },
+    "title": {
+      "translate": "advancement.the_sift.pitch_perfect.title"
+    },
+    "description": {
+      "translate": "advancement.the_sift.pitch_perfect.description"
+    }
+  },
+  "criteria": {
+    "event": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "requirements": [
+    [
+      "event"
+    ]
+  ]
+}

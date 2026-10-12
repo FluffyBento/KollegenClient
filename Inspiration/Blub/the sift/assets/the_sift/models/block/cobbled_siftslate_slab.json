@@ -1,0 +1,8 @@
+{
+  "parent": "minecraft:block/slab",
+  "textures": {
+    "bottom": "the_sift:block/cobbled_siftslate",
+    "top": "the_sift:block/cobbled_siftslate",
+    "side": "the_sift:block/cobbled_siftslate"
+  }
+}

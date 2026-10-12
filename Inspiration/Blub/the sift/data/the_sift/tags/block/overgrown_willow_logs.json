@@ -1,0 +1,9 @@
+{
+  "replace": false,
+  "values": [
+    "the_sift:overgrown_willow_log",
+    "the_sift:overgrown_willow_wood",
+    "the_sift:stripped_overgrown_willow_log",
+    "the_sift:stripped_overgrown_willow_wood"
+  ]
+}

@@ -1,0 +1,248 @@
+use crate::config::{ProjectDirsExt, LAUNCHER_DIRECTORY};
+use crate::error::{AppError, Result};
+use crate::minecraft::minecraft_auth::MinecraftAuthStore;
+use crate::state::active_skin_state::{default_active_skins_path, ActiveSkinManager};
+use crate::state::config_state::ConfigManager;
+use crate::state::content_cache_state::ContentCacheManager;
+use crate::state::cosmetic_pack_state::CosmeticPackManager;
+use crate::state::discord_state::DiscordManager;
+use crate::state::event_state::{EventPayload, EventState};
+use crate::state::friends_state::FriendsState;
+use crate::state::norisk_packs_state::{default_norisk_packs_path, NoriskPackManager};
+use crate::state::norisk_versions_state::{default_norisk_versions_path, NoriskVersionManager};
+use crate::state::post_init::PostInitializationHandler;
+use crate::state::process_state::{default_processes_path, ProcessManager};
+use crate::state::profile_state::ProfileManager;
+use crate::state::skin_state::{default_skins_path, SkinManager};
+use crate::state::sync_pack_state::SyncPackManager;
+use crate::utils::referral_utils;
+use std::sync::Arc;
+use tokio::sync::{OnceCell, Mutex, Semaphore};
+use tokio::task::JoinHandle;
+
+// Global state that will be initialized once
+static LAUNCHER_STATE: OnceCell<Arc<State>> = OnceCell::const_new();
+
+pub struct State {
+    pub initialized: bool,
+    pub profile_manager: ProfileManager,
+    pub event_state: EventState,
+    pub process_manager: ProcessManager,
+    pub minecraft_account_manager_v2: MinecraftAuthStore,
+    pub norisk_pack_manager: NoriskPackManager,
+    pub norisk_version_manager: NoriskVersionManager,
+    pub config_manager: ConfigManager,
+    pub skin_manager: SkinManager,
+    pub active_skin_manager: ActiveSkinManager,
+    pub discord_manager: DiscordManager,
+    pub cosmetic_pack_manager: CosmeticPackManager,
+    pub friends_state: FriendsState,
+    pub content_cache: ContentCacheManager,
+    pub capture_supervisor: Arc<crate::state::capture_state::CaptureSupervisor>,
+    pub sync_pack_manager: SyncPackManager,
+    pub db: crate::state::db::DbHandle,
+    pub io_semaphore: Arc<Semaphore>,
+    pub login_server_handle: Arc<Mutex<Option<JoinHandle<Result<()>>>>>,
+}
+
+async fn ready_step<F>(name: &str, step: F) -> Result<()>
+where
+    F: std::future::Future<Output = Result<()>>,
+{
+    let start = std::time::Instant::now();
+    step.await?;
+    log::info!("{} ready ({}ms)", name, start.elapsed().as_millis());
+    Ok(())
+}
+
+impl State {
+    // Initialize the global state
+    pub async fn init(app: Arc<tauri::AppHandle>) -> Result<()> {
+        let init_start = std::time::Instant::now();
+        let initial_state_arc = LAUNCHER_STATE
+            .get_or_try_init(|| async {
+                log::trace!("State::init - Starting primary initialization of managers (Phase 1 - Lightweight Instantiation)...");
+                let config_manager = ConfigManager::new()?;
+                let discord_manager = DiscordManager::new(false).await?;
+                let io_semaphore = Arc::new(Semaphore::new(10));
+                let event_state = EventState::new(Some(app.clone()));
+                let minecraft_account_manager_v2 = MinecraftAuthStore::new().await?;
+                let norisk_pack_manager = NoriskPackManager::new(default_norisk_packs_path())?;
+                let norisk_version_manager = NoriskVersionManager::new(default_norisk_versions_path())?;
+                let skin_manager = SkinManager::new(default_skins_path())?;
+                let active_skin_manager = ActiveSkinManager::new(default_active_skins_path())?;
+                let db = crate::state::db::new_handle();
+                let profile_manager = ProfileManager::new(
+                    LAUNCHER_DIRECTORY.root_dir().join("profiles.json"),
+                    db.clone(),
+                )?;
+                let process_manager = ProcessManager::new(default_processes_path(), app.clone()).await?;
+
+                log::trace!("State::init - Primary initialization of managers complete (Phase 1). Constructing State struct with initialized: false.");
+                let friends_state = FriendsState::new();
+                let cosmetic_pack_manager = CosmeticPackManager::new();
+                let content_cache = ContentCacheManager::new(db.clone())?;
+                let sync_pack_manager = SyncPackManager::new(db.clone())?;
+                Ok::<Arc<State>, AppError>(Arc::new(Self {
+                    initialized: true,
+                    profile_manager,
+                    event_state,
+                    process_manager,
+                    minecraft_account_manager_v2,
+                    norisk_pack_manager,
+                    norisk_version_manager,
+                    config_manager,
+                    skin_manager,
+                    active_skin_manager,
+                    discord_manager,
+                    cosmetic_pack_manager,
+                    friends_state,
+                    content_cache,
+                    capture_supervisor: Arc::new(
+                        crate::state::capture_state::CaptureSupervisor::new(),
+                    ),
+                    sync_pack_manager,
+                    db,
+                    io_semaphore,
+                    login_server_handle: Arc::new(Mutex::new(None)),
+                }))
+            })
+            .await?;
+
+        log::trace!("State::init - Global state Arc created. Running post-initialization handlers (Phase 2)...");
+
+        ready_step("ConfigManager", initial_state_arc.config_manager.on_state_ready(app.clone())).await?;
+
+        // Must run after ConfigManager: meta_dir() resolves CUSTOM_GAME_DIR_CACHE.
+        crate::state::db::open_or_reopen(&initial_state_arc.db).await?;
+
+        ready_step("ContentCacheManager", initial_state_arc.content_cache.on_state_ready(app.clone())).await?;
+
+        let loaded_config = initial_state_arc.config_manager.get_config().await;
+
+        if initial_state_arc.io_semaphore.available_permits() != loaded_config.concurrent_io_limit {
+            log::warn!(
+                "State::init - io_semaphore was initialized with default limit ({}). Actual config limit is {}. Consider refactoring io_semaphore for dynamic updates if this discrepancy is an issue.", 
+                initial_state_arc.io_semaphore.available_permits(), // This shows current permits, not initial limit
+                loaded_config.concurrent_io_limit
+            );
+        }
+
+        initial_state_arc
+            .discord_manager
+            .set_enabled(loaded_config.enable_discord_presence)
+            .await?;
+        log::trace!(
+            "State::init - DiscordManager enabled status set based on loaded config: {}",
+            loaded_config.enable_discord_presence
+        );
+
+        ready_step("NoriskVersionManager", initial_state_arc.norisk_version_manager.on_state_ready(app.clone())).await?;
+        ready_step("NoriskPackManager", initial_state_arc.norisk_pack_manager.on_state_ready(app.clone())).await?;
+        ready_step("ProfileManager", initial_state_arc.profile_manager.on_state_ready(app.clone())).await?;
+        ready_step("SyncPackManager", initial_state_arc.sync_pack_manager.on_state_ready(app.clone())).await?;
+        ready_step("ProcessManager", initial_state_arc.process_manager.on_state_ready(app.clone())).await?;
+
+        // Apply any token handbacks the in-game client dropped while we were closed, then keep
+        // watching for new ones (mirrors the Discord client-state poller).
+        crate::minecraft::auth::token_handback::consume_pending(
+            &initial_state_arc.minecraft_account_manager_v2,
+        )
+        .await;
+        {
+            let store = initial_state_arc.minecraft_account_manager_v2.clone();
+            tokio::spawn(async move {
+                loop {
+                    tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
+                    crate::minecraft::auth::token_handback::consume_pending(&store).await;
+                }
+            });
+        }
+        log::trace!("State::init - Auth handback watcher started.");
+
+        ready_step("SkinManager", initial_state_arc.skin_manager.on_state_ready(app.clone())).await?;
+        ready_step("ActiveSkinManager", initial_state_arc.active_skin_manager.on_state_ready(app.clone())).await?;
+
+        let reconcile_state = initial_state_arc.clone();
+        tokio::spawn(async move {
+            match reconcile_state
+                .minecraft_account_manager_v2
+                .get_active_account()
+                .await
+            {
+                Ok(Some(account)) => {
+                    let uuid = account.id.to_string();
+                    match reconcile_state.active_skin_manager.reconcile(&uuid).await {
+                        Ok(changed) => {
+                            if changed {
+                                let _ = reconcile_state
+                                    .event_state
+                                    .skin_changed(Some(account.id))
+                                    .await;
+                            }
+                        }
+                        Err(e) => log::warn!(
+                            "State::init - Startup skin reconcile failed for {}: {}",
+                            uuid,
+                            e
+                        ),
+                    }
+                }
+                Ok(None) => log::debug!("State::init - No active account, skipping skin reconcile."),
+                Err(e) => log::warn!("State::init - Could not get active account for skin reconcile: {}", e),
+            }
+        });
+
+        let final_config = initial_state_arc.config_manager.get_config().await;
+        log::info!(
+            "Launcher config: experimental={}, discord={}, concurrent_downloads={}",
+            final_config.is_experimental,
+            final_config.enable_discord_presence,
+            final_config.concurrent_downloads
+        );
+
+        // Check for referral code from installer (affiliate/friend links)
+        if let Err(e) = referral_utils::check_and_process_referral_code().await {
+            log::warn!("State::init - Failed to process referral code: {}", e);
+            // Don't fail initialization, just log the error
+        }
+
+        log::info!("State ready in {}ms", init_start.elapsed().as_millis());
+
+        Ok(())
+    }
+
+    // Get the current state instance
+    pub async fn get() -> Result<Arc<Self>> {
+        if !LAUNCHER_STATE.initialized() {
+            log::trace!("Attempted to get state before initialization. Waiting...");
+            let mut wait_count = 0;
+            while !LAUNCHER_STATE.initialized() {
+                tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+                wait_count += 1;
+                if wait_count % 10 == 0 {
+                    // Log every second
+                    log::warn!("Still waiting for state initialization in State::get() after {} attempts...", wait_count);
+                }
+            }
+            log::trace!(
+                "State has been initialized after {} attempts. Proceeding in State::get().",
+                wait_count
+            );
+        }
+
+        Ok(Arc::clone(
+            LAUNCHER_STATE.get().expect("State is not initialized!"),
+        ))
+    }
+
+    // Check if state is initialized
+    pub fn initialized() -> bool {
+        LAUNCHER_STATE.initialized()
+    }
+
+    // Emit an event to the frontend
+    pub async fn emit_event(&self, payload: EventPayload) -> Result<()> {
+        self.event_state.emit(payload).await
+    }
+}

@@ -1,0 +1,22 @@
+{
+  "variants": {
+    "": [
+      {
+        "model": "the_sift:block/sculkflower",
+        "y": 0
+      },
+      {
+        "model": "the_sift:block/sculkflower",
+        "y": 90
+      },
+      {
+        "model": "the_sift:block/sculkflower",
+        "y": 180
+      },
+      {
+        "model": "the_sift:block/sculkflower",
+        "y": 270
+      }
+    ]
+  }
+}

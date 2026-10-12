@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:block/template_trapdoor_open",
+  "textures": {
+    "texture": "the_sift:block/overgrown_willow_trapdoor"
+  }
+}

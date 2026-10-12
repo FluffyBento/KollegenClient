@@ -1,0 +1,15 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "building",
+  "pattern": [
+    "###",
+    "###"
+  ],
+  "key": {
+    "#": "the_sift:ichor_glass"
+  },
+  "result": {
+    "id": "the_sift:ichor_glass_pane",
+    "count": 16
+  }
+}

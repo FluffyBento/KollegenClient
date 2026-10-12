@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:smithing_transform",
+  "addition": "the_sift:siftite_ingot",
+  "base": "minecraft:netherite_spear",
+  "result": {
+    "id": "the_sift:siftite_spear"
+  },
+  "template": "the_sift:siftite_upgrade_smithing_template"
+}

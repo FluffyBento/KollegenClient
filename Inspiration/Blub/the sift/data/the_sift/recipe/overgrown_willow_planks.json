@@ -1,0 +1,12 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "building",
+  "group": "planks",
+  "ingredients": [
+    "#the_sift:overgrown_willow_logs"
+  ],
+  "result": {
+    "count": 4,
+    "id": "the_sift:overgrown_willow_planks"
+  }
+}

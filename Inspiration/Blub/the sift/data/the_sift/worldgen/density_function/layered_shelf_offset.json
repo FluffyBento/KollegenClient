@@ -1,0 +1,80 @@
+{
+  "type": "minecraft:range_choice",
+  "input": "the_sift:giant_cliff_offset",
+  "min_inclusive": -1000000.0,
+  "max_exclusive": 0.01,
+  "when_in_range": {
+    "type": "minecraft:mul",
+    "argument1": {
+      "type": "minecraft:add",
+      "argument1": 0.72,
+      "argument2": {
+        "type": "minecraft:mul",
+        "argument1": 0.28,
+        "argument2": "the_sift:terrain_intensity"
+      }
+    },
+    "argument2": {
+      "type": "minecraft:range_choice",
+      "input": "the_sift:shelf_region_field",
+      "min_inclusive": 0.74,
+      "max_exclusive": 1000000.0,
+      "when_in_range": {
+        "type": "minecraft:range_choice",
+        "input": "the_sift:shelf_region_field",
+        "min_inclusive": 0.74,
+        "max_exclusive": 0.81,
+        "when_in_range": {
+          "type": "minecraft:add",
+          "argument1": 0.115,
+          "argument2": {
+            "type": "minecraft:mul",
+            "argument1": 0.016,
+            "argument2": {
+              "type": "minecraft:noise",
+              "noise": "the_sift:terrain_detail",
+              "xz_scale": 0.44,
+              "y_scale": 0.0
+            }
+          }
+        },
+        "when_out_of_range": {
+          "type": "minecraft:range_choice",
+          "input": "the_sift:shelf_region_field",
+          "min_inclusive": 0.81,
+          "max_exclusive": 0.87,
+          "when_in_range": {
+            "type": "minecraft:add",
+            "argument1": 0.255,
+            "argument2": {
+              "type": "minecraft:mul",
+              "argument1": 0.02,
+              "argument2": {
+                "type": "minecraft:noise",
+                "noise": "the_sift:terrain_detail",
+                "xz_scale": 0.38,
+                "y_scale": 0.0
+              }
+            }
+          },
+          "when_out_of_range": {
+            "type": "minecraft:add",
+            "argument1": 0.42,
+            "argument2": {
+              "type": "minecraft:mul",
+              "argument1": 0.024,
+              "argument2": {
+                "type": "minecraft:noise",
+                "noise": "the_sift:terrain_detail",
+                "xz_scale": 0.33,
+                "y_scale": 0.0
+              }
+            }
+          }
+        }
+      },
+      "when_out_of_range": 0.0
+    }
+  },
+  "when_out_of_range": 0.0
+}

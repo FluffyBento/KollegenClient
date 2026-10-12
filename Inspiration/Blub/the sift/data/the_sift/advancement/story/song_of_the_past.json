@@ -1,0 +1,24 @@
+{
+  "parent": "the_sift:story/fallen_civilization",
+  "display": {
+    "icon": {
+      "id": "minecraft:goat_horn"
+    },
+    "title": {
+      "translate": "advancement.the_sift.story.song_of_the_past.title"
+    },
+    "description": {
+      "translate": "advancement.the_sift.story.song_of_the_past.description"
+    }
+  },
+  "criteria": {
+    "event": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "requirements": [
+    [
+      "event"
+    ]
+  ]
+}

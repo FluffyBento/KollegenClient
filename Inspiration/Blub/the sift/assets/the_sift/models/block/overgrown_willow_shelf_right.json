@@ -1,0 +1,7 @@
+{
+  "parent": "minecraft:block/template_shelf_right",
+  "textures": {
+    "all": "the_sift:block/overgrown_willow_shelf",
+    "particle": "the_sift:block/stripped_overgrown_willow_log"
+  }
+}

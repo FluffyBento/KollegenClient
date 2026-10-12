@@ -1,0 +1,41 @@
+{
+  "type": "minecraft:mul",
+  "argument1": {
+    "type": "minecraft:clamp",
+    "input": {
+      "type": "minecraft:add",
+      "argument1": 0.5,
+      "argument2": {
+        "type": "minecraft:mul",
+        "argument1": 0.9,
+        "argument2": {
+          "type": "minecraft:noise",
+          "noise": "the_sift:biome_selector",
+          "xz_scale": 0.62,
+          "y_scale": 0.0
+        }
+      }
+    },
+    "min": 0.0,
+    "max": 1.0
+  },
+  "argument2": {
+    "type": "minecraft:clamp",
+    "input": {
+      "type": "minecraft:add",
+      "argument1": 0.62,
+      "argument2": {
+        "type": "minecraft:mul",
+        "argument1": -1.35,
+        "argument2": {
+          "type": "minecraft:noise",
+          "noise": "the_sift:plateau_selector",
+          "xz_scale": 0.7,
+          "y_scale": 0.0
+        }
+      }
+    },
+    "min": 0.0,
+    "max": 1.0
+  }
+}

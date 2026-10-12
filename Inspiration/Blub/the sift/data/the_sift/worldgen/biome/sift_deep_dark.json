@@ -1,0 +1,86 @@
+{
+  "attributes": {
+    "minecraft:audio/background_music": {
+      "default": {
+        "max_delay": 24000,
+        "min_delay": 12000,
+        "sound": "minecraft:music.overworld.deep_dark"
+      }
+    },
+    "minecraft:visual/sky_color": "#ffffff",
+    "minecraft:visual/ambient_particles": [
+      {
+        "particle": {
+          "type": "the_sift:sift_note"
+        },
+        "probability": 0.000032
+      }
+    ]
+  },
+  "carvers": [
+    "the_sift:cave",
+    "the_sift:cave_extra_underground",
+    "the_sift:canyon"
+  ],
+  "creature_spawn_probability": 0.012,
+  "downfall": 0.4,
+  "effects": {
+    "water_color": "#4adce8"
+  },
+  "features": [
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [
+      "the_sift:siftslate_coal_ore",
+      "the_sift:siftslate_coal_ore_surface",
+      "the_sift:siftslate_diamond_ore",
+      "the_sift:siftslate_emerald_ore",
+      "the_sift:siftslate_charoite_ore",
+      "the_sift:siftslate_siftite_ore",
+      "the_sift:cobbled_siftslate_blob",
+      "the_sift:sift_rubble_blob",
+      "the_sift:sift_fossil"
+    ],
+    [
+      "minecraft:sculk_vein",
+      "minecraft:sculk_patch_deep_dark",
+      "the_sift:soul_canyon",
+      "the_sift:ichor_underground_lake",
+      "the_sift:siftslate_hanging_roots_cave"
+    ],
+    [
+      "the_sift:ichor_spring"
+    ],
+    [
+      "the_sift:sift_flower_patch",
+      "the_sift:siftslate_plant_patch"
+    ],
+    [
+      "the_sift:lava_floor"
+    ]
+  ],
+  "has_precipitation": false,
+  "spawn_costs": {},
+  "spawners": {
+    "ambient": [],
+    "axolotls": [],
+    "creature": [
+      {
+        "type": "the_sift:blub",
+        "maxCount": 3,
+        "minCount": 1,
+        "weight": 2
+      }
+    ],
+    "misc": [],
+    "monster": [],
+    "underground_water_creature": [],
+    "water_ambient": [],
+    "water_creature": []
+  },
+  "temperature": 0.8
+}

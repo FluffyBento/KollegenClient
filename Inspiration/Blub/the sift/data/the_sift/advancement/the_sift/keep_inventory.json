@@ -1,0 +1,24 @@
+{
+  "parent": "the_sift:the_sift/sifted_nugget",
+  "display": {
+    "icon": {
+      "id": "the_sift:siftite_ingot"
+    },
+    "title": {
+      "translate": "advancement.the_sift.keep_inventory.title"
+    },
+    "description": {
+      "translate": "advancement.the_sift.keep_inventory.description"
+    }
+  },
+  "criteria": {
+    "event": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "requirements": [
+    [
+      "event"
+    ]
+  ]
+}

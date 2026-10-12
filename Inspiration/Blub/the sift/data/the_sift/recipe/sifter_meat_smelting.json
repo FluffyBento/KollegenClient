@@ -1,0 +1,10 @@
+{
+  "type": "minecraft:smelting",
+  "category": "food",
+  "cookingtime": 200,
+  "experience": 0.35,
+  "ingredient": "the_sift:raw_sifter_meat",
+  "result": {
+    "id": "the_sift:cooked_sifter_meat"
+  }
+}

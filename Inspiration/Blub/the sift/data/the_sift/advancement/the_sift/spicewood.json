@@ -1,0 +1,24 @@
+{
+  "parent": "the_sift:the_sift/root",
+  "display": {
+    "icon": {
+      "id": "the_sift:overgrown_willow_log"
+    },
+    "title": {
+      "translate": "advancement.the_sift.spicewood.title"
+    },
+    "description": {
+      "translate": "advancement.the_sift.spicewood.description"
+    }
+  },
+  "criteria": {
+    "event": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "requirements": [
+    [
+      "event"
+    ]
+  ]
+}

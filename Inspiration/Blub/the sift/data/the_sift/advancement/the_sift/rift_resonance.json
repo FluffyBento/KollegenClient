@@ -1,0 +1,24 @@
+{
+  "parent": "the_sift:the_sift/rifter",
+  "display": {
+    "icon": {
+      "id": "the_sift:music_disc_rift"
+    },
+    "title": {
+      "translate": "advancement.the_sift.rift_resonance.title"
+    },
+    "description": {
+      "translate": "advancement.the_sift.rift_resonance.description"
+    }
+  },
+  "criteria": {
+    "event": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "requirements": [
+    [
+      "event"
+    ]
+  ]
+}

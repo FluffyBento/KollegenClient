@@ -1,0 +1,9 @@
+{
+  "parent": "minecraft:block/cube_all",
+  "textures": {
+    "all": {
+      "sprite": "the_sift:block/ichor_glass",
+      "force_translucent": true
+    }
+  }
+}

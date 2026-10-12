@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:clamp",
+  "input": {
+    "type": "minecraft:add",
+    "argument1": -0.12,
+    "argument2": {
+      "type": "minecraft:mul",
+      "argument1": 1.85,
+      "argument2": {
+        "type": "minecraft:noise",
+        "noise": "the_sift:mountain_ranges",
+        "xz_scale": 1.1,
+        "y_scale": 0.0
+      }
+    }
+  },
+  "min": -1.0,
+  "max": 1.0
+}

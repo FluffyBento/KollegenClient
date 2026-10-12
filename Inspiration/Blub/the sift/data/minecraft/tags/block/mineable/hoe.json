@@ -1,0 +1,12 @@
+{
+  "replace": false,
+  "values": [
+    "the_sift:healthy_sculk",
+    "the_sift:dry_healthy_sculk",
+    "the_sift:dry_healthy_sculk_growth",
+    "the_sift:overgrown_willow_foliage",
+    "the_sift:soul_block",
+    "the_sift:overgrown_willow_vines",
+    "the_sift:overgrown_willow_vines_plant"
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "feature": "the_sift:healthy_sculk_underground_blob",
+  "placement": [
+    {
+      "type": "minecraft:count",
+      "count": 2
+    },
+    {
+      "type": "minecraft:in_square"
+    },
+    {
+      "type": "minecraft:height_range",
+      "height": {
+        "type": "minecraft:trapezoid",
+        "min_inclusive": {
+          "absolute": 8
+        },
+        "max_inclusive": {
+          "absolute": 118
+        }
+      }
+    },
+    {
+      "type": "minecraft:biome"
+    }
+  ]
+}

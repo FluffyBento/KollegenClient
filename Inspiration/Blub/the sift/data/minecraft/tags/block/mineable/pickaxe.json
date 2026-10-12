@@ -1,0 +1,20 @@
+{
+  "values": [
+    "the_sift:siftslate",
+    "the_sift:siftslate_growth",
+    "the_sift:siftslate_coal_ore",
+    "the_sift:siftslate_diamond_ore",
+    "the_sift:siftslate_emerald_ore",
+    "the_sift:siftslate_charoite_ore",
+    "the_sift:siftslate_siftite_ore",
+    "the_sift:cobbled_siftslate",
+    "the_sift:cobbled_siftslate_stairs",
+    "the_sift:cobbled_siftslate_slab",
+    "the_sift:cobbled_siftslate_wall",
+    "the_sift:siftslate_bricks",
+    "the_sift:siftslate_brick_stairs",
+    "the_sift:siftslate_brick_slab",
+    "the_sift:siftslate_brick_wall",
+    "the_sift:chiseled_siftslate"
+  ]
+}

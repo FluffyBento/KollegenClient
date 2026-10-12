@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "#": "minecraft:diamond",
+    "S": "the_sift:siftite_upgrade_smithing_template",
+    "C": "the_sift:siftslate"
+  },
+  "pattern": [
+    "#S#",
+    "#C#",
+    "###"
+  ],
+  "result": {
+    "id": "the_sift:siftite_upgrade_smithing_template",
+    "count": 2
+  }
+}

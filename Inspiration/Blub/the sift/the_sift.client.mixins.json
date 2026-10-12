@@ -1,0 +1,38 @@
+{
+  "required": true,
+  "package": "mielon.thesift.client.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "client": [
+    "RiftAmbientSoundMixin",
+    "IchorFluidUvMixin",
+    "SodiumIchorFluidUvMixin",
+    "IchorAirHudMixin",
+    "IchorWaterParticleMixin",
+    "IchorDripLandingParticleMixin",
+    "NoteParticleMixin",
+    "NoteParticleVelocityAccessor",
+    "SiftLevelLoadingReasonMixin",
+    "SiftLoadingBackgroundMixin",
+    "SiftClientPortalTransitionMixin",
+    "SiftScreenLifecycleMixin",
+    "IrisWorldTimeUniformsMixin",
+    "SiftSkyRendererMixin",
+    "SiftCloudRendererMixin",
+    "SiftWeatherTextureMixin",
+    "SiftEnchantmentScreenMixin",
+    "CharoiteAnvilScreenMixin",
+    "WillowHangingSignEditScreenMixin",
+    "SnifferRenderStateMixin",
+    "SnifferRendererMixin",
+    "LivingEntitySnifferShakeMixin",
+    "WardenRenderStateMixin",
+    "WardenRendererMixin",
+    "WardenModelPettingMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  },
+  "overwrites": {
+    "requireAnnotations": true
+  }
+}

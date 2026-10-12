@@ -1,0 +1,64 @@
+name: Update Flatpak sources
+
+on:
+  push:
+    paths:
+      - "src-tauri/Cargo.lock"
+      - "yarn.lock"
+  workflow_dispatch:
+
+jobs:
+  update-sources:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout your project
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install pip dependencies for cargo generator
+        run: pip install tomlkit aiohttp
+
+      - name: Checkout flatpak-builder-tools
+        uses: actions/checkout@v4
+        with:
+          repository: flatpak/flatpak-builder-tools
+          path: flatpak-builder-tools
+
+      - name: Generate cargo-sources.json
+        run: |
+          python3 flatpak-builder-tools/cargo/flatpak-cargo-generator.py src-tauri/Cargo.lock -o packaging/flatpak/cargo-sources.json
+
+      - name: Install flatpak-node-generator
+        run: pipx install git+https://github.com/flatpak/flatpak-builder-tools.git#subdirectory=node
+
+      - name: Generate node-sources.json (Yarn)
+        run: |
+          if [ -f yarn.lock ]; then
+            flatpak-node-generator yarn yarn.lock -o packaging/flatpak/node-sources.json
+          fi
+
+      - name: Commit changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          FILES_TO_COMMIT=""
+          if [ -f packaging/flatpak/cargo-sources.json ]; then
+            FILES_TO_COMMIT="$FILES_TO_COMMIT packaging/flatpak/cargo-sources.json"
+          fi
+          if [ -f packaging/flatpak/node-sources.json ]; then
+            FILES_TO_COMMIT="$FILES_TO_COMMIT packaging/flatpak/node-sources.json"
+          fi
+
+          if [ -n "$FILES_TO_COMMIT" ] && [[ $(git status --porcelain $FILES_TO_COMMIT) ]]; then
+            git add -- $FILES_TO_COMMIT
+            git commit -m "chore: update flatpak dependency manifests"
+            git push
+          else
+            echo "No changes to commit."
+          fi

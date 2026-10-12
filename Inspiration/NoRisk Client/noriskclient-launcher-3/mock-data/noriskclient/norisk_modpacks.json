@@ -1,0 +1,1398 @@
+{
+  "packs": {
+    "cobblemon": {
+      "displayName": "Cobblemon Pack (Test)",
+      "description": "Cobblemon basierend auf Norisk Prod, ohne Silk.",
+      "inheritsFrom": [
+        "norisk-prod"
+      ],
+      "excludeMods": [
+        "silk"
+      ],
+      "mods": [
+        {
+          "id": "cobblemon",
+          "displayName": "Cobblemon",
+          "source": {
+            "type": "modrinth",
+            "projectId": "MdwFAVRL",
+            "projectSlug": "cobblemon"
+          },
+          "compatibility": {
+            "1.21.1": {
+              "fabric": {
+                "identifier": "1.6.1",
+                "filename": null
+              }
+            }
+          }
+        }
+      ],
+      "assets": [],
+      "isExperimental": false
+    },
+    "norisk-dev": {
+      "displayName": "Norisk Dev",
+      "description": "Development Version mit allen Mods aus der alten Struktur.",
+      "inheritsFrom": null,
+      "excludeMods": null,
+      "mods": [
+        {
+          "id": "fabric-api",
+          "displayName": "Fabric API",
+          "source": {
+            "type": "modrinth",
+            "projectId": "P7dR8mSH",
+            "projectSlug": "fabric-api"
+          },
+          "compatibility": {
+            "1.21": {
+              "fabric": {
+                "identifier": "0.102.0+1.21",
+                "filename": null
+              }
+            },
+            "1.21.4": {
+              "fabric": {
+                "identifier": "0.115.1+1.21.4",
+                "filename": null
+              }
+            },
+            "1.21.5": {
+              "fabric": {
+                "identifier": "0.123.2+1.21.5",
+                "filename": null
+              }
+            }
+          }
+        },
+        {
+          "id": "fabric-language-kotlin",
+          "displayName": "Fabric Kotlin",
+          "source": {
+            "type": "maven",
+            "repositoryRef": "fabric",
+            "groupId": "net.fabricmc",
+            "artifactId": "fabric-language-kotlin"
+          },
+          "compatibility": {
+            "1.21": {
+              "fabric": {
+                "identifier": "1.11.0+kotlin.2.0.0",
+                "filename": null
+              }
+            },
+            "1.21.4": {
+              "fabric": {
+                "identifier": "1.13.1+kotlin.2.1.10",
+                "filename": null
+              }
+            },
+            "1.21.5": {
+              "fabric": {
+                "identifier": "1.13.2+kotlin.2.1.20",
+                "filename": null
+              }
+            }
+          }
+        },
+        {
+          "id": "sodium",
+          "displayName": "Sodium",
+          "source": {
+            "type": "modrinth",
+            "projectId": "AANobbMI",
+            "projectSlug": "sodium"
+          },
+          "compatibility": {
+            "1.21": {
+              "fabric": {
+                "identifier": "mc1.21-0.5.11",
+                "filename": null
+              }
+            },
+            "1.21.4": {
+              "fabric": {
+                "identifier": "mc1.21.4-0.6.10-fabric",
+                "filename": null
+              }
+            },
+            "1.21.5": {
+              "fabric": {
+                "identifier": "mc1.21.5-0.6.13-fabric",
+                "filename": null
+              }
+            }
+          }
+        },
+        {
+          "id": "appleskin",
+          "displayName": "AppleSkin",
+          "source": {
+            "type": "modrinth",
+            "projectId": "EsAfCjCV",
+            "projectSlug": "appleskin"
+          },
+          "compatibility": {
+            "1.21": {
+              "fabric": {
+                "identifier": "3.0.6+mc1.21",
+                "filename": null
+              }
+            },
+            "1.21.4": {
+              "fabric": {
+                "identifier": "cHQjeYVS",
+                "filename": null
+              }
+            },
+            "1.21.5": {
+              "fabric": {
+                "identifier": "VfjnbBAT",
+                "filename": null
+              }
+            }
+          }
+        },
+        {
+          "id": "silk",
+          "displayName": "Silk",
+          "source": {
+            "type": "modrinth",
+            "projectId": "aTaCgKLW",
+            "projectSlug": "silk"
+          },
+          "compatibility": {
+            "1.21": {
+              "fabric": {
+                "identifier": "1.10.7",
+                "filename": null
+              }
+            },
+            "1.21.4": {
+              "fabric": {
+                "identifier": "1.11.0",
+                "filename": null
+              }
+            },
+            "1.21.5": {
+              "fabric": {
+                "identifier": "1.11.1",
+                "filename": null
+              }
+            }
+          }
+        },
+        {
+          "id": "lithium",
+          "displayName": "Lithium",
+          "source": {
+            "type": "modrinth",
+            "projectId": "gvQqBUqZ",
+            "projectSlug": "lithium"
+          },
+          "compatibility": {
+            "1.21": {
+              "fabric": {
+                "identifier": "mc1.21-0.12.7",
+                "filename": null
+              }
+            },
+            "1.21.4": {
+              "fabric": {
+                "identifier": "mc1.21.4-0.14.7-fabric",
+                "filename": null
+              }
+            },
+            "1.21.5": {
+              "fabric": {
+                "identifier": "mc1.21.5-0.16.2-fabric",
+                "filename": null
+              }
+            }
+          }
+        },
+        {
+          "id": "indium",
+          "displayName": "Indium",
+          "source": {
+            "type": "modrinth",
+            "projectId": "Orvt0mRa",
+            "projectSlug": "indium"
+          },
+          "compatibility": {
+            "1.21": {
+              "fabric": {
+                "identifier": "1.0.35+mc1.21",
+                "filename": null
+              }
+            }
+          }
+        },
+        {
+          "id": "satin-api",
+          "displayName": "Satin Api",
+          "source": {
+            "type": "modrinth",
+            "projectId": "mACY2k1I",
+            "projectSlug": "satin-api"
+          },
+          "compatibility": {
+            "1.21": {
+              "fabric": {
+                "identifier": "2.0.0",
+                "filename": null
+              }
+            }
+          }
+        },
+        {
+          "id": "modmenu",
+          "displayName": "ModMenu",
+          "source": {
+            "type": "modrinth",
+            "projectId": "mOgUt4GM",
+            "projectSlug": "modmenu"
+          },
+          "compatibility": {
+            "1.21": {
+              "fabric": {
+                "identifier": "11.0.3",
+                "filename": null
+              }
+            },
+            "1.21.4": {
+              "fabric": {
+                "identifier": "13.0.1",
+                "filename": null
+              }
+            },
+            "1.21.5": {
+              "fabric": {
+                "identifier": "14.0.0-rc.2",
+                "filename": null
+              }
+            }
+          }
+        },
+        {
+          "id": "immediatelyfast",
+          "displayName": "ImmediatelyFast",
+          "source": {
+            "type": "modrinth",
+            "projectId": "5ZwdcRci",
+            "projectSlug": "immediatelyfast"
+          },
+          "compatibility": {
+            "1.21": {
+              "fabric": {
+                "identifier": "1.6.5+1.21.1-fabric",
+                "filename": null
+              }
+            },
+            "1.21.4": {
+              "fabric": {
+                "identifier": "1.8.0+1.21.4-fabric",
+                "filename": null
+              }
+            },
+            "1.21.5": {
+              "fabric": {
+                "identifier": "1.9.3+1.21.5-fabric",
+                "filename": null
+              }
+            }
+          }
+        },
+        {
+          "id": "nvidium",
+          "displayName": "Nvidium",
+          "source": {
+            "type": "modrinth",
+            "projectId": "t1VgQEt1",
+            "projectSlug": "nvidium"
+          },
+          "compatibility": {
+            "1.21": {
+              "fabric": {
+                "identifier": "0.3.1",
+                "filename": null
+              }
+            }
+          }
+        },
+        {
+          "id": "ferrite-core",
+          "displayName": "FerriteCore",
+          "source": {
+            "type": "modrinth",
+            "projectId": "uXXizFIs",
+            "projectSlug": "ferrite-core"
+          },
+          "compatibility": {
+            "1.21": {
+              "fabric": {
+                "identifier": "7.0.0-fabric",
+                "filename": null
+              }
+            },
+            "1.21.4": {
+              "fabric": {
+                "identifier": "7.1.1-fabric",
+                "filename": null
+              }
+            },
+            "1.21.5": {
+              "fabric": {
+                "identifier": "8.0.0-fabric",
+                "filename": null
+              }
+            }
+          }
+        },
+        {
+          "id": "geckolib",
+          "displayName": "GeckoLib",
+          "source": {
+            "type": "modrinth",
+            "projectId": "8BmcQJ2H",
+            "projectSlug": "geckolib"
+          },
+          "compatibility": {
+            "1.21": {
+              "fabric": {
+                "identifier": "4.5.7-fabric",
+                "filename": null
+              }
+            },
+            "1.21.4": {
+              "fabric": {
+                "identifier": "4.8.2-fabric",
+                "filename": null
+              }
+            },
+            "1.21.5": {
+              "fabric": {
+                "identifier": "5.0",
+                "filename": null
+              }
+            }
+          }
+        },
+        {
+          "id": "owo-lib",
+          "displayName": "owo-lib",
+          "source": {
+            "type": "modrinth",
+            "projectId": "ccKDOlHs",
+            "projectSlug": "owo-lib"
+          },
+          "compatibility": {
+            "1.21": {
+              "fabric": {
+                "identifier": "0.12.10+1.21",
+                "filename": null
+              }
+            },
+            "1.21.4": {
+              "fabric": {
+                "identifier": "0.12.20+1.21.4",
+                "filename": null
+              }
+            },
+            "1.21.5": {
+              "fabric": {
+                "identifier": "0.12.20+1.21.5",
+                "filename": null
+              }
+            }
+          }
+        },
+        {
+          "id": "entityculling",
+          "displayName": "EntityCulling",
+          "source": {
+            "type": "modrinth",
+            "projectId": "NNAgCjsB",
+            "projectSlug": "entityculling"
+          },
+          "compatibility": {
+            "1.21": {
+              "fabric": {
+                "identifier": "1.7.0-1.21,fabric",
+                "filename": null
+              }
+            },
+            "1.21.4": {
+              "fabric": {
+                "identifier": "NkBXk0Ye",
+                "filename": null
+              }
+            },
+            "1.21.5": {
+              "fabric": {
+                "identifier": "29GV7fju",
+                "filename": null
+              }
+            }
+          }
+        },
+        {
+          "id": "modernfix",
+          "displayName": "ModernFix",
+          "source": {
+            "type": "modrinth",
+            "projectId": "nmDcB62a",
+            "projectSlug": "modernfix"
+          },
+          "compatibility": {
+            "1.21": {
+              "fabric": {
+                "identifier": "5.19.1+mc1.21",
+                "filename": null
+              }
+            },
+            "1.21.4": {
+              "fabric": {
+                "identifier": "5.20.2+mc1.21.4",
+                "filename": null
+              }
+            }
+          }
+        },
+        {
+          "id": "noriskclient-fabric-utils",
+          "displayName": "NoRiskClient-Fabric-Utils",
+          "source": {
+            "type": "maven",
+            "repositoryRef": "noriskproduction",
+            "groupId": "gg.norisk",
+            "artifactId": "noriskclient-fabric-utils"
+          },
+          "compatibility": {
+            "1.21": {
+              "fabric": {
+                "identifier": "1.21-2.2.37",
+                "filename": null
+              }
+            },
+            "1.21.4": {
+              "fabric": {
+                "identifier": "1.21.4-2.2.33",
+                "filename": null
+              }
+            },
+            "1.21.5": {
+              "fabric": {
+                "identifier": "1.21.5-2.2.37",
+                "filename": null
+              }
+            }
+          }
+        },
+        {
+          "id": "noriskclient-ui",
+          "displayName": "NoRiskClient-UI",
+          "source": {
+            "type": "maven",
+            "repositoryRef": "noriskproduction",
+            "groupId": "gg.norisk",
+            "artifactId": "ui"
+          },
+          "compatibility": {
+            "1.21": {
+              "fabric": {
+                "identifier": "1.21-2.2.128",
+                "filename": null
+              }
+            },
+            "1.21.4": {
+              "fabric": {
+                "identifier": "1.21.4-2.2.116",
+                "filename": null
+              }
+            },
+            "1.21.5": {
+              "fabric": {
+                "identifier": "1.21.5-2.2.129",
+                "filename": null
+              }
+            }
+          }
+        },
+        {
+          "id": "noriskclient-client",
+          "displayName": "NoRiskClient-Client",
+          "source": {
+            "type": "maven",
+            "repositoryRef": "noriskproduction",
+            "groupId": "gg.norisk",
+            "artifactId": "client"
+          },
+          "compatibility": {
+            "1.21": {
+              "fabric": {
+                "identifier": "1.21-2.1.31",
+                "filename": null
+              }
+            },
+            "1.21.4": {
+              "fabric": {
+                "identifier": "1.21.4-2.1.12",
+                "filename": null
+              }
+            },
+            "1.21.5": {
+              "fabric": {
+                "identifier": "1.21.5-2.1.30",
+                "filename": null
+              }
+            }
+          }
+        },
+        {
+          "id": "noriskclient-cosmetics",
+          "displayName": "NoRiskClient-Cosmetics",
+          "source": {
+            "type": "maven",
+            "repositoryRef": "noriskproduction",
+            "groupId": "gg.norisk",
+            "artifactId": "cosmetics"
+          },
+          "compatibility": {
+            "1.21": {
+              "fabric": {
+                "identifier": "1.21-2.2.66",
+                "filename": null
+              }
+            },
+            "1.21.4": {
+              "fabric": {
+                "identifier": "1.21.4-2.2.57",
+                "filename": null
+              }
+            },
+            "1.21.5": {
+              "fabric": {
+                "identifier": "1.21.5-2.2.66",
+                "filename": null
+              }
+            }
+          }
+        },
+        {
+          "id": "noriskclient-friends",
+          "displayName": "NoRiskClient-Friends",
+          "source": {
+            "type": "maven",
+            "repositoryRef": "noriskproduction",
+            "groupId": "gg.norisk",
+            "artifactId": "friends"
+          },
+          "compatibility": {
+            "1.21": {
+              "fabric": {
+                "identifier": "1.21-2.2.92",
+                "filename": null
+              }
+            },
+            "1.21.4": {
+              "fabric": {
+                "identifier": "1.21.4-2.2.86",
+                "filename": null
+              }
+            },
+            "1.21.5": {
+              "fabric": {
+                "identifier": "1.21.5-2.2.92",
+                "filename": null
+              }
+            }
+          }
+        },
+        {
+          "id": "noriskclient-mcreal",
+          "displayName": "NoRiskClient-McReal",
+          "source": {
+            "type": "maven",
+            "repositoryRef": "noriskproduction",
+            "groupId": "gg.norisk",
+            "artifactId": "mcreal"
+          },
+          "compatibility": {
+            "1.21": {
+              "fabric": {
+                "identifier": "1.21-2.0.59",
+                "filename": null
+              }
+            },
+            "1.21.4": {
+              "fabric": {
+                "identifier": "1.21.4-2.0.52",
+                "filename": null
+              }
+            },
+            "1.21.5": {
+              "fabric": {
+                "identifier": "1.21.5-2.0.59",
+                "filename": null
+              }
+            }
+          }
+        },
+        {
+          "id": "noriskclient-minigames",
+          "displayName": "NoRiskClient-Minigames",
+          "source": {
+            "type": "maven",
+            "repositoryRef": "noriskproduction",
+            "groupId": "gg.norisk",
+            "artifactId": "minigames"
+          },
+          "compatibility": {
+            "1.21": {
+              "fabric": {
+                "identifier": "1.21-2.1.26",
+                "filename": null
+              }
+            },
+            "1.21.4": {
+              "fabric": {
+                "identifier": "1.21.4-2.1.26",
+                "filename": null
+              }
+            },
+            "1.21.5": {
+              "fabric": {
+                "identifier": "1.21.5-2.1.26",
+                "filename": null
+              }
+            }
+          }
+        },
+        {
+          "id": "player-animation-lib",
+          "displayName": "PlayerAnimator",
+          "source": {
+            "type": "maven",
+            "repositoryRef": "kosmx",
+            "groupId": "dev.kosmx.player-anim",
+            "artifactId": "player-animation-lib-fabric"
+          },
+          "compatibility": {
+            "1.21": {
+              "fabric": {
+                "identifier": "1.0.2-rc1+1.21",
+                "filename": null
+              }
+            }
+          }
+        },
+        {
+          "id": "subwaysurfers",
+          "displayName": "SubwaySurfers",
+          "source": {
+            "type": "maven",
+            "repositoryRef": "noriskproduction",
+            "groupId": "gg.norisk",
+            "artifactId": "subwaysurfers"
+          },
+          "compatibility": {
+            "1.21": {
+              "fabric": {
+                "identifier": "1.21-2.2.30",
+                "filename": null
+              }
+            }
+          }
+        },
+        {
+          "id": "datatracker",
+          "displayName": "DataTracker",
+          "source": {
+            "type": "maven",
+            "repositoryRef": "noriskproduction",
+            "groupId": "gg.norisk",
+            "artifactId": "datatracker"
+          },
+          "compatibility": {
+            "1.21": {
+              "fabric": {
+                "identifier": "1.21-1.0.18",
+                "filename": null
+              }
+            },
+            "1.21.4": {
+              "fabric": {
+                "identifier": "1.21.4-1.0.18",
+                "filename": null
+              }
+            }
+          }
+        },
+        {
+          "id": "owoplus",
+          "displayName": "owoplus",
+          "source": {
+            "type": "maven",
+            "repositoryRef": "noriskproduction",
+            "groupId": "gg.norisk",
+            "artifactId": "owoplus"
+          },
+          "compatibility": {
+            "1.21": {
+              "fabric": {
+                "identifier": "1.21-1.0.27",
+                "filename": null
+              }
+            },
+            "1.21.4": {
+              "fabric": {
+                "identifier": "1.21.4-1.0.26",
+                "filename": null
+              }
+            },
+            "1.21.5": {
+              "fabric": {
+                "identifier": "1.21.5-1.0.27",
+                "filename": null
+              }
+            }
+          }
+        },
+        {
+          "id": "emote-lib",
+          "displayName": "Emotes",
+          "source": {
+            "type": "maven",
+            "repositoryRef": "noriskproduction",
+            "groupId": "gg.norisk",
+            "artifactId": "emote-lib"
+          },
+          "compatibility": {
+            "1.21": {
+              "fabric": {
+                "identifier": "1.21-1.1.26",
+                "filename": null
+              }
+            },
+            "1.21.4": {
+              "fabric": {
+                "identifier": "1.21.4-1.1.26",
+                "filename": null
+              }
+            },
+            "1.21.5": {
+              "fabric": {
+                "identifier": "1.21.5-1.1.26",
+                "filename": null
+              }
+            }
+          }
+        },
+        {
+          "id": "quests",
+          "displayName": "quests",
+          "source": {
+            "type": "maven",
+            "repositoryRef": "noriskproduction",
+            "groupId": "gg.norisk",
+            "artifactId": "quests"
+          },
+          "compatibility": {
+            "1.21": {
+              "fabric": {
+                "identifier": "1.21-1.0.15",
+                "filename": null
+              }
+            }
+          }
+        },
+        {
+          "id": "lobby-common",
+          "displayName": "lobby-common",
+          "source": {
+            "type": "maven",
+            "repositoryRef": "noriskproduction",
+            "groupId": "gg.norisk",
+            "artifactId": "lobby-common"
+          },
+          "compatibility": {
+            "1.21": {
+              "fabric": {
+                "identifier": "1.21-0.0.2",
+                "filename": null
+              }
+            }
+          }
+        },
+        {
+          "id": "lobby-client",
+          "displayName": "lobby-client",
+          "source": {
+            "type": "maven",
+            "repositoryRef": "noriskproduction",
+            "groupId": "gg.norisk",
+            "artifactId": "lobby-client"
+          },
+          "compatibility": {
+            "1.21": {
+              "fabric": {
+                "identifier": "1.21-0.0.7",
+                "filename": null
+              }
+            }
+          }
+        },
+        {
+          "id": "voicechat-client",
+          "displayName": "voicechat-client",
+          "source": {
+            "type": "maven",
+            "repositoryRef": "noriskproduction",
+            "groupId": "gg.norisk",
+            "artifactId": "voicechat-client"
+          },
+          "compatibility": {
+            "1.21": {
+              "fabric": {
+                "identifier": "1.21-1.1.24",
+                "filename": null
+              }
+            },
+            "1.21.4": {
+              "fabric": {
+                "identifier": "1.21.4-1.1.31",
+                "filename": null
+              }
+            },
+            "1.21.5": {
+              "fabric": {
+                "identifier": "1.21.5-1.1.31",
+                "filename": null
+              }
+            }
+          }
+        },
+        {
+          "id": "simple-voice-chat",
+          "displayName": "simple-voice-chat",
+          "source": {
+            "type": "modrinth",
+            "projectId": "9eGKb6K1",
+            "projectSlug": "simple-voice-chat"
+          },
+          "compatibility": {
+            "1.21": {
+              "fabric": {
+                "identifier": "fabric-1.21.1-2.5.27",
+                "filename": null
+              }
+            },
+            "1.21.4": {
+              "fabric": {
+                "identifier": "fabric-1.21.4-2.5.27",
+                "filename": null
+              }
+            },
+            "1.21.5": {
+              "fabric": {
+                "identifier": "fabric-1.21.5-2.5.30",
+                "filename": null
+              }
+            }
+          }
+        },
+        {
+          "id": "hero-api",
+          "displayName": "hero-api",
+          "source": {
+            "type": "maven",
+            "repositoryRef": "noriskproduction",
+            "groupId": "gg.norisk",
+            "artifactId": "hero-api"
+          },
+          "compatibility": {
+            "1.21": {
+              "fabric": {
+                "identifier": "1.21-1.3.2",
+                "filename": null
+              }
+            }
+          }
+        },
+        {
+          "id": "katara",
+          "displayName": "katara",
+          "source": {
+            "type": "maven",
+            "repositoryRef": "noriskproduction",
+            "groupId": "gg.norisk",
+            "artifactId": "katara"
+          },
+          "compatibility": {
+            "1.21": {
+              "fabric": {
+                "identifier": "1.21-1.1.1",
+                "filename": null
+              }
+            }
+          }
+        },
+        {
+          "id": "toph",
+          "displayName": "toph",
+          "source": {
+            "type": "maven",
+            "repositoryRef": "noriskproduction",
+            "groupId": "gg.norisk",
+            "artifactId": "toph"
+          },
+          "compatibility": {
+            "1.21": {
+              "fabric": {
+                "identifier": "1.21-1.1.1",
+                "filename": null
+              }
+            }
+          }
+        },
+        {
+          "id": "aang",
+          "displayName": "aang",
+          "source": {
+            "type": "maven",
+            "repositoryRef": "noriskproduction",
+            "groupId": "gg.norisk",
+            "artifactId": "aang"
+          },
+          "compatibility": {
+            "1.21": {
+              "fabric": {
+                "identifier": "1.21-1.1.1",
+                "filename": null
+              }
+            }
+          }
+        },
+        {
+          "id": "oldpvp-common",
+          "displayName": "OldPvP-Common",
+          "source": {
+            "type": "maven",
+            "repositoryRef": "noriskproduction",
+            "groupId": "gg.norisk",
+            "artifactId": "oldpvp-common"
+          },
+          "compatibility": {
+            "1.21": {
+              "fabric": {
+                "identifier": "1.21-1.0.6",
+                "filename": null
+              }
+            }
+          }
+        },
+        {
+          "id": "ffa-common",
+          "displayName": "ffa-common",
+          "source": {
+            "type": "maven",
+            "repositoryRef": "noriskproduction",
+            "groupId": "gg.norisk",
+            "artifactId": "ffa-common"
+          },
+          "compatibility": {
+            "1.21": {
+              "fabric": {
+                "identifier": "1.21-1.0.3",
+                "filename": null
+              }
+            }
+          }
+        },
+        {
+          "id": "ffa-client",
+          "displayName": "ffa-client",
+          "source": {
+            "type": "maven",
+            "repositoryRef": "noriskproduction",
+            "groupId": "gg.norisk",
+            "artifactId": "ffa-client"
+          },
+          "compatibility": {
+            "1.21": {
+              "fabric": {
+                "identifier": "1.21-1.1.8",
+                "filename": null
+              }
+            }
+          }
+        },
+        {
+          "id": "cloth-config",
+          "displayName": "Cloth-Config",
+          "source": {
+            "type": "modrinth",
+            "projectId": "9s6osm5g",
+            "projectSlug": "cloth-config"
+          },
+          "compatibility": {
+            "1.21": {
+              "fabric": {
+                "identifier": "15.0.140+fabric",
+                "filename": null
+              }
+            },
+            "1.21.4": {
+              "fabric": {
+                "identifier": "17.0.144+fabric",
+                "filename": null
+              }
+            },
+            "1.21.5": {
+              "fabric": {
+                "identifier": "18.0.145+fabric",
+                "filename": null
+              }
+            }
+          }
+        },
+        {
+          "id": "moreculling",
+          "displayName": "MoreCulling",
+          "source": {
+            "type": "modrinth",
+            "projectId": "51shyZVL",
+            "projectSlug": "moreculling"
+          },
+          "compatibility": {
+            "1.21": {
+              "fabric": {
+                "identifier": "0.26.0",
+                "filename": null
+              }
+            },
+            "1.21.4": {
+              "fabric": {
+                "identifier": "kELp84IT",
+                "filename": null
+              }
+            },
+            "1.21.5": {
+              "fabric": {
+                "identifier": "MDkI6Huh",
+                "filename": null
+              }
+            }
+          }
+        },
+        {
+          "id": "3dskinlayers",
+          "displayName": "3DSkins",
+          "source": {
+            "type": "modrinth",
+            "projectId": "zV5r3pPn",
+            "projectSlug": "3dskinlayers"
+          },
+          "compatibility": {
+            "1.21": {
+              "fabric": {
+                "identifier": "s3z8zfIv",
+                "filename": null
+              }
+            },
+            "1.21.4": {
+              "fabric": {
+                "identifier": "D5GmlSf8",
+                "filename": null
+              }
+            },
+            "1.21.5": {
+              "fabric": {
+                "identifier": "qFwcwulG",
+                "filename": null
+              }
+            }
+          }
+        },
+        {
+          "id": "tiertagger",
+          "displayName": "TierTagger",
+          "source": {
+            "type": "modrinth",
+            "projectId": "Ob14QSAp",
+            "projectSlug": "tiertagger"
+          },
+          "compatibility": {
+            "1.21": {
+              "fabric": {
+                "identifier": "1.11.6+mc1.21",
+                "filename": null
+              }
+            },
+            "1.21.4": {
+              "fabric": {
+                "identifier": "1.13.2+mc1.21.4",
+                "filename": null
+              }
+            },
+            "1.21.5": {
+              "fabric": {
+                "identifier": "1.13.2+mc1.21.4",
+                "filename": null
+              }
+            }
+          }
+        },
+        {
+          "id": "ukulib",
+          "displayName": "ukulib",
+          "source": {
+            "type": "modrinth",
+            "projectId": "6fJ2UigN",
+            "projectSlug": "ukulib"
+          },
+          "compatibility": {
+            "1.21": {
+              "fabric": {
+                "identifier": "1.4.1+1.21",
+                "filename": null
+              }
+            },
+            "1.21.4": {
+              "fabric": {
+                "identifier": "1.6.0+1.21.4",
+                "filename": null
+              }
+            },
+            "1.21.5": {
+              "fabric": {
+                "identifier": "1.7.1+1.21.5",
+                "filename": null
+              }
+            }
+          }
+        },
+        {
+          "id": "wavey-capes",
+          "displayName": "WaveyCapes",
+          "source": {
+            "type": "modrinth",
+            "projectId": "kYuIpRLv",
+            "projectSlug": "wavey-capes"
+          },
+          "compatibility": {
+            "1.21": {
+              "fabric": {
+                "identifier": "oyiyHkeB",
+                "filename": null
+              }
+            },
+            "1.21.4": {
+              "fabric": {
+                "identifier": "xWqFqiiF",
+                "filename": null
+              }
+            },
+            "1.21.5": {
+              "fabric": {
+                "identifier": "A8HBEAVx",
+                "filename": null
+              }
+            }
+          }
+        },
+        {
+          "id": "shulkerboxtooltip",
+          "displayName": "shulkerboxtooltip",
+          "source": {
+            "type": "modrinth",
+            "projectId": "2M01OLQq",
+            "projectSlug": "shulkerboxtooltip"
+          },
+          "compatibility": {
+            "1.21": {
+              "fabric": {
+                "identifier": "5.1.2+1.21-fabric",
+                "filename": null
+              }
+            },
+            "1.21.4": {
+              "fabric": {
+                "identifier": "5.2.4+1.21.4-fabric",
+                "filename": null
+              }
+            },
+            "1.21.5": {
+              "fabric": {
+                "identifier": "5.2.5+1.21.5-fabric",
+                "filename": null
+              }
+            }
+          }
+        }
+      ],
+      "assets": [
+        "norisk-prod",
+        "norisk-dev"
+      ],
+      "isExperimental": false
+    },
+    "norisk-prod": {
+      "displayName": "Norisk Production",
+      "description": "Standard empfohlenes Mod-Set für stabiles Spielen.",
+      "inheritsFrom": null,
+      "excludeMods": null,
+      "mods": [
+        {
+          "id": "fabric-api",
+          "displayName": "fabric-api",
+          "source": {
+            "type": "modrinth",
+            "projectId": "P7dR8mSH",
+            "projectSlug": "fabric-api"
+          },
+          "compatibility": {
+            "1.21.4": {
+              "fabric": {
+                "identifier": "0.119.2+1.21.4",
+                "filename": null
+              }
+            },
+            "1.21.5": {
+              "fabric": {
+                "identifier": "0.121.0+1.21.5",
+                "filename": null
+              }
+            }
+          }
+        },
+        {
+          "id": "fabric-language-kotlin",
+          "displayName": "fabric-language-kotlin-lololol",
+          "source": {
+            "type": "modrinth",
+            "projectId": "Ha28R6CL",
+            "projectSlug": "fabric-language-kotlin"
+          },
+          "compatibility": {
+            "1.21.4": {
+              "fabric": {
+                "identifier": "1.13.0+kotlin.2.1.0",
+                "filename": null
+              }
+            },
+            "1.21.5": {
+              "fabric": {
+                "identifier": "1.13.2+kotlin.2.1.20",
+                "filename": null
+              }
+            }
+          }
+        },
+        {
+          "id": "silk",
+          "displayName": "silk",
+          "source": {
+            "type": "modrinth",
+            "projectId": "aTaCgKLW",
+            "projectSlug": "silk"
+          },
+          "compatibility": {
+            "1.21.4": {
+              "fabric": {
+                "identifier": "1.11.0",
+                "filename": null
+              }
+            },
+            "1.21.5": {
+              "fabric": {
+                "identifier": "1.11.1",
+                "filename": null
+              }
+            }
+          }
+        },
+        {
+          "id": "norisk-fabric-utils",
+          "displayName": "NoRiskClient-Fabric-Utils",
+          "source": {
+            "type": "maven",
+            "repositoryRef": "noriskproduction",
+            "groupId": "gg.norisk",
+            "artifactId": "noriskclient-fabric-utils"
+          },
+          "compatibility": {
+            "1.21.4": {
+              "fabric": {
+                "identifier": "1.21.4-2.2.25",
+                "filename": null
+              }
+            },
+            "1.20.1": {
+              "fabric": {
+                "identifier": "1.20.1-x.y.z",
+                "filename": null
+              }
+            }
+          }
+        },
+        {
+          "id": "optifine",
+          "displayName": "OptiFine",
+          "source": {
+            "type": "url"
+          },
+          "compatibility": {
+            "1.7.10": {
+              "forge": {
+                "identifier": "https://optifine.net/downloadx?f=OptiFine_1.7.10_HD_U_E7.jar&x=5c5ce31253d5807eaa81f79f33122aaf",
+                "filename": "OptiFine_1.7.10_HD_U_E7.jar"
+              }
+            },
+            "1.8.9": {
+              "forge": {
+                "identifier": "https://optifine.net/downloadx?f=OptiFine_1.8.9_HD_U_M5.jar&x=9a4fd9eb662a604310671de152fdc4fb",
+                "filename": "OptiFine_1.8.9_HD_U_M5.jar"
+              }
+            }
+          }
+        },
+        {
+          "id": "old-noriskclient",
+          "displayName": "Old NoRiskClient",
+          "source": {
+            "type": "url"
+          },
+          "compatibility": {
+            "1.8.9": {
+              "forge": {
+                "identifier": "http://dl.norisk.gg/noriskclient-0.2.1.jar",
+                "filename": "noriskclient-0.2.1.jar"
+              }
+            }
+          }
+        }
+      ],
+      "assets": [
+        "norisk-prod"
+      ],
+      "isExperimental": false
+    }
+  },
+  "repositories": {
+    "modrinth": "https://api.modrinth.com/maven/",
+    "kosmx": "https://maven.kosmx.dev/",
+    "norisksnapshots": "https://maven.norisk.gg/repository/norisk-snapshots/",
+    "jitpack": "https://jitpack.io/",
+    "fabric": "https://maven.fabricmc.net/",
+    "central": "https://repo1.maven.org/maven2/",
+    "geckolib": "https://dl.cloudsmith.io/public/geckolib3/geckolib/maven/",
+    "norisk": "https://dl.norisk.gg/",
+    "terraformersmc": "https://maven.terraformersmc.com/",
+    "viaversion": "https://repo.viaversion.com/",
+    "wispforest": "https://maven.wispforest.io/",
+    "noriskproduction": "https://maven.norisk.gg/repository/norisk-production/"
+  }
+}

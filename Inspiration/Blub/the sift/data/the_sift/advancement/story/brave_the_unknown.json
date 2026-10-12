@@ -1,0 +1,27 @@
+{
+  "parent": "the_sift:story/song_of_the_past",
+  "display": {
+    "icon": {
+      "id": "the_sift:siftslate_growth"
+    },
+    "title": {
+      "translate": "advancement.the_sift.story.brave_the_unknown.title"
+    },
+    "description": {
+      "translate": "advancement.the_sift.story.brave_the_unknown.description"
+    }
+  },
+  "criteria": {
+    "entered_sift": {
+      "trigger": "minecraft:changed_dimension",
+      "conditions": {
+        "to": "the_sift:the_sift"
+      }
+    }
+  },
+  "requirements": [
+    [
+      "entered_sift"
+    ]
+  ]
+}

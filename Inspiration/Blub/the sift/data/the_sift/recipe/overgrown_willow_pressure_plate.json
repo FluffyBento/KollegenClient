@@ -1,0 +1,14 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "redstone",
+  "group": "wooden_pressure_plate",
+  "key": {
+    "#": "the_sift:overgrown_willow_planks"
+  },
+  "pattern": [
+    "##"
+  ],
+  "result": {
+    "id": "the_sift:overgrown_willow_pressure_plate"
+  }
+}

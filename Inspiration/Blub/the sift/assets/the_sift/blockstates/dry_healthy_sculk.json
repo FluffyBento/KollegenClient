@@ -1,0 +1,18 @@
+{
+  "variants": {
+    "": [
+      {
+        "model": "the_sift:block/dry_healthy_sculk"
+      },
+      {
+        "model": "the_sift:block/dry_healthy_sculk_rot90"
+      },
+      {
+        "model": "the_sift:block/dry_healthy_sculk_rot180"
+      },
+      {
+        "model": "the_sift:block/dry_healthy_sculk_rot270"
+      }
+    ]
+  }
+}

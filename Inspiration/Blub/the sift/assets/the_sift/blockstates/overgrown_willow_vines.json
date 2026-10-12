@@ -1,0 +1,98 @@
+{
+  "multipart": [
+    {
+      "when": {
+        "north": "true",
+        "north_bottom": "false"
+      },
+      "apply": {
+        "model": "the_sift:block/overgrown_willow_vines"
+      }
+    },
+    {
+      "when": {
+        "east": "true",
+        "east_bottom": "false"
+      },
+      "apply": {
+        "model": "the_sift:block/overgrown_willow_vines",
+        "uvlock": true,
+        "y": 90
+      }
+    },
+    {
+      "when": {
+        "south": "true",
+        "south_bottom": "false"
+      },
+      "apply": {
+        "model": "the_sift:block/overgrown_willow_vines",
+        "uvlock": true,
+        "y": 180
+      }
+    },
+    {
+      "when": {
+        "west": "true",
+        "west_bottom": "false"
+      },
+      "apply": {
+        "model": "the_sift:block/overgrown_willow_vines",
+        "uvlock": true,
+        "y": 270
+      }
+    },
+    {
+      "when": {
+        "up": "true"
+      },
+      "apply": {
+        "model": "the_sift:block/overgrown_willow_vines",
+        "uvlock": true,
+        "x": 270
+      }
+    },
+    {
+      "when": {
+        "north": "true",
+        "north_bottom": "true"
+      },
+      "apply": {
+        "model": "the_sift:block/overgrown_willow_vines_bottom"
+      }
+    },
+    {
+      "when": {
+        "east": "true",
+        "east_bottom": "true"
+      },
+      "apply": {
+        "model": "the_sift:block/overgrown_willow_vines_bottom",
+        "uvlock": true,
+        "y": 90
+      }
+    },
+    {
+      "when": {
+        "south": "true",
+        "south_bottom": "true"
+      },
+      "apply": {
+        "model": "the_sift:block/overgrown_willow_vines_bottom",
+        "uvlock": true,
+        "y": 180
+      }
+    },
+    {
+      "when": {
+        "west": "true",
+        "west_bottom": "true"
+      },
+      "apply": {
+        "model": "the_sift:block/overgrown_willow_vines_bottom",
+        "uvlock": true,
+        "y": 270
+      }
+    }
+  ]
+}

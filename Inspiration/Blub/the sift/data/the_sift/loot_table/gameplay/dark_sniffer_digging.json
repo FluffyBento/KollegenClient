@@ -1,0 +1,15 @@
+{
+  "type": "minecraft:gift",
+  "pools": [
+    {
+      "rolls": 1.0,
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "the_sift:sculkflower_seeds"
+        }
+      ]
+    }
+  ],
+  "random_sequence": "the_sift:gameplay/dark_sniffer_digging"
+}

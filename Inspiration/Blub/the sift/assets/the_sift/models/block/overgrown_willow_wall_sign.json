@@ -1,0 +1,7 @@
+{
+  "parent": "minecraft:block/template_wall_sign",
+  "textures": {
+    "all": "the_sift:block/overgrown_willow_sign",
+    "particle": "the_sift:block/overgrown_willow_planks"
+  }
+}

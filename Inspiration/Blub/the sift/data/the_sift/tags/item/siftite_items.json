@@ -1,0 +1,19 @@
+{
+  "replace": false,
+  "values": [
+    "the_sift:siftslate_siftite_ore",
+    "the_sift:siftite_nugget",
+    "the_sift:siftite_ingot",
+    "the_sift:siftite_upgrade_smithing_template",
+    "the_sift:siftite_sword",
+    "the_sift:siftite_shovel",
+    "the_sift:siftite_pickaxe",
+    "the_sift:siftite_axe",
+    "the_sift:siftite_hoe",
+    "the_sift:siftite_spear",
+    "the_sift:siftite_helmet",
+    "the_sift:siftite_chestplate",
+    "the_sift:siftite_leggings",
+    "the_sift:siftite_boots"
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "parent": "minecraft:block/template_attached_hanging_sign_rot_0",
+  "textures": {
+    "all": "the_sift:block/overgrown_willow_hanging_sign",
+    "particle": "the_sift:block/stripped_overgrown_willow_log"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "feature": "the_sift:abandoned_main_portal",
+  "placement": [
+    {
+      "type": "minecraft:heightmap",
+      "heightmap": "WORLD_SURFACE_WG"
+    },
+    {
+      "type": "minecraft:biome"
+    }
+  ]
+}

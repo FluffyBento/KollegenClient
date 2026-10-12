@@ -1,0 +1,22 @@
+{
+  "variants": {
+    "": [
+      {
+        "model": "the_sift:block/overgrown_stalks",
+        "y": 0
+      },
+      {
+        "model": "the_sift:block/overgrown_stalks",
+        "y": 90
+      },
+      {
+        "model": "the_sift:block/overgrown_stalks",
+        "y": 180
+      },
+      {
+        "model": "the_sift:block/overgrown_stalks",
+        "y": 270
+      }
+    ]
+  }
+}

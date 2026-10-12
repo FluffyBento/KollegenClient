@@ -1,0 +1,10 @@
+{
+  "replace": false,
+  "values": [
+    "the_sift:siftslate_growth",
+    "the_sift:healthy_sculk",
+    "the_sift:dry_healthy_sculk",
+    "the_sift:dry_healthy_sculk_growth",
+    "minecraft:sculk"
+  ]
+}

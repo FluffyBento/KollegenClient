@@ -1,0 +1,8 @@
+{
+  "parent": "minecraft:block/cube_bottom_top",
+  "textures": {
+    "bottom": "the_sift:block/dry_healthy_sculk",
+    "side": "the_sift:block/dry_healthy_sculk_growth_side",
+    "top": "the_sift:block/siftslate_growth_top"
+  }
+}

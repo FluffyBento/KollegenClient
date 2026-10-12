@@ -1,0 +1,29 @@
+{
+  "type": "minecraft:range_choice",
+  "input": "the_sift:plateau_field",
+  "min_inclusive": -1000000.0,
+  "max_exclusive": -0.58,
+  "when_in_range": -0.245,
+  "when_out_of_range": {
+    "type": "minecraft:range_choice",
+    "input": "the_sift:plateau_field",
+    "min_inclusive": -0.58,
+    "max_exclusive": -0.19,
+    "when_in_range": -0.085,
+    "when_out_of_range": {
+      "type": "minecraft:range_choice",
+      "input": "the_sift:plateau_field",
+      "min_inclusive": -0.19,
+      "max_exclusive": 0.19,
+      "when_in_range": 0.04,
+      "when_out_of_range": {
+        "type": "minecraft:range_choice",
+        "input": "the_sift:plateau_field",
+        "min_inclusive": 0.19,
+        "max_exclusive": 0.56,
+        "when_in_range": 0.195,
+        "when_out_of_range": 0.345
+      }
+    }
+  }
+}

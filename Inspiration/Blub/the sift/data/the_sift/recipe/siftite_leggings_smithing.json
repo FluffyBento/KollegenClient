@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:smithing_transform",
+  "addition": "the_sift:siftite_ingot",
+  "base": "minecraft:netherite_leggings",
+  "result": {
+    "id": "the_sift:siftite_leggings"
+  },
+  "template": "the_sift:siftite_upgrade_smithing_template"
+}

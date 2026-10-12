@@ -1,0 +1,24 @@
+{
+  "parent": "the_sift:the_sift/like_father_and_son",
+  "display": {
+    "icon": {
+      "id": "minecraft:echo_shard"
+    },
+    "title": {
+      "translate": "advancement.the_sift.friend_of_the_sift.title"
+    },
+    "description": {
+      "translate": "advancement.the_sift.friend_of_the_sift.description"
+    }
+  },
+  "criteria": {
+    "event": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "requirements": [
+    [
+      "event"
+    ]
+  ]
+}

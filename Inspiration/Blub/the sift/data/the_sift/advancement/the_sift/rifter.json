@@ -1,0 +1,24 @@
+{
+  "parent": "the_sift:the_sift/root",
+  "display": {
+    "icon": {
+      "id": "the_sift:sift_rift"
+    },
+    "title": {
+      "translate": "advancement.the_sift.rifter.title"
+    },
+    "description": {
+      "translate": "advancement.the_sift.rifter.description"
+    }
+  },
+  "criteria": {
+    "event": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "requirements": [
+    [
+      "event"
+    ]
+  ]
+}

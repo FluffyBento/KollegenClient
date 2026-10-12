@@ -1,0 +1,11 @@
+{
+  "type": "minecraft:mul",
+  "argument1": "the_sift:mountain_raw_offset",
+  "argument2": {
+    "type": "minecraft:y_clamped_gradient",
+    "from_y": 220,
+    "to_y": 255,
+    "from_value": 1.0,
+    "to_value": 0.08
+  }
+}

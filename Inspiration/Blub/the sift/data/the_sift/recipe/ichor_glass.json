@@ -1,0 +1,14 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "building",
+  "pattern": [
+    "##",
+    "##"
+  ],
+  "key": {
+    "#": "the_sift:ichor_shard"
+  },
+  "result": {
+    "id": "the_sift:ichor_glass"
+  }
+}

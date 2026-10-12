@@ -1,0 +1,81 @@
+{
+  "profiles": [
+    {
+      "id": "ea361d90-5541-4a2a-8eea-8cf1f822d6cb",
+      "name": "NRC DEV 1.21",
+      "description": "NoRisk Client 1.21",
+      "game_version": "1.21",
+      "loader": "fabric",
+      "loader_version": "0.16.13",
+      "selected_norisk_pack_id": "norisk-dev",
+      "path": "noriskclient/new",
+      "is_standard_version": true,
+      "group": "NORISK CLIENT",
+      "banner": {
+        "source": {
+          "type": "url",
+          "url": "https://fabricmc.net/assets/logo.png"
+        }
+      },
+      "norisk_information": {}
+    },
+    {
+      "id": "fc452b71-8e34-4b7a-9d2c-a6f13e5c7d8f",
+      "name": "NRC DEV 1.21.4",
+      "description": "NoRisk Client 1.21.4",
+      "game_version": "1.21.4",
+      "loader": "fabric",
+      "loader_version": "0.16.13",
+      "selected_norisk_pack_id": "norisk-dev",
+      "path": "noriskclient/new",
+      "is_standard_version": true,
+      "group": "NORISK CLIENT",
+      "banner": {
+        "source": {
+          "type": "url",
+          "url": "https://fabricmc.net/assets/logo.png"
+        }
+      },
+      "norisk_information": {}
+    },
+    {
+      "id": "b7cd5e92-3a16-4f85-bc60-9d8e47a1f3d2",
+      "name": "NRC DEV 1.21.5",
+      "description": "NoRisk Client 1.21.5",
+      "game_version": "1.21.5",
+      "loader": "fabric",
+      "loader_version": "0.16.13",
+      "selected_norisk_pack_id": "norisk-dev",
+      "path": "noriskclient/new",
+      "is_standard_version": true,
+      "group": "NORISK CLIENT",
+      "banner": {
+        "source": {
+          "type": "url",
+          "url": "https://fabricmc.net/assets/logo.png"
+        }
+      },
+      "norisk_information": {}
+    },
+    {
+      "id": "98e6a5c0-cb6b-4f30-8e4d-5b7f8f6a3e2b",
+      "name": "Forge 1.8.9",
+      "description": "Standard Forge profile for Minecraft 1.8.9.",
+      "game_version": "1.8.9",
+      "loader": "forge",
+      "loader_version": "11.15.1.2318",
+      "selected_norisk_pack_id": null,
+      "path": "noriskclient",
+      "is_standard_version": true,
+      "group": "NORISK CLIENT",
+      "banner": {
+        "source": {
+          "type": "base64",
+          "data": "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",
+          "mime_type": "image/png"
+        }
+      },
+      "norisk_information": {}
+    }
+  ]
+}

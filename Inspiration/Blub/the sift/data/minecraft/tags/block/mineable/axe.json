@@ -1,0 +1,23 @@
+{
+  "replace": false,
+  "values": [
+    "the_sift:overgrown_willow_log",
+    "the_sift:overgrown_willow_wood",
+    "the_sift:stripped_overgrown_willow_log",
+    "the_sift:stripped_overgrown_willow_wood",
+    "the_sift:overgrown_willow_planks",
+    "the_sift:overgrown_willow_stairs",
+    "the_sift:overgrown_willow_slab",
+    "the_sift:overgrown_willow_fence",
+    "the_sift:overgrown_willow_fence_gate",
+    "the_sift:overgrown_willow_door",
+    "the_sift:overgrown_willow_trapdoor",
+    "the_sift:overgrown_willow_pressure_plate",
+    "the_sift:overgrown_willow_button",
+    "the_sift:overgrown_willow_shelf",
+    "the_sift:overgrown_willow_sign",
+    "the_sift:overgrown_willow_wall_sign",
+    "the_sift:overgrown_willow_hanging_sign",
+    "the_sift:overgrown_willow_wall_hanging_sign"
+  ]
+}

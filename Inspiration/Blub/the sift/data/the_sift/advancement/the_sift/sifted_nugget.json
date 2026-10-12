@@ -1,0 +1,24 @@
+{
+  "parent": "the_sift:the_sift/kinda_purpleish",
+  "display": {
+    "icon": {
+      "id": "the_sift:siftslate_siftite_ore"
+    },
+    "title": {
+      "translate": "advancement.the_sift.sifted_nugget.title"
+    },
+    "description": {
+      "translate": "advancement.the_sift.sifted_nugget.description"
+    }
+  },
+  "criteria": {
+    "event": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "requirements": [
+    [
+      "event"
+    ]
+  ]
+}

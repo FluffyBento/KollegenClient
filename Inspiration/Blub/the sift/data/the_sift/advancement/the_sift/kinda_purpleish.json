@@ -1,0 +1,24 @@
+{
+  "parent": "the_sift:the_sift/root",
+  "display": {
+    "icon": {
+      "id": "the_sift:siftslate_charoite_ore"
+    },
+    "title": {
+      "translate": "advancement.the_sift.kinda_purpleish.title"
+    },
+    "description": {
+      "translate": "advancement.the_sift.kinda_purpleish.description"
+    }
+  },
+  "criteria": {
+    "event": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "requirements": [
+    [
+      "event"
+    ]
+  ]
+}

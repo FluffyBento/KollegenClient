@@ -1,0 +1,25 @@
+{
+  "parent": "the_sift:the_sift/certified_sifter",
+  "display": {
+    "icon": {
+      "id": "the_sift:ichor_snowball"
+    },
+    "title": {
+      "translate": "advancement.the_sift.false_alarm.title"
+    },
+    "description": {
+      "translate": "advancement.the_sift.false_alarm.description"
+    },
+    "frame": "challenge"
+  },
+  "criteria": {
+    "event": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "requirements": [
+    [
+      "event"
+    ]
+  ]
+}
