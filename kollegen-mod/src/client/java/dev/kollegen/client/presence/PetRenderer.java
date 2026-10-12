@@ -289,7 +289,6 @@ public final class PetRenderer {
         private double vy = 0.0;
         private double stridePhase = 0.0;
         private double strideAmount = 0.0;
-        private double prevY = 0.0;
         private double pulsePhase = 0.0;
         private double pitch = 0.0;
         private int pounceT = 0;
@@ -481,12 +480,9 @@ public final class PetRenderer {
                     entity.setPos(cl[0], tny, cl[1]);
                     stridePhase += step * 3.0;
                     strideAmount = Math.min(1.0, step * 4.0);
-                    if (swimmer) {
-                        double ny = cl[1];
-                        double dyv = ny - prevY;
-                        prevY = ny;
-                        double targetPitch = Math.max(-45.0, Math.min(45.0, -dyv * 120.0));
-                        pitch += (targetPitch - pitch) * 0.3;
+                    if (swimmer && dist > 0.001) {
+                        double targetPitch = Math.max(-60.0, Math.min(60.0, -(dy / dist) * 60.0));
+                        pitch += (targetPitch - pitch) * 0.2;
                     }
                 } else {
                     entity.setPos(x, y, z);
@@ -506,7 +502,7 @@ public final class PetRenderer {
                     ep = entity.position();
                 } catch (Throwable ignored) {
                 }
-                if (ep != null) {
+                if (ep != null && isGroundKind(d.petKind)) {
                     double lx = ownerPos.x - ep.x;
                     double lz = ownerPos.z - ep.z;
                     if (lx * lx + lz * lz > 0.01) lookYaw = (float) (Math.toDegrees(Math.atan2(lz, lx)) - 90.0);
