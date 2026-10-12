@@ -3263,9 +3263,34 @@ button:disabled {
   line-height: 1;
 }
 
+.pet-namerow {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
 .pet-name {
-  width: 100%;
+  flex: 1;
+  min-width: 0;
   box-sizing: border-box;
+}
+
+.pet-savebtn {
+  flex: none;
+  width: 34px;
+  height: 30px;
+  padding: 0;
+  font-size: 1rem;
+  line-height: 1;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  color: #c9d4e3;
+  cursor: pointer;
+}
+
+.pet-savebtn:hover {
+  border-color: var(--accent);
 }
 
 .pet-optrow {

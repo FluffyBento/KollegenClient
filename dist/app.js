@@ -4537,9 +4537,24 @@ startBackgroundIntervals();
           nameIn.dataset.petField = it.id;
           nameIn.dataset.petKind = "name";
           nameIn.value = (focusPet === it.id && focusKind === "name" && focusVal !== null) ? focusVal : (cfg.name || "");
+          const nameRow = document.createElement("div");
+          nameRow.className = "pet-namerow";
           nameIn.addEventListener("change", () => petSave(it.id, { name: nameIn.value || null }));
           nameIn.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); nameIn.blur(); } });
-          body.append(nameIn);
+          nameRow.append(nameIn);
+          const saveBtn = document.createElement("button");
+          saveBtn.className = "pet-savebtn";
+          saveBtn.textContent = "💾";
+          saveBtn.title = "Name speichern";
+          saveBtn.dataset.petField = it.id;
+          saveBtn.dataset.petKind = "save";
+          saveBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            petSave(it.id, { name: nameIn.value || null });
+            try { nameIn.blur(); } catch (ee) {}
+          });
+          nameRow.append(saveBtn);
+          body.append(nameRow);
           const row = document.createElement("div");
           row.className = "pet-optrow";
           const colorIn = document.createElement("input");
@@ -4595,7 +4610,7 @@ startBackgroundIntervals();
           }
           card.append(body);
           card.addEventListener("click", (e) => {
-            if (e.target.closest("input,select,option")) return;
+            if (e.target.closest("input,select,option,button")) return;
             cosmEquip("pet", it.id, null);
           });
           cards.append(card);
