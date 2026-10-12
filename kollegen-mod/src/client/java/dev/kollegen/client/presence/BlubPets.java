@@ -48,4 +48,16 @@ public final class BlubPets {
         } catch (Throwable ignored) {
         }
     }
+
+    public static void applyDisplayPose(Entity entity, float sx, float sy, float sz, float yaw) {
+        try {
+            if (!(entity instanceof Display.ItemDisplay)) return;
+            EntityDataAccessor<org.joml.Vector3fc> scaleAccessor = dev.kollegen.client.mixin.ItemDisplayAccessor.kollegen$getScaleAccessor();
+            EntityDataAccessor<org.joml.Quaternionfc> rotAccessor = dev.kollegen.client.mixin.ItemDisplayAccessor.kollegen$getLeftRotationAccessor();
+            if (scaleAccessor == null || rotAccessor == null) return;
+            entity.getEntityData().set(scaleAccessor, new org.joml.Vector3f(sx, sy, sz));
+            entity.getEntityData().set(rotAccessor, new org.joml.Quaternionf().rotateY(yaw));
+        } catch (Throwable ignored) {
+        }
+    }
 }

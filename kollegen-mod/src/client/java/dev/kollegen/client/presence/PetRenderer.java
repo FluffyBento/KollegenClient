@@ -260,6 +260,17 @@ public final class PetRenderer {
         private double wz = 0.0;
         private long wanderUntil = 0;
         private boolean resting = false;
+        private int hopT = 0;
+        private int hopDur = 15;
+        private int hopCd = 0;
+        private double hopX0 = 0.0;
+        private double hopY0 = 0.0;
+        private double hopZ0 = 0.0;
+        private double hopPeak = 0.3;
+        private int flapT = 0;
+        private int flapCd = 200;
+        private int happyT = 0;
+        private int happyCd = 600;
 
         PetInstance(EntityType<?> type, Level level) {
             this.level = level;
@@ -363,13 +374,17 @@ public final class PetRenderer {
             }
             double faceDx = 0.0;
             double faceDz = 0.0;
+            boolean blub = BlubPets.isBlubDisplay(entity);
+            if (blub) {
+                blubHopMove(x, y, z, (float) scale);
+            }
             boolean snap;
             try {
                 snap = !placed || entity.position().distanceToSqr(x, y, z) > 144.0;
             } catch (Throwable ignored) {
                 snap = true;
             }
-            if (snap) {
+            if (snap && !blub) {
                 entity.setPos(x, y, z);
                 try {
                     entity.setOldPosAndRot();
@@ -377,7 +392,7 @@ public final class PetRenderer {
                 }
                 placed = true;
                 entity.setDeltaMovement(0, 0, 0);
-            } else {
+            } else if (!blub) {
                 try {
                     entity.setOldPosAndRot();
                 } catch (Throwable ignored) {
@@ -446,6 +461,90 @@ public final class PetRenderer {
                 } catch (Throwable ignored) {
                 }
             }
+        }
+
+        void blubHopMove(double x, double y, double z, float baseScale) {
+            Vec3 cur = null;
+            try {
+                cur = entity.position();
+            } catch (Throwable ignored) {
+            }
+            if (cur == null) return;
+            double dx0 = x - cur.x;
+            double dy0 = y - cur.y;
+            double dz0 = z - cur.z;
+            double distSq = dx0 * dx0 + dy0 * dy0 + dz0 * dz0;
+            boolean settled = resting || distSq < 0.04;
+            if (!placed || distSq > 144.0) {
+                entity.setPos(x, y, z);
+                try {
+                    entity.setOldPosAndRot();
+                } catch (Throwable ignored) {
+                }
+                placed = true;
+                entity.setDeltaMovement(0, 0, 0);
+                hopT = 0;
+                hopCd = 0;
+                if (happyT <= 0) {
+                    happyT = 15;
+                    happyCd = 900 + (int) (Math.random() * 900);
+                }
+            } else if (!settled) {
+                if (hopT <= 0 && hopCd > 0) {
+                    hopCd--;
+                } else {
+                    if (hopT <= 0) {
+                        hopDur = 15;
+                        hopT = hopDur;
+                        hopX0 = cur.x;
+                        hopY0 = cur.y;
+                        hopZ0 = cur.z;
+                        hopPeak = Math.min(0.45, 0.22 + Math.sqrt(distSq) * 0.06);
+                    }
+                    hopT--;
+                    if (hopT <= 0) hopCd = 5;
+                    double p = 1.0 - (double) Math.max(hopT, 0) / (double) hopDur;
+                    double q = p * p * (3.0 - 2.0 * p);
+                    entity.setPos(hopX0 + (x - hopX0) * q, hopY0 + (y - hopY0) * q + 4.0 * hopPeak * q * (1.0 - q), hopZ0 + (z - hopZ0) * q);
+                    try {
+                        entity.setOldPosAndRot();
+                    } catch (Throwable ignored) {
+                    }
+                }
+            } else {
+                hopT = 0;
+                hopCd = 0;
+                entity.setPos(x, y, z);
+            }
+            if (flapT > 0) {
+                flapT--;
+            } else if (settled) {
+                if (--flapCd <= 0) {
+                    flapT = 20;
+                    flapCd = 140 + (int) (Math.random() * 401);
+                }
+            } else {
+                flapCd = Math.max(flapCd, 40);
+            }
+            if (happyT <= 0 && --happyCd <= 0) {
+                happyT = 15;
+                happyCd = 900 + (int) (Math.random() * 900);
+            } else if (happyT > 0) {
+                happyT--;
+            }
+            float sy = baseScale;
+            float yaw = 0.0f;
+            if (settled) sy = baseScale * 0.94f;
+            if (flapT > 0) {
+                double fp = 1.0 - (double) flapT / 20.0;
+                sy = baseScale * (float) (1.0 - 0.22 * Math.sin(fp * Math.PI));
+            }
+            if (happyT > 0) {
+                double hp = 1.0 - (double) happyT / 15.0;
+                yaw = (float) (hp * Math.PI * 2.0);
+                sy = baseScale * (float) (1.0 + 0.12 * Math.sin(hp * Math.PI));
+            }
+            BlubPets.applyDisplayPose(entity, baseScale, sy, sy, yaw);
         }
     }
 
