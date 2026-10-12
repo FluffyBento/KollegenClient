@@ -31,8 +31,8 @@ public class KollegenMod implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         dev.kollegen.client.mods.Palette.loadTheme(); 
-        ModuleManager.registerAll(); 
-        dev.kollegen.client.presence.BlubPets.register();
+        ModuleManager.registerAll();
+        dev.kollegen.client.presence.BlubPets.register(); 
         
         
         dev.kollegen.client.mods.modules.        RendererManager.apply();

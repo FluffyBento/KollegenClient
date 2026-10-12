@@ -1,10 +1,11 @@
 package dev.kollegen.client.presence;
 
-import dev.kollegen.client.KollegenMod;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.entity.Display;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.item.Item;
@@ -18,10 +19,12 @@ public final class BlubPets {
     public static void register() {
         try {
             if (BLUB_ITEM != null) return;
-            BLUB_ITEM = Registry.register(BuiltInRegistries.ITEM, Identifier.fromNamespaceAndPath("kollegen", "blub"), new Item(new Item.Properties()));
+            Identifier id = Identifier.fromNamespaceAndPath("kollegen", "blub");
+            ResourceKey<Item> key = ResourceKey.create(Registries.ITEM, id);
+            BLUB_ITEM = Registry.register(BuiltInRegistries.ITEM, key, new Item(new Item.Properties().setId(key)));
         } catch (Throwable t) {
             try {
-                KollegenMod.LOGGER.warn("Blub item registration failed", t);
+                dev.kollegen.client.KollegenMod.LOGGER.warn("Blub item registration failed", t);
             } catch (Throwable ignored) {
             }
         }
