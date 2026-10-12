@@ -3297,6 +3297,12 @@ button:disabled {
   font-size: 0.85rem;
 }
 
+.pet-skin {
+  width: 100%;
+  box-sizing: border-box;
+  margin-top: 8px;
+}
+
 .cosm-row {
   display: flex;
   align-items: center;

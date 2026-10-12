@@ -4454,7 +4454,7 @@ startBackgroundIntervals();
       pet_allay: [["follow", "Folgen"], ["hover", "Fliegen"], ["shoulder", "Schulter"], ["head", "Kopf"]],
       pet_blub: [["follow", "Folgen"]],
     };
-    const PET_ICON = { pet_allay: "🧚", pet_blub: "🫧" };
+    const PET_ICON = { pet_allay: "🧚", pet_blub: "🫧", pet_cat: "🐱", pet_dog: "🐶", pet_chicken: "🐔", pet_rabbit: "🐰", pet_axolotl: "🦎", pet_bat: "🦇", pet_fox: "🦊", pet_parrot: "🦜", pet_bee: "🐝", pet_squid: "🦑", pet_nautilus: "🐚", pet_copper_golem: "🤖" };
     const petModesFor = (id) => PET_MODE_OPTS[id] || [["follow", "Folgen"], ["hover", "Fliegen"], ["shoulder", "Schulter"], ["head", "Kopf"]];
     const petSave = async (petId, patch) => {
       try {
@@ -4536,6 +4536,27 @@ startBackgroundIntervals();
             row.append(tag);
           }
           body.append(row);
+          const skins = owned.filter((c) => c && c.category === "pet_skin" && c.data && c.data.variantOf === it.id);
+          if (skins.length) {
+            const skinSel = document.createElement("select");
+            skinSel.className = "store-sort pet-skin";
+            skinSel.dataset.petField = it.id;
+            skinSel.dataset.petKind = "variant";
+            const no = document.createElement("option");
+            no.value = "";
+            no.textContent = "Skin: Normal";
+            skinSel.append(no);
+            for (const s of skins) {
+              const o = document.createElement("option");
+              o.value = s.data.variant;
+              o.textContent = "Skin: " + (s.data.label || s.name || s.data.variant);
+              skinSel.append(o);
+            }
+            skinSel.value = cfg.variant || "";
+            if (focusPet === it.id && focusKind === "variant" && focusVal !== null) skinSel.value = focusVal;
+            skinSel.addEventListener("change", () => petSave(it.id, { variant: skinSel.value || null }));
+            body.append(skinSel);
+          }
           card.append(body);
           card.addEventListener("click", (e) => {
             if (e.target.closest("input,select,option")) return;

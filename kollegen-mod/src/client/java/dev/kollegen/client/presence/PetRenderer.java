@@ -14,8 +14,11 @@ import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.TextColor;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.EntitySpawnReason;
+import net.minecraft.world.entity.AgeableMob;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.animal.axolotl.Axolotl;
+import net.minecraft.world.entity.animal.fox.Fox;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.boss.enderdragon.EnderDragon;
@@ -225,9 +228,11 @@ public final class PetRenderer {
         }
         float yaw = LAST_YAW.getOrDefault(ownerId, 0f);
         PetInstance pet = PETS.get(ownerId);
-        if (pet == null || pet.level != mc.level) {
+        String effKind = effectiveKind(d.petKind, d.petVariant);
+        if (pet == null || pet.level != mc.level || !effKind.equals(pet.kind)
+                || (d.petVariant == null ? pet.variant != null : !d.petVariant.equals(pet.variant))) {
             try {
-                pet = new PetInstance(getPetType(d.petKind), mc.level);
+                pet = new PetInstance(getPetType(effKind), mc.level, effKind, d.petVariant);
                 PETS.put(ownerId, pet);
                 LEVELS.put(ownerId, mc.level);
             } catch (Throwable ignored) {
@@ -257,6 +262,8 @@ public final class PetRenderer {
     private static class PetInstance {
         private final Entity entity;
         private final Level level;
+        private final String kind;
+        private final String variant;
         private int tickCount = 0;
         private boolean placed = false;
         private double wx = 0.0;
@@ -282,8 +289,10 @@ public final class PetRenderer {
         private int happyT = 0;
         private int happyCd = 600;
 
-        PetInstance(EntityType<?> type, Level level) {
+        PetInstance(EntityType<?> type, Level level, String kind, String variant) {
             this.level = level;
+            this.kind = kind;
+            this.variant = variant;
             try {
                 this.entity = type.create(level, EntitySpawnReason.LOAD);
             } catch (Throwable t) {
@@ -306,6 +315,7 @@ public final class PetRenderer {
             entity.setInvulnerable(true);
             entity.setSilent(true);
             entity.setNoGravity(true);
+            applyVariant(entity, d.petVariant);
 
             String mode = d.petMode != null ? d.petMode : "follow";
             if (BlubPets.isBlubDisplay(entity) && !"follow".equals(mode)) mode = "follow";
@@ -704,30 +714,86 @@ public final class PetRenderer {
         return out;
     }
 
+    private static void applyVariant(Entity entity, String variant) {
+        if (entity == null) return;
+        try {
+            if (entity instanceof Mob mob && mob instanceof AgeableMob) {
+                try {
+                    mob.setBaby("baby".equals(variant));
+                } catch (Throwable ignored) {
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+        try {
+            if (entity instanceof Fox fox) {
+                try {
+                    Fox.Variant want = "snow".equals(variant) ? Fox.Variant.SNOW : Fox.Variant.RED;
+                    if (fox.getVariant() != want) ((dev.kollegen.client.mixin.FoxAccessor) fox).kollegen$setVariant(want);
+                } catch (Throwable ignored) {
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+        try {
+            if (entity instanceof Axolotl ax) {
+                try {
+                    Axolotl.Variant want = Axolotl.Variant.LUCY;
+                    if ("wild".equals(variant)) want = Axolotl.Variant.WILD;
+                    else if ("gold".equals(variant)) want = Axolotl.Variant.GOLD;
+                    else if ("cyan".equals(variant)) want = Axolotl.Variant.CYAN;
+                    else if ("blue".equals(variant)) want = Axolotl.Variant.BLUE;
+                    ((dev.kollegen.client.mixin.AxolotlAccessor) ax).kollegen$setVariant(want);
+                } catch (Throwable ignored) {
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+    }
+
     private static EntityType<?> getPetType(String petKind) {
         if (petKind == null) return EntityType.ALLAY;
 
         return switch (petKind.toLowerCase()) {
             case "blub" -> EntityType.ITEM_DISPLAY;
-            case "ender_dragon", "dragon", "enderdragon" -> EntityType.ALLAY;
+            case "allay", "ender_dragon", "dragon", "enderdragon" -> EntityType.ALLAY;
             case "wolf", "dog" -> EntityType.WOLF;
             case "cat", "ocelot" -> EntityType.CAT;
             case "parrot" -> EntityType.PARROT;
             case "fox" -> EntityType.FOX;
             case "rabbit", "bunny" -> EntityType.RABBIT;
             case "shulker" -> EntityType.SHULKER;
+            case "chicken", "hen" -> EntityType.CHICKEN;
+            case "bee" -> EntityType.BEE;
+            case "axolotl" -> EntityType.AXOLOTL;
+            case "bat" -> EntityType.BAT;
+            case "squid" -> EntityType.SQUID;
+            case "glow_squid", "glowsquid" -> EntityType.GLOW_SQUID;
+            case "nautilus" -> EntityType.NAUTILUS;
+            case "zombie_nautilus", "zombienautilus" -> EntityType.ZOMBIE_NAUTILUS;
+            case "copper_golem", "coppergolem", "golem" -> EntityType.COPPER_GOLEM;
             default -> EntityType.ALLAY;
         };
     }
 
-    public static void ensurePetExists(UUID ownerId, Level level, String petKind) {
+    static String effectiveKind(String petKind, String variant) {
+        if (petKind == null) return null;
+        String kind = petKind.toLowerCase();
+        if ("glow".equals(variant) && kind.equals("squid")) return "glow_squid";
+        if ("zombie".equals(variant) && kind.equals("nautilus")) return "zombie_nautilus";
+        return petKind;
+    }
+
+    public static void ensurePetExists(UUID ownerId, Level level, String petKind, String variant) {
         if (ownerId == null || level == null || petKind == null) return;
 
+        String effKind = effectiveKind(petKind, variant);
         PetInstance existing = PETS.get(ownerId);
-        if (existing != null && existing.level == level) return;
+        if (existing != null && existing.level == level && effKind.equals(existing.kind)
+                && (variant == null ? existing.variant == null : variant.equals(existing.variant))) return;
 
-        EntityType<?> type = getPetType(petKind);
-        PETS.put(ownerId, new PetInstance(type, level));
+        EntityType<?> type = getPetType(effKind);
+        PETS.put(ownerId, new PetInstance(type, level, effKind, variant));
         LEVELS.put(ownerId, level);
     }
 }

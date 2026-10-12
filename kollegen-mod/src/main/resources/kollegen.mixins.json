@@ -33,7 +33,9 @@
     "PetLevelRendererMixin",
     "PetLevelExtractorMixin",
     "ItemDisplayAccessor",
-    "DisplayAccessor"
+    "DisplayAccessor",
+    "FoxAccessor",
+    "AxolotlAccessor"
   ],
   "injectors": {
     "defaultRequire": 1

@@ -16,10 +16,11 @@ public final class CosmeticData {
     public final String petMode;
     public final String petName;
     public final String petNameColor;
+    public final String petVariant;
 
     public CosmeticData(int level, String titleText, String nameColor, String badgeIcon,
                         String badgeColor, String stickerIcon, String stickerColor, String font,
-                        String petKind, double petScale, String petMode, String petName, String petNameColor) {
+                        String petKind, double petScale, String petMode, String petName, String petNameColor, String petVariant) {
         this.level = level;
         this.titleText = titleText;
         this.nameColor = nameColor;
@@ -33,6 +34,7 @@ public final class CosmeticData {
         this.petMode = petMode;
         this.petName = petName;
         this.petNameColor = petNameColor;
+        this.petVariant = petVariant;
     }
 
     public boolean isEmpty() {
@@ -46,7 +48,7 @@ public final class CosmeticData {
                 ? safeInt(root.get("level").getAsInt()) : 0;
         JsonObject c = root.has("cosmetics") && root.get("cosmetics").isJsonObject()
                 ? root.getAsJsonObject("cosmetics") : null;
-        if (c == null) return level > 0 ? new CosmeticData(level, null, null, null, null, null, null, null, null, 0.2, null, null, null) : null;
+        if (c == null) return level > 0 ? new CosmeticData(level, null, null, null, null, null, null, null, null, 0.2, null, null, null, null) : null;
         String titleText = textOf(c, "title", "text");
         String nameColor = strOf(c, "nameColor");
         String badgeIcon = textOf(c, "badge", "icon");
@@ -59,6 +61,7 @@ public final class CosmeticData {
         String petMode = null;
         String petName = null;
         String petNameColor = null;
+        String petVariant = null;
         if (c.has("pet") && !c.get("pet").isJsonNull() && c.get("pet").isJsonObject()) {
             try {
                 JsonObject p = c.getAsJsonObject("pet");
@@ -73,10 +76,11 @@ public final class CosmeticData {
                 petMode = strOf(p, "mode");
                 petName = strOf(p, "name");
                 petNameColor = strOf(p, "nameColor");
+                petVariant = strOf(p, "variant");
             } catch (Throwable ignored) {
             }
         }
-        CosmeticData d = new CosmeticData(level, titleText, nameColor, badgeIcon, badgeColor, stickerIcon, stickerColor, font, petKind, petScale, petMode, petName, petNameColor);
+        CosmeticData d = new CosmeticData(level, titleText, nameColor, badgeIcon, badgeColor, stickerIcon, stickerColor, font, petKind, petScale, petMode, petName, petNameColor, petVariant);
         if (d.isEmpty() && petKind == null) return null;
         return d;
     }

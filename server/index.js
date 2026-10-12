@@ -83,8 +83,29 @@ const CATALOG = [
   { id: 'font_typewriter', category: 'font', name: 'Typewriter', desc: 'Wie auf einer Schreibmaschine.', price: 600, rarity: 'epic', data: { font: '"Courier New",monospace' } },
   { id: 'font_banner', category: 'font', name: 'Banner-Bliter', desc: 'Groß, fett, auffällig.', price: 1600, rarity: 'legendary', data: { font: 'Impact,"Arial Narrow Bold",sans-serif' } },
 
-  { id: 'pet_allay', category: 'pet', name: 'Allay', desc: 'Ein winziges Allay als Begleiter. Sichtbar für alle mit Kollegen-Client.', price: 5000, rarity: 'legendary', featured: true, data: { kind: 'enderdragon', scale: 0.2, accent: '#39d7ff' } },
+  { id: 'pet_allay', category: 'pet', name: 'Allay', desc: 'Ein winziges Allay als Begleiter. Sichtbar für alle mit Kollegen-Client.', price: 10000, rarity: 'legendary', featured: true, data: { kind: 'allay', scale: 0.2, accent: '#39d7ff' } },
   { id: 'pet_blub', category: 'pet', name: 'Blub', desc: 'Ein Blub als Begleiter. Exklusiv verliehen, nicht käuflich.', price: 0, rarity: 'legendary', hidden: true, data: { kind: 'blub', scale: 1.0 } },
+  { id: 'pet_cat', category: 'pet', name: 'Katze', desc: 'Eine schnurrende Katze als Begleiter.', price: 2400, rarity: 'legendary', data: { kind: 'cat', scale: 0.35 } },
+  { id: 'pet_dog', category: 'pet', name: 'Hund', desc: 'Ein treuer Hund als Begleiter.', price: 2400, rarity: 'legendary', data: { kind: 'dog', scale: 0.35 } },
+  { id: 'pet_chicken', category: 'pet', name: 'Huhn', desc: 'Ein gackerndes Huhn als Begleiter.', price: 2400, rarity: 'legendary', data: { kind: 'chicken', scale: 0.4 } },
+  { id: 'pet_rabbit', category: 'pet', name: 'Kaninchen', desc: 'Ein hüpfendes Kaninchen als Begleiter.', price: 2400, rarity: 'legendary', data: { kind: 'rabbit', scale: 0.4 } },
+  { id: 'pet_axolotl', category: 'pet', name: 'Axolotl', desc: 'Ein Axolotl als Begleiter. Farbe als Skin wählbar.', price: 5000, rarity: 'legendary', data: { kind: 'axolotl', scale: 0.5 } },
+  { id: 'pet_bat', category: 'pet', name: 'Fledermaus', desc: 'Eine Fledermaus als Begleiter. Fliegt nebenher.', price: 5000, rarity: 'legendary', data: { kind: 'bat', scale: 0.6 } },
+  { id: 'pet_fox', category: 'pet', name: 'Fuchs', desc: 'Ein Fuchs als Begleiter.', price: 5000, rarity: 'legendary', data: { kind: 'fox', scale: 0.35 } },
+  { id: 'pet_parrot', category: 'pet', name: 'Papagei', desc: 'Ein Papagei als Begleiter. Fliegt nebenher.', price: 5000, rarity: 'legendary', data: { kind: 'parrot', scale: 0.5 } },
+  { id: 'pet_bee', category: 'pet', name: 'Biene', desc: 'Eine Biene als Begleiter. Fliegt nebenher.', price: 5000, rarity: 'legendary', data: { kind: 'bee', scale: 0.6 } },
+  { id: 'pet_squid', category: 'pet', name: 'Tintenfisch', desc: 'Ein Tintenfisch als Begleiter. Schwebt nebenher.', price: 5000, rarity: 'legendary', data: { kind: 'squid', scale: 0.3 } },
+  { id: 'pet_nautilus', category: 'pet', name: 'Nautilus', desc: 'Ein Nautilus als Begleiter. Schwebt nebenher.', price: 10000, rarity: 'legendary', featured: true, data: { kind: 'nautilus', scale: 0.25 } },
+  { id: 'pet_copper_golem', category: 'pet', name: 'Kupfergolem', desc: 'Ein Kupfergolem als Begleiter.', price: 10000, rarity: 'legendary', featured: true, data: { kind: 'copper_golem', scale: 0.3 } },
+  { id: 'skin_baby_cat', category: 'pet_skin', name: 'Baby-Katze', desc: 'Skin für Katze. Exklusiv verliehen.', price: 0, rarity: 'legendary', hidden: true, data: { variantOf: 'pet_cat', variant: 'baby', label: 'Baby' } },
+  { id: 'skin_baby_dog', category: 'pet_skin', name: 'Baby-Hund', desc: 'Skin für Hund. Exklusiv verliehen.', price: 0, rarity: 'legendary', hidden: true, data: { variantOf: 'pet_dog', variant: 'baby', label: 'Baby' } },
+  { id: 'skin_axolotl_wild', category: 'pet_skin', name: 'Axolotl Wild', desc: 'Braune Axolotl-Farbe. Exklusiv verliehen.', price: 0, rarity: 'legendary', hidden: true, data: { variantOf: 'pet_axolotl', variant: 'wild', label: 'Wild' } },
+  { id: 'skin_axolotl_gold', category: 'pet_skin', name: 'Axolotl Gold', desc: 'Goldene Axolotl-Farbe. Exklusiv verliehen.', price: 0, rarity: 'legendary', hidden: true, data: { variantOf: 'pet_axolotl', variant: 'gold', label: 'Gold' } },
+  { id: 'skin_axolotl_cyan', category: 'pet_skin', name: 'Axolotl Cyan', desc: 'Cyane Axolotl-Farbe. Exklusiv verliehen.', price: 0, rarity: 'legendary', hidden: true, data: { variantOf: 'pet_axolotl', variant: 'cyan', label: 'Cyan' } },
+  { id: 'skin_axolotl_blue', category: 'pet_skin', name: 'Axolotl Blau', desc: 'Blaue Axolotl-Farbe. Exklusiv verliehen.', price: 0, rarity: 'legendary', hidden: true, data: { variantOf: 'pet_axolotl', variant: 'blue', label: 'Blau' } },
+  { id: 'skin_glow_squid', category: 'pet_skin', name: 'Glow-Squid', desc: 'Leuchtender Skin für Tintenfisch. Exklusiv verliehen.', price: 0, rarity: 'legendary', hidden: true, data: { variantOf: 'pet_squid', variant: 'glow', label: 'Glow-Squid' } },
+  { id: 'skin_snow_fox', category: 'pet_skin', name: 'Schneefuchs', desc: 'Weißer Skin für Fuchs. Exklusiv verliehen.', price: 0, rarity: 'legendary', hidden: true, data: { variantOf: 'pet_fox', variant: 'snow', label: 'Schneefuchs' } },
+  { id: 'skin_zombie_nautilus', category: 'pet_skin', name: 'Zombie-Nautilus', desc: 'Dunkler Skin für Nautilus. Exklusiv verliehen.', price: 0, rarity: 'legendary', hidden: true, data: { variantOf: 'pet_nautilus', variant: 'zombie', label: 'Zombie' } },
 ];
 
 function catById(id) {
@@ -145,10 +166,34 @@ function grantSpecialTitle(u) {
 const PET_MODES = {
   pet_allay: ['follow', 'hover', 'shoulder', 'head'],
   pet_blub: ['follow'],
+  pet_cat: ['follow'],
+  pet_dog: ['follow'],
+  pet_chicken: ['follow'],
+  pet_rabbit: ['follow'],
+  pet_axolotl: ['follow'],
+  pet_fox: ['follow'],
+  pet_copper_golem: ['follow'],
+  pet_parrot: ['follow', 'hover'],
+  pet_bee: ['follow', 'hover'],
+  pet_bat: ['follow', 'hover'],
+  pet_squid: ['follow', 'hover'],
+  pet_nautilus: ['follow', 'hover'],
 };
 
 function petModesFor(petId) {
-  return PET_MODES[petId] || ['follow', 'hover', 'shoulder', 'head'];
+  return PET_MODES[petId] || ['follow'];
+}
+
+function petSkinsFor(u, petId) {
+  ensureUserExtras(u);
+  const out = [];
+  for (const c of (u.cosmetics || [])) {
+    const item = c && c.id && catById(c.id);
+    if (item && item.category === 'pet_skin' && item.data && item.data.variantOf === petId && item.data.variant) {
+      out.push({ id: item.id, variant: item.data.variant, label: item.data.label || item.data.variant });
+    }
+  }
+  return out;
 }
 
 function petCfgFor(u, petId) {
@@ -160,10 +205,13 @@ function petCfgFor(u, petId) {
   const rawMode = (typeof own.mode === 'string' && own.mode) ? own.mode : legacy.mode;
   const rawName = (typeof own.name === 'string' && own.name) ? own.name : legacy.name;
   const rawColor = (typeof own.nameColor === 'string' && own.nameColor) ? own.nameColor : legacy.nameColor;
+  const rawVariant = (typeof own.variant === 'string' && own.variant) ? own.variant : null;
+  const allowedVariants = petSkinsFor(u, petId).map((s) => s.variant);
   return {
     mode: modes.includes(rawMode) ? rawMode : 'follow',
     name: (typeof rawName === 'string' && rawName) ? String(rawName).slice(0, 16) : null,
     nameColor: (typeof rawColor === 'string' && /^#[0-9a-fA-F]{6}$/.test(rawColor)) ? rawColor : null,
+    variant: (rawVariant && allowedVariants.includes(rawVariant)) ? rawVariant : null,
   };
 }
 
@@ -212,6 +260,7 @@ function presenceCosmetics(u) {
       mode: cfg.mode,
       name: cfg.name,
       nameColor: cfg.nameColor,
+      variant: cfg.variant,
     };
   }
   return out;
@@ -655,7 +704,14 @@ const server = http.createServer(async (req, res) => {
       if (!item) return sendJson(res, 404, { error: 'item_not_found' });
       if (!user.cosmetics.some((x) => x && x.id === itemId)) return sendJson(res, 403, { error: 'not_owned' });
       user.equipped = user.equipped || {};
-      user.equipped[item.category] = itemId;
+      if (item.category === 'pet_skin' && item.data && item.data.variantOf && item.data.variant) {
+        user.equipped.pet = item.data.variantOf;
+        if (!user.petConfigs || typeof user.petConfigs !== 'object') user.petConfigs = {};
+        const scfg = (user.petConfigs[item.data.variantOf] && typeof user.petConfigs[item.data.variantOf] === 'object') ? user.petConfigs[item.data.variantOf] : (user.petConfigs[item.data.variantOf] = { mode: 'follow', name: null, nameColor: null });
+        scfg.variant = item.data.variant;
+      } else {
+        user.equipped[item.category] = itemId;
+      }
       saveStore();
       return sendJson(res, 200, { ok: true, equipped: user.equipped });
     }
@@ -682,6 +738,11 @@ const server = http.createServer(async (req, res) => {
         const color = String(body.nameColor || '').trim();
         if (color && !/^#[0-9a-fA-F]{6}$/.test(color)) return sendJson(res, 400, { error: 'invalid_color' });
         cfg.nameColor = color || null;
+      }
+      if (body.variant !== undefined) {
+        const variant = String(body.variant || '').trim();
+        if (variant && !petSkinsFor(user, target.id).some((s) => s.variant === variant)) return sendJson(res, 400, { error: 'invalid_variant' });
+        cfg.variant = variant || null;
       }
       saveStore();
       return sendJson(res, 200, { ok: true, pet: target.id, petConfig: cfg, petConfigs: user.petConfigs });
@@ -891,6 +952,11 @@ if (pathname === '/internal/pet-config' && method === 'POST') {
     const color = String(body.nameColor || '').trim();
     if (color && !/^#[0-9a-fA-F]{6}$/.test(color)) return sendJson(res, 400, { error: 'invalid_color' });
     cfg.nameColor = color || null;
+  }
+  if (body.variant !== undefined) {
+    const variant = String(body.variant || '').trim();
+    if (variant && !petSkinsFor(user, target.id).some((s) => s.variant === variant)) return sendJson(res, 400, { error: 'invalid_variant' });
+    cfg.variant = variant || null;
   }
   saveStore();
   return sendJson(res, 200, { ok: true, pet: target.id, petConfig: cfg, petConfigs: user.petConfigs });
@@ -1488,7 +1554,7 @@ if (pathname === '/internal/grant' && method === 'POST') {
   if (!user.cosmetics.some((x) => x && x.id === itemId)) {
     user.cosmetics.push({ id: itemId, boughtAt: Date.now(), granted: true });
   }
-  if (body.equip !== false && !user.equipped[item.category]) user.equipped[item.category] = itemId;
+  if (item.category !== 'pet_skin' && body.equip !== false && !user.equipped[item.category]) user.equipped[item.category] = itemId;
   saveStore();
   return sendJson(res, 200, { ok: true, items: user.cosmetics.length, equipped: user.equipped });
 }

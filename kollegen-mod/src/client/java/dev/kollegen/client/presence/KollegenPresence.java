@@ -168,7 +168,7 @@ public final class KollegenPresence {
                             if (d != null) {
                                 COSMETICS.put(uid, d);
                                 if (level != null && d.petKind != null) {
-                                    PetRenderer.ensurePetExists(uid, level, d.petKind);
+                                    PetRenderer.ensurePetExists(uid, level, d.petKind, d.petVariant);
                                 }
                             }
                         } catch (Throwable ignored) {
