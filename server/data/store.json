@@ -157,10 +157,12 @@
       "friends": [],
       "id": "34",
       "cosmetics": [
-        {"id": "pet_allay", "boughtAt": 1791801678400, "granted": true}
+        {"id": "pet_allay", "boughtAt": 1791801678400, "granted": true},
+        {"id": "title_kollege", "boughtAt": 1791801678410, "granted": true}
       ],
       "equipped": {
-        "pet": "pet_allay"
+        "pet": "pet_allay",
+        "title": "title_kollege"
       },
       "petConfig": {
         "mode": "follow",
