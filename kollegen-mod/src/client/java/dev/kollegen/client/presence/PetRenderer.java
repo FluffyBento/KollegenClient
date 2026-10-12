@@ -344,7 +344,7 @@ public final class PetRenderer {
                         double wa = Math.random() * Math.PI * 2.0;
                         double wr = ownerDistSq > 25.0 ? 1.2 : (1.0 + Math.random() * 2.5);
                         wx = ownerPos.x + Math.cos(wa) * wr;
-                        wy = ownerPos.y + 0.6 + Math.random() * 1.2;
+                        wy = Math.max(ownerPos.y - 0.2, ownerPos.y + 0.6 + Math.random() * 1.2);
                         wz = ownerPos.z + Math.sin(wa) * wr;
                         wanderUntil = now + 4000 + (long) (Math.random() * 5000);
                         resting = false;
@@ -470,7 +470,7 @@ public final class PetRenderer {
 
         void blubHopMove(double xin, double yin, double zin, float baseScale) {
             double x = xin;
-            double y = yin - 1.0;
+            double y = yin - 0.4;
             double z = zin;
             Vec3 cur = null;
             try {
@@ -515,13 +515,13 @@ public final class PetRenderer {
                         if (hdist > 0.001) {
                             hopX1 = cur.x + hdx / hdist * hopLen;
                             hopZ1 = cur.z + hdz / hdist * hopLen;
-                            hopYaw = (float) (Math.toDegrees(Math.atan2(hopZ1 - hopZ0, hopX1 - hopX0)) - 90.0);
+                            hopYaw = (float) (Math.toDegrees(Math.atan2(hopZ1 - hopZ0, hopX1 - hopX0)) + 90.0);
                         } else {
                             hopX1 = x;
                             hopZ1 = z;
                         }
                         hopCd = hdist > 2.0 ? 3 : 6;
-                        hopPeak = Math.min(0.35, 0.12 + hopLen * 0.12);
+                        hopPeak = Math.min(0.25, 0.10 + hopLen * 0.10);
                     }
                     hopT--;
                     double p = 1.0 - (double) Math.max(hopT, 0) / (double) hopDur;
