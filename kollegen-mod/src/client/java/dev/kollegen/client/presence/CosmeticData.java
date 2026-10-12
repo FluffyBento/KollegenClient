@@ -72,7 +72,7 @@ public final class CosmeticData {
                     } catch (Throwable ignored) {
                     }
                 }
-                if (petScale <= 0.0 || petScale > 1.0) petScale = 0.2;
+                if (petScale <= 0.0 || petScale > 5.0) petScale = 1.0;
                 petMode = strOf(p, "mode");
                 petName = strOf(p, "name");
                 petNameColor = strOf(p, "nameColor");

@@ -197,7 +197,6 @@ public final class PetRenderer {
             CosmeticData d = KollegenPresence.getCosmetics(ownerId);
             if (d == null || d.petKind == null) continue;
             double scale = d.petScale > 0.0 ? d.petScale : 0.2;
-            if (scale > 1.0) scale = 1.0;
             Vec3 pos = pet.entity.position();
             poseStack.pushPose();
             try {
@@ -400,7 +399,6 @@ public final class PetRenderer {
             }
 
             double scale = d.petScale > 0.0 ? d.petScale : 0.2;
-            if (scale > 1.0) scale = 1.0;
             if (entity instanceof Mob mob) {
                 try {
                     AttributeInstance attr = mob.getAttribute(Attributes.SCALE);

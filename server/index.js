@@ -83,20 +83,20 @@ const CATALOG = [
   { id: 'font_typewriter', category: 'font', name: 'Typewriter', desc: 'Wie auf einer Schreibmaschine.', price: 600, rarity: 'epic', data: { font: '"Courier New",monospace' } },
   { id: 'font_banner', category: 'font', name: 'Banner-Bliter', desc: 'Groß, fett, auffällig.', price: 1600, rarity: 'legendary', data: { font: 'Impact,"Arial Narrow Bold",sans-serif' } },
 
-  { id: 'pet_allay', category: 'pet', name: 'Allay', desc: 'Ein winziges Allay als Begleiter. Sichtbar für alle mit Kollegen-Client.', price: 10000, rarity: 'legendary', featured: true, data: { kind: 'allay', scale: 0.2, accent: '#39d7ff' } },
+  { id: 'pet_allay', category: 'pet', name: 'Allay', desc: 'Ein Allay als Begleiter. Sichtbar für alle mit Kollegen-Client.', price: 10000, rarity: 'legendary', featured: true, data: { kind: 'allay', scale: 1.0, accent: '#39d7ff' } },
   { id: 'pet_blub', category: 'pet', name: 'Blub', desc: 'Ein Blub als Begleiter. Exklusiv verliehen, nicht käuflich.', price: 0, rarity: 'legendary', hidden: true, data: { kind: 'blub', scale: 1.0 } },
-  { id: 'pet_cat', category: 'pet', name: 'Katze', desc: 'Eine schnurrende Katze als Begleiter.', price: 2400, rarity: 'legendary', data: { kind: 'cat', scale: 0.35 } },
-  { id: 'pet_dog', category: 'pet', name: 'Hund', desc: 'Ein treuer Hund als Begleiter.', price: 2400, rarity: 'legendary', data: { kind: 'dog', scale: 0.35 } },
-  { id: 'pet_chicken', category: 'pet', name: 'Huhn', desc: 'Ein gackerndes Huhn als Begleiter.', price: 2400, rarity: 'legendary', data: { kind: 'chicken', scale: 0.4 } },
-  { id: 'pet_rabbit', category: 'pet', name: 'Kaninchen', desc: 'Ein hüpfendes Kaninchen als Begleiter.', price: 2400, rarity: 'legendary', data: { kind: 'rabbit', scale: 0.4 } },
-  { id: 'pet_axolotl', category: 'pet', name: 'Axolotl', desc: 'Ein Axolotl als Begleiter. Farbe als Skin wählbar.', price: 5000, rarity: 'legendary', data: { kind: 'axolotl', scale: 0.5 } },
-  { id: 'pet_bat', category: 'pet', name: 'Fledermaus', desc: 'Eine Fledermaus als Begleiter. Fliegt nebenher.', price: 5000, rarity: 'legendary', data: { kind: 'bat', scale: 0.6 } },
-  { id: 'pet_fox', category: 'pet', name: 'Fuchs', desc: 'Ein Fuchs als Begleiter.', price: 5000, rarity: 'legendary', data: { kind: 'fox', scale: 0.9 } },
-  { id: 'pet_parrot', category: 'pet', name: 'Papagei', desc: 'Ein Papagei als Begleiter. Fliegt nebenher.', price: 5000, rarity: 'legendary', data: { kind: 'parrot', scale: 0.5 } },
-  { id: 'pet_bee', category: 'pet', name: 'Biene', desc: 'Eine Biene als Begleiter. Fliegt nebenher.', price: 5000, rarity: 'legendary', data: { kind: 'bee', scale: 0.6 } },
-  { id: 'pet_squid', category: 'pet', name: 'Tintenfisch', desc: 'Ein Tintenfisch als Begleiter. Schwebt nebenher.', price: 5000, rarity: 'legendary', data: { kind: 'squid', scale: 0.3 } },
-  { id: 'pet_nautilus', category: 'pet', name: 'Nautilus', desc: 'Ein Nautilus als Begleiter. Schwebt nebenher.', price: 10000, rarity: 'legendary', featured: true, data: { kind: 'nautilus', scale: 0.25 } },
-  { id: 'pet_copper_golem', category: 'pet', name: 'Kupfergolem', desc: 'Ein Kupfergolem als Begleiter.', price: 10000, rarity: 'legendary', featured: true, data: { kind: 'copper_golem', scale: 0.3 } },
+  { id: 'pet_cat', category: 'pet', name: 'Katze', desc: 'Eine schnurrende Katze als Begleiter.', price: 2400, rarity: 'legendary', data: { kind: 'cat', scale: 1.0 } },
+  { id: 'pet_dog', category: 'pet', name: 'Hund', desc: 'Ein treuer Hund als Begleiter.', price: 2400, rarity: 'legendary', data: { kind: 'dog', scale: 1.0 } },
+  { id: 'pet_chicken', category: 'pet', name: 'Huhn', desc: 'Ein gackerndes Huhn als Begleiter.', price: 2400, rarity: 'legendary', data: { kind: 'chicken', scale: 1.0 } },
+  { id: 'pet_rabbit', category: 'pet', name: 'Kaninchen', desc: 'Ein hüpfendes Kaninchen als Begleiter.', price: 2400, rarity: 'legendary', data: { kind: 'rabbit', scale: 1.0 } },
+  { id: 'pet_axolotl', category: 'pet', name: 'Axolotl', desc: 'Ein Axolotl als Begleiter. Farbe als Skin wählbar.', price: 5000, rarity: 'legendary', data: { kind: 'axolotl', scale: 1.0 } },
+  { id: 'pet_bat', category: 'pet', name: 'Fledermaus', desc: 'Eine Fledermaus als Begleiter. Fliegt nebenher.', price: 5000, rarity: 'legendary', data: { kind: 'bat', scale: 1.0 } },
+  { id: 'pet_fox', category: 'pet', name: 'Fuchs', desc: 'Ein Fuchs als Begleiter.', price: 5000, rarity: 'legendary', data: { kind: 'fox', scale: 1.0 } },
+  { id: 'pet_parrot', category: 'pet', name: 'Papagei', desc: 'Ein Papagei als Begleiter. Fliegt nebenher.', price: 5000, rarity: 'legendary', data: { kind: 'parrot', scale: 1.0 } },
+  { id: 'pet_bee', category: 'pet', name: 'Biene', desc: 'Eine Biene als Begleiter. Fliegt nebenher.', price: 5000, rarity: 'legendary', data: { kind: 'bee', scale: 1.0 } },
+  { id: 'pet_squid', category: 'pet', name: 'Tintenfisch', desc: 'Ein Tintenfisch als Begleiter. Schwebt nebenher.', price: 5000, rarity: 'legendary', data: { kind: 'squid', scale: 1.0 } },
+  { id: 'pet_nautilus', category: 'pet', name: 'Nautilus', desc: 'Ein Nautilus als Begleiter. Schwebt nebenher.', price: 10000, rarity: 'legendary', featured: true, data: { kind: 'nautilus', scale: 1.0 } },
+  { id: 'pet_copper_golem', category: 'pet', name: 'Kupfergolem', desc: 'Ein Kupfergolem als Begleiter.', price: 10000, rarity: 'legendary', featured: true, data: { kind: 'copper_golem', scale: 1.0 } },
   { id: 'skin_baby_cat', category: 'pet_skin', name: 'Baby-Katze', desc: 'Skin für Katze. Exklusiv verliehen.', price: 0, rarity: 'legendary', hidden: true, data: { variantOf: 'pet_cat', variant: 'baby', label: 'Baby' } },
   { id: 'skin_baby_dog', category: 'pet_skin', name: 'Baby-Hund', desc: 'Skin für Hund. Exklusiv verliehen.', price: 0, rarity: 'legendary', hidden: true, data: { variantOf: 'pet_dog', variant: 'baby', label: 'Baby' } },
   { id: 'skin_axolotl_wild', category: 'pet_skin', name: 'Axolotl Wild', desc: 'Braune Axolotl-Farbe. Exklusiv verliehen.', price: 0, rarity: 'legendary', hidden: true, data: { variantOf: 'pet_axolotl', variant: 'wild', label: 'Wild' } },
@@ -719,15 +719,16 @@ const server = http.createServer(async (req, res) => {
     
     if (pathname === '/pet-config' && method === 'POST') {
       const user = bearerUser(req);
-      if (!user) return sendJson(res, 401, { error: 'not_authenticated' });
+      if (!user) { console.log('[pet-config] 401 no session'); return sendJson(res, 401, { error: 'not_authenticated' }); }
       ensureUserExtras(user);
       const body = await readBody(req);
+      console.log('[pet-config] attempt', user.discordId, 'pet=', body.pet, 'fields=', Object.keys(body).join(','));
       const target = resolvePetIdFor(user, body.pet);
-      if (target.error) return sendJson(res, 400, { error: target.error });
+      if (target.error) { console.log('[pet-config] 400', target.error); return sendJson(res, 400, { error: target.error }); }
       const cfg = target.cfg;
       if (body.mode !== undefined) {
         const mode = String(body.mode || '');
-        if (!petModesFor(target.id).includes(mode)) return sendJson(res, 400, { error: 'invalid_mode' });
+        if (!petModesFor(target.id).includes(mode)) { console.log('[pet-config] 400 invalid_mode', target.id, mode); return sendJson(res, 400, { error: 'invalid_mode' }); }
         cfg.mode = mode;
       }
       if (body.name !== undefined) {
@@ -736,15 +737,16 @@ const server = http.createServer(async (req, res) => {
       }
       if (body.nameColor !== undefined) {
         const color = String(body.nameColor || '').trim();
-        if (color && !/^#[0-9a-fA-F]{6}$/.test(color)) return sendJson(res, 400, { error: 'invalid_color' });
+        if (color && !/^#[0-9a-fA-F]{6}$/.test(color)) { console.log('[pet-config] 400 invalid_color', target.id); return sendJson(res, 400, { error: 'invalid_color' }); }
         cfg.nameColor = color || null;
       }
       if (body.variant !== undefined) {
         const variant = String(body.variant || '').trim();
-        if (variant && !petSkinsFor(user, target.id).some((s) => s.variant === variant)) return sendJson(res, 400, { error: 'invalid_variant' });
+        if (variant && !petSkinsFor(user, target.id).some((s) => s.variant === variant)) { console.log('[pet-config] 400 invalid_variant', target.id, variant); return sendJson(res, 400, { error: 'invalid_variant' }); }
         cfg.variant = variant || null;
       }
       saveStore();
+      console.log('[pet-config] 200 ok', target.id, JSON.stringify(cfg));
       return sendJson(res, 200, { ok: true, pet: target.id, petConfig: cfg, petConfigs: user.petConfigs });
     }
 
