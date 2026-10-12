@@ -32,7 +32,8 @@
     "XaeroWorldMapMixin",
     "PetLevelRendererMixin",
     "PetLevelExtractorMixin",
-    "ItemDisplayAccessor"
+    "ItemDisplayAccessor",
+    "DisplayAccessor"
   ],
   "injectors": {
     "defaultRequire": 1

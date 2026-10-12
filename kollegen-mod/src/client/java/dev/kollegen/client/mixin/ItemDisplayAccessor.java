@@ -12,14 +12,4 @@ public interface ItemDisplayAccessor {
     static EntityDataAccessor<ItemStack> kollegen$getItemStackAccessor() {
         throw new AssertionError();
     }
-
-    @Accessor("DATA_SCALE_ID")
-    static EntityDataAccessor<org.joml.Vector3fc> kollegen$getScaleAccessor() {
-        throw new AssertionError();
-    }
-
-    @Accessor("DATA_LEFT_ROTATION_ID")
-    static EntityDataAccessor<org.joml.Quaternionfc> kollegen$getLeftRotationAccessor() {
-        throw new AssertionError();
-    }
 }
