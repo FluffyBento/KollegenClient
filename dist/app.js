@@ -2854,7 +2854,16 @@ applySavedTheme()
       try { window.renderKollegenStore(); } catch (e) {}
     }
     if (name === "cosmetics") {
-      try { renderCosmetics(); } catch (e) {}
+      try {
+        const p = window.renderCosmetics();
+        if (p && p.catch) p.catch((e) => {
+          const bx2 = $("cosmOwned");
+          if (bx2) bx2.innerHTML = '<div class="store-msg">Fehler: ' + String((e && e.message) || e) + '</div>';
+        });
+      } catch (e) {
+        const bx3 = $("cosmOwned");
+        if (bx3) bx3.innerHTML = '<div class="store-msg">Fehler: ' + String((e && e.message) || e) + '</div>';
+      }
     }
     if (name === "home" && document.body.classList.contains("console-mode")) {
       renderConsoleHome();
@@ -4043,6 +4052,7 @@ startBackgroundIntervals();
   }
 
   window.renderKollegenStore = renderStore;
+  window.renderCosmetics = renderCosmetics;
   function renderStore() {
     const grid = $("storeGridMain");
     if (!kmCat) {
@@ -4314,10 +4324,18 @@ startBackgroundIntervals();
     ]);
 
     const safeInvoke = (cmd) => Promise.resolve().then(() => invoke(cmd)).catch((e) => ({ error: String((e && e.message) || e) }));
-    const [meRes, storeRes] = await Promise.allSettled([
-      withTimeout(safeInvoke("kollegen_me"), 8000, "kollegen_me"),
-      withTimeout(safeInvoke("kollegen_store"), 8000, "kollegen_store")
-    ]);
+    let meRes;
+    let storeRes;
+    try {
+      meRes = { status: "fulfilled", value: await withTimeout(safeInvoke("kollegen_me"), 25000, "kollegen_me") };
+    } catch (e) {
+      meRes = { status: "rejected", reason: e };
+    }
+    try {
+      storeRes = { status: "fulfilled", value: await withTimeout(safeInvoke("kollegen_store"), 25000, "kollegen_store") };
+    } catch (e) {
+      storeRes = { status: "rejected", reason: e };
+    }
 
     if (meRes.status === "fulfilled") {
       const r = meRes.value;
@@ -4351,65 +4369,185 @@ startBackgroundIntervals();
       return;
     }
     const equipped = me.equipped || {};
-    const owned = store.catalog.filter((it) => it.owned);
+    const owned = store.catalog.filter((it) => it.owned && ["pet", "name_color", "badge", "sticker", "title", "profil_stil"].includes(it.category));
+    const cosmCatLabel = (c) => {
+      const known = { pet: "Haustier", title: "Titel", name_color: "Namensfarbe", badge: "Abzeichen", profile_frame: "Profil-Rahmen", profile_bg: "Profil-Hintergrund", banner: "Banner", profil_stil: "Profilstil", font: "Schriftart", sticker: "Aufkleber", avatar_theme: "Avatar-Hintergrund" };
+      if (c && known[c]) return known[c];
+      const s = String(c || "").replace(/_/g, " ").trim();
+      return s ? s.charAt(0).toUpperCase() + s.slice(1) : "";
+    };
+    const cosmOrder = ["pet", "title", "badge", "sticker", "name_color", "profil_stil"];
+    let cosmCollapsed = {};
+    try { cosmCollapsed = JSON.parse(localStorage.getItem("kosmetCollapsed") || "{}"); } catch (e) { cosmCollapsed = {}; }
+    const cosmIsCollapsed = (cat) => cosmCollapsed[cat] !== false;
+    const cosmSetCollapsed = (cat, v) => {
+      cosmCollapsed[cat] = v;
+      try { localStorage.setItem("kosmetCollapsed", JSON.stringify(cosmCollapsed)); } catch (e) {}
+    };
+    const cosmEquip = async (cat, itemId, busyEl) => {
+      if (busyEl && busyEl.dataset.busy) return;
+      if (busyEl) busyEl.dataset.busy = "1";
+      try {
+        if (itemId) await invoke("kollegen_store_equip", { itemId, category: cat || "" });
+        else await invoke("kollegen_store_equip", { itemId: "", category: cat });
+      } catch (e) {}
+      renderCosmetics();
+      if (window.renderKollegenStore) { try { window.renderKollegenStore(); } catch (e) {} }
+    };
+    const cosmSwatch = (ch, it) => {
+      const sw = document.createElement("span");
+      sw.className = "sw";
+      if (it.data && it.data.color1) sw.style.background = it.data.color1;
+      else if (it.data && it.data.gradient) sw.style.background = it.data.gradient;
+      else if (it.data && it.data.accent) sw.style.background = it.data.accent;
+      else if (it.data && it.data.text) { sw.textContent = it.data.text; sw.style.background = "#3a3f4e"; }
+      else if (it.data && it.data.icon) { sw.textContent = it.data.icon; sw.style.color = it.data.color; }
+      else if (it.data && it.data.font) { sw.textContent = "Aa"; sw.style.background = "#3a3f4e"; }
+      ch.append(sw);
+    };
+    const cosmChipKeys = (el, fn) => {
+      el.setAttribute("role", "button");
+      el.tabIndex = 0;
+      el.onclick = fn;
+      el.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fn(); } };
+    };
     if (box) {
       box.innerHTML = "";
-      if (!owned.length) box.innerHTML = '<div class="store-msg">Noch keine Gegenstände – schau im Store vorbei.</div>';
-      for (const it of owned) {
-        const row = document.createElement("div");
-        row.className = "cosm-item";
-        const isEq = equipped[it.category] === it.id;
-        row.innerHTML = '<span class="cosm-item-name"></span><span class="cosm-item-cat"></span>';
-        row.querySelector(".cosm-item-name").textContent = it.name || it.id;
-        row.querySelector(".cosm-item-cat").textContent = it.category || "";
-        const btn = document.createElement("button");
-        btn.className = "btn-secondary";
-        btn.textContent = isEq ? "Abwählen" : "Ausrüsten";
-        btn.onclick = async () => {
-          btn.disabled = true;
-          try {
-            if (isEq) await invoke("kollegen_store_equip", { itemId: "", category: it.category });
-            else await invoke("kollegen_store_equip", { itemId: it.id, category: it.category || "" });
-          } catch (e) {}
-          renderCosmetics();
-          if (window.renderKollegenStore) { try { window.renderKollegenStore(); } catch (e) {} }
+      if (!owned.length) box.innerHTML = '<div class="store-msg">Noch keine Ingame-Gegenstände – schau im Store vorbei.</div>';
+      for (const cat of cosmOrder) {
+        const mine = owned.filter((it) => it.category === cat);
+        if (!mine.length) continue;
+        const g = document.createElement("div");
+        g.className = "kosmet-group" + (cosmIsCollapsed(cat) ? " collapsed" : "");
+        const title = document.createElement("div");
+        title.className = "kg-title";
+        title.textContent = cosmCatLabel(cat) || "Sonstiges";
+        title.setAttribute("role", "button");
+        title.tabIndex = 0;
+        const toggleGroup = () => {
+          const c = g.classList.toggle("collapsed");
+          cosmSetCollapsed(cat, c);
         };
-        row.appendChild(btn);
-        box.appendChild(row);
+        title.onclick = toggleGroup;
+        title.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleGroup(); } };
+        g.append(title);
+        const chips = document.createElement("div");
+        chips.className = "kosmet-chips";
+        const none = document.createElement("span");
+        none.className = "kosmet-chip" + (equipped[cat] ? "" : " eq");
+        none.textContent = "Keins";
+        cosmChipKeys(none, () => cosmEquip(cat, "", none));
+        chips.append(none);
+        for (const it of mine) {
+          const ch = document.createElement("span");
+          ch.className = "kosmet-chip" + (equipped[it.category] === it.id ? " eq" : "");
+          cosmSwatch(ch, it);
+          ch.append(" " + (it.name || it.id));
+          cosmChipKeys(ch, () => cosmEquip(it.category, it.id, ch));
+          chips.append(ch);
+        }
+        g.append(chips);
+        box.appendChild(g);
       }
     }
-    const petOwned = owned.find((it) => it.category === "pet");
+    const PET_MODE_OPTS = {
+      pet_allay: [["follow", "Folgen"], ["hover", "Fliegen"], ["shoulder", "Schulter"], ["head", "Kopf"]],
+      pet_blub: [["follow", "Folgen"]],
+    };
+    const PET_ICON = { pet_allay: "🧚", pet_blub: "🫧" };
+    const petModesFor = (id) => PET_MODE_OPTS[id] || [["follow", "Folgen"], ["hover", "Fliegen"], ["shoulder", "Schulter"], ["head", "Kopf"]];
+    const petSave = async (petId, patch) => {
+      try {
+        const r = await invoke("kollegen_pet_config", Object.assign({ pet: petId }, patch));
+        if (r && r.error) toast("Pet speichern fehlgeschlagen: " + r.error, "error");
+        else if (r && r.petConfigs) me.petConfigs = r.petConfigs;
+      } catch (e) {
+        toast("Pet speichern fehlgeschlagen", "error");
+      }
+    };
+    const petOwned = owned.filter((it) => it.category === "pet");
     const petBox = $("cosmPetBox");
     if (petBox) {
-      const cfg = (me.petConfig && typeof me.petConfig === "object") ? me.petConfig : {};
-      if (petOwned) {
+      const cards = $("cosmPetCards");
+      if (!petOwned.length) {
+        petBox.style.display = "none";
+      } else {
         petBox.style.display = "";
-        const modeEl = $("cosmPetMode");
-        if (modeEl) modeEl.value = cfg.mode || "follow";
-        const nameEl = $("cosmPetName");
-        if (nameEl && document.activeElement !== nameEl) nameEl.value = cfg.name || "";
-        const colorEl = $("cosmPetColor");
-        if (colorEl) colorEl.value = /^#[0-9a-fA-F]{6}$/.test(cfg.nameColor || "") ? cfg.nameColor : "#ffffff";
-        const save = $("cosmPetSave");
-        if (save && !save.dataset.bound) {
-          save.dataset.bound = "1";
-          save.onclick = async () => {
-            save.disabled = true;
-            try {
-              await invoke("kollegen_pet_config", {
-                mode: ($("cosmPetMode") || {}).value || null,
-                name: ($("cosmPetName") || {}).value || null,
-                color: ($("cosmPetColor") || {}).value || null,
-              });
-              toast("Pet gespeichert", "ok");
-            } catch (e) {
-              toast("Speichern fehlgeschlagen", "error");
+        const focus = document.activeElement;
+        const focusPet = focus && focus.dataset ? focus.dataset.petField : null;
+        const focusKind = focus && focus.dataset ? focus.dataset.petKind : null;
+        const focusVal = focus && ("value" in focus) ? focus.value : null;
+        const equipped = (me.equipped || {}).pet;
+        const cfgs = (me.petConfigs && typeof me.petConfigs === "object") ? me.petConfigs : ((me.petConfig && typeof me.petConfig === "object") ? { _: me.petConfig } : {});
+        const getCfg = (id) => (cfgs[id] && typeof cfgs[id] === "object") ? cfgs[id] : ((cfgs._ && typeof cfgs._ === "object") ? cfgs._ : {});
+        cards.innerHTML = "";
+        for (const it of petOwned) {
+          const cfg = getCfg(it.id);
+          const card = document.createElement("div");
+          card.className = "store-card pet-card" + (equipped === it.id ? " equipped" : "");
+          const pv = document.createElement("div");
+          pv.className = "store-pv pet-pv";
+          pv.textContent = PET_ICON[it.id] || "🐾";
+          card.append(pv);
+          const body = document.createElement("div");
+          body.className = "store-card-body";
+          const t = document.createElement("div");
+          t.className = "store-card-title";
+          t.textContent = it.name || it.id;
+          body.append(t);
+          const nameIn = document.createElement("input");
+          nameIn.className = "store-sort pet-name";
+          nameIn.maxLength = 16;
+          nameIn.placeholder = "Name";
+          nameIn.dataset.petField = it.id;
+          nameIn.dataset.petKind = "name";
+          nameIn.value = (focusPet === it.id && focusKind === "name" && focusVal !== null) ? focusVal : (cfg.name || "");
+          nameIn.addEventListener("change", () => petSave(it.id, { name: nameIn.value || null }));
+          body.append(nameIn);
+          const row = document.createElement("div");
+          row.className = "pet-optrow";
+          const colorIn = document.createElement("input");
+          colorIn.type = "color";
+          colorIn.className = "pet-color";
+          colorIn.dataset.petField = it.id;
+          colorIn.dataset.petKind = "color";
+          colorIn.value = /^#[0-9a-fA-F]{6}$/.test(cfg.nameColor || "") ? cfg.nameColor : "#ffffff";
+          colorIn.addEventListener("change", () => petSave(it.id, { color: colorIn.value || null }));
+          row.append(colorIn);
+          const modes = petModesFor(it.id);
+          if (modes.length > 1) {
+            const sel = document.createElement("select");
+            sel.className = "store-sort pet-mode";
+            sel.dataset.petField = it.id;
+            sel.dataset.petKind = "mode";
+            for (const [v, label] of modes) {
+              const o = document.createElement("option");
+              o.value = v;
+              o.textContent = label;
+              sel.append(o);
             }
-            save.disabled = false;
-            renderCosmetics();
-          };
+            sel.value = modes.some(([v]) => v === cfg.mode) ? cfg.mode : "follow";
+            sel.addEventListener("change", () => petSave(it.id, { mode: sel.value || null }));
+            row.append(sel);
+          } else {
+            const tag = document.createElement("span");
+            tag.className = "pet-modelock";
+            tag.textContent = modes[0][1];
+            row.append(tag);
+          }
+          body.append(row);
+          card.append(body);
+          card.addEventListener("click", (e) => {
+            if (e.target.closest("input,select,option")) return;
+            cosmEquip("pet", it.id, null);
+          });
+          cards.append(card);
         }
-      } else petBox.style.display = "none";
+        if (focusPet && focusKind) {
+          const back = cards.querySelector('[data-pet-field="' + focusPet + '"][data-pet-kind="' + focusKind + '"]');
+          if (back) { try { back.focus({ preventScroll: true }); } catch (e) { try { back.focus(); } catch (ee) {} } }
+        }
+      }
     }
     stopDbg();
     renderCosmSkin(me);
@@ -4462,14 +4600,30 @@ startBackgroundIntervals();
     const canvas = $("cosmSkinCanvas");
     if (!canvas) return;
     let url = null;
+    const skinTimeout = (p, ms) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error("skin timeout")), ms))]);
+    const showFallback = () => {
+      const cv = $("cosmSkinCanvas");
+      if (!cv) return;
+      const w = cv.parentElement;
+      let fb = w.querySelector("img.skin-fallback");
+      if (!fb) {
+        fb = new Image();
+        fb.className = "skin-fallback";
+        fb.alt = "";
+        w.insertBefore(fb, cv);
+      }
+      fb.src = url;
+      cv.style.display = "none";
+    };
     try {
-      const list = await invoke("skin_list");
-      const active = (list.skins || []).find((s) => s.name === list.active);
+      const list = await skinTimeout(invoke("skin_list"), 10000);
+      const skins = (list && list.skins) || [];
+      const active = skins.find((s) => s.name === (list && list.active));
       if (active && active.url) url = active.url;
     } catch (e) {}
     if (!url) {
       try {
-        const prof = await invoke("skin_mc_profile");
+        const prof = await skinTimeout(invoke("skin_mc_profile"), 10000);
         const sk = ((prof && prof.skins) || []).find((x) => x.state === "ACTIVE") || ((prof && prof.skins) || [])[0];
         if (sk && sk.url) url = sk.url;
       } catch (e) {}
@@ -4508,15 +4662,26 @@ startBackgroundIntervals();
       canvas.style.display = "";
       const fb = wrap.querySelector("img.skin-fallback");
       if (fb) fb.remove();
-      cosmSkinViewer = new sv3d.SkinViewer({ canvas: canvas, width: 220, height: 440 });
-      const p = cosmSkinViewer.loadSkin(url);
-      if (p && typeof p.then === "function") p.catch(() => {});
+      cosmSkinViewer = new sv3d.SkinViewer({ canvas: canvas, width: 280, height: 560 });
+      let skinUrl = url;
+      if (/^https?:\/\//i.test(url)) {
+        try {
+          const ctrl = new AbortController();
+          const to = setTimeout(() => ctrl.abort(), 15000);
+          const resp = await fetch(url, { signal: ctrl.signal });
+          clearTimeout(to);
+          if (resp.ok) skinUrl = URL.createObjectURL(await resp.blob());
+        } catch (e) {}
+      }
+      const p = cosmSkinViewer.loadSkin(skinUrl);
+      if (p && typeof p.then === "function") p.catch(() => { showFallback(); });
       cosmSkinViewer.animation = new sv3d.WalkingAnimation();
       cosmSkinViewer.animation.speed = 0.5;
       cosmSkinViewer.autoRotate = true;
       cosmSkinViewer.autoRotateSpeed = 1.0;
     } catch (e) {
       console.error("Cosmetics-Skin fehlgeschlagen:", e);
+      showFallback();
     }
   }
 

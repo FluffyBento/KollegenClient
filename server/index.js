@@ -100,6 +100,7 @@ function ensureUserExtras(u) {
   if (!Array.isArray(u.cosmetics)) u.cosmetics = [];
   if (!u.equipped || typeof u.equipped !== 'object') u.equipped = {};
   if (!u.petConfig || typeof u.petConfig !== 'object') u.petConfig = { mode: 'follow', name: null, nameColor: null };
+  if (!u.petConfigs || typeof u.petConfigs !== 'object' || Array.isArray(u.petConfigs)) u.petConfigs = {};
   if (!Array.isArray(u.friend_requests)) u.friend_requests = [];
   return u;
 }
@@ -141,6 +142,44 @@ function grantSpecialTitle(u) {
   u.equipped.title = 'title_kollege';
 }
 
+const PET_MODES = {
+  pet_allay: ['follow', 'hover', 'shoulder', 'head'],
+  pet_blub: ['follow'],
+};
+
+function petModesFor(petId) {
+  return PET_MODES[petId] || ['follow', 'hover', 'shoulder', 'head'];
+}
+
+function petCfgFor(u, petId) {
+  ensureUserExtras(u);
+  const map = (u.petConfigs && typeof u.petConfigs === 'object') ? u.petConfigs : {};
+  const own = (petId && map[petId] && typeof map[petId] === 'object') ? map[petId] : {};
+  const legacy = (u.petConfig && typeof u.petConfig === 'object') ? u.petConfig : {};
+  const modes = petModesFor(petId);
+  const rawMode = (typeof own.mode === 'string' && own.mode) ? own.mode : legacy.mode;
+  const rawName = (typeof own.name === 'string' && own.name) ? own.name : legacy.name;
+  const rawColor = (typeof own.nameColor === 'string' && own.nameColor) ? own.nameColor : legacy.nameColor;
+  return {
+    mode: modes.includes(rawMode) ? rawMode : 'follow',
+    name: (typeof rawName === 'string' && rawName) ? String(rawName).slice(0, 16) : null,
+    nameColor: (typeof rawColor === 'string' && /^#[0-9a-fA-F]{6}$/.test(rawColor)) ? rawColor : null,
+  };
+}
+
+function resolvePetIdFor(user, petId) {
+  ensureUserExtras(user);
+  let id = (typeof petId === 'string' && petId) ? petId : user.equipped.pet;
+  const ownedPetIds = (user.cosmetics || []).map((x) => x && x.id).filter((x) => x && (catById(x) || {}).category === 'pet');
+  if ((!id || !(catById(id) || {}).category) && ownedPetIds.length) id = ownedPetIds[0];
+  const item = id && catById(id);
+  if (!id || !item || item.category !== 'pet') return { error: 'invalid_pet' };
+  if (!ownedPetIds.includes(id)) return { error: 'not_owned' };
+  if (!user.petConfigs || typeof user.petConfigs !== 'object') user.petConfigs = {};
+  const cfg = (user.petConfigs[id] && typeof user.petConfigs[id] === 'object') ? user.petConfigs[id] : (user.petConfigs[id] = { mode: 'follow', name: null, nameColor: null });
+  return { id, cfg };
+}
+
 function presenceCosmetics(u) {
   if (!u) return null;
   if (u.profile && u.profile.public === false) return null;
@@ -166,14 +205,13 @@ function presenceCosmetics(u) {
   if (sk && sk.data) out.sticker = { icon: sk.data.icon || null, color: sk.data.color || null };
   const pet = eq.pet && catById(eq.pet);
   if (pet && pet.category === 'pet' && pet.data && pet.data.kind) {
-    const cfg = (u.petConfig && typeof u.petConfig === 'object') ? u.petConfig : {};
-    const modes = ['follow', 'shoulder', 'head', 'hover'];
+    const cfg = petCfgFor(u, eq.pet);
     out.pet = {
       kind: pet.data.kind,
       scale: typeof pet.data.scale === 'number' ? pet.data.scale : 0.2,
-      mode: modes.includes(cfg.mode) ? cfg.mode : 'follow',
-      name: typeof cfg.name === 'string' && cfg.name ? String(cfg.name).slice(0, 16) : null,
-      nameColor: typeof cfg.nameColor === 'string' && /^#[0-9a-fA-F]{6}$/.test(cfg.nameColor) ? cfg.nameColor : null,
+      mode: cfg.mode,
+      name: cfg.name,
+      nameColor: cfg.nameColor,
     };
   }
   return out;
@@ -234,6 +272,17 @@ function loadStore() {
       }
     }
     if (u.equipped && u.equipped.pet === 'pet_drache') u.equipped.pet = 'pet_allay';
+    if (u.petConfig && typeof u.petConfig === 'object' && (!u.petConfigs || typeof u.petConfigs !== 'object')) {
+      const legacy = u.petConfig;
+      if (legacy.mode || legacy.name || legacy.nameColor) {
+        u.petConfigs = {};
+        for (const c of (u.cosmetics || [])) {
+          const pid = c && c.id;
+          const pitem = pid && catById(pid);
+          if (pitem && pitem.category === 'pet') u.petConfigs[pid] = { mode: legacy.mode || 'follow', name: legacy.name || null, nameColor: legacy.nameColor || null };
+        }
+      }
+    }
   }
   saveStore();
 }
@@ -536,6 +585,7 @@ const server = http.createServer(async (req, res) => {
         cosmetics: sv.cosmetics,
         equipped: sv.equipped,
         petConfig: (user.petConfig && typeof user.petConfig === 'object') ? user.petConfig : { mode: 'follow', name: null, nameColor: null },
+        petConfigs: (user.petConfigs && typeof user.petConfigs === 'object') ? user.petConfigs : {},
       });
     }
 
@@ -556,7 +606,7 @@ const server = http.createServer(async (req, res) => {
           equippedCategory: hasUser ? user.equipped[c.category] === c.id : false,
         }));
       return sendJson(res, 200, hasUser
-        ? { catalog: items, points: user.points, points_total: user.points_total, level: levelOf(user), equipped: user.equipped }
+        ? { catalog: items, points: user.points, points_total: user.points_total, level: levelOf(user), equipped: user.equipped, petConfigs: (user.petConfigs && typeof user.petConfigs === 'object') ? user.petConfigs : {} }
         : { catalog: items, needsAuth: true });
     }
 
@@ -616,10 +666,12 @@ const server = http.createServer(async (req, res) => {
       if (!user) return sendJson(res, 401, { error: 'not_authenticated' });
       ensureUserExtras(user);
       const body = await readBody(req);
-      const cfg = (user.petConfig && typeof user.petConfig === 'object') ? user.petConfig : (user.petConfig = { mode: 'follow', name: null, nameColor: null });
+      const target = resolvePetIdFor(user, body.pet);
+      if (target.error) return sendJson(res, 400, { error: target.error });
+      const cfg = target.cfg;
       if (body.mode !== undefined) {
         const mode = String(body.mode || '');
-        if (!['follow', 'shoulder', 'head', 'hover'].includes(mode)) return sendJson(res, 400, { error: 'invalid_mode' });
+        if (!petModesFor(target.id).includes(mode)) return sendJson(res, 400, { error: 'invalid_mode' });
         cfg.mode = mode;
       }
       if (body.name !== undefined) {
@@ -632,7 +684,7 @@ const server = http.createServer(async (req, res) => {
         cfg.nameColor = color || null;
       }
       saveStore();
-      return sendJson(res, 200, { ok: true, petConfig: cfg });
+      return sendJson(res, 200, { ok: true, pet: target.id, petConfig: cfg, petConfigs: user.petConfigs });
     }
 
     
@@ -823,10 +875,12 @@ if (pathname === '/internal/pet-config' && method === 'POST') {
   const user = discordId ? store.users[discordId] : null;
   if (!user) return sendJson(res, 404, { error: 'user_not_found' });
   ensureUserExtras(user);
-  const cfg = (user.petConfig && typeof user.petConfig === 'object') ? user.petConfig : (user.petConfig = { mode: 'follow', name: null, nameColor: null });
+  const target = resolvePetIdFor(user, body.pet);
+  if (target.error) return sendJson(res, 400, { error: target.error });
+  const cfg = target.cfg;
   if (body.mode !== undefined) {
     const mode = String(body.mode || '');
-    if (!['follow', 'shoulder', 'head', 'hover'].includes(mode)) return sendJson(res, 400, { error: 'invalid_mode' });
+    if (!petModesFor(target.id).includes(mode)) return sendJson(res, 400, { error: 'invalid_mode' });
     cfg.mode = mode;
   }
   if (body.name !== undefined) {
@@ -839,7 +893,7 @@ if (pathname === '/internal/pet-config' && method === 'POST') {
     cfg.nameColor = color || null;
   }
   saveStore();
-  return sendJson(res, 200, { ok: true, petConfig: cfg });
+  return sendJson(res, 200, { ok: true, pet: target.id, petConfig: cfg, petConfigs: user.petConfigs });
 }
 
 

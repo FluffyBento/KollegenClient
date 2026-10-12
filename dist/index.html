@@ -244,26 +244,12 @@
           <h3>Deine Gegenstände</h3>
           <div id="cosmOwned" class="cosm-owned"><div class="store-msg">Lade …</div></div>
           <div id="cosmPetBox" class="cosm-petbox" style="display:none;">
-            <h3>Haustier</h3>
-            <label class="cosm-row"><span>Position</span>
-              <select id="cosmPetMode" class="store-sort">
-                <option value="follow">Nebenher fliegen</option>
-                <option value="shoulder">Schulter</option>
-                <option value="head">Kopf</option>
-                <option value="hover">Darüber hovern</option>
-              </select>
-            </label>
-            <label class="cosm-row"><span>Name</span>
-              <input id="cosmPetName" class="store-sort" maxlength="16" placeholder="Pet-Name" />
-            </label>
-            <label class="cosm-row"><span>Namensfarbe</span>
-              <input id="cosmPetColor" type="color" value="#ffffff" />
-            </label>
-            <button id="cosmPetSave" class="btn-primary">Speichern</button>
+            <h3>Haustiere</h3>
+            <div id="cosmPetCards" class="cosm-petcards"></div>
           </div>
         </div>
         <div class="cosm-preview">
-          <canvas id="cosmSkinCanvas" width="220" height="440"></canvas>
+          <canvas id="cosmSkinCanvas" width="280" height="560"></canvas>
           <div id="cosmNamePreview" class="cosm-namepreview">—</div>
         </div>
       </div>

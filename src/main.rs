@@ -1451,7 +1451,10 @@ fn import_pack(state: State<'_, AppState>, path: String) -> Result<types::Instan
 #[tauri::command]
 async fn kollegen_me(app: tauri::AppHandle) -> Result<serde_json::Value, String> {
     let data_dir = app.state::<AppState>().data_dir.clone();
-    Ok(crate::presence::kollegen_me(&data_dir))
+    log::info!("KOLLEGEN_DIAG kollegen_me enter");
+    tauri::async_runtime::spawn_blocking(move || crate::presence::kollegen_me(&data_dir))
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -1529,25 +1532,33 @@ async fn kollegen_dm_send(app: tauri::AppHandle, to_id: String, text: String) ->
 #[tauri::command]
 async fn kollegen_store(app: tauri::AppHandle) -> Result<serde_json::Value, String> {
     let data_dir = app.state::<AppState>().data_dir.clone();
-    Ok(crate::presence::kollegen_store(&data_dir))
+    tauri::async_runtime::spawn_blocking(move || crate::presence::kollegen_store(&data_dir))
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 async fn kollegen_store_equip(app: tauri::AppHandle, item_id: String, category: String) -> Result<serde_json::Value, String> {
     let data_dir = app.state::<AppState>().data_dir.clone();
-    Ok(crate::presence::kollegen_store_equip(&data_dir, &item_id, &category))
+    tauri::async_runtime::spawn_blocking(move || crate::presence::kollegen_store_equip(&data_dir, &item_id, &category))
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 async fn kollegen_store_buy(app: tauri::AppHandle, item_id: String) -> Result<serde_json::Value, String> {
     let data_dir = app.state::<AppState>().data_dir.clone();
-    Ok(crate::presence::kollegen_store_buy(&data_dir, &item_id))
+    tauri::async_runtime::spawn_blocking(move || crate::presence::kollegen_store_buy(&data_dir, &item_id))
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-async fn kollegen_pet_config(app: tauri::AppHandle, mode: Option<String>, name: Option<String>, color: Option<String>) -> Result<serde_json::Value, String> {
+async fn kollegen_pet_config(app: tauri::AppHandle, pet: Option<String>, mode: Option<String>, name: Option<String>, color: Option<String>) -> Result<serde_json::Value, String> {
     let data_dir = app.state::<AppState>().data_dir.clone();
-    Ok(crate::presence::kollegen_pet_config(&data_dir, mode.as_deref(), name.as_deref(), color.as_deref()))
+    tauri::async_runtime::spawn_blocking(move || crate::presence::kollegen_pet_config(&data_dir, pet.as_deref(), mode.as_deref(), name.as_deref(), color.as_deref()))
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]

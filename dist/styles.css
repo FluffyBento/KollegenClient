@@ -3213,30 +3213,24 @@ button:disabled {
   font-size: 1rem;
 }
 
-.cosm-owned {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
 
-.cosm-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 12px;
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-}
 
-.cosm-item-name {
-  font-weight: 600;
-}
-
-.cosm-item-cat {
-  flex: 1;
-  font-size: 0.8rem;
+.cosm-group {
+  grid-column: 1 / -1;
+  margin: 10px 0 2px;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   color: var(--text-muted);
+}
+
+.cosm-group:first-child {
+  margin-top: 0;
+}
+
+.cosm-item:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
 }
 
 .cosm-petbox {
@@ -3254,6 +3248,55 @@ button:disabled {
   margin: 0;
 }
 
+.cosm-petcards {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+}
+
+.pet-card {
+  cursor: pointer;
+}
+
+.pet-pv {
+  font-size: 44px;
+  line-height: 1;
+}
+
+.pet-name {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.pet-optrow {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 8px;
+}
+
+.pet-color {
+  width: 44px;
+  height: 30px;
+  padding: 2px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: transparent;
+  cursor: pointer;
+  flex: none;
+}
+
+.pet-mode {
+  flex: 1;
+  min-width: 0;
+}
+
+.pet-modelock {
+  flex: 1;
+  color: #9AA0A6;
+  font-size: 0.85rem;
+}
+
 .cosm-row {
   display: flex;
   align-items: center;
@@ -3268,7 +3311,9 @@ button:disabled {
 }
 
 .cosm-preview {
-  width: 240px;
+  position: sticky;
+  top: 16px;
+  width: 320px;
   flex: none;
   display: flex;
   flex-direction: column;
@@ -3290,4 +3335,14 @@ button:disabled {
   color: #9AA0A6;
   font-size: 0.85rem;
   margin-top: 2px;
+}
+
+@media (max-width: 860px) {
+  .cosm-layout {
+    flex-direction: column;
+  }
+
+  .cosm-preview {
+    width: 100%;
+  }
 }

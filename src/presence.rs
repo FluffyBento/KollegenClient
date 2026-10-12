@@ -231,15 +231,24 @@ pub fn kollegen_me(data_dir: &PathBuf) -> serde_json::Value {
 fn me_value(data_dir: &PathBuf) -> serde_json::Value {
     let (client, backend, session) = match authed_request(data_dir) {
         Some(x) => x,
-        None => return serde_json::json!({ "error": "not_authenticated" }),
+        None => {
+            log::info!("KOLLEGEN_DIAG me no-auth");
+            return serde_json::json!({ "error": "not_authenticated" });
+        }
     };
-    let url = format!("{}/me", backend);
-    match client
-        .get(&url)
-        .header("Authorization", format!("Bearer {}", session))
-        .send()
-    {
-        Ok(r) if r.status().is_success() => r.json().unwrap_or(serde_json::json!({})),
+    log::info!("KOLLEGEN_DIAG me authed ok");
+        let url = format!("{}/me", backend);
+        match client
+            .get(&url)
+            .header("Authorization", format!("Bearer {}", session))
+            .send()
+        {
+            Ok(r) if r.status().is_success() => {
+                log::info!("KOLLEGEN_DIAG me sent ok");
+                let v = r.json().unwrap_or(serde_json::json!({}));
+                log::info!("KOLLEGEN_DIAG me done");
+                v
+            }
         Ok(r) if r.status() == 401 => {
             *SESSION.lock().unwrap() = None;
             serde_json::json!({ "error": "not_authenticated" })
@@ -563,11 +572,15 @@ pub fn kollegen_store_buy(data_dir: &PathBuf, item_id: &str) -> serde_json::Valu
 
 pub fn kollegen_pet_config(
     data_dir: &PathBuf,
+    pet: Option<&str>,
     mode: Option<&str>,
     name: Option<&str>,
     color: Option<&str>,
 ) -> serde_json::Value {
     let mut body = serde_json::Map::new();
+    if let Some(p) = pet {
+        body.insert("pet".into(), serde_json::Value::String(p.to_string()));
+    }
     if let Some(m) = mode {
         body.insert("mode".into(), serde_json::Value::String(m.to_string()));
     }
@@ -579,7 +592,7 @@ pub fn kollegen_pet_config(
     }
     post_authed(
         data_dir,
-        "/api/pet-config",
+        "/pet-config",
         serde_json::Value::Object(body),
     )
 }
