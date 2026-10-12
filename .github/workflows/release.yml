@@ -63,7 +63,7 @@ jobs:
           if [ -z "$JAR1211" ]; then echo "ERROR: no 1.21.11 jar built"; ls kollegen-mod/build/libs/; exit 1; fi
           cp "$JAR1211" kollegen-client-mod-1.21.11.jar
           for i in {1..3}; do
-            gh release upload "${{ github.ref_name }}" "$JAR1211" --clobber && break
+            gh release upload "${{ github.ref_name }}" kollegen-client-mod-1.21.11.jar --clobber && break
             echo "Upload attempt $i failed, retrying in 5s..."
             sleep 5
           done
@@ -97,7 +97,7 @@ jobs:
           if [ -z "$JAR26" ]; then echo "ERROR: no 26.2 jar built"; ls kollegen-mod/build/libs/; exit 1; fi
           cp "$JAR26" kollegen-client-mod-26.2.jar
           for i in {1..3}; do
-            gh release upload "${{ github.ref_name }}" "$JAR26" --clobber && break
+            gh release upload "${{ github.ref_name }}" kollegen-client-mod-26.2.jar --clobber && break
             echo "Upload attempt $i failed, retrying in 5s..."
             sleep 5
           done
