@@ -152,9 +152,10 @@ jobs:
 
       - name: Download mod jars from release
         run: |
+          rm -rf resources
           mkdir -p resources
-          gh release download "${{ github.ref_name }}" --repo "${{ github.repository }}" --pattern "kollegen-client-mod-1.21.11.jar" --dir resources
-          gh release download "${{ github.ref_name }}" --repo "${{ github.repository }}" --pattern "kollegen-client-mod-26.2.jar" --dir resources
+          gh release download "${{ github.ref_name }}" --repo "${{ github.repository }}" --pattern "kollegen-client-mod-1.21.11.jar" --dir resources --clobber
+          gh release download "${{ github.ref_name }}" --repo "${{ github.repository }}" --pattern "kollegen-client-mod-26.2.jar" --dir resources --clobber
           ls -la resources/
 
       - name: Set launcher version from tag
@@ -266,9 +267,10 @@ jobs:
       - name: Download mod jars from release
         shell: bash
         run: |
+          rm -rf resources
           mkdir -p resources
-          gh release download "${{ github.ref_name }}" --repo "${{ github.repository }}" --pattern "kollegen-client-mod-1.21.11.jar" --dir resources
-          gh release download "${{ github.ref_name }}" --repo "${{ github.repository }}" --pattern "kollegen-client-mod-26.2.jar" --dir resources
+          gh release download "${{ github.ref_name }}" --repo "${{ github.repository }}" --pattern "kollegen-client-mod-1.21.11.jar" --dir resources --clobber
+          gh release download "${{ github.ref_name }}" --repo "${{ github.repository }}" --pattern "kollegen-client-mod-26.2.jar" --dir resources --clobber
           ls -la resources/
 
       - name: Set launcher version from tag
@@ -340,9 +342,10 @@ jobs:
 
       - name: Download mod jars from release
         run: |
+          rm -rf resources
           mkdir -p resources
-          gh release download "${{ github.ref_name }}" --repo "${{ github.repository }}" --pattern "kollegen-client-mod-1.21.11.jar" --dir resources
-          gh release download "${{ github.ref_name }}" --repo "${{ github.repository }}" --pattern "kollegen-client-mod-26.2.jar" --dir resources
+          gh release download "${{ github.ref_name }}" --repo "${{ github.repository }}" --pattern "kollegen-client-mod-1.21.11.jar" --dir resources --clobber
+          gh release download "${{ github.ref_name }}" --repo "${{ github.repository }}" --pattern "kollegen-client-mod-26.2.jar" --dir resources --clobber
           ls -la resources/
 
       - name: Set launcher version from tag
