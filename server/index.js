@@ -106,6 +106,11 @@ const CATALOG = [
   { id: 'skin_glow_squid', category: 'pet_skin', name: 'Glow-Squid', desc: 'Leuchtender Skin für Tintenfisch. Exklusiv verliehen.', price: 0, rarity: 'legendary', hidden: true, data: { variantOf: 'pet_squid', variant: 'glow', label: 'Glow-Squid' } },
   { id: 'skin_snow_fox', category: 'pet_skin', name: 'Schneefuchs', desc: 'Weißer Skin für Fuchs. Exklusiv verliehen.', price: 0, rarity: 'legendary', hidden: true, data: { variantOf: 'pet_fox', variant: 'snow', label: 'Schneefuchs' } },
   { id: 'skin_zombie_nautilus', category: 'pet_skin', name: 'Zombie-Nautilus', desc: 'Dunkler Skin für Nautilus. Exklusiv verliehen.', price: 0, rarity: 'legendary', hidden: true, data: { variantOf: 'pet_nautilus', variant: 'zombie', label: 'Zombie' } },
+
+  { id: 'cape_fluffybento', category: 'cape', name: 'FluffyBento Cape', desc: 'FluffyBento Cape.', price: 0, rarity: 'legendary', featured: true, hidden: true, data: { texture: 'kollegen:cosmetics/fluffybento/FluffyBento_cape.png', model: 'kollegen:cosmetics/fluffybento/FluffyBento_cape.bbmodel' } },
+  { id: 'schild_fluffybento', category: 'shield', name: 'FluffyBento Schild', desc: 'FluffyBento Schild.', price: 0, rarity: 'legendary', featured: true, hidden: true, data: { texture: 'kollegen:cosmetics/fluffybento/FluffyBento_schild.png', model: 'kollegen:cosmetics/fluffybento/FluffyBento_schild.bbmodel' } },
+  { id: 'back_fluffybento', category: 'back_accessory', name: 'FluffyBento Flügel', desc: 'FluffyBento Flügel.', price: 0, rarity: 'legendary', featured: true, hidden: true, data: { texture: 'kollegen:cosmetics/fluffybento/FluffyBento_fluegel.png', model: 'kollegen:cosmetics/fluffybento/FluffyBento_fluegel.bbmodel' } },
+  { id: 'head_fluffybento', category: 'head_accessory', name: 'FluffyBento Visor', desc: 'FluffyBento Visor.', price: 0, rarity: 'legendary', featured: true, hidden: true, data: { texture: 'kollegen:cosmetics/fluffybento/FluffyBento_visor.png', model: 'kollegen:cosmetics/fluffybento/FluffyBento_visor.bbmodel' } },
 ];
 
 function catById(id) {

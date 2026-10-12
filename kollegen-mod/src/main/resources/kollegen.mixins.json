@@ -35,7 +35,8 @@
     "ItemDisplayAccessor",
     "DisplayAccessor",
     "FoxAccessor",
-    "AxolotlAccessor"
+    "AxolotlAccessor",
+    "PlayerRendererMixin"
   ],
   "injectors": {
     "defaultRequire": 1

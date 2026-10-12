@@ -3969,7 +3969,7 @@ startBackgroundIntervals();
 
   let storeFilter = "alle";
   let storeGroup = "profil";
-  const STORE_INGAME_CATS = ["pet", "clothing", "effect"];
+  const STORE_INGAME_CATS = ["pet", "clothing", "effect", "cape", "shield", "back_accessory", "head_accessory"];
   let storeRar = "alle";
   let storeSort = "price-asc";
 
@@ -3985,6 +3985,10 @@ startBackgroundIntervals();
     if (item.category === "font") return `<div style="width:78%;height:64px;border-radius:10px;display:flex;align-items:center;justify-content:center;color:#c9d4e3;font-weight:700;font-size:15px;font-family:${esc(item.data.font)};">Aa</div>`;
     if (item.category === "name_color") return `<div style="width:78%;height:64px;border-radius:10px;display:flex;align-items:center;justify-content:center;color:${esc(item.data.accent)};font-weight:800;font-size:22px;">Aa</div>`;
     if (item.category === "sticker") return `<div style="width:78%;height:64px;border-radius:10px;display:flex;align-items:center;justify-content:center;color:${esc(item.data.color)};font-size:34px;">${esc(item.data.icon)}</div>`;
+    if (item.category === "cape" && item.data && item.data.texture) return `<div style="width:78%;height:64px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:#0d1420;background-image:url('https://kollegen.me/${item.data.texture.replace("kollegen:", "")}');background-size:cover;background-position:center;">Cape</div>`;
+    if (item.category === "shield" && item.data && item.data.texture) return `<div style="width:78%;height:64px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:#0d1420;background-image:url('https://kollegen.me/${item.data.texture.replace("kollegen:", "")}');background-size:cover;background-position:center;">Schild</div>`;
+    if (item.category === "back_accessory" && item.data && item.data.texture) return `<div style="width:78%;height:64px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:#0d1420;background-image:url('https://kollegen.me/${item.data.texture.replace("kollegen:", "")}');background-size:cover;background-position:center;">Rücken</div>`;
+    if (item.category === "head_accessory" && item.data && item.data.texture) return `<div style="width:78%;height:64px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:#0d1420;background-image:url('https://kollegen.me/${item.data.texture.replace("kollegen:", "")}');background-size:cover;background-position:center;">Kopf</div>`;
     let border = "", shadow = "";
     if (item.category === "avatar_frame" && item.data.color1) border = `border:${(item.data.width || 3)}px solid ${esc(item.data.color1)};`;
     return `<img style="width:64px;height:64px;border-radius:14px;object-fit:cover;${border}${shadow}" src="${av}"/>`;
