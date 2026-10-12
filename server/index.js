@@ -83,7 +83,7 @@ const CATALOG = [
   { id: 'font_typewriter', category: 'font', name: 'Typewriter', desc: 'Wie auf einer Schreibmaschine.', price: 600, rarity: 'epic', data: { font: '"Courier New",monospace' } },
   { id: 'font_banner', category: 'font', name: 'Banner-Bliter', desc: 'Groß, fett, auffällig.', price: 1600, rarity: 'legendary', data: { font: 'Impact,"Arial Narrow Bold",sans-serif' } },
 
-  { id: 'pet_drache', category: 'pet', name: 'Allay', desc: 'Ein winziges Allay als Begleiter. Sichtbar für alle mit Kollegen-Client.', price: 5000, rarity: 'legendary', featured: true, data: { kind: 'enderdragon', scale: 0.2 } },
+  { id: 'pet_allay', category: 'pet', name: 'Allay', desc: 'Ein winziges Allay als Begleiter. Sichtbar für alle mit Kollegen-Client.', price: 5000, rarity: 'legendary', featured: true, data: { kind: 'enderdragon', scale: 0.2 } },
 ];
 
 function catById(id) {
@@ -225,7 +225,14 @@ function loadStore() {
   store.catalog = CATALOG.map((c) => Object.assign({}, byId[c.id] || {}, c));
   for (const key of Object.keys(store.users || {})) {
     const u = store.users[key];
-    if (u && typeof u === 'object') ensureUserExtras(u);
+    if (!u || typeof u !== 'object') continue;
+    ensureUserExtras(u);
+    if (Array.isArray(u.cosmetics)) {
+      for (const c of u.cosmetics) {
+        if (c && c.id === 'pet_drache') c.id = 'pet_allay';
+      }
+    }
+    if (u.equipped && u.equipped.pet === 'pet_drache') u.equipped.pet = 'pet_allay';
   }
   saveStore();
 }
