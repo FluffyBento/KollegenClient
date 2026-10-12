@@ -196,7 +196,7 @@ pub fn minecraft_profile(data_dir: &Path) -> Value {
         Some(t) => t,
         None => return serde_json::json!({ "error": "not_authenticated" }),
     };
-    let resp = reqwest::blocking::Client::new()
+    let resp = reqwest::blocking::Client::builder().timeout(std::time::Duration::from_secs(15)).connect_timeout(std::time::Duration::from_secs(5)).build().unwrap_or_else(|_| reqwest::blocking::Client::new())
         .get("https://api.minecraftservices.com/minecraft/profile")
         .bearer_auth(&token)
         .header("Accept", "application/json")
@@ -230,7 +230,7 @@ pub fn download_current_skin(data_dir: &Path) -> Value {
         Some(u) => u,
         None => return serde_json::json!({ "error": "Keine Skin-URL im Profil gefunden" }),
     };
-    let bytes = match reqwest::blocking::Client::new()
+    let bytes = match reqwest::blocking::Client::builder().timeout(std::time::Duration::from_secs(15)).connect_timeout(std::time::Duration::from_secs(5)).build().unwrap_or_else(|_| reqwest::blocking::Client::new())
         .get(&url)
         .send()
         .and_then(|r| r.bytes())
@@ -273,7 +273,7 @@ pub fn upload_skin(data_dir: &Path, name: &str, b64: &str, variant: &str) -> Val
         .text("variant", variant.to_string())
         .part("file", part);
 
-    let resp = reqwest::blocking::Client::new()
+    let resp = reqwest::blocking::Client::builder().timeout(std::time::Duration::from_secs(15)).connect_timeout(std::time::Duration::from_secs(5)).build().unwrap_or_else(|_| reqwest::blocking::Client::new())
         .post("https://api.minecraftservices.com/minecraft/profile/skins")
         .bearer_auth(&token)
         .multipart(form)
@@ -303,7 +303,7 @@ pub fn equip_cape(data_dir: &Path, cape_id: &str) -> Value {
         Some(t) => t,
         None => return serde_json::json!({ "error": "not_authenticated" }),
     };
-    let resp = reqwest::blocking::Client::new()
+    let resp = reqwest::blocking::Client::builder().timeout(std::time::Duration::from_secs(15)).connect_timeout(std::time::Duration::from_secs(5)).build().unwrap_or_else(|_| reqwest::blocking::Client::new())
         .put("https://api.minecraftservices.com/minecraft/profile/capes/active")
         .bearer_auth(&token)
         .json(&serde_json::json!({ "capeId": cape_id }))
