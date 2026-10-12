@@ -268,6 +268,9 @@ public final class PetRenderer {
         private double hopZ0 = 0.0;
         private double hopX1 = 0.0;
         private double hopZ1 = 0.0;
+        private double hopY1 = 0.0;
+        private float hopYaw = 0.0f;
+        private float yawCur = 0.0f;
         private double hopPeak = 0.3;
         private int flapT = 0;
         private int flapCd = 200;
@@ -465,7 +468,10 @@ public final class PetRenderer {
             }
         }
 
-        void blubHopMove(double x, double y, double z, float baseScale) {
+        void blubHopMove(double xin, double yin, double zin, float baseScale) {
+            double x = xin;
+            double y = yin - 1.0;
+            double z = zin;
             Vec3 cur = null;
             try {
                 cur = entity.position();
@@ -496,29 +502,31 @@ public final class PetRenderer {
                     hopCd--;
                 } else {
                     if (hopT <= 0) {
-                        hopDur = 15;
-                        hopT = hopDur;
-                        hopX0 = cur.x;
-                        hopY0 = cur.y;
-                        hopZ0 = cur.z;
                         double hdx = x - cur.x;
                         double hdz = z - cur.z;
                         double hdist = Math.sqrt(hdx * hdx + hdz * hdz);
                         double hopLen = Math.min(hdist, 1.2);
+                        hopDur = Math.max(6, Math.min(15, 6 + (int) (hdist * 7.0)));
+                        hopT = hopDur;
+                        hopX0 = cur.x;
+                        hopY0 = cur.y;
+                        hopZ0 = cur.z;
+                        hopY1 = y;
                         if (hdist > 0.001) {
                             hopX1 = cur.x + hdx / hdist * hopLen;
                             hopZ1 = cur.z + hdz / hdist * hopLen;
+                            hopYaw = (float) (Math.toDegrees(Math.atan2(hopZ1 - hopZ0, hopX1 - hopX0)) - 90.0);
                         } else {
                             hopX1 = x;
                             hopZ1 = z;
                         }
                         hopCd = hdist > 2.0 ? 3 : 6;
-                        hopPeak = Math.min(0.45, 0.22 + hopLen * 0.06);
+                        hopPeak = Math.min(0.35, 0.12 + hopLen * 0.12);
                     }
                     hopT--;
                     double p = 1.0 - (double) Math.max(hopT, 0) / (double) hopDur;
                     double q = p * p * (3.0 - 2.0 * p);
-                    entity.setPos(hopX0 + (hopX1 - hopX0) * q, hopY0 + (y - hopY0) * q + 4.0 * hopPeak * q * (1.0 - q), hopZ0 + (hopZ1 - hopZ0) * q);
+                    entity.setPos(hopX0 + (hopX1 - hopX0) * q, hopY0 + (hopY1 - hopY0) * q + 4.0 * hopPeak * q * (1.0 - q), hopZ0 + (hopZ1 - hopZ0) * q);
                     try {
                         entity.setOldPosAndRot();
                     } catch (Throwable ignored) {
@@ -545,16 +553,29 @@ public final class PetRenderer {
             } else if (happyT > 0) {
                 happyT--;
             }
+            float targetYawDeg = yawCur;
+            if (!settled) {
+                float dy = hopYaw - yawCur;
+                while (dy > 180.0f) dy -= 360.0f;
+                while (dy < -180.0f) dy += 360.0f;
+                float turn = Math.max(-12.0f, Math.min(12.0f, dy));
+                yawCur += turn;
+                targetYawDeg = yawCur;
+            }
+            float yaw = targetYawDeg * ((float) Math.PI / 180.0f);
             float sy = baseScale;
-            float yaw = 0.0f;
             if (settled) sy = baseScale * 0.94f;
+            if (hopT > 0) {
+                double pp = 1.0 - (double) Math.max(hopT, 0) / (double) hopDur;
+                sy = baseScale * (float) (1.0 + 0.10 * Math.sin(pp * Math.PI));
+            }
             if (flapT > 0) {
                 double fp = 1.0 - (double) flapT / 20.0;
                 sy = baseScale * (float) (1.0 - 0.22 * Math.sin(fp * Math.PI));
             }
             if (happyT > 0) {
                 double hp = 1.0 - (double) happyT / 15.0;
-                yaw = (float) (hp * Math.PI * 2.0);
+                yaw = targetYawDeg * ((float) Math.PI / 180.0f) + (float) (hp * Math.PI * 2.0);
                 sy = baseScale * (float) (1.0 + 0.12 * Math.sin(hp * Math.PI));
             }
             BlubPets.applyDisplayPose(entity, baseScale, sy, sy, yaw);
