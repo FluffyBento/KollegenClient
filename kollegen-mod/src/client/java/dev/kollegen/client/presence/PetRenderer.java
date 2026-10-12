@@ -266,6 +266,8 @@ public final class PetRenderer {
         private double hopX0 = 0.0;
         private double hopY0 = 0.0;
         private double hopZ0 = 0.0;
+        private double hopX1 = 0.0;
+        private double hopZ1 = 0.0;
         private double hopPeak = 0.3;
         private int flapT = 0;
         private int flapCd = 200;
@@ -499,13 +501,24 @@ public final class PetRenderer {
                         hopX0 = cur.x;
                         hopY0 = cur.y;
                         hopZ0 = cur.z;
-                        hopPeak = Math.min(0.45, 0.22 + Math.sqrt(distSq) * 0.06);
+                        double hdx = x - cur.x;
+                        double hdz = z - cur.z;
+                        double hdist = Math.sqrt(hdx * hdx + hdz * hdz);
+                        double hopLen = Math.min(hdist, 1.2);
+                        if (hdist > 0.001) {
+                            hopX1 = cur.x + hdx / hdist * hopLen;
+                            hopZ1 = cur.z + hdz / hdist * hopLen;
+                        } else {
+                            hopX1 = x;
+                            hopZ1 = z;
+                        }
+                        hopCd = hdist > 2.0 ? 3 : 6;
+                        hopPeak = Math.min(0.45, 0.22 + hopLen * 0.06);
                     }
                     hopT--;
-                    if (hopT <= 0) hopCd = 5;
                     double p = 1.0 - (double) Math.max(hopT, 0) / (double) hopDur;
                     double q = p * p * (3.0 - 2.0 * p);
-                    entity.setPos(hopX0 + (x - hopX0) * q, hopY0 + (y - hopY0) * q + 4.0 * hopPeak * q * (1.0 - q), hopZ0 + (z - hopZ0) * q);
+                    entity.setPos(hopX0 + (hopX1 - hopX0) * q, hopY0 + (y - hopY0) * q + 4.0 * hopPeak * q * (1.0 - q), hopZ0 + (hopZ1 - hopZ0) * q);
                     try {
                         entity.setOldPosAndRot();
                     } catch (Throwable ignored) {
