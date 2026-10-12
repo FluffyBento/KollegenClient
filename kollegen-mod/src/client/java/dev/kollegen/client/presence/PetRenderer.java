@@ -415,7 +415,7 @@ public final class PetRenderer {
                 double sy = y;
                 if ("follow".equals(mode) || "hover".equals(mode)) {
                     double gy = groundTop(level, x, y, z);
-                    if (!Double.isNaN(gy) && sy < gy + 0.25) sy = gy + 0.25;
+                    if (!Double.isNaN(gy) && sy < gy + 0.02) sy = gy + 0.02;
                 }
                 entity.setPos(x, sy, z);
                 try {
@@ -444,7 +444,7 @@ public final class PetRenderer {
                     double tnz = cur.z + dz / dist * step;
                     if ("follow".equals(mode) || "hover".equals(mode)) {
                         double gy = groundTop(level, tnx, tny, tnz);
-                        if (!Double.isNaN(gy) && tny < gy + 0.25) tny = gy + 0.25;
+                        if (!Double.isNaN(gy) && tny < gy + 0.02) tny = gy + 0.02;
                     }
                     double[] cl = clipHorizontal(level, entity, cur, Math.max(cur.y, tny), tnx, tnz, 0.8);
                     if (Math.abs(cl[0] - cur.x) + Math.abs(cl[1] - cur.z) < 0.02) {
