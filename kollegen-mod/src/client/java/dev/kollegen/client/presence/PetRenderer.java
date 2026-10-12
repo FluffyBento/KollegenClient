@@ -153,7 +153,7 @@ public final class PetRenderer {
                     }
                     if (renderState instanceof LivingEntityRenderState living) {
                         living.scale = (float) scale;
-                        if (pet.kind != null && isGroundKind(pet.kind)) {
+                        if (pet.kind != null && (isGroundKind(pet.kind) || isSwimmerKind(pet.kind))) {
                             living.walkAnimationPos = (float) pet.stridePhase;
                             living.walkAnimationSpeed = (float) pet.strideAmount;
                         }
@@ -289,6 +289,9 @@ public final class PetRenderer {
         private double vy = 0.0;
         private double stridePhase = 0.0;
         private double strideAmount = 0.0;
+        private double prevY = 0.0;
+        private double pulsePhase = 0.0;
+        private double pitch = 0.0;
         private int pounceT = 0;
         private int idleT = 0;
         private double hopPeak = 0.3;
@@ -327,6 +330,7 @@ public final class PetRenderer {
 
             String mode = d.petMode != null ? d.petMode : "follow";
             if (BlubPets.isBlubDisplay(entity) && !"follow".equals(mode)) mode = "follow";
+            boolean swimmer = isSwimmerKind(effectiveKind(d.petKind, d.petVariant));
             double bob = 0.0;
             double ox = 1.2;
             double oy = 0.5;
@@ -447,6 +451,10 @@ public final class PetRenderer {
                     double ozo = ownerPos.z - cur.z;
                     double cap = (oxo * oxo + ozo * ozo) > 9.0 ? 0.3 : 0.05;
                     double step = Math.min(dist, cap);
+                    if (swimmer) {
+                        pulsePhase += 0.15;
+                        step *= 0.6 + 0.6 * Math.max(0.0, Math.sin(pulsePhase));
+                    }
                     double tnx = cur.x + dx / dist * step;
                     double tny = cur.y + dy / dist * step;
                     double tnz = cur.z + dz / dist * step;
@@ -473,6 +481,13 @@ public final class PetRenderer {
                     entity.setPos(cl[0], tny, cl[1]);
                     stridePhase += step * 3.0;
                     strideAmount = Math.min(1.0, step * 4.0);
+                    if (swimmer) {
+                        double ny = cl[1];
+                        double dyv = ny - prevY;
+                        prevY = ny;
+                        double targetPitch = Math.max(-45.0, Math.min(45.0, -dyv * 120.0));
+                        pitch += (targetPitch - pitch) * 0.3;
+                    }
                 } else {
                     entity.setPos(x, y, z);
                     idleT++;
@@ -499,7 +514,7 @@ public final class PetRenderer {
                 } else lookYaw = entity.getYRot();
             }
             entity.setYRot(lookYaw);
-            entity.setXRot(0);
+            entity.setXRot(swimmer ? (float) pitch : 0);
             entity.setDeltaMovement(-Math.sin(rad) * 0.02, 0, Math.cos(rad) * 0.02);
             if (entity instanceof Mob mob) {
                 try {
@@ -753,6 +768,14 @@ public final class PetRenderer {
         return switch (petKind.toLowerCase()) {
             case "cat", "ocelot", "dog", "wolf", "chicken", "hen", "rabbit", "bunny",
                  "fox", "axolotl", "copper_golem", "coppergolem", "golem", "shulker" -> true;
+            default -> false;
+        };
+    }
+
+    private static boolean isSwimmerKind(String petKind) {
+        if (petKind == null) return false;
+        return switch (petKind.toLowerCase()) {
+            case "squid", "glow_squid", "glowsquid", "nautilus", "zombie_nautilus", "zombienautilus" -> true;
             default -> false;
         };
     }
