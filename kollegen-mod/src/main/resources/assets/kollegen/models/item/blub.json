@@ -4,8 +4,8 @@
 	"ambientocclusion": false,
 	"texture_size": [32, 32],
 	"textures": {
-		"0": "item/blub",
-		"particle": "item/blub"
+		"0": "kollegen:item/blub",
+		"particle": "kollegen:item/blub"
 	},
 	"elements": [
 		{

@@ -535,7 +535,6 @@ public final class PetRenderer {
             } else {
                 hopT = 0;
                 hopCd = 0;
-                entity.setPos(x, y, z);
             }
             if (flapT > 0) {
                 flapT--;
