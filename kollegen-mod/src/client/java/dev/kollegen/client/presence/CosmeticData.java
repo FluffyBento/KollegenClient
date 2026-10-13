@@ -17,10 +17,20 @@ public final class CosmeticData {
     public final String petName;
     public final String petNameColor;
     public final String petVariant;
+    public final String capeTexture;
+    public final String capeModel;
+    public final String backAccessoryTexture;
+    public final String backAccessoryModel;
+    public final String headAccessoryTexture;
+    public final String headAccessoryModel;
+    public final String shieldTexture;
+    public final String shieldModel;
 
     public CosmeticData(int level, String titleText, String nameColor, String badgeIcon,
                         String badgeColor, String stickerIcon, String stickerColor, String font,
-                        String petKind, double petScale, String petMode, String petName, String petNameColor, String petVariant) {
+                        String petKind, double petScale, String petMode, String petName, String petNameColor, String petVariant,
+                        String capeTexture, String capeModel, String backAccessoryTexture, String backAccessoryModel,
+                        String headAccessoryTexture, String headAccessoryModel, String shieldTexture, String shieldModel) {
         this.level = level;
         this.titleText = titleText;
         this.nameColor = nameColor;
@@ -35,11 +45,21 @@ public final class CosmeticData {
         this.petName = petName;
         this.petNameColor = petNameColor;
         this.petVariant = petVariant;
+        this.capeTexture = capeTexture;
+        this.capeModel = capeModel;
+        this.backAccessoryTexture = backAccessoryTexture;
+        this.backAccessoryModel = backAccessoryModel;
+        this.headAccessoryTexture = headAccessoryTexture;
+        this.headAccessoryModel = headAccessoryModel;
+        this.shieldTexture = shieldTexture;
+        this.shieldModel = shieldModel;
     }
 
     public boolean isEmpty() {
         return level <= 0 && titleText == null && nameColor == null
-                && badgeIcon == null && stickerIcon == null;
+                && badgeIcon == null && stickerIcon == null
+                && capeTexture == null && backAccessoryTexture == null
+                && headAccessoryTexture == null && shieldTexture == null;
     }
 
     public static CosmeticData fromJson(JsonObject root) {
@@ -48,7 +68,7 @@ public final class CosmeticData {
                 ? safeInt(root.get("level").getAsInt()) : 0;
         JsonObject c = root.has("cosmetics") && root.get("cosmetics").isJsonObject()
                 ? root.getAsJsonObject("cosmetics") : null;
-        if (c == null) return level > 0 ? new CosmeticData(level, null, null, null, null, null, null, null, null, 0.2, null, null, null, null) : null;
+        if (c == null) return level > 0 ? new CosmeticData(level, null, null, null, null, null, null, null, null, 0.2, null, null, null, null, null, null, null, null, null, null, null, null) : null;
         String titleText = textOf(c, "title", "text");
         String nameColor = strOf(c, "nameColor");
         String badgeIcon = textOf(c, "badge", "icon");
@@ -56,6 +76,14 @@ public final class CosmeticData {
         String stickerIcon = textOf(c, "sticker", "icon");
         String stickerColor = textOf(c, "sticker", "color");
         String font = strOf(c, "font");
+        String capeTexture = textureOf(c, "cape");
+        String capeModel = modelOf(c, "cape", capeTexture);
+        String backAccessoryTexture = textureOf(c, "backAccessory");
+        String backAccessoryModel = modelOf(c, "backAccessory", backAccessoryTexture);
+        String headAccessoryTexture = textureOf(c, "headAccessory");
+        String headAccessoryModel = modelOf(c, "headAccessory", headAccessoryTexture);
+        String shieldTexture = textureOf(c, "shield");
+        String shieldModel = modelOf(c, "shield", shieldTexture);
         String petKind = null;
         double petScale = 0.2;
         String petMode = null;
@@ -80,7 +108,7 @@ public final class CosmeticData {
             } catch (Throwable ignored) {
             }
         }
-        CosmeticData d = new CosmeticData(level, titleText, nameColor, badgeIcon, badgeColor, stickerIcon, stickerColor, font, petKind, petScale, petMode, petName, petNameColor, petVariant);
+        CosmeticData d = new CosmeticData(level, titleText, nameColor, badgeIcon, badgeColor, stickerIcon, stickerColor, font, petKind, petScale, petMode, petName, petNameColor, petVariant, capeTexture, capeModel, backAccessoryTexture, backAccessoryModel, headAccessoryTexture, headAccessoryModel, shieldTexture, shieldModel);
         if (d.isEmpty() && petKind == null) return null;
         return d;
     }
@@ -97,6 +125,37 @@ public final class CosmeticData {
         } catch (Throwable ignored) {
             return null;
         }
+    }
+
+    private static String textureOf(JsonObject o, String key) {
+        if (!o.has(key) || o.get(key).isJsonNull()) return null;
+        try {
+            if (o.get(key).isJsonObject()) {
+                return strOf(o.getAsJsonObject(key), "texture");
+            }
+            String s = o.get(key).getAsString();
+            return s == null || s.isEmpty() ? null : s;
+        } catch (Throwable ignored) {
+            return null;
+        }
+    }
+
+    private static String modelOf(JsonObject o, String key, String texture) {
+        if (o.has(key) && !o.get(key).isJsonNull()) {
+            try {
+                if (o.get(key).isJsonObject()) {
+                    String m = strOf(o.getAsJsonObject(key), "model");
+                    if (m != null) return m;
+                }
+            } catch (Throwable ignored) {
+            }
+        }
+        String direct = strOf(o, key + "Model");
+        if (direct != null) return direct;
+        if (texture != null && texture.endsWith(".png")) {
+            return texture.substring(0, texture.length() - 4) + ".bbmodel";
+        }
+        return null;
     }
 
     private static String textOf(JsonObject o, String obj, String key) {

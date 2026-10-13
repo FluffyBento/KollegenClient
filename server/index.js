@@ -85,18 +85,32 @@ const CATALOG = [
 
   { id: 'pet_allay', category: 'pet', name: 'Allay', desc: 'Ein Allay als Begleiter. Sichtbar für alle mit Kollegen-Client.', price: 10000, rarity: 'legendary', featured: true, data: { kind: 'allay', scale: 1.0, accent: '#39d7ff' } },
   { id: 'pet_blub', category: 'pet', name: 'Blub', desc: 'Ein Blub als Begleiter. Exklusiv verliehen, nicht käuflich.', price: 0, rarity: 'legendary', hidden: true, data: { kind: 'blub', scale: 1.0 } },
-  { id: 'pet_cat', category: 'pet', name: 'Katze', desc: 'Eine schnurrende Katze als Begleiter.', price: 2400, rarity: 'legendary', data: { kind: 'cat', scale: 1.0 } },
-  { id: 'pet_dog', category: 'pet', name: 'Hund', desc: 'Ein treuer Hund als Begleiter.', price: 2400, rarity: 'legendary', data: { kind: 'dog', scale: 1.0 } },
-  { id: 'pet_chicken', category: 'pet', name: 'Huhn', desc: 'Ein gackerndes Huhn als Begleiter.', price: 2400, rarity: 'legendary', data: { kind: 'chicken', scale: 1.0 } },
-  { id: 'pet_rabbit', category: 'pet', name: 'Kaninchen', desc: 'Ein hüpfendes Kaninchen als Begleiter.', price: 2400, rarity: 'legendary', data: { kind: 'rabbit', scale: 1.0 } },
-  { id: 'pet_axolotl', category: 'pet', name: 'Axolotl', desc: 'Ein Axolotl als Begleiter. Farbe als Skin wählbar.', price: 5000, rarity: 'legendary', data: { kind: 'axolotl', scale: 1.0 } },
-  { id: 'pet_bat', category: 'pet', name: 'Fledermaus', desc: 'Eine Fledermaus als Begleiter. Fliegt nebenher.', price: 5000, rarity: 'legendary', data: { kind: 'bat', scale: 1.0 } },
-  { id: 'pet_fox', category: 'pet', name: 'Fuchs', desc: 'Ein Fuchs als Begleiter.', price: 5000, rarity: 'legendary', data: { kind: 'fox', scale: 1.0 } },
-  { id: 'pet_parrot', category: 'pet', name: 'Papagei', desc: 'Ein Papagei als Begleiter. Fliegt nebenher.', price: 5000, rarity: 'legendary', data: { kind: 'parrot', scale: 1.0 } },
-  { id: 'pet_bee', category: 'pet', name: 'Biene', desc: 'Eine Biene als Begleiter. Fliegt nebenher.', price: 5000, rarity: 'legendary', data: { kind: 'bee', scale: 1.0 } },
-  { id: 'pet_squid', category: 'pet', name: 'Tintenfisch', desc: 'Ein Tintenfisch als Begleiter. Schwebt nebenher.', price: 5000, rarity: 'legendary', data: { kind: 'squid', scale: 1.0 } },
-  { id: 'pet_nautilus', category: 'pet', name: 'Nautilus', desc: 'Ein Nautilus als Begleiter. Schwebt nebenher.', price: 10000, rarity: 'legendary', featured: true, data: { kind: 'nautilus', scale: 1.0 } },
+  { id: 'pet_cat', category: 'pet', name: 'Katze', desc: 'Eine schnurrende Katze als Begleiter.', price: 1800, rarity: 'rare', data: { kind: 'cat', scale: 1.0 } },
+  { id: 'pet_dog', category: 'pet', name: 'Hund', desc: 'Ein treuer Hund als Begleiter.', price: 1800, rarity: 'rare', data: { kind: 'dog', scale: 1.0 } },
+  { id: 'pet_chicken', category: 'pet', name: 'Huhn', desc: 'Ein gackerndes Huhn als Begleiter.', price: 500, rarity: 'common', data: { kind: 'chicken', scale: 1.0 } },
+  { id: 'pet_rabbit', category: 'pet', name: 'Kaninchen', desc: 'Ein hüpfendes Kaninchen als Begleiter.', price: 650, rarity: 'common', data: { kind: 'rabbit', scale: 1.0 } },
+  { id: 'pet_axolotl', category: 'pet', name: 'Axolotl', desc: 'Ein Axolotl als Begleiter. Farbe als Skin wählbar.', price: 2000, rarity: 'rare', data: { kind: 'axolotl', scale: 1.0 } },
+  { id: 'pet_bat', category: 'pet', name: 'Fledermaus', desc: 'Eine Fledermaus als Begleiter. Fliegt nebenher.', price: 1500, rarity: 'rare', data: { kind: 'bat', scale: 1.0 } },
+  { id: 'pet_fox', category: 'pet', name: 'Fuchs', desc: 'Ein Fuchs als Begleiter.', price: 2200, rarity: 'rare', data: { kind: 'fox', scale: 1.0 } },
+  { id: 'pet_parrot', category: 'pet', name: 'Papagei', desc: 'Ein Papagei als Begleiter. Fliegt nebenher.', price: 2200, rarity: 'rare', data: { kind: 'parrot', scale: 1.0 } },
+  { id: 'pet_bee', category: 'pet', name: 'Biene', desc: 'Eine Biene als Begleiter. Fliegt nebenher.', price: 900, rarity: 'common', data: { kind: 'bee', scale: 1.0 } },
+  { id: 'pet_squid', category: 'pet', name: 'Tintenfisch', desc: 'Ein Tintenfisch als Begleiter. Schwebt nebenher.', price: 1500, rarity: 'rare', data: { kind: 'squid', scale: 0.5 } },
+  { id: 'pet_nautilus', category: 'pet', name: 'Nautilus', desc: 'Ein Nautilus als Begleiter. Schwebt nebenher.', price: 10000, rarity: 'legendary', featured: true, data: { kind: 'nautilus', scale: 0.5 } },
   { id: 'pet_copper_golem', category: 'pet', name: 'Kupfergolem', desc: 'Ein Kupfergolem als Begleiter.', price: 10000, rarity: 'legendary', featured: true, data: { kind: 'copper_golem', scale: 1.0 } },
+  { id: 'pet_ember_drake', category: 'pet', name: 'Glutdrache', desc: 'Ein Glutdrache als Begleiter mit Flügelschlag und Schweifflammen. Sichtbar für alle mit Kollegen-Client.', price: 12000, rarity: 'legendary', featured: true, data: { kind: 'ember_drake', scale: 1.0, accent: '#ff6a00' } },
+  { id: 'pet_void_wyrm', category: 'pet', name: 'Leerendrache', desc: 'Ein Leerendrache als Begleiter mit Wellenschwanz und Leerenflügeln. Sichtbar für alle mit Kollegen-Client.', price: 12000, rarity: 'legendary', featured: true, data: { kind: 'void_wyrm', scale: 1.0, accent: '#7b2ff7' } },
+  { id: 'pet_shadow_reaper', category: 'pet', name: 'Schnitter', desc: 'Ein Schnitter als Begleiter mit Kapuze und Sense. Sichtbar für alle mit Kollegen-Client.', price: 10000, rarity: 'legendary', data: { kind: 'shadow_reaper', scale: 1.0, accent: '#6d28d9' } },
+  { id: 'pet_rune_sentinel', category: 'pet', name: 'Runen-Wächter', desc: 'Ein Runen-Wächter als Begleiter mit rotierenden Ringen. Sichtbar für alle mit Kollegen-Client.', price: 10000, rarity: 'legendary', data: { kind: 'rune_sentinel', scale: 1.0, accent: '#22d3ee' } },
+  { id: 'pet_flame_skull', category: 'pet', name: 'Flammenschädel', desc: 'Ein Flammenschädel als Begleiter mit kreisenden Feuerkugeln. Sichtbar für alle mit Kollegen-Client.', price: 9000, rarity: 'legendary', data: { kind: 'flame_skull', scale: 0.9, accent: '#ff3b00' } },
+  { id: 'pet_storm_cloud', category: 'pet', name: 'Sturmwölkchen', desc: 'Ein Sturmwölkchen als Begleiter mit Regen und Blitz. Sichtbar für alle mit Kollegen-Client.', price: 9000, rarity: 'legendary', data: { kind: 'storm_cloud', scale: 1.0, accent: '#60a5fa' } },
+  { id: 'pet_crystal_golem', category: 'pet', name: 'Kristallgolem', desc: 'Ein Kristallgolem als Begleiter mit leuchtenden Kristallen. Sichtbar für alle mit Kollegen-Client.', price: 8000, rarity: 'legendary', data: { kind: 'crystal_golem', scale: 1.0, accent: '#67e8f9' } },
+  { id: 'pet_spectre', category: 'pet', name: 'Spuk-Wisp', desc: 'Ein Spuk-Wisp als Begleiter, umkreist dich. Sichtbar für alle mit Kollegen-Client.', price: 7500, rarity: 'legendary', data: { kind: 'spectre', scale: 0.9, accent: '#c4b5fd' } },
+  { id: 'pet_lantern_spirit', category: 'pet', name: 'Laternengeist', desc: 'Ein Laternengeist als Begleiter mit Fächer-Flügeln. Sichtbar für alle mit Kollegen-Client.', price: 7500, rarity: 'legendary', data: { kind: 'lantern_spirit', scale: 0.9, accent: '#fbbf24' } },
+  { id: 'pet_bolt_bot', category: 'pet', name: 'Bolt-Bot', desc: 'Ein Bolt-Bot als Begleiter mit Rotor und Funken. Sichtbar für alle mit Kollegen-Client.', price: 5000, rarity: 'epic', data: { kind: 'bolt_bot', scale: 0.8, accent: '#facc15' } },
+  { id: 'pet_mini_ufo', category: 'pet', name: 'Mini-UFO', desc: 'Ein Mini-UFO als Begleiter mit Traktorstrahl. Sichtbar für alle mit Kollegen-Client.', price: 5000, rarity: 'epic', data: { kind: 'mini_ufo', scale: 0.9, accent: '#34d399' } },
+  { id: 'pet_grimoire', category: 'pet', name: 'Zauberbuch', desc: 'Ein Zauberbuch als Begleiter mit Runen. Sichtbar für alle mit Kollegen-Client.', price: 4500, rarity: 'epic', data: { kind: 'grimoire', scale: 0.8, accent: '#a78bfa' } },
+  { id: 'pet_mooncap', category: 'pet', name: 'Mondkappe', desc: 'Eine Mondkappe als Begleiter, hüpft nebenher. Sichtbar für alle mit Kollegen-Client.', price: 3200, rarity: 'epic', data: { kind: 'mooncap', scale: 0.7, accent: '#f472b6' } },
+  { id: 'pet_jelly_cube', category: 'pet', name: 'Gelee-Würfel', desc: 'Ein Gelee-Würfel als Begleiter mit Squash und Stretch. Sichtbar für alle mit Kollegen-Client.', price: 2800, rarity: 'epic', data: { kind: 'jelly_cube', scale: 0.6, accent: '#4ade80' } },
   { id: 'skin_baby_cat', category: 'pet_skin', name: 'Baby-Katze', desc: 'Skin für Katze. Exklusiv verliehen.', price: 0, rarity: 'legendary', hidden: true, data: { variantOf: 'pet_cat', variant: 'baby', label: 'Baby' } },
   { id: 'skin_baby_dog', category: 'pet_skin', name: 'Baby-Hund', desc: 'Skin für Hund. Exklusiv verliehen.', price: 0, rarity: 'legendary', hidden: true, data: { variantOf: 'pet_dog', variant: 'baby', label: 'Baby' } },
   { id: 'skin_axolotl_wild', category: 'pet_skin', name: 'Axolotl Wild', desc: 'Braune Axolotl-Farbe. Exklusiv verliehen.', price: 0, rarity: 'legendary', hidden: true, data: { variantOf: 'pet_axolotl', variant: 'wild', label: 'Wild' } },
@@ -183,6 +197,20 @@ const PET_MODES = {
   pet_bat: ['follow', 'hover'],
   pet_squid: ['follow', 'hover'],
   pet_nautilus: ['follow', 'hover'],
+  pet_ember_drake: ['follow', 'hover'],
+  pet_void_wyrm: ['follow', 'hover'],
+  pet_shadow_reaper: ['follow', 'hover'],
+  pet_rune_sentinel: ['follow', 'hover'],
+  pet_flame_skull: ['follow', 'hover'],
+  pet_storm_cloud: ['follow', 'hover'],
+  pet_crystal_golem: ['follow'],
+  pet_spectre: ['follow', 'hover'],
+  pet_lantern_spirit: ['follow', 'hover'],
+  pet_bolt_bot: ['follow', 'hover'],
+  pet_mini_ufo: ['follow', 'hover'],
+  pet_grimoire: ['follow', 'hover'],
+  pet_mooncap: ['follow'],
+  pet_jelly_cube: ['follow'],
 };
 
 function petModesFor(petId) {
@@ -268,6 +296,14 @@ function presenceCosmetics(u) {
       variant: cfg.variant,
     };
   }
+  const cape = eq.cape && catById(eq.cape);
+  if (cape && cape.data && cape.data.texture) out.cape = { texture: cape.data.texture, model: cape.data.model || null };
+  const back = eq.back_accessory && catById(eq.back_accessory);
+  if (back && back.data && back.data.texture) out.backAccessory = { texture: back.data.texture, model: back.data.model || null };
+  const head = eq.head_accessory && catById(eq.head_accessory);
+  if (head && head.data && head.data.texture) out.headAccessory = { texture: head.data.texture, model: head.data.model || null };
+  const shield = eq.shield && catById(eq.shield);
+  if (shield && shield.data && shield.data.texture) out.shield = { texture: shield.data.texture, model: shield.data.model || null };
   return out;
 }
 

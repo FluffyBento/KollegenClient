@@ -123,14 +123,17 @@ if (is121) {
                 if (rel.endsWith('mixin/ContainerScreenMixin.java')) {
                     t = t.replace('extractRenderState(Lnet/minecraft/client/gui/GuiGraphics;IIF)V', 'renderBackground(Lnet/minecraft/client/gui/GuiGraphics;IIF)V')
                 }
-                if (rel.endsWith('mixin/NametagMixin.java')) {
+if (rel.endsWith('mixin/NametagMixin.java')) {
                     t = t.replace('method = "submitNameDisplay(', 'method = "submitNameTag(')
                 }
-if (rel.endsWith('presence/PetRenderer.java')) {
+                if (rel.endsWith('presence/PetRenderer.java')) {
                     t = t.replace('collector.submitNameTag(poseStack, new Vec3(pos.x, pos.y + 2.2, pos.z), 0, nameComp, true, 15728880, camera);', 'collector.submitNameTag(poseStack, new Vec3(pos.x, pos.y + 2.2, pos.z), 0, nameComp, true, 15728880, 0.0, camera);')
                     if (!t.contains('EntitySpawnReason')) {
                         t = t.replace('type.create(level)', 'type.create(level, net.minecraft.world.entity.EntitySpawnReason.LOAD)')
                     }
+                }
+                if (rel.endsWith('presence/MythicPets.java')) {
+                    t = t.replace('collector.submitNameTag(poseStack, anchor, 0, comp, false, 15728880, state.cameraRenderState);', 'collector.submitNameTag(poseStack, anchor, 0, comp, false, 15728880, 0.0, state.cameraRenderState);')
                 }
                 if (rel.endsWith('mixin/NametagMixin.java')) {
                     t = t.replace('method = "submitNameDisplay(', 'method = "submitNameTag(')
@@ -199,7 +202,8 @@ if (rel.endsWith('mixin/MinecraftAccessor.java')) {
     tasks.register('fixup1211Jar') {
         dependsOn('build')
         doLast {
-            def jarFile = file("${buildDir}/libs/kollegen-client-mod-1.21.11-${project.mod_version}.jar")
+            def jarFile = file("${buildDir}/libs/${project.archives_base_name}-${project.mod_version}.jar")
+            def targetFile = file("${buildDir}/libs/kollegen-client-mod-1.21.11.jar")
             def infos = []
             def data = [:]
             new java.util.zip.ZipFile(jarFile).withCloseable { z ->
@@ -211,12 +215,13 @@ if (rel.endsWith('mixin/MinecraftAccessor.java')) {
             def slurper = new groovy.json.JsonSlurper()
             def mix = slurper.parseText(new String(data['kollegen.mixins.json'], 'UTF-8'))
             mix.remove('refmap')
+            mix.mixins = mix.mixins.findAll { !(it in ['FogRendererMixin']) }
             data['kollegen.mixins.json'] = (groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(mix)) + '\n').getBytes('UTF-8')
             def fmj = slurper.parseText(new String(data['fabric.mod.json'], 'UTF-8'))
             fmj.depends = [fabricloader: '>=0.16.0', minecraft: '>=1.21', java: '>=21']
             data['fabric.mod.json'] = (groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(fmj)) + '\n').getBytes('UTF-8')
-            jarFile.delete()
-            new java.util.zip.ZipOutputStream(new FileOutputStream(jarFile)).withCloseable { out ->
+            targetFile.delete()
+            new java.util.zip.ZipOutputStream(new FileOutputStream(targetFile)).withCloseable { out ->
                 infos.each { name ->
                     out.putNextEntry(new java.util.zip.ZipEntry(name))
                     out.write(data[name])
@@ -251,6 +256,9 @@ if (is262) {
             fileTree("${portDir}").matching { include '**/*.java' }.each { File f ->
                 String rel = portDir.toPath().relativize(f.toPath()).toString().replace(File.separator, '/')
                 String t = f.getText('UTF-8')
+                if (rel.endsWith('presence/MythicPets.java')) {
+                    t = t.replace('import net.minecraft.client.renderer.state.LevelRenderState;', 'import net.minecraft.client.renderer.state.level.LevelRenderState;')
+                }
                 if (rel.endsWith('presence/PetRenderer.java')) {
                     t = t.replace('import net.minecraft.client.renderer.state.LevelRenderState;', 'import net.minecraft.client.renderer.state.level.LevelRenderState;')
                     t = t.replace('return EntityType.ENDER_DRAGON;', 'return EntityTypes.ENDER_DRAGON;')

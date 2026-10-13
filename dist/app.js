@@ -3969,7 +3969,7 @@ startBackgroundIntervals();
 
   let storeFilter = "alle";
   let storeGroup = "profil";
-  const STORE_INGAME_CATS = ["pet", "clothing", "effect", "cape", "shield", "back_accessory", "head_accessory"];
+  const STORE_INGAME_CATS = ["pet", "clothing", "effect", "cape", "shield", "back_accessory", "head_accessory", "pet_skin"];
   let storeRar = "alle";
   let storeSort = "price-asc";
 
@@ -4373,14 +4373,14 @@ startBackgroundIntervals();
       return;
     }
     const equipped = me.equipped || {};
-    const owned = store.catalog.filter((it) => it.owned && ["pet", "pet_skin", "name_color", "badge", "sticker", "title", "profil_stil"].includes(it.category));
+    const owned = store.catalog.filter((it) => it.owned && ["pet", "pet_skin", "name_color", "badge", "sticker", "title", "profil_stil", "cape", "shield", "back_accessory", "head_accessory"].includes(it.category));
     const cosmCatLabel = (c) => {
-      const known = { pet: "Haustier", title: "Titel", name_color: "Namensfarbe", badge: "Abzeichen", profile_frame: "Profil-Rahmen", profile_bg: "Profil-Hintergrund", banner: "Banner", profil_stil: "Profilstil", font: "Schriftart", sticker: "Aufkleber", avatar_theme: "Avatar-Hintergrund" };
+      const known = { pet: "Haustier", title: "Titel", name_color: "Namensfarbe", badge: "Abzeichen", profile_frame: "Profil-Rahmen", profile_bg: "Profil-Hintergrund", banner: "Banner", profil_stil: "Profilstil", font: "Schriftart", sticker: "Aufkleber", avatar_theme: "Avatar-Hintergrund", cape: "Umhang", shield: "Schild", back_accessory: "Rücken", head_accessory: "Kopf" };
       if (c && known[c]) return known[c];
       const s = String(c || "").replace(/_/g, " ").trim();
       return s ? s.charAt(0).toUpperCase() + s.slice(1) : "";
     };
-    const cosmOrder = ["title", "badge", "sticker", "name_color", "profil_stil"];
+    const cosmOrder = ["title", "badge", "sticker", "name_color", "profil_stil", "cape", "shield", "back_accessory", "head_accessory"];
     let cosmCollapsed = {};
     try { cosmCollapsed = JSON.parse(localStorage.getItem("kosmetCollapsed") || "{}"); } catch (e) { cosmCollapsed = {}; }
     const cosmIsCollapsed = (cat) => cosmCollapsed[cat] !== false;

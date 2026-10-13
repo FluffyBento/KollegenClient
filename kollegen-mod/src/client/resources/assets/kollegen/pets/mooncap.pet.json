@@ -1,0 +1,608 @@
+{
+ "format": "mythic-cosmetic-pet/1",
+ "id": "mooncap",
+ "name": "Mondkappe",
+ "space": {
+  "description": "Minecraft-Java-Entity-Modellraum: 1 Einheit = 1/16 Block, Y zeigt nach UNTEN, Bodenhöhe y=24, Vorderseite = -Z, +X = linke Körperseite.",
+  "pivots": "'pivot' ist relativ zum Eltern-Knochen. Würfel: 'origin' relativ zum eigenen Pivot, 'size' = [Breite,Höhe,Tiefe], 'uv' = Box-UV-Ursprung [u,v] (Layout wie Minecraft-Skins).",
+  "rotation": "Grad [pitch(x), yaw(y), roll(z)], Reihenfolge Z·Y·X; positive Pitch = Vorderseite nach unten.",
+  "animation": "Animationswerte sind Deltas auf die Ruhepose. r=Rotation(Grad), p=Position(px, Y nach unten), s=Skalierung (absolut, 1=normal). Wert = Zahl oder [offset, amplitude, zyklen, phase, 'sin'|'saw']  ->  offset + amplitude * wave(zyklen*φ + phase), φ = (Zeit % length)/length."
+ },
+ "texture": {
+  "file": "mooncap.png",
+  "glow": "mooncap_glow.png",
+  "width": 64,
+  "height": 64,
+  "notes": "Glow-Textur additiv/unbeleuchtet über das Modell zeichnen (wie Spinnenaugen)."
+ },
+ "bones": [
+  {
+   "name": "legL",
+   "parent": null,
+   "pivot": [
+    1.5,
+    20.0,
+    0.0
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "cubes": [
+    {
+     "uv": [
+      0,
+      0
+     ],
+     "origin": [
+      -1.0,
+      0.0,
+      -1.0
+     ],
+     "size": [
+      2.0,
+      4.0,
+      2.0
+     ]
+    }
+   ]
+  },
+  {
+   "name": "legR",
+   "parent": null,
+   "pivot": [
+    -1.5,
+    20.0,
+    0.0
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "cubes": [
+    {
+     "uv": [
+      8,
+      0
+     ],
+     "origin": [
+      -1.0,
+      0.0,
+      -1.0
+     ],
+     "size": [
+      2.0,
+      4.0,
+      2.0
+     ]
+    }
+   ]
+  },
+  {
+   "name": "body",
+   "parent": null,
+   "pivot": [
+    0.0,
+    20.0,
+    0.0
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "cubes": [
+    {
+     "uv": [
+      0,
+      6
+     ],
+     "origin": [
+      -3.0,
+      -6.0,
+      -2.0
+     ],
+     "size": [
+      6.0,
+      6.0,
+      4.0
+     ]
+    }
+   ]
+  },
+  {
+   "name": "armL",
+   "parent": "body",
+   "pivot": [
+    3.0,
+    -5.0,
+    0.0
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "cubes": [
+    {
+     "uv": [
+      20,
+      6
+     ],
+     "origin": [
+      0.0,
+      0.0,
+      -1.0
+     ],
+     "size": [
+      1.0,
+      4.0,
+      2.0
+     ]
+    }
+   ]
+  },
+  {
+   "name": "armR",
+   "parent": "body",
+   "pivot": [
+    -3.0,
+    -5.0,
+    0.0
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "cubes": [
+    {
+     "uv": [
+      26,
+      6
+     ],
+     "origin": [
+      -1.0,
+      0.0,
+      -1.0
+     ],
+     "size": [
+      1.0,
+      4.0,
+      2.0
+     ]
+    }
+   ]
+  },
+  {
+   "name": "cap",
+   "parent": null,
+   "pivot": [
+    0.0,
+    14.0,
+    0.0
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "cubes": [
+    {
+     "uv": [
+      0,
+      16
+     ],
+     "origin": [
+      -6.0,
+      -4.0,
+      -6.0
+     ],
+     "size": [
+      12.0,
+      4.0,
+      12.0
+     ]
+    },
+    {
+     "uv": [
+      0,
+      32
+     ],
+     "origin": [
+      -3.5,
+      -6.0,
+      -3.5
+     ],
+     "size": [
+      7.0,
+      2.0,
+      7.0
+     ]
+    }
+   ]
+  },
+  {
+   "name": "sprout",
+   "parent": "cap",
+   "pivot": [
+    0.0,
+    -6.0,
+    0.0
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "cubes": [
+    {
+     "uv": [
+      40,
+      32
+     ],
+     "origin": [
+      -0.5,
+      -4.0,
+      -0.5
+     ],
+     "size": [
+      1.0,
+      4.0,
+      1.0
+     ]
+    }
+   ]
+  },
+  {
+   "name": "leaf",
+   "parent": "sprout",
+   "pivot": [
+    0.5,
+    -4.0,
+    0.0
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "cubes": [
+    {
+     "uv": [
+      44,
+      32
+     ],
+     "origin": [
+      0.0,
+      -1.0,
+      -1.0
+     ],
+     "size": [
+      3.0,
+      1.0,
+      2.0
+     ]
+    }
+   ]
+  }
+ ],
+ "animations": {
+  "idle": {
+   "length": 2,
+   "bones": {
+    "cap": {
+     "p": [
+      0,
+      [
+       0,
+       0.3,
+       1,
+       0,
+       "s"
+      ],
+      0
+     ],
+     "r": [
+      [
+       0,
+       4,
+       1,
+       0.1,
+       "s"
+      ],
+      [
+       0,
+       10,
+       1,
+       0.3,
+       "s"
+      ],
+      [
+       0,
+       3,
+       1,
+       0,
+       "s"
+      ]
+     ]
+    },
+    "leaf": {
+     "r": [
+      0,
+      0,
+      [
+       0,
+       17,
+       2,
+       0,
+       "s"
+      ]
+     ]
+    },
+    "armL": {
+     "r": [
+      0,
+      0,
+      [
+       14,
+       4,
+       1,
+       0,
+       "s"
+      ]
+     ]
+    },
+    "armR": {
+     "r": [
+      0,
+      0,
+      [
+       -14,
+       -4,
+       1,
+       0,
+       "s"
+      ]
+     ]
+    }
+   }
+  },
+  "move": {
+   "length": 1,
+   "bones": {
+    "cap": {
+     "p": [
+      0,
+      [
+       -1.75,
+       1.75,
+       2,
+       0.25,
+       "s"
+      ],
+      0
+     ],
+     "r": [
+      [
+       0,
+       4,
+       1,
+       0.1,
+       "s"
+      ],
+      [
+       0,
+       10,
+       1,
+       0.3,
+       "s"
+      ],
+      [
+       0,
+       3,
+       1,
+       0,
+       "s"
+      ]
+     ]
+    },
+    "leaf": {
+     "r": [
+      0,
+      0,
+      [
+       0,
+       17,
+       2,
+       0,
+       "s"
+      ]
+     ]
+    },
+    "body": {
+     "p": [
+      0,
+      [
+       -1.75,
+       1.75,
+       2,
+       0.25,
+       "s"
+      ],
+      0
+     ]
+    },
+    "legL": {
+     "r": [
+      [
+       0,
+       40,
+       1,
+       0,
+       "s"
+      ],
+      0,
+      0
+     ]
+    },
+    "legR": {
+     "r": [
+      [
+       0,
+       -40,
+       1,
+       0,
+       "s"
+      ],
+      0,
+      0
+     ]
+    },
+    "armL": {
+     "r": [
+      0,
+      0,
+      [
+       14,
+       29,
+       1,
+       0,
+       "s"
+      ]
+     ]
+    },
+    "armR": {
+     "r": [
+      0,
+      0,
+      [
+       -14,
+       -29,
+       1,
+       0,
+       "s"
+      ]
+     ]
+    }
+   }
+  },
+  "sit": {
+   "length": 2,
+   "bones": {
+    "cap": {
+     "p": [
+      0,
+      4,
+      0
+     ],
+     "r": [
+      [
+       0,
+       4,
+       1,
+       0.1,
+       "s"
+      ],
+      [
+       0,
+       10,
+       1,
+       0.3,
+       "s"
+      ],
+      [
+       0,
+       3,
+       1,
+       0,
+       "s"
+      ]
+     ]
+    },
+    "leaf": {
+     "r": [
+      0,
+      0,
+      [
+       0,
+       17,
+       2,
+       0,
+       "s"
+      ]
+     ]
+    },
+    "body": {
+     "p": [
+      0,
+      4,
+      0
+     ]
+    },
+    "legL": {
+     "s": [
+      0,
+      0,
+      0
+     ]
+    },
+    "legR": {
+     "s": [
+      0,
+      0,
+      0
+     ]
+    },
+    "armL": {
+     "r": [
+      0,
+      0,
+      34
+     ]
+    },
+    "armR": {
+     "r": [
+      0,
+      0,
+      -34
+     ]
+    }
+   }
+  }
+ },
+ "behavior": {
+  "mode": "ground",
+  "side": "behind-right",
+  "look_at_player": true,
+  "follow": {
+   "start_distance": 2.6,
+   "stop_distance": 1.4,
+   "speed": 4.2,
+   "teleport_distance": 16
+  },
+  "states": {
+   "idle": "idle",
+   "moving": "move",
+   "sit": "sit",
+   "sit_after_idle_seconds": 10
+  },
+  "reactions": {
+   "player_sprint": {
+    "speed_multiplier": 1.5
+   },
+   "player_sneak": {
+    "state": "sit"
+   }
+  },
+  "particles": [
+   {
+    "type": "spore",
+    "rate_per_second": 3,
+    "bone": "cap"
+   }
+  ]
+ }
+}

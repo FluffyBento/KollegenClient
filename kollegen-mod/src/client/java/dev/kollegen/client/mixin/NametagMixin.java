@@ -28,14 +28,13 @@ public class NametagMixin {
 
     private static final Identifier LOGO = Identifier.fromNamespaceAndPath("kollegen", "textures/gui/logo_mark.png");
     private static final net.minecraft.client.renderer.rendertype.RenderType LOGO_TYPE = RenderTypes.textSeeThrough(LOGO);
-    private static final java.util.Map<AvatarRenderState, java.util.UUID> STATE_ID = new java.util.WeakHashMap<>();
 
     @Inject(method = "extractRenderState(Lnet/minecraft/world/entity/Avatar;Lnet/minecraft/client/renderer/entity/state/AvatarRenderState;F)V",
             at = @At("RETURN"))
     private void kollegen$track(net.minecraft.world.entity.Avatar entity, AvatarRenderState state, float f, CallbackInfo ci) {
         try {
             if (entity instanceof net.minecraft.world.entity.player.Player p) {
-                STATE_ID.put(state, p.getUUID());
+                dev.kollegen.client.presence.RenderStateIds.put(state, p.getUUID());
                 PetRenderer.notePosition(p.getUUID(), p.position(), p.getYRot());
             }
         } catch (Throwable ignored) {
@@ -51,7 +50,7 @@ public class NametagMixin {
                 kollegen$dbg("skip-discrete");
                 return;
             }
-            java.util.UUID id = STATE_ID.get(state);
+            java.util.UUID id = dev.kollegen.client.presence.RenderStateIds.get(state);
             if (id == null) id = kollegen$resolve(state);
             if (id == null) {
                 kollegen$dbg("skip-no-id");

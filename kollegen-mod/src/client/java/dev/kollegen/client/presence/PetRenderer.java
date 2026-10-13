@@ -107,6 +107,10 @@ public final class PetRenderer {
 
             pet.updatePosition(base, yaw, d);
         }
+        try {
+            MythicPets.tickAll(mc);
+        } catch (Throwable ignored) {
+        }
     }
 
     public static void extractPets(Minecraft mc, DeltaTracker tracker, LevelRenderState state) {
@@ -198,9 +202,10 @@ public final class PetRenderer {
             if (d == null || d.petKind == null) continue;
             double scale = d.petScale > 0.0 ? d.petScale : 0.2;
             Vec3 pos = pet.entity.position();
+            Vec3 cam = state.cameraRenderState.pos;
             poseStack.pushPose();
             try {
-                poseStack.translate(pos.x, pos.y, pos.z);
+                poseStack.translate(pos.x - cam.x, pos.y - cam.y, pos.z - cam.z);
                 poseStack.scale((float) scale, (float) scale, (float) scale);
                 EntityRenderState renderState = dispatcher.extractEntity(pet.entity, 0.0F);
                 if (renderState != null) {
@@ -210,6 +215,10 @@ public final class PetRenderer {
             } finally {
                 poseStack.popPose();
             }
+        }
+        try {
+            MythicPets.submitAll(mc, poseStack, state, collector);
+        } catch (Throwable ignored) {
         }
     }
 
@@ -249,7 +258,8 @@ public final class PetRenderer {
         double scale = d.petScale > 0.0 ? d.petScale : 0.2;
         poseStack.pushPose();
         try {
-            poseStack.translate(pos.x, pos.y, pos.z);
+            Vec3 cam = camera.pos;
+            poseStack.translate(pos.x - cam.x, pos.y - cam.y, pos.z - cam.z);
             poseStack.scale((float) scale, (float) scale, (float) scale);
             EntityRenderDispatcher dispatcher = mc.getEntityRenderDispatcher();
             EntityRenderState renderState = dispatcher.extractEntity(pet.entity, 0.0F);
@@ -710,7 +720,7 @@ public final class PetRenderer {
         }
     }
 
-    private static double groundTop(Level level, double x, double yRef, double z) {
+    static double groundTop(Level level, double x, double yRef, double z) {
         if (level == null) return Double.NaN;
         try {
             int bx = (int) Math.floor(x);
@@ -726,7 +736,7 @@ public final class PetRenderer {
         return Double.NaN;
     }
 
-    private static double[] clipHorizontal(Level level, Entity ent, Vec3 from, double yBase, double nx, double nz, double height) {
+    static double[] clipHorizontal(Level level, Entity ent, Vec3 from, double yBase, double nx, double nz, double height) {
         double[] out = new double[]{nx, nz};
         if (level == null || ent == null || from == null) return out;
         try {
@@ -848,6 +858,10 @@ public final class PetRenderer {
         if (ownerId == null || level == null || petKind == null) return;
 
         String effKind = effectiveKind(petKind, variant);
+        if (MythicPets.isMythicKind(effKind)) {
+            MythicPets.ensure(ownerId, level, effKind);
+            return;
+        }
         PetInstance existing = PETS.get(ownerId);
         if (existing != null && existing.level == level && effKind.equals(existing.kind)
                 && (variant == null ? existing.variant == null : variant.equals(existing.variant))) return;

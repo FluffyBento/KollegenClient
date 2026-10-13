@@ -1,0 +1,833 @@
+{
+ "format": "mythic-cosmetic-pet/1",
+ "id": "shadow_reaper",
+ "name": "Schnitter",
+ "space": {
+  "description": "Minecraft-Java-Entity-Modellraum: 1 Einheit = 1/16 Block, Y zeigt nach UNTEN, Bodenhöhe y=24, Vorderseite = -Z, +X = linke Körperseite.",
+  "pivots": "'pivot' ist relativ zum Eltern-Knochen. Würfel: 'origin' relativ zum eigenen Pivot, 'size' = [Breite,Höhe,Tiefe], 'uv' = Box-UV-Ursprung [u,v] (Layout wie Minecraft-Skins).",
+  "rotation": "Grad [pitch(x), yaw(y), roll(z)], Reihenfolge Z·Y·X; positive Pitch = Vorderseite nach unten.",
+  "animation": "Animationswerte sind Deltas auf die Ruhepose. r=Rotation(Grad), p=Position(px, Y nach unten), s=Skalierung (absolut, 1=normal). Wert = Zahl oder [offset, amplitude, zyklen, phase, 'sin'|'saw']  ->  offset + amplitude * wave(zyklen*φ + phase), φ = (Zeit % length)/length."
+ },
+ "texture": {
+  "file": "shadow_reaper.png",
+  "glow": "shadow_reaper_glow.png",
+  "width": 64,
+  "height": 64,
+  "notes": "Glow-Textur additiv/unbeleuchtet über das Modell zeichnen (wie Spinnenaugen)."
+ },
+ "bones": [
+  {
+   "name": "body",
+   "parent": null,
+   "pivot": [
+    0,
+    8,
+    0
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "cubes": [
+    {
+     "uv": [
+      0,
+      0
+     ],
+     "origin": [
+      -4,
+      0,
+      -2.5
+     ],
+     "size": [
+      8,
+      7,
+      5
+     ]
+    }
+   ]
+  },
+  {
+   "name": "head",
+   "parent": "body",
+   "pivot": [
+    0,
+    0,
+    0
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "cubes": [
+    {
+     "uv": [
+      26,
+      0
+     ],
+     "origin": [
+      -3.5,
+      -7,
+      -3.5
+     ],
+     "size": [
+      7,
+      7,
+      7
+     ]
+    }
+   ]
+  },
+  {
+   "name": "tatter1",
+   "parent": "body",
+   "pivot": [
+    0,
+    7,
+    0
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "cubes": [
+    {
+     "uv": [
+      0,
+      14
+     ],
+     "origin": [
+      -3.5,
+      0,
+      -2
+     ],
+     "size": [
+      7,
+      3,
+      4
+     ]
+    }
+   ]
+  },
+  {
+   "name": "tatter2",
+   "parent": "tatter1",
+   "pivot": [
+    0,
+    3,
+    0
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "cubes": [
+    {
+     "uv": [
+      22,
+      14
+     ],
+     "origin": [
+      -2.5,
+      0,
+      -1.5
+     ],
+     "size": [
+      5,
+      3,
+      3
+     ]
+    }
+   ]
+  },
+  {
+   "name": "tatter3",
+   "parent": "tatter2",
+   "pivot": [
+    0,
+    3,
+    0
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "cubes": [
+    {
+     "uv": [
+      38,
+      14
+     ],
+     "origin": [
+      -1.5,
+      0,
+      -1
+     ],
+     "size": [
+      3,
+      3,
+      2
+     ]
+    }
+   ]
+  },
+  {
+   "name": "armL",
+   "parent": "body",
+   "pivot": [
+    4,
+    1,
+    0
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "cubes": [
+    {
+     "uv": [
+      48,
+      14
+     ],
+     "origin": [
+      0,
+      0,
+      -1.5
+     ],
+     "size": [
+      2,
+      6,
+      3
+     ]
+    }
+   ]
+  },
+  {
+   "name": "armR",
+   "parent": "body",
+   "pivot": [
+    -4,
+    1,
+    0
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "cubes": [
+    {
+     "uv": [
+      0,
+      23
+     ],
+     "origin": [
+      -2,
+      0,
+      -1.5
+     ],
+     "size": [
+      2,
+      6,
+      3
+     ]
+    }
+   ]
+  },
+  {
+   "name": "handle",
+   "parent": "armR",
+   "pivot": [
+    -1,
+    5,
+    0
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "cubes": [
+    {
+     "uv": [
+      10,
+      23
+     ],
+     "origin": [
+      -0.5,
+      -12,
+      -0.5
+     ],
+     "size": [
+      1,
+      20,
+      1
+     ]
+    }
+   ]
+  },
+  {
+   "name": "blade",
+   "parent": "handle",
+   "pivot": [
+    0,
+    -12,
+    0
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "cubes": [
+    {
+     "uv": [
+      14,
+      23
+     ],
+     "origin": [
+      -0.5,
+      -1.5,
+      -9
+     ],
+     "size": [
+      1,
+      3,
+      9
+     ]
+    }
+   ]
+  }
+ ],
+ "animations": {
+  "idle": {
+   "length": 3,
+   "bones": {
+    "body": {
+     "p": [
+      0,
+      [
+       0,
+       1.5,
+       1,
+       0,
+       "s"
+      ],
+      0
+     ],
+     "r": [
+      0,
+      0,
+      [
+       0,
+       2,
+       1,
+       0,
+       "s"
+      ]
+     ]
+    },
+    "head": {
+     "r": [
+      [
+       0,
+       3,
+       1,
+       0.3,
+       "s"
+      ],
+      [
+       0,
+       8,
+       1,
+       0.1,
+       "s"
+      ],
+      0
+     ]
+    },
+    "tatter1": {
+     "r": [
+      0.0,
+      [
+       0,
+       10,
+       1,
+       0,
+       "s"
+      ],
+      [
+       0,
+       8.0,
+       1,
+       0.2,
+       "s"
+      ]
+     ]
+    },
+    "tatter2": {
+     "r": [
+      0.0,
+      [
+       0,
+       13.0,
+       1,
+       -0.1,
+       "s"
+      ],
+      [
+       0,
+       10,
+       1,
+       0.1,
+       "s"
+      ]
+     ]
+    },
+    "tatter3": {
+     "r": [
+      0.0,
+      [
+       0,
+       16.0,
+       1,
+       -0.2,
+       "s"
+      ],
+      [
+       0,
+       12.0,
+       1,
+       0,
+       "s"
+      ]
+     ]
+    },
+    "armL": {
+     "r": [
+      [
+       10,
+       6,
+       1,
+       0,
+       "s"
+      ],
+      0,
+      [
+       8,
+       5,
+       1,
+       0,
+       "s"
+      ]
+     ]
+    },
+    "armR": {
+     "r": [
+      [
+       -10,
+       4,
+       1,
+       0.25,
+       "s"
+      ],
+      0,
+      [
+       -8,
+       -3,
+       1,
+       0,
+       "s"
+      ]
+     ]
+    },
+    "handle": {
+     "r": [
+      [
+       0,
+       6,
+       1,
+       0.25,
+       "s"
+      ],
+      0,
+      [
+       0,
+       3,
+       1,
+       0,
+       "s"
+      ]
+     ]
+    }
+   }
+  },
+  "move": {
+   "length": 1.2,
+   "bones": {
+    "body": {
+     "p": [
+      0,
+      [
+       0,
+       1.5,
+       1,
+       0,
+       "s"
+      ],
+      0
+     ],
+     "r": [
+      22,
+      0,
+      [
+       0,
+       2,
+       1,
+       0,
+       "s"
+      ]
+     ]
+    },
+    "head": {
+     "r": [
+      [
+       0,
+       3,
+       1,
+       0.3,
+       "s"
+      ],
+      [
+       0,
+       8,
+       1,
+       0.1,
+       "s"
+      ],
+      0
+     ]
+    },
+    "tatter1": {
+     "r": [
+      -17.6,
+      [
+       0,
+       16,
+       1,
+       0,
+       "s"
+      ],
+      [
+       0,
+       12.8,
+       1,
+       0.2,
+       "s"
+      ]
+     ]
+    },
+    "tatter2": {
+     "r": [
+      -13.2,
+      [
+       0,
+       20.8,
+       1,
+       -0.1,
+       "s"
+      ],
+      [
+       0,
+       16,
+       1,
+       0.1,
+       "s"
+      ]
+     ]
+    },
+    "tatter3": {
+     "r": [
+      -11.0,
+      [
+       0,
+       25.6,
+       1,
+       -0.2,
+       "s"
+      ],
+      [
+       0,
+       19.2,
+       1,
+       0,
+       "s"
+      ]
+     ]
+    },
+    "armL": {
+     "r": [
+      [
+       -35,
+       6,
+       1,
+       0,
+       "s"
+      ],
+      0,
+      [
+       8,
+       5,
+       1,
+       0,
+       "s"
+      ]
+     ]
+    },
+    "armR": {
+     "r": [
+      [
+       35,
+       4,
+       1,
+       0.25,
+       "s"
+      ],
+      0,
+      [
+       -8,
+       -3,
+       1,
+       0,
+       "s"
+      ]
+     ]
+    },
+    "handle": {
+     "r": [
+      [
+       0,
+       25,
+       1,
+       0.25,
+       "s"
+      ],
+      0,
+      [
+       0,
+       3,
+       1,
+       0,
+       "s"
+      ]
+     ]
+    }
+   }
+  },
+  "sit": {
+   "length": 3,
+   "bones": {
+    "body": {
+     "p": [
+      0,
+      [
+       3,
+       1.5,
+       1,
+       0,
+       "s"
+      ],
+      0
+     ],
+     "r": [
+      6,
+      0,
+      [
+       0,
+       2,
+       1,
+       0,
+       "s"
+      ]
+     ]
+    },
+    "head": {
+     "r": [
+      [
+       15,
+       3,
+       1,
+       0.3,
+       "s"
+      ],
+      [
+       0,
+       8,
+       1,
+       0.1,
+       "s"
+      ],
+      0
+     ]
+    },
+    "tatter1": {
+     "r": [
+      -4.800000000000001,
+      [
+       0,
+       6,
+       1,
+       0,
+       "s"
+      ],
+      [
+       0,
+       4.800000000000001,
+       1,
+       0.2,
+       "s"
+      ]
+     ]
+    },
+    "tatter2": {
+     "r": [
+      -3.5999999999999996,
+      [
+       0,
+       7.800000000000001,
+       1,
+       -0.1,
+       "s"
+      ],
+      [
+       0,
+       6,
+       1,
+       0.1,
+       "s"
+      ]
+     ]
+    },
+    "tatter3": {
+     "r": [
+      -3.0,
+      [
+       0,
+       9.600000000000001,
+       1,
+       -0.2,
+       "s"
+      ],
+      [
+       0,
+       7.199999999999999,
+       1,
+       0,
+       "s"
+      ]
+     ]
+    },
+    "armL": {
+     "r": [
+      [
+       10,
+       6,
+       1,
+       0,
+       "s"
+      ],
+      0,
+      [
+       8,
+       5,
+       1,
+       0,
+       "s"
+      ]
+     ]
+    },
+    "armR": {
+     "r": [
+      [
+       -10,
+       4,
+       1,
+       0.25,
+       "s"
+      ],
+      0,
+      [
+       -8,
+       -3,
+       1,
+       0,
+       "s"
+      ]
+     ]
+    },
+    "handle": {
+     "r": [
+      [
+       0,
+       3,
+       1,
+       0.25,
+       "s"
+      ],
+      0,
+      [
+       0,
+       3,
+       1,
+       0,
+       "s"
+      ]
+     ]
+    }
+   }
+  }
+ },
+ "behavior": {
+  "mode": "hover",
+  "side": "behind-right",
+  "look_at_player": true,
+  "follow": {
+   "start_distance": 2.2,
+   "stop_distance": 1.4,
+   "speed": 5.0,
+   "teleport_distance": 16
+  },
+  "states": {
+   "idle": "idle",
+   "moving": "move",
+   "sit": "sit",
+   "sit_after_idle_seconds": 6
+  },
+  "reactions": {
+   "player_sprint": {
+    "speed_multiplier": 1.5
+   },
+   "player_sneak": {
+    "state": "sit"
+   }
+  },
+  "particles": [
+   {
+    "type": "soul",
+    "rate_per_second": 4,
+    "bone": "tatter3"
+   }
+  ],
+  "hover": {
+   "height": 1.6,
+   "bob_amplitude": 0.06,
+   "bob_speed": 1.2
+  }
+ }
+}

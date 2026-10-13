@@ -36,7 +36,8 @@
     "DisplayAccessor",
     "FoxAccessor",
     "AxolotlAccessor",
-    "PlayerRendererMixin"
+    "PlayerCosmeticsMixin",
+    "ShieldLayerMixin"
   ],
   "injectors": {
     "defaultRequire": 1

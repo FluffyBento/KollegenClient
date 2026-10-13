@@ -23,6 +23,7 @@ pub const COMPANION_MOD_FILENAME: &str = "kollegen-client-mod.jar";
 pub const COMPANION_MOD_PREFIX: &str = "kollegen-client";
 pub const COMPANION_MOD_FILENAME_1_21: &str = "kollegen-client-mod-1.21.11.jar";
 pub const COMPANION_MOD_FILENAME_26_2: &str = "kollegen-client-mod-26.2.jar";
+pub const COMPANION_MOD_VERSION: &str = "1.21.89";
 
 pub fn companion_target_versions() -> &'static [&'static str] {
     &["1.21.11", "26.2"]
@@ -379,6 +380,40 @@ fn companion_candidate_ok(p: &Path, version: &str) -> bool {
         && jar_supports_mc(p, version)
         && companion_bins_support_mc(p, version)
         && (mc_runtime_uses_mojang_names(version) || !jar_code_is_unmapped(p))
+        && jar_mod_version_matches(p)
+}
+
+/// Prüft, ob die Mod-Version im Jar zur erwarteten Mod-Version passt
+fn jar_mod_version_matches(p: &Path) -> bool {
+    use zip::ZipArchive;
+    use std::fs::File;
+    use std::io::Read;
+    
+    let file = match File::open(p) {
+        Ok(f) => f,
+        Err(_) => return false,
+    };
+    let mut archive = match ZipArchive::new(file) {
+        Ok(a) => a,
+        Err(_) => return false,
+    };
+    
+    let mut fmj = match archive.by_name("fabric.mod.json") {
+        Ok(f) => f,
+        Err(_) => return false,
+    };
+    let mut json_str = String::new();
+    if fmj.read_to_string(&mut json_str).is_err() {
+        return false;
+    }
+    
+    let json: serde_json::Value = match serde_json::from_str(&json_str) {
+        Ok(v) => v,
+        Err(_) => return false,
+    };
+    
+    let mod_version = json.get("version").and_then(|v| v.as_str()).unwrap_or("");
+    mod_version == COMPANION_MOD_VERSION
 }
 
 /// Prüft zusätzlich die eingebetteten Bundle-Payloads: Ein Jar mit umgeschriebener
@@ -413,30 +448,34 @@ pub fn companion_jar(data_dir: &Path, version: &str) -> Option<PathBuf> {
     
     if let Ok(exe) = std::env::current_exe() {
         if let Some(dir) = exe.parent() {
-            // Ressourcen liegen je nach Paketformat woanders (alle OS abgedeckt):
-            // Windows NSIS / AppImage / Flatpak: neben der Binary (resources/),
-            // macOS .app-Bundle: Contents/Resources,
-            // Linux deb/rpm: /usr/lib/<Produkt>/resources.
-            for cand in [
-                dir.join("resources").join(filename),
-                dir.join(filename),
-                dir.join("../Resources").join(filename),
-                dir.join("../lib/Kollegen Client/resources").join(filename),
-                dir.join("../lib/kollegen-client/resources").join(filename),
-            ] {
-                if companion_candidate_ok(&cand, version) {
-                    return Some(cand);
+            // Skip embedded resources in debug builds - they contain old mod versions
+            let is_debug = cfg!(debug_assertions);
+            if !is_debug {
+                // Ressourcen liegen je nach Paketformat woanders (alle OS abgedeckt):
+                // Windows NSIS / AppImage / Flatpak: neben der Binary (resources/),
+                // macOS .app-Bundle: Contents/Resources,
+                // Linux deb/rpm: /usr/lib/<Produkt>/resources.
+                for cand in [
+                    dir.join("resources").join(filename),
+                    dir.join(filename),
+                    dir.join("../Resources").join(filename),
+                    dir.join("../lib/Kollegen Client/resources").join(filename),
+                    dir.join("../lib/kollegen-client/resources").join(filename),
+                ] {
+                    if companion_candidate_ok(&cand, version) {
+                        return Some(cand);
+                    }
                 }
-            }
-            for cand in [
-                dir.join("resources").join(COMPANION_MOD_FILENAME),
-                dir.join(COMPANION_MOD_FILENAME),
-                dir.join("../Resources").join(COMPANION_MOD_FILENAME),
-                dir.join("../lib/Kollegen Client/resources").join(COMPANION_MOD_FILENAME),
-                dir.join("../lib/kollegen-client/resources").join(COMPANION_MOD_FILENAME),
-            ] {
-                if companion_candidate_ok(&cand, version) {
-                    return Some(cand);
+                for cand in [
+                    dir.join("resources").join(COMPANION_MOD_FILENAME),
+                    dir.join(COMPANION_MOD_FILENAME),
+                    dir.join("../Resources").join(COMPANION_MOD_FILENAME),
+                    dir.join("../lib/Kollegen Client/resources").join(COMPANION_MOD_FILENAME),
+                    dir.join("../lib/kollegen-client/resources").join(COMPANION_MOD_FILENAME),
+                ] {
+                    if companion_candidate_ok(&cand, version) {
+                        return Some(cand);
+                    }
                 }
             }
         }
