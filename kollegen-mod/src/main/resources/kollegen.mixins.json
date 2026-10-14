@@ -37,7 +37,8 @@
     "FoxAccessor",
     "AxolotlAccessor",
     "PlayerCosmeticsMixin",
-    "ShieldLayerMixin"
+    "ShieldLayerMixin",
+    "CapeLayerMixin"
   ],
   "injectors": {
     "defaultRequire": 1

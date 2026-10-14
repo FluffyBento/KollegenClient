@@ -1433,6 +1433,25 @@ button:disabled {
 
 .store-card.owned { border-color: rgba(0, 230, 118, 0.4); }
 
+.store-card.rar-rare { border-color: rgba(var(--accent-rgb), 0.35); }
+.store-card.rar-epic { border-color: rgba(199, 125, 255, 0.45); }
+.store-card.rar-legendary { border-color: rgba(255, 179, 0, 0.55); box-shadow: 0 0 14px rgba(255, 179, 0, 0.12); }
+
+.pkg-strip { margin-bottom: 1rem; }
+.pkg-head { font-weight: 800; font-size: 1.05rem; letter-spacing: 0.04em; margin: 0.2rem 0 0.6rem; }
+.pkg-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 0.9rem; }
+.pkg-card { position: relative; border-radius: var(--radius-lg); border: 1px solid var(--border-primary); background: linear-gradient(135deg, #1b2340, #0d1420 60%, #2a1a08); padding: 1rem 1.1rem; min-height: 96px; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 0.3rem; cursor: pointer; color: inherit; font: inherit; text-align: left; transition: border-color var(--transition-fast), transform var(--transition-fast); }
+.pkg-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+.pkg-card.rar-legendary { border-color: rgba(255, 179, 0, 0.55); }
+.pkg-card.rar-epic { border-color: rgba(199, 125, 255, 0.45); }
+.pkg-name { font-weight: 800; font-size: 1rem; }
+.pkg-price { color: #ffd479; font-weight: 700; }
+.pkg-card.pkg-empty { cursor: default; border-style: dashed; color: var(--text-muted); }
+.pkg-card.pkg-empty:hover { border-color: var(--border-primary); transform: none; }
+.pkg-card canvas, .pkg-card img { position: absolute; right: 0.6rem; top: 50%; transform: translateY(-50%); width: 72px; height: 72px; object-fit: contain; image-rendering: pixelated; pointer-events: none; }
+.store-pv canvas, .store-pv-lg canvas { width: 100%; height: 100%; display: block; }
+.store-pv img.thumb3d, .store-pv-lg img.thumb3d { width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; }
+
 .store-card.equipped {
   border-color: var(--accent);
   box-shadow: var(--shadow-glow);
@@ -3286,6 +3305,13 @@ button:disabled {
 .pet-pv {
   font-size: 44px;
   line-height: 1;
+}
+
+.pet-pv img.pet-preview {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  image-rendering: pixelated;
 }
 
 .pet-namerow {

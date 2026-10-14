@@ -59,6 +59,21 @@ public final class CosmeticRenderLayer extends RenderLayer<AvatarRenderState, Pl
             if (data.headAccessoryTexture != null) {
                 renderSlot(poseStack, collector, model.head, data.headAccessoryTexture, data.headAccessoryModel, packedLight, null, 3.0F);
             }
+            if (data.faceAccessoryTexture != null) {
+                renderSlot(poseStack, collector, model.head, data.faceAccessoryTexture, data.faceAccessoryModel, packedLight, null, 3.0F);
+            }
+            if (data.auraTexture != null) {
+                renderSlot(poseStack, collector, model.body, data.auraTexture, data.auraModel, packedLight, null, 1.0F);
+            }
+            if (data.shoulderAccessoryTexture != null) {
+                renderSlot(poseStack, collector, model.body, data.shoulderAccessoryTexture, data.shoulderAccessoryModel, packedLight, null, 1.0F);
+            }
+            if (data.torsoAccessoryTexture != null) {
+                renderSlot(poseStack, collector, model.body, data.torsoAccessoryTexture, data.torsoAccessoryModel, packedLight, null, 1.0F);
+            }
+            if (data.legsAccessoryTexture != null) {
+                renderSlot(poseStack, collector, model.body, data.legsAccessoryTexture, data.legsAccessoryModel, packedLight, null, 1.0F);
+            }
             if (data.shieldTexture != null) {
                 try {
                     Player player = mc.level != null ? mc.level.getPlayerByUUID(id) : null;
@@ -153,7 +168,8 @@ public final class CosmeticRenderLayer extends RenderLayer<AvatarRenderState, Pl
             RenderType type = RenderTypes.entityTranslucent(tex);
             poseStack.pushPose();
             arm.translateAndRotate(poseStack);
-            poseStack.translate(0.0F - bb.cx, 0.6F - bb.cy, -0.06F - bb.cz);
+            poseStack.translate(0.0F - bb.cx, 0.6F - bb.cy, -0.22F - bb.cz);
+            poseStack.mulPose(new Quaternionf().rotateY(useLeft ? -(float) Math.PI / 2.0F : (float) Math.PI / 2.0F));
             renderModelContents(poseStack, collector, type, bb, packedLight, animTime(), null, 0, 1.0F);
             poseStack.popPose();
         } catch (Throwable ignored) {

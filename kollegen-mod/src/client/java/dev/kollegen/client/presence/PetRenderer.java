@@ -162,6 +162,7 @@ public final class PetRenderer {
                             living.walkAnimationSpeed = (float) pet.strideAmount;
                         }
                     }
+                    driveSwimAnim(renderState, pet);
                     state.entityRenderStates.add(renderState);
                     if (!loggedExtractAdded) {
                         loggedExtractAdded = true;
@@ -177,6 +178,67 @@ public final class PetRenderer {
                     PETLOG.warn("pet extract failed {}", pet.entity.getClass().getSimpleName(), t);
                 }
             }
+        }
+    }
+
+    private static final Map<Integer, Double> SWIM_PHASE = new ConcurrentHashMap<>();
+    private static long lastSwimMs = 0;
+
+    private static void driveSwimAnim(EntityRenderState renderState, PetInstance pet) {
+        if (renderState == null || pet == null || pet.entity == null) return;
+        try {
+            long now = System.currentTimeMillis();
+            double dt = 0.05;
+            if (lastSwimMs > 0) dt = Math.min(0.1, Math.max(0.0, (now - lastSwimMs) / 1000.0));
+            lastSwimMs = now;
+            double tSec = now / 1000.0;
+            float stride = (float) Math.min(1.0, Math.max(0.0, pet.strideAmount));
+            String cn = renderState.getClass().getSimpleName();
+            if ("AxolotlRenderState".equals(cn)) {
+                setStateFloat(renderState, "inWaterFactor", 1.0F);
+                setStateFloat(renderState, "onGroundFactor", 0.0F);
+                setStateFloat(renderState, "movingFactor", Math.min(1.0F, stride * 1.5F));
+                startStateAnim(renderState, stride > 0.12 ? "swimAnimation" : "idleUnderWaterAnimationState",
+                        pet.entity.tickCount);
+            } else if ("SquidRenderState".equals(cn)) {
+                int id = pet.entity.getId();
+                double phase = SWIM_PHASE.getOrDefault(id, 0.0);
+                phase += stride * dt * 7.0;
+                SWIM_PHASE.put(id, phase);
+                float target = stride > 0.05
+                        ? (float) (0.55 * Math.sin(phase))
+                        : (float) (0.15 * Math.sin(tSec * 1.5 + id));
+                try {
+                    java.lang.reflect.Field f = renderState.getClass().getField("tentacleAngle");
+                    float cur = f.getFloat(renderState);
+                    f.setFloat(renderState, cur + (target - cur) * 0.25F);
+                } catch (Throwable ignored) {
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+    }
+
+    private static void startStateAnim(Object state, String name, int tick) {
+        try {
+            Object anim = state.getClass().getField(name).get(state);
+            if (anim == null) return;
+            try {
+                anim.getClass().getMethod("startIfStopped", int.class).invoke(anim, tick);
+            } catch (Throwable ignored) {
+                try {
+                    anim.getClass().getMethod("start", int.class).invoke(anim, tick);
+                } catch (Throwable ignored2) {
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+    }
+
+    private static void setStateFloat(Object state, String name, float value) {
+        try {
+            state.getClass().getField(name).setFloat(state, value);
+        } catch (Throwable ignored) {
         }
     }
 
@@ -334,6 +396,11 @@ public final class PetRenderer {
             entity.setInvulnerable(true);
             entity.setSilent(true);
             entity.setNoGravity(true);
+            try {
+                String k = effectiveKind(d.petKind, d.petVariant);
+                if (isSwimmerKind(k) || isFlyerKind(k)) entity.setOnGround(false);
+            } catch (Throwable ignored) {
+            }
             applyVariant(entity, d.petVariant);
 
             String mode = d.petMode != null ? d.petMode : "follow";
@@ -420,6 +487,7 @@ public final class PetRenderer {
             }
             double faceDx = 0.0;
             double faceDz = 0.0;
+            double moveDy = 0.0;
             boolean blub = BlubPets.isBlubDisplay(entity);
             if (blub) {
                 blubHopMove(x, y, z, (float) scale);
@@ -485,9 +553,10 @@ public final class PetRenderer {
                     }
                     faceDx = cl[0] - cur.x;
                     faceDz = cl[1] - cur.z;
+                    moveDy = tny - cur.y;
                     entity.setPos(cl[0], tny, cl[1]);
-                    stridePhase += step * 3.0;
-                    strideAmount = Math.min(1.0, step * 4.0);
+                    stridePhase += step * 4.0;
+                    strideAmount = Math.min(1.0, step * 8.0);
                     if (swimmer && dist > 0.001) {
                         double targetPitch = Math.max(-60.0, Math.min(60.0, -(dy / dist) * 60.0));
                         pitch += (targetPitch - pitch) * 0.2;
@@ -519,12 +588,20 @@ public final class PetRenderer {
             }
             entity.setYRot(lookYaw);
             entity.setXRot(swimmer ? (float) pitch : 0);
-            entity.setDeltaMovement(-Math.sin(rad) * 0.02, 0, Math.cos(rad) * 0.02);
+            if (blub) {
+                entity.setDeltaMovement(-Math.sin(rad) * 0.02, 0, Math.cos(rad) * 0.02);
+            }
             if (entity instanceof Mob mob) {
                 try {
                     mob.yRotO = lookYaw;
                     mob.setYBodyRot(lookYaw);
                     mob.setYHeadRot(lookYaw);
+                } catch (Throwable ignored) {
+                }
+            }
+            if (!blub) {
+                try {
+                    entity.setDeltaMovement(faceDx, moveDy, faceDz);
                 } catch (Throwable ignored) {
                 }
             }
@@ -772,6 +849,14 @@ public final class PetRenderer {
         return switch (petKind.toLowerCase()) {
             case "cat", "ocelot", "dog", "wolf", "chicken", "hen", "rabbit", "bunny",
                  "fox", "axolotl", "copper_golem", "coppergolem", "golem", "shulker" -> true;
+            default -> false;
+        };
+    }
+
+    private static boolean isFlyerKind(String petKind) {
+        if (petKind == null) return false;
+        return switch (petKind.toLowerCase()) {
+            case "parrot", "bee", "bat", "allay" -> true;
             default -> false;
         };
     }

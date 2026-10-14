@@ -435,7 +435,7 @@ def berylTask = vendorModResource('dev/kollegen/client/beryl.bin', 'beryl')
 
 
 
-def flkUrl = 'https://cdn.modrinth.com/data/Ha28R6CL/versions/N6D3uiZF/fabric-language-kotlin-1.13.8%2Bkotlin.2.3.0.jar'
+def flkUrl = 'https://cdn.modrinth.com/data/Ha28R6CL/versions/SKW1BTL3/fabric-language-kotlin-1.14.2%2Bkotlin.2.4.21.jar'
 def flkTask = vendorModResource('dev/kollegen/client/flk.bin', 'fabric-language-kotlin', flkUrl)
 def fabricApiTask = vendorModResource('dev/kollegen/client/fabricapi.bin', 'fabric-api')
 def owoTask = vendorModResource('dev/kollegen/client/owo.bin', 'owo-lib')

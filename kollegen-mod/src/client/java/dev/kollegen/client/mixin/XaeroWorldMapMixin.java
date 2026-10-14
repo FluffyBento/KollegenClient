@@ -24,6 +24,7 @@ public abstract class XaeroWorldMapMixin {
 
     @Redirect(
         method = "updateAvailableVRAM",
+        require = 0,
         at = @At(
             value = "INVOKE",
             target = "Lxaero/map/MapLimiter;determineDriverType()V"))

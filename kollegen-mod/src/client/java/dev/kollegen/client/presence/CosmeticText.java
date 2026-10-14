@@ -35,8 +35,12 @@ public final class CosmeticText {
         }
     }
 
-    public static Component logoComponent() {
-        return Component.literal(LOGO_CHAR)
+    public static int titleColor(CosmeticData d, int nameColor) {
+        if (d == null || d.titleColor == null || d.titleColor.trim().isEmpty()) return nameColor;
+        return parseColor(d.titleColor, nameColor);
+    }
+
+    public static Component logoComponent() {        return Component.literal(LOGO_CHAR)
                 .withStyle(Style.EMPTY.withFont(LOGO_FONT).withColor(TextColor.fromRgb(0xFFFFFF)));
     }
 
@@ -102,7 +106,7 @@ public final class CosmeticText {
         if (d == null || d.titleText == null) return null;
         int nameColor = parseColor(d.nameColor, FALLBACK_NAME);
         return Component.literal(d.titleText)
-                .withStyle(Style.EMPTY.withColor(TextColor.fromRgb(nameColor)));
+                .withStyle(Style.EMPTY.withColor(TextColor.fromRgb(titleColor(d, nameColor))));
     }
 
     public static Component levelComponent(UUID id) {
@@ -130,7 +134,7 @@ public final class CosmeticText {
         int nameColor = parseColor(d.nameColor, FALLBACK_NAME);
         MutableComponent out = Component.empty();
         if (d.titleText != null) {
-            out.append(Component.literal(d.titleText).withStyle(Style.EMPTY.withColor(TextColor.fromRgb(nameColor)).withBold(true)));
+            out.append(Component.literal(d.titleText).withStyle(Style.EMPTY.withColor(TextColor.fromRgb(titleColor(d, nameColor))).withBold(true)));
             out.append(Component.literal("\n"));
         }
         out.append(Component.literal(LOGO_CHAR)
@@ -224,7 +228,7 @@ public final class CosmeticText {
             out.append(Component.literal(" "));
         }
         if (d.titleText != null) {
-            out.append(Component.literal(d.titleText).withStyle(Style.EMPTY.withColor(TextColor.fromRgb(nameColor)).withBold(true)));
+            out.append(Component.literal(d.titleText).withStyle(Style.EMPTY.withColor(TextColor.fromRgb(titleColor(d, nameColor))).withBold(true)));
             out.append(Component.literal(" "));
         }
         Style nameStyle = Style.EMPTY.withColor(TextColor.fromRgb(nameColor));

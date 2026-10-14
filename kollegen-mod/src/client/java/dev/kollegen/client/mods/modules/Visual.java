@@ -26,37 +26,14 @@ public final class Visual {
 
     public static void register() {
         ModuleManager.register(new Fullbright());
-        ModuleManager.register(new NightVision());
         ModuleManager.register(new ReducedParticles());
         ModuleManager.register(new Zoom());
     }
 
     
     private static class Fullbright extends Module {
-        private double saved = -1;
-
         Fullbright() {
-            super("fullbright", "Fullbright", "Leuchtet die Welt vollständig aus (Gamma-Maximum).", Category.VISUAL);
-        }
-
-        @Override
-        public void onEnable() {
-            if (mc.options != null) {
-                saved = mc.options.gamma().get();
-                mc.options.gamma().set(100.0);
-            }
-        }
-
-        @Override
-        public void onDisable() {
-            if (mc.options != null) mc.options.gamma().set(saved > 0 ? saved : 0.5);
-        }
-    }
-
-    
-    private static class NightVision extends Module {
-        NightVision() {
-            super("nightvision", "Night Vision", "Permanente Nachtsicht (Vanilla-Effekt).", Category.VISUAL);
+            super("fullbright", "Fullbright", "Permanente Helligkeit (Vanilla-Nachtsicht-Effekt).", Category.VISUAL);
         }
 
         @Override

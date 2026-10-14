@@ -26,7 +26,9 @@ const CATALOG = [
   { id: 'title_veteran', category: 'title', name: 'Veteran', desc: 'Viele Stunden im Nether überlebt.', price: 450, rarity: 'rare', data: { text: 'Veteran' } },
   { id: 'title_champion', category: 'title', name: 'Champion', desc: 'Unbesiegt in deiner Arena.', price: 900, rarity: 'epic', data: { text: 'Champion' } },
   { id: 'title_legende', category: 'title', name: 'Legende', desc: 'Eine Legende unter den Kollegen.', price: 1600, rarity: 'legendary', featured: true, data: { text: 'Legende' } },
-  { id: 'title_kollege', category: 'title', name: 'Kollege', desc: 'Exklusiv verliehen, nicht käuflich.', price: 0, rarity: 'legendary', hidden: true, data: { text: 'Kollege' } },
+  { id: 'title_kollege', category: 'title', name: 'Kollege', desc: 'Exklusiv verliehen, nicht käuflich.', price: 0, rarity: 'legendary', hidden: true, data: { text: 'Kollege', color: '#ffc400' } },
+  { id: 'title_promoter', category: 'title', name: 'Promoter', desc: 'Exklusiv verliehen, nicht käuflich.', price: 0, rarity: 'legendary', hidden: true, data: { text: 'Promoter', color: '#ffe97a' } },
+  { id: 'title_atze', category: 'title', name: 'Atze', desc: 'Exklusiv verliehen, nicht käuflich.', price: 0, rarity: 'legendary', hidden: true, data: { text: 'Atze', color: '#ff6b9d' } },
   
   { id: 'frame_bronze', category: 'avatar_frame', name: 'Bronzen', desc: 'Bronzefarbener Avatar-Rahmen.', price: 200, rarity: 'common', data: { color1: '#cd7f32', color2: '#7a5630' } },
   { id: 'frame_silber', category: 'avatar_frame', name: 'Silbern', desc: 'Silberner Avatar-Rahmen.', price: 500, rarity: 'rare', data: { color1: '#c0c0c0', color2: '#7f7f8a' } },
@@ -124,7 +126,39 @@ const CATALOG = [
   { id: 'cape_fluffybento', category: 'cape', name: 'FluffyBento Cape', desc: 'FluffyBento Cape.', price: 0, rarity: 'legendary', featured: true, hidden: true, data: { texture: 'kollegen:cosmetics/fluffybento/FluffyBento_cape.png', model: 'kollegen:cosmetics/fluffybento/FluffyBento_cape.bbmodel' } },
   { id: 'schild_fluffybento', category: 'shield', name: 'FluffyBento Schild', desc: 'FluffyBento Schild.', price: 0, rarity: 'legendary', featured: true, hidden: true, data: { texture: 'kollegen:cosmetics/fluffybento/FluffyBento_schild.png', model: 'kollegen:cosmetics/fluffybento/FluffyBento_schild.bbmodel' } },
   { id: 'back_fluffybento', category: 'back_accessory', name: 'FluffyBento Flügel', desc: 'FluffyBento Flügel.', price: 0, rarity: 'legendary', featured: true, hidden: true, data: { texture: 'kollegen:cosmetics/fluffybento/FluffyBento_fluegel.png', model: 'kollegen:cosmetics/fluffybento/FluffyBento_fluegel.bbmodel' } },
-  { id: 'head_fluffybento', category: 'head_accessory', name: 'FluffyBento Visor', desc: 'FluffyBento Visor.', price: 0, rarity: 'legendary', featured: true, hidden: true, data: { texture: 'kollegen:cosmetics/fluffybento/FluffyBento_visor.png', model: 'kollegen:cosmetics/fluffybento/FluffyBento_visor.bbmodel' } },
+  { id: 'head_fluffybento', category: 'face_accessory', name: 'FluffyBento Visor', desc: 'FluffyBento Visor.', price: 0, rarity: 'legendary', featured: true, hidden: true, data: { texture: 'kollegen:cosmetics/fluffybento/FluffyBento_visor.png', model: 'kollegen:cosmetics/fluffybento/FluffyBento_visor.bbmodel' } },
+
+  { id: 'cape_phantomumhang', category: 'cape', name: 'Phantomumhang', desc: 'Dunkler Umhang mit Glutpartikeln.', price: 8500, rarity: 'legendary', featured: true, data: { texture: 'kollegen:cosmetics/store/phantomumhang.png', model: 'kollegen:cosmetics/store/phantomumhang.bbmodel' } },
+  { id: 'cape_sternenhimmel', category: 'cape', name: 'Sternenhimmel-Umhang', desc: 'Der Nachthimmel zum Umhängen.', price: 2600, rarity: 'legendary', featured: true, data: { texture: 'kollegen:cosmetics/store/sternenhimmel_umhang.png', model: 'kollegen:cosmetics/store/sternenhimmel_umhang.bbmodel' } },
+
+  { id: 'face_kitsune', category: 'face_accessory', name: 'Kitsune-Maske', desc: 'Mystische Fuchsmaske fürs Gesicht.', price: 1500, rarity: 'epic', data: { texture: 'kollegen:cosmetics/store/kitsune_maske.png', model: 'kollegen:cosmetics/store/kitsune_maske.bbmodel' } },
+  { id: 'face_neon_visier', category: 'face_accessory', name: 'Neon-Visier', desc: 'Leuchtendes Visier im Cyber-Look.', price: 900, rarity: 'rare', data: { texture: 'kollegen:cosmetics/store/neon_visier.png', model: 'kollegen:cosmetics/store/neon_visier.bbmodel' } },
+
+  { id: 'head_krone', category: 'head_accessory', name: 'Schwebende Krone', desc: 'Eine Krone, die über dir schwebt.', price: 15000, rarity: 'legendary', featured: true, data: { texture: 'kollegen:cosmetics/store/schwebende_krone.png', model: 'kollegen:cosmetics/store/schwebende_krone.bbmodel' } },
+  { id: 'head_planetenkranz', category: 'head_accessory', name: 'Planetenkranz', desc: 'Ein kleines Sonnensystem als Kranz.', price: 1700, rarity: 'epic', data: { texture: 'kollegen:cosmetics/store/planetenkranz.png', model: 'kollegen:cosmetics/store/planetenkranz.bbmodel' } },
+  { id: 'head_gewitterwolke', category: 'head_accessory', name: 'Gewitterwolke', desc: 'Deine eigene kleine Gewitterwolke.', price: 1600, rarity: 'epic', data: { texture: 'kollegen:cosmetics/store/gewitterwolke.png', model: 'kollegen:cosmetics/store/gewitterwolke.bbmodel' } },
+  { id: 'head_geweih', category: 'head_accessory', name: 'Waldgeist-Geweih', desc: 'Majestätisches Geweih des Waldgeists.', price: 1100, rarity: 'rare', data: { texture: 'kollegen:cosmetics/store/waldgeist_geweih.png', model: 'kollegen:cosmetics/store/waldgeist_geweih.bbmodel' } },
+
+  { id: 'shield_drachenschuppen', category: 'shield', name: 'Drachenschuppen-Schild', desc: 'Schild aus gehärteten Drachenschuppen.', price: 7500, rarity: 'legendary', featured: true, data: { texture: 'kollegen:cosmetics/store/drachenschuppen_schild.png', model: 'kollegen:cosmetics/store/drachenschuppen_schild.bbmodel' } },
+  { id: 'shield_energie', category: 'shield', name: 'Energieschild', desc: 'Schild aus reiner Energie.', price: 1400, rarity: 'epic', data: { texture: 'kollegen:cosmetics/store/energieschild.png', model: 'kollegen:cosmetics/store/energieschild.bbmodel' } },
+
+  { id: 'back_jetpack', category: 'back_accessory', name: 'Mini-Jetpack', desc: 'Jetpack für kleine Fluchten.', price: 2500, rarity: 'legendary', data: { texture: 'kollegen:cosmetics/store/mini_jetpack.png', model: 'kollegen:cosmetics/store/mini_jetpack.bbmodel' } },
+  { id: 'back_kristallfluegel', category: 'back_accessory', name: 'Kristallflügel', desc: 'Flügel aus leuchtendem Kristall.', price: 7000, rarity: 'legendary', featured: true, data: { texture: 'kollegen:cosmetics/store/kristallfluegel.png', model: 'kollegen:cosmetics/store/kristallfluegel.bbmodel' } },
+  { id: 'back_klingenfaecher', category: 'back_accessory', name: 'Klingenfächer', desc: 'Fächer aus scharfen Klingen.', price: 1700, rarity: 'epic', data: { texture: 'kollegen:cosmetics/store/klingenfaecher.png', model: 'kollegen:cosmetics/store/klingenfaecher.bbmodel' } },
+  { id: 'back_rucksack', category: 'back_accessory', name: 'Abenteurer-Rucksack', desc: 'Platz für alles Wichtige.', price: 800, rarity: 'rare', data: { texture: 'kollegen:cosmetics/store/abenteurer_rucksack.png', model: 'kollegen:cosmetics/store/abenteurer_rucksack.bbmodel' } },
+
+  { id: 'shoulder_minidrache', category: 'shoulder_accessory', name: 'Mini-Drache', desc: 'Ein kleiner Drache auf deiner Schulter.', price: 1600, rarity: 'epic', data: { texture: 'kollegen:cosmetics/store/mini_drache.png', model: 'kollegen:cosmetics/store/mini_drache.bbmodel' } },
+  { id: 'shoulder_eule', category: 'shoulder_accessory', name: 'Eulenfreund', desc: 'Eine weise Eule als Begleiter.', price: 1000, rarity: 'rare', data: { texture: 'kollegen:cosmetics/store/eulenfreund.png', model: 'kollegen:cosmetics/store/eulenfreund.bbmodel' } },
+
+  { id: 'torso_reaktor', category: 'torso_accessory', name: 'Reaktorkern', desc: 'Pulsierender Kern auf der Brust.', price: 1500, rarity: 'epic', data: { texture: 'kollegen:cosmetics/store/reaktorkern.png', model: 'kollegen:cosmetics/store/reaktorkern.bbmodel' } },
+  { id: 'torso_schal', category: 'torso_accessory', name: 'Flatterschal', desc: 'Leichter Schal für den Hals.', price: 850, rarity: 'rare', data: { texture: 'kollegen:cosmetics/store/flatterschal.png', model: 'kollegen:cosmetics/store/flatterschal.bbmodel' } },
+
+  { id: 'legs_fuchsschweif', category: 'legs_accessory', name: 'Fuchsschweif', desc: 'Buschiger Schweif für den Rücken.', price: 1600, rarity: 'epic', data: { texture: 'kollegen:cosmetics/store/fuchsschweif.png', model: 'kollegen:cosmetics/store/fuchsschweif.bbmodel' } },
+  { id: 'legs_flammenstiefel', category: 'legs_accessory', name: 'Flammenstiefel', desc: 'Stiefel mit ewigem Feuer.', price: 1200, rarity: 'rare', data: { texture: 'kollegen:cosmetics/store/flammenstiefel.png', model: 'kollegen:cosmetics/store/flammenstiefel.bbmodel' } },
+
+  { id: 'aura_totenlaeufer', category: 'aura', name: 'Totenläufer', desc: 'Düstere Aura mit Geisterbegleitung.', price: 2800, rarity: 'legendary', featured: true, data: { texture: 'kollegen:cosmetics/store/totenlaeufer.png', model: 'kollegen:cosmetics/store/totenlaeufer.bbmodel' } },
+  { id: 'aura_orbit', category: 'aura', name: 'Orbit-Aura', desc: 'Kreisende Ringe aus Energie.', price: 2200, rarity: 'legendary', data: { texture: 'kollegen:cosmetics/store/orbit_aura.png', model: 'kollegen:cosmetics/store/orbit_aura.bbmodel' } },
+  { id: 'aura_blueten', category: 'aura', name: 'Blütenwirbel', desc: 'Sanfter Wirbel aus Blütenblättern.', price: 1500, rarity: 'epic', data: { texture: 'kollegen:cosmetics/store/bluetenwirbel.png', model: 'kollegen:cosmetics/store/bluetenwirbel.bbmodel' } },
 ];
 
 function catById(id) {
@@ -167,8 +201,19 @@ const GRANTED_TITLES = {
   '624247056566976522': 'Kollege',
 };
 
-function grantedTitle(u) {
-  if (!u) return null;
+const TITLE_COLORS = {
+  'Kollege': '#ffc400',
+  'Atze': '#ff6b9d',
+  'Promoter': '#ffe97a',
+};
+
+function titleColorFor(text) {
+  if (text === null || text === undefined) return null;
+  const c = TITLE_COLORS[String(text)];
+  return typeof c === 'string' ? c : null;
+}
+
+function grantedTitle(u) {  if (!u) return null;
   const t = GRANTED_TITLES[String(u.discordId)] || (u.grantedTitle ? String(u.grantedTitle) : null);
   return t || null;
 }
@@ -269,10 +314,10 @@ function presenceCosmetics(u) {
   const out = {};
   const granted = grantedTitle(u);
   if (granted) {
-    out.title = { text: granted };
+    out.title = { text: granted, color: titleColorFor(granted) };
   } else {
     const t = eq.title && catById(eq.title);
-    if (t && t.data && t.data.text) out.title = { text: t.data.text };
+    if (t && t.data && t.data.text) out.title = { text: t.data.text, color: (t.data && t.data.color) || titleColorFor(t.data.text) };
   }
   const b = eq.badge && catById(eq.badge);
   if (b && b.data) out.badge = { icon: b.data.icon || null, color: b.data.color || null };
@@ -304,6 +349,16 @@ function presenceCosmetics(u) {
   if (head && head.data && head.data.texture) out.headAccessory = { texture: head.data.texture, model: head.data.model || null };
   const shield = eq.shield && catById(eq.shield);
   if (shield && shield.data && shield.data.texture) out.shield = { texture: shield.data.texture, model: shield.data.model || null };
+  const face = eq.face_accessory && catById(eq.face_accessory);
+  if (face && face.data && face.data.texture) out.face_accessory = { texture: face.data.texture, model: face.data.model || null };
+  const aura = eq.aura && catById(eq.aura);
+  if (aura && aura.data && aura.data.texture) out.aura = { texture: aura.data.texture, model: aura.data.model || null };
+  const shoulder = eq.shoulder_accessory && catById(eq.shoulder_accessory);
+  if (shoulder && shoulder.data && shoulder.data.texture) out.shoulder_accessory = { texture: shoulder.data.texture, model: shoulder.data.model || null };
+  const torso = eq.torso_accessory && catById(eq.torso_accessory);
+  if (torso && torso.data && torso.data.texture) out.torso_accessory = { texture: torso.data.texture, model: torso.data.model || null };
+  const legs = eq.legs_accessory && catById(eq.legs_accessory);
+  if (legs && legs.data && legs.data.texture) out.legs_accessory = { texture: legs.data.texture, model: legs.data.model || null };
   return out;
 }
 
@@ -627,7 +682,7 @@ const server = http.createServer(async (req, res) => {
         if (typeof p.banner_data_url === 'string') user.profile.banner_data_url = p.banner_data_url;
         if (typeof p.avatar_data_url === 'string') user.profile.avatar_data_url = p.avatar_data_url;
         if (typeof p.avatar_choice === 'string') user.profile.avatar_choice = p.avatar_choice;
-        user.profile.public = true;
+        if (typeof p.public === 'boolean') user.profile.public = p.public;
       }
 
       
@@ -908,7 +963,7 @@ if (pathname === '/internal/profile' && method === 'POST') {
       if (typeof p.banner_data_url === 'string') user.profile.banner_data_url = p.banner_data_url;
       if (typeof p.avatar_data_url === 'string') user.profile.avatar_data_url = p.avatar_data_url;
       if (typeof p.avatar_choice === 'string') user.profile.avatar_choice = p.avatar_choice;
-      user.profile.public = true;
+      if (typeof p.public === 'boolean') user.profile.public = p.public;
     }
   if (body.equipped && typeof body.equipped === 'object') {
     const next = {};

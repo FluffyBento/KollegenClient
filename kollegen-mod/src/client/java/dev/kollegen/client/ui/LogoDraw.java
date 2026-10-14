@@ -10,12 +10,18 @@ import java.io.InputStream;
 
 public final class LogoDraw {
     private static final Identifier KOLLEGEN_LOGO = Identifier.tryParse("kollegen:logo.png");
-    private static int[] DIMS;
+
+    private LogoDraw() {
+    }
 
     public static int[] dims() {
-        if (DIMS != null) return DIMS;
+        return dimsOf(KOLLEGEN_LOGO, 1200, 400);
+    }
+
+    public static int[] dimsOf(Identifier id, int fallbackW, int fallbackH) {
+        if (id == null) return new int[]{fallbackW, fallbackH};
         try {
-            var res = Minecraft.getInstance().getResourceManager().getResource(KOLLEGEN_LOGO);
+            var res = Minecraft.getInstance().getResourceManager().getResource(id);
             if (res.isPresent()) {
                 try (InputStream in = res.get().open()) {
                     byte[] hdr = new byte[24];
@@ -24,27 +30,31 @@ public final class LogoDraw {
                     if (r == 24) {
                         int w = ((hdr[16] & 0xff) << 24) | ((hdr[17] & 0xff) << 16) | ((hdr[18] & 0xff) << 8) | (hdr[19] & 0xff);
                         int h = ((hdr[20] & 0xff) << 24) | ((hdr[21] & 0xff) << 16) | ((hdr[22] & 0xff) << 8) | (hdr[23] & 0xff);
-                        if (w > 0 && h > 0) {
-                            DIMS = new int[]{w, h};
-                            return DIMS;
-                        }
+                        if (w > 0 && h > 0) return new int[]{w, h};
                     }
                 }
             }
         } catch (Exception ignored) {
         }
-        DIMS = new int[]{1200, 400};
-        return DIMS;
+        return new int[]{fallbackW, fallbackH};
     }
 
     public static void draw(GuiGraphicsExtractor gui, int x, int y, int targetW) {
-        int[] dim = dims();
-        float scale = (float) targetW / dim[0];
-        var pose = gui.pose();
-        pose.pushMatrix();
-        pose.translate(x, y);
-        pose.scale(scale, scale);
-        gui.blit(RenderPipelines.GUI_TEXTURED, KOLLEGEN_LOGO, 0, 0, 0.0F, 0.0F, dim[0], dim[1], dim[0], dim[1]);
-        pose.popMatrix();
+        drawId(gui, KOLLEGEN_LOGO, x, y, targetW);
+    }
+
+    public static void drawId(GuiGraphicsExtractor gui, Identifier id, int x, int y, int targetW) {
+        if (id == null) return;
+        try {
+            int[] dim = dimsOf(id, targetW, targetW);
+            float scale = (float) targetW / dim[0];
+            var pose = gui.pose();
+            pose.pushMatrix();
+            pose.translate(x, y);
+            pose.scale(scale, scale);
+            gui.blit(RenderPipelines.GUI_TEXTURED, id, 0, 0, 0.0F, 0.0F, dim[0], dim[1], dim[0], dim[1]);
+            pose.popMatrix();
+        } catch (Exception ignored) {
+        }
     }
 }

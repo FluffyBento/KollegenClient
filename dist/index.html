@@ -208,6 +208,7 @@
           <button class="chip" data-r="legendary">Legendär</button>
         </div>
         <select id="storeSortMain" class="store-sort">
+          <option value="featured">Empfohlen</option>
           <option value="price-asc">Preis ↑</option>
           <option value="price-desc">Preis ↓</option>
           <option value="rarity">Seltenheit</option>
@@ -236,6 +237,11 @@
         <button class="tab" data-f="shield" role="tab" aria-selected="false">Schild</button>
         <button class="tab" data-f="back_accessory" role="tab" aria-selected="false">Rücken</button>
         <button class="tab" data-f="head_accessory" role="tab" aria-selected="false">Kopf</button>
+        <button class="tab" data-f="face_accessory" role="tab" aria-selected="false">Gesicht</button>
+        <button class="tab" data-f="aura" role="tab" aria-selected="false">Aura</button>
+        <button class="tab" data-f="shoulder_accessory" role="tab" aria-selected="false">Schulter</button>
+        <button class="tab" data-f="torso_accessory" role="tab" aria-selected="false">Oberkörper</button>
+        <button class="tab" data-f="legs_accessory" role="tab" aria-selected="false">Unterkörper</button>
       </div>
       <div class="store-grid" id="storeGridMain" role="tabpanel"><div class="store-msg">Lade Store…</div></div>
     </section>
@@ -603,6 +609,8 @@
   </div>
 
   <script src="qrcode.js"></script>
+  <script src="js/three.min.js"></script>
+  <script src="js/cosmetic3d.js"></script>
   <script src="app.js"></script>
   <script>
     (function () {

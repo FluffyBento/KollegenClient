@@ -112,13 +112,13 @@ done
 echo "==> DEBUG: Prüfe Bibliotheken vor Patch"
 ls -la "$APPDIR/usr/lib/libwebkit2gtk-4.1.so.0" "$APPDIR/usr/lib/libjavascriptcoregtk-4.1.so.0" 2>&1 || true
 
-echo "==> ELF-Patch: Hardcoded WebKit-Pfad auf relativen Pfad umschreiben"
+echo "==> ELF-Patch: Hardcoded WebKit-Pfad auf stabilen AppRun-Symlink umschreiben"
 python3 - "$APPDIR" <<'PY'
 import os, sys
 root = sys.argv[1]
 old = b"/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1"
-# Relative path from libwebkit2gtk-4.1.so.0 (in usr/lib/) to WebKitNetworkProcess (in usr/lib/x86_64-linux-gnu/webkit2gtk-4.1/)
-new = b"../x86_64-linux-gnu/webkit2gtk-4.1"
+new = b"/tmp/kollegen-webkit2gtk-4.1"
+assert len(new) <= len(old)
 targets = [
     "usr/lib/libwebkit2gtk-4.1.so.0",
     "usr/lib/libjavascriptcoregtk-4.1.so.0",
@@ -131,7 +131,7 @@ for rel in targets:
         continue
     data = open(p, "rb").read()
     n = data.count(old)
-    print(f"  DEBUG: {rel}: old={old}, new={new}, count={n}")
+    print(f"  DEBUG: {rel}: count={n}")
     if n == 0:
         print(f"  INFO: Kein Pfad gefunden in {rel}", file=sys.stderr)
         continue
@@ -141,7 +141,8 @@ for rel in targets:
     print(f"  gepatcht {rel}: {n} Vorkommen")
     seen += n
 if seen == 0:
-    print("WARNUNG: WebKit-Pfad nicht in den Binaries gefunden", file=sys.stderr)
+    print("FEHLER: WebKit-Pfad nicht in den Binaries gefunden", file=sys.stderr)
+    sys.exit(1)
 PY
 
 echo "==> WebKit-Helper Wrapper erstellen (setzen LD_LIBRARY_PATH + WEBKIT_EXEC_PATH)"
@@ -169,6 +170,7 @@ if [ -f "$WEBKIT_DIR/libwebkit2gtkinjectedbundle.so" ] && \
    [ ! -f "$APPDIR/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1/injected-bundle/libwebkit2gtkinjectedbundle.so" ]; then
   cp -a "$WEBKIT_DIR/libwebkit2gtkinjectedbundle.so" "$APPDIR/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1/injected-bundle/"
 fi
+ln -sfn injected-bundle/libwebkit2gtkinjectedbundle.so "$APPDIR/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1/libwebkit2gtkinjectedbundle.so"
 if [ -d "$WEBKIT_DIR/WebKitResources" ]; then
   cp -a "$WEBKIT_DIR/WebKitResources" "$APPDIR/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1/"
 else
@@ -183,18 +185,24 @@ fi
 
 echo "==> AppRun"
 cat > "$APPDIR/AppRun" <<'EORUN'
+#!/bin/sh
 HERE="$(dirname "$(readlink -f "$0")")"
-
-# Set up WebKit exec path to our bundled directory
 export WEBKIT_EXEC_PATH="$HERE/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1"
-
+export WEBKIT_INJECTED_BUNDLE_PATH="$HERE/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1/injected-bundle/libwebkit2gtkinjectedbundle.so"
 export LD_LIBRARY_PATH="$HERE/usr/lib:$HERE/usr/lib/x86_64-linux-gnu:$HERE/usr/lib64:$HERE/lib:$HERE/lib/x86_64-linux-gnu${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 export WEBKIT_FRAMEWORK_DIR="$HERE/usr/lib/x86_64-linux-gnu"
 export WEBKIT_USE_SINGLE_WEB_PROCESS="${WEBKIT_USE_SINGLE_WEB_PROCESS:-1}"
-export GDK_PIXBUF_MODULE_FILE="$HERE/usr/lib/x86_64-linux-gnu/gdk-pixbuf-2.0/2.10.0/loaders.cache"
+export GDK_PIXBUF_MODULE_FILE="$HERE/usr/lib/gdk-pixbuf-2.0/2.10.0/loaders.cache"
 export GIO_EXTRA_MODULES="$HERE/usr/lib/x86_64-linux-gnu/gio/modules"
 export GST_PLUGIN_SYSTEM_PATH_1_0="$HERE/usr/lib/x86_64-linux-gnu/gstreamer-1.0"
 export APPIMAGE_EXTRACT_AND_RUN="${APPIMAGE_EXTRACT_AND_RUN:-1}"
+if [ -d "$HERE/apprun-hooks" ]; then
+  for h in "$HERE"/apprun-hooks/*.sh; do
+    [ -f "$h" ] && . "$h"
+  done
+fi
+rm -rf /tmp/kollegen-webkit2gtk-4.1
+ln -sfn "$HERE/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1" /tmp/kollegen-webkit2gtk-4.1
 exec "$HERE/usr/bin/kollegen-client" "$@"
 EORUN
 chmod +x "$APPDIR/AppRun"

@@ -616,6 +616,47 @@ pub fn download_assets(data_dir: &Path, name: &str, version: &str) -> Result<()>
 
 
 
+const MIN_FABRIC_LOADER_VERSION: &str = "0.19.5";
+
+fn fabric_loader_at_least(version: &str) -> bool {
+    let (Ok(cur), Ok(min)) = (
+        semver::Version::parse(version),
+        semver::Version::parse(MIN_FABRIC_LOADER_VERSION),
+    ) else {
+        return false;
+    };
+    cur >= min
+}
+
+fn installed_fabric_loader_version(dir_name: &str) -> Option<String> {
+    let rest = dir_name.to_lowercase();
+    let rest = rest.strip_prefix("fabric-loader")?;
+    let rest = rest.strip_prefix('-').or_else(|| rest.strip_prefix('_'))?;
+    Some(rest.split('-').next().unwrap_or_default().to_string())
+}
+
+fn remove_fabric_version_dirs(versions_dir: &Path) {
+    let Ok(entries) = fs::read_dir(versions_dir) else {
+        return;
+    };
+    for e in entries.flatten() {
+        let p = e.path();
+        if !p.is_dir() {
+            continue;
+        }
+        let name = p
+            .file_name()
+            .map(|n| n.to_string_lossy().to_string())
+            .unwrap_or_default();
+        if name.to_lowercase().contains("fabric")
+            && p.join(format!("{}.json", name)).is_file()
+        {
+            info!("Entferne veraltete Fabric-Installation: {}", name);
+            let _ = fs::remove_dir_all(&p);
+        }
+    }
+}
+
 fn resolve_fabric_loader_version(mc_version: &str) -> Result<String> {
     let client = reqwest::blocking::Client::builder()
         .user_agent(crate::USER_AGENT)
@@ -630,6 +671,17 @@ fn resolve_fabric_loader_version(mc_version: &str) -> Result<String> {
         return Err(anyhow!("Konnte Fabric Loader Version nicht laden"));
     }
     let arr: Vec<Value> = resp.json()?;
+    for v in &arr {
+        if let Some(s) = v
+            .get("loader")
+            .and_then(|l| l.get("version"))
+            .and_then(|s| s.as_str())
+        {
+            if fabric_loader_at_least(s) {
+                return Ok(s.to_string());
+            }
+        }
+    }
     let ver = arr
         .first()
         .and_then(|v| v.get("loader"))
@@ -693,12 +745,30 @@ fn ensure_fabric(data_dir: &Path, inst: &Instance, java_path: &str) -> Result<St
 
     
     if let Some(id) = find_fabric_version_dir(&versions_dir) {
-        return Ok(id);
+        let installed = installed_fabric_loader_version(&id).unwrap_or_default();
+        if fabric_loader_at_least(&installed) {
+            return Ok(id);
+        }
+        warn!(
+            "Fabric Loader {} in Instanz '{}' ist zu alt (mindestens {} erforderlich), installiere neu...",
+            installed, inst.name, MIN_FABRIC_LOADER_VERSION
+        );
+        remove_fabric_version_dirs(&versions_dir);
+        if !installed.is_empty() {
+            let _ = fs::remove_dir_all(
+                inst_dir
+                    .join("libraries")
+                    .join("net")
+                    .join("fabricmc")
+                    .join("fabric-loader")
+                    .join(&installed),
+            );
+        }
     }
 
     let loader_ver = match &inst.loader_version {
-        Some(v) => v.clone(),
-        None => resolve_fabric_loader_version(&inst.version)?,
+        Some(v) if fabric_loader_at_least(v) => v.clone(),
+        _ => resolve_fabric_loader_version(&inst.version)?,
     };
     info!("Installiere Fabric Loader {} für '{}'...", loader_ver, inst.name);
 

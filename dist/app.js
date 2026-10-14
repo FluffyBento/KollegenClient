@@ -3969,9 +3969,9 @@ startBackgroundIntervals();
 
   let storeFilter = "alle";
   let storeGroup = "profil";
-  const STORE_INGAME_CATS = ["pet", "clothing", "effect", "cape", "shield", "back_accessory", "head_accessory", "pet_skin"];
+  const STORE_INGAME_CATS = ["pet", "clothing", "effect", "cape", "shield", "back_accessory", "head_accessory", "face_accessory", "aura", "shoulder_accessory", "torso_accessory", "legs_accessory", "pet_skin"];
   let storeRar = "alle";
-  let storeSort = "price-asc";
+  let storeSort = "featured";
 
   function storePreview(item) {
     const av = previewAvatar() || "https://mc-heads.net/avatar/MHF_Steve/64";
@@ -3989,6 +3989,8 @@ startBackgroundIntervals();
     if (item.category === "shield" && item.data && item.data.texture) return `<div style="width:78%;height:64px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:#0d1420;background-image:url('https://kollegen.me/${item.data.texture.replace("kollegen:", "")}');background-size:cover;background-position:center;">Schild</div>`;
     if (item.category === "back_accessory" && item.data && item.data.texture) return `<div style="width:78%;height:64px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:#0d1420;background-image:url('https://kollegen.me/${item.data.texture.replace("kollegen:", "")}');background-size:cover;background-position:center;">Rücken</div>`;
     if (item.category === "head_accessory" && item.data && item.data.texture) return `<div style="width:78%;height:64px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:#0d1420;background-image:url('https://kollegen.me/${item.data.texture.replace("kollegen:", "")}');background-size:cover;background-position:center;">Kopf</div>`;
+    if (["face_accessory", "aura", "shoulder_accessory", "torso_accessory", "legs_accessory"].includes(item.category) && item.data && item.data.texture) { const lbl = { face_accessory: "Gesicht", aura: "Aura", shoulder_accessory: "Schulter", torso_accessory: "Oberkörper", legs_accessory: "Unterkörper" }[item.category] || "Item"; return `<div style="width:78%;height:64px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:#0d1420;background-image:url('https://kollegen.me/${item.data.texture.replace("kollegen:", "")}');background-size:cover;background-position:center;">${lbl}</div>`; }
+    if (item.category === "pet" && item.data && item.data.kind) { const mk = { ember_drake: 1, void_wyrm: 1, shadow_reaper: 1, rune_sentinel: 1, flame_skull: 1, storm_cloud: 1, crystal_golem: 1, spectre: 1, lantern_spirit: 1, bolt_bot: 1, mini_ufo: 1, grimoire: 1, mooncap: 1, jelly_cube: 1 }[item.data.kind]; if (mk) return `<img style="width:64px;height:64px;border-radius:14px;object-fit:cover;" src="pets/${item.data.kind}.png" onerror="this.style.display='none'"/>`; }
     let border = "", shadow = "";
     if (item.category === "avatar_frame" && item.data.color1) border = `border:${(item.data.width || 3)}px solid ${esc(item.data.color1)};`;
     return `<img style="width:64px;height:64px;border-radius:14px;object-fit:cover;${border}${shadow}" src="${av}"/>`;
@@ -3998,6 +4000,7 @@ startBackgroundIntervals();
     const ingame = (c) => STORE_INGAME_CATS.includes(c);
     const items = (kmCat || []).filter((i) => (storeGroup === "ingame" ? ingame(i.category) : !ingame(i.category)) && (storeFilter === "alle" || i.category === storeFilter) && (storeRar === "alle" || i.rarity === storeRar));
     items.sort((a, b) => {
+      if (storeSort === "featured") { const f = ((b.featured ? 1 : 0) - (a.featured ? 1 : 0)) || ((STORE_RANK[b.rarity] ?? -1) - (STORE_RANK[a.rarity] ?? -1)); return f || a.price - b.price; }
       if (storeSort === "price-asc") return a.price - b.price;
       if (storeSort === "price-desc") return b.price - a.price;
       if (storeSort === "rarity") { const d = (STORE_RANK[b.rarity] ?? -1) - (STORE_RANK[a.rarity] ?? -1); return d || a.price - b.price; }
@@ -4018,14 +4021,59 @@ startBackgroundIntervals();
     return { txt: `Kaufen · ★ ${item.price}`, disabled: false, act: "buy" };
   }
 
+  let c3dObserver = null;
+  const c3dThumbCache = {};
+  function c3dRenderNow(pv, item) {
+    try {
+      if (!window.Cosmetic3D || !window.Cosmetic3D.ready()) return;
+      const id = item && item.id;
+      if (!id || pv.dataset.c3dDone) return;
+      if (!c3dThumbCache[id]) {
+        c3dThumbCache[id] = window.Cosmetic3D.thumb(item).catch(() => null);
+      }
+      c3dThumbCache[id].then((url) => {
+        try {
+          if (!url || !pv.isConnected || pv.dataset.c3dDone) return;
+          pv.dataset.c3dDone = "1";
+          const img = document.createElement("img");
+          img.className = "thumb3d";
+          img.alt = "";
+          img.src = url;
+          pv.innerHTML = "";
+          pv.append(img);
+        } catch (e) {}
+      });
+    } catch (e) {}
+  }
+  function c3dObserve(pv, item) {
+    try {
+      if (!window.Cosmetic3D || !window.Cosmetic3D.ready()) return;
+      if (!window.Cosmetic3D.keyFor(item) || !item.id) return;
+      pv.dataset.c3dId = item.id;
+      if (typeof IntersectionObserver === "undefined") { c3dRenderNow(pv, item); return; }
+      if (!c3dObserver) {
+        c3dObserver = new IntersectionObserver((ents) => {
+          ents.forEach((en) => {
+            if (!en.isIntersecting) return;
+            const el = en.target;
+            try { c3dObserver.unobserve(el); } catch (e) {}
+            const it = byId(el.dataset.c3dId);
+            if (it) c3dRenderNow(el, it);
+          });
+        }, { rootMargin: "300px" });
+      }
+      c3dObserver.observe(pv);
+    } catch (e) {}
+  }
   function storeCard(item) {
     const card = document.createElement("div");
-    card.className = "store-card" + (item.owned ? " owned" : "") + (item.equippedCategory ? " equipped" : "");
+    card.className = "store-card rar-" + (item.rarity || "common") + (item.owned ? " owned" : "") + (item.equippedCategory ? " equipped" : "");
     const rarArr = STORE_RAR[item.rarity] || ["", "r-common"];
     const pv = document.createElement("div");
     pv.className = "store-pv";
     pv.innerHTML = storePreview(item);
     card.append(pv);
+    try { c3dObserve(pv, item); } catch (e) {}
     const rar = document.createElement("span");
     rar.className = "store-badge " + rarArr[1];
     rar.textContent = rarArr[0];
@@ -4086,6 +4134,7 @@ startBackgroundIntervals();
       return;
     }
     const items = storeFiltered();
+    try { storeRenderPackages(); } catch (e) {}
     if (grid) {
       grid.innerHTML = "";
       if (!items.length) grid.innerHTML = `<div class="store-msg">Keine Items in dieser Auswahl.</div>`;
@@ -4181,12 +4230,22 @@ startBackgroundIntervals();
     const pv = document.createElement("div");
     pv.className = "store-pv store-pv-lg";
     pv.innerHTML = storePreview(item);
+    try {
+      if (window.Cosmetic3D && window.Cosmetic3D.ready() && window.Cosmetic3D.keyFor(item)) {
+        pv.innerHTML = "";
+        pv.style.minHeight = "300px";
+        window.Cosmetic3D.mount(pv, item);
+      }
+    } catch (e) {}
     const rar = document.createElement("span");
     rar.className = "store-badge " + rarArr[1];
     rar.textContent = rarArr[0];
     const t = document.createElement("div");
     t.className = "store-mm-title";
     t.textContent = item.name;
+    const cat = document.createElement("div");
+    cat.textContent = storeCatLabel(item.category);
+    cat.style.cssText = "color:#7d8aa0;font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;margin-top:.35rem;";
     const d = document.createElement("div");
     d.textContent = item.desc || "";
     d.style.cssText = "color:#a9b3c0;font-size:.9rem;margin-top:.6rem;";
@@ -4203,13 +4262,97 @@ startBackgroundIntervals();
     if (b.act === "equip") btn.onclick = () => { storeEquip(item.id); storeCloseModal(); };
     if (b.act === "buy") btn.onclick = () => { storeBuy(item.id); storeCloseModal(); };
     body.innerHTML = "";
-    body.append(pv, rar, t, d, pr, btn);
+    body.append(pv, rar, t, cat, d, pr, btn);
     m.style.display = "flex";
+  }
+
+  function storeCatLabel(c) {
+    const m = { title: "Titel", avatar_frame: "Avatar-Rahmen", avatar_theme: "Avatar-Hintergrund", badge: "Abzeichen", profile_frame: "Profil-Rahmen", profile_bg: "Profil-Hintergrund", banner: "Banner", profil_stil: "Profilstil", font: "Schriftart", name_color: "Namensfarbe", sticker: "Aufkleber", pet: "Pet", pet_skin: "Pet-Skin", cape: "Umhang", shield: "Schild", back_accessory: "Rücken", head_accessory: "Kopf", face_accessory: "Gesicht", aura: "Aura", shoulder_accessory: "Schulter", torso_accessory: "Oberkörper", legs_accessory: "Unterkörper", package: "Paket" };
+    return m[c] || String(c || "");
+  }
+
+  function storeOpenPackage(pkg) {
+    const m = $("storeItemModal");
+    const body = $("storeItemBody");
+    if (!m || !body) return;
+    const ids = (pkg.data && Array.isArray(pkg.data.items)) ? pkg.data.items : [];
+    const items = ids.map((id) => { try { return byId(id); } catch (e) { return null; } }).filter(Boolean);
+    let total = 0;
+    body.innerHTML = "";
+    const t = document.createElement("div");
+    t.className = "store-mm-title";
+    t.textContent = pkg.name || "Paket";
+    body.append(t);
+    const d = document.createElement("div");
+    d.textContent = pkg.desc || "";
+    d.style.cssText = "color:#a9b3c0;font-size:.9rem;margin-top:.4rem;";
+    body.append(d);
+    if (!items.length) {
+      const n = document.createElement("div");
+      n.className = "store-msg";
+      n.textContent = "Inhalt folgt in Kürze.";
+      body.append(n);
+    } else {
+      const list = document.createElement("div");
+      list.style.cssText = "display:flex;flex-direction:column;gap:.45rem;margin-top:.8rem;";
+      for (const it of items) {
+        total += (it.price || 0);
+        const row = document.createElement("button");
+        row.style.cssText = "display:flex;align-items:center;gap:.6rem;background:var(--panel-2);border:1px solid var(--border-secondary);border-radius:10px;padding:.45rem .6rem;color:inherit;cursor:pointer;text-align:left;";
+        row.innerHTML = `<span style="font-weight:700;">${esc(it.name || it.id)}</span><span style="margin-left:auto;color:#ffd479;">★ ${it.price || 0}</span>`;
+        row.onclick = () => { storeCloseModal(); setTimeout(() => storeOpenModal(it), 50); };
+        list.append(row);
+      }
+      body.append(list);
+      const tot = document.createElement("div");
+      tot.className = "store-price";
+      tot.style.cssText = "margin-top:.8rem;";
+      tot.textContent = "Gesamt ★ " + total;
+      body.append(tot);
+    }
+    m.style.display = "flex";
+  }
+
+  function storeRenderPackages() {
+    const panel = $("storePanel");
+    const grid = $("storeGridMain");
+    if (!panel || !grid) return;
+    let strip = $("storePkgStrip");
+    if (!strip) {
+      strip = document.createElement("div");
+      strip.id = "storePkgStrip";
+      strip.className = "pkg-strip";
+      panel.insertBefore(strip, grid);
+    }
+    const pkgs = (kmCat || []).filter((i) => i.category === "package" && !i.hidden);
+    strip.innerHTML = "";
+    const head = document.createElement("div");
+    head.className = "pkg-head";
+    head.textContent = "Pakete";
+    strip.append(head);
+    const row = document.createElement("div");
+    row.className = "pkg-row";
+    strip.append(row);
+    if (!pkgs.length) {
+      const ph = document.createElement("div");
+      ph.className = "pkg-card pkg-empty";
+      ph.innerHTML = "<span>Pakete – bald verfügbar</span>";
+      row.append(ph);
+    } else {
+      for (const p of pkgs) {
+        const card = document.createElement("button");
+        card.className = "pkg-card rar-" + (p.rarity || "common");
+        card.innerHTML = `<span class="pkg-name">${esc(p.name || "Paket")}</span><span class="pkg-price">★ ${p.price || 0}</span>`;
+        card.onclick = () => storeOpenPackage(p);
+        row.append(card);
+      }
+    }
   }
 
   function storeCloseModal() {
     const m = $("storeItemModal");
     if (m) m.style.display = "none";
+    try { if (window.Cosmetic3D) window.Cosmetic3D.unmount(); } catch (e) {}
   }
 
   function storeSyncChips() {
@@ -4303,7 +4446,14 @@ startBackgroundIntervals();
 
   let cosmSkinViewer = null;
   let cosmSkinKey = "";
-  async function renderCosmetics() {
+  async function renderCosmetics(force) {
+    try {
+      const cc = window.__cosmCache;
+      if (!force && cc && cc.me && cc.store && (Date.now() - cc.t) < 45000) {
+        renderCosmeticsFrom(cc.me, cc.store);
+        return;
+      }
+    } catch (e) {}
     const box = $("cosmOwned");
     if (box) box.innerHTML = '<div class="store-msg">Lade …</div><div class="store-msg" id="cosmDbg"></div>';
     const t0 = Date.now();
@@ -4328,18 +4478,14 @@ startBackgroundIntervals();
     ]);
 
     const safeInvoke = (cmd) => Promise.resolve().then(() => invoke(cmd)).catch((e) => ({ error: String((e && e.message) || e) }));
-    let meRes;
-    let storeRes;
-    try {
-      meRes = { status: "fulfilled", value: await withTimeout(safeInvoke("kollegen_me"), 25000, "kollegen_me") };
-    } catch (e) {
-      meRes = { status: "rejected", reason: e };
-    }
-    try {
-      storeRes = { status: "fulfilled", value: await withTimeout(safeInvoke("kollegen_store"), 25000, "kollegen_store") };
-    } catch (e) {
-      storeRes = { status: "rejected", reason: e };
-    }
+    const settled = (p) => p.then(
+      (value) => ({ status: "fulfilled", value }),
+      (reason) => ({ status: "rejected", reason })
+    );
+    const [meRes, storeRes] = await Promise.all([
+      settled(withTimeout(safeInvoke("kollegen_me"), 25000, "kollegen_me")),
+      settled(withTimeout(safeInvoke("kollegen_store"), 25000, "kollegen_store"))
+    ]);
 
     if (meRes.status === "fulfilled") {
       const r = meRes.value;
@@ -4367,20 +4513,24 @@ startBackgroundIntervals();
         const retry = document.createElement("button");
         retry.className = "btn-secondary";
         retry.textContent = "Erneut versuchen";
-        retry.onclick = () => renderCosmetics();
+        retry.onclick = () => renderCosmetics(true);
         box.appendChild(retry);
       }
       return;
     }
+    try { window.__cosmCache = { t: Date.now(), me: me, store: store }; } catch (e) {}
+    renderCosmeticsFrom(me, store);
+    return;
+    function renderCosmeticsFrom(me, store) {
     const equipped = me.equipped || {};
-    const owned = store.catalog.filter((it) => it.owned && ["pet", "pet_skin", "name_color", "badge", "sticker", "title", "profil_stil", "cape", "shield", "back_accessory", "head_accessory"].includes(it.category));
+    const owned = store.catalog.filter((it) => it.owned && ["pet", "pet_skin", "name_color", "badge", "sticker", "title", "profil_stil", "cape", "shield", "back_accessory", "head_accessory", "face_accessory", "aura", "shoulder_accessory", "torso_accessory", "legs_accessory"].includes(it.category));
     const cosmCatLabel = (c) => {
-      const known = { pet: "Haustier", title: "Titel", name_color: "Namensfarbe", badge: "Abzeichen", profile_frame: "Profil-Rahmen", profile_bg: "Profil-Hintergrund", banner: "Banner", profil_stil: "Profilstil", font: "Schriftart", sticker: "Aufkleber", avatar_theme: "Avatar-Hintergrund", cape: "Umhang", shield: "Schild", back_accessory: "Rücken", head_accessory: "Kopf" };
+      const known = { pet: "Haustier", title: "Titel", name_color: "Namensfarbe", badge: "Abzeichen", profile_frame: "Profil-Rahmen", profile_bg: "Profil-Hintergrund", banner: "Banner", profil_stil: "Profilstil", font: "Schriftart", sticker: "Aufkleber", avatar_theme: "Avatar-Hintergrund", cape: "Umhang", shield: "Schild", back_accessory: "Rücken", head_accessory: "Kopf", face_accessory: "Gesicht", aura: "Aura", shoulder_accessory: "Schulter", torso_accessory: "Oberkörper", legs_accessory: "Unterkörper" };
       if (c && known[c]) return known[c];
       const s = String(c || "").replace(/_/g, " ").trim();
       return s ? s.charAt(0).toUpperCase() + s.slice(1) : "";
     };
-    const cosmOrder = ["title", "badge", "sticker", "name_color", "profil_stil", "cape", "shield", "back_accessory", "head_accessory"];
+    const cosmOrder = ["title", "badge", "sticker", "name_color", "profil_stil", "cape", "shield", "back_accessory", "head_accessory", "face_accessory", "aura", "shoulder_accessory", "torso_accessory", "legs_accessory"];
     let cosmCollapsed = {};
     try { cosmCollapsed = JSON.parse(localStorage.getItem("kosmetCollapsed") || "{}"); } catch (e) { cosmCollapsed = {}; }
     const cosmIsCollapsed = (cat) => cosmCollapsed[cat] !== false;
@@ -4395,7 +4545,7 @@ startBackgroundIntervals();
         if (itemId) await invoke("kollegen_store_equip", { itemId, category: cat || "" });
         else await invoke("kollegen_store_equip", { itemId: "", category: cat });
       } catch (e) {}
-      renderCosmetics();
+      renderCosmetics(true);
       if (window.renderKollegenStore) { try { window.renderKollegenStore(); } catch (e) {} }
     };
     const cosmSwatch = (ch, it) => {
@@ -4523,7 +4673,17 @@ startBackgroundIntervals();
           card.dataset.petBase = it.name || it.id;
           const pv = document.createElement("div");
           pv.className = "store-pv pet-pv";
-          pv.textContent = PET_ICON[it.id] || "🐾";
+          const mythicKinds = { pet_ember_drake: "ember_drake", pet_void_wyrm: "void_wyrm", pet_shadow_reaper: "shadow_reaper", pet_rune_sentinel: "rune_sentinel", pet_flame_skull: "flame_skull", pet_storm_cloud: "storm_cloud", pet_crystal_golem: "crystal_golem", pet_spectre: "spectre", pet_lantern_spirit: "lantern_spirit", pet_bolt_bot: "bolt_bot", pet_mini_ufo: "mini_ufo", pet_grimoire: "grimoire", pet_mooncap: "mooncap", pet_jelly_cube: "jelly_cube" };
+          if (mythicKinds[it.id]) {
+            const img = document.createElement("img");
+            img.className = "pet-preview";
+            img.alt = "";
+            img.src = "pets/" + mythicKinds[it.id] + ".png";
+            img.onerror = () => { img.remove(); pv.textContent = PET_ICON[it.id] || "🐾"; };
+            pv.append(img);
+          } else {
+            pv.textContent = PET_ICON[it.id] || "🐾";
+          }
           card.append(pv);
           const body = document.createElement("div");
           body.className = "store-card-body";
@@ -4633,6 +4793,7 @@ startBackgroundIntervals();
     stopDbg();
     renderCosmSkin(me);
     renderCosmName(me, store.catalog);
+    }
   }
 
   function cosmCatById(list, id) {

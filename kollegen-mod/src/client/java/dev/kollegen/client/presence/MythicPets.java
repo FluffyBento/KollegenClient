@@ -57,6 +57,16 @@ public final class MythicPets {
         double wx;
         double wy;
         double wz;
+        double ox;
+        double oy;
+        double oz;
+        boolean hasOwner;
+        double rx;
+        double ry;
+        double rz;
+        float ryaw;
+        boolean renderInit;
+        long lastFrameMs;
         long wanderUntil;
         boolean resting;
         double stillTime;
@@ -178,6 +188,33 @@ public final class MythicPets {
                 double dzo = st.z - ownerPos.z;
                 double ownerDistSq = dxo * dxo + dzo * dzo;
                 double stop = bh != null ? bh.followStop : 1.4;
+                if (!st.hasOwner) {
+                    st.ox = ownerPos.x;
+                    st.oy = ownerPos.y;
+                    st.oz = ownerPos.z;
+                    st.hasOwner = true;
+                } else {
+                    double odx = ownerPos.x - st.ox;
+                    double ody = ownerPos.y - st.oy;
+                    double odz = ownerPos.z - st.oz;
+                    if (odx * odx + ody * ody + odz * odz > 2.25) {
+                        st.ox = ownerPos.x;
+                        st.oy = ownerPos.y;
+                        st.oz = ownerPos.z;
+                        double wa = Math.random() * Math.PI * 2.0;
+                        double wr = 1.0 + Math.random() * 1.2;
+                        st.wx = ownerPos.x + Math.cos(wa) * wr;
+                        st.wz = ownerPos.z + Math.sin(wa) * wr;
+                        if (groundKind) {
+                            double g = PetRenderer.groundTop(level, st.wx, ownerPos.y, st.wz);
+                            st.wy = Double.isNaN(g) ? ownerPos.y : g;
+                        } else {
+                            st.wy = Math.max(ownerPos.y - 0.2, ownerPos.y + 0.6 + Math.random() * 1.2);
+                        }
+                        st.wanderUntil = now + 4000 + (long) (Math.random() * 5000);
+                        st.resting = false;
+                    }
+                }
                 boolean rethink = now >= st.wanderUntil || ownerDistSq > 36.0;
                 if (!rethink && !st.resting) {
                     double ddx = st.wx - st.x;
@@ -234,11 +271,14 @@ public final class MythicPets {
             double dy = ty - st.y;
             double dz = tz - st.z;
             double dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+            double prevX = st.x;
+            double prevZ = st.z;
             if (!st.placed || dist > teleport) {
                 st.x = tx;
                 st.y = ty;
                 st.z = tz;
                 st.placed = true;
+                st.renderInit = false;
                 st.stride = 0.0;
             } else if (dist > 0.005) {
                 double step = Math.min(dist, speed * dt);
@@ -276,17 +316,19 @@ public final class MythicPets {
                 st.animName = bh != null && bh.idleAnim != null ? bh.idleAnim : "idle";
             }
             float targetYaw = st.yaw;
-            if (st.stride > 0.05) {
-                targetYaw = (float) (Math.toDegrees(Math.atan2(dz, dx)) - 90.0);
+            double movedX = st.x - prevX;
+            double movedZ = st.z - prevZ;
+            if (movedX * movedX + movedZ * movedZ > 0.0004) {
+                targetYaw = (float) (Math.toDegrees(Math.atan2(movedZ, movedX)) - 90.0);
             } else if (bh != null && bh.lookAtPlayer) {
                 double lx = ownerPos.x - st.x;
                 double lz = ownerPos.z - st.z;
-                if (lx * lx + lz * lz > 0.04) targetYaw = (float) (Math.toDegrees(Math.atan2(lz, lx)) - 90.0);
+                if (lx * lx + lz * lz > 0.25) targetYaw = (float) (Math.toDegrees(Math.atan2(lz, lx)) - 90.0);
             }
             float dyaw = targetYaw - st.yaw;
             while (dyaw > 180.0F) dyaw -= 360.0F;
             while (dyaw < -180.0F) dyaw += 360.0F;
-            st.yaw += Math.max(-12.0F, Math.min(12.0F, dyaw));
+            st.yaw += Math.max(-6.0F, Math.min(6.0F, dyaw));
             if (bh != null && !bh.particles.isEmpty()) {
                 try {
                     for (PetModel.Particle p : bh.particles) {
@@ -373,13 +415,33 @@ public final class MythicPets {
             if (model == null) return;
             double scale = d.petScale > 0.0 ? d.petScale : 1.0;
             int light = 15728880;
+            long nowMs = System.currentTimeMillis();
+            if (!st.renderInit) {
+                st.rx = st.x;
+                st.ry = st.y;
+                st.rz = st.z;
+                st.ryaw = st.yaw;
+                st.renderInit = true;
+                st.lastFrameMs = nowMs;
+            }
+            double fdt = 0.05;
+            if (st.lastFrameMs > 0) fdt = Math.min(0.1, Math.max(0.0, (nowMs - st.lastFrameMs) / 1000.0));
+            st.lastFrameMs = nowMs;
+            double k = Math.min(1.0, fdt * 10.0);
+            st.rx += (st.x - st.rx) * k;
+            st.ry += (st.y - st.ry) * k;
+            st.rz += (st.z - st.rz) * k;
+            float rdy = st.yaw - st.ryaw;
+            while (rdy > 180.0F) rdy -= 360.0F;
+            while (rdy < -180.0F) rdy += 360.0F;
+            st.ryaw += rdy * (float) Math.min(1.0, fdt * 8.0);
             poseStack.pushPose();
             try {
-                poseStack.translate(st.x - cam.x, st.y - cam.y, st.z - cam.z);
-                poseStack.mulPose(Axis.YP.rotationDegrees(180.0F - st.yaw));
+                poseStack.translate(st.rx - cam.x, st.ry - cam.y, st.rz - cam.z);
+                poseStack.mulPose(Axis.YP.rotationDegrees(180.0F - st.ryaw));
                 poseStack.scale((float) scale, (float) scale, (float) scale);
                 poseStack.scale(-1.0F, -1.0F, 1.0F);
-                poseStack.translate(0.0F, -1.501F, 0.0F);
+                poseStack.translate(0.0F, -1.5F, 0.0F);
                 PetModel.PetAnim anim = model.anims.get(st.animName);
                 if (anim == null) anim = model.anims.get("idle");
                 RenderType base = RenderTypes.entityTranslucent(st.texBase);
@@ -397,7 +459,7 @@ public final class MythicPets {
                     Component comp = Component.literal(d.petName)
                             .withStyle(Style.EMPTY.withColor(TextColor.fromRgb(nameColor)));
                     double h = (model.maxY - model.minY) * scale;
-                    Vec3 anchor = new Vec3(st.x - cam.x, st.y + h + 0.5 - cam.y, st.z - cam.z);
+                    Vec3 anchor = new Vec3(st.rx - cam.x, st.ry + h + 0.5 - cam.y, st.rz - cam.z);
                     poseStack.pushPose();
                     try {
                         collector.submitNameTag(poseStack, anchor, 0, comp, false, 15728880, state.cameraRenderState);

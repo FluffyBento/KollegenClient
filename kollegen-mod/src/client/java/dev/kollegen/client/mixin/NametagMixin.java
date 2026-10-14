@@ -36,6 +36,27 @@ public class NametagMixin {
             if (entity instanceof net.minecraft.world.entity.player.Player p) {
                 dev.kollegen.client.presence.RenderStateIds.put(state, p.getUUID());
                 PetRenderer.notePosition(p.getUUID(), p.position(), p.getYRot());
+                kollegen$cape(state, p.getUUID());
+            }
+        } catch (Throwable ignored) {
+        }
+    }
+
+    private static void kollegen$cape(AvatarRenderState state, java.util.UUID id) {
+        try {
+            if (state == null || id == null) return;
+            CosmeticData data = KollegenPresence.getCosmetics(id);
+            if (data == null || data.capeTexture == null) return;
+            net.minecraft.resources.Identifier tex = net.minecraft.resources.Identifier.tryParse(data.capeTexture);
+            if (tex == null) return;
+            state.showCape = true;
+            try {
+                net.minecraft.world.entity.player.PlayerSkin skin = state.skin;
+                if (skin != null) {
+                    state.skin = new net.minecraft.world.entity.player.PlayerSkin(skin.body(),
+                            new net.minecraft.core.ClientAsset.ResourceTexture(tex), skin.elytra(), skin.model(), skin.secure());
+                }
+            } catch (Throwable ignored) {
             }
         } catch (Throwable ignored) {
         }

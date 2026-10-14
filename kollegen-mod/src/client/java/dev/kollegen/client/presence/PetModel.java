@@ -197,6 +197,16 @@ public final class PetModel {
                 absolutize(e.getValue(), 0.0F, 0.0F, 0.0F, visited);
             }
         }
+        for (Bone b : built.values()) {
+            for (Cube c : b.cubes) {
+                c.minX += b.px;
+                c.maxX += b.px;
+                c.minY += b.py;
+                c.maxY += b.py;
+                c.minZ += b.pz;
+                c.maxZ += b.pz;
+            }
+        }
         float minX = Float.MAX_VALUE;
         float minY = Float.MAX_VALUE;
         float minZ = Float.MAX_VALUE;
@@ -207,12 +217,12 @@ public final class PetModel {
         for (Bone b : model.byName.values()) {
             for (Cube c : b.cubes) {
                 any = true;
-                if (b.px + c.minX < minX) minX = b.px + c.minX;
-                if (b.py + c.minY < minY) minY = b.py + c.minY;
-                if (b.pz + c.minZ < minZ) minZ = b.pz + c.minZ;
-                if (b.px + c.maxX > maxX) maxX = b.px + c.maxX;
-                if (b.py + c.maxY > maxY) maxY = b.py + c.maxY;
-                if (b.pz + c.maxZ > maxZ) maxZ = b.pz + c.maxZ;
+                if (c.minX < minX) minX = c.minX;
+                if (c.minY < minY) minY = c.minY;
+                if (c.minZ < minZ) minZ = c.minZ;
+                if (c.maxX > maxX) maxX = c.maxX;
+                if (c.maxY > maxY) maxY = c.maxY;
+                if (c.maxZ > maxZ) maxZ = c.maxZ;
             }
         }
         if (any) {

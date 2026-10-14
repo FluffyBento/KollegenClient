@@ -38,6 +38,37 @@ public final class KollegenPresence {
     private KollegenPresence() {
     }
 
+    private static long lastSignalSeen = 0;
+    private static int signalTickCounter = 0;
+
+    public static void checkRefreshSignal() {
+        try {
+            if ((signalTickCounter++ % 20) != 0) return;
+            Path p = FabricLoader.getInstance().getConfigDir().resolve("kollegen-refresh.txt");
+            if (!Files.exists(p)) return;
+            long m = Files.getLastModifiedTime(p).toMillis();
+            if (m > lastSignalSeen) {
+                lastSignalSeen = m;
+                refreshAsync();
+            }
+        } catch (Throwable ignored) {
+        }
+    }
+
+    public static void refreshAsync() {
+        try {
+            Thread t = new Thread(() -> {
+                try {
+                    fetch();
+                } catch (Throwable ignored) {
+                }
+            }, "kollegen-refresh");
+            t.setDaemon(true);
+            t.start();
+        } catch (Throwable ignored) {
+        }
+    }
+
     public static boolean isKollegen(UUID id) {
         return id != null && USERS.contains(id);
     }

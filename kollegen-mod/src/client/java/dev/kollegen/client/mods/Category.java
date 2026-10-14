@@ -8,7 +8,10 @@ public enum Category {
     WORLD("Welt", "🌍"),
     CHAT("Chat", "💬"),
     PERFORMANCE("Performance", "⚡"),
-    MISC("Verschiedenes", "⚙");
+    MISC("Verschiedenes", "⚙"),
+    STORE("Store", "🛍"),
+    COSMETICS("Cosmetics", "✨"),
+    PETS("Pets", "🐾");
 
     public final String display;
     public final String icon;

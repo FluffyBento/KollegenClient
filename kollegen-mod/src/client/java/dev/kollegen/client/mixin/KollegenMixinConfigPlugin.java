@@ -24,7 +24,11 @@ public class KollegenMixinConfigPlugin implements IMixinConfigPlugin {
     public boolean shouldApplyMixin(String mixinClassName, String targetClassName) {
         if (XAERO_MIXIN.equals(mixinClassName)) {
             try {
-                Class.forName(targetClassName, false, getClass().getClassLoader());
+                Class<?> target =
+                    Class.forName(targetClassName, false, getClass().getClassLoader());
+                target.getDeclaredMethod("determineDriverType");
+                target.getDeclaredMethod("updateAvailableVRAM");
+                target.getDeclaredField("driverType");
                 return true;
             } catch (Throwable t) {
                 return false;
