@@ -452,25 +452,6 @@ def chatHeadsTask = vendorModResource('dev/kollegen/client/chatheads.bin', 'chat
 
 
 
-def xaeroWorldMapJar = layout.buildDirectory.file('xaero/xaeroworldmap.jar')
-tasks.register('downloadXaeroWorldMapJar') {
-    def out = xaeroWorldMapJar.get().asFile
-    outputs.file(out)
-    doLast {
-        out.parentFile.mkdirs()
-        if (!out.exists()) {
-            def url = modrinthPrimaryFileUrl('xaeros-world-map', project.minecraft_version, 'fabric')
-            def conn = new URL(url).openConnection()
-            conn.setRequestProperty("User-Agent", "KollegenClient/${project.version}")
-            out.bytes = conn.inputStream.bytes
-        }
-    }
-}
-compileJava.dependsOn downloadXaeroWorldMapJar
-dependencies {
-    compileOnly files(xaeroWorldMapJar)
-}
-
 processResources {
     inputs.property 'version', project.version
     filesMatching('fabric.mod.json') {

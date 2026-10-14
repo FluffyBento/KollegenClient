@@ -3,39 +3,39 @@ package dev.kollegen.client.mixin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Pseudo;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Redirect;
 
-import xaero.map.MapLimiter;
 
-
-@Mixin(value = MapLimiter.class, remap = false)
+@Pseudo
+@Mixin(targets = "xaero.map.MapLimiter", remap = false)
 public abstract class XaeroWorldMapMixin {
 
     private static final Logger LOG = LoggerFactory.getLogger("Kollegen/XaeroFix");
 
-    @Shadow
-    private int driverType;
-
-    @Shadow
-    private void determineDriverType() {
-    }
-
     @Redirect(
         method = "updateAvailableVRAM",
         require = 0,
+        remap = false,
         at = @At(
             value = "INVOKE",
             target = "Lxaero/map/MapLimiter;determineDriverType()V"))
-    private void kollegenSafeDetermineDriverType(MapLimiter instance) {
+    private void kollegenSafeDetermineDriverType(Object instance) {
         try {
-            this.determineDriverType();
+            java.lang.reflect.Method m = instance.getClass().getDeclaredMethod("determineDriverType");
+            m.setAccessible(true);
+            m.invoke(instance);
         } catch (Throwable t) {
             LOG.warn(
                 "Xaero World Map VRAM-Erkennung uebersprungen (kein OpenGL-Context unter VulkanMod): {}",
                 t.getMessage());
-            this.driverType = 2;
+            try {
+                java.lang.reflect.Field f = instance.getClass().getDeclaredField("driverType");
+                f.setAccessible(true);
+                f.setInt(instance, 2);
+            } catch (Throwable ignored) {
+            }
         }
     }
 }
