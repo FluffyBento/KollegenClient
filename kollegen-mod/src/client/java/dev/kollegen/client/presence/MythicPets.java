@@ -202,14 +202,14 @@ public final class MythicPets {
                         st.oy = ownerPos.y;
                         st.oz = ownerPos.z;
                         double wa = Math.random() * Math.PI * 2.0;
-                        double wr = 1.0 + Math.random() * 1.2;
+                        double wr = 2.0 + Math.random() * 2.0;
                         st.wx = ownerPos.x + Math.cos(wa) * wr;
                         st.wz = ownerPos.z + Math.sin(wa) * wr;
                         if (groundKind) {
                             double g = PetRenderer.groundTop(level, st.wx, ownerPos.y, st.wz);
                             st.wy = Double.isNaN(g) ? ownerPos.y : g;
                         } else {
-                            st.wy = Math.max(ownerPos.y - 0.2, ownerPos.y + 0.6 + Math.random() * 1.2);
+                            st.wy = Math.max(ownerPos.y + 0.4, ownerPos.y + 1.2 + Math.random() * 1.2);
                         }
                         st.wanderUntil = now + 4000 + (long) (Math.random() * 5000);
                         st.resting = false;
@@ -231,16 +231,16 @@ public final class MythicPets {
                         st.resting = true;
                     } else {
                         double wa = Math.random() * Math.PI * 2.0;
-                        double wr = ownerDistSq > 25.0 ? 1.2 : (1.0 + Math.random() * 2.5);
+                        double wr = ownerDistSq > 25.0 ? 2.0 : (2.0 + Math.random() * 2.0);
                         st.wx = ownerPos.x + Math.cos(wa) * wr;
                         st.wz = ownerPos.z + Math.sin(wa) * wr;
                         if (groundKind) {
                             double g = PetRenderer.groundTop(level, st.wx, ownerPos.y, st.wz);
                             st.wy = Double.isNaN(g) ? ownerPos.y : g;
                         } else {
-                            double baseBob = 0.6 + Math.random() * 1.2;
-                            if (bh != null && "hover".equals(bh.mode)) baseBob = Math.max(0.8, bh.hoverHeight * 0.6);
-                            st.wy = Math.max(ownerPos.y - 0.2, ownerPos.y + baseBob);
+                            double baseBob = 1.2 + Math.random() * 1.2;
+                            if (bh != null && "hover".equals(bh.mode)) baseBob = Math.max(1.4, bh.hoverHeight * 0.8);
+                            st.wy = Math.max(ownerPos.y + 0.4, ownerPos.y + baseBob);
                         }
                         st.wanderUntil = now + 4000 + (long) (Math.random() * 5000);
                         st.resting = false;

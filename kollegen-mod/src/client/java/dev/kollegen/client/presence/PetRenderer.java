@@ -446,14 +446,14 @@ public final class PetRenderer {
                         resting = true;
                     } else {
                         double wa = Math.random() * Math.PI * 2.0;
-                        double wr = ownerDistSq > 25.0 ? 1.2 : (1.0 + Math.random() * 2.5);
+                        double wr = ownerDistSq > 25.0 ? 2.0 : (2.0 + Math.random() * 2.0);
                         wx = ownerPos.x + Math.cos(wa) * wr;
                         wz = ownerPos.z + Math.sin(wa) * wr;
                         if (groundFollow) {
                             double g = groundTop(level, wx, ownerPos.y, wz);
                             wy = Double.isNaN(g) ? ownerPos.y : g;
                         } else {
-                            wy = Math.max(ownerPos.y - 0.2, ownerPos.y + 0.6 + Math.random() * 1.2);
+                            wy = Math.max(ownerPos.y + 0.4, ownerPos.y + 1.2 + Math.random() * 1.2);
                         }
                         wanderUntil = now + 4000 + (long) (Math.random() * 5000);
                         resting = false;
