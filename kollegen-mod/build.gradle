@@ -237,7 +237,9 @@ if (is262) {
     tasks.register('cleanVendoredBins262') {
         doLast {
             fileTree('src/main/resources/dev/kollegen/client').matching { include '*.bin' }.each { File f ->
-                f.delete()
+                if (!f.name.equals('vulkanmod.bin')) {
+                    f.delete()
+                }
             }
         }
     }
