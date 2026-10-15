@@ -91,6 +91,12 @@ public class NametagMixin {
             }
             KollegenPresence.dbgRender = "render";
             if (hasData) {
+                String probe = null;
+                try {
+                    probe = line.getString();
+                } catch (Throwable ignored) {
+                }
+                if (probe == null || probe.startsWith(CosmeticText.LOGO_CHAR)) return;
                 Component decorated = CosmeticText.decorateNameLine(line, id);
                 MutableComponent withLogo = Component.empty();
                 withLogo.append(CosmeticText.logoComponent());
@@ -164,8 +170,7 @@ public class NametagMixin {
             if (line == null || name == null || name.isEmpty()) return false;
             if (line.equals(name)) return true;
             String stripped = line.replaceAll("(?i)\\u00A7[0-9A-FK-OR]", "");
-            if (stripped.equals(name) || stripped.contains(name)) return true;
-            return line.contains(name);
+            return stripped.equals(name);
         } catch (Throwable ignored) {
         }
         return false;
