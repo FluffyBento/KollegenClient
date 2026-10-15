@@ -138,6 +138,10 @@ public final class BbModel {
                 JsonObject res = root.getAsJsonObject("resolution");
                 if (res.has("width")) texW = res.get("width").getAsFloat();
                 if (res.has("height")) texH = res.get("height").getAsFloat();
+            } else if (root.has("texture_size") && root.get("texture_size").isJsonArray()) {
+                JsonArray ts = root.getAsJsonArray("texture_size");
+                if (ts.size() > 0) texW = ts.get(0).getAsFloat();
+                if (ts.size() > 1) texH = ts.get(1).getAsFloat();
             }
         } catch (Throwable ignored) {
         }

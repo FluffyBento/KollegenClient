@@ -146,6 +146,7 @@ public final class PetRenderer {
             PETLOG.info("pet extract active total={} dragonsSkipped={}", PETS.size(), dragons);
         }
         if (pet.entity instanceof EnderDragon) continue;
+        if (BlubPets.isBlubDisplay(pet.entity)) continue;
 
             try {
                 EntityRenderState renderState = dispatcher.extractEntity(pet.entity, partial);
@@ -282,6 +283,32 @@ public final class PetRenderer {
             MythicPets.submitAll(mc, poseStack, state, collector);
         } catch (Throwable ignored) {
         }
+        try {
+            submitBlubs(mc, poseStack, state, collector);
+        } catch (Throwable ignored) {
+        }
+    }
+
+    private static void submitBlubs(Minecraft mc, PoseStack poseStack, LevelRenderState state, SubmitNodeCollector collector) {
+        try {
+            if (mc == null || mc.level == null) return;
+            Vec3 cam;
+            try {
+                cam = state.cameraRenderState.pos;
+            } catch (Throwable ignored) {
+                return;
+            }
+            if (cam == null) return;
+            for (Map.Entry<UUID, PetInstance> entry : PETS.entrySet()) {
+                PetInstance pet = entry.getValue();
+                if (pet == null || pet.entity == null || pet.level != mc.level) continue;
+                if (!BlubPets.isBlubDisplay(pet.entity)) continue;
+                CosmeticData d = KollegenPresence.getCosmetics(entry.getKey());
+                if (d == null || d.petKind == null) continue;
+                BlubPets.renderBlub(mc, poseStack, collector, state, cam, pet.entity, d);
+            }
+        } catch (Throwable ignored) {
+        }
     }
 
     public static void renderFor(UUID ownerId, PoseStack poseStack, SubmitNodeCollector collector, CameraRenderState camera) {
@@ -385,7 +412,6 @@ public final class PetRenderer {
                 this.entity.setInvulnerable(true);
                 this.entity.setSilent(true);
                 this.entity.setNoGravity(true);
-                BlubPets.setupDisplay(this.entity);
             }
         }
 

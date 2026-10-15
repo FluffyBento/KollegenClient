@@ -135,6 +135,9 @@ if (rel.endsWith('mixin/NametagMixin.java')) {
                 if (rel.endsWith('presence/MythicPets.java')) {
                     t = t.replace('collector.submitNameTag(poseStack, anchor, 0, comp, false, 15728880, state.cameraRenderState);', 'collector.submitNameTag(poseStack, anchor, 0, comp, false, 15728880, 0.0, state.cameraRenderState);')
                 }
+                if (rel.endsWith('presence/BlubPets.java')) {
+                    t = t.replace('collector.submitNameTag(poseStack, anchor, 0, comp, false, 15728880, state.cameraRenderState);', 'collector.submitNameTag(poseStack, anchor, 0, comp, false, 15728880, 0.0, state.cameraRenderState);')
+                }
                 if (rel.endsWith('mixin/NametagMixin.java')) {
                     t = t.replace('method = "submitNameDisplay(', 'method = "submitNameTag(')
                     t = t.replace('renderer/state/level/CameraRenderState;)V', 'renderer/state/CameraRenderState;)V')
@@ -257,6 +260,9 @@ if (is262) {
                 String rel = portDir.toPath().relativize(f.toPath()).toString().replace(File.separator, '/')
                 String t = f.getText('UTF-8')
                 if (rel.endsWith('presence/MythicPets.java')) {
+                    t = t.replace('import net.minecraft.client.renderer.state.LevelRenderState;', 'import net.minecraft.client.renderer.state.level.LevelRenderState;')
+                }
+                if (rel.endsWith('presence/BlubPets.java')) {
                     t = t.replace('import net.minecraft.client.renderer.state.LevelRenderState;', 'import net.minecraft.client.renderer.state.level.LevelRenderState;')
                 }
                 if (rel.endsWith('presence/PetRenderer.java')) {
