@@ -449,6 +449,13 @@ fn auto_resolve_conflict(
     if !lowered.contains("incompatible mods found") {
         return Ok("Kein Mod-Konflikt erkannt.".to_string());
     }
+    let targets = parse_conflict_targets(&text);
+    if !targets.is_empty() && repair_looped(&state.data_dir, &instance_name, &targets) {
+        return Ok(format!(
+            "WIEDERHOLT: Dieselbe Reparatur wurde gerade schon versucht, der Konflikt besteht weiter – kein Neustart, bitte manuell eingreifen:\n\n{}\n\nTipp: Betroffene Mod-Datei(en) aus dem mods-Ordner entfernen oder aktualisieren, dann Spiel neu starten.",
+            conflict_excerpt(&text)
+        ));
+    }
 
     
     
@@ -463,7 +470,6 @@ fn auto_resolve_conflict(
         .unwrap_or_else(|| ("".to_string(), "".to_string()));
 
     let mods_dir = crate::utils::instance_dir(&state.data_dir, &instance_name).join("mods");
-    let targets = parse_conflict_targets(&text);
     if targets.is_empty() {
         return Ok("Konflikt erkannt, aber keine ersetzbaren Mods gefunden.".to_string());
     }
@@ -497,6 +503,7 @@ fn auto_resolve_conflict(
                 && crate::companion::jar_supports_mc(&redeployed, &mc_version)
             {
                 fixed.push(format!("{} → {} (Bundle erneuert)", label, bname));
+                record_repair(&state.data_dir, &instance_name, &modid);
             } else {
                 let _ = std::fs::remove_file(&redeployed);
                 removed.push(format!(
@@ -567,7 +574,10 @@ fn auto_resolve_conflict(
                     );
                 }
                 match install {
-                    Ok(()) => fixed.push(format!("{} → {}", label, fname)),
+                    Ok(()) => {
+                        fixed.push(format!("{} → {}", label, fname));
+                        record_repair(&state.data_dir, &instance_name, &modid);
+                    }
                     Err(_) => {
                         
                         let _ = std::fs::remove_file(&jar);
@@ -612,8 +622,75 @@ fn auto_resolve_conflict(
 
 
 
-fn parse_conflict_targets(text: &str) -> Vec<(String, String)> {
-    let mut out = Vec::new();
+fn repair_history_path(data_dir: &std::path::Path) -> std::path::PathBuf {
+    data_dir.join("repair-history.json")
+}
+
+fn load_repair_history(data_dir: &std::path::Path) -> Vec<(String, String, i64)> {
+    let p = repair_history_path(data_dir);
+    let s = std::fs::read_to_string(&p).unwrap_or_default();
+    if s.trim().is_empty() {
+        return vec![];
+    }
+    serde_json::from_str::<Vec<serde_json::Value>>(&s)
+        .unwrap_or_default()
+        .into_iter()
+        .filter_map(|v| {
+            Some((
+                v.get("instance")?.as_str()?.to_string(),
+                v.get("target")?.as_str()?.to_string(),
+                v.get("ts")?.as_i64()?,
+            ))
+        })
+        .collect()
+}
+
+fn record_repair(data_dir: &std::path::Path, instance: &str, target: &str) {
+    let now = chrono::Utc::now().timestamp();
+    let mut hist = load_repair_history(data_dir);
+    hist.retain(|(_, _, ts)| now - ts < 3600);
+    hist.push((instance.to_string(), target.to_string(), now));
+    let v: Vec<serde_json::Value> = hist
+        .into_iter()
+        .map(|(i, t, ts)| serde_json::json!({ "instance": i, "target": t, "ts": ts }))
+        .collect();
+    if let Ok(s) = serde_json::to_string(&v) {
+        let _ = std::fs::write(repair_history_path(data_dir), s);
+    }
+}
+
+fn repair_looped(data_dir: &std::path::Path, instance: &str, targets: &[(String, String)]) -> bool {
+    let now = chrono::Utc::now().timestamp();
+    let hist = load_repair_history(data_dir);
+    targets.iter().any(|(modid, _)| {
+        hist.iter().any(|(i, t, ts)| {
+            i == instance && t == modid && now - ts < 900 && now - ts >= 0
+        })
+    })
+}
+
+fn conflict_excerpt(text: &str) -> String {
+    let mut lines = vec![];
+    for line in text.lines() {
+        let l = line.trim();
+        if l.starts_with("- Remove")
+            || l.starts_with("- Replace")
+            || l.starts_with("- add ")
+            || l.to_lowercase().starts_with("a potential solution")
+        {
+            lines.push(l.to_string());
+        }
+        if lines.len() >= 10 {
+            break;
+        }
+    }
+    if lines.is_empty() {
+        return "Details siehe logs/latest.log der Instanz.".to_string();
+    }
+    lines.join("\n")
+}
+
+fn parse_conflict_targets(text: &str) -> Vec<(String, String)> {    let mut out = Vec::new();
     for line in text.lines() {
         let l = line.trim();
         if !(l.starts_with("- Remove") || l.starts_with("- Replace")) {

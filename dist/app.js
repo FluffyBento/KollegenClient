@@ -196,12 +196,16 @@ async function refreshLogs() {
         const msg = await invoke("auto_resolve_conflict", {
           instanceName: activeInstance,
         });
-        alert(
-          "Mod-Konflikt erkannt und automatisch behoben:\n\n" +
-            msg +
-            "\n\nDer Launcher wird neu gestartet…"
-        );
-        launchGame(activeInstance, true);
+        if (typeof msg === "string" && msg.startsWith("WIEDERHOLT:")) {
+          alert(msg);
+        } else {
+          alert(
+            "Mod-Konflikt erkannt und automatisch behoben:\n\n" +
+              msg +
+              "\n\nDer Launcher wird neu gestartet…"
+          );
+          launchGame(activeInstance, true);
+        }
       } catch (e) {
         alert("Konflikt konnte nicht automatisch behoben werden: " + e);
       }
