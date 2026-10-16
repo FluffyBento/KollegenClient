@@ -1,229 +1,217 @@
 package dev.kollegen.client.menu;
 
-import dev.kollegen.client.Version;
 import dev.kollegen.client.mods.Palette;
 import dev.kollegen.client.ui.Glass;
-import dev.kollegen.client.ui.GlassButton;
+import dev.kollegen.client.ui.Icons;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.input.KeyEvent;
+import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
-
-import java.util.List;
-
 
 public class ThemeSelectorScreen extends Screen {
     private final Screen parent;
-
-    private static final int THEME_W = 240;
-    private static final int THEME_H = 130;
-    private static final int GAP = 12;
-    private static final int COLS = 3;
-
-    private int scroll = 0;
-    private int maxScroll = 0;
-    private boolean dragScroll = false;
-    private int dragStartY = 0;
-    private int dragStartScroll = 0;
-
     private final List<Palette.Theme> themes;
+    private final Map<String, Float> anims = new HashMap<String, Float>();
+    private float scrollT = 0.0f;
+    private float scrollV = 0.0f;
+    private float maxScroll = 0.0f;
+    private float openAnim = 0.0f;
+    private boolean dragSlider = false;
+    private int px;
+    private int py;
+    private int pw;
+    private int ph;
+    private int cx;
+    private int cy;
+    private int cw;
+    private int ch;
+    private int cols;
+    private float cardW;
+    private static final int CARD_H = 58;
+    private static final int GAP = 6;
 
     public ThemeSelectorScreen(Screen parent) {
-        super(Component.literal("Thema auswählen"));
+        super((Component) Component.literal("Design"));
         this.parent = parent;
-        this.themes = List.copyOf(Palette.getThemes().values());
+        this.themes = new ArrayList<Palette.Theme>(Palette.getThemes().values());
     }
 
-    @Override
     protected void init() {
-        int totalH = ((themes.size() + COLS - 1) / COLS) * (THEME_H + GAP) + GAP;
-        int visibleH = this.height - 120;
-        maxScroll = Math.max(0, totalH - visibleH);
+        this.pw = Math.min(this.width - 12, 620);
+        this.ph = Math.min(this.height - 12, 400);
+        this.px = (this.width - this.pw) / 2;
+        this.py = (this.height - this.ph) / 2;
+        this.cx = this.px + 12;
+        this.cy = this.py + 66;
+        this.cw = this.pw - 24;
+        this.ch = this.py + this.ph - 12 - this.cy;
+        this.cols = Math.max(1, Math.min(3, (this.cw + GAP) / (170 + GAP)));
+        this.cardW = (this.cw - 6 - (this.cols - 1) * GAP) / (float) this.cols;
+        int rows = (this.themes.size() + this.cols - 1) / this.cols;
+        float total = rows * (CARD_H + GAP) - GAP;
+        this.maxScroll = Math.max(0.0f, total - this.ch + 2);
+        this.scrollT = Math.min(this.scrollT, this.maxScroll);
     }
 
-    @Override
-    public boolean mouseClicked(net.minecraft.client.input.MouseButtonEvent event, boolean bl) {
+    private float hv(String key, boolean on) {
+        Float cur = this.anims.get(key);
+        float c = cur == null ? 0.0f : cur;
+        c = Glass.step(c, on ? 1.0f : 0.0f, 14.0f);
+        this.anims.put(key, c);
+        return c;
+    }
+
+    private static boolean hit(double mx, double my, float x, float y, float w, float h) {
+        return mx >= x && mx < x + w && my >= y && my < y + h;
+    }
+
+    private float sliderX() {
+        return this.px + this.pw - 12 - 120;
+    }
+
+    private float sliderY() {
+        return this.py + 40;
+    }
+
+    private void setSlider(double mx) {
+        float v = (float) ((mx - this.sliderX()) / 120.0);
+        v = Math.max(0.0f, Math.min(1.0f, v));
+        Glass.opacity = 0.15f + v * 0.8f;
+    }
+
+    private void close() {
+        Palette.saveTheme();
+        Minecraft.getInstance().setScreenAndShow(this.parent);
+    }
+
+    public boolean mouseClicked(MouseButtonEvent event, boolean bl) {
         double mx = event.x();
         double my = event.y();
-        int button = event.button();
-
-        // Close hitbox - right side close button area
-        if (button == 0) {
-            int closeX = this.width - 100;
-            int closeY = 20;
-            if (mx >= closeX && mx <= closeX + 90 && my >= closeY && my <= closeY + 30) {
-                close();
+        if (event.button() == 0) {
+            if (hit(mx, my, this.px + 12, this.py + 10, 22, 22)) {
+                this.close();
                 return true;
             }
-        }
-
-        // Scrollbar hitbox - only scroll when over the entries area
-        if (button == 0 && maxScroll > 0) {
-            int sidebarX = (this.width - (COLS * THEME_W + (COLS - 1) * GAP)) / 2;
-            // Only drag if clicking the scrollbar track area (left side of themes, not entries)
-            if (mx >= sidebarX - 14 && mx <= sidebarX + 6) {
-                dragScroll = true;
-                dragStartY = (int) my;
-                dragStartScroll = scroll;
+            if (hit(mx, my, this.sliderX() - 4, this.sliderY() - 6, 128, 18)) {
+                this.dragSlider = true;
+                this.setSlider(mx);
                 return true;
             }
-        }
-
-        int startX = (this.width - (COLS * THEME_W + (COLS - 1) * GAP)) / 2;
-        int startY = 70 - scroll;
-
-        for (int i = 0; i < themes.size(); i++) {
-            int col = i % COLS;
-            int row = i / COLS;
-            int x = startX + col * (THEME_W + GAP);
-            int y = startY + row * (THEME_H + GAP);
-
-            // Check entry click (but not the close button area)
-            if (mx >= x && mx <= x + THEME_W && my >= y && my <= y + THEME_H) {
-                // Don't trigger if clicking near the close button
-                if (mx >= this.width - 100 && mx <= this.width - 10 && my >= 20 && my <= 50) {
-                    return true;
+            if (hit(mx, my, this.cx, this.cy, this.cw, this.ch)) {
+                for (int i = 0; i < this.themes.size(); i++) {
+                    float x = this.cx + (i % this.cols) * (this.cardW + GAP);
+                    float y = this.cy + (i / this.cols) * (CARD_H + GAP) - this.scrollV;
+                    if (hit(mx, my, x, y, this.cardW, CARD_H)) {
+                        Palette.setTheme(this.themes.get(i).id);
+                        return true;
+                    }
                 }
-                Palette.setTheme(themes.get(i).id);
-                rebuildWidgets();
-                return true;
             }
         }
-
         return super.mouseClicked(event, bl);
     }
 
-    @Override
-    public boolean mouseReleased(net.minecraft.client.input.MouseButtonEvent event) {
-        if (dragScroll && event.button() == 0) {
-            dragScroll = false;
-            return true;
-        }
-        return super.mouseReleased(event);
-    }
-
-    @Override
-    public boolean mouseDragged(net.minecraft.client.input.MouseButtonEvent event, double dx, double dy) {
-        if (dragScroll && event.button() == 0) {
-            int delta = (int) Math.round(dy);
-            if (delta != 0) {
-                scroll = Math.max(0, Math.min(maxScroll, dragStartScroll + delta));
-            }
+    public boolean mouseDragged(MouseButtonEvent event, double dx, double dy) {
+        if (this.dragSlider && event.button() == 0) {
+            this.setSlider(event.x());
             return true;
         }
         return super.mouseDragged(event, dx, dy);
     }
 
-    @Override
+    public boolean mouseReleased(MouseButtonEvent event) {
+        if (this.dragSlider && event.button() == 0) {
+            this.dragSlider = false;
+            Palette.saveTheme();
+            return true;
+        }
+        return super.mouseReleased(event);
+    }
+
     public boolean mouseScrolled(double mx, double my, double horizontal, double vertical) {
-        if (maxScroll > 0) {
-            // Only scroll if mouse is over the entries grid area, not the right sidebar
-            int sidebarX = (this.width - (COLS * THEME_W + (COLS - 1) * GAP)) / 2;
-            int entriesStartX = sidebarX;
-            int entriesEndX = sidebarX + (COLS * THEME_W + (COLS - 1) * GAP);
-            if (mx >= entriesStartX && mx <= entriesEndX) {
-                scroll = Math.max(0, Math.min(maxScroll, scroll - (int) (vertical * 24)));
-                return true;
-            }
+        if (this.maxScroll > 0) {
+            this.scrollT = Math.max(0.0f, Math.min(this.maxScroll, this.scrollT - (float) (vertical * 26.0)));
+            return true;
         }
         return super.mouseScrolled(mx, my, horizontal, vertical);
     }
 
-    @Override
-    public boolean keyPressed(net.minecraft.client.input.KeyEvent ki) {
+    public boolean keyPressed(KeyEvent ki) {
         if (ki.key() == 256) {
-            close();
+            this.close();
             return true;
         }
         return super.keyPressed(ki);
     }
 
-    private void close() {
-        Minecraft.getInstance().setScreenAndShow(parent);
-    }
-
-    @Override
-    public void extractRenderState(GuiGraphicsExtractor g, int mx, int my, float pt) {
-        g.fill(0, 0, this.width, this.height, Palette.tint(Palette.BG, 0xCC));
-
-        int panelW = Math.min(this.width - 40, COLS * THEME_W + (COLS - 1) * GAP + 60);
-        int panelH = Math.min(this.height - 40, 520);
-        int px = (this.width - panelW) / 2;
-        int py = (this.height - panelH) / 2;
-
-        Glass.dropShadow(g, px, py, panelW, panelH, 14, 6, 12);
-        Glass.panelDark(g, px, py, panelW, panelH, 12);
-
-        g.text(this.font, "Thema auswählen", px + (panelW - this.font.width("Thema auswählen")) / 2, py + 22, Palette.TEXT, false);
-        g.text(this.font, "Klicke auf eine Karte für Live-Vorschau", px + (panelW - this.font.width("Klicke auf eine Karte für Live-Vorschau")) / 2, py + 42, Palette.MUTED, false);
-
-        int startX = px + (panelW - (COLS * THEME_W + (COLS - 1) * GAP)) / 2;
-        int startY = py + 55 - scroll;
-
-        int contentTop = py + 50;
-        int contentBottom = py + panelH - 40;
-        g.enableScissor(px + 12, contentTop, px + panelW - 12, contentBottom);
-
-        for (int i = 0; i < themes.size(); i++) {
-            int col = i % COLS;
-            int row = i / COLS;
-            int x = startX + col * (THEME_W + GAP);
-            int y = startY + row * (THEME_H + GAP);
-
-            if (y + THEME_H < contentTop || y > contentBottom) continue;
-
-            Palette.Theme t = themes.get(i);
-            boolean isCurrent = t.id.equals(Palette.getCurrentTheme());
-            boolean hov = mx >= x && mx <= x + THEME_W && my >= y && my <= y + THEME_H;
-
-            // Minecraft-style card border
-            int borderCol = isCurrent ? Palette.ACCENT : (hov ? Palette.ACCENT : Palette.BORDER);
-            Glass.fillRound(g, x, y, THEME_W, THEME_H, 10, borderCol);
-            Glass.fillRound(g, x + 1, y + 1, THEME_W - 2, THEME_H - 2, 9,
-                    hov ? Palette.tint(Palette.PANEL2, 0x99) : Palette.tint(Palette.PANEL, 0xE0));
-
-            int previewH = 70;
-            Glass.fillRoundGradient(g, x + 8, y + 8, THEME_W - 16, previewH, 6, t.bg, t.panel);
-
-            Glass.fillRound(g, x + 10, y + 8 + previewH - 28, THEME_W - 20, 24, 4, t.panel2);
-            Glass.fillRound(g, x + 14, y + 8 + previewH - 28, 18, 18, 4, t.accent);
-            Glass.fillRound(g, x + 44, y + 8 + previewH - 28, 18, 18, 4, t.accent2);
-            Glass.fillRound(g, x + 76, y + 8 + previewH - 28, 18, 18, 4, t.green);
-
-            int textY = y + 8 + previewH + 6;
-            g.text(this.font, t.name, x + 14, textY, Palette.TEXT, false);
-            g.text(this.font, t.description, x + 14, textY + this.font.lineHeight + 2, Palette.MUTED, false);
-
-            if (isCurrent) {
-                Glass.fillRound(g, x, y, THEME_W, THEME_H, 10, Palette.ACCENT);
-                g.text(this.font, "✓ Aktiv", x + THEME_W - 16 - this.font.width("✓ Aktiv"), textY, Palette.ACCENT, false);
-            }
-        }
-
-        g.disableScissor();
-
-        if (maxScroll > 0) {
-            int trackTop = contentTop;
-            int trackBottom = contentBottom;
-            int trackH = trackBottom - trackTop;
-            int thumbH = Math.max(36, (int) ((double) trackH * trackH / (trackH + maxScroll)));
-            int thumbY = trackTop + (int) ((trackH - thumbH) * (scroll / (double) maxScroll));
-            int scrollbarX = px + panelW - 12;
-            Glass.scrollbarTrack(g, scrollbarX, trackTop, 6, trackH, 3);
-            Glass.scrollbarThumb(g, scrollbarX + 1, thumbY, 4, thumbH, 2, dragScroll);
-        }
-
-        // Close button with Minecraft style
-        GlassButton backBtn = new GlassButton(px + panelW - 100, py + panelH - 36, 90, 30, Component.literal("Zurück"), btn -> close());
-        backBtn.extractRenderState(g, mx, my, pt);
-
-        g.text(this.font, "v" + Version.get(), px + 16, py + panelH - 14, Palette.MUTED, false);
-
-        super.extractRenderState(g, mx, my, pt);
-    }
-
-    @Override
     public boolean isPauseScreen() {
         return false;
+    }
+
+    public void extractRenderState(GuiGraphicsExtractor g, int mx, int my, float pt) {
+        Glass.frame();
+        this.openAnim = Math.min(1.0f, this.openAnim + Glass.dt * 4.5f);
+        this.scrollV = Glass.step(this.scrollV, this.scrollT, 20.0f);
+        float open = Glass.ease(this.openAnim);
+        g.fill(0, 0, this.width, this.height, Glass.tint(Palette.BG, (int) (140 * open)));
+        Glass.alpha = open;
+        Glass.glassCard(g, this.px, this.py, this.pw, this.ph, 14, Palette.BG, Math.min(0.92f, Glass.opacity + 0.12f), 1.0f);
+        Glass.rrGrad(g, this.px + 1, this.py + 1, this.pw - 2, 100, 13, Glass.a(Palette.ACCENT, 0.10f), 0x00000000);
+        boolean hb = hit(mx, my, this.px + 12, this.py + 10, 22, 22);
+        Glass.pill(g, this.px + 12, this.py + 10, 22, 22, this.hv("back", hb), false, false);
+        Icons.draw(g, Icons.BACK, this.px + 17, this.py + 15, 12, Palette.TEXT);
+        Glass.textScaled(g, this.font, "Design", this.px + 42, this.py + 12, 1.4f, Palette.TEXT, true);
+        Glass.text(g, this.font, "Thema wählen – Änderungen sind sofort live", this.px + 42, this.py + 30, Palette.MUTED, false);
+        Glass.text(g, this.font, "Glas-Deckkraft", Math.round(this.sliderX() - this.font.width("Glas-Deckkraft") - 8), this.py + 36, Palette.MUTED, false);
+        float sv = (Glass.opacity - 0.15f) / 0.8f;
+        Glass.vanillaSlider(g, Math.round(this.sliderX()), Math.round(this.sliderY()) - 3, 120, 12, sv, hit(mx, my, this.sliderX(), this.sliderY() - 4, 120, 14), this.dragSlider);
+        Glass.separator(g, this.px + 12, this.py + 58, this.pw - 24, 0x22FFFFFF);
+        g.enableScissor(this.cx - 2, this.cy, this.cx + this.cw + 2, this.cy + this.ch);
+        String cur = Palette.getCurrentTheme();
+        for (int i = 0; i < this.themes.size(); i++) {
+            Palette.Theme t = this.themes.get(i);
+            float x = this.cx + (i % this.cols) * (this.cardW + GAP);
+            float y = this.cy + (i / this.cols) * (CARD_H + GAP) - this.scrollV;
+            if (y + CARD_H < this.cy - 2 || y > this.cy + this.ch + 2) {
+                continue;
+            }
+            boolean sel = t.id.equals(cur);
+            boolean hov = hit(mx, my, this.cx, this.cy, this.cw, this.ch) && hit(mx, my, x, y, this.cardW, CARD_H);
+            float h = this.hv("t:" + t.id, hov);
+            Glass.glassCard(g, x, y, this.cardW, CARD_H, 9, Glass.mix(t.panel, 0xFFFFFFFF, 0.04f * h), Math.min(0.95f, Glass.opacity + 0.2f), 0.0f);
+            if (sel) {
+                Glass.ring(g, x, y, this.cardW, CARD_H, 9, 1.0f, Glass.a(t.accent, 0.95f));
+            } else if (h > 0.01f) {
+                Glass.ring(g, x, y, this.cardW, CARD_H, 9, 0.5f, Glass.a(0xFFFFFFFF, 0.4f * h));
+            }
+            float pvx = x + 8;
+            float pvy = y + 8;
+            Glass.rrGrad(g, pvx, pvy, 42, 42, 7, 0xFF000000 | t.bg, 0xFF000000 | t.panel);
+            Glass.rr(g, pvx + 5, pvy + 24, 32, 12, 6, 0xFF000000 | t.panel2);
+            Glass.disc(g, pvx + 12, pvy + 30, 4, 0xFF000000 | t.accent);
+            Glass.disc(g, pvx + 22, pvy + 30, 4, 0xFF000000 | t.accent2);
+            Glass.disc(g, pvx + 32, pvy + 30, 4, 0xFF000000 | t.green);
+            Glass.rr(g, pvx + 5, pvy + 7, 20, 3, 1.5f, Glass.a(0xFF000000 | t.text, 0.9f));
+            Glass.rr(g, pvx + 5, pvy + 13, 12, 3, 1.5f, Glass.a(0xFF000000 | t.muted, 0.9f));
+            Glass.ring(g, pvx, pvy, 42, 42, 7, 0.5f, 0x40FFFFFF);
+            int tx = Math.round(x + 58);
+            Glass.textBold(g, this.font, Glass.trunc(this.font, t.name, (int) this.cardW - 66), tx, Math.round(y + 12), Palette.TEXT, true);
+            Glass.text(g, this.font, Glass.trunc(this.font, t.description, (int) this.cardW - 66), tx, Math.round(y + 25), Palette.MUTED, false);
+            if (sel) {
+                Glass.badge(g, tx, Math.round(y + CARD_H - 20), 38, 14, 7, t.accent, 0xFFFFFFFF, this.font, "Aktiv");
+            }
+        }
+        g.disableScissor();
+        if (this.maxScroll > 0) {
+            Glass.vanillaScrollbar(g, this.cx + this.cw - 3, this.cy, 3, this.ch, this.scrollV, this.maxScroll, false, false);
+        }
+        Glass.alpha = 1.0f;
+        super.extractRenderState(g, mx, my, pt);
     }
 }

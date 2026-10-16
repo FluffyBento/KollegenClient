@@ -101,7 +101,12 @@ if (is121) {
                 String rel = portDir.toPath().relativize(f.toPath()).toString().replace(File.separator, '/')
                 String t = f.getText('UTF-8')
                 t = t.replace('GuiGraphicsExtractor', 'GuiGraphics')
+                // Neue UI zeichnet Text über den Glass-Helper (Glass.text/...), nicht über
+                // GuiGraphics.text — der Helper heißt in beiden Versionen gleich und darf
+                // daher nicht zu drawString portiert werden (nur g.text( schon).
+                t = t.replace('Glass.text(', 'Glass.__text__(')
                     .replace('.text(', '.drawString(')
+                    .replace('Glass.__text__(', 'Glass.text(')
                     .replace('.item(', '.renderItem(')
                     .replace('.gui.screen()', '.screen')
                     .replace('renderer.state.level.CameraRenderState', 'renderer.state.CameraRenderState')
