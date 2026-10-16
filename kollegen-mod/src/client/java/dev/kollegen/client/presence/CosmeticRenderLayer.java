@@ -125,6 +125,10 @@ public final class CosmeticRenderLayer extends RenderLayer<AvatarRenderState, Pl
             }
             RenderType type = RenderTypes.entityTranslucent(tex);
             if (model == null) {
+                try {
+                    System.out.println("KOLLEGENDBG cosmetic-model-missing " + modelPath);
+                } catch (Throwable ignored) {
+                }
                 renderFallback(poseStack, collector, anchor, type, packedLight);
                 return;
             }
