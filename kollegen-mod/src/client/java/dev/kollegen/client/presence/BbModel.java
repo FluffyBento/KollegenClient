@@ -44,6 +44,9 @@ public final class BbModel {
         public float[] pTimes = new float[0];
         public float[][] pVals = new float[0][];
         public byte[] pInterp = new byte[0];
+        public float[] sTimes = new float[0];
+        public float[][] sVals = new float[0][];
+        public byte[] sInterp = new byte[0];
     }
 
     private BbModel(float texWidth, float texHeight) {
@@ -251,6 +254,9 @@ public final class BbModel {
                     List<Float> pt = new ArrayList<>();
                     List<float[]> pv = new ArrayList<>();
                     List<Byte> pi = new ArrayList<>();
+                    List<Float> st = new ArrayList<>();
+                    List<float[]> sv = new ArrayList<>();
+                    List<Byte> si = new ArrayList<>();
                     for (JsonElement kel : keys) {
                         if (kel == null || !kel.isJsonObject()) continue;
                         JsonObject k = kel.getAsJsonObject();
@@ -260,7 +266,7 @@ public final class BbModel {
                         } catch (Throwable ignored) {
                             continue;
                         }
-                        if (!"rotation".equals(channel) && !"position".equals(channel)) continue;
+                        if (!"rotation".equals(channel) && !"position".equals(channel) && !"scale".equals(channel)) continue;
                         float time = 0.0F;
                         try {
                             time = k.get("time").getAsFloat();
@@ -275,10 +281,6 @@ public final class BbModel {
                             xyz[0] = parseAnimFloat(dp, "x");
                             xyz[1] = parseAnimFloat(dp, "y");
                             xyz[2] = parseAnimFloat(dp, "z");
-                            if ("rotation".equals(channel)) {
-                                xyz[0] = -xyz[0];
-                                xyz[2] = -xyz[2];
-                            }
                         } catch (Throwable ignored) {
                             continue;
                         }
@@ -293,13 +295,17 @@ public final class BbModel {
                             rt.add(time);
                             rv.add(xyz);
                             ri.add(interp);
+                        } else if ("scale".equals(channel)) {
+                            st.add(time);
+                            sv.add(xyz);
+                            si.add(interp);
                         } else {
                             pt.add(time);
                             pv.add(xyz);
                             pi.add(interp);
                         }
                     }
-                    if (rt.isEmpty() && pt.isEmpty()) continue;
+                    if (rt.isEmpty() && pt.isEmpty() && st.isEmpty()) continue;
                     AnimBone ab = model.anims.get(boneName);
                     if (ab == null) {
                         ab = new AnimBone();
@@ -314,6 +320,11 @@ public final class BbModel {
                         ab.pTimes = toFloatArray(pt);
                         ab.pVals = pv.toArray(new float[0][]);
                         ab.pInterp = toByteArray(pi);
+                    }
+                    if (!st.isEmpty()) {
+                        ab.sTimes = toFloatArray(st);
+                        ab.sVals = sv.toArray(new float[0][]);
+                        ab.sInterp = toByteArray(si);
                     }
                 } catch (Throwable ignored) {
                 }

@@ -168,8 +168,16 @@ public final class CosmeticRenderLayer extends RenderLayer<AvatarRenderState, Pl
             RenderType type = RenderTypes.entityTranslucent(tex);
             poseStack.pushPose();
             arm.translateAndRotate(poseStack);
+            float mountYaw = 0.0F;
+            try {
+                if (bb.bones != null && !bb.bones.isEmpty() && bb.bones.get(0) != null) {
+                    mountYaw = bb.bones.get(0).ry;
+                }
+            } catch (Throwable ignored) {
+            }
             poseStack.translate(0.0F - bb.cx, 0.6F - bb.cy, -0.22F - bb.cz);
-            poseStack.mulPose(new Quaternionf().rotateY(useLeft ? -(float) Math.PI / 2.0F : (float) Math.PI / 2.0F));
+            float yawDeg = (useLeft ? -90.0F : 90.0F) - mountYaw;
+            poseStack.mulPose(new Quaternionf().rotateY((float) Math.toRadians(yawDeg)));
             renderModelContents(poseStack, collector, type, bb, packedLight, animTime(), null, 0, 1.0F);
             poseStack.popPose();
         } catch (Throwable ignored) {
@@ -198,6 +206,7 @@ public final class CosmeticRenderLayer extends RenderLayer<AvatarRenderState, Pl
         try {
             float[] animR = null;
             float[] animP = null;
+            float[] animS = null;
             if (model.animLength > 0.0F && bone.name != null && !bone.name.isEmpty()) {
                 BbModel.AnimBone ab = model.anims.get(bone.name);
                 if (ab != null) {
@@ -215,6 +224,10 @@ public final class CosmeticRenderLayer extends RenderLayer<AvatarRenderState, Pl
                         p[2] *= idleScale;
                         animP = p;
                     }
+                    float[] s = new float[]{1.0F, 1.0F, 1.0F};
+                    if (BbModel.sampleTrack(ab.sTimes, ab.sVals, ab.sInterp, timeSec, model.animLength, s)) {
+                        animS = s;
+                    }
                 }
             }
             float ox = BbModel.pivotX(bone.ox) + (animP != null ? animP[0] / 16.0F : 0.0F);
@@ -223,7 +236,19 @@ public final class CosmeticRenderLayer extends RenderLayer<AvatarRenderState, Pl
             float rx = bone.rx + (animR != null ? animR[0] : 0.0F);
             float ry = bone.ry + (animR != null ? animR[1] : 0.0F);
             float rz = bone.rz + (animR != null ? animR[2] : 0.0F);
-            applyPivot(poseStack, ox, oy, oz, rx, ry, rz);
+            boolean hasR = rx != 0.0F || ry != 0.0F || rz != 0.0F;
+            boolean hasS = animS != null && (animS[0] != 1.0F || animS[1] != 1.0F || animS[2] != 1.0F);
+            if (hasR || hasS) {
+                poseStack.translate(ox, oy, oz);
+                if (hasR) {
+                    poseStack.mulPose(new Quaternionf().rotationZYX(
+                            (float) Math.toRadians(rz),
+                            (float) Math.toRadians(ry),
+                            (float) Math.toRadians(rx)));
+                }
+                if (hasS) poseStack.scale(animS[0], animS[1], animS[2]);
+                poseStack.translate(-ox, -oy, -oz);
+            }
             if (rootSwing != null) {
                 try {
                     poseStack.mulPose(rootSwing);
