@@ -30,3 +30,4 @@ Das/
 *.class
 
 kollegen-mod/src/main/resources/dev/kollegen/client/vulkanmod.bin
+server/data/
