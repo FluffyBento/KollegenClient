@@ -56,6 +56,7 @@ public final class BbModel {
 
     public static final class Bone {
         public String name = "";
+        public String uuid = "";
         public float ox;
         public float oy;
         public float oz;
@@ -208,6 +209,15 @@ public final class BbModel {
         return model;
     }
 
+    private static void collectNames(Bone bone, java.util.Set<String> out) {
+        try {
+            if (bone == null || out == null) return;
+            if (bone.name != null && !bone.name.isEmpty()) out.add(bone.name);
+            for (Bone child : bone.children) collectNames(child, out);
+        } catch (Throwable ignored) {
+        }
+    }
+
     private static void collectCubes(Bone bone, List<Cube> out) {
         out.addAll(bone.cubes);
         for (Bone child : bone.children) collectCubes(child, out);
@@ -239,13 +249,26 @@ public final class BbModel {
             }
             if (length <= 0.0F) return;
             if (!chosen.has("animators") || !chosen.get("animators").isJsonObject()) return;
+            java.util.Set<String> boneNames = new java.util.HashSet<>();
+            try {
+                for (Bone b : model.bones) collectNames(b, boneNames);
+            } catch (Throwable ignored) {
+            }
             JsonObject animators = chosen.getAsJsonObject("animators");
             for (Map.Entry<String, JsonElement> entry : animators.entrySet()) {
                 try {
                     if (entry.getValue() == null || !entry.getValue().isJsonObject()) continue;
                     JsonObject at = entry.getValue().getAsJsonObject();
-                    if (!at.has("name") || !at.has("keyframes")) continue;
-                    String boneName = at.get("name").getAsString();
+                    if (!at.has("keyframes")) continue;
+                    String boneName = null;
+                    try {
+                        if (at.has("name")) boneName = at.get("name").getAsString();
+                    } catch (Throwable ignored) {
+                    }
+                    if ((boneName == null || boneName.isEmpty() || !boneNames.contains(boneName))
+                            && boneNames.contains(entry.getKey())) {
+                        boneName = entry.getKey();
+                    }
                     if (boneName == null || boneName.isEmpty()) continue;
                     JsonArray keys = at.getAsJsonArray("keyframes");
                     List<Float> rt = new ArrayList<>();
@@ -434,6 +457,11 @@ public final class BbModel {
             if (o.has("name")) bone.name = o.get("name").getAsString();
         } catch (Throwable ignored) {
         }
+        try {
+            if (o.has("uuid")) bone.uuid = o.get("uuid").getAsString();
+        } catch (Throwable ignored) {
+        }
+        if (bone.name == null || bone.name.isEmpty()) bone.name = bone.uuid != null ? bone.uuid : "";
         float[] origin = readFloat3(o, "origin");
         bone.ox = origin[0];
         bone.oy = origin[1];

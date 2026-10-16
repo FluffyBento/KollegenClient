@@ -63,7 +63,12 @@ public final class CosmeticRenderLayer extends RenderLayer<AvatarRenderState, Pl
                 renderSlot(poseStack, collector, model.head, data.faceAccessoryTexture, data.faceAccessoryModel, packedLight, null, 3.0F);
             }
             if (data.auraTexture != null) {
-                renderAura(poseStack, collector, model.body, data.auraTexture, data.auraModel, packedLight);
+                float bodyYaw = 0.0F;
+                try {
+                    bodyYaw = state.bodyRot;
+                } catch (Throwable ignored) {
+                }
+                renderAura(poseStack, collector, model.body, bodyYaw, data.auraTexture, data.auraModel, packedLight);
             }
             if (data.shoulderAccessoryTexture != null) {
                 renderSlot(poseStack, collector, model.body, data.shoulderAccessoryTexture, data.shoulderAccessoryModel, packedLight, null, 1.0F);
@@ -127,7 +132,7 @@ public final class CosmeticRenderLayer extends RenderLayer<AvatarRenderState, Pl
         }
     }
 
-    private static void renderAura(PoseStack poseStack, SubmitNodeCollector collector, ModelPart anchor, String texture, String modelPath, int packedLight) {
+    private static void renderAura(PoseStack poseStack, SubmitNodeCollector collector, ModelPart anchor, float bodyYawDeg, String texture, String modelPath, int packedLight) {
         try {
             if (anchor == null || texture == null) return;
             Identifier tex = Identifier.tryParse(texture);
@@ -145,20 +150,9 @@ public final class CosmeticRenderLayer extends RenderLayer<AvatarRenderState, Pl
                 renderFallback(poseStack, collector, anchor, type, packedLight);
                 return;
             }
-            float spin = 0.0F;
-            try {
-                spin = (float) (((System.currentTimeMillis() / 1000.0) % 12.0) / 12.0 * Math.PI * 2.0);
-            } catch (Throwable ignored) {
-            }
             poseStack.pushPose();
             anchor.translateAndRotate(poseStack);
-            float ay = 0.0F;
-            try {
-                ay = anchor.yRot;
-            } catch (Throwable ignored) {
-            }
-            poseStack.mulPose(new Quaternionf().rotationY(-ay));
-            poseStack.mulPose(new Quaternionf().rotationY(spin));
+            poseStack.mulPose(new Quaternionf().rotationY((float) Math.toRadians(-bodyYawDeg)));
             renderModelContents(poseStack, collector, type, model, packedLight, animTime(), null, 0, 1.0F);
             poseStack.popPose();
         } catch (Throwable ignored) {
