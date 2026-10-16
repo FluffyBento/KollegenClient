@@ -81,6 +81,14 @@ public final class KollegenPresence {
         return id == null ? null : COSMETICS.get(id);
     }
 
+    public static java.util.Map<UUID, CosmeticData> allCosmetics() {
+        try {
+            return new java.util.HashMap<>(COSMETICS);
+        } catch (Throwable ignored) {
+            return new java.util.HashMap<>();
+        }
+    }
+
     
     private static final Map<EntityRenderState, Boolean> STATE_KOLLEGEN = new WeakHashMap<>();
 

@@ -11,6 +11,7 @@ import net.minecraft.client.renderer.entity.state.AvatarRenderState;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.client.renderer.texture.OverlayTexture;
+import net.minecraft.world.phys.Vec3;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.player.Player;
@@ -63,7 +64,17 @@ public final class CosmeticRenderLayer extends RenderLayer<AvatarRenderState, Pl
                 renderSlot(poseStack, collector, model.head, data.faceAccessoryTexture, data.faceAccessoryModel, packedLight, null, 3.0F);
             }
             if (data.auraTexture != null) {
-                renderAura(poseStack, collector, model.body, data.auraTexture, data.auraModel, packedLight);
+                try {
+                    float[] off = AURA_ANCHOR.get(id);
+                    if (off == null) {
+                        off = new float[3];
+                        AURA_ANCHOR.put(id, off);
+                    }
+                    off[0] = model.body.x / 16.0F;
+                    off[1] = model.body.y / 16.0F;
+                    off[2] = model.body.z / 16.0F;
+                } catch (Throwable ignored) {
+                }
             }
             if (data.shoulderAccessoryTexture != null) {
                 renderSlot(poseStack, collector, model.body, data.shoulderAccessoryTexture, data.shoulderAccessoryModel, packedLight, null, 1.0F);
@@ -127,40 +138,63 @@ public final class CosmeticRenderLayer extends RenderLayer<AvatarRenderState, Pl
         }
     }
 
-    private static void renderAura(PoseStack poseStack, SubmitNodeCollector collector, ModelPart anchor, String texture, String modelPath, int packedLight) {
+    public static final java.util.Map<UUID, float[]> AURA_ANCHOR = new java.util.concurrent.ConcurrentHashMap<>();
+
+    public static void clearAuras() {
         try {
-            if (anchor == null || texture == null) return;
-            Identifier tex = Identifier.tryParse(texture);
-            if (tex == null) return;
-            BbModel model = null;
-            if (modelPath != null) {
-                Identifier modelId = Identifier.tryParse(modelPath);
-                if (modelId != null) {
-                    Minecraft mc = Minecraft.getInstance();
-                    if (mc != null) model = BbModel.load(mc.getResourceManager(), modelId);
-                }
-            }
-            RenderType type = RenderTypes.entityTranslucent(tex);
-            if (model == null) {
-                renderFallback(poseStack, collector, anchor, type, packedLight);
-                return;
-            }
-            poseStack.pushPose();
-            float ax = 0.0F;
-            float ay = 0.0F;
-            float az = 0.0F;
+            AURA_ANCHOR.clear();
+        } catch (Throwable ignored) {
+        }
+    }
+
+    static void submitAuraWorld(Minecraft mc, PoseStack poseStack, SubmitNodeCollector collector, Vec3 cam, UUID id, CosmeticData data, int packedLight) {
+        try {
+            if (mc == null || mc.level == null || id == null || data == null || data.auraTexture == null) return;
+            Player player = null;
             try {
-                ax = anchor.x / 16.0F;
-                ay = anchor.y / 16.0F;
-                az = anchor.z / 16.0F;
+                player = mc.level.getPlayerByUUID(id);
             } catch (Throwable ignored) {
             }
-            poseStack.translate(ax, ay, az);
-            renderModelContents(poseStack, collector, type, model, packedLight, animTime(), null, 0, 1.0F);
+            if (player == null) return;
+            Identifier tex = Identifier.tryParse(data.auraTexture);
+            if (tex == null) return;
+            BbModel model = null;
+            if (data.auraModel != null) {
+                Identifier modelId = Identifier.tryParse(data.auraModel);
+                if (modelId != null) model = BbModel.load(mc.getResourceManager(), modelId);
+            }
+            if (model == null) return;
+            float[] off = AURA_ANCHOR.get(id);
+            float ox = 0.0F;
+            float oy = 0.0F;
+            float oz = 0.0F;
+            if (off != null && off.length >= 3) {
+                ox = off[0];
+                oy = off[1];
+                oz = off[2];
+            }
+            RenderType type = RenderTypes.entityTranslucent(tex);
+            Vec3 pos;
+            try {
+                pos = player.position();
+            } catch (Throwable ignored) {
+                return;
+            }
+            if (pos == null) return;
+            poseStack.pushPose();
+            try {
+                poseStack.translate(pos.x - cam.x, pos.y - cam.y, pos.z - cam.z);
+                poseStack.scale(-1.0F, -1.0F, 1.0F);
+                poseStack.translate(0.0F, -1.501F, 0.0F);
+                poseStack.translate(ox, oy, oz);
+                renderModelContents(poseStack, collector, type, model, packedLight, animTime(), null, 0, 1.0F);
+            } catch (Throwable ignored) {
+            }
             poseStack.popPose();
         } catch (Throwable ignored) {
         }
     }
+
 
     private static void renderShield(PoseStack poseStack, SubmitNodeCollector collector, PlayerModel parent, Player player, String texture, String modelPath, int packedLight) {
         try {
