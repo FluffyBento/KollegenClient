@@ -61,7 +61,6 @@ public final class PetRenderer {
         LASTPOS.clear();
         LAST_YAW.clear();
         LEVELS.clear();
-        CosmeticRenderLayer.clearAuras();
     }
 
     public static void notePosition(UUID id, Vec3 pos, float yaw) {
@@ -288,36 +287,8 @@ public final class PetRenderer {
             submitBlubs(mc, poseStack, state, collector);
         } catch (Throwable ignored) {
         }
-        try {
-            submitAuras(mc, poseStack, state, collector);
-        } catch (Throwable ignored) {
-        }
     }
 
-    private static void submitAuras(Minecraft mc, PoseStack poseStack, LevelRenderState state, SubmitNodeCollector collector) {
-        try {
-            if (mc == null || mc.level == null) return;
-            Vec3 cam;
-            try {
-                cam = state.cameraRenderState.pos;
-            } catch (Throwable ignored) {
-                return;
-            }
-            if (cam == null) return;
-            java.util.Map<UUID, CosmeticData> all = KollegenPresence.allCosmetics();
-            if (all == null || all.isEmpty()) return;
-            int packedLight = 15728880;
-            for (java.util.Map.Entry<UUID, CosmeticData> e : all.entrySet()) {
-                try {
-                    if (e == null || e.getKey() == null || e.getValue() == null) continue;
-                    if (e.getValue().auraTexture == null) continue;
-                    CosmeticRenderLayer.submitAuraWorld(mc, poseStack, collector, cam, e.getKey(), e.getValue(), packedLight);
-                } catch (Throwable ignored) {
-                }
-            }
-        } catch (Throwable ignored) {
-        }
-    }
 
     private static void submitBlubs(Minecraft mc, PoseStack poseStack, LevelRenderState state, SubmitNodeCollector collector) {
         try {
