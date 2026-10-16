@@ -20,6 +20,14 @@ public final class PetModel {
     private static final Map<String, PetModel> CACHE = new ConcurrentHashMap<>();
     private static final Map<String, Boolean> MISSING = new ConcurrentHashMap<>();
 
+    public static void clearCaches() {
+        try {
+            CACHE.clear();
+            MISSING.clear();
+        } catch (Throwable ignored) {
+        }
+    }
+
     public float texWidth = 64.0F;
     public float texHeight = 64.0F;
     public final List<Bone> roots = new ArrayList<>();

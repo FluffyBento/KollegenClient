@@ -27,6 +27,14 @@ public final class BbModel {
     private static final Map<String, BbModel> CACHE = new ConcurrentHashMap<>();
     private static final Map<String, Boolean> MISSING = new ConcurrentHashMap<>();
 
+    public static void clearCaches() {
+        try {
+            CACHE.clear();
+            MISSING.clear();
+        } catch (Throwable ignored) {
+        }
+    }
+
     public final float texWidth;
     public final float texHeight;
     public final List<Bone> bones = new ArrayList<>();

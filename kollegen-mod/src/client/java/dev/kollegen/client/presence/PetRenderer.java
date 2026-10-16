@@ -133,7 +133,7 @@ public final class PetRenderer {
         for (Map.Entry<UUID, PetInstance> entry : PETS.entrySet()) {
             UUID ownerId = entry.getKey();
             PetInstance pet = entry.getValue();
-            if (pet == null || pet.entity == null) continue;
+            if (pet == null || pet.entity == null || pet.level != mc.level) continue;
 
         CosmeticData d = KollegenPresence.getCosmetics(ownerId);
         if (d == null || d.petKind == null) continue;

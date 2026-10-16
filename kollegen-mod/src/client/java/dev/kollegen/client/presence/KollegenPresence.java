@@ -152,6 +152,14 @@ public final class KollegenPresence {
         USERS.clear();
         COSMETICS.clear();
         PetRenderer.clear();
+        try {
+            BbModel.clearCaches();
+        } catch (Throwable ignored) {
+        }
+        try {
+            PetModel.clearCaches();
+        } catch (Throwable ignored) {
+        }
         dbgRender = "init";
     }
 
