@@ -26,7 +26,9 @@ const CATALOG = [
   { id: 'title_veteran', category: 'title', name: 'Veteran', desc: 'Viele Stunden im Nether überlebt.', price: 450, rarity: 'rare', data: { text: 'Veteran' } },
   { id: 'title_champion', category: 'title', name: 'Champion', desc: 'Unbesiegt in deiner Arena.', price: 900, rarity: 'epic', data: { text: 'Champion' } },
   { id: 'title_legende', category: 'title', name: 'Legende', desc: 'Eine Legende unter den Kollegen.', price: 1600, rarity: 'legendary', featured: true, data: { text: 'Legende' } },
-  { id: 'title_kollege', category: 'title', name: 'Kollege', desc: 'Exklusiv verliehen, nicht käuflich.', price: 0, rarity: 'legendary', hidden: true, data: { text: 'Kollege' } },
+  { id: 'title_kollege', category: 'title', name: 'Kollege', desc: 'Exklusiv verliehen, nicht käuflich.', price: 0, rarity: 'legendary', hidden: true, data: { text: 'Kollege', color: '#ffc400' } },
+  { id: 'title_promoter', category: 'title', name: 'Promoter', desc: 'Exklusiv verliehen, nicht käuflich.', price: 0, rarity: 'legendary', hidden: true, data: { text: 'Promoter', color: '#ffe97a' } },
+  { id: 'title_atze', category: 'title', name: 'Atze', desc: 'Exklusiv verliehen, nicht käuflich.', price: 0, rarity: 'legendary', hidden: true, data: { text: 'Atze', color: '#ff6b9d' } },
   
   { id: 'frame_bronze', category: 'avatar_frame', name: 'Bronzen', desc: 'Bronzefarbener Avatar-Rahmen.', price: 200, rarity: 'common', data: { color1: '#cd7f32', color2: '#7a5630' } },
   { id: 'frame_silber', category: 'avatar_frame', name: 'Silbern', desc: 'Silberner Avatar-Rahmen.', price: 500, rarity: 'rare', data: { color1: '#c0c0c0', color2: '#7f7f8a' } },
@@ -83,7 +85,107 @@ const CATALOG = [
   { id: 'font_typewriter', category: 'font', name: 'Typewriter', desc: 'Wie auf einer Schreibmaschine.', price: 600, rarity: 'epic', data: { font: '"Courier New",monospace' } },
   { id: 'font_banner', category: 'font', name: 'Banner-Bliter', desc: 'Groß, fett, auffällig.', price: 1600, rarity: 'legendary', data: { font: 'Impact,"Arial Narrow Bold",sans-serif' } },
 
-  { id: 'pet_drache', category: 'pet', name: 'Enderdrache', desc: 'Ein winziger Enderdrache als Begleiter. Sichtbar für alle mit Kollegen-Client.', price: 5000, rarity: 'legendary', featured: true, data: { kind: 'enderdragon', scale: 0.2 } },
+  { id: 'pet_allay', category: 'pet', name: 'Allay', desc: 'Ein Allay als Begleiter. Sichtbar für alle mit Kollegen-Client.', price: 10000, rarity: 'legendary', featured: true, data: { kind: 'allay', scale: 1.0, accent: '#39d7ff' } },
+  { id: 'pet_blub', category: 'pet', name: 'Blub', desc: 'Ein Blub als Begleiter. Exklusiv verliehen, nicht käuflich.', price: 0, rarity: 'legendary', hidden: true, data: { kind: 'blub', scale: 1.0 } },
+  { id: 'pet_cat', category: 'pet', name: 'Katze', desc: 'Eine schnurrende Katze als Begleiter.', price: 1800, rarity: 'rare', data: { kind: 'cat', scale: 1.0 } },
+  { id: 'pet_dog', category: 'pet', name: 'Hund', desc: 'Ein treuer Hund als Begleiter.', price: 1800, rarity: 'rare', data: { kind: 'dog', scale: 1.0 } },
+  { id: 'pet_chicken', category: 'pet', name: 'Huhn', desc: 'Ein gackerndes Huhn als Begleiter.', price: 500, rarity: 'common', data: { kind: 'chicken', scale: 1.0 } },
+  { id: 'pet_rabbit', category: 'pet', name: 'Kaninchen', desc: 'Ein hüpfendes Kaninchen als Begleiter.', price: 650, rarity: 'common', data: { kind: 'rabbit', scale: 1.0 } },
+  { id: 'pet_axolotl', category: 'pet', name: 'Axolotl', desc: 'Ein Axolotl als Begleiter. Farbe als Skin wählbar.', price: 2000, rarity: 'rare', data: { kind: 'axolotl', scale: 1.0 } },
+  { id: 'pet_bat', category: 'pet', name: 'Fledermaus', desc: 'Eine Fledermaus als Begleiter. Fliegt nebenher.', price: 1500, rarity: 'rare', data: { kind: 'bat', scale: 1.0 } },
+  { id: 'pet_fox', category: 'pet', name: 'Fuchs', desc: 'Ein Fuchs als Begleiter.', price: 2200, rarity: 'rare', data: { kind: 'fox', scale: 1.0 } },
+  { id: 'pet_parrot', category: 'pet', name: 'Papagei', desc: 'Ein Papagei als Begleiter. Fliegt nebenher.', price: 2200, rarity: 'rare', data: { kind: 'parrot', scale: 1.0 } },
+  { id: 'pet_bee', category: 'pet', name: 'Biene', desc: 'Eine Biene als Begleiter. Fliegt nebenher.', price: 900, rarity: 'common', data: { kind: 'bee', scale: 1.0 } },
+  { id: 'pet_squid', category: 'pet', name: 'Tintenfisch', desc: 'Ein Tintenfisch als Begleiter. Schwebt nebenher.', price: 1500, rarity: 'rare', data: { kind: 'squid', scale: 0.5 } },
+  { id: 'pet_nautilus', category: 'pet', name: 'Nautilus', desc: 'Ein Nautilus als Begleiter. Schwebt nebenher.', price: 10000, rarity: 'legendary', featured: true, data: { kind: 'nautilus', scale: 0.5 } },
+  { id: 'pet_copper_golem', category: 'pet', name: 'Kupfergolem', desc: 'Ein Kupfergolem als Begleiter.', price: 10000, rarity: 'legendary', featured: true, data: { kind: 'copper_golem', scale: 1.0 } },
+  { id: 'pet_ember_drake', category: 'pet', name: 'Glutdrache', desc: 'Ein Glutdrache als Begleiter mit Flügelschlag und Schweifflammen. Sichtbar für alle mit Kollegen-Client.', price: 12000, rarity: 'legendary', featured: true, data: { kind: 'ember_drake', scale: 1.0, accent: '#ff6a00' } },
+  { id: 'pet_void_wyrm', category: 'pet', name: 'Leerendrache', desc: 'Ein Leerendrache als Begleiter mit Wellenschwanz und Leerenflügeln. Sichtbar für alle mit Kollegen-Client.', price: 12000, rarity: 'legendary', featured: true, data: { kind: 'void_wyrm', scale: 1.0, accent: '#7b2ff7' } },
+  { id: 'pet_shadow_reaper', category: 'pet', name: 'Schnitter', desc: 'Ein Schnitter als Begleiter mit Kapuze und Sense. Sichtbar für alle mit Kollegen-Client.', price: 10000, rarity: 'legendary', data: { kind: 'shadow_reaper', scale: 1.0, accent: '#6d28d9' } },
+  { id: 'pet_rune_sentinel', category: 'pet', name: 'Runen-Wächter', desc: 'Ein Runen-Wächter als Begleiter mit rotierenden Ringen. Sichtbar für alle mit Kollegen-Client.', price: 10000, rarity: 'legendary', data: { kind: 'rune_sentinel', scale: 1.0, accent: '#22d3ee' } },
+  { id: 'pet_flame_skull', category: 'pet', name: 'Flammenschädel', desc: 'Ein Flammenschädel als Begleiter mit kreisenden Feuerkugeln. Sichtbar für alle mit Kollegen-Client.', price: 9000, rarity: 'legendary', data: { kind: 'flame_skull', scale: 0.9, accent: '#ff3b00' } },
+  { id: 'pet_storm_cloud', category: 'pet', name: 'Sturmwölkchen', desc: 'Ein Sturmwölkchen als Begleiter mit Regen und Blitz. Sichtbar für alle mit Kollegen-Client.', price: 9000, rarity: 'legendary', data: { kind: 'storm_cloud', scale: 1.0, accent: '#60a5fa' } },
+  { id: 'pet_crystal_golem', category: 'pet', name: 'Kristallgolem', desc: 'Ein Kristallgolem als Begleiter mit leuchtenden Kristallen. Sichtbar für alle mit Kollegen-Client.', price: 8000, rarity: 'legendary', data: { kind: 'crystal_golem', scale: 1.0, accent: '#67e8f9' } },
+  { id: 'pet_spectre', category: 'pet', name: 'Spuk-Wisp', desc: 'Ein Spuk-Wisp als Begleiter, umkreist dich. Sichtbar für alle mit Kollegen-Client.', price: 7500, rarity: 'legendary', data: { kind: 'spectre', scale: 0.9, accent: '#c4b5fd' } },
+  { id: 'pet_lantern_spirit', category: 'pet', name: 'Laternengeist', desc: 'Ein Laternengeist als Begleiter mit Fächer-Flügeln. Sichtbar für alle mit Kollegen-Client.', price: 7500, rarity: 'legendary', data: { kind: 'lantern_spirit', scale: 0.9, accent: '#fbbf24' } },
+  { id: 'pet_bolt_bot', category: 'pet', name: 'Bolt-Bot', desc: 'Ein Bolt-Bot als Begleiter mit Rotor und Funken. Sichtbar für alle mit Kollegen-Client.', price: 5000, rarity: 'epic', data: { kind: 'bolt_bot', scale: 0.8, accent: '#facc15' } },
+  { id: 'pet_mini_ufo', category: 'pet', name: 'Mini-UFO', desc: 'Ein Mini-UFO als Begleiter mit Traktorstrahl. Sichtbar für alle mit Kollegen-Client.', price: 5000, rarity: 'epic', data: { kind: 'mini_ufo', scale: 0.9, accent: '#34d399' } },
+  { id: 'pet_grimoire', category: 'pet', name: 'Zauberbuch', desc: 'Ein Zauberbuch als Begleiter mit Runen. Sichtbar für alle mit Kollegen-Client.', price: 4500, rarity: 'epic', data: { kind: 'grimoire', scale: 0.8, accent: '#a78bfa' } },
+  { id: 'pet_mooncap', category: 'pet', name: 'Mondkappe', desc: 'Eine Mondkappe als Begleiter, hüpft nebenher. Sichtbar für alle mit Kollegen-Client.', price: 3200, rarity: 'epic', data: { kind: 'mooncap', scale: 0.7, accent: '#f472b6' } },
+  { id: 'pet_jelly_cube', category: 'pet', name: 'Gelee-Würfel', desc: 'Ein Gelee-Würfel als Begleiter mit Squash und Stretch. Sichtbar für alle mit Kollegen-Client.', price: 2800, rarity: 'epic', data: { kind: 'jelly_cube', scale: 0.6, accent: '#4ade80' } },
+  { id: 'skin_baby_cat', category: 'pet_skin', name: 'Baby-Katze', desc: 'Skin für Katze. Exklusiv verliehen.', price: 0, rarity: 'legendary', hidden: true, data: { variantOf: 'pet_cat', variant: 'baby', label: 'Baby' } },
+  { id: 'skin_baby_dog', category: 'pet_skin', name: 'Baby-Hund', desc: 'Skin für Hund. Exklusiv verliehen.', price: 0, rarity: 'legendary', hidden: true, data: { variantOf: 'pet_dog', variant: 'baby', label: 'Baby' } },
+  { id: 'skin_axolotl_wild', category: 'pet_skin', name: 'Axolotl Wild', desc: 'Braune Axolotl-Farbe. Exklusiv verliehen.', price: 0, rarity: 'legendary', hidden: true, data: { variantOf: 'pet_axolotl', variant: 'wild', label: 'Wild' } },
+  { id: 'skin_axolotl_gold', category: 'pet_skin', name: 'Axolotl Gold', desc: 'Goldene Axolotl-Farbe. Exklusiv verliehen.', price: 0, rarity: 'legendary', hidden: true, data: { variantOf: 'pet_axolotl', variant: 'gold', label: 'Gold' } },
+  { id: 'skin_axolotl_cyan', category: 'pet_skin', name: 'Axolotl Cyan', desc: 'Cyane Axolotl-Farbe. Exklusiv verliehen.', price: 0, rarity: 'legendary', hidden: true, data: { variantOf: 'pet_axolotl', variant: 'cyan', label: 'Cyan' } },
+  { id: 'skin_axolotl_blue', category: 'pet_skin', name: 'Axolotl Blau', desc: 'Blaue Axolotl-Farbe. Exklusiv verliehen.', price: 0, rarity: 'legendary', hidden: true, data: { variantOf: 'pet_axolotl', variant: 'blue', label: 'Blau' } },
+  { id: 'skin_glow_squid', category: 'pet_skin', name: 'Glow-Squid', desc: 'Leuchtender Skin für Tintenfisch. Exklusiv verliehen.', price: 0, rarity: 'legendary', hidden: true, data: { variantOf: 'pet_squid', variant: 'glow', label: 'Glow-Squid' } },
+  { id: 'skin_snow_fox', category: 'pet_skin', name: 'Schneefuchs', desc: 'Weißer Skin für Fuchs. Exklusiv verliehen.', price: 0, rarity: 'legendary', hidden: true, data: { variantOf: 'pet_fox', variant: 'snow', label: 'Schneefuchs' } },
+  { id: 'skin_zombie_nautilus', category: 'pet_skin', name: 'Zombie-Nautilus', desc: 'Dunkler Skin für Nautilus. Exklusiv verliehen.', price: 0, rarity: 'legendary', hidden: true, data: { variantOf: 'pet_nautilus', variant: 'zombie', label: 'Zombie' } },
+
+  { id: 'cape_fluffybento', category: 'cape', name: 'FluffyBento Cape', desc: 'FluffyBento Cape.', price: 0, rarity: 'legendary', featured: true, hidden: true, data: { texture: 'kollegen:cosmetics/fluffybento/FluffyBento_cape.png', model: 'kollegen:cosmetics/fluffybento/FluffyBento_cape.bbmodel' } },
+  { id: 'schild_fluffybento', category: 'shield', name: 'FluffyBento Schild', desc: 'FluffyBento Schild.', price: 0, rarity: 'legendary', featured: true, hidden: true, data: { texture: 'kollegen:cosmetics/fluffybento/FluffyBento_schild.png', model: 'kollegen:cosmetics/fluffybento/FluffyBento_schild.bbmodel' } },
+  { id: 'back_fluffybento', category: 'back_accessory', name: 'FluffyBento Flügel', desc: 'FluffyBento Flügel.', price: 0, rarity: 'legendary', featured: true, hidden: true, data: { texture: 'kollegen:cosmetics/fluffybento/FluffyBento_fluegel.png', model: 'kollegen:cosmetics/fluffybento/FluffyBento_fluegel.bbmodel' } },
+  { id: 'head_fluffybento', category: 'face_accessory', name: 'FluffyBento Visor', desc: 'FluffyBento Visor.', price: 0, rarity: 'legendary', featured: true, hidden: true, data: { texture: 'kollegen:cosmetics/fluffybento/FluffyBento_visor.png', model: 'kollegen:cosmetics/fluffybento/FluffyBento_visor.bbmodel' } },
+
+  { id: 'cape_limitlos', category: 'cape', name: 'Limit_Los Cape', desc: 'Limit_Los Cape.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/limit_los/Limit_Los_cape.png', model: 'kollegen:cosmetics/limit_los/Limit_Los_cape.bbmodel' } },
+  { id: 'head_limitlos', category: 'head_accessory', name: 'Limit_Los Bandana', desc: 'Limit_Los Bandana.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/limit_los/Limit_Los_bandana.png', model: 'kollegen:cosmetics/limit_los/Limit_Los_bandana.bbmodel' } },
+  { id: 'shield_limitlos', category: 'shield', name: 'Limit_Los Schild', desc: 'Limit_Los Schild.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/limit_los/Limit_Los_schild.png', model: 'kollegen:cosmetics/limit_los/Limit_Los_schild.bbmodel' } },
+  { id: 'back_limitlos', category: 'back_accessory', name: 'Limit_Los Schwert', desc: 'Limit_Los Schwert (Rücken).', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/limit_los/Limit_Los_schwert.png', model: 'kollegen:cosmetics/limit_los/Limit_Los_schwert.bbmodel' } },
+  { id: 'shoulder_limitlos', category: 'aura', name: 'Limit_Los Dolche', desc: 'Limit_Los Dolche.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/limit_los/Limit_Los_dolche.png', model: 'kollegen:cosmetics/limit_los/Limit_Los_dolche.bbmodel' } },
+
+  { id: 'cape_zerocraft77', category: 'cape', name: 'Zerocraft77 Cape', desc: 'Zerocraft77 Cape.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/zerocraft77/Zerocraft77_cape.png', model: 'kollegen:cosmetics/zerocraft77/Zerocraft77_cape.bbmodel' } },
+  { id: 'head_zerocraft77', category: 'head_accessory', name: 'Zerocraft77 Bandana', desc: 'Zerocraft77 Bandana.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/zerocraft77/Zerocraft77_bandana.png', model: 'kollegen:cosmetics/zerocraft77/Zerocraft77_bandana.bbmodel' } },
+  { id: 'back_zerocraft77', category: 'back_accessory', name: 'Zerocraft77 Flügel', desc: 'Zerocraft77 Flügel.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/zerocraft77/Zerocraft77_fluegel.png', model: 'kollegen:cosmetics/zerocraft77/Zerocraft77_fluegel.bbmodel' } },
+  { id: 'gloves_zerocraft77', category: 'gloves', name: 'Zerocraft77 Handschuhe', desc: 'Zerocraft77 Handschuhe.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/zerocraft77/Zerocraft77_handschuhe.png', model: 'kollegen:cosmetics/zerocraft77/Zerocraft77_handschuhe.bbmodel' } },
+  { id: 'shield_zerocraft77', category: 'shield', name: 'Zerocraft77 Schild', desc: 'Zerocraft77 Schild.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/zerocraft77/Zerocraft77_schild.png', model: 'kollegen:cosmetics/zerocraft77/Zerocraft77_schild.bbmodel' } },
+
+  { id: 'cape_irongirl', category: 'cape', name: 'Irongirl Cape', desc: 'Irongirl Cape.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/irongirl_lp/Irongirl_lp_cape.png', model: 'kollegen:cosmetics/irongirl_lp/Irongirl_lp_cape.bbmodel' } },
+  { id: 'back_irongirl', category: 'back_accessory', name: 'Irongirl Flügel', desc: 'Irongirl Flügel.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/irongirl_lp/Irongirl_lp_fluegel.png', model: 'kollegen:cosmetics/irongirl_lp/Irongirl_lp_fluegel.bbmodel' } },
+  { id: 'head_irongirl', category: 'head_accessory', name: 'Irongirl Halo', desc: 'Irongirl Halo.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/irongirl_lp/Irongirl_lp_halo.png', model: 'kollegen:cosmetics/irongirl_lp/Irongirl_lp_halo.bbmodel' } },
+  { id: 'shield_irongirl', category: 'shield', name: 'Irongirl Schild', desc: 'Irongirl Schild.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/irongirl_lp/Irongirl_lp_schild.png', model: 'kollegen:cosmetics/irongirl_lp/Irongirl_lp_schild.bbmodel' } },
+
+  { id: 'cape_tson', category: 'cape', name: 'T_son_ Cape', desc: 'T_son_ Cape.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/t_son_/T_son__cape.png', model: 'kollegen:cosmetics/t_son_/T_son__cape.bbmodel' } },
+  { id: 'head_tson', category: 'head_accessory', name: 'T_son_ Bandana', desc: 'T_son_ Bandana.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/t_son_/T_son__bandana.png', model: 'kollegen:cosmetics/t_son_/T_son__bandana.bbmodel' } },
+  { id: 'back_tson', category: 'back_accessory', name: 'T_son_ Flügel', desc: 'T_son_ Flügel.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/t_son_/T_son__fluegel.png', model: 'kollegen:cosmetics/t_son_/T_son__fluegel.bbmodel' } },
+  { id: 'shield_tson', category: 'shield', name: 'T_son_ Schild', desc: 'T_son_ Schild.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/t_son_/T_son__schild.png', model: 'kollegen:cosmetics/t_son_/T_son__schild.bbmodel' } },
+
+  { id: 'cape_rixhii', category: 'cape', name: 'Rixhii Cape', desc: 'Rixhii Cape.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/rixhii/Rixhii_cape.png', model: 'kollegen:cosmetics/rixhii/Rixhii_cape.bbmodel' } },
+  { id: 'head_rixhii', category: 'head_accessory', name: 'Rixhii Bandana', desc: 'Rixhii Bandana.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/rixhii/Rixhii_bandana.png', model: 'kollegen:cosmetics/rixhii/Rixhii_bandana.bbmodel' } },
+  { id: 'back_rixhii', category: 'back_accessory', name: 'Rixhii Flügel', desc: 'Rixhii Flügel.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/rixhii/Rixhii_fluegel.png', model: 'kollegen:cosmetics/rixhii/Rixhii_fluegel.bbmodel' } },
+  { id: 'shield_rixhii', category: 'shield', name: 'Rixhii Schild', desc: 'Rixhii Schild.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/rixhii/Rixhii_schild.png', model: 'kollegen:cosmetics/rixhii/Rixhii_schild.bbmodel' } },
+
+  { id: 'cape_phantomumhang', category: 'cape', name: 'Phantomumhang', desc: 'Dunkler Umhang mit Glutpartikeln.', price: 8500, rarity: 'legendary', featured: true, data: { texture: 'kollegen:cosmetics/store/phantomumhang.png', model: 'kollegen:cosmetics/store/phantomumhang.bbmodel' } },
+  { id: 'cape_sternenhimmel', category: 'cape', name: 'Sternenhimmel-Umhang', desc: 'Der Nachthimmel zum Umhängen.', price: 2600, rarity: 'legendary', featured: true, data: { texture: 'kollegen:cosmetics/store/sternenhimmel_umhang.png', model: 'kollegen:cosmetics/store/sternenhimmel_umhang.bbmodel' } },
+
+  { id: 'face_kitsune', category: 'face_accessory', name: 'Kitsune-Maske', desc: 'Mystische Fuchsmaske fürs Gesicht.', price: 1500, rarity: 'epic', data: { texture: 'kollegen:cosmetics/store/kitsune_maske.png', model: 'kollegen:cosmetics/store/kitsune_maske.bbmodel' } },
+  { id: 'face_neon_visier', category: 'face_accessory', name: 'Neon-Visier', desc: 'Leuchtendes Visier im Cyber-Look.', price: 900, rarity: 'rare', data: { texture: 'kollegen:cosmetics/store/neon_visier.png', model: 'kollegen:cosmetics/store/neon_visier.bbmodel' } },
+
+  { id: 'head_krone', category: 'head_accessory', name: 'Schwebende Krone', desc: 'Eine Krone, die über dir schwebt.', price: 15000, rarity: 'legendary', featured: true, data: { texture: 'kollegen:cosmetics/store/schwebende_krone.png', model: 'kollegen:cosmetics/store/schwebende_krone.bbmodel' } },
+  { id: 'head_planetenkranz', category: 'head_accessory', name: 'Planetenkranz', desc: 'Ein kleines Sonnensystem als Kranz.', price: 1700, rarity: 'epic', data: { texture: 'kollegen:cosmetics/store/planetenkranz.png', model: 'kollegen:cosmetics/store/planetenkranz.bbmodel' } },
+  { id: 'head_gewitterwolke', category: 'head_accessory', name: 'Gewitterwolke', desc: 'Deine eigene kleine Gewitterwolke.', price: 1600, rarity: 'epic', data: { texture: 'kollegen:cosmetics/store/gewitterwolke.png', model: 'kollegen:cosmetics/store/gewitterwolke.bbmodel' } },
+  { id: 'head_geweih', category: 'head_accessory', name: 'Waldgeist-Geweih', desc: 'Majestätisches Geweih des Waldgeists.', price: 1100, rarity: 'rare', data: { texture: 'kollegen:cosmetics/store/waldgeist_geweih.png', model: 'kollegen:cosmetics/store/waldgeist_geweih.bbmodel' } },
+
+  { id: 'shield_drachenschuppen', category: 'shield', name: 'Drachenschuppen-Schild', desc: 'Schild aus gehärteten Drachenschuppen.', price: 7500, rarity: 'legendary', featured: true, data: { texture: 'kollegen:cosmetics/store/drachenschuppen_schild.png', model: 'kollegen:cosmetics/store/drachenschuppen_schild.bbmodel' } },
+  { id: 'shield_energie', category: 'shield', name: 'Energieschild', desc: 'Schild aus reiner Energie.', price: 1400, rarity: 'epic', data: { texture: 'kollegen:cosmetics/store/energieschild.png', model: 'kollegen:cosmetics/store/energieschild.bbmodel' } },
+
+  { id: 'back_jetpack', category: 'back_accessory', name: 'Mini-Jetpack', desc: 'Jetpack für kleine Fluchten.', price: 2500, rarity: 'legendary', data: { texture: 'kollegen:cosmetics/store/mini_jetpack.png', model: 'kollegen:cosmetics/store/mini_jetpack.bbmodel' } },
+  { id: 'back_kristallfluegel', category: 'back_accessory', name: 'Kristallflügel', desc: 'Flügel aus leuchtendem Kristall.', price: 7000, rarity: 'legendary', featured: true, data: { texture: 'kollegen:cosmetics/store/kristallfluegel.png', model: 'kollegen:cosmetics/store/kristallfluegel.bbmodel' } },
+  { id: 'back_klingenfaecher', category: 'back_accessory', name: 'Klingenfächer', desc: 'Fächer aus scharfen Klingen.', price: 1700, rarity: 'epic', data: { texture: 'kollegen:cosmetics/store/klingenfaecher.png', model: 'kollegen:cosmetics/store/klingenfaecher.bbmodel' } },
+  { id: 'back_rucksack', category: 'back_accessory', name: 'Abenteurer-Rucksack', desc: 'Platz für alles Wichtige.', price: 800, rarity: 'rare', data: { texture: 'kollegen:cosmetics/store/abenteurer_rucksack.png', model: 'kollegen:cosmetics/store/abenteurer_rucksack.bbmodel' } },
+
+  { id: 'shoulder_minidrache', category: 'shoulder_accessory', name: 'Mini-Drache', desc: 'Ein kleiner Drache auf deiner Schulter.', price: 1600, rarity: 'epic', data: { texture: 'kollegen:cosmetics/store/mini_drache.png', model: 'kollegen:cosmetics/store/mini_drache.bbmodel' } },
+  { id: 'shoulder_eule', category: 'shoulder_accessory', name: 'Eulenfreund', desc: 'Eine weise Eule als Begleiter.', price: 1000, rarity: 'rare', data: { texture: 'kollegen:cosmetics/store/eulenfreund.png', model: 'kollegen:cosmetics/store/eulenfreund.bbmodel' } },
+
+  { id: 'torso_reaktor', category: 'torso_accessory', name: 'Reaktorkern', desc: 'Pulsierender Kern auf der Brust.', price: 1500, rarity: 'epic', data: { texture: 'kollegen:cosmetics/store/reaktorkern.png', model: 'kollegen:cosmetics/store/reaktorkern.bbmodel' } },
+  { id: 'torso_schal', category: 'torso_accessory', name: 'Flatterschal', desc: 'Leichter Schal für den Hals.', price: 850, rarity: 'rare', data: { texture: 'kollegen:cosmetics/store/flatterschal.png', model: 'kollegen:cosmetics/store/flatterschal.bbmodel' } },
+
+  { id: 'legs_fuchsschweif', category: 'legs_accessory', name: 'Fuchsschweif', desc: 'Buschiger Schweif für den Rücken.', price: 1600, rarity: 'epic', data: { texture: 'kollegen:cosmetics/store/fuchsschweif.png', model: 'kollegen:cosmetics/store/fuchsschweif.bbmodel' } },
+  { id: 'legs_flammenstiefel', category: 'legs_accessory', name: 'Flammenstiefel', desc: 'Stiefel mit ewigem Feuer.', price: 1200, rarity: 'rare', data: { texture: 'kollegen:cosmetics/store/flammenstiefel.png', model: 'kollegen:cosmetics/store/flammenstiefel.bbmodel' } },
+
+  { id: 'aura_totenlaeufer', category: 'aura', name: 'Totenläufer', desc: 'Düstere Aura mit Geisterbegleitung.', price: 2800, rarity: 'legendary', featured: true, data: { texture: 'kollegen:cosmetics/store/totenlaeufer.png', model: 'kollegen:cosmetics/store/totenlaeufer.bbmodel' } },
+  { id: 'aura_orbit', category: 'aura', name: 'Orbit-Aura', desc: 'Kreisende Ringe aus Energie.', price: 2200, rarity: 'legendary', data: { texture: 'kollegen:cosmetics/store/orbit_aura.png', model: 'kollegen:cosmetics/store/orbit_aura.bbmodel' } },
+  { id: 'aura_blueten', category: 'aura', name: 'Blütenwirbel', desc: 'Sanfter Wirbel aus Blütenblättern.', price: 1500, rarity: 'epic', data: { texture: 'kollegen:cosmetics/store/bluetenwirbel.png', model: 'kollegen:cosmetics/store/bluetenwirbel.bbmodel' } },
 ];
 
 function catById(id) {
@@ -99,6 +201,7 @@ function ensureUserExtras(u) {
   if (!Array.isArray(u.cosmetics)) u.cosmetics = [];
   if (!u.equipped || typeof u.equipped !== 'object') u.equipped = {};
   if (!u.petConfig || typeof u.petConfig !== 'object') u.petConfig = { mode: 'follow', name: null, nameColor: null };
+  if (!u.petConfigs || typeof u.petConfigs !== 'object' || Array.isArray(u.petConfigs)) u.petConfigs = {};
   if (!Array.isArray(u.friend_requests)) u.friend_requests = [];
   return u;
 }
@@ -125,8 +228,19 @@ const GRANTED_TITLES = {
   '624247056566976522': 'Kollege',
 };
 
-function grantedTitle(u) {
-  if (!u) return null;
+const TITLE_COLORS = {
+  'Kollege': '#ffc400',
+  'Atze': '#ff6b9d',
+  'Promoter': '#ffe97a',
+};
+
+function titleColorFor(text) {
+  if (text === null || text === undefined) return null;
+  const c = TITLE_COLORS[String(text)];
+  return typeof c === 'string' ? c : null;
+}
+
+function grantedTitle(u) {  if (!u) return null;
   const t = GRANTED_TITLES[String(u.discordId)] || (u.grantedTitle ? String(u.grantedTitle) : null);
   return t || null;
 }
@@ -140,6 +254,85 @@ function grantSpecialTitle(u) {
   u.equipped.title = 'title_kollege';
 }
 
+const PET_MODES = {
+  pet_allay: ['follow', 'hover', 'shoulder', 'head'],
+  pet_blub: ['follow'],
+  pet_cat: ['follow'],
+  pet_dog: ['follow'],
+  pet_chicken: ['follow'],
+  pet_rabbit: ['follow'],
+  pet_axolotl: ['follow'],
+  pet_fox: ['follow'],
+  pet_copper_golem: ['follow'],
+  pet_parrot: ['follow', 'hover'],
+  pet_bee: ['follow', 'hover'],
+  pet_bat: ['follow', 'hover'],
+  pet_squid: ['follow', 'hover'],
+  pet_nautilus: ['follow', 'hover'],
+  pet_ember_drake: ['follow', 'hover'],
+  pet_void_wyrm: ['follow', 'hover'],
+  pet_shadow_reaper: ['follow', 'hover'],
+  pet_rune_sentinel: ['follow', 'hover'],
+  pet_flame_skull: ['follow', 'hover'],
+  pet_storm_cloud: ['follow', 'hover'],
+  pet_crystal_golem: ['follow'],
+  pet_spectre: ['follow', 'hover'],
+  pet_lantern_spirit: ['follow', 'hover'],
+  pet_bolt_bot: ['follow', 'hover'],
+  pet_mini_ufo: ['follow', 'hover'],
+  pet_grimoire: ['follow', 'hover'],
+  pet_mooncap: ['follow'],
+  pet_jelly_cube: ['follow'],
+};
+
+function petModesFor(petId) {
+  return PET_MODES[petId] || ['follow'];
+}
+
+function petSkinsFor(u, petId) {
+  ensureUserExtras(u);
+  const out = [];
+  for (const c of (u.cosmetics || [])) {
+    const item = c && c.id && catById(c.id);
+    if (item && item.category === 'pet_skin' && item.data && item.data.variantOf === petId && item.data.variant) {
+      out.push({ id: item.id, variant: item.data.variant, label: item.data.label || item.data.variant });
+    }
+  }
+  return out;
+}
+
+function petCfgFor(u, petId) {
+  ensureUserExtras(u);
+  const map = (u.petConfigs && typeof u.petConfigs === 'object') ? u.petConfigs : {};
+  const own = (petId && map[petId] && typeof map[petId] === 'object') ? map[petId] : {};
+  const legacy = (u.petConfig && typeof u.petConfig === 'object') ? u.petConfig : {};
+  const modes = petModesFor(petId);
+  const rawMode = (typeof own.mode === 'string' && own.mode) ? own.mode : legacy.mode;
+  const rawName = (typeof own.name === 'string' && own.name) ? own.name : legacy.name;
+  const rawColor = (typeof own.nameColor === 'string' && own.nameColor) ? own.nameColor : legacy.nameColor;
+  const rawVariant = (typeof own.variant === 'string' && own.variant) ? own.variant : null;
+  const allowedVariants = petSkinsFor(u, petId).map((s) => s.variant);
+  return {
+    mode: modes.includes(rawMode) ? rawMode : 'follow',
+    name: (typeof rawName === 'string' && rawName) ? String(rawName).slice(0, 16) : null,
+    nameColor: (typeof rawColor === 'string' && /^#[0-9a-fA-F]{6}$/.test(rawColor)) ? rawColor : null,
+    variant: (rawVariant && allowedVariants.includes(rawVariant)) ? rawVariant : null,
+  };
+}
+
+function resolvePetIdFor(user, petId) {
+  ensureUserExtras(user);
+  let id = (typeof petId === 'string' && petId) ? petId : user.equipped.pet;
+  const ownedPetIds = (user.cosmetics || []).map((x) => x && x.id).filter((x) => x && (catById(x) || {}).category === 'pet');
+  if ((!id || !(catById(id) || {}).category) && ownedPetIds.length) id = ownedPetIds[0];
+  const item = id && catById(id);
+  if (!id || !item || item.category !== 'pet') return { error: 'invalid_pet' };
+  if (!ownedPetIds.includes(id)) return { error: 'not_owned' };
+  if (!user.petConfigs || typeof user.petConfigs !== 'object') user.petConfigs = {};
+  const cfg = (user.petConfigs[id] && typeof user.petConfigs[id] === 'object') ? user.petConfigs[id] : (user.petConfigs[id] = { mode: 'follow', name: null, nameColor: null });
+  return { id, cfg };
+}
+
 function presenceCosmetics(u) {
   if (!u) return null;
   if (u.profile && u.profile.public === false) return null;
@@ -148,10 +341,10 @@ function presenceCosmetics(u) {
   const out = {};
   const granted = grantedTitle(u);
   if (granted) {
-    out.title = { text: granted };
+    out.title = { text: granted, color: titleColorFor(granted) };
   } else {
     const t = eq.title && catById(eq.title);
-    if (t && t.data && t.data.text) out.title = { text: t.data.text };
+    if (t && t.data && t.data.text) out.title = { text: t.data.text, color: (t.data && t.data.color) || titleColorFor(t.data.text) };
   }
   const b = eq.badge && catById(eq.badge);
   if (b && b.data) out.badge = { icon: b.data.icon || null, color: b.data.color || null };
@@ -165,16 +358,36 @@ function presenceCosmetics(u) {
   if (sk && sk.data) out.sticker = { icon: sk.data.icon || null, color: sk.data.color || null };
   const pet = eq.pet && catById(eq.pet);
   if (pet && pet.category === 'pet' && pet.data && pet.data.kind) {
-    const cfg = (u.petConfig && typeof u.petConfig === 'object') ? u.petConfig : {};
-    const modes = ['follow', 'shoulder', 'head', 'hover'];
+    const cfg = petCfgFor(u, eq.pet);
     out.pet = {
       kind: pet.data.kind,
       scale: typeof pet.data.scale === 'number' ? pet.data.scale : 0.2,
-      mode: modes.includes(cfg.mode) ? cfg.mode : 'follow',
-      name: typeof cfg.name === 'string' && cfg.name ? String(cfg.name).slice(0, 16) : null,
-      nameColor: typeof cfg.nameColor === 'string' && /^#[0-9a-fA-F]{6}$/.test(cfg.nameColor) ? cfg.nameColor : null,
+      mode: cfg.mode,
+      name: cfg.name,
+      nameColor: cfg.nameColor,
+      variant: cfg.variant,
     };
   }
+  const cape = eq.cape && catById(eq.cape);
+  if (cape && cape.data && cape.data.texture) out.cape = { texture: cape.data.texture, model: cape.data.model || null };
+  const back = eq.back_accessory && catById(eq.back_accessory);
+  if (back && back.data && back.data.texture) out.backAccessory = { texture: back.data.texture, model: back.data.model || null };
+  const head = eq.head_accessory && catById(eq.head_accessory);
+  if (head && head.data && head.data.texture) out.headAccessory = { texture: head.data.texture, model: head.data.model || null };
+  const shield = eq.shield && catById(eq.shield);
+  if (shield && shield.data && shield.data.texture) out.shield = { texture: shield.data.texture, model: shield.data.model || null };
+  const face = eq.face_accessory && catById(eq.face_accessory);
+  if (face && face.data && face.data.texture) out.face_accessory = { texture: face.data.texture, model: face.data.model || null };
+  const aura = eq.aura && catById(eq.aura);
+  if (aura && aura.data && aura.data.texture) out.aura = { texture: aura.data.texture, model: aura.data.model || null };
+  const shoulder = eq.shoulder_accessory && catById(eq.shoulder_accessory);
+  if (shoulder && shoulder.data && shoulder.data.texture) out.shoulder_accessory = { texture: shoulder.data.texture, model: shoulder.data.model || null };
+  const torso = eq.torso_accessory && catById(eq.torso_accessory);
+  if (torso && torso.data && torso.data.texture) out.torso_accessory = { texture: torso.data.texture, model: torso.data.model || null };
+  const legs = eq.legs_accessory && catById(eq.legs_accessory);
+  if (legs && legs.data && legs.data.texture) out.legs_accessory = { texture: legs.data.texture, model: legs.data.model || null };
+  const gloves = eq.gloves && catById(eq.gloves);
+  if (gloves && gloves.data && gloves.data.texture) out.gloves = { texture: gloves.data.texture, model: gloves.data.model || null };
   return out;
 }
 
@@ -225,7 +438,25 @@ function loadStore() {
   store.catalog = CATALOG.map((c) => Object.assign({}, byId[c.id] || {}, c));
   for (const key of Object.keys(store.users || {})) {
     const u = store.users[key];
-    if (u && typeof u === 'object') ensureUserExtras(u);
+    if (!u || typeof u !== 'object') continue;
+    ensureUserExtras(u);
+    if (Array.isArray(u.cosmetics)) {
+      for (const c of u.cosmetics) {
+        if (c && c.id === 'pet_drache') c.id = 'pet_allay';
+      }
+    }
+    if (u.equipped && u.equipped.pet === 'pet_drache') u.equipped.pet = 'pet_allay';
+    if (u.petConfig && typeof u.petConfig === 'object' && (!u.petConfigs || typeof u.petConfigs !== 'object')) {
+      const legacy = u.petConfig;
+      if (legacy.mode || legacy.name || legacy.nameColor) {
+        u.petConfigs = {};
+        for (const c of (u.cosmetics || [])) {
+          const pid = c && c.id;
+          const pitem = pid && catById(pid);
+          if (pitem && pitem.category === 'pet') u.petConfigs[pid] = { mode: legacy.mode || 'follow', name: legacy.name || null, nameColor: legacy.nameColor || null };
+        }
+      }
+    }
   }
   saveStore();
 }
@@ -480,7 +711,7 @@ const server = http.createServer(async (req, res) => {
         if (typeof p.banner_data_url === 'string') user.profile.banner_data_url = p.banner_data_url;
         if (typeof p.avatar_data_url === 'string') user.profile.avatar_data_url = p.avatar_data_url;
         if (typeof p.avatar_choice === 'string') user.profile.avatar_choice = p.avatar_choice;
-        user.profile.public = true;
+        if (typeof p.public === 'boolean') user.profile.public = p.public;
       }
 
       
@@ -528,6 +759,7 @@ const server = http.createServer(async (req, res) => {
         cosmetics: sv.cosmetics,
         equipped: sv.equipped,
         petConfig: (user.petConfig && typeof user.petConfig === 'object') ? user.petConfig : { mode: 'follow', name: null, nameColor: null },
+        petConfigs: (user.petConfigs && typeof user.petConfigs === 'object') ? user.petConfigs : {},
       });
     }
 
@@ -548,13 +780,38 @@ const server = http.createServer(async (req, res) => {
           equippedCategory: hasUser ? user.equipped[c.category] === c.id : false,
         }));
       return sendJson(res, 200, hasUser
-        ? { catalog: items, points: user.points, points_total: user.points_total, level: levelOf(user), equipped: user.equipped }
+        ? { catalog: items, points: user.points, points_total: user.points_total, level: levelOf(user), equipped: user.equipped, petConfigs: (user.petConfigs && typeof user.petConfigs === 'object') ? user.petConfigs : {} }
         : { catalog: items, needsAuth: true });
     }
 
     
-    if (pathname === '/store/buy' && method === 'POST') {
+    if (pathname === '/api/minigame' && method === 'POST') {
       const user = bearerUser(req);
+      if (!user) return sendJson(res, 401, { error: 'not_authenticated' });
+      ensureUserExtras(user);
+      const body = await readBody(req);
+      const game = String(body.game || '').trim().toLowerCase();
+      const rates = { tetris: 100 };
+      if (!rates[game]) return sendJson(res, 400, { error: 'unknown_game' });
+      const score = Math.max(0, Math.min(2000000, Math.floor(Number(body.score) || 0)));
+      let awarded = Math.floor(score / rates[game]);
+      if (awarded <= 0) return sendJson(res, 200, { ok: true, awarded: 0, points: user.points });
+      if (awarded > 2000) awarded = 2000;
+      const day = new Date().toISOString().slice(0, 10);
+      if (!user.minigame || typeof user.minigame !== 'object') user.minigame = {};
+      if (user.minigame.date !== day) user.minigame = { date: day };
+      const used = Math.max(0, Math.floor(Number(user.minigame[game]) || 0));
+      const left = Math.max(0, 5000 - used);
+      if (left <= 0) return sendJson(res, 200, { ok: true, awarded: 0, points: user.points, limit: true });
+      if (awarded > left) awarded = left;
+      user.minigame[game] = used + awarded;
+      user.points = Math.max(0, (user.points || 0) + awarded);
+      user.points_total = Math.max(0, (user.points_total || 0) + awarded);
+      saveStore();
+      return sendJson(res, 200, { ok: true, awarded, points: user.points, level: levelOf(user) });
+    }
+
+    if (pathname === '/store/buy' && method === 'POST') {      const user = bearerUser(req);
       if (!user) return sendJson(res, 401, { error: 'not_authenticated' });
       ensureUserExtras(user);
       const body = await readBody(req);
@@ -597,7 +854,14 @@ const server = http.createServer(async (req, res) => {
       if (!item) return sendJson(res, 404, { error: 'item_not_found' });
       if (!user.cosmetics.some((x) => x && x.id === itemId)) return sendJson(res, 403, { error: 'not_owned' });
       user.equipped = user.equipped || {};
-      user.equipped[item.category] = itemId;
+      if (item.category === 'pet_skin' && item.data && item.data.variantOf && item.data.variant) {
+        user.equipped.pet = item.data.variantOf;
+        if (!user.petConfigs || typeof user.petConfigs !== 'object') user.petConfigs = {};
+        const scfg = (user.petConfigs[item.data.variantOf] && typeof user.petConfigs[item.data.variantOf] === 'object') ? user.petConfigs[item.data.variantOf] : (user.petConfigs[item.data.variantOf] = { mode: 'follow', name: null, nameColor: null });
+        scfg.variant = item.data.variant;
+      } else {
+        user.equipped[item.category] = itemId;
+      }
       saveStore();
       return sendJson(res, 200, { ok: true, equipped: user.equipped });
     }
@@ -605,13 +869,16 @@ const server = http.createServer(async (req, res) => {
     
     if (pathname === '/pet-config' && method === 'POST') {
       const user = bearerUser(req);
-      if (!user) return sendJson(res, 401, { error: 'not_authenticated' });
+      if (!user) { console.log('[pet-config] 401 no session'); return sendJson(res, 401, { error: 'not_authenticated' }); }
       ensureUserExtras(user);
       const body = await readBody(req);
-      const cfg = (user.petConfig && typeof user.petConfig === 'object') ? user.petConfig : (user.petConfig = { mode: 'follow', name: null, nameColor: null });
+      console.log('[pet-config] attempt', user.discordId, 'pet=', body.pet, 'fields=', Object.keys(body).join(','));
+      const target = resolvePetIdFor(user, body.pet);
+      if (target.error) { console.log('[pet-config] 400', target.error); return sendJson(res, 400, { error: target.error }); }
+      const cfg = target.cfg;
       if (body.mode !== undefined) {
         const mode = String(body.mode || '');
-        if (!['follow', 'shoulder', 'head', 'hover'].includes(mode)) return sendJson(res, 400, { error: 'invalid_mode' });
+        if (!petModesFor(target.id).includes(mode)) { console.log('[pet-config] 400 invalid_mode', target.id, mode); return sendJson(res, 400, { error: 'invalid_mode' }); }
         cfg.mode = mode;
       }
       if (body.name !== undefined) {
@@ -620,11 +887,17 @@ const server = http.createServer(async (req, res) => {
       }
       if (body.nameColor !== undefined) {
         const color = String(body.nameColor || '').trim();
-        if (color && !/^#[0-9a-fA-F]{6}$/.test(color)) return sendJson(res, 400, { error: 'invalid_color' });
+        if (color && !/^#[0-9a-fA-F]{6}$/.test(color)) { console.log('[pet-config] 400 invalid_color', target.id); return sendJson(res, 400, { error: 'invalid_color' }); }
         cfg.nameColor = color || null;
       }
+      if (body.variant !== undefined) {
+        const variant = String(body.variant || '').trim();
+        if (variant && !petSkinsFor(user, target.id).some((s) => s.variant === variant)) { console.log('[pet-config] 400 invalid_variant', target.id, variant); return sendJson(res, 400, { error: 'invalid_variant' }); }
+        cfg.variant = variant || null;
+      }
       saveStore();
-      return sendJson(res, 200, { ok: true, petConfig: cfg });
+      console.log('[pet-config] 200 ok', target.id, JSON.stringify(cfg));
+      return sendJson(res, 200, { ok: true, pet: target.id, petConfig: cfg, petConfigs: user.petConfigs });
     }
 
     
@@ -744,7 +1017,7 @@ if (pathname === '/internal/profile' && method === 'POST') {
       if (typeof p.banner_data_url === 'string') user.profile.banner_data_url = p.banner_data_url;
       if (typeof p.avatar_data_url === 'string') user.profile.avatar_data_url = p.avatar_data_url;
       if (typeof p.avatar_choice === 'string') user.profile.avatar_choice = p.avatar_choice;
-      user.profile.public = true;
+      if (typeof p.public === 'boolean') user.profile.public = p.public;
     }
   if (body.equipped && typeof body.equipped === 'object') {
     const next = {};
@@ -815,10 +1088,12 @@ if (pathname === '/internal/pet-config' && method === 'POST') {
   const user = discordId ? store.users[discordId] : null;
   if (!user) return sendJson(res, 404, { error: 'user_not_found' });
   ensureUserExtras(user);
-  const cfg = (user.petConfig && typeof user.petConfig === 'object') ? user.petConfig : (user.petConfig = { mode: 'follow', name: null, nameColor: null });
+  const target = resolvePetIdFor(user, body.pet);
+  if (target.error) return sendJson(res, 400, { error: target.error });
+  const cfg = target.cfg;
   if (body.mode !== undefined) {
     const mode = String(body.mode || '');
-    if (!['follow', 'shoulder', 'head', 'hover'].includes(mode)) return sendJson(res, 400, { error: 'invalid_mode' });
+    if (!petModesFor(target.id).includes(mode)) return sendJson(res, 400, { error: 'invalid_mode' });
     cfg.mode = mode;
   }
   if (body.name !== undefined) {
@@ -830,8 +1105,13 @@ if (pathname === '/internal/pet-config' && method === 'POST') {
     if (color && !/^#[0-9a-fA-F]{6}$/.test(color)) return sendJson(res, 400, { error: 'invalid_color' });
     cfg.nameColor = color || null;
   }
+  if (body.variant !== undefined) {
+    const variant = String(body.variant || '').trim();
+    if (variant && !petSkinsFor(user, target.id).some((s) => s.variant === variant)) return sendJson(res, 400, { error: 'invalid_variant' });
+    cfg.variant = variant || null;
+  }
   saveStore();
-  return sendJson(res, 200, { ok: true, petConfig: cfg });
+  return sendJson(res, 200, { ok: true, pet: target.id, petConfig: cfg, petConfigs: user.petConfigs });
 }
 
 
@@ -1426,7 +1706,7 @@ if (pathname === '/internal/grant' && method === 'POST') {
   if (!user.cosmetics.some((x) => x && x.id === itemId)) {
     user.cosmetics.push({ id: itemId, boughtAt: Date.now(), granted: true });
   }
-  if (body.equip !== false && !user.equipped[item.category]) user.equipped[item.category] = itemId;
+  if (item.category !== 'pet_skin' && body.equip !== false && !user.equipped[item.category]) user.equipped[item.category] = itemId;
   saveStore();
   return sendJson(res, 200, { ok: true, items: user.cosmetics.length, equipped: user.equipped });
 }

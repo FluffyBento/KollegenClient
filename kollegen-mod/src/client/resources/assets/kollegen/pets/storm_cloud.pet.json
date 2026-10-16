@@ -1,0 +1,522 @@
+{
+ "format": "mythic-cosmetic-pet/1",
+ "id": "storm_cloud",
+ "name": "Sturmwölkchen",
+ "space": {
+  "description": "Minecraft-Java-Entity-Modellraum: 1 Einheit = 1/16 Block, Y zeigt nach UNTEN, Bodenhöhe y=24, Vorderseite = -Z, +X = linke Körperseite.",
+  "pivots": "'pivot' ist relativ zum Eltern-Knochen. Würfel: 'origin' relativ zum eigenen Pivot, 'size' = [Breite,Höhe,Tiefe], 'uv' = Box-UV-Ursprung [u,v] (Layout wie Minecraft-Skins).",
+  "rotation": "Grad [pitch(x), yaw(y), roll(z)], Reihenfolge Z·Y·X; positive Pitch = Vorderseite nach unten.",
+  "animation": "Animationswerte sind Deltas auf die Ruhepose. r=Rotation(Grad), p=Position(px, Y nach unten), s=Skalierung (absolut, 1=normal). Wert = Zahl oder [offset, amplitude, zyklen, phase, 'sin'|'saw']  ->  offset + amplitude * wave(zyklen*φ + phase), φ = (Zeit % length)/length."
+ },
+ "texture": {
+  "file": "storm_cloud.png",
+  "glow": "storm_cloud_glow.png",
+  "width": 64,
+  "height": 32,
+  "notes": "Glow-Textur additiv/unbeleuchtet über das Modell zeichnen (wie Spinnenaugen)."
+ },
+ "bones": [
+  {
+   "name": "cloud",
+   "parent": null,
+   "pivot": [
+    0,
+    12,
+    0
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "cubes": [
+    {
+     "uv": [
+      0,
+      0
+     ],
+     "origin": [
+      -5,
+      -5,
+      -4
+     ],
+     "size": [
+      10,
+      5,
+      8
+     ]
+    }
+   ]
+  },
+  {
+   "name": "puffA",
+   "parent": "cloud",
+   "pivot": [
+    -3,
+    -4,
+    1
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "cubes": [
+    {
+     "uv": [
+      0,
+      13
+     ],
+     "origin": [
+      -3,
+      -3,
+      -3
+     ],
+     "size": [
+      6,
+      3,
+      6
+     ]
+    }
+   ]
+  },
+  {
+   "name": "puffB",
+   "parent": "cloud",
+   "pivot": [
+    3,
+    -4,
+    -1
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "cubes": [
+    {
+     "uv": [
+      24,
+      13
+     ],
+     "origin": [
+      -3,
+      -3,
+      -3
+     ],
+     "size": [
+      6,
+      3,
+      6
+     ]
+    }
+   ]
+  },
+  {
+   "name": "drop1",
+   "parent": "cloud",
+   "pivot": [
+    -3,
+    0,
+    1
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "cubes": [
+    {
+     "uv": [
+      48,
+      0
+     ],
+     "origin": [
+      -0.5,
+      0,
+      -0.5
+     ],
+     "size": [
+      1,
+      2,
+      1
+     ]
+    }
+   ]
+  },
+  {
+   "name": "drop2",
+   "parent": "cloud",
+   "pivot": [
+    0,
+    0,
+    -2
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "cubes": [
+    {
+     "uv": [
+      52,
+      0
+     ],
+     "origin": [
+      -0.5,
+      0,
+      -0.5
+     ],
+     "size": [
+      1,
+      2,
+      1
+     ]
+    }
+   ]
+  },
+  {
+   "name": "drop3",
+   "parent": "cloud",
+   "pivot": [
+    3,
+    0,
+    2
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "cubes": [
+    {
+     "uv": [
+      56,
+      0
+     ],
+     "origin": [
+      -0.5,
+      0,
+      -0.5
+     ],
+     "size": [
+      1,
+      2,
+      1
+     ]
+    }
+   ]
+  },
+  {
+   "name": "bolt",
+   "parent": "cloud",
+   "pivot": [
+    1,
+    0,
+    0
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "cubes": [
+    {
+     "uv": [
+      0,
+      22
+     ],
+     "origin": [
+      -0.5,
+      0,
+      -0.5
+     ],
+     "size": [
+      1,
+      5,
+      1
+     ]
+    }
+   ]
+  }
+ ],
+ "animations": {
+  "idle": {
+   "length": 2,
+   "bones": {
+    "cloud": {
+     "p": [
+      0,
+      [
+       0,
+       1.5,
+       1,
+       0,
+       "s"
+      ],
+      0
+     ],
+     "r": [
+      0,
+      0,
+      [
+       0,
+       3,
+       1,
+       0,
+       "s"
+      ]
+     ]
+    },
+    "puffA": {
+     "p": [
+      0,
+      [
+       0,
+       0.8,
+       2,
+       0,
+       "s"
+      ],
+      0
+     ]
+    },
+    "puffB": {
+     "p": [
+      0,
+      [
+       0,
+       0.8,
+       2,
+       0.5,
+       "s"
+      ],
+      0
+     ]
+    },
+    "drop1": {
+     "p": [
+      0,
+      [
+       0,
+       12,
+       2,
+       0,
+       "saw"
+      ],
+      0
+     ]
+    },
+    "drop2": {
+     "p": [
+      0,
+      [
+       0,
+       12,
+       2,
+       0.33,
+       "saw"
+      ],
+      0
+     ]
+    },
+    "drop3": {
+     "p": [
+      0,
+      [
+       0,
+       12,
+       2,
+       0.66,
+       "saw"
+      ],
+      0
+     ]
+    },
+    "bolt": {
+     "r": [
+      0,
+      0,
+      [
+       0,
+       10,
+       1,
+       0,
+       "s"
+      ]
+     ]
+    }
+   }
+  },
+  "move": {
+   "length": 1,
+   "bones": {
+    "cloud": {
+     "p": [
+      0,
+      [
+       0,
+       1.5,
+       1,
+       0,
+       "s"
+      ],
+      0
+     ],
+     "r": [
+      14,
+      0,
+      [
+       0,
+       3,
+       1,
+       0,
+       "s"
+      ]
+     ]
+    },
+    "drop1": {
+     "p": [
+      0,
+      [
+       0,
+       12,
+       3,
+       0,
+       "saw"
+      ],
+      0
+     ]
+    },
+    "drop2": {
+     "p": [
+      0,
+      [
+       0,
+       12,
+       3,
+       0.33,
+       "saw"
+      ],
+      0
+     ]
+    },
+    "drop3": {
+     "p": [
+      0,
+      [
+       0,
+       12,
+       3,
+       0.66,
+       "saw"
+      ],
+      0
+     ]
+    },
+    "bolt": {
+     "r": [
+      0,
+      0,
+      [
+       0,
+       14,
+       2,
+       0,
+       "s"
+      ]
+     ]
+    }
+   }
+  },
+  "sit": {
+   "length": 2,
+   "bones": {
+    "cloud": {
+     "p": [
+      0,
+      [
+       3,
+       0.8,
+       1,
+       0,
+       "s"
+      ],
+      0
+     ]
+    },
+    "drop1": {
+     "s": [
+      0,
+      0,
+      0
+     ]
+    },
+    "drop2": {
+     "s": [
+      0,
+      0,
+      0
+     ]
+    },
+    "drop3": {
+     "s": [
+      0,
+      0,
+      0
+     ]
+    },
+    "bolt": {
+     "s": [
+      0,
+      0,
+      0
+     ]
+    }
+   }
+  }
+ },
+ "behavior": {
+  "mode": "hover",
+  "side": "behind-right",
+  "look_at_player": true,
+  "follow": {
+   "start_distance": 2.2,
+   "stop_distance": 1.4,
+   "speed": 5.0,
+   "teleport_distance": 16
+  },
+  "states": {
+   "idle": "idle",
+   "moving": "move",
+   "sit": "sit",
+   "sit_after_idle_seconds": 6
+  },
+  "reactions": {
+   "player_sprint": {
+    "speed_multiplier": 1.5
+   },
+   "player_sneak": {
+    "state": "sit"
+   }
+  },
+  "particles": [
+   {
+    "type": "rain",
+    "rate_per_second": 6,
+    "bone": "cloud"
+   },
+   {
+    "type": "electric_spark",
+    "rate_per_second": 0.5,
+    "bone": "bolt"
+   }
+  ],
+  "hover": {
+   "height": 1.9,
+   "bob_amplitude": 0.06,
+   "bob_speed": 1.2
+  }
+ }
+}

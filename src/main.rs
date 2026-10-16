@@ -449,6 +449,13 @@ fn auto_resolve_conflict(
     if !lowered.contains("incompatible mods found") {
         return Ok("Kein Mod-Konflikt erkannt.".to_string());
     }
+    let targets = parse_conflict_targets(&text);
+    if !targets.is_empty() && repair_looped(&state.data_dir, &instance_name, &targets) {
+        return Ok(format!(
+            "WIEDERHOLT: Dieselbe Reparatur wurde gerade schon versucht, der Konflikt besteht weiter – kein Neustart, bitte manuell eingreifen:\n\n{}\n\nTipp: Betroffene Mod-Datei(en) aus dem mods-Ordner entfernen oder aktualisieren, dann Spiel neu starten.",
+            conflict_excerpt(&text)
+        ));
+    }
 
     
     
@@ -463,7 +470,6 @@ fn auto_resolve_conflict(
         .unwrap_or_else(|| ("".to_string(), "".to_string()));
 
     let mods_dir = crate::utils::instance_dir(&state.data_dir, &instance_name).join("mods");
-    let targets = parse_conflict_targets(&text);
     if targets.is_empty() {
         return Ok("Konflikt erkannt, aber keine ersetzbaren Mods gefunden.".to_string());
     }
@@ -497,6 +503,7 @@ fn auto_resolve_conflict(
                 && crate::companion::jar_supports_mc(&redeployed, &mc_version)
             {
                 fixed.push(format!("{} → {} (Bundle erneuert)", label, bname));
+                record_repair(&state.data_dir, &instance_name, &modid);
             } else {
                 let _ = std::fs::remove_file(&redeployed);
                 removed.push(format!(
@@ -567,7 +574,10 @@ fn auto_resolve_conflict(
                     );
                 }
                 match install {
-                    Ok(()) => fixed.push(format!("{} → {}", label, fname)),
+                    Ok(()) => {
+                        fixed.push(format!("{} → {}", label, fname));
+                        record_repair(&state.data_dir, &instance_name, &modid);
+                    }
                     Err(_) => {
                         
                         let _ = std::fs::remove_file(&jar);
@@ -612,8 +622,75 @@ fn auto_resolve_conflict(
 
 
 
-fn parse_conflict_targets(text: &str) -> Vec<(String, String)> {
-    let mut out = Vec::new();
+fn repair_history_path(data_dir: &std::path::Path) -> std::path::PathBuf {
+    data_dir.join("repair-history.json")
+}
+
+fn load_repair_history(data_dir: &std::path::Path) -> Vec<(String, String, i64)> {
+    let p = repair_history_path(data_dir);
+    let s = std::fs::read_to_string(&p).unwrap_or_default();
+    if s.trim().is_empty() {
+        return vec![];
+    }
+    serde_json::from_str::<Vec<serde_json::Value>>(&s)
+        .unwrap_or_default()
+        .into_iter()
+        .filter_map(|v| {
+            Some((
+                v.get("instance")?.as_str()?.to_string(),
+                v.get("target")?.as_str()?.to_string(),
+                v.get("ts")?.as_i64()?,
+            ))
+        })
+        .collect()
+}
+
+fn record_repair(data_dir: &std::path::Path, instance: &str, target: &str) {
+    let now = chrono::Utc::now().timestamp();
+    let mut hist = load_repair_history(data_dir);
+    hist.retain(|(_, _, ts)| now - ts < 3600);
+    hist.push((instance.to_string(), target.to_string(), now));
+    let v: Vec<serde_json::Value> = hist
+        .into_iter()
+        .map(|(i, t, ts)| serde_json::json!({ "instance": i, "target": t, "ts": ts }))
+        .collect();
+    if let Ok(s) = serde_json::to_string(&v) {
+        let _ = std::fs::write(repair_history_path(data_dir), s);
+    }
+}
+
+fn repair_looped(data_dir: &std::path::Path, instance: &str, targets: &[(String, String)]) -> bool {
+    let now = chrono::Utc::now().timestamp();
+    let hist = load_repair_history(data_dir);
+    targets.iter().any(|(modid, _)| {
+        hist.iter().any(|(i, t, ts)| {
+            i == instance && t == modid && now - ts < 900 && now - ts >= 0
+        })
+    })
+}
+
+fn conflict_excerpt(text: &str) -> String {
+    let mut lines = vec![];
+    for line in text.lines() {
+        let l = line.trim();
+        if l.starts_with("- Remove")
+            || l.starts_with("- Replace")
+            || l.starts_with("- add ")
+            || l.to_lowercase().starts_with("a potential solution")
+        {
+            lines.push(l.to_string());
+        }
+        if lines.len() >= 10 {
+            break;
+        }
+    }
+    if lines.is_empty() {
+        return "Details siehe logs/latest.log der Instanz.".to_string();
+    }
+    lines.join("\n")
+}
+
+fn parse_conflict_targets(text: &str) -> Vec<(String, String)> {    let mut out = Vec::new();
     for line in text.lines() {
         let l = line.trim();
         if !(l.starts_with("- Remove") || l.starts_with("- Replace")) {
@@ -1451,7 +1528,10 @@ fn import_pack(state: State<'_, AppState>, path: String) -> Result<types::Instan
 #[tauri::command]
 async fn kollegen_me(app: tauri::AppHandle) -> Result<serde_json::Value, String> {
     let data_dir = app.state::<AppState>().data_dir.clone();
-    Ok(crate::presence::kollegen_me(&data_dir))
+    log::info!("KOLLEGEN_DIAG kollegen_me enter");
+    tauri::async_runtime::spawn_blocking(move || crate::presence::kollegen_me(&data_dir))
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -1529,25 +1609,33 @@ async fn kollegen_dm_send(app: tauri::AppHandle, to_id: String, text: String) ->
 #[tauri::command]
 async fn kollegen_store(app: tauri::AppHandle) -> Result<serde_json::Value, String> {
     let data_dir = app.state::<AppState>().data_dir.clone();
-    Ok(crate::presence::kollegen_store(&data_dir))
+    tauri::async_runtime::spawn_blocking(move || crate::presence::kollegen_store(&data_dir))
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 async fn kollegen_store_equip(app: tauri::AppHandle, item_id: String, category: String) -> Result<serde_json::Value, String> {
     let data_dir = app.state::<AppState>().data_dir.clone();
-    Ok(crate::presence::kollegen_store_equip(&data_dir, &item_id, &category))
+    tauri::async_runtime::spawn_blocking(move || crate::presence::kollegen_store_equip(&data_dir, &item_id, &category))
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 async fn kollegen_store_buy(app: tauri::AppHandle, item_id: String) -> Result<serde_json::Value, String> {
     let data_dir = app.state::<AppState>().data_dir.clone();
-    Ok(crate::presence::kollegen_store_buy(&data_dir, &item_id))
+    tauri::async_runtime::spawn_blocking(move || crate::presence::kollegen_store_buy(&data_dir, &item_id))
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-async fn kollegen_pet_config(app: tauri::AppHandle, mode: Option<String>, name: Option<String>, color: Option<String>) -> Result<serde_json::Value, String> {
+async fn kollegen_pet_config(app: tauri::AppHandle, pet: Option<String>, mode: Option<String>, name: Option<String>, color: Option<String>) -> Result<serde_json::Value, String> {
     let data_dir = app.state::<AppState>().data_dir.clone();
-    Ok(crate::presence::kollegen_pet_config(&data_dir, mode.as_deref(), name.as_deref(), color.as_deref()))
+    tauri::async_runtime::spawn_blocking(move || crate::presence::kollegen_pet_config(&data_dir, pet.as_deref(), mode.as_deref(), name.as_deref(), color.as_deref()))
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -1640,6 +1728,51 @@ async fn kollegen_call_direct_active(app: tauri::AppHandle) -> Result<serde_json
     Ok(crate::presence::kollegen_call_direct_active(&data_dir))
 }
 
+#[tauri::command]
+async fn clear_companion_cache(app: tauri::AppHandle) -> Result<serde_json::Value, String> {
+    let data_dir = app.state::<AppState>().data_dir.clone();
+    let mut cleared = Vec::new();
+    let mut errors = Vec::new();
+    
+    // Global companion cache
+    let global_cache = data_dir.join("companion");
+    if global_cache.exists() {
+        match std::fs::remove_dir_all(&global_cache) {
+            Ok(_) => cleared.push(global_cache.to_string_lossy().to_string()),
+            Err(e) => errors.push(format!("global: {}", e)),
+        }
+    }
+    
+    // Per-instance companion caches
+    let instances_dir = data_dir.join("instances");
+    if instances_dir.exists() {
+        if let Ok(entries) = std::fs::read_dir(&instances_dir) {
+            for entry in entries.flatten() {
+                let instance_cache = entry.path().join("companion");
+                if instance_cache.exists() {
+                    match std::fs::remove_dir_all(&instance_cache) {
+                        Ok(_) => cleared.push(instance_cache.to_string_lossy().to_string()),
+                        Err(e) => errors.push(format!("instance {}: {}", entry.file_name().to_string_lossy(), e)),
+                    }
+                }
+            }
+        }
+    }
+    
+    if !errors.is_empty() {
+        Ok(serde_json::json!({
+            "success": false,
+            "cleared": cleared,
+            "errors": errors
+        }))
+    } else {
+        Ok(serde_json::json!({
+            "success": true,
+            "cleared": cleared,
+            "message": if cleared.is_empty() { "Kein Cache gefunden" } else { "Cache erfolgreich geleert" }
+        }))
+    }
+}
 
 #[tauri::command]
 fn skin_list(state: State<'_, AppState>) -> Value {
@@ -2227,6 +2360,7 @@ fn main() {
             kollegen_call_join,
             kollegen_call_leave,
             kollegen_call_signal,
+            clear_companion_cache,
             kollegen_call_direct_open,
             kollegen_call_direct_poll,
             kollegen_call_direct_active,

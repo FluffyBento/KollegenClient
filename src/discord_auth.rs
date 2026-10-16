@@ -110,6 +110,13 @@ pub fn status(data_dir: &Path) -> serde_json::Value {
 
 pub fn logout(data_dir: &Path) {
     delete_token(data_dir);
+    let instances = data_dir.join("instances");
+    if let Ok(entries) = std::fs::read_dir(&instances) {
+        for entry in entries.flatten() {
+            let _ = std::fs::remove_file(entry.path().join("config").join("kollegen-session.txt"));
+            let _ = std::fs::remove_file(entry.path().join("config").join("kollegen-refresh.txt"));
+        }
+    }
 }
 
 lazy_static! {

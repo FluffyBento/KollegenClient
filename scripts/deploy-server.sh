@@ -14,9 +14,10 @@ fi
 SCP_OPTS=(-i "$KEY" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null)
 SSH_OPTS=("${SCP_OPTS[@]}")
 
-echo "==> Kopiere server/ nach ${USER}@${HOST}:${REMOTE_DIR}"
+echo "==> Kopiere server/ nach ${USER}@${HOST}:${REMOTE_DIR} (ohne data/)"
 ssh "${SSH_OPTS[@]}" "${USER}@${HOST}" "mkdir -p ${REMOTE_DIR}/data"
-scp "${SSH_OPTS[@]}" -r "$(dirname "$0")/../server/." "${USER}@${HOST}:${REMOTE_DIR}/"
+ssh "${SSH_OPTS[@]}" "${USER}@${HOST}" "cp ${REMOTE_DIR}/data/store.json ${REMOTE_DIR}/data/store.json.bak-deploy 2>/dev/null || true"
+tar -czf - --exclude=data -C "$(dirname "$0")/../server" . | ssh "${SSH_OPTS[@]}" "${USER}@${HOST}" "tar -xzf - -C ${REMOTE_DIR}/"
 
 echo "==> Installiere systemd-Unit (benötigt root)"
 scp "${SSH_OPTS[@]}" "$(dirname "$0")/../server/kollegen-backend.service" "${USER}@${HOST}:/tmp/kollegen-backend.service"

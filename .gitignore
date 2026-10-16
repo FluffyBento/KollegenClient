@@ -28,3 +28,6 @@ Das/
 
 # Kompilierte Klassen nie committen (Build-Artefakte)
 *.class
+
+kollegen-mod/src/main/resources/dev/kollegen/client/vulkanmod.bin
+server/data/

@@ -1,365 +1,640 @@
 package dev.kollegen.client.ui;
 
 import dev.kollegen.client.mods.Palette;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import org.joml.Matrix3x2fStack;
 
 public final class Glass {
+    public static float alpha = 1.0f;
+    public static float opacity = 0.58f;
+    public static float dt = 0.016f;
+    private static long lastNs = 0L;
 
     private Glass() {
     }
 
+    public static void frame() {
+        long now = System.nanoTime();
+        if (lastNs != 0L) {
+            float d = (now - lastNs) / 1.0e9f;
+            dt = Math.max(0.0005f, Math.min(0.1f, d));
+        }
+        lastNs = now;
+    }
+
+    public static float step(float cur, float target, float rate) {
+        float d = target - cur;
+        if (Math.abs(d) < 0.002f) {
+            return target;
+        }
+        float f = 1.0f - (float) Math.exp(-rate * dt);
+        return cur + d * f;
+    }
+
+    public static float ease(float t) {
+        t = Math.max(0.0f, Math.min(1.0f, t));
+        return 1.0f - (1.0f - t) * (1.0f - t) * (1.0f - t);
+    }
+
+    public static float k() {
+        try {
+            net.minecraft.client.Minecraft mc = Minecraft.getInstance();
+            int gw = mc.getWindow().getGuiScaledWidth();
+            if (gw <= 0) {
+                return 1.0f;
+            }
+            float v = (float) mc.getWindow().getScreenWidth() / (float) gw;
+            if (v < 1.0f) {
+                v = 1.0f;
+            }
+            // PERF: Über 2x-Supersampling steigt die Fill-Anzahl linear, der
+            // sichtbare Gewinn ist null (2x reicht für glatte 1px-Kanten).
+            return Math.min(v, 2.0f);
+        } catch (Throwable t) {
+            return 1.0f;
+        }
+    }
+
     public static int tint(int argb, int alpha) {
-        return (alpha << 24) | (argb & 0x00FFFFFF);
+        return alpha << 24 | argb & 0xFFFFFF;
+    }
+
+    public static int a(int argb, float mul) {
+        int al = (int) ((argb >>> 24) * mul);
+        if (al < 0) {
+            al = 0;
+        }
+        if (al > 255) {
+            al = 255;
+        }
+        return al << 24 | argb & 0xFFFFFF;
     }
 
     public static int mix(int a, int b, float t) {
-        int ar = (a >> 16) & 0xFF, ag = (a >> 8) & 0xFF, ab = a & 0xFF;
-        int br = (b >> 16) & 0xFF, bg = (b >> 8) & 0xFF, bb = b & 0xFF;
+        int ar = a >> 16 & 0xFF;
+        int ag = a >> 8 & 0xFF;
+        int ab = a & 0xFF;
+        int br = b >> 16 & 0xFF;
+        int bg = b >> 8 & 0xFF;
+        int bb = b & 0xFF;
         int r = (int) (ar + (br - ar) * t);
         int g = (int) (ag + (bg - ag) * t);
         int bl = (int) (ab + (bb - ab) * t);
-        return (0xFF << 24) | (r << 16) | (g << 8) | bl;
+        return 0xFF000000 | r << 16 | g << 8 | bl;
+    }
+
+    public static int mixA(int a, int b, float t) {
+        int aa = a >>> 24;
+        int ba = b >>> 24;
+        int al = (int) (aa + (ba - aa) * t);
+        return al << 24 | mix(a, b, t) & 0xFFFFFF;
+    }
+
+    public static int lighten(int c, float t) {
+        return (c & 0xFF000000) | mix(c, 0xFFFFFFFF, t) & 0xFFFFFF;
+    }
+
+    public static int darken(int c, float t) {
+        return (c & 0xFF000000) | mix(c, 0xFF000000, t) & 0xFFFFFF;
+    }
+
+    private static int fa(int c) {
+        if (alpha >= 0.999f) {
+            return c;
+        }
+        return a(c, alpha);
+    }
+
+    private static void box(GuiGraphicsExtractor g, int x0, int y0, int x1, int y1, int c) {
+        if (x1 <= x0 || y1 <= y0 || (c >>> 24) == 0) {
+            return;
+        }
+        g.fill(x0, y0, x1, y1, c);
+    }
+
+    private static float inset(int R, int i) {
+        float dy = R - (i + 0.5f);
+        float dx = (float) Math.sqrt(Math.max(0.0f, (float) R * R - dy * dy));
+        return R - dx;
+    }
+
+    static void pBegin(GuiGraphicsExtractor g) {
+        Matrix3x2fStack p = g.pose();
+        p.pushMatrix();
+        float k = k();
+        p.scale(1.0f / k, 1.0f / k);
+    }
+
+    static void pEnd(GuiGraphicsExtractor g) {
+        g.pose().popMatrix();
+    }
+
+    static void rrPhys(GuiGraphicsExtractor g, int X0, int Y0, int X1, int Y1, int R, int c1, int c2, boolean aa) {
+        int W = X1 - X0;
+        int H = Y1 - Y0;
+        if (W <= 0 || H <= 0) {
+            return;
+        }
+        R = Math.max(0, Math.min(R, Math.min(W, H) / 2));
+        boolean grad = c1 != c2;
+        // PERF: Gradienten in max. ~24 Bändern statt ~40 — bei den flachen
+        // Glas-Verläufen unsichtbar, halbiert aber die Fill-Aufrufe.
+        int bandH = grad ? Math.max(1, H / 24) : H;
+        if (R == 0) {
+            if (!grad) {
+                box(g, X0, Y0, X1, Y1, c1);
+                return;
+            }
+            for (int y = Y0; y < Y1; y += bandH) {
+                float t = (y + bandH / 2.0f - Y0) / H;
+                box(g, X0, y, X1, Math.min(Y1, y + bandH), mixA(c1, c2, t));
+            }
+            return;
+        }
+        for (int i = 0; i < R; i++) {
+            float ins = inset(R, i);
+            int full = (int) Math.ceil(ins);
+            float cov = full - ins;
+            int yt = Y0 + i;
+            int yb = Y1 - 1 - i;
+            int ct = grad ? mixA(c1, c2, (i + 0.5f) / H) : c1;
+            int cb = grad ? mixA(c1, c2, (H - i - 0.5f) / H) : c1;
+            box(g, X0 + full, yt, X1 - full, yt + 1, ct);
+            box(g, X0 + full, yb, X1 - full, yb + 1, cb);
+            // PERF: 1px-Saum nur bei niedriger Skalierung — ab 2x-SSAA ist die
+            // Geometrie allein schon glatt, der Saum kostet ~40% extra Fills.
+            if (aa && full > 0 && cov > 0.08f) {
+                int at = a(ct, cov);
+                int ab = a(cb, cov);
+                box(g, X0 + full - 1, yt, X0 + full, yt + 1, at);
+                box(g, X1 - full, yt, X1 - full + 1, yt + 1, at);
+                box(g, X0 + full - 1, yb, X0 + full, yb + 1, ab);
+                box(g, X1 - full, yb, X1 - full + 1, yb + 1, ab);
+            }
+        }
+        int my0 = Y0 + R;
+        int my1 = Y1 - R;
+        if (!grad) {
+            box(g, X0, my0, X1, my1, c1);
+        } else {
+            for (int y = my0; y < my1; y += bandH) {
+                float t = (y + bandH / 2.0f - Y0) / H;
+                box(g, X0, y, X1, Math.min(my1, y + bandH), mixA(c1, c2, t));
+            }
+        }
+    }
+
+    static void ringPhys(GuiGraphicsExtractor g, int X0, int Y0, int X1, int Y1, int R, int T, int c, boolean aa) {
+        int W = X1 - X0;
+        int H = Y1 - Y0;
+        if (W <= 0 || H <= 0 || (c >>> 24) == 0) {
+            return;
+        }
+        R = Math.max(0, Math.min(R, Math.min(W, H) / 2));
+        T = Math.max(1, T);
+        if (R == 0 || T >= Math.min(W, H) / 2) {
+            box(g, X0, Y0, X1, Y0 + T, c);
+            box(g, X0, Y1 - T, X1, Y1, c);
+            box(g, X0, Y0 + T, X0 + T, Y1 - T, c);
+            box(g, X1 - T, Y0 + T, X1, Y1 - T, c);
+            return;
+        }
+        T = Math.min(T, R);
+        int Ri = R - T;
+        for (int i = 0; i < R; i++) {
+            float ins = inset(R, i);
+            int full = (int) Math.ceil(ins);
+            float cov = full - ins;
+            int oL = X0 + full;
+            int oR = X1 - full;
+            int yt = Y0 + i;
+            int yb = Y1 - 1 - i;
+            if (i < T) {
+                box(g, oL, yt, oR, yt + 1, c);
+                box(g, oL, yb, oR, yb + 1, c);
+            } else {
+                int j = i - T;
+                int iFull = 0;
+                if (j < Ri) {
+                    iFull = (int) Math.ceil(inset(Ri, j));
+                }
+                int iL = X0 + T + iFull;
+                int iR = X1 - T - iFull;
+                box(g, oL, yt, iL, yt + 1, c);
+                box(g, iR, yt, oR, yt + 1, c);
+                box(g, oL, yb, iL, yb + 1, c);
+                box(g, iR, yb, oR, yb + 1, c);
+            }
+            if (aa && full > 0 && cov > 0.08f) {
+                int ac = a(c, cov);
+                box(g, oL - 1, yt, oL, yt + 1, ac);
+                box(g, oR, yt, oR + 1, yt + 1, ac);
+                box(g, oL - 1, yb, oL, yb + 1, ac);
+                box(g, oR, yb, oR + 1, yb + 1, ac);
+            }
+        }
+        box(g, X0, Y0 + R, X0 + T, Y1 - R, c);
+        box(g, X1 - T, Y0 + R, X1, Y1 - R, c);
+    }
+
+    private static int P(float v, float k) {
+        return Math.round(v * k);
+    }
+
+    public static void rr(GuiGraphicsExtractor g, float x, float y, float w, float h, float r, int color) {
+        rrGrad(g, x, y, w, h, r, color, color);
+    }
+
+    public static void rrGrad(GuiGraphicsExtractor g, float x, float y, float w, float h, float r, int top, int bottom) {
+        if (w <= 0 || h <= 0) {
+            return;
+        }
+        top = fa(top);
+        bottom = fa(bottom);
+        if ((top >>> 24) == 0 && (bottom >>> 24) == 0) {
+            return;
+        }
+        float k = k();
+        pBegin(g);
+        rrPhys(g, P(x, k), P(y, k), P(x + w, k), P(y + h, k), P(r, k), top, bottom, k < 1.5f);
+        pEnd(g);
+    }
+
+    public static void ring(GuiGraphicsExtractor g, float x, float y, float w, float h, float r, float thick, int color) {
+        color = fa(color);
+        if (w <= 0 || h <= 0 || (color >>> 24) == 0) {
+            return;
+        }
+        float k = k();
+        pBegin(g);
+        ringPhys(g, P(x, k), P(y, k), P(x + w, k), P(y + h, k), P(r, k), Math.max(1, P(thick, k)), color, k < 1.5f);
+        pEnd(g);
+    }
+
+    public static void shadowSoft(GuiGraphicsExtractor g, float x, float y, float w, float h, float r, float spread, float dy, int color) {
+        color = fa(color);
+        if ((color >>> 24) == 0) {
+            return;
+        }
+        float k = k();
+        // PERF: 4 statt 7 Schatten-Layer — optisch identisch weich (3px-Offset),
+        // kostet aber nur ~55% der Fill-Aufrufe.
+        int T = Math.max(1, P(spread / 4.0f, k));
+        int L = 4;
+        pBegin(g);
+        int X0 = P(x, k);
+        int Y0 = P(y + dy, k);
+        int X1 = P(x + w, k);
+        int Y1 = P(y + dy + h, k);
+        int R = P(r, k);
+        for (int n = 1; n <= L; n++) {
+            float f = 1.0f - (n - 1) / (float) L;
+            int c = a(color, f * f * 0.9f);
+            int e = (n - 1) * T;
+            // Weiche Schatten brauchen keinen 1px-Saum (aa=false).
+            ringPhys(g, X0 - e - T, Y0 - e - T, X1 + e + T, Y1 + e + T, R + e + T, T, c, false);
+        }
+        pEnd(g);
+    }
+
+    public static void line(GuiGraphicsExtractor g, float x0, float y0, float x1, float y1, float thick, int color) {
+        color = fa(color);
+        if ((color >>> 24) == 0) {
+            return;
+        }
+        float k = k();
+        pBegin(g);
+        float ax = x0 * k;
+        float ay = y0 * k;
+        float bx = x1 * k;
+        float by = y1 * k;
+        int t = Math.max(1, Math.round(thick * k));
+        // PERF: Achsenparallele Linien (der Normalfall bei Icons/Rahmen) als
+        // einzelnes Rechteck statt DDA-Pixel — identisches Bild, ~20x weniger Fills.
+        if (Math.abs(by - ay) < 0.5f) {
+            int y = Math.round(ay - t / 2.0f);
+            int xa = Math.round(Math.min(ax, bx));
+            int xb = Math.round(Math.max(ax, bx));
+            box(g, xa, y, xb + 1, y + t, color);
+            pEnd(g);
+            return;
+        }
+        if (Math.abs(bx - ax) < 0.5f) {
+            int x = Math.round(ax - t / 2.0f);
+            int ya = Math.round(Math.min(ay, by));
+            int yb = Math.round(Math.max(ay, by));
+            box(g, x, ya, x + t, yb + 1, color);
+            pEnd(g);
+            return;
+        }
+        int steps = (int) Math.max(Math.abs(bx - ax), Math.abs(by - ay));
+        if (steps < 1) {
+            steps = 1;
+        }
+        int px = Integer.MIN_VALUE;
+        int py = Integer.MIN_VALUE;
+        int runStartX = 0;
+        for (int i = 0; i <= steps; i++) {
+            float f = i / (float) steps;
+            int cx = Math.round(ax + (bx - ax) * f - t / 2.0f);
+            int cy = Math.round(ay + (by - ay) * f - t / 2.0f);
+            if (cx == px && cy == py) {
+                continue;
+            }
+            px = cx;
+            py = cy;
+            box(g, cx, cy, cx + t, cy + t, color);
+        }
+        pEnd(g);
+    }
+
+    public static void disc(GuiGraphicsExtractor g, float cx, float cy, float rad, int color) {
+        // PERF: Winzige Punkte (Thumbs, Dots, Status) als einzelnes Rechteck.
+        float k = k();
+        if (rad * k <= 1.5f) {
+            int r = Math.max(1, Math.round(rad * k));
+            int x = Math.round(cx * k);
+            int y = Math.round(cy * k);
+            color = fa(color);
+            if ((color >>> 24) == 0) {
+                return;
+            }
+            pBegin(g);
+            box(g, x - r, y - r, x + r + 1, y + r + 1, color);
+            pEnd(g);
+            return;
+        }
+        rr(g, cx - rad, cy - rad, rad * 2, rad * 2, rad, color);
     }
 
     public static void fillRound(GuiGraphicsExtractor g, int x, int y, int w, int h, int r, int color) {
-        if (w <= 0 || h <= 0) return;
-        r = Math.min(r, w / 2);
-        r = Math.min(r, h / 2);
-        for (int yy = y; yy < y + h; yy++) {
-            int dy = Math.min(yy - y, (y + h - 1) - yy);
-            int inset = 0;
-            if (dy < r) {
-                int d = r - dy;
-                inset = (int) Math.round(r - Math.sqrt((double) (r * r - d * d)));
-            }
-            g.fill(x + inset, yy, x + w - inset, yy + 1, color);
+        rr(g, x, y, w, h, r, color);
+    }
+
+    public static void fillRoundGradient(GuiGraphicsExtractor g, int x, int y, int w, int h, int r, int topColor, int bottomColor) {
+        rrGrad(g, x, y, w, h, r, topColor, bottomColor);
+    }
+
+    public static void glassCard(GuiGraphicsExtractor g, float x, float y, float w, float h, float r, int tint, float op, float shadow) {
+        if (shadow > 0.0f) {
+            shadowSoft(g, x, y, w, h, r, 10.0f, 3.0f, Palette.tint(0x000000, (int) (70 * shadow)));
+        }
+        int top = Palette.mix(tint, 0xFFFFFFFF, 0.07f);
+        int bot = Palette.mix(tint, 0xFF000000, 0.12f);
+        rrGrad(g, x, y, w, h, r, tint(top, (int) (255 * Math.min(1.0f, op))), tint(bot, (int) (255 * Math.min(1.0f, op * 0.92f))));
+        rrGrad(g, x, y, w, Math.max(4.0f, h * 0.5f), r, 0x22FFFFFF, 0x00FFFFFF);
+        ring(g, x, y, w, h, r, 0.5f, 0x38FFFFFF);
+        float k = k();
+        if (w > r * 2 + 4) {
+            pBegin(g);
+            int X0 = P(x + r, k);
+            int X1 = P(x + w - r, k);
+            int Y = P(y, k) + 1;
+            box(g, X0, Y, X1, Y + 1, fa(0x44FFFFFF));
+            pEnd(g);
         }
     }
 
-    public static void fillRoundGradient(GuiGraphicsExtractor g, int x, int y, int w, int h, int r,
-                                         int topColor, int bottomColor) {
-        if (w <= 0 || h <= 0) return;
-        r = Math.min(r, w / 2);
-        r = Math.min(r, h / 2);
-        for (int yy = y; yy < y + h; yy++) {
-            int dy = Math.min(yy - y, (y + h - 1) - yy);
-            int inset = 0;
-            if (dy < r) {
-                int d = r - dy;
-                inset = (int) Math.round(r - Math.sqrt((double) (r * r - d * d)));
-            }
-            float t = (float) (yy - y) / (float) h;
-            int col = mix(topColor, bottomColor, t);
-            g.fill(x + inset, yy, x + w - inset, yy + 1, col);
-        }
-    }
-
-    public static void panel(GuiGraphicsExtractor g, int x, int y, int w, int h, int r,
-                             int fill, int border, int sheen) {
-        fillRound(g, x, y, w, h, r, border);
-        fillRound(g, x + 1, y + 1, w - 2, h - 2, Math.max(0, r - 1), fill);
-        int sheenH = Math.max(8, h / 3);
-        int steps = Math.min(sheenH, 60);
-        for (int i = 0; i < steps; i++) {
-            float t = (float) i / (float) steps;
-            int a = (int) (40 * (1f - t));
-            int col = tint(sheen, Math.max(0, Math.min(255, a)));
-            g.fill(x + 2, y + 2 + i, x + w - 2, y + 3 + i, col);
-        }
+    public static void panel(GuiGraphicsExtractor g, int x, int y, int w, int h, int r, int fill, int border, int sheen) {
+        glassCard(g, x, y, w, h, r, fill, (fill >>> 24) / 255.0f, 0.0f);
     }
 
     public static void panelVanilla(GuiGraphicsExtractor g, int x, int y, int w, int h, int r) {
-        fillRound(g, x, y, w, h, r, Palette.BORDER);
-        fillRound(g, x + 1, y + 1, w - 2, h - 2, Math.max(0, r - 1), Palette.PANEL);
-        int sheenH = Math.max(8, h / 3);
-        int steps = Math.min(sheenH, 60);
-        for (int i = 0; i < steps; i++) {
-            float t = (float) i / (float) steps;
-            int a = (int) (30 * (1f - t));
-            int col = tint(Palette.ACCENT, Math.max(0, Math.min(255, a)));
-            g.fill(x + 2, y + 2 + i, x + w - 2, y + 3 + i, col);
-        }
+        glassCard(g, x, y, w, h, r, Palette.PANEL, opacity + 0.12f, 0.6f);
     }
 
     public static void panelDark(GuiGraphicsExtractor g, int x, int y, int w, int h, int r) {
-        fillRound(g, x, y, w, h, r, Palette.BORDER);
-        fillRound(g, x + 1, y + 1, w - 2, h - 2, Math.max(0, r - 1), Palette.PANEL);
+        glassCard(g, x, y, w, h, r, Palette.PANEL, opacity, 0.0f);
     }
 
     public static void shadow(GuiGraphicsExtractor g, int x, int y, int w, int h, int r, int radius) {
-        int layers = Math.min(radius, 8);
-        for (int i = layers; i > 0; i--) {
-            int alpha = (int) (0x18 * (1f - (float) i / layers));
-            int col = tint(Palette.SHADOW, alpha);
-            fillRound(g, x - i, y - i, w + i * 2, h + i * 2, r + i, col);
-        }
+        shadowSoft(g, x, y, w, h, r, radius, 0.0f, 0x55000000);
     }
 
     public static void dropShadow(GuiGraphicsExtractor g, int x, int y, int w, int h, int r, int offset, int radius) {
-        int layers = Math.min(radius, 8);
-        for (int i = layers; i > 0; i--) {
-            int alpha = (int) (0x20 * (1f - (float) i / layers));
-            int col = tint(Palette.SHADOW, alpha);
-            fillRound(g, x - i + offset, y - i + offset, w + i * 2, h + i * 2, r + i, col);
+        shadowSoft(g, x, y, w, h, r, radius, offset, 0x66000000);
+    }
+
+    public static int textW(Font font, String s) {
+        return font.width(s);
+    }
+
+    public static void text(GuiGraphicsExtractor g, Font font, String s, int x, int y, int color, boolean shadow) {
+        color = fa(color);
+        if ((color >>> 24) < 10 || s == null || s.isEmpty()) {
+            return;
         }
+        g.text(font, s, x, y, color, shadow);
     }
 
-    public static void button(GuiGraphicsExtractor g, int x, int y, int w, int h, int r,
-                              int fill, int border, int text, Font font, String label,
-                              boolean hover, boolean selected) {
-        int f = selected ? tint(fill, 0xE6) : (hover ? tint(fill, 0xB0) : fill);
-        int b = selected ? border : (hover ? tint(border, 0xCC) : border);
-        fillRound(g, x, y, w, h, r, b);
-        fillRound(g, x + 1, y + 1, w - 2, h - 2, Math.max(0, r - 1), f);
-        int tw = font.width(label);
-        g.text(font, label, x + (w - tw) / 2, y + (h - font.lineHeight) / 2, text, false);
+    public static void textC(GuiGraphicsExtractor g, Font font, String s, int cx, int y, int color, boolean shadow) {
+        text(g, font, s, cx - font.width(s) / 2, y, color, shadow);
     }
 
-    public static void buttonVanilla(GuiGraphicsExtractor g, int x, int y, int w, int h, int r,
-                                     Font font, String label, boolean hover, boolean selected,
-                                     boolean disabled) {
-        int baseFill = selected ? Palette.ACCENT : Palette.PANEL2;
-        int baseBorder = selected ? Palette.ACCENT : Palette.BORDER;
-        int textCol = disabled ? Palette.MUTED : (selected ? 0xFFFFFFFF : Palette.TEXT);
+    public static void textR(GuiGraphicsExtractor g, Font font, String s, int rx, int y, int color, boolean shadow) {
+        text(g, font, s, rx - font.width(s), y, color, shadow);
+    }
 
-        if (disabled) {
-            fillRound(g, x, y, w, h, r, tint(baseBorder, 0x80));
-            fillRound(g, x + 1, y + 1, w - 2, h - 2, Math.max(0, r - 1), tint(baseFill, 0x80));
-        } else if (selected) {
-            fillRound(g, x, y, w, h, r, baseBorder);
-            fillRoundGradient(g, x + 1, y + 1, w - 2, h - 2, Math.max(0, r - 1),
-                    tint(Palette.ACCENT, 0xE6), tint(Palette.ACCENT2, 0xE6));
-        } else if (hover) {
-            fillRound(g, x, y, w, h, r, baseBorder);
-            fillRound(g, x + 1, y + 1, w - 2, h - 2, Math.max(0, r - 1), tint(baseFill, 0xE0));
+    public static void textMid(GuiGraphicsExtractor g, Font font, String s, int x, int y, int h, int color, boolean shadow) {
+        text(g, font, s, x, y + (h - 8) / 2, color, shadow);
+    }
+
+    public static void textScaled(GuiGraphicsExtractor g, Font font, String s, float x, float y, float sc, int color, boolean shadow) {
+        color = fa(color);
+        if ((color >>> 24) < 10 || s == null || s.isEmpty()) {
+            return;
+        }
+        Matrix3x2fStack p = g.pose();
+        p.pushMatrix();
+        p.translate(x, y);
+        p.scale(sc, sc);
+        g.text(font, s, 0, 0, color, shadow);
+        p.popMatrix();
+    }
+
+    public static void textBold(GuiGraphicsExtractor g, Font font, String s, int x, int y, int color, boolean shadow) {
+        color = fa(color);
+        if ((color >>> 24) < 10 || s == null || s.isEmpty()) {
+            return;
+        }
+        Matrix3x2fStack p = g.pose();
+        g.text(font, s, x, y, color, shadow);
+        p.pushMatrix();
+        p.translate(0.5f, 0.0f);
+        g.text(font, s, x, y, color, false);
+        p.popMatrix();
+    }
+
+    public static String trunc(Font font, String s, int maxW) {
+        if (s == null) {
+            return "";
+        }
+        if (font.width(s) <= maxW) {
+            return s;
+        }
+        // PERF: Binäre Suche statt linearem Kürzen — trunc() läuft pro Frame für
+        // dutzende Strings; linear ist O(n^2) durch wiederholtes Neuvermessen.
+        int ew = font.width("...");
+        int lo = 1;
+        int hi = s.length();
+        while (lo < hi) {
+            int mid = (lo + hi + 1) >>> 1;
+            if (font.width(s.substring(0, mid)) + ew <= maxW) {
+                lo = mid;
+            } else {
+                hi = mid - 1;
+            }
+        }
+        return s.substring(0, lo) + "...";
+    }
+
+    public static void button(GuiGraphicsExtractor g, int x, int y, int w, int h, int r, int fill, int border, int text, Font font, String label, boolean hover, boolean selected) {
+        int f = selected ? tint(fill, 230) : (hover ? tint(fill, 176) : fill);
+        rr(g, x, y, w, h, r, f);
+        ring(g, x, y, w, h, r, 0.5f, border);
+        textC(g, font, label, x + w / 2, y + (h - 8) / 2, text, false);
+    }
+
+    public static void pill(GuiGraphicsExtractor g, float x, float y, float w, float h, float hov, boolean primary, boolean disabled) {
+        float r = h / 2.0f;
+        if (primary) {
+            int c1 = Palette.ACCENT;
+            int c2 = Palette.ACCENT2;
+            rrGrad(g, x, y, w, h, r, a(lighten(c1, 0.1f + 0.12f * hov), disabled ? 0.4f : 0.95f), a(mix(c1, c2, 0.8f), disabled ? 0.4f : 0.95f));
+            rrGrad(g, x, y, w, h * 0.5f, r, 0x30FFFFFF, 0x00FFFFFF);
+            ring(g, x, y, w, h, r, 0.5f, 0x55FFFFFF);
         } else {
-            fillRound(g, x, y, w, h, r, baseBorder);
-            fillRound(g, x + 1, y + 1, w - 2, h - 2, Math.max(0, r - 1), baseFill);
+            rr(g, x, y, w, h, r, a(mix(Palette.PANEL2, 0xFFFFFFFF, 0.04f + 0.12f * hov), disabled ? 0.35f : 0.75f));
+            rrGrad(g, x, y, w, h * 0.5f, r, 0x1CFFFFFF, 0x00FFFFFF);
+            ring(g, x, y, w, h, r, 0.5f, mixA(0x30FFFFFF, a(Palette.ACCENT, 0.9f), hov * 0.8f));
         }
-
-        int tw = font.width(label);
-        g.text(font, label, x + (w - tw) / 2, y + (h - font.lineHeight) / 2, textCol, false);
     }
 
-    public static void checkbox(GuiGraphicsExtractor g, int x, int y, int size, boolean checked,
-                                boolean hover, boolean focused) {
-        int borderCol = focused ? Palette.FOCUS_BORDER : (hover ? Palette.ACCENT : Palette.BORDER);
-        int fillCol = checked ? Palette.ACCENT : Palette.PANEL2;
-        fillRound(g, x, y, size, size, 4, borderCol);
-        fillRound(g, x + 1, y + 1, size - 2, size - 2, 3,
-                hover ? tint(fillCol, 0xE0) : fillCol);
-        if (checked) {
-            g.fill(x + size / 2 - 1, y + size / 2 - 3, x + size / 2 + 1, y + size / 2 + 3, 0xFFFFFFFF);
-            g.fill(x + size / 2 - 3, y + size / 2 - 1, x + size / 2 + 3, y + size / 2 + 1, 0xFFFFFFFF);
-        }
+    public static void buttonVanilla(GuiGraphicsExtractor g, int x, int y, int w, int h, int r, Font font, String label, boolean hover, boolean selected, boolean disabled) {
+        pill(g, x, y, w, h, hover ? 1.0f : 0.0f, selected, disabled);
+        textC(g, font, label, x + w / 2, y + (h - 8) / 2, disabled ? Palette.MUTED : (selected ? 0xFFFFFFFF : Palette.TEXT), false);
+    }
+
+    public static void vanillaButton(GuiGraphicsExtractor g, int x, int y, int w, int h, Font font, String label, boolean hovered, boolean focused, boolean disabled) {
+        float r = Math.min(h / 2.0f, 8.0f);
+        rr(g, x, y, w, h, r, a(mix(Palette.PANEL2, 0xFFFFFFFF, hovered ? 0.14f : 0.05f), disabled ? 0.35f : 0.78f));
+        rrGrad(g, x, y, w, h * 0.5f, r, 0x1CFFFFFF, 0x00FFFFFF);
+        ring(g, x, y, w, h, r, 0.5f, hovered && !disabled ? a(Palette.ACCENT, 0.9f) : (focused ? a(Palette.ACCENT, 0.6f) : 0x30FFFFFF));
+        textC(g, font, label, x + w / 2, y + (h - 8) / 2, disabled ? Palette.MUTED : Palette.TEXT, false);
+    }
+
+    public static void checkbox(GuiGraphicsExtractor g, int x, int y, int size, boolean checked, boolean hover, boolean focused) {
+        vanillaCheckbox(g, x, y, size, checked, hover, focused);
     }
 
     public static void sliderTrack(GuiGraphicsExtractor g, int x, int y, int w, int h, int r, int color) {
-        fillRound(g, x, y, w, h, r, color);
+        rr(g, x, y, w, h, r, color);
     }
 
     public static void sliderThumb(GuiGraphicsExtractor g, int x, int y, int size, int r, int color, boolean hover) {
-        int col = hover ? tint(color, 0xE0) : color;
-        fillRound(g, x, y, size, size, r, col);
-        if (hover) {
-            fillRound(g, x + 1, y + 1, size - 2, size - 2, Math.max(0, r - 1), tint(Palette.TEXT, 0x30));
-        }
+        disc(g, x + size / 2.0f, y + size / 2.0f, size / 2.0f, hover ? lighten(color, 0.2f) : color);
     }
 
     public static void scrollbarTrack(GuiGraphicsExtractor g, int x, int y, int w, int h, int r) {
-        fillRound(g, x, y, w, h, r, Palette.SCROLL_TRACK);
+        rr(g, x, y, w, h, r, 0x22FFFFFF);
     }
 
     public static void scrollbarThumb(GuiGraphicsExtractor g, int x, int y, int w, int h, int r, boolean hover) {
-        int col = hover ? Palette.SCROLL_THUMB_HOVER : Palette.SCROLL_THUMB;
-        fillRound(g, x, y, w, h, r, col);
+        rr(g, x, y, w, h, r, hover ? a(Palette.ACCENT, 0.9f) : 0x66FFFFFF);
     }
 
     public static void tooltipBackground(GuiGraphicsExtractor g, int x, int y, int w, int h, int r) {
-        fillRound(g, x, y, w, h, r, Palette.BORDER);
-        fillRound(g, x + 1, y + 1, w - 2, h - 2, Math.max(0, r - 1), tint(Palette.BG, 0xF0));
-        dropShadow(g, x, y, w, h, r, 2, 6);
+        glassCard(g, x, y, w, h, r, Palette.BG, 0.9f, 0.8f);
     }
 
     public static void drawHollowRect(GuiGraphicsExtractor g, int x, int y, int w, int h, int color) {
-        g.fill(x, y, x + w, y + 1, color);
-        g.fill(x, y + h - 1, x + w, y + h, color);
-        g.fill(x, y, x + 1, y + h, color);
-        g.fill(x + w - 1, y, x + w, y + h, color);
+        ring(g, x, y, w, h, 0, 0.5f, color);
     }
 
     public static void drawSelectionQuad(GuiGraphicsExtractor g, int x, int y, int w, int h, int color) {
-        int thick = 2;
-        int corner = 8;
-        g.fill(x, y, x + corner, y + thick, color);
-        g.fill(x + w - corner, y, x + w, y + thick, color);
-        g.fill(x, y, x + thick, y + corner, color);
-        g.fill(x + w - thick, y, x + w, y + corner, color);
-        g.fill(x, y + h - thick, x + corner, y + h, color);
-        g.fill(x + w - corner, y + h - thick, x + w, y + h, color);
-        g.fill(x, y + h - corner, x + thick, y + h, color);
-        g.fill(x + w - thick, y + h - corner, x + w, y + h, color);
+        float s = 3.0f;
+        float t = 1.0f;
+        line(g, x, y, x + s, y, t, color);
+        line(g, x, y, x, y + s, t, color);
+        line(g, x + w, y, x + w - s, y, t, color);
+        line(g, x + w, y, x + w, y + s, t, color);
+        line(g, x, y + h, x + s, y + h, t, color);
+        line(g, x, y + h, x, y + h - s, t, color);
+        line(g, x + w, y + h, x + w - s, y + h, t, color);
+        line(g, x + w, y + h, x + w, y + h - s, t, color);
     }
 
     public static void separator(GuiGraphicsExtractor g, int x, int y, int w, int color) {
-        g.fill(x, y, x + w, y + 1, tint(color, 0x40));
+        float k = k();
+        pBegin(g);
+        box(g, P(x, k), P(y, k), P(x + w, k), P(y, k) + 1, fa(color));
+        pEnd(g);
     }
 
-    // Vanilla-style button (matches Minecraft's button rendering)
-    public static void vanillaButton(GuiGraphicsExtractor g, int x, int y, int w, int h, Font font, String label,
-                                      boolean hovered, boolean focused, boolean disabled) {
-        // Button background - matches vanilla Minecraft button
-        int baseColor = 0xFF000000;
-        if (disabled) {
-            g.fill(x, y, x + w, y + h, 0xFF7F7F7F);
-        } else if (hovered) {
-            g.fill(x, y, x + w, y + h, 0xFF2A2A2A);
-        } else {
-            g.fill(x, y, x + w, y + h, 0xFF1A1A1A);
+    public static void vanillaSlider(GuiGraphicsExtractor g, int x, int y, int w, int h, float value, boolean hovered, boolean dragging) {
+        float th = 4.0f;
+        float ty = y + (h - th) / 2.0f;
+        rr(g, x, ty, w, th, th / 2, 0x33FFFFFF);
+        float v = Math.max(0.0f, Math.min(1.0f, value));
+        float knob = Math.min(12.0f, h);
+        float kx = x + knob / 2 + (w - knob) * v;
+        float fw = kx - x;
+        rrGrad(g, x, ty, fw, th, th / 2, a(Palette.ACCENT, 0.95f), a(Palette.ACCENT2, 0.95f));
+        if (hovered || dragging) {
+            disc(g, kx, y + h / 2.0f, knob / 2 + 2, a(Palette.ACCENT, 0.25f));
         }
-        
-        // Border
-        g.fill(x, y, x + w, y + 1, 0xFF404040);
-        g.fill(x, y + h - 1, x + w, y + h, 0xFF404040);
-        g.fill(x, y, x + 1, y + h, 0xFF404040);
-        g.fill(x + w - 1, y, x + w, y + h, 0xFF404040);
-        
-        // Inner highlight
-        if (!disabled) {
-            g.fill(x + 1, y + 1, x + w - 1, y + 2, 0x30FFFFFF);
-        }
-        
-        // Text
-        int textColor = disabled ? 0xFF808080 : 0xFFE0E0E0;
-        int tw = font.width(label);
-        g.text(font, label, x + (w - tw) / 2, y + (h - font.lineHeight) / 2, textColor, true);
+        disc(g, kx, y + h / 2.0f, knob / 2, 0xFFFFFFFF);
+        disc(g, kx, y + h / 2.0f, knob / 2 - 2.5f, Palette.ACCENT);
     }
 
-    // Vanilla-style slider (matches Minecraft's options slider)
-    public static void vanillaSlider(GuiGraphicsExtractor g, int x, int y, int w, int h,
-                                      float value, boolean hovered, boolean dragging) {
-        int trackY = y + h / 2 - 2;
-        int trackH = 4;
-        
-        // Track background
-        fillRound(g, x, trackY, w, trackH, 2, 0xFF3A3A3A);
-        fillRound(g, x + 1, trackY + 1, w - 2, trackH - 2, 1, 0xFF2A2A2A);
-        
-        // Track fill (progress)
-        int fillW = (int) (value * (w - 4));
-        if (fillW > 0) {
-            fillRound(g, x + 2, trackY + 1, fillW, trackH - 2, 1, 0xFF5555FF);
-        }
-        
-        // Thumb
-        int thumbW = 12;
-        int thumbH = 16;
-        int thumbX = x + 2 + (int) (value * (w - thumbW - 4));
-        int thumbY = y + (h - thumbH) / 2;
-        
-        int thumbColor = 0xFF8888FF;
-        if (dragging) thumbColor = 0xFFAAAAFF;
-        else if (hovered) thumbColor = 0xFF9999FF;
-        
-        fillRound(g, thumbX, thumbY, thumbW, thumbH, 3, 0xFF555555);
-        fillRound(g, thumbX + 1, thumbY + 1, thumbW - 2, thumbH - 2, 2, thumbColor);
-    }
-
-    // Vanilla-style checkbox/toggle (matches Minecraft's checkbox)
-    public static void vanillaCheckbox(GuiGraphicsExtractor g, int x, int y, int size, boolean checked,
-                                        boolean hovered, boolean focused) {
-        // Box
-        int borderColor = focused ? 0xFF5555FF : (hovered ? 0xFF8888FF : 0xFF808080);
-        fillRound(g, x, y, size, size, 2, borderColor);
-        fillRound(g, x + 1, y + 1, size - 2, size - 2, 1, 0xFF1A1A1A);
-        
+    public static void vanillaCheckbox(GuiGraphicsExtractor g, int x, int y, int size, boolean checked, boolean hovered, boolean focused) {
+        float r = Math.max(3.0f, size / 4.0f);
         if (checked) {
-            // Checkmark
-            g.fill(x + size / 2 - 1, y + 2, x + size / 2 + 1, y + size - 2, 0xFF00FF00);
-            g.fill(x + 2, y + size / 2 - 1, x + size - 2, y + size / 2 + 1, 0xFF00FF00);
+            rrGrad(g, x, y, size, size, r, Palette.ACCENT, Palette.ACCENT2);
+            line(g, x + size * 0.27f, y + size * 0.52f, x + size * 0.44f, y + size * 0.7f, 1.5f, 0xFFFFFFFF);
+            line(g, x + size * 0.44f, y + size * 0.7f, x + size * 0.74f, y + size * 0.3f, 1.5f, 0xFFFFFFFF);
+        } else {
+            rr(g, x, y, size, size, r, 0x22FFFFFF);
         }
-        
-        if (focused) {
-            fillRound(g, x, y, size, size, 3, 0xFF5555FF);
-        }
+        ring(g, x, y, size, size, r, 0.5f, hovered ? a(Palette.ACCENT, 0.9f) : (focused ? a(Palette.ACCENT, 0.7f) : 0x40FFFFFF));
     }
 
-    // Vanilla-style scrollbar (matches Minecraft's scrollbar)
-    public static void vanillaScrollbar(GuiGraphicsExtractor g, int x, int y, int w, int h,
-                                         float scroll, float maxScroll, boolean hovered, boolean dragging) {
-        if (maxScroll <= 0) return;
-        
-        int trackW = w;
-        int trackX = x;
-        int trackY = y;
-        int trackH = h;
-        
-        // Track
-        fillRound(g, trackX, trackY, trackW, trackH, 2, 0xFF1A1A1A);
-        
-        // Thumb
-        float scrollRatio = maxScroll > 0 ? scroll / maxScroll : 0;
-        int thumbH = Math.max(30, (int) ((float) trackH * trackH / (trackH + maxScroll)));
-        int thumbY = trackY + (int) (scrollRatio * (trackH - thumbH));
-        int thumbW = w - 4;
-        int thumbX = x + 2;
-        
-        int thumbColor = dragging ? 0xFF777777 : (hovered ? 0xFF666666 : 0xFF555555);
-        fillRound(g, thumbX, thumbY, thumbW, thumbH, 2, thumbColor);
+    public static void vanillaScrollbar(GuiGraphicsExtractor g, int x, int y, int w, int h, float scroll, float maxScroll, boolean hovered, boolean dragging) {
+        rr(g, x, y, w, h, w / 2.0f, 0x1CFFFFFF);
+        if (maxScroll <= 0) {
+            return;
+        }
+        float thumbH = Math.max(18.0f, h * h / (h + maxScroll));
+        float ty = y + (h - thumbH) * (scroll / maxScroll);
+        rr(g, x, ty, w, thumbH, w / 2.0f, dragging || hovered ? a(Palette.ACCENT, 0.95f) : 0x77FFFFFF);
     }
 
-    // Vanilla-style tooltip background
     public static void vanillaTooltip(GuiGraphicsExtractor g, int x, int y, int w, int h) {
-        fillRound(g, x, y, w, h, 4, 0xFF323232);
-        fillRound(g, x + 1, y + 1, w - 2, h - 2, 3, 0xFF1E1E1E);
-        // Border
-        g.fill(x, y, x + w, y + 1, 0xFF505050);
-        g.fill(x, y + h - 1, x + w, y + h, 0xFF505050);
-        g.fill(x, y, x + 1, y + h, 0xFF505050);
-        g.fill(x + w - 1, y, x + w, y + h, 0xFF505050);
+        tooltipBackground(g, x, y, w, h, 5);
     }
 
-    // Vanilla-style panel (matches Minecraft's GUI panel)
     public static void vanillaPanel(GuiGraphicsExtractor g, int x, int y, int w, int h) {
-        // Background
-        g.fill(x, y, x + w, y + h, 0xE0101010);
-        // Border
-        g.fill(x, y, x + w, y + 1, 0xFF505050);
-        g.fill(x, y + h - 1, x + w, y + h, 0xFF505050);
-        g.fill(x, y, x + 1, y + h, 0xFF505050);
-        g.fill(x + w - 1, y, x + w, y + h, 0xFF505050);
-        // Inner border
-        g.fill(x + 1, y + 1, x + w - 1, y + 2, 0xFF303030);
-        g.fill(x + 1, y + h - 2, x + w - 1, y + h - 1, 0xFF303030);
-        g.fill(x + 1, y + 1, x + 2, y + h - 1, 0xFF303030);
-        g.fill(x + w - 2, y + 1, x + w - 1, y + h - 1, 0xFF303030);
+        glassCard(g, x, y, w, h, 12, Palette.PANEL, opacity + 0.1f, 1.0f);
     }
 
-    // Vanilla-style tab (matches Minecraft's tab buttons)
-    public static void vanillaTab(GuiGraphicsExtractor g, int x, int y, int w, int h, Font font, String label,
-                                   boolean selected, boolean hovered) {
-        int bgColor = selected ? 0xFF3A3A3A : (hovered ? 0xFF2A2A2A : 0xFF1A1A1A);
-        g.fill(x, y, x + w, y + h, bgColor);
-        
-        // Border
-        int borderColor = selected ? 0xFF5555FF : 0xFF505050;
-        g.fill(x, y, x + w, y + 1, borderColor);
-        g.fill(x, y + h - 1, x + w, y + h, 0xFF505050);
-        g.fill(x, y, x + 1, y + h, 0xFF505050);
-        g.fill(x + w - 1, y, x + w, y + h, 0xFF505050);
-        
-        // Text
-        int textColor = selected ? 0xFFFFFFFF : (hovered ? 0xFFAAAAAA : 0xFFAAAAAA);
-        int tw = font.width(label);
-        g.text(font, label, x + (w - tw) / 2, y + (h - font.lineHeight) / 2, textColor, true);
+    public static void vanillaTab(GuiGraphicsExtractor g, int x, int y, int w, int h, Font font, String label, boolean selected, boolean hovered) {
+        if (selected) {
+            rrGrad(g, x, y, w, h, h / 2.0f, a(Palette.ACCENT, 0.9f), a(Palette.ACCENT2, 0.9f));
+        } else if (hovered) {
+            rr(g, x, y, w, h, h / 2.0f, 0x22FFFFFF);
+        }
+        textC(g, font, label, x + w / 2, y + (h - 8) / 2, selected ? 0xFFFFFFFF : Palette.TEXT, false);
     }
 
-    // Vanilla-style badge (matches Minecraft's badges)
-    public static void badge(GuiGraphicsExtractor g, int x, int y, int w, int h, int r,
-                             int bgColor, int textColor, Font font, String text) {
-        fillRound(g, x, y, w, h, r, bgColor);
-        int tw = font.width(text);
-        g.text(font, text, x + (w - tw) / 2, y + (h - font.lineHeight) / 2, textColor, false);
+    public static void badge(GuiGraphicsExtractor g, int x, int y, int w, int h, int r, int bgColor, int textColor, Font font, String text) {
+        rr(g, x, y, w, h, h / 2.0f, a(bgColor, 0.28f));
+        ring(g, x, y, w, h, h / 2.0f, 0.5f, a(bgColor, 0.8f));
+        textC(g, font, text, x + w / 2, y + (h - 8) / 2, bgColor, false);
+    }
+
+    public static boolean in(double mx, double my, float x, float y, float w, float h) {
+        return mx >= x && mx < x + w && my >= y && my < y + h;
     }
 }

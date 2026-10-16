@@ -1310,6 +1310,11 @@ function buildStorePage() {
     '<button type="button" class="tab" data-f="profile_bg">Profil-Hintergrund</button>' +
     '<button type="button" class="tab" data-f="banner">Banner</button>' +
     '<button type="button" class="tab" data-f="profil_stil">Profilstil</button>' +
+    '<button type="button" class="tab" data-f="pet">Pet</button>' +
+    '<button type="button" class="tab" data-f="cape">Cape</button>' +
+    '<button type="button" class="tab" data-f="shield">Schild</button>' +
+    '<button type="button" class="tab" data-f="back_accessory">R\u00fccken</button>' +
+    '<button type="button" class="tab" data-f="head_accessory">Kopf</button>' +
     '</div>' +
     '<div class="grid" id="grid"><div class="muted" id="gridMsg">Lade Store\u2026</div></div>' +
     '<div class="note card"><span style="font-size:1.2rem;">&#9432;</span>' +
@@ -1434,6 +1439,10 @@ function buildStorePage() {
     'if(item.category==="profile_bg"){return "<div style=\\"width:88%;height:78px;border-radius:10px;display:flex;align-items:center;justify-content:center;color:#c9d4e3;font:700 11px/1 Inter,sans-serif;background:"+esc(item.data.gradient)+"\\"><img class=\\"pvHead\\" style=\\"width:34px;height:34px;\\" src=\\""+av+"\\"/></div>";}' +
     'if(item.category==="profile_frame"){return "<div class=\\"pvMini\\" style=\\"border:4px solid "+esc(item.data.color1)+";box-shadow:0 0 12px "+esc(item.data.color1)+"44;background:#0d1420;\\"><img class=\\"pvHead\\" style=\\"width:40px;height:40px;\\" src=\\""+av+"\\"/></div>";}' +
     'if(item.category==="profil_stil"){return "<div class=\\"pvMini\\" style=\\"border:2px solid "+esc(item.data.accent)+";background:#0d1420;\\"><span style=\\"color:"+esc(item.data.accent)+";font:800 22px/1 Outfit,sans-serif;\\">Aa</span> <span style=\\"color:#c9d4e3;font-size:11px;font-weight:600;\\">"+esc(item.data.font)+"</span></div>";}' +
+    'if(item.category==="cape"&&item.data&&item.data.texture){return "<div style=\\"width:78%;height:64px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:#0d1420;background-image:url(\\'https://kollegen.me/"+esc(item.data.texture.replace("kollegen:", ""))+"\\');background-size:cover;background-position:center;\\">Cape</div>";}' +
+    'if(item.category==="shield"&&item.data&&item.data.texture){return "<div style=\\"width:78%;height:64px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:#0d1420;background-image:url(\\'https://kollegen.me/"+esc(item.data.texture.replace("kollegen:", ""))+"\\');background-size:cover;background-position:center;\\">Schild</div>";}' +
+    'if(item.category==="back_accessory"&&item.data&&item.data.texture){return "<div style=\\"width:78%;height:64px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:#0d1420;background-image:url(\\'https://kollegen.me/"+esc(item.data.texture.replace("kollegen:", ""))+"\\');background-size:cover;background-position:center;\\">R\u00fccken</div>";}' +
+    'if(item.category==="head_accessory"&&item.data&&item.data.texture){return "<div style=\\"width:78%;height:64px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:#0d1420;background-image:url(\\'https://kollegen.me/"+esc(item.data.texture.replace("kollegen:", ""))+"\\');background-size:cover;background-position:center;\\">Kopf</div>";}' +
     'var border="",shadow="";' +
     'if(item.category==="avatar_frame"&&item.data.color1){border="border:"+(item.data.width||3)+"px solid "+item.data.color1+";";shadow="box-shadow:0 0 14px "+item.data.color1+"55;";}' +
     'return "<img class=\\"pvHead\\" style=\\""+border+shadow+"border-radius:14px;\\" src=\\""+av+"\\"/>";' +

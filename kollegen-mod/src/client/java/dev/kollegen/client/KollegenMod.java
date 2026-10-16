@@ -31,12 +31,13 @@ public class KollegenMod implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         dev.kollegen.client.mods.Palette.loadTheme(); 
-        ModuleManager.registerAll(); 
+        ModuleManager.registerAll();
         
         
         dev.kollegen.client.mods.modules.        RendererManager.apply();
         dev.kollegen.client.input.ControllerMode.init(); 
         KollegenRPC.start(); 
+        
         LOGGER.info("Kollegen Client Mod initialisiert (Rechts-Shift = Menü).");
     }
 
@@ -50,6 +51,9 @@ public class KollegenMod implements ClientModInitializer {
         dev.kollegen.client.input.ControllerMode.tick(mc);
         
         dev.kollegen.client.input.GamepadInput.tick(mc);
+        
+        dev.kollegen.client.presence.PetRenderer.onTick(mc);
+        dev.kollegen.client.presence.KollegenPresence.checkRefreshSignal();
 
         
         boolean shiftDown = dev.kollegen.client.input.KollegenKeybind.isRightShiftHeld();

@@ -196,12 +196,16 @@ async function refreshLogs() {
         const msg = await invoke("auto_resolve_conflict", {
           instanceName: activeInstance,
         });
-        alert(
-          "Mod-Konflikt erkannt und automatisch behoben:\n\n" +
-            msg +
-            "\n\nDer Launcher wird neu gestartet…"
-        );
-        launchGame(activeInstance, true);
+        if (typeof msg === "string" && msg.startsWith("WIEDERHOLT:")) {
+          alert(msg);
+        } else {
+          alert(
+            "Mod-Konflikt erkannt und automatisch behoben:\n\n" +
+              msg +
+              "\n\nDer Launcher wird neu gestartet…"
+          );
+          launchGame(activeInstance, true);
+        }
       } catch (e) {
         alert("Konflikt konnte nicht automatisch behoben werden: " + e);
       }
@@ -2511,6 +2515,28 @@ $("updateInstallBtn").onclick = async () => {
   }
 };
 
+$("clearCacheBtn").onclick = async () => {
+  const status = $("clearCacheStatus");
+  const btn = $("clearCacheBtn");
+  status.textContent = "Leere Cache...";
+  btn.disabled = true;
+  try {
+    const result = await invoke("clear_companion_cache");
+    if (result && result.success) {
+      status.textContent = result.message + (result.cleared && result.cleared.length ? "\nGeleert: " + result.cleared.join(", ") : "");
+      status.style.color = "var(--accent)";
+    } else {
+      status.textContent = "Fehler: " + (result.errors ? result.errors.join(", ") : "unbekannt");
+      status.style.color = "var(--danger)";
+    }
+  } catch (e) {
+    status.textContent = "Fehler: " + e;
+    status.style.color = "var(--danger)";
+  } finally {
+    btn.disabled = false;
+  }
+};
+
 // ─ Verbindungen (Microsoft / Discord) ─
 async function refreshSettingsAccounts() {
   const list = $("msAccountList");
@@ -2832,7 +2858,16 @@ applySavedTheme()
       try { window.renderKollegenStore(); } catch (e) {}
     }
     if (name === "cosmetics") {
-      try { renderCosmetics(); } catch (e) {}
+      try {
+        const p = window.renderCosmetics();
+        if (p && p.catch) p.catch((e) => {
+          const bx2 = $("cosmOwned");
+          if (bx2) bx2.innerHTML = '<div class="store-msg">Fehler: ' + String((e && e.message) || e) + '</div>';
+        });
+      } catch (e) {
+        const bx3 = $("cosmOwned");
+        if (bx3) bx3.innerHTML = '<div class="store-msg">Fehler: ' + String((e && e.message) || e) + '</div>';
+      }
     }
     if (name === "home" && document.body.classList.contains("console-mode")) {
       renderConsoleHome();
@@ -3938,9 +3973,9 @@ startBackgroundIntervals();
 
   let storeFilter = "alle";
   let storeGroup = "profil";
-  const STORE_INGAME_CATS = ["pet", "clothing", "effect"];
+  const STORE_INGAME_CATS = ["pet", "clothing", "effect", "cape", "shield", "back_accessory", "head_accessory", "face_accessory", "aura", "shoulder_accessory", "torso_accessory", "legs_accessory", "gloves", "pet_skin"];
   let storeRar = "alle";
-  let storeSort = "price-asc";
+  let storeSort = "featured";
 
   function storePreview(item) {
     const av = previewAvatar() || "https://mc-heads.net/avatar/MHF_Steve/64";
@@ -3954,6 +3989,12 @@ startBackgroundIntervals();
     if (item.category === "font") return `<div style="width:78%;height:64px;border-radius:10px;display:flex;align-items:center;justify-content:center;color:#c9d4e3;font-weight:700;font-size:15px;font-family:${esc(item.data.font)};">Aa</div>`;
     if (item.category === "name_color") return `<div style="width:78%;height:64px;border-radius:10px;display:flex;align-items:center;justify-content:center;color:${esc(item.data.accent)};font-weight:800;font-size:22px;">Aa</div>`;
     if (item.category === "sticker") return `<div style="width:78%;height:64px;border-radius:10px;display:flex;align-items:center;justify-content:center;color:${esc(item.data.color)};font-size:34px;">${esc(item.data.icon)}</div>`;
+    if (item.category === "cape" && item.data && item.data.texture) return `<div style="width:78%;height:64px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:#0d1420;background-image:url('https://kollegen.me/${item.data.texture.replace("kollegen:", "")}');background-size:cover;background-position:center;">Cape</div>`;
+    if (item.category === "shield" && item.data && item.data.texture) return `<div style="width:78%;height:64px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:#0d1420;background-image:url('https://kollegen.me/${item.data.texture.replace("kollegen:", "")}');background-size:cover;background-position:center;">Schild</div>`;
+    if (item.category === "back_accessory" && item.data && item.data.texture) return `<div style="width:78%;height:64px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:#0d1420;background-image:url('https://kollegen.me/${item.data.texture.replace("kollegen:", "")}');background-size:cover;background-position:center;">Rücken</div>`;
+    if (item.category === "head_accessory" && item.data && item.data.texture) return `<div style="width:78%;height:64px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:#0d1420;background-image:url('https://kollegen.me/${item.data.texture.replace("kollegen:", "")}');background-size:cover;background-position:center;">Kopf</div>`;
+    if (["face_accessory", "aura", "shoulder_accessory", "torso_accessory", "legs_accessory", "gloves"].includes(item.category) && item.data && item.data.texture) { const lbl = { face_accessory: "Gesicht", aura: "Aura", shoulder_accessory: "Schulter", torso_accessory: "Oberkörper", legs_accessory: "Unterkörper", gloves: "Handschuhe" }[item.category] || "Item"; return `<div style="width:78%;height:64px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:#0d1420;background-image:url('https://kollegen.me/${item.data.texture.replace("kollegen:", "")}');background-size:cover;background-position:center;">${lbl}</div>`; }
+    if (item.category === "pet" && item.data && item.data.kind) { const mk = { ember_drake: 1, void_wyrm: 1, shadow_reaper: 1, rune_sentinel: 1, flame_skull: 1, storm_cloud: 1, crystal_golem: 1, spectre: 1, lantern_spirit: 1, bolt_bot: 1, mini_ufo: 1, grimoire: 1, mooncap: 1, jelly_cube: 1 }[item.data.kind]; if (mk) return `<img style="width:64px;height:64px;border-radius:14px;object-fit:cover;" src="pets/${item.data.kind}.png" onerror="this.style.display='none'"/>`; }
     let border = "", shadow = "";
     if (item.category === "avatar_frame" && item.data.color1) border = `border:${(item.data.width || 3)}px solid ${esc(item.data.color1)};`;
     return `<img style="width:64px;height:64px;border-radius:14px;object-fit:cover;${border}${shadow}" src="${av}"/>`;
@@ -3963,6 +4004,7 @@ startBackgroundIntervals();
     const ingame = (c) => STORE_INGAME_CATS.includes(c);
     const items = (kmCat || []).filter((i) => (storeGroup === "ingame" ? ingame(i.category) : !ingame(i.category)) && (storeFilter === "alle" || i.category === storeFilter) && (storeRar === "alle" || i.rarity === storeRar));
     items.sort((a, b) => {
+      if (storeSort === "featured") { const f = ((b.featured ? 1 : 0) - (a.featured ? 1 : 0)) || ((STORE_RANK[b.rarity] ?? -1) - (STORE_RANK[a.rarity] ?? -1)); return f || a.price - b.price; }
       if (storeSort === "price-asc") return a.price - b.price;
       if (storeSort === "price-desc") return b.price - a.price;
       if (storeSort === "rarity") { const d = (STORE_RANK[b.rarity] ?? -1) - (STORE_RANK[a.rarity] ?? -1); return d || a.price - b.price; }
@@ -3983,14 +4025,59 @@ startBackgroundIntervals();
     return { txt: `Kaufen · ★ ${item.price}`, disabled: false, act: "buy" };
   }
 
+  let c3dObserver = null;
+  const c3dThumbCache = {};
+  function c3dRenderNow(pv, item) {
+    try {
+      if (!window.Cosmetic3D || !window.Cosmetic3D.ready()) return;
+      const id = item && item.id;
+      if (!id || pv.dataset.c3dDone) return;
+      if (!c3dThumbCache[id]) {
+        c3dThumbCache[id] = window.Cosmetic3D.thumb(item).catch(() => null);
+      }
+      c3dThumbCache[id].then((url) => {
+        try {
+          if (!url || !pv.isConnected || pv.dataset.c3dDone) return;
+          pv.dataset.c3dDone = "1";
+          const img = document.createElement("img");
+          img.className = "thumb3d";
+          img.alt = "";
+          img.src = url;
+          pv.innerHTML = "";
+          pv.append(img);
+        } catch (e) {}
+      });
+    } catch (e) {}
+  }
+  function c3dObserve(pv, item) {
+    try {
+      if (!window.Cosmetic3D || !window.Cosmetic3D.ready()) return;
+      if (!window.Cosmetic3D.keyFor(item) || !item.id) return;
+      pv.dataset.c3dId = item.id;
+      if (typeof IntersectionObserver === "undefined") { c3dRenderNow(pv, item); return; }
+      if (!c3dObserver) {
+        c3dObserver = new IntersectionObserver((ents) => {
+          ents.forEach((en) => {
+            if (!en.isIntersecting) return;
+            const el = en.target;
+            try { c3dObserver.unobserve(el); } catch (e) {}
+            const it = byId(el.dataset.c3dId);
+            if (it) c3dRenderNow(el, it);
+          });
+        }, { rootMargin: "300px" });
+      }
+      c3dObserver.observe(pv);
+    } catch (e) {}
+  }
   function storeCard(item) {
     const card = document.createElement("div");
-    card.className = "store-card" + (item.owned ? " owned" : "") + (item.equippedCategory ? " equipped" : "");
+    card.className = "store-card rar-" + (item.rarity || "common") + (item.owned ? " owned" : "") + (item.equippedCategory ? " equipped" : "");
     const rarArr = STORE_RAR[item.rarity] || ["", "r-common"];
     const pv = document.createElement("div");
     pv.className = "store-pv";
     pv.innerHTML = storePreview(item);
     card.append(pv);
+    try { c3dObserve(pv, item); } catch (e) {}
     const rar = document.createElement("span");
     rar.className = "store-badge " + rarArr[1];
     rar.textContent = rarArr[0];
@@ -4021,6 +4108,7 @@ startBackgroundIntervals();
   }
 
   window.renderKollegenStore = renderStore;
+  window.renderCosmetics = renderCosmetics;
   function renderStore() {
     const grid = $("storeGridMain");
     if (!kmCat) {
@@ -4050,6 +4138,7 @@ startBackgroundIntervals();
       return;
     }
     const items = storeFiltered();
+    try { storeRenderPackages(); } catch (e) {}
     if (grid) {
       grid.innerHTML = "";
       if (!items.length) grid.innerHTML = `<div class="store-msg">Keine Items in dieser Auswahl.</div>`;
@@ -4145,12 +4234,22 @@ startBackgroundIntervals();
     const pv = document.createElement("div");
     pv.className = "store-pv store-pv-lg";
     pv.innerHTML = storePreview(item);
+    try {
+      if (window.Cosmetic3D && window.Cosmetic3D.ready() && window.Cosmetic3D.keyFor(item)) {
+        pv.innerHTML = "";
+        pv.style.minHeight = "300px";
+        window.Cosmetic3D.mount(pv, item);
+      }
+    } catch (e) {}
     const rar = document.createElement("span");
     rar.className = "store-badge " + rarArr[1];
     rar.textContent = rarArr[0];
     const t = document.createElement("div");
     t.className = "store-mm-title";
     t.textContent = item.name;
+    const cat = document.createElement("div");
+    cat.textContent = storeCatLabel(item.category);
+    cat.style.cssText = "color:#7d8aa0;font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;margin-top:.35rem;";
     const d = document.createElement("div");
     d.textContent = item.desc || "";
     d.style.cssText = "color:#a9b3c0;font-size:.9rem;margin-top:.6rem;";
@@ -4167,13 +4266,97 @@ startBackgroundIntervals();
     if (b.act === "equip") btn.onclick = () => { storeEquip(item.id); storeCloseModal(); };
     if (b.act === "buy") btn.onclick = () => { storeBuy(item.id); storeCloseModal(); };
     body.innerHTML = "";
-    body.append(pv, rar, t, d, pr, btn);
+    body.append(pv, rar, t, cat, d, pr, btn);
     m.style.display = "flex";
+  }
+
+  function storeCatLabel(c) {
+    const m = { title: "Titel", avatar_frame: "Avatar-Rahmen", avatar_theme: "Avatar-Hintergrund", badge: "Abzeichen", profile_frame: "Profil-Rahmen", profile_bg: "Profil-Hintergrund", banner: "Banner", profil_stil: "Profilstil", font: "Schriftart", name_color: "Namensfarbe", sticker: "Aufkleber", pet: "Pet", pet_skin: "Pet-Skin", cape: "Umhang", shield: "Schild", back_accessory: "Rücken", head_accessory: "Kopf", face_accessory: "Gesicht", aura: "Aura", shoulder_accessory: "Schulter", torso_accessory: "Oberkörper", legs_accessory: "Unterkörper", package: "Paket" };
+    return m[c] || String(c || "");
+  }
+
+  function storeOpenPackage(pkg) {
+    const m = $("storeItemModal");
+    const body = $("storeItemBody");
+    if (!m || !body) return;
+    const ids = (pkg.data && Array.isArray(pkg.data.items)) ? pkg.data.items : [];
+    const items = ids.map((id) => { try { return byId(id); } catch (e) { return null; } }).filter(Boolean);
+    let total = 0;
+    body.innerHTML = "";
+    const t = document.createElement("div");
+    t.className = "store-mm-title";
+    t.textContent = pkg.name || "Paket";
+    body.append(t);
+    const d = document.createElement("div");
+    d.textContent = pkg.desc || "";
+    d.style.cssText = "color:#a9b3c0;font-size:.9rem;margin-top:.4rem;";
+    body.append(d);
+    if (!items.length) {
+      const n = document.createElement("div");
+      n.className = "store-msg";
+      n.textContent = "Inhalt folgt in Kürze.";
+      body.append(n);
+    } else {
+      const list = document.createElement("div");
+      list.style.cssText = "display:flex;flex-direction:column;gap:.45rem;margin-top:.8rem;";
+      for (const it of items) {
+        total += (it.price || 0);
+        const row = document.createElement("button");
+        row.style.cssText = "display:flex;align-items:center;gap:.6rem;background:var(--panel-2);border:1px solid var(--border-secondary);border-radius:10px;padding:.45rem .6rem;color:inherit;cursor:pointer;text-align:left;";
+        row.innerHTML = `<span style="font-weight:700;">${esc(it.name || it.id)}</span><span style="margin-left:auto;color:#ffd479;">★ ${it.price || 0}</span>`;
+        row.onclick = () => { storeCloseModal(); setTimeout(() => storeOpenModal(it), 50); };
+        list.append(row);
+      }
+      body.append(list);
+      const tot = document.createElement("div");
+      tot.className = "store-price";
+      tot.style.cssText = "margin-top:.8rem;";
+      tot.textContent = "Gesamt ★ " + total;
+      body.append(tot);
+    }
+    m.style.display = "flex";
+  }
+
+  function storeRenderPackages() {
+    const panel = $("storePanel");
+    const grid = $("storeGridMain");
+    if (!panel || !grid) return;
+    let strip = $("storePkgStrip");
+    if (!strip) {
+      strip = document.createElement("div");
+      strip.id = "storePkgStrip";
+      strip.className = "pkg-strip";
+      panel.insertBefore(strip, grid);
+    }
+    const pkgs = (kmCat || []).filter((i) => i.category === "package" && !i.hidden);
+    strip.innerHTML = "";
+    const head = document.createElement("div");
+    head.className = "pkg-head";
+    head.textContent = "Pakete";
+    strip.append(head);
+    const row = document.createElement("div");
+    row.className = "pkg-row";
+    strip.append(row);
+    if (!pkgs.length) {
+      const ph = document.createElement("div");
+      ph.className = "pkg-card pkg-empty";
+      ph.innerHTML = "<span>Pakete – bald verfügbar</span>";
+      row.append(ph);
+    } else {
+      for (const p of pkgs) {
+        const card = document.createElement("button");
+        card.className = "pkg-card rar-" + (p.rarity || "common");
+        card.innerHTML = `<span class="pkg-name">${esc(p.name || "Paket")}</span><span class="pkg-price">★ ${p.price || 0}</span>`;
+        card.onclick = () => storeOpenPackage(p);
+        row.append(card);
+      }
+    }
   }
 
   function storeCloseModal() {
     const m = $("storeItemModal");
     if (m) m.style.display = "none";
+    try { if (window.Cosmetic3D) window.Cosmetic3D.unmount(); } catch (e) {}
   }
 
   function storeSyncChips() {
@@ -4267,7 +4450,14 @@ startBackgroundIntervals();
 
   let cosmSkinViewer = null;
   let cosmSkinKey = "";
-  async function renderCosmetics() {
+  async function renderCosmetics(force) {
+    try {
+      const cc = window.__cosmCache;
+      if (!force && cc && cc.me && cc.store && (Date.now() - cc.t) < 45000) {
+        renderCosmeticsFrom(cc.me, cc.store);
+        return;
+      }
+    } catch (e) {}
     const box = $("cosmOwned");
     if (box) box.innerHTML = '<div class="store-msg">Lade …</div><div class="store-msg" id="cosmDbg"></div>';
     const t0 = Date.now();
@@ -4285,21 +4475,36 @@ startBackgroundIntervals();
     let me = null;
     let store = null;
     let errText = "";
-    try {
-      const r = await invoke("kollegen_me").catch((e) => ({ error: String((e && e.message) || e) }));
+
+    const withTimeout = (promise, ms, label) => Promise.race([
+      promise,
+      new Promise((_, reject) => setTimeout(() => reject(new Error(label + " timeout")), ms))
+    ]);
+
+    const safeInvoke = (cmd) => Promise.resolve().then(() => invoke(cmd)).catch((e) => ({ error: String((e && e.message) || e) }));
+    const settled = (p) => p.then(
+      (value) => ({ status: "fulfilled", value }),
+      (reason) => ({ status: "rejected", reason })
+    );
+    const [meRes, storeRes] = await Promise.all([
+      settled(withTimeout(safeInvoke("kollegen_me"), 25000, "kollegen_me")),
+      settled(withTimeout(safeInvoke("kollegen_store"), 25000, "kollegen_store"))
+    ]);
+
+    if (meRes.status === "fulfilled") {
+      const r = meRes.value;
       if (r && !r.error) { me = r; meState = "ok"; }
       else { errText = (r && r.error) || "unbekannt"; meState = "fehler"; }
-    } catch (e) {
-      errText = String((e && e.message) || e);
-      meState = "fehler";
+    } else {
+      errText = meRes.reason?.message || "timeout"; meState = "fehler";
     }
-    try {
-      const r = await invoke("kollegen_store").catch((e) => ({ error: String((e && e.message) || e) }));
+
+    if (storeRes.status === "fulfilled") {
+      const r = storeRes.value;
       if (r && !r.error && Array.isArray(r.catalog)) { store = r; storeState = "ok"; }
       else { if (!errText) errText = (r && r.error) || "unbekannt"; storeState = "fehler"; }
-    } catch (e) {
-      if (!errText) errText = String((e && e.message) || e);
-      storeState = "fehler";
+    } else {
+      if (!errText) errText = storeRes.reason?.message || "timeout"; storeState = "fehler";
     }
     if (!me || !store) {
       stopDbg();
@@ -4312,75 +4517,287 @@ startBackgroundIntervals();
         const retry = document.createElement("button");
         retry.className = "btn-secondary";
         retry.textContent = "Erneut versuchen";
-        retry.onclick = () => renderCosmetics();
+        retry.onclick = () => renderCosmetics(true);
         box.appendChild(retry);
       }
       return;
     }
+    try { window.__cosmCache = { t: Date.now(), me: me, store: store }; } catch (e) {}
+    renderCosmeticsFrom(me, store);
+    return;
+    function renderCosmeticsFrom(me, store) {
     const equipped = me.equipped || {};
-    const owned = store.catalog.filter((it) => it.owned);
+    const owned = store.catalog.filter((it) => it.owned && ["pet", "pet_skin", "name_color", "badge", "sticker", "title", "profil_stil", "cape", "shield", "back_accessory", "head_accessory", "face_accessory", "aura", "shoulder_accessory", "torso_accessory", "legs_accessory", "gloves"].includes(it.category));
+    const cosmCatLabel = (c) => {
+      const known = { pet: "Haustier", title: "Titel", name_color: "Namensfarbe", badge: "Abzeichen", profile_frame: "Profil-Rahmen", profile_bg: "Profil-Hintergrund", banner: "Banner", profil_stil: "Profilstil", font: "Schriftart", sticker: "Aufkleber", avatar_theme: "Avatar-Hintergrund", cape: "Umhang", shield: "Schild", back_accessory: "Rücken", head_accessory: "Kopf", face_accessory: "Gesicht", aura: "Aura", shoulder_accessory: "Schulter", torso_accessory: "Oberkörper", legs_accessory: "Unterkörper", gloves: "Handschuhe" };
+      if (c && known[c]) return known[c];
+      const s = String(c || "").replace(/_/g, " ").trim();
+      return s ? s.charAt(0).toUpperCase() + s.slice(1) : "";
+    };
+    const cosmOrder = ["title", "badge", "sticker", "name_color", "profil_stil", "cape", "shield", "back_accessory", "head_accessory", "face_accessory", "aura", "shoulder_accessory", "torso_accessory", "legs_accessory", "gloves"];
+    let cosmCollapsed = {};
+    try { cosmCollapsed = JSON.parse(localStorage.getItem("kosmetCollapsed") || "{}"); } catch (e) { cosmCollapsed = {}; }
+    const cosmIsCollapsed = (cat) => cosmCollapsed[cat] !== false;
+    const cosmSetCollapsed = (cat, v) => {
+      cosmCollapsed[cat] = v;
+      try { localStorage.setItem("kosmetCollapsed", JSON.stringify(cosmCollapsed)); } catch (e) {}
+    };
+    const cosmEquip = async (cat, itemId, busyEl) => {
+      if (busyEl && busyEl.dataset.busy) return;
+      if (busyEl) busyEl.dataset.busy = "1";
+      try {
+        if (itemId) await invoke("kollegen_store_equip", { itemId, category: cat || "" });
+        else await invoke("kollegen_store_equip", { itemId: "", category: cat });
+      } catch (e) {}
+      renderCosmetics(true);
+      if (window.renderKollegenStore) { try { window.renderKollegenStore(); } catch (e) {} }
+    };
+    const cosmSwatch = (ch, it) => {
+      const sw = document.createElement("span");
+      sw.className = "sw";
+      if (it.data && it.data.color1) sw.style.background = it.data.color1;
+      else if (it.data && it.data.gradient) sw.style.background = it.data.gradient;
+      else if (it.data && it.data.accent) sw.style.background = it.data.accent;
+      else if (it.data && it.data.text) { sw.textContent = it.data.text; sw.style.background = "#3a3f4e"; }
+      else if (it.data && it.data.icon) { sw.textContent = it.data.icon; sw.style.color = it.data.color; }
+      else if (it.data && it.data.font) { sw.textContent = "Aa"; sw.style.background = "#3a3f4e"; }
+      ch.append(sw);
+    };
+    const cosmChipKeys = (el, fn) => {
+      el.setAttribute("role", "button");
+      el.tabIndex = 0;
+      el.onclick = fn;
+      el.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fn(); } };
+    };
     if (box) {
       box.innerHTML = "";
-      if (!owned.length) box.innerHTML = '<div class="store-msg">Noch keine Gegenstände – schau im Store vorbei.</div>';
-      for (const it of owned) {
-        const row = document.createElement("div");
-        row.className = "cosm-item";
-        const isEq = equipped[it.category] === it.id;
-        row.innerHTML = '<span class="cosm-item-name"></span><span class="cosm-item-cat"></span>';
-        row.querySelector(".cosm-item-name").textContent = it.name || it.id;
-        row.querySelector(".cosm-item-cat").textContent = it.category || "";
-        const btn = document.createElement("button");
-        btn.className = "btn-secondary";
-        btn.textContent = isEq ? "Abwählen" : "Ausrüsten";
-        btn.onclick = async () => {
-          btn.disabled = true;
-          try {
-            if (isEq) await invoke("kollegen_store_equip", { itemId: "", category: it.category });
-            else await invoke("kollegen_store_equip", { itemId: it.id, category: it.category || "" });
-          } catch (e) {}
-          renderCosmetics();
-          if (window.renderKollegenStore) { try { window.renderKollegenStore(); } catch (e) {} }
+      if (!owned.length) box.innerHTML = '<div class="store-msg">Noch keine Ingame-Gegenstände – schau im Store vorbei.</div>';
+      for (const cat of cosmOrder) {
+        const mine = owned.filter((it) => it.category === cat);
+        if (!mine.length) continue;
+        const g = document.createElement("div");
+        g.className = "kosmet-group" + (cosmIsCollapsed(cat) ? " collapsed" : "");
+        const title = document.createElement("div");
+        title.className = "kg-title";
+        title.textContent = cosmCatLabel(cat) || "Sonstiges";
+        title.setAttribute("role", "button");
+        title.tabIndex = 0;
+        const toggleGroup = () => {
+          const c = g.classList.toggle("collapsed");
+          cosmSetCollapsed(cat, c);
         };
-        row.appendChild(btn);
-        box.appendChild(row);
+        title.onclick = toggleGroup;
+        title.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleGroup(); } };
+        g.append(title);
+        const chips = document.createElement("div");
+        chips.className = "kosmet-chips";
+        const none = document.createElement("span");
+        none.className = "kosmet-chip" + (equipped[cat] ? "" : " eq");
+        none.textContent = "Keins";
+        cosmChipKeys(none, () => cosmEquip(cat, "", none));
+        chips.append(none);
+        for (const it of mine) {
+          const ch = document.createElement("span");
+          ch.className = "kosmet-chip" + (equipped[it.category] === it.id ? " eq" : "");
+          cosmSwatch(ch, it);
+          ch.append(" " + (it.name || it.id));
+          cosmChipKeys(ch, () => cosmEquip(it.category, it.id, ch));
+          chips.append(ch);
+        }
+        g.append(chips);
+        box.appendChild(g);
       }
     }
-    const petOwned = owned.find((it) => it.category === "pet");
+    const PET_MODE_OPTS = {
+      pet_allay: [["follow", "Folgen"], ["hover", "Fliegen"], ["shoulder", "Schulter"], ["head", "Kopf"]],
+      pet_blub: [["follow", "Folgen"]],
+    };
+    const PET_ICON = { pet_allay: "🧚", pet_blub: "🫧", pet_cat: "🐱", pet_dog: "🐶", pet_chicken: "🐔", pet_rabbit: "🐰", pet_axolotl: "🦎", pet_bat: "🦇", pet_fox: "🦊", pet_parrot: "🦜", pet_bee: "🐝", pet_squid: "🦑", pet_nautilus: "🐚", pet_copper_golem: "🤖" };
+    const petModesFor = (id) => PET_MODE_OPTS[id] || [["follow", "Folgen"], ["hover", "Fliegen"], ["shoulder", "Schulter"], ["head", "Kopf"]];
+    const petSave = async (petId, patch) => {
+      try {
+        const r = await invoke("kollegen_pet_config", Object.assign({ pet: petId }, patch));
+        if (r && r.error) toast("Pet speichern fehlgeschlagen: " + r.error, "error");
+        else if (r && r.petConfigs) {
+          me.petConfigs = r.petConfigs;
+          refreshPetCardTitle(petId);
+        }
+      } catch (e) {
+        toast("Pet speichern fehlgeschlagen", "error");
+      }
+    };
+    const refreshPetCardTitle = (petId) => {
+      const cardsEl = $("cosmPetCards");
+      const card = cardsEl ? cardsEl.querySelector('[data-pet-card="' + petId + '"]') : null;
+      if (!card) return;
+      const base = card.dataset.petBase || petId;
+      const cfgs = (me.petConfigs && typeof me.petConfigs === "object") ? me.petConfigs : {};
+      const cfg = (cfgs[petId] && typeof cfgs[petId] === "object") ? cfgs[petId] : {};
+      const t = card.querySelector("[data-pet-title]");
+      if (t) {
+        t.textContent = cfg.name || base;
+        t.style.color = (cfg.name && /^#[0-9a-fA-F]{6}$/.test(cfg.nameColor || "")) ? cfg.nameColor : "";
+      }
+      let sub = card.querySelector(".pet-subname");
+      if (cfg.name && cfg.name !== base) {
+        if (!sub) {
+          sub = document.createElement("div");
+          sub.className = "pet-subname";
+          if (t && t.parentElement) t.parentElement.insertBefore(sub, t.nextSibling);
+        }
+        if (sub) sub.textContent = base;
+      } else if (sub) sub.remove();
+    };
+    const petOwned = owned.filter((it) => it.category === "pet");
     const petBox = $("cosmPetBox");
     if (petBox) {
-      const cfg = (me.petConfig && typeof me.petConfig === "object") ? me.petConfig : {};
-      if (petOwned) {
+      const noneBtn = $("cosmPetNone");
+      if (noneBtn && !noneBtn.dataset.bound) {
+        noneBtn.dataset.bound = "1";
+        noneBtn.onclick = () => cosmEquip("pet", "", null);
+      }
+      const cards = $("cosmPetCards");
+      if (!petOwned.length) {
+        petBox.style.display = "none";
+      } else {
         petBox.style.display = "";
-        const modeEl = $("cosmPetMode");
-        if (modeEl) modeEl.value = cfg.mode || "follow";
-        const nameEl = $("cosmPetName");
-        if (nameEl && document.activeElement !== nameEl) nameEl.value = cfg.name || "";
-        const colorEl = $("cosmPetColor");
-        if (colorEl) colorEl.value = /^#[0-9a-fA-F]{6}$/.test(cfg.nameColor || "") ? cfg.nameColor : "#ffffff";
-        const save = $("cosmPetSave");
-        if (save && !save.dataset.bound) {
-          save.dataset.bound = "1";
-          save.onclick = async () => {
-            save.disabled = true;
-            try {
-              await invoke("kollegen_pet_config", {
-                mode: ($("cosmPetMode") || {}).value || null,
-                name: ($("cosmPetName") || {}).value || null,
-                color: ($("cosmPetColor") || {}).value || null,
-              });
-              toast("Pet gespeichert", "ok");
-            } catch (e) {
-              toast("Speichern fehlgeschlagen", "error");
+        const focus = document.activeElement;
+        const focusPet = focus && focus.dataset ? focus.dataset.petField : null;
+        const focusKind = focus && focus.dataset ? focus.dataset.petKind : null;
+        const focusVal = focus && ("value" in focus) ? focus.value : null;
+        const equipped = (me.equipped || {}).pet;
+        const cfgs = (me.petConfigs && typeof me.petConfigs === "object") ? me.petConfigs : ((me.petConfig && typeof me.petConfig === "object") ? { _: me.petConfig } : {});
+        const getCfg = (id) => (cfgs[id] && typeof cfgs[id] === "object") ? cfgs[id] : ((cfgs._ && typeof cfgs._ === "object") ? cfgs._ : {});
+        cards.innerHTML = "";
+        for (const it of petOwned) {
+          const cfg = getCfg(it.id);
+          const card = document.createElement("div");
+          card.className = "store-card pet-card" + (equipped === it.id ? " equipped" : "");
+          card.dataset.petCard = it.id;
+          card.dataset.petBase = it.name || it.id;
+          const pv = document.createElement("div");
+          pv.className = "store-pv pet-pv";
+          const mythicKinds = { pet_ember_drake: "ember_drake", pet_void_wyrm: "void_wyrm", pet_shadow_reaper: "shadow_reaper", pet_rune_sentinel: "rune_sentinel", pet_flame_skull: "flame_skull", pet_storm_cloud: "storm_cloud", pet_crystal_golem: "crystal_golem", pet_spectre: "spectre", pet_lantern_spirit: "lantern_spirit", pet_bolt_bot: "bolt_bot", pet_mini_ufo: "mini_ufo", pet_grimoire: "grimoire", pet_mooncap: "mooncap", pet_jelly_cube: "jelly_cube" };
+          if (mythicKinds[it.id]) {
+            const img = document.createElement("img");
+            img.className = "pet-preview";
+            img.alt = "";
+            img.src = "pets/" + mythicKinds[it.id] + ".png";
+            img.onerror = () => { img.remove(); pv.textContent = PET_ICON[it.id] || "🐾"; };
+            pv.append(img);
+          } else {
+            pv.textContent = PET_ICON[it.id] || "🐾";
+          }
+          card.append(pv);
+          const body = document.createElement("div");
+          body.className = "store-card-body";
+          const t = document.createElement("div");
+          t.className = "store-card-title";
+          t.dataset.petTitle = it.id;
+          t.textContent = cfg.name || it.name || it.id;
+          if (cfg.name && /^#[0-9a-fA-F]{6}$/.test(cfg.nameColor || "")) t.style.color = cfg.nameColor;
+          body.append(t);
+          if (cfg.name && it.name && cfg.name !== it.name) {
+            const sub = document.createElement("div");
+            sub.className = "pet-subname";
+            sub.textContent = it.name;
+            body.append(sub);
+          }
+          const nameIn = document.createElement("input");
+          nameIn.className = "store-sort pet-name";
+          nameIn.maxLength = 16;
+          nameIn.placeholder = "Name";
+          nameIn.dataset.petField = it.id;
+          nameIn.dataset.petKind = "name";
+          nameIn.value = (focusPet === it.id && focusKind === "name" && focusVal !== null) ? focusVal : (cfg.name || "");
+          const nameRow = document.createElement("div");
+          nameRow.className = "pet-namerow";
+          nameIn.addEventListener("change", () => petSave(it.id, { name: nameIn.value || null }));
+          nameIn.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); nameIn.blur(); } });
+          nameRow.append(nameIn);
+          const saveBtn = document.createElement("button");
+          saveBtn.className = "pet-savebtn";
+          saveBtn.textContent = "💾";
+          saveBtn.title = "Name speichern";
+          saveBtn.dataset.petField = it.id;
+          saveBtn.dataset.petKind = "save";
+          saveBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            petSave(it.id, { name: nameIn.value || null });
+            try { nameIn.blur(); } catch (ee) {}
+          });
+          nameRow.append(saveBtn);
+          body.append(nameRow);
+          const row = document.createElement("div");
+          row.className = "pet-optrow";
+          const colorIn = document.createElement("input");
+          colorIn.type = "color";
+          colorIn.className = "pet-color";
+          colorIn.dataset.petField = it.id;
+          colorIn.dataset.petKind = "color";
+          colorIn.value = /^#[0-9a-fA-F]{6}$/.test(cfg.nameColor || "") ? cfg.nameColor : "#ffffff";
+          colorIn.addEventListener("change", () => petSave(it.id, { color: colorIn.value || null }));
+          row.append(colorIn);
+          const modes = petModesFor(it.id);
+          if (modes.length > 1) {
+            const sel = document.createElement("select");
+            sel.className = "store-sort pet-mode";
+            sel.dataset.petField = it.id;
+            sel.dataset.petKind = "mode";
+            for (const [v, label] of modes) {
+              const o = document.createElement("option");
+              o.value = v;
+              o.textContent = label;
+              sel.append(o);
             }
-            save.disabled = false;
-            renderCosmetics();
-          };
+            sel.value = modes.some(([v]) => v === cfg.mode) ? cfg.mode : "follow";
+            sel.addEventListener("change", () => petSave(it.id, { mode: sel.value || null }));
+            row.append(sel);
+          } else {
+            const tag = document.createElement("span");
+            tag.className = "pet-modelock";
+            tag.textContent = modes[0][1];
+            row.append(tag);
+          }
+          body.append(row);
+          const skins = owned.filter((c) => c && c.category === "pet_skin" && c.data && c.data.variantOf === it.id);
+          if (skins.length) {
+            const skinSel = document.createElement("select");
+            skinSel.className = "store-sort pet-skin";
+            skinSel.dataset.petField = it.id;
+            skinSel.dataset.petKind = "variant";
+            const no = document.createElement("option");
+            no.value = "";
+            no.textContent = "Skin: Normal";
+            skinSel.append(no);
+            for (const s of skins) {
+              const o = document.createElement("option");
+              o.value = s.data.variant;
+              o.textContent = "Skin: " + (s.data.label || s.name || s.data.variant);
+              skinSel.append(o);
+            }
+            skinSel.value = cfg.variant || "";
+            if (focusPet === it.id && focusKind === "variant" && focusVal !== null) skinSel.value = focusVal;
+            skinSel.addEventListener("change", () => petSave(it.id, { variant: skinSel.value || null }));
+            body.append(skinSel);
+          }
+          card.append(body);
+          card.addEventListener("click", (e) => {
+            if (e.target.closest("input,select,option,button")) return;
+            cosmEquip("pet", it.id, null);
+          });
+          cards.append(card);
         }
-      } else petBox.style.display = "none";
+        if (focusPet && focusKind) {
+          const back = cards.querySelector('[data-pet-field="' + focusPet + '"][data-pet-kind="' + focusKind + '"]');
+          if (back) { try { back.focus({ preventScroll: true }); } catch (e) { try { back.focus(); } catch (ee) {} } }
+        }
+      }
     }
     stopDbg();
     renderCosmSkin(me);
     renderCosmName(me, store.catalog);
+    }
   }
 
   function cosmCatById(list, id) {
@@ -4429,14 +4846,30 @@ startBackgroundIntervals();
     const canvas = $("cosmSkinCanvas");
     if (!canvas) return;
     let url = null;
+    const skinTimeout = (p, ms) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error("skin timeout")), ms))]);
+    const showFallback = () => {
+      const cv = $("cosmSkinCanvas");
+      if (!cv) return;
+      const w = cv.parentElement;
+      let fb = w.querySelector("img.skin-fallback");
+      if (!fb) {
+        fb = new Image();
+        fb.className = "skin-fallback";
+        fb.alt = "";
+        w.insertBefore(fb, cv);
+      }
+      fb.src = url;
+      cv.style.display = "none";
+    };
     try {
-      const list = await invoke("skin_list");
-      const active = (list.skins || []).find((s) => s.name === list.active);
+      const list = await skinTimeout(invoke("skin_list"), 10000);
+      const skins = (list && list.skins) || [];
+      const active = skins.find((s) => s.name === (list && list.active));
       if (active && active.url) url = active.url;
     } catch (e) {}
     if (!url) {
       try {
-        const prof = await invoke("skin_mc_profile");
+        const prof = await skinTimeout(invoke("skin_mc_profile"), 10000);
         const sk = ((prof && prof.skins) || []).find((x) => x.state === "ACTIVE") || ((prof && prof.skins) || [])[0];
         if (sk && sk.url) url = sk.url;
       } catch (e) {}
@@ -4475,15 +4908,26 @@ startBackgroundIntervals();
       canvas.style.display = "";
       const fb = wrap.querySelector("img.skin-fallback");
       if (fb) fb.remove();
-      cosmSkinViewer = new sv3d.SkinViewer({ canvas: canvas, width: 220, height: 440 });
-      const p = cosmSkinViewer.loadSkin(url);
-      if (p && typeof p.then === "function") p.catch(() => {});
+      cosmSkinViewer = new sv3d.SkinViewer({ canvas: canvas, width: 280, height: 560 });
+      let skinUrl = url;
+      if (/^https?:\/\//i.test(url)) {
+        try {
+          const ctrl = new AbortController();
+          const to = setTimeout(() => ctrl.abort(), 15000);
+          const resp = await fetch(url, { signal: ctrl.signal });
+          clearTimeout(to);
+          if (resp.ok) skinUrl = URL.createObjectURL(await resp.blob());
+        } catch (e) {}
+      }
+      const p = cosmSkinViewer.loadSkin(skinUrl);
+      if (p && typeof p.then === "function") p.catch(() => { showFallback(); });
       cosmSkinViewer.animation = new sv3d.WalkingAnimation();
       cosmSkinViewer.animation.speed = 0.5;
       cosmSkinViewer.autoRotate = true;
       cosmSkinViewer.autoRotateSpeed = 1.0;
     } catch (e) {
       console.error("Cosmetics-Skin fehlgeschlagen:", e);
+      showFallback();
     }
   }
 

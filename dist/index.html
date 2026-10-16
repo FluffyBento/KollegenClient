@@ -208,6 +208,7 @@
           <button class="chip" data-r="legendary">Legendär</button>
         </div>
         <select id="storeSortMain" class="store-sort">
+          <option value="featured">Empfohlen</option>
           <option value="price-asc">Preis ↑</option>
           <option value="price-desc">Preis ↓</option>
           <option value="rarity">Seltenheit</option>
@@ -231,6 +232,17 @@
         <button class="tab" data-f="font" role="tab" aria-selected="false">Schriftart</button>
         <button class="tab" data-f="name_color" role="tab" aria-selected="false">Namensfarbe</button>
         <button class="tab" data-f="sticker" role="tab" aria-selected="false">Aufkleber</button>
+        <button class="tab" data-f="pet" role="tab" aria-selected="false">Pet</button>
+        <button class="tab" data-f="cape" role="tab" aria-selected="false">Cape</button>
+        <button class="tab" data-f="shield" role="tab" aria-selected="false">Schild</button>
+        <button class="tab" data-f="back_accessory" role="tab" aria-selected="false">Rücken</button>
+        <button class="tab" data-f="head_accessory" role="tab" aria-selected="false">Kopf</button>
+        <button class="tab" data-f="face_accessory" role="tab" aria-selected="false">Gesicht</button>
+        <button class="tab" data-f="aura" role="tab" aria-selected="false">Aura</button>
+        <button class="tab" data-f="shoulder_accessory" role="tab" aria-selected="false">Schulter</button>
+        <button class="tab" data-f="torso_accessory" role="tab" aria-selected="false">Oberkörper</button>
+        <button class="tab" data-f="legs_accessory" role="tab" aria-selected="false">Unterkörper</button>
+        <button class="tab" data-f="gloves" role="tab" aria-selected="false">Handschuhe</button>
       </div>
       <div class="store-grid" id="storeGridMain" role="tabpanel"><div class="store-msg">Lade Store…</div></div>
     </section>
@@ -244,26 +256,12 @@
           <h3>Deine Gegenstände</h3>
           <div id="cosmOwned" class="cosm-owned"><div class="store-msg">Lade …</div></div>
           <div id="cosmPetBox" class="cosm-petbox" style="display:none;">
-            <h3>Haustier</h3>
-            <label class="cosm-row"><span>Position</span>
-              <select id="cosmPetMode" class="store-sort">
-                <option value="follow">Nebenher fliegen</option>
-                <option value="shoulder">Schulter</option>
-                <option value="head">Kopf</option>
-                <option value="hover">Darüber hovern</option>
-              </select>
-            </label>
-            <label class="cosm-row"><span>Name</span>
-              <input id="cosmPetName" class="store-sort" maxlength="16" placeholder="Pet-Name" />
-            </label>
-            <label class="cosm-row"><span>Namensfarbe</span>
-              <input id="cosmPetColor" type="color" value="#ffffff" />
-            </label>
-            <button id="cosmPetSave" class="btn-primary">Speichern</button>
+            <div class="pet-headrow"><h3>Haustiere</h3><button id="cosmPetNone" class="pet-nonebtn" title="Kein Haustier ausrüsten">Keins</button></div>
+            <div id="cosmPetCards" class="cosm-petcards"></div>
           </div>
         </div>
         <div class="cosm-preview">
-          <canvas id="cosmSkinCanvas" width="220" height="440"></canvas>
+          <canvas id="cosmSkinCanvas" width="280" height="560"></canvas>
           <div id="cosmNamePreview" class="cosm-namepreview">—</div>
         </div>
       </div>
@@ -400,6 +398,9 @@
           <button id="updateCheckBtn" class="btn-secondary">Jetzt auf Updates prüfen</button>
           <div id="updateStatus" class="socials-hint"></div>
           <button id="updateInstallBtn" class="btn-primary" style="display:none;">Update installieren</button>
+          <h3>Cache & Daten</h3>
+          <button id="clearCacheBtn" class="btn-danger">Companion-Cache leeren (Mod-Updates erzwingen)</button>
+          <div id="clearCacheStatus" class="socials-hint"></div>
         </section>
         <section id="settingsSteamDeck" class="settings-section" role="tabpanel" hidden>
           <h3>SteamDeck / Konsolen-Modus</h3>
@@ -609,6 +610,8 @@
   </div>
 
   <script src="qrcode.js"></script>
+  <script src="js/three.min.js"></script>
+  <script src="js/cosmetic3d.js"></script>
   <script src="app.js"></script>
   <script>
     (function () {

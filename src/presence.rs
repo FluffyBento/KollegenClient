@@ -47,6 +47,23 @@ fn now_ms() -> u64 {
         .unwrap_or(0)
 }
 
+fn touch_refresh_signal(data_dir: &PathBuf) {
+    let instances = data_dir.join("instances");
+    let entries = match std::fs::read_dir(&instances) {
+        Ok(e) => e,
+        Err(_) => return,
+    };
+    for entry in entries.flatten() {
+        let cfg = entry.path().join("config");
+        let _ = std::fs::create_dir_all(&cfg);
+        let _ = std::fs::write(cfg.join("kollegen-refresh.txt"), now_ms().to_string());
+    }
+}
+
+fn request_ok(v: &serde_json::Value) -> bool {
+    v.get("error").is_none()
+}
+
 fn now_secs() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -193,7 +210,28 @@ fn ensure_session(
     };
     let tok = v.get("token")?.as_str()?.to_string();
     *SESSION.lock().unwrap() = Some(tok.clone());
+    persist_session_token(data_dir, Some(&tok));
     Some(tok)
+}
+
+fn persist_session_token(data_dir: &PathBuf, tok: Option<&str>) {
+    let instances = data_dir.join("instances");
+    let entries = match std::fs::read_dir(&instances) {
+        Ok(e) => e,
+        Err(_) => return,
+    };
+    for entry in entries.flatten() {
+        let cfg = entry.path().join("config");
+        match tok {
+            Some(t) => {
+                let _ = std::fs::create_dir_all(&cfg);
+                let _ = std::fs::write(cfg.join("kollegen-session.txt"), t);
+            }
+            None => {
+                let _ = std::fs::remove_file(cfg.join("kollegen-session.txt"));
+            }
+        }
+    }
 }
 
 
@@ -231,15 +269,24 @@ pub fn kollegen_me(data_dir: &PathBuf) -> serde_json::Value {
 fn me_value(data_dir: &PathBuf) -> serde_json::Value {
     let (client, backend, session) = match authed_request(data_dir) {
         Some(x) => x,
-        None => return serde_json::json!({ "error": "not_authenticated" }),
+        None => {
+            log::info!("KOLLEGEN_DIAG me no-auth");
+            return serde_json::json!({ "error": "not_authenticated" });
+        }
     };
-    let url = format!("{}/me", backend);
-    match client
-        .get(&url)
-        .header("Authorization", format!("Bearer {}", session))
-        .send()
-    {
-        Ok(r) if r.status().is_success() => r.json().unwrap_or(serde_json::json!({})),
+    log::info!("KOLLEGEN_DIAG me authed ok");
+        let url = format!("{}/me", backend);
+        match client
+            .get(&url)
+            .header("Authorization", format!("Bearer {}", session))
+            .send()
+        {
+            Ok(r) if r.status().is_success() => {
+                log::info!("KOLLEGEN_DIAG me sent ok");
+                let v = r.json().unwrap_or(serde_json::json!({}));
+                log::info!("KOLLEGEN_DIAG me done");
+                v
+            }
         Ok(r) if r.status() == 401 => {
             *SESSION.lock().unwrap() = None;
             serde_json::json!({ "error": "not_authenticated" })
@@ -545,7 +592,13 @@ pub fn kollegen_store_equip(data_dir: &PathBuf, item_id: &str, category: &str) -
         .json(&body)
         .send()
     {
-        Ok(r) if r.status().is_success() => r.json().unwrap_or(serde_json::json!({ "ok": true })),
+        Ok(r) if r.status().is_success() => {
+            let v = r.json().unwrap_or(serde_json::json!({ "ok": true }));
+            if request_ok(&v) {
+                touch_refresh_signal(data_dir);
+            }
+            v
+        }
         Ok(r) if r.status() == 401 => {
             *SESSION.lock().unwrap() = None;
             serde_json::json!({ "error": "not_authenticated" })
@@ -557,17 +610,25 @@ pub fn kollegen_store_equip(data_dir: &PathBuf, item_id: &str, category: &str) -
 
 
 pub fn kollegen_store_buy(data_dir: &PathBuf, item_id: &str) -> serde_json::Value {
-    post_authed(data_dir, "/api/store/buy", serde_json::json!({ "item_id": item_id }))
+    let v = post_authed(data_dir, "/api/store/buy", serde_json::json!({ "item_id": item_id }));
+    if request_ok(&v) {
+        touch_refresh_signal(data_dir);
+    }
+    v
 }
 
 
 pub fn kollegen_pet_config(
     data_dir: &PathBuf,
+    pet: Option<&str>,
     mode: Option<&str>,
     name: Option<&str>,
     color: Option<&str>,
 ) -> serde_json::Value {
     let mut body = serde_json::Map::new();
+    if let Some(p) = pet {
+        body.insert("pet".into(), serde_json::Value::String(p.to_string()));
+    }
     if let Some(m) = mode {
         body.insert("mode".into(), serde_json::Value::String(m.to_string()));
     }
@@ -577,11 +638,15 @@ pub fn kollegen_pet_config(
     if let Some(c) = color {
         body.insert("nameColor".into(), serde_json::Value::String(c.to_string()));
     }
-    post_authed(
+    let v = post_authed(
         data_dir,
-        "/api/pet-config",
+        "/pet-config",
         serde_json::Value::Object(body),
-    )
+    );
+    if request_ok(&v) {
+        touch_refresh_signal(data_dir);
+    }
+    v
 }
 
 

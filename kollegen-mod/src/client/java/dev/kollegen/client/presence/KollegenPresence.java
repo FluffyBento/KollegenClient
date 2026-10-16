@@ -8,6 +8,7 @@ import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.Level;
 
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -35,6 +36,37 @@ public final class KollegenPresence {
             .build();
 
     private KollegenPresence() {
+    }
+
+    private static long lastSignalSeen = 0;
+    private static int signalTickCounter = 0;
+
+    public static void checkRefreshSignal() {
+        try {
+            if ((signalTickCounter++ % 20) != 0) return;
+            Path p = FabricLoader.getInstance().getConfigDir().resolve("kollegen-refresh.txt");
+            if (!Files.exists(p)) return;
+            long m = Files.getLastModifiedTime(p).toMillis();
+            if (m > lastSignalSeen) {
+                lastSignalSeen = m;
+                refreshAsync();
+            }
+        } catch (Throwable ignored) {
+        }
+    }
+
+    public static void refreshAsync() {
+        try {
+            Thread t = new Thread(() -> {
+                try {
+                    fetch();
+                } catch (Throwable ignored) {
+                }
+            }, "kollegen-refresh");
+            t.setDaemon(true);
+            t.start();
+        } catch (Throwable ignored) {
+        }
     }
 
     public static boolean isKollegen(UUID id) {
@@ -120,6 +152,14 @@ public final class KollegenPresence {
         USERS.clear();
         COSMETICS.clear();
         PetRenderer.clear();
+        try {
+            BbModel.clearCaches();
+        } catch (Throwable ignored) {
+        }
+        try {
+            PetModel.clearCaches();
+        } catch (Throwable ignored) {
+        }
         dbgRender = "init";
     }
 
@@ -153,6 +193,8 @@ public final class KollegenPresence {
             JsonArray arr = e.getAsJsonArray();
             USERS.clear();
             COSMETICS.clear();
+            Minecraft mc = Minecraft.getInstance();
+            Level level = mc != null ? mc.level : null;
             for (JsonElement el : arr) {
                 if (el.isJsonObject()) {
                     JsonObject o = el.getAsJsonObject();
@@ -162,7 +204,12 @@ public final class KollegenPresence {
                             if (uid == null) continue;
                             USERS.add(uid);
                             CosmeticData d = CosmeticData.fromJson(o);
-                            if (d != null) COSMETICS.put(uid, d);
+                            if (d != null) {
+                                COSMETICS.put(uid, d);
+                                if (level != null && d.petKind != null) {
+                                    PetRenderer.ensurePetExists(uid, level, d.petKind, d.petVariant);
+                                }
+                            }
                         } catch (Throwable ignored) {
                         }
                     }

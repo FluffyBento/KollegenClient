@@ -2,7 +2,6 @@
   "required": true,
   "package": "dev.kollegen.client.mixin",
   "refmap": "kollegen-client-mod.refmap.json",
-  "plugin": "dev.kollegen.client.mixin.KollegenMixinConfigPlugin",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
     "MinecraftClientMixin",
@@ -29,7 +28,16 @@
     "SlotAccessor",
     "GameRendererMixin",
     "ScreenTooltipMixin",
-    "XaeroWorldMapMixin"
+    "XaeroWorldMapMixin",
+    "PetLevelRendererMixin",
+    "PetLevelExtractorMixin",
+    "ItemDisplayAccessor",
+    "DisplayAccessor",
+    "FoxAccessor",
+    "AxolotlAccessor",
+    "PlayerCosmeticsMixin",
+    "ShieldLayerMixin",
+    "CapeLayerMixin"
   ],
   "injectors": {
     "defaultRequire": 1
