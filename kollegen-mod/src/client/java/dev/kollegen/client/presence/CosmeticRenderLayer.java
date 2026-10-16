@@ -63,12 +63,7 @@ public final class CosmeticRenderLayer extends RenderLayer<AvatarRenderState, Pl
                 renderSlot(poseStack, collector, model.head, data.faceAccessoryTexture, data.faceAccessoryModel, packedLight, null, 3.0F);
             }
             if (data.auraTexture != null) {
-                float bodyYaw = 0.0F;
-                try {
-                    bodyYaw = state.bodyRot;
-                } catch (Throwable ignored) {
-                }
-                renderAura(poseStack, collector, model.body, bodyYaw, data.auraTexture, data.auraModel, packedLight);
+                renderAura(poseStack, collector, model.body, data.auraTexture, data.auraModel, packedLight);
             }
             if (data.shoulderAccessoryTexture != null) {
                 renderSlot(poseStack, collector, model.body, data.shoulderAccessoryTexture, data.shoulderAccessoryModel, packedLight, null, 1.0F);
@@ -132,7 +127,7 @@ public final class CosmeticRenderLayer extends RenderLayer<AvatarRenderState, Pl
         }
     }
 
-    private static void renderAura(PoseStack poseStack, SubmitNodeCollector collector, ModelPart anchor, float bodyYawDeg, String texture, String modelPath, int packedLight) {
+    private static void renderAura(PoseStack poseStack, SubmitNodeCollector collector, ModelPart anchor, String texture, String modelPath, int packedLight) {
         try {
             if (anchor == null || texture == null) return;
             Identifier tex = Identifier.tryParse(texture);
@@ -151,8 +146,16 @@ public final class CosmeticRenderLayer extends RenderLayer<AvatarRenderState, Pl
                 return;
             }
             poseStack.pushPose();
-            anchor.translateAndRotate(poseStack);
-            poseStack.mulPose(new Quaternionf().rotationY((float) Math.toRadians(-bodyYawDeg)));
+            float ax = 0.0F;
+            float ay = 0.0F;
+            float az = 0.0F;
+            try {
+                ax = anchor.x / 16.0F;
+                ay = anchor.y / 16.0F;
+                az = anchor.z / 16.0F;
+            } catch (Throwable ignored) {
+            }
+            poseStack.translate(ax, ay, az);
             renderModelContents(poseStack, collector, type, model, packedLight, animTime(), null, 0, 1.0F);
             poseStack.popPose();
         } catch (Throwable ignored) {
