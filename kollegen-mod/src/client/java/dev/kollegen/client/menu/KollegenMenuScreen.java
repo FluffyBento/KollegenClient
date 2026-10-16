@@ -122,6 +122,10 @@ public class KollegenMenuScreen extends Screen {
     private boolean draggingBar = false;
     private float openAnim = 0.0f;
     private float pageAnim = 1.0f;
+    // PERF-DEBUG: Frame-Zeitmessung (avg/max über je 300 Frames im MC-Log).
+    private long perfAcc = 0L;
+    private int perfN = 0;
+    private long perfMax = 0L;
     private final Map<String, Float> anims = new HashMap<String, Float>();
     private final List<Cell> cells = new ArrayList<Cell>();
 
@@ -1127,6 +1131,7 @@ public class KollegenMenuScreen extends Screen {
     }
 
     public void extractRenderState(GuiGraphicsExtractor g, int mx, int my, float pt) {
+        long perfT0 = System.nanoTime();
         Glass.frame();
         if (this.pendingRebuild) {
             this.pendingRebuild = false;
@@ -1153,6 +1158,17 @@ public class KollegenMenuScreen extends Screen {
         super.extractRenderState(g, mx, my, pt);
         g.pose().popMatrix();
         Glass.alpha = 1.0f;
+        long perfDt = System.nanoTime() - perfT0;
+        this.perfAcc += perfDt;
+        if (perfDt > this.perfMax) {
+            this.perfMax = perfDt;
+        }
+        if (++this.perfN >= 300) {
+            System.out.println("[Kollegen-UI] Menü-Frame avg=" + (this.perfAcc / this.perfN / 1000) + "µs max=" + (this.perfMax / 1000) + "µs");
+            this.perfAcc = 0L;
+            this.perfN = 0;
+            this.perfMax = 0L;
+        }
     }
 
     private void drawBackdrop(GuiGraphicsExtractor g, float open) {

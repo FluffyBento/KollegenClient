@@ -131,7 +131,7 @@ public final class Glass {
         g.pose().popMatrix();
     }
 
-    static void rrPhys(GuiGraphicsExtractor g, int X0, int Y0, int X1, int Y1, int R, int c1, int c2) {
+    static void rrPhys(GuiGraphicsExtractor g, int X0, int Y0, int X1, int Y1, int R, int c1, int c2, boolean aa) {
         int W = X1 - X0;
         int H = Y1 - Y0;
         if (W <= 0 || H <= 0) {
@@ -163,7 +163,9 @@ public final class Glass {
             int cb = grad ? mixA(c1, c2, (H - i - 0.5f) / H) : c1;
             box(g, X0 + full, yt, X1 - full, yt + 1, ct);
             box(g, X0 + full, yb, X1 - full, yb + 1, cb);
-            if (full > 0 && cov > 0.08f) {
+            // PERF: 1px-Saum nur bei niedriger Skalierung — ab 2x-SSAA ist die
+            // Geometrie allein schon glatt, der Saum kostet ~40% extra Fills.
+            if (aa && full > 0 && cov > 0.08f) {
                 int at = a(ct, cov);
                 int ab = a(cb, cov);
                 box(g, X0 + full - 1, yt, X0 + full, yt + 1, at);
@@ -184,7 +186,7 @@ public final class Glass {
         }
     }
 
-    static void ringPhys(GuiGraphicsExtractor g, int X0, int Y0, int X1, int Y1, int R, int T, int c) {
+    static void ringPhys(GuiGraphicsExtractor g, int X0, int Y0, int X1, int Y1, int R, int T, int c, boolean aa) {
         int W = X1 - X0;
         int H = Y1 - Y0;
         if (W <= 0 || H <= 0 || (c >>> 24) == 0) {
@@ -225,7 +227,7 @@ public final class Glass {
                 box(g, oL, yb, iL, yb + 1, c);
                 box(g, iR, yb, oR, yb + 1, c);
             }
-            if (full > 0 && cov > 0.08f) {
+            if (aa && full > 0 && cov > 0.08f) {
                 int ac = a(c, cov);
                 box(g, oL - 1, yt, oL, yt + 1, ac);
                 box(g, oR, yt, oR + 1, yt + 1, ac);
@@ -256,7 +258,7 @@ public final class Glass {
         }
         float k = k();
         pBegin(g);
-        rrPhys(g, P(x, k), P(y, k), P(x + w, k), P(y + h, k), P(r, k), top, bottom);
+        rrPhys(g, P(x, k), P(y, k), P(x + w, k), P(y + h, k), P(r, k), top, bottom, k < 1.5f);
         pEnd(g);
     }
 
@@ -267,7 +269,7 @@ public final class Glass {
         }
         float k = k();
         pBegin(g);
-        ringPhys(g, P(x, k), P(y, k), P(x + w, k), P(y + h, k), P(r, k), Math.max(1, P(thick, k)), color);
+        ringPhys(g, P(x, k), P(y, k), P(x + w, k), P(y + h, k), P(r, k), Math.max(1, P(thick, k)), color, k < 1.5f);
         pEnd(g);
     }
 
@@ -291,7 +293,8 @@ public final class Glass {
             float f = 1.0f - (n - 1) / (float) L;
             int c = a(color, f * f * 0.9f);
             int e = (n - 1) * T;
-            ringPhys(g, X0 - e - T, Y0 - e - T, X1 + e + T, Y1 + e + T, R + e + T, T, c);
+            // Weiche Schatten brauchen keinen 1px-Saum (aa=false).
+            ringPhys(g, X0 - e - T, Y0 - e - T, X1 + e + T, Y1 + e + T, R + e + T, T, c, false);
         }
         pEnd(g);
     }
@@ -471,13 +474,20 @@ public final class Glass {
         if (font.width(s) <= maxW) {
             return s;
         }
-        String e = "…";
+        // PERF: Binäre Suche statt linearem Kürzen — trunc() läuft pro Frame für
+        // dutzende Strings; linear ist O(n^2) durch wiederholtes Neuvermessen.
         int ew = font.width("...");
-        int n = s.length();
-        while (n > 1 && font.width(s.substring(0, n)) + ew > maxW) {
-            n--;
+        int lo = 1;
+        int hi = s.length();
+        while (lo < hi) {
+            int mid = (lo + hi + 1) >>> 1;
+            if (font.width(s.substring(0, mid)) + ew <= maxW) {
+                lo = mid;
+            } else {
+                hi = mid - 1;
+            }
         }
-        return s.substring(0, n) + "...";
+        return s.substring(0, lo) + "...";
     }
 
     public static void button(GuiGraphicsExtractor g, int x, int y, int w, int h, int r, int fill, int border, int text, Font font, String label, boolean hover, boolean selected) {
