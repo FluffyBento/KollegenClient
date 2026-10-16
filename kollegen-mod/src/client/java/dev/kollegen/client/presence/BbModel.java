@@ -281,6 +281,9 @@ public final class BbModel {
                             xyz[0] = parseAnimFloat(dp, "x");
                             xyz[1] = parseAnimFloat(dp, "y");
                             xyz[2] = parseAnimFloat(dp, "z");
+                            if ("rotation".equals(channel)) {
+                                xyz[1] = -xyz[1];
+                            }
                         } catch (Throwable ignored) {
                             continue;
                         }
