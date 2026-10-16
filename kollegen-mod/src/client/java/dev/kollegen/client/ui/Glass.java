@@ -510,14 +510,17 @@ public final class Glass {
     public static void pill(GuiGraphicsExtractor g, float x, float y, float w, float h, float hov, boolean primary, boolean disabled) {
         float r = h / 2.0f;
         if (primary) {
+            // PERF: Glanz in Verlauf eingebacken (ein rrGrad statt zwei).
             int c1 = Palette.ACCENT;
             int c2 = Palette.ACCENT2;
-            rrGrad(g, x, y, w, h, r, a(lighten(c1, 0.1f + 0.12f * hov), disabled ? 0.4f : 0.95f), a(mix(c1, c2, 0.8f), disabled ? 0.4f : 0.95f));
-            rrGrad(g, x, y, w, h * 0.5f, r, 0x30FFFFFF, 0x00FFFFFF);
+            int top = mix(lighten(c1, 0.1f + 0.12f * hov), 0xFFFFFFFF, 0.10f);
+            int bot = mix(c1, c2, 0.8f);
+            rrGrad(g, x, y, w, h, r, a(top, disabled ? 0.4f : 0.95f), a(bot, disabled ? 0.4f : 0.95f));
             ring(g, x, y, w, h, r, 0.5f, 0x55FFFFFF);
         } else {
-            rr(g, x, y, w, h, r, a(mix(Palette.PANEL2, 0xFFFFFFFF, 0.04f + 0.12f * hov), disabled ? 0.35f : 0.75f));
-            rrGrad(g, x, y, w, h * 0.5f, r, 0x1CFFFFFF, 0x00FFFFFF);
+            // PERF: Solider Button + Glanz eingebacken (kein separater Sheen-Pass).
+            int base = mix(mix(Palette.PANEL2, 0xFFFFFFFF, 0.04f + 0.12f * hov), 0xFFFFFFFF, 0.08f);
+            rr(g, x, y, w, h, r, a(base, disabled ? 0.35f : 0.75f));
             ring(g, x, y, w, h, r, 0.5f, mixA(0x30FFFFFF, a(Palette.ACCENT, 0.9f), hov * 0.8f));
         }
     }

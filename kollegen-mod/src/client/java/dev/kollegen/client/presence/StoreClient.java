@@ -44,15 +44,25 @@ public final class StoreClient {
     }
 
     public static JsonObject catalog() {
+        String base = base();
+        boolean hasTok = false;
         try {
-            HttpRequest.Builder b = HttpRequest.newBuilder(URI.create(base() + "/api/store"))
+            HttpRequest.Builder b = HttpRequest.newBuilder(URI.create(base + "/api/store"))
                     .timeout(Duration.ofSeconds(8)).GET();
             String tok = token();
+            hasTok = tok != null;
             if (tok != null) b.header("Authorization", "Bearer " + tok);
             HttpResponse<String> res = HTTP.send(b.build(), HttpResponse.BodyHandlers.ofString());
-            if (res.statusCode() != 200 || res.body() == null) return null;
-            return JsonParser.parseString(res.body()).getAsJsonObject();
-        } catch (Throwable ignored) {
+            if (res.statusCode() != 200 || res.body() == null) {
+                System.out.println("[Kollegen-Store] Katalog-Fehler: HTTP " + res.statusCode() + " (" + base + ", token=" + (hasTok ? "ja" : "nein") + ")");
+                return null;
+            }
+            JsonObject o = JsonParser.parseString(res.body()).getAsJsonObject();
+            int n = o.has("catalog") && o.get("catalog").isJsonArray() ? o.getAsJsonArray("catalog").size() : -1;
+            System.out.println("[Kollegen-Store] Katalog ok: items=" + n + " points=" + (o.has("points") ? String.valueOf(o.get("points")) : "-") + " (" + base + ", token=" + (hasTok ? "ja" : "nein") + ")");
+            return o;
+        } catch (Throwable e) {
+            System.out.println("[Kollegen-Store] Katalog-Exception: " + e + " (" + base + ", token=" + (hasTok ? "ja" : "nein") + ")");
             return null;
         }
     }
