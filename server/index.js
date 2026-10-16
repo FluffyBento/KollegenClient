@@ -134,6 +134,27 @@ const CATALOG = [
   { id: 'back_limitlos', category: 'back_accessory', name: 'Limit_Los Schwert', desc: 'Limit_Los Schwert (Rücken).', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/limit_los/Limit_Los_schwert.png', model: 'kollegen:cosmetics/limit_los/Limit_Los_schwert.bbmodel' } },
   { id: 'shoulder_limitlos', category: 'aura', name: 'Limit_Los Dolche', desc: 'Limit_Los Dolche.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/limit_los/Limit_Los_dolche.png', model: 'kollegen:cosmetics/limit_los/Limit_Los_dolche.bbmodel' } },
 
+  { id: 'cape_zerocraft77', category: 'cape', name: 'Zerocraft77 Cape', desc: 'Zerocraft77 Cape.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/zerocraft77/Zerocraft77_cape.png', model: 'kollegen:cosmetics/zerocraft77/Zerocraft77_cape.bbmodel' } },
+  { id: 'head_zerocraft77', category: 'head_accessory', name: 'Zerocraft77 Bandana', desc: 'Zerocraft77 Bandana.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/zerocraft77/Zerocraft77_bandana.png', model: 'kollegen:cosmetics/zerocraft77/Zerocraft77_bandana.bbmodel' } },
+  { id: 'back_zerocraft77', category: 'back_accessory', name: 'Zerocraft77 Flügel', desc: 'Zerocraft77 Flügel.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/zerocraft77/Zerocraft77_fluegel.png', model: 'kollegen:cosmetics/zerocraft77/Zerocraft77_fluegel.bbmodel' } },
+  { id: 'gloves_zerocraft77', category: 'gloves', name: 'Zerocraft77 Handschuhe', desc: 'Zerocraft77 Handschuhe.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/zerocraft77/Zerocraft77_handschuhe.png', model: 'kollegen:cosmetics/zerocraft77/Zerocraft77_handschuhe.bbmodel' } },
+  { id: 'shield_zerocraft77', category: 'shield', name: 'Zerocraft77 Schild', desc: 'Zerocraft77 Schild.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/zerocraft77/Zerocraft77_schild.png', model: 'kollegen:cosmetics/zerocraft77/Zerocraft77_schild.bbmodel' } },
+
+  { id: 'cape_irongirl', category: 'cape', name: 'Irongirl Cape', desc: 'Irongirl Cape.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/irongirl_lp/Irongirl_lp_cape.png', model: 'kollegen:cosmetics/irongirl_lp/Irongirl_lp_cape.bbmodel' } },
+  { id: 'back_irongirl', category: 'back_accessory', name: 'Irongirl Flügel', desc: 'Irongirl Flügel.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/irongirl_lp/Irongirl_lp_fluegel.png', model: 'kollegen:cosmetics/irongirl_lp/Irongirl_lp_fluegel.bbmodel' } },
+  { id: 'head_irongirl', category: 'head_accessory', name: 'Irongirl Halo', desc: 'Irongirl Halo.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/irongirl_lp/Irongirl_lp_halo.png', model: 'kollegen:cosmetics/irongirl_lp/Irongirl_lp_halo.bbmodel' } },
+  { id: 'shield_irongirl', category: 'shield', name: 'Irongirl Schild', desc: 'Irongirl Schild.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/irongirl_lp/Irongirl_lp_schild.png', model: 'kollegen:cosmetics/irongirl_lp/Irongirl_lp_schild.bbmodel' } },
+
+  { id: 'cape_tson', category: 'cape', name: 'T_son_ Cape', desc: 'T_son_ Cape.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/t_son_/T_son__cape.png', model: 'kollegen:cosmetics/t_son_/T_son__cape.bbmodel' } },
+  { id: 'head_tson', category: 'head_accessory', name: 'T_son_ Bandana', desc: 'T_son_ Bandana.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/t_son_/T_son__bandana.png', model: 'kollegen:cosmetics/t_son_/T_son__bandana.bbmodel' } },
+  { id: 'back_tson', category: 'back_accessory', name: 'T_son_ Flügel', desc: 'T_son_ Flügel.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/t_son_/T_son__fluegel.png', model: 'kollegen:cosmetics/t_son_/T_son__fluegel.bbmodel' } },
+  { id: 'shield_tson', category: 'shield', name: 'T_son_ Schild', desc: 'T_son_ Schild.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/t_son_/T_son__schild.png', model: 'kollegen:cosmetics/t_son_/T_son__schild.bbmodel' } },
+
+  { id: 'cape_rixhii', category: 'cape', name: 'Rixhii Cape', desc: 'Rixhii Cape.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/rixhii/Rixhii_cape.png', model: 'kollegen:cosmetics/rixhii/Rixhii_cape.bbmodel' } },
+  { id: 'head_rixhii', category: 'head_accessory', name: 'Rixhii Bandana', desc: 'Rixhii Bandana.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/rixhii/Rixhii_bandana.png', model: 'kollegen:cosmetics/rixhii/Rixhii_bandana.bbmodel' } },
+  { id: 'back_rixhii', category: 'back_accessory', name: 'Rixhii Flügel', desc: 'Rixhii Flügel.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/rixhii/Rixhii_fluegel.png', model: 'kollegen:cosmetics/rixhii/Rixhii_fluegel.bbmodel' } },
+  { id: 'shield_rixhii', category: 'shield', name: 'Rixhii Schild', desc: 'Rixhii Schild.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/rixhii/Rixhii_schild.png', model: 'kollegen:cosmetics/rixhii/Rixhii_schild.bbmodel' } },
+
   { id: 'cape_phantomumhang', category: 'cape', name: 'Phantomumhang', desc: 'Dunkler Umhang mit Glutpartikeln.', price: 8500, rarity: 'legendary', featured: true, data: { texture: 'kollegen:cosmetics/store/phantomumhang.png', model: 'kollegen:cosmetics/store/phantomumhang.bbmodel' } },
   { id: 'cape_sternenhimmel', category: 'cape', name: 'Sternenhimmel-Umhang', desc: 'Der Nachthimmel zum Umhängen.', price: 2600, rarity: 'legendary', featured: true, data: { texture: 'kollegen:cosmetics/store/sternenhimmel_umhang.png', model: 'kollegen:cosmetics/store/sternenhimmel_umhang.bbmodel' } },
 
@@ -365,6 +386,8 @@ function presenceCosmetics(u) {
   if (torso && torso.data && torso.data.texture) out.torso_accessory = { texture: torso.data.texture, model: torso.data.model || null };
   const legs = eq.legs_accessory && catById(eq.legs_accessory);
   if (legs && legs.data && legs.data.texture) out.legs_accessory = { texture: legs.data.texture, model: legs.data.model || null };
+  const gloves = eq.gloves && catById(eq.gloves);
+  if (gloves && gloves.data && gloves.data.texture) out.gloves = { texture: gloves.data.texture, model: gloves.data.model || null };
   return out;
 }
 

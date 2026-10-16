@@ -80,6 +80,9 @@ public final class CosmeticRenderLayer extends RenderLayer<AvatarRenderState, Pl
             if (data.legsAccessoryTexture != null) {
                 renderSlot(poseStack, collector, model.body, data.legsAccessoryTexture, data.legsAccessoryModel, packedLight, null, 1.0F);
             }
+            if (data.glovesTexture != null) {
+                renderSlot(poseStack, collector, model.body, data.glovesTexture, data.glovesModel, packedLight, null, 1.0F);
+            }
             if (data.shieldTexture != null) {
                 try {
                     Player player = mc.level != null ? mc.level.getPlayerByUUID(id) : null;

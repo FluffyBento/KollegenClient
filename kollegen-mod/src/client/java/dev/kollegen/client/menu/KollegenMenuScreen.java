@@ -267,6 +267,7 @@ public class KollegenMenuScreen extends Screen {
         SLOT_LABELS.put("shoulder_accessory", "Schulter");
         SLOT_LABELS.put("torso_accessory", "Oberkörper");
         SLOT_LABELS.put("legs_accessory", "Unterkörper");
+        SLOT_LABELS.put("gloves", "Handschuhe");
         SLOT_LABELS.put("name_color", "Namensfarbe");
         SLOT_LABELS.put("badge", "Abzeichen");
         SLOT_LABELS.put("sticker", "Aufkleber");
@@ -410,7 +411,7 @@ public class KollegenMenuScreen extends Screen {
     }
 
     private static final String[] SLOT_ORDER = {"cape", "shield", "back_accessory", "head_accessory", "face_accessory",
-            "aura", "shoulder_accessory", "torso_accessory", "legs_accessory",
+            "aura", "shoulder_accessory", "torso_accessory", "legs_accessory", "gloves",
             "name_color", "badge", "sticker", "font", "title"};
     private static final String[] PET_COLORS = {"#ffffff", "#ffd700", "#ff5f56", "#39d7ff", "#c77dff", "#7ee787", "#ff6b9d"};
 

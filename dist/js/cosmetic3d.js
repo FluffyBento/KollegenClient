@@ -40,7 +40,7 @@
   function keyFor(item) {
     try {
       if (!item || !item.data || !item.data.texture || !item.data.model) return null;
-      var cats = ['cape', 'shield', 'back_accessory', 'head_accessory', 'face_accessory', 'aura', 'shoulder_accessory', 'torso_accessory', 'legs_accessory'];
+      var cats = ['cape', 'shield', 'back_accessory', 'head_accessory', 'face_accessory', 'aura', 'shoulder_accessory', 'torso_accessory', 'legs_accessory', 'gloves'];
       if (cats.indexOf(item.category) < 0) return null;
       var m = String(item.data.texture).match(/^kollegen:cosmetics\/([^/]+)\/(.+)\.png$/);
       if (!m) return null;

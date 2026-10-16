@@ -3973,7 +3973,7 @@ startBackgroundIntervals();
 
   let storeFilter = "alle";
   let storeGroup = "profil";
-  const STORE_INGAME_CATS = ["pet", "clothing", "effect", "cape", "shield", "back_accessory", "head_accessory", "face_accessory", "aura", "shoulder_accessory", "torso_accessory", "legs_accessory", "pet_skin"];
+  const STORE_INGAME_CATS = ["pet", "clothing", "effect", "cape", "shield", "back_accessory", "head_accessory", "face_accessory", "aura", "shoulder_accessory", "torso_accessory", "legs_accessory", "gloves", "pet_skin"];
   let storeRar = "alle";
   let storeSort = "featured";
 
@@ -3993,7 +3993,7 @@ startBackgroundIntervals();
     if (item.category === "shield" && item.data && item.data.texture) return `<div style="width:78%;height:64px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:#0d1420;background-image:url('https://kollegen.me/${item.data.texture.replace("kollegen:", "")}');background-size:cover;background-position:center;">Schild</div>`;
     if (item.category === "back_accessory" && item.data && item.data.texture) return `<div style="width:78%;height:64px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:#0d1420;background-image:url('https://kollegen.me/${item.data.texture.replace("kollegen:", "")}');background-size:cover;background-position:center;">Rücken</div>`;
     if (item.category === "head_accessory" && item.data && item.data.texture) return `<div style="width:78%;height:64px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:#0d1420;background-image:url('https://kollegen.me/${item.data.texture.replace("kollegen:", "")}');background-size:cover;background-position:center;">Kopf</div>`;
-    if (["face_accessory", "aura", "shoulder_accessory", "torso_accessory", "legs_accessory"].includes(item.category) && item.data && item.data.texture) { const lbl = { face_accessory: "Gesicht", aura: "Aura", shoulder_accessory: "Schulter", torso_accessory: "Oberkörper", legs_accessory: "Unterkörper" }[item.category] || "Item"; return `<div style="width:78%;height:64px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:#0d1420;background-image:url('https://kollegen.me/${item.data.texture.replace("kollegen:", "")}');background-size:cover;background-position:center;">${lbl}</div>`; }
+    if (["face_accessory", "aura", "shoulder_accessory", "torso_accessory", "legs_accessory", "gloves"].includes(item.category) && item.data && item.data.texture) { const lbl = { face_accessory: "Gesicht", aura: "Aura", shoulder_accessory: "Schulter", torso_accessory: "Oberkörper", legs_accessory: "Unterkörper", gloves: "Handschuhe" }[item.category] || "Item"; return `<div style="width:78%;height:64px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:#0d1420;background-image:url('https://kollegen.me/${item.data.texture.replace("kollegen:", "")}');background-size:cover;background-position:center;">${lbl}</div>`; }
     if (item.category === "pet" && item.data && item.data.kind) { const mk = { ember_drake: 1, void_wyrm: 1, shadow_reaper: 1, rune_sentinel: 1, flame_skull: 1, storm_cloud: 1, crystal_golem: 1, spectre: 1, lantern_spirit: 1, bolt_bot: 1, mini_ufo: 1, grimoire: 1, mooncap: 1, jelly_cube: 1 }[item.data.kind]; if (mk) return `<img style="width:64px;height:64px;border-radius:14px;object-fit:cover;" src="pets/${item.data.kind}.png" onerror="this.style.display='none'"/>`; }
     let border = "", shadow = "";
     if (item.category === "avatar_frame" && item.data.color1) border = `border:${(item.data.width || 3)}px solid ${esc(item.data.color1)};`;
@@ -4527,14 +4527,14 @@ startBackgroundIntervals();
     return;
     function renderCosmeticsFrom(me, store) {
     const equipped = me.equipped || {};
-    const owned = store.catalog.filter((it) => it.owned && ["pet", "pet_skin", "name_color", "badge", "sticker", "title", "profil_stil", "cape", "shield", "back_accessory", "head_accessory", "face_accessory", "aura", "shoulder_accessory", "torso_accessory", "legs_accessory"].includes(it.category));
+    const owned = store.catalog.filter((it) => it.owned && ["pet", "pet_skin", "name_color", "badge", "sticker", "title", "profil_stil", "cape", "shield", "back_accessory", "head_accessory", "face_accessory", "aura", "shoulder_accessory", "torso_accessory", "legs_accessory", "gloves"].includes(it.category));
     const cosmCatLabel = (c) => {
-      const known = { pet: "Haustier", title: "Titel", name_color: "Namensfarbe", badge: "Abzeichen", profile_frame: "Profil-Rahmen", profile_bg: "Profil-Hintergrund", banner: "Banner", profil_stil: "Profilstil", font: "Schriftart", sticker: "Aufkleber", avatar_theme: "Avatar-Hintergrund", cape: "Umhang", shield: "Schild", back_accessory: "Rücken", head_accessory: "Kopf", face_accessory: "Gesicht", aura: "Aura", shoulder_accessory: "Schulter", torso_accessory: "Oberkörper", legs_accessory: "Unterkörper" };
+      const known = { pet: "Haustier", title: "Titel", name_color: "Namensfarbe", badge: "Abzeichen", profile_frame: "Profil-Rahmen", profile_bg: "Profil-Hintergrund", banner: "Banner", profil_stil: "Profilstil", font: "Schriftart", sticker: "Aufkleber", avatar_theme: "Avatar-Hintergrund", cape: "Umhang", shield: "Schild", back_accessory: "Rücken", head_accessory: "Kopf", face_accessory: "Gesicht", aura: "Aura", shoulder_accessory: "Schulter", torso_accessory: "Oberkörper", legs_accessory: "Unterkörper", gloves: "Handschuhe" };
       if (c && known[c]) return known[c];
       const s = String(c || "").replace(/_/g, " ").trim();
       return s ? s.charAt(0).toUpperCase() + s.slice(1) : "";
     };
-    const cosmOrder = ["title", "badge", "sticker", "name_color", "profil_stil", "cape", "shield", "back_accessory", "head_accessory", "face_accessory", "aura", "shoulder_accessory", "torso_accessory", "legs_accessory"];
+    const cosmOrder = ["title", "badge", "sticker", "name_color", "profil_stil", "cape", "shield", "back_accessory", "head_accessory", "face_accessory", "aura", "shoulder_accessory", "torso_accessory", "legs_accessory", "gloves"];
     let cosmCollapsed = {};
     try { cosmCollapsed = JSON.parse(localStorage.getItem("kosmetCollapsed") || "{}"); } catch (e) { cosmCollapsed = {}; }
     const cosmIsCollapsed = (cat) => cosmCollapsed[cat] !== false;
