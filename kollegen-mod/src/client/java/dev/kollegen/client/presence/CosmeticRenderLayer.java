@@ -323,9 +323,6 @@ public final class CosmeticRenderLayer extends RenderLayer<AvatarRenderState, Pl
     }
 
     private static void submitCubes(PoseStack poseStack, SubmitNodeCollector collector, RenderType type, BbModel model, List<BbModel.Cube> cubes, int packedLight, double timeSec) {
-        int lensFrame = (int) Math.floor(timeSec * 2.0) % 4;
-        if (lensFrame < 0) lensFrame += 4;
-        final int frame = lensFrame;
         try {
             collector.submitCustomGeometry(poseStack, type, (pose, vc) -> {
                 try {
@@ -335,7 +332,11 @@ public final class CosmeticRenderLayer extends RenderLayer<AvatarRenderState, Pl
                     for (BbModel.Cube cube : cubes) {
                         float shift = 0.0F;
                         if (cube.frameW > 0.0F && model != null && model.texWidth > 0.0F) {
-                            shift = (frame * cube.frameW / model.texWidth) % 1.0F;
+                            int n = cube.frameN > 0 ? cube.frameN : 4;
+                            int fps = cube.frameFps > 0 ? cube.frameFps : 2;
+                            int fr = (int) Math.floor(timeSec * fps) % n;
+                            if (fr < 0) fr += n;
+                            shift = (fr * cube.frameW / model.texWidth) % 1.0F;
                         }
                         for (BbModel.Face face : cube.faces) {
                             float[][] corners = BbModel.cornersFor(cube, face.dir);

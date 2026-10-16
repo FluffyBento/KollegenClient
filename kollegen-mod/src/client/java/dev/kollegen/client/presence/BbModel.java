@@ -93,6 +93,8 @@ public final class BbModel {
         public float minZ;
         public float maxZ;
         public float frameW;
+        public int frameN = 4;
+        public int frameFps = 2;
         public final List<Face> faces = new ArrayList<>();
 
         public boolean hasRotation() {
@@ -512,7 +514,19 @@ public final class BbModel {
         }
         Cube cube = new Cube();
         try {
-            if (o.has("name") && "visor_lens".equals(o.get("name").getAsString()) && Boolean.getBoolean("kollegen.lensAnim")) cube.frameW = 128.0F;
+            String cubeName = o.has("name") ? o.get("name").getAsString() : "";
+            if ("visor_lens".equals(cubeName) && Boolean.getBoolean("kollegen.lensAnim")) {
+                cube.frameW = 128.0F;
+                cube.frameN = 4;
+                cube.frameFps = 2;
+            } else if (cubeName != null && cubeName.startsWith("flam") && texW >= 768.0F) {
+                int frames = Math.round(texW / 384.0F);
+                if (frames >= 2) {
+                    cube.frameW = texW / frames;
+                    cube.frameN = frames;
+                    cube.frameFps = 6;
+                }
+            }
         } catch (Throwable ignored) {
         }
         cube.minX = Math.min(from[0], to[0]) / 16.0F;
