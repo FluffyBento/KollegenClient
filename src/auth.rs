@@ -173,6 +173,8 @@ pub fn ms_auth_start() -> Result<Value> {
             });
         }
 
+        let _ = open::that("https://aka.ms/remoteconnect");
+
         
         std::thread::spawn(move || {
             ms_auth_poll(device_code, interval, expires_in);
