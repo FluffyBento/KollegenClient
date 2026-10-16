@@ -11,6 +11,9 @@ public final class Glass {
     public static float opacity = 0.58f;
     public static float dt = 0.016f;
     private static long lastNs = 0L;
+    // PERF-DEBUG: Zähler pro Frame (wird vom Menü zurückgesetzt/geloggt).
+    public static int fillCount = 0;
+    public static int primCount = 0;
 
     private Glass() {
     }
@@ -111,6 +114,7 @@ public final class Glass {
         if (x1 <= x0 || y1 <= y0 || (c >>> 24) == 0) {
             return;
         }
+        fillCount++;
         g.fill(x0, y0, x1, y1, c);
     }
 
@@ -256,6 +260,7 @@ public final class Glass {
         if ((top >>> 24) == 0 && (bottom >>> 24) == 0) {
             return;
         }
+        primCount++;
         float k = k();
         pBegin(g);
         rrPhys(g, P(x, k), P(y, k), P(x + w, k), P(y + h, k), P(r, k), top, bottom, k < 1.5f);
@@ -267,6 +272,7 @@ public final class Glass {
         if (w <= 0 || h <= 0 || (color >>> 24) == 0) {
             return;
         }
+        primCount++;
         float k = k();
         pBegin(g);
         ringPhys(g, P(x, k), P(y, k), P(x + w, k), P(y + h, k), P(r, k), Math.max(1, P(thick, k)), color, k < 1.5f);
@@ -304,6 +310,7 @@ public final class Glass {
         if ((color >>> 24) == 0) {
             return;
         }
+        primCount++;
         float k = k();
         pBegin(g);
         float ax = x0 * k;
@@ -364,6 +371,7 @@ public final class Glass {
             pBegin(g);
             box(g, x - r, y - r, x + r + 1, y + r + 1, color);
             pEnd(g);
+            primCount++;
             return;
         }
         rr(g, cx - rad, cy - rad, rad * 2, rad * 2, rad, color);
@@ -381,10 +389,11 @@ public final class Glass {
         if (shadow > 0.0f) {
             shadowSoft(g, x, y, w, h, r, 10.0f, 3.0f, Palette.tint(0x000000, (int) (70 * shadow)));
         }
-        int top = Palette.mix(tint, 0xFFFFFFFF, 0.07f);
-        int bot = Palette.mix(tint, 0xFF000000, 0.12f);
+        // PERF: Glanzlicht direkt in den Verlauf eingebacken (ein rrGrad statt zwei).
+        // Entspricht Body + Sheen-Overlay (13 % Weiß, obere Hälfte) bis auf Rundung.
+        int top = Palette.mix(Palette.mix(tint, 0xFFFFFFFF, 0.07f), 0xFFFFFFFF, 0.10f);
+        int bot = Palette.mix(Palette.mix(tint, 0xFF000000, 0.12f), 0xFF000000, 0.03f);
         rrGrad(g, x, y, w, h, r, tint(top, (int) (255 * Math.min(1.0f, op))), tint(bot, (int) (255 * Math.min(1.0f, op * 0.92f))));
-        rrGrad(g, x, y, w, Math.max(4.0f, h * 0.5f), r, 0x22FFFFFF, 0x00FFFFFF);
         ring(g, x, y, w, h, r, 0.5f, 0x38FFFFFF);
         float k = k();
         if (w > r * 2 + 4) {
@@ -426,6 +435,7 @@ public final class Glass {
         if ((color >>> 24) < 10 || s == null || s.isEmpty()) {
             return;
         }
+        primCount++;
         g.text(font, s, x, y, color, shadow);
     }
 

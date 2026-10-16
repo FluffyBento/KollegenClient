@@ -40,7 +40,7 @@ public class GlassToggle extends AbstractWidget {
         Glass.ring(g, x, y, w, h, r, 0.5f, Glass.mixA(0x38FFFFFF, 0x66FFFFFF, t));
         float kr = r - 2.0f;
         float kx = x + 2.0f + kr + (w - 4.0f - kr * 2) * t;
-        Glass.shadowSoft(g, kx - kr, y + 2.0f, kr * 2, kr * 2, kr, 3.0f, 1.0f, 0x66000000);
+        // PERF: Knopf-Schatten weggelassen (4 weiche Layer pro Switch pro Frame).
         Glass.disc(g, kx, y + r, kr + hov * 0.6f, 0xFFFFFFFF);
     }
 

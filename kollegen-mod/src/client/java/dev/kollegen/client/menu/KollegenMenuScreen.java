@@ -41,7 +41,6 @@ public class KollegenMenuScreen extends Screen {
     private static final int K_MOD = 0;
     private static final int K_INFO = 1;
     private static final int K_HEAD = 2;
-    private static final int K_BANNER = 3;
     private static final int K_STORE = 4;
     private static final int K_COS = 5;
     private static final int K_PET_ACTIVE = 6;
@@ -670,13 +669,6 @@ public class KollegenMenuScreen extends Screen {
                 }
             }
         }
-        if (cat == Category.COSMETICS && this.storeCache != null) {
-            Cell b = this.addFull(K_BANNER, 100.0f);
-            int[] d = LogoDraw.dimsOf(Identifier.tryParse("kollegen:cosmetics/fluffybento/vorschau_FluffyBento.png"), 400, 200);
-            float tw = Math.min(this.cw - 40, 170);
-            b.h = Math.max(60.0f, tw * d[1] / (float) d[0] + 22.0f);
-            this.gy = b.y + b.h + GAP;
-        }
         int cols = this.cols(150);
         if (cat == Category.STORE) {
             this.addHead("Verfügbar");
@@ -1132,6 +1124,8 @@ public class KollegenMenuScreen extends Screen {
 
     public void extractRenderState(GuiGraphicsExtractor g, int mx, int my, float pt) {
         long perfT0 = System.nanoTime();
+        Glass.fillCount = 0;
+        Glass.primCount = 0;
         Glass.frame();
         if (this.pendingRebuild) {
             this.pendingRebuild = false;
@@ -1164,7 +1158,7 @@ public class KollegenMenuScreen extends Screen {
             this.perfMax = perfDt;
         }
         if (++this.perfN >= 300) {
-            System.out.println("[Kollegen-UI] Menü-Frame avg=" + (this.perfAcc / this.perfN / 1000) + "µs max=" + (this.perfMax / 1000) + "µs");
+            System.out.println("[Kollegen-UI] Menü-Frame avg=" + (this.perfAcc / this.perfN / 1000) + "µs max=" + (this.perfMax / 1000) + "µs fills=" + (Glass.fillCount) + " prims=" + (Glass.primCount));
             this.perfAcc = 0L;
             this.perfN = 0;
             this.perfMax = 0L;
@@ -1266,9 +1260,6 @@ public class KollegenMenuScreen extends Screen {
                 case K_INFO:
                     this.drawInfo(g, c, X, Y);
                     break;
-                case K_BANNER:
-                    this.drawBanner(g, c, X, Y);
-                    break;
                 case K_MOD:
                     this.drawModCard(g, c, X, Y, hov);
                     break;
@@ -1317,14 +1308,6 @@ public class KollegenMenuScreen extends Screen {
             tx = X + 23;
         }
         Glass.text(g, this.font, Glass.trunc(this.font, c.text, (int) (c.w - (tx - X) - 8)), Math.round(tx), Math.round(Y + 7), Palette.TEXT, false);
-    }
-
-    private void drawBanner(GuiGraphicsExtractor g, Cell c, float X, float Y) {
-        Glass.glassCard(g, X, Y, c.w, c.h, 9, Palette.PANEL2, Glass.opacity, 0.0f);
-        Identifier vid = Identifier.tryParse("kollegen:cosmetics/fluffybento/vorschau_FluffyBento.png");
-        int tw = (int) Math.min(c.w - 40, 170);
-        LogoDraw.drawId(g, vid, Math.round(X + (c.w - tw) / 2.0f), Math.round(Y + 4), tw);
-        Glass.text(g, this.font, "Set-Vorschau", Math.round(X + 9), Math.round(Y + c.h - 13), Palette.MUTED, false);
     }
 
     private void drawModCard(GuiGraphicsExtractor g, Cell c, float X, float Y, boolean hov) {
