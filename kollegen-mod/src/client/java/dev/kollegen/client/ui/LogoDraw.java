@@ -16,6 +16,7 @@ import org.joml.Matrix3x2fStack;
 public final class LogoDraw {
     private static final Identifier KOLLEGEN_LOGO = Identifier.tryParse("kollegen:logo.png");
     private static final Map<String, int[]> CACHE = new HashMap<String, int[]>();
+    private static final Map<String, Boolean> EXISTS_CACHE = new HashMap<String, Boolean>();
 
     private LogoDraw() {
     }
@@ -66,12 +67,25 @@ public final class LogoDraw {
     }
 
     public static boolean exists(Identifier id) {
-        try {
-            Optional res = Minecraft.getInstance().getResourceManager().getResource(id);
-            return res.isPresent();
-        } catch (Exception e) {
+        if (id == null) {
             return false;
         }
+        // PERF: Wird pro Frame für Pet-Previews aufgerufen — Resource-Lookup cachen
+        // (gleiche Semantik wie dims-CACHE; F3+T-Reloads werden wie dort toleriert).
+        String key = id.toString();
+        Boolean hit = EXISTS_CACHE.get(key);
+        if (hit != null) {
+            return hit;
+        }
+        boolean v;
+        try {
+            Optional res = Minecraft.getInstance().getResourceManager().getResource(id);
+            v = res.isPresent();
+        } catch (Exception e) {
+            v = false;
+        }
+        EXISTS_CACHE.put(key, v);
+        return v;
     }
 
     public static void draw(GuiGraphicsExtractor gui, int x, int y, int targetW) {

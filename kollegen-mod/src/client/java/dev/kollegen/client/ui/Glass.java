@@ -46,7 +46,12 @@ public final class Glass {
                 return 1.0f;
             }
             float v = (float) mc.getWindow().getScreenWidth() / (float) gw;
-            return v < 1.0f ? 1.0f : v;
+            if (v < 1.0f) {
+                v = 1.0f;
+            }
+            // PERF: Über 2x-Supersampling steigt die Fill-Anzahl linear, der
+            // sichtbare Gewinn ist null (2x reicht für glatte 1px-Kanten).
+            return Math.min(v, 2.0f);
         } catch (Throwable t) {
             return 1.0f;
         }
@@ -134,7 +139,9 @@ public final class Glass {
         }
         R = Math.max(0, Math.min(R, Math.min(W, H) / 2));
         boolean grad = c1 != c2;
-        int bandH = grad ? Math.max(1, H / 40) : H;
+        // PERF: Gradienten in max. ~24 Bändern statt ~40 — bei den flachen
+        // Glas-Verläufen unsichtbar, halbiert aber die Fill-Aufrufe.
+        int bandH = grad ? Math.max(1, H / 24) : H;
         if (R == 0) {
             if (!grad) {
                 box(g, X0, Y0, X1, Y1, c1);
@@ -270,8 +277,10 @@ public final class Glass {
             return;
         }
         float k = k();
-        int T = Math.max(1, P(spread / 7.0f, k));
-        int L = 7;
+        // PERF: 4 statt 7 Schatten-Layer — optisch identisch weich (3px-Offset),
+        // kostet aber nur ~55% der Fill-Aufrufe.
+        int T = Math.max(1, P(spread / 4.0f, k));
+        int L = 4;
         pBegin(g);
         int X0 = P(x, k);
         int Y0 = P(y + dy, k);
@@ -299,6 +308,24 @@ public final class Glass {
         float bx = x1 * k;
         float by = y1 * k;
         int t = Math.max(1, Math.round(thick * k));
+        // PERF: Achsenparallele Linien (der Normalfall bei Icons/Rahmen) als
+        // einzelnes Rechteck statt DDA-Pixel — identisches Bild, ~20x weniger Fills.
+        if (Math.abs(by - ay) < 0.5f) {
+            int y = Math.round(ay - t / 2.0f);
+            int xa = Math.round(Math.min(ax, bx));
+            int xb = Math.round(Math.max(ax, bx));
+            box(g, xa, y, xb + 1, y + t, color);
+            pEnd(g);
+            return;
+        }
+        if (Math.abs(bx - ax) < 0.5f) {
+            int x = Math.round(ax - t / 2.0f);
+            int ya = Math.round(Math.min(ay, by));
+            int yb = Math.round(Math.max(ay, by));
+            box(g, x, ya, x + t, yb + 1, color);
+            pEnd(g);
+            return;
+        }
         int steps = (int) Math.max(Math.abs(bx - ax), Math.abs(by - ay));
         if (steps < 1) {
             steps = 1;
@@ -321,6 +348,21 @@ public final class Glass {
     }
 
     public static void disc(GuiGraphicsExtractor g, float cx, float cy, float rad, int color) {
+        // PERF: Winzige Punkte (Thumbs, Dots, Status) als einzelnes Rechteck.
+        float k = k();
+        if (rad * k <= 1.5f) {
+            int r = Math.max(1, Math.round(rad * k));
+            int x = Math.round(cx * k);
+            int y = Math.round(cy * k);
+            color = fa(color);
+            if ((color >>> 24) == 0) {
+                return;
+            }
+            pBegin(g);
+            box(g, x - r, y - r, x + r + 1, y + r + 1, color);
+            pEnd(g);
+            return;
+        }
         rr(g, cx - rad, cy - rad, rad * 2, rad * 2, rad, color);
     }
 
