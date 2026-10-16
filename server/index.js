@@ -762,8 +762,33 @@ const server = http.createServer(async (req, res) => {
     }
 
     
-    if (pathname === '/store/buy' && method === 'POST') {
+    if (pathname === '/api/minigame' && method === 'POST') {
       const user = bearerUser(req);
+      if (!user) return sendJson(res, 401, { error: 'not_authenticated' });
+      ensureUserExtras(user);
+      const body = await readBody(req);
+      const game = String(body.game || '').trim().toLowerCase();
+      const rates = { tetris: 100 };
+      if (!rates[game]) return sendJson(res, 400, { error: 'unknown_game' });
+      const score = Math.max(0, Math.min(2000000, Math.floor(Number(body.score) || 0)));
+      let awarded = Math.floor(score / rates[game]);
+      if (awarded <= 0) return sendJson(res, 200, { ok: true, awarded: 0, points: user.points });
+      if (awarded > 2000) awarded = 2000;
+      const day = new Date().toISOString().slice(0, 10);
+      if (!user.minigame || typeof user.minigame !== 'object') user.minigame = {};
+      if (user.minigame.date !== day) user.minigame = { date: day };
+      const used = Math.max(0, Math.floor(Number(user.minigame[game]) || 0));
+      const left = Math.max(0, 5000 - used);
+      if (left <= 0) return sendJson(res, 200, { ok: true, awarded: 0, points: user.points, limit: true });
+      if (awarded > left) awarded = left;
+      user.minigame[game] = used + awarded;
+      user.points = Math.max(0, (user.points || 0) + awarded);
+      user.points_total = Math.max(0, (user.points_total || 0) + awarded);
+      saveStore();
+      return sendJson(res, 200, { ok: true, awarded, points: user.points, level: levelOf(user) });
+    }
+
+    if (pathname === '/store/buy' && method === 'POST') {      const user = bearerUser(req);
       if (!user) return sendJson(res, 401, { error: 'not_authenticated' });
       ensureUserExtras(user);
       const body = await readBody(req);

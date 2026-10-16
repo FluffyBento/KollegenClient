@@ -184,7 +184,7 @@ public class KollegenMenuScreen extends Screen {
         addRenderableWidget(search);
         search.setFocused(true);
 
-        if (cats[category] == Category.STORE || cats[category] == Category.COSMETICS || cats[category] == Category.PETS) {
+        if (cats[category] == Category.STORE || cats[category] == Category.COSMETICS || cats[category] == Category.PETS || cats[category] == Category.EXTRAS) {
             buildCustom(contentTop, contentBottom);
             return;
         }
@@ -536,6 +536,12 @@ public class KollegenMenuScreen extends Screen {
                     y += 56 + GAP / 2;
                 }
             }
+        } else if (cat == Category.EXTRAS) {
+            y = addHeader(y, "Minispiele");
+            com.google.gson.JsonObject tetris = new com.google.gson.JsonObject();
+            tetris.addProperty("game", "tetris");
+            entries.add(new Entry(false, null, null, y, 64, null, 0, 9, tetris));
+            y += 64 + GAP / 2;
         }
         contentH = y - contentTop + scroll;
         int visibleH = contentBottom - contentTop;
@@ -660,6 +666,16 @@ public class KollegenMenuScreen extends Screen {
                 }
                 rebuild();
                 return true;
+            }
+            if (e.custom == 9) {
+                String game = str(e.data, "game", "");
+                if ("tetris".equals(game)) {
+                    try {
+                        Minecraft.getInstance().setScreenAndShow(new TetrisScreen(this));
+                    } catch (Throwable ignored) {
+                    }
+                    return true;
+                }
             }
         } catch (Throwable ignored) {
         }
@@ -854,7 +870,7 @@ public class KollegenMenuScreen extends Screen {
                 tabX += TAB_W + TAB_GAP;
             }
 
-            if (cats[category] == Category.STORE || cats[category] == Category.COSMETICS || cats[category] == Category.PETS) {
+            if (cats[category] == Category.STORE || cats[category] == Category.COSMETICS || cats[category] == Category.PETS || cats[category] == Category.EXTRAS) {
                 int cardX = px + PADDING;
                 int cardW = pw - PADDING * 2 - SCROLLBAR_AREA_W;
                 for (Entry e : entries) {
@@ -1135,6 +1151,17 @@ public class KollegenMenuScreen extends Screen {
                 } catch (Throwable ignored) {
                 }
                 g.text(this.font, trunc(str(e.data, "name", id), 30), cardX + 62, ey + (e.h - this.font.lineHeight) / 2, Palette.TEXT, false);
+                return;
+            }
+            if (e.custom == 9) {
+                String game = str(e.data, "game", "");
+                if ("tetris".equals(game)) {
+                    Glass.panelDark(g, cardX, ey, cardW, e.h, 8);
+                    g.text(this.font, "🧱", cardX + 16, ey + (e.h - this.font.lineHeight) / 2 - 4, Palette.TEXT, false);
+                    g.text(this.font, "Tetris", cardX + 48, ey + 10, Palette.TEXT, false);
+                    g.text(this.font, "Spielen und Kollegen-Punkte verdienen (100:1)", cardX + 48, ey + 30, Palette.MUTED, false);
+                    drawMiniButton(g, cardX + cardW - 140, ey + (e.h - 28) / 2, 128, 28, "Spielen ▸", mx, my);
+                }
                 return;
             }
             String name = str(e.data, "name", str(e.data, "id", "?"));

@@ -11,7 +11,8 @@ public enum Category {
     MISC("Verschiedenes", "⚙"),
     STORE("Store", "🛍"),
     COSMETICS("Cosmetics", "✨"),
-    PETS("Pets", "🐾");
+    PETS("Pets", "🐾"),
+    EXTRAS("Extras", "🕹");
 
     public final String display;
     public final String icon;

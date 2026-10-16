@@ -109,6 +109,18 @@ public final class StoreClient {
         }
     }
 
+    public static JsonObject submitMinigame(String game, int score) {
+        try {
+            if (game == null || game.isEmpty()) return null;
+            JsonObject body = new JsonObject();
+            body.addProperty("game", game);
+            body.addProperty("score", score);
+            return post("/api/minigame", body);
+        } catch (Throwable ignored) {
+            return null;
+        }
+    }
+
     private static JsonObject post(String path, JsonObject body) {
         try {
             String tok = token();
