@@ -21,11 +21,10 @@ const START_POINTS = 250;
 
 
 const CATALOG = [
-  { id: 'pkg_kriegshammer', category: 'package', name: 'Kriegshammer-Paket', desc: 'Der kollektive Kriegshammer plus Begleittracht.', price: 2600, rarity: 'legendary', featured: true, data: { items: ['mace_kriegshammer', 'shoulder_minidrache', 'torso_reaktor'] } },
-  { id: 'pkg_aufsteiger', category: 'package', name: 'Aufsteiger-Paket', desc: 'Alles, was ein neuer Kollege zum Start braucht.', price: 1100, rarity: 'epic', featured: true, data: { items: ['title_erkunder', 'frame_bronze', 'badge_stein', 'sticker_herz'] } },
-  { id: 'pkg_veteran', category: 'package', name: 'Veteran-Paket', desc: 'Die Ausstattung fuer erfahrene Kollegen.', price: 2400, rarity: 'epic', featured: true, data: { items: ['title_veteran', 'badge_netherit', 'banner_ember', 'pframe_ruby'] } },
-  { id: 'pkg_persona', category: 'package', name: 'Persona-Paket', desc: 'Ein kompletter Stil fuer dein Profil.', price: 1450, rarity: 'rare', featured: true, data: { items: ['stil_cyan', 'theme_lava', 'pframe_royal', 'name_tuerkis'] } },
-  { id: 'pkg_aura', category: 'package', name: 'Aura-Paket', desc: 'Leuchtende Effekte fuer deinen Auftritt.', price: 1900, rarity: 'epic', featured: true, data: { items: ['aura_orbit', 'aura_totenlaeufer', 'shoulder_eule'] } },
+  { id: 'pkg_fluffybento', category: 'package', name: 'FluffyBento-Paket', desc: 'Cape, Schild, Flügel und Visier von FluffyBento.', price: 0, rarity: 'legendary', comingSoon: true, data: { comingSoon: true, items: ['cape_fluffybento', 'schild_fluffybento', 'back_fluffybento', 'head_fluffybento'] } },
+  { id: 'pkg_limitlos', category: 'package', name: 'Limit_Los-Paket', desc: 'Cape, Bandana, Schild, Schwert und Dolche von Limit_Los.', price: 0, rarity: 'legendary', comingSoon: true, data: { comingSoon: true, items: ['cape_limitlos', 'head_limitlos', 'shield_limitlos', 'back_limitlos', 'shoulder_limitlos'] } },
+  { id: 'pkg_zerocraft77', category: 'package', name: 'Zerocraft77-Paket', desc: 'Cape, Bandana, Flügel, Handschuhe und Schild von Zerocraft77.', price: 0, rarity: 'legendary', comingSoon: true, data: { comingSoon: true, items: ['cape_zerocraft77', 'head_zerocraft77', 'back_zerocraft77', 'gloves_zerocraft77', 'shield_zerocraft77'] } },
+  { id: 'pkg_irongirl', category: 'package', name: 'Irongirl-Paket', desc: 'Cape, Flügel, Halo und Schild von Irongirl.', price: 0, rarity: 'legendary', comingSoon: true, data: { comingSoon: true, items: ['cape_irongirl', 'back_irongirl', 'head_irongirl', 'shield_irongirl'] } },
   { id: 'title_luigi', category: 'title', name: 'Luigi', desc: 'Exklusiv verliehen, nicht käuflich.', price: 0, rarity: 'legendary', hidden: true, data: { text: 'Luigi', color: '#00b140' } },
   
   { id: 'title_erkunder', category: 'title', name: 'Erkunder', desc: 'Zeig deinen Entdeckermut.', price: 120, rarity: 'common', data: { text: 'Erkunder' } },

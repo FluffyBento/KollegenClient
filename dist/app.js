@@ -4349,7 +4349,7 @@ startBackgroundIntervals();
 
   let storeFilter = "alle";
   let storeGroup = "profil";
-  const STORE_INGAME_CATS = ["pet", "clothing", "effect", "cape", "shield", "mace", "mace", "back_accessory", "head_accessory", "face_accessory", "aura", "shoulder_accessory", "torso_accessory", "legs_accessory", "gloves", "mace", "pet_skin"];
+  const STORE_INGAME_CATS = ["pet", "clothing", "effect", "cape", "shield", "mace", "back_accessory", "head_accessory", "face_accessory", "aura", "shoulder_accessory", "torso_accessory", "legs_accessory", "gloves", "pet_skin"];
   let storeRar = "alle";
   let storeSort = "featured";
 
@@ -4684,10 +4684,11 @@ startBackgroundIntervals();
         list.append(row);
       }
       body.append(list);
+      const pkgSoon = !!(pkg.comingSoon || (pkg.data && pkg.data.comingSoon));
       const tot = document.createElement("div");
-      tot.className = "store-price";
+      tot.className = pkgSoon ? "pkg-soon-label" : "store-price";
       tot.style.cssText = "margin-top:.8rem;";
-      tot.textContent = "Gesamt ★ " + total;
+      tot.textContent = pkgSoon ? "Bald verf\u00fcgbar" : "Gesamt \u2605 " + total;
       body.append(tot);
     }
     m.style.display = "flex";
@@ -4721,8 +4722,11 @@ startBackgroundIntervals();
     } else {
       for (const p of pkgs) {
         const card = document.createElement("button");
-        card.className = "pkg-card rar-" + (p.rarity || "common");
-        card.innerHTML = `<span class="pkg-name">${esc(p.name || "Paket")}</span><span class="pkg-price">★ ${p.price || 0}</span>`;
+        const soon = !!(p.comingSoon || (p.data && p.data.comingSoon));
+        card.className = "pkg-card rar-" + (p.rarity || "common") + (soon ? " pkg-soon" : "");
+        card.innerHTML = `<span class="pkg-name">${esc(p.name || "Paket")}</span>`
+          + (soon ? '<span class="pkg-soon-label">Bald verf\u00fcgbar</span>'
+                  : `<span class="pkg-price">\u2605 ${p.price || 0}</span>`);
         card.onclick = () => storeOpenPackage(p);
         row.append(card);
       }
@@ -4907,14 +4911,14 @@ startBackgroundIntervals();
     return;
     function renderCosmeticsFrom(me, store) {
     const equipped = me.equipped || {};
-    const owned = store.catalog.filter((it) => it.owned && ["pet", "pet_skin", "name_color", "badge", "sticker", "title", "profil_stil", "cape", "shield", "mace", "mace", "back_accessory", "head_accessory", "face_accessory", "aura", "shoulder_accessory", "torso_accessory", "legs_accessory", "gloves"].includes(it.category));
+    const owned = store.catalog.filter((it) => it.owned && ["pet", "pet_skin", "name_color", "badge", "sticker", "title", "profil_stil", "cape", "shield", "mace", "back_accessory", "head_accessory", "face_accessory", "aura", "shoulder_accessory", "torso_accessory", "legs_accessory", "gloves"].includes(it.category));
     const cosmCatLabel = (c) => {
       const known = { pet: "Haustier", title: "Titel", name_color: "Namensfarbe", badge: "Abzeichen", profile_frame: "Profil-Rahmen", profile_bg: "Profil-Hintergrund", banner: "Banner", profil_stil: "Profilstil", font: "Schriftart", sticker: "Aufkleber", avatar_theme: "Avatar-Hintergrund", cape: "Umhang", shield: "Schild", mace: "Kollegen-Kriegshammer", back_accessory: "Rücken", head_accessory: "Kopf", face_accessory: "Gesicht", aura: "Aura", shoulder_accessory: "Schulter", torso_accessory: "Oberkörper", legs_accessory: "Unterkörper", gloves: "Handschuhe" };
       if (c && known[c]) return known[c];
       const s = String(c || "").replace(/_/g, " ").trim();
       return s ? s.charAt(0).toUpperCase() + s.slice(1) : "";
     };
-    const cosmOrder = ["title", "badge", "sticker", "name_color", "profil_stil", "cape", "shield", "mace", "mace", "back_accessory", "head_accessory", "face_accessory", "aura", "shoulder_accessory", "torso_accessory", "legs_accessory", "gloves"];
+    const cosmOrder = ["title", "badge", "sticker", "name_color", "profil_stil", "cape", "shield", "mace", "back_accessory", "head_accessory", "face_accessory", "aura", "shoulder_accessory", "torso_accessory", "legs_accessory", "gloves"];
     let cosmCollapsed = {};
     try { cosmCollapsed = JSON.parse(localStorage.getItem("kosmetCollapsed") || "{}"); } catch (e) { cosmCollapsed = {}; }
     const cosmIsCollapsed = (cat) => cosmCollapsed[cat] !== false;

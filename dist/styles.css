@@ -1448,6 +1448,9 @@ button:disabled {
 .pkg-price { color: #ffd479; font-weight: 700; }
 .pkg-card.pkg-empty { cursor: default; border-style: dashed; color: var(--text-muted); }
 .pkg-card.pkg-empty:hover { border-color: var(--border-primary); transform: none; }
+.pkg-soon-label { color: var(--text-muted); font-weight: 700; font-size: 0.82rem; letter-spacing: 0.04em; text-transform: uppercase; }
+.pkg-card.pkg-soon { cursor: default; opacity: 0.72; }
+.pkg-card.pkg-soon:hover { transform: none; border-color: var(--border-primary); }
 .pkg-card canvas, .pkg-card img { position: absolute; right: 0.6rem; top: 50%; transform: translateY(-50%); width: 72px; height: 72px; object-fit: contain; image-rendering: pixelated; pointer-events: none; }
 .store-pv canvas, .store-pv-lg canvas { width: 100%; height: 100%; display: block; }
 .store-pv img.thumb3d, .store-pv-lg img.thumb3d { width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; }
