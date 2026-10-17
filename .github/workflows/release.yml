@@ -297,7 +297,7 @@ jobs:
         run: bash scripts/set-version.sh "${{ github.ref_name }}"
 
       - name: Build Windows installers (.exe + .msi)
-        run: tauri build --config tauri.conf.json --bundles nsis,msi
+        run: tauri build --config tauri.conf.json --bundles nsis msi
 
       - name: Rename installers + signatures
         shell: pwsh
