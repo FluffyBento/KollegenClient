@@ -21,6 +21,11 @@ const START_POINTS = 250;
 
 
 const CATALOG = [
+  { id: 'pkg_kriegshammer', category: 'package', name: 'Kriegshammer-Paket', desc: 'Der kollektive Kriegshammer plus Begleittracht.', price: 2600, rarity: 'legendary', featured: true, data: { items: ['mace_kriegshammer', 'shoulder_minidrache', 'torso_reaktor'] } },
+  { id: 'pkg_aufsteiger', category: 'package', name: 'Aufsteiger-Paket', desc: 'Alles, was ein neuer Kollege zum Start braucht.', price: 1100, rarity: 'epic', featured: true, data: { items: ['title_erkunder', 'frame_bronze', 'badge_stein', 'sticker_herz'] } },
+  { id: 'pkg_veteran', category: 'package', name: 'Veteran-Paket', desc: 'Die Ausstattung fuer erfahrene Kollegen.', price: 2400, rarity: 'epic', featured: true, data: { items: ['title_veteran', 'badge_netherit', 'banner_ember', 'pframe_ruby'] } },
+  { id: 'pkg_persona', category: 'package', name: 'Persona-Paket', desc: 'Ein kompletter Stil fuer dein Profil.', price: 1450, rarity: 'rare', featured: true, data: { items: ['stil_cyan', 'theme_lava', 'pframe_royal', 'name_tuerkis'] } },
+  { id: 'pkg_aura', category: 'package', name: 'Aura-Paket', desc: 'Leuchtende Effekte fuer deinen Auftritt.', price: 1900, rarity: 'epic', featured: true, data: { items: ['aura_orbit', 'aura_totenlaeufer', 'shoulder_eule'] } },
   { id: 'title_luigi', category: 'title', name: 'Luigi', desc: 'Exklusiv verliehen, nicht käuflich.', price: 0, rarity: 'legendary', hidden: true, data: { text: 'Luigi', color: '#00b140' } },
   
   { id: 'title_erkunder', category: 'title', name: 'Erkunder', desc: 'Zeig deinen Entdeckermut.', price: 120, rarity: 'common', data: { text: 'Erkunder' } },

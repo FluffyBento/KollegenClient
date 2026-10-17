@@ -4702,7 +4702,7 @@ startBackgroundIntervals();
       strip = document.createElement("div");
       strip.id = "storePkgStrip";
       strip.className = "pkg-strip";
-      panel.insertBefore(strip, grid);
+      panel.insertBefore(strip, panel.firstChild);
     }
     const pkgs = (kmCat || []).filter((i) => i.category === "package" && !i.hidden);
     strip.innerHTML = "";
