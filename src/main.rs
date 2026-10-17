@@ -19,6 +19,7 @@ mod types;
 mod utils;
 
 use anyhow::Result;
+use base64::Engine;
 use directories::ProjectDirs;
 use log::warn;
 use serde_json::Value;
@@ -145,6 +146,86 @@ fn get_instances(state: State<'_, AppState>) -> Result<Vec<types::Instance>, Str
     let path = utils::instances_file(&state.data_dir);
     let instances = utils::load_json::<Vec<types::Instance>>(&path, vec![]);
     Ok(instances)
+}
+
+fn instance_image_file(data_dir: &Path, name: &str, kind: &str) -> Option<PathBuf> {
+    let dir = utils::instance_dir(data_dir, name);
+    let base = match kind {
+        "icon" => "kollegen-icon",
+        "banner" => "kollegen-banner",
+        _ => return None,
+    };
+    for ext in ["png", "jpg", "webp"] {
+        let p = dir.join(format!("{}.{}", base, ext));
+        if p.is_file() {
+            return Some(p);
+        }
+    }
+    None
+}
+
+#[tauri::command]
+fn get_instance_image(
+    state: State<'_, AppState>,
+    name: String,
+    kind: String,
+) -> Result<Option<String>, String> {
+    let file = match instance_image_file(&state.data_dir, &name, &kind) {
+        Some(f) => f,
+        None => return Ok(None),
+    };
+    let bytes = std::fs::read(&file).map_err(|e| e.to_string())?;
+    Ok(Some(base64::engine::general_purpose::STANDARD.encode(bytes)))
+}
+
+#[tauri::command]
+fn set_instance_image(
+    state: State<'_, AppState>,
+    name: String,
+    kind: String,
+    path: String,
+) -> Result<(), String> {
+    let (file_stem, max_w, max_h) = match kind.as_str() {
+        "icon" => ("kollegen-icon", 256, 256),
+        "banner" => ("kollegen-banner", 1280, 720),
+        _ => return Err("Unbekannte Bildart.".to_string()),
+    };
+    let src = PathBuf::from(&path);
+    let bytes = std::fs::read(&src).map_err(|e| format!("Bild nicht lesbar: {}", e))?;
+    let img = image::load_from_memory(&bytes).map_err(|e| format!("Bild nicht lesbar: {}", e))?;
+    let img = img.resize(max_w, max_h, image::imageops::FilterType::Lanczos3);
+    let dir = utils::instance_dir(&state.data_dir, &name);
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    for ext in ["png", "jpg", "webp"] {
+        let old = dir.join(format!("{}.{}", file_stem, ext));
+        if old.is_file() && old.extension().and_then(|e| e.to_str()) != Some("png") {
+            let _ = std::fs::remove_file(&old);
+        }
+    }
+    let target = dir.join(format!("{}.png", file_stem));
+    img.save(&target).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+fn clear_instance_image(
+    state: State<'_, AppState>,
+    name: String,
+    kind: String,
+) -> Result<(), String> {
+    let file_stem = match kind.as_str() {
+        "icon" => "kollegen-icon",
+        "banner" => "kollegen-banner",
+        _ => return Err("Unbekannte Bildart.".to_string()),
+    };
+    let dir = utils::instance_dir(&state.data_dir, &name);
+    for ext in ["png", "jpg", "webp"] {
+        let old = dir.join(format!("{}.{}", file_stem, ext));
+        if old.is_file() {
+            let _ = std::fs::remove_file(&old);
+        }
+    }
+    Ok(())
 }
 
 #[tauri::command]
@@ -2374,6 +2455,9 @@ fn main() {
             get_minecraft_profile_by_name,
             open_logs_folder,
             open_instance_folder,
+            get_instance_image,
+            set_instance_image,
+            clear_instance_image,
             import_content_file,
         ])
         .run(tauri::generate_context!())

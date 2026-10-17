@@ -462,7 +462,7 @@ async function refreshLogs() {
       const status = await invoke("auth_check_status");
       const statusEl = $("authStatus");
       statusEl.textContent = status.state === "done"
-        ? `Angemeldet: ${status.username || ""}`
+        ? "Verbunden"
         : `Status: ${status.state} ${status.msg ? '(' + status.msg + ')' : ''}`;
       statusEl.classList.toggle("ok", status.state === "done");
       const head = $("accountHead");
@@ -1347,6 +1347,11 @@ async function refreshLogs() {
     homeSkinViewer = null;
   }
 
+  function setSkinState(text) {
+    const el = $("homeSkinState");
+    if (el) el.textContent = text || "";
+  }
+
   function showSkinFallback(wrap, canvas, url) {
     let fb = wrap.querySelector(".skin-fallback");
     if (!fb) {
@@ -1388,22 +1393,32 @@ async function refreshLogs() {
       } catch (e) {}
     }
     if (!url && nm) url = `https://mc-heads.net/skin/${encodeURIComponent(nm)}`;
-    if (!url) return;
+    if (!url) {
+      setSkinState("kein Skin gefunden");
+      return;
+    }
     const key = url + "|" + (currentCapeUrl || "");
     if (!force && key === homeSkinKey && (homeSkinViewer || homeSkinFailed)) return;
     homeSkinKey = key;
     homeSkinFailed = false;
     const sv3d = window.skinview3d;
+    let webglInfo = "kein WebGL";
     let webglOk = false;
     try {
       const probe = document.createElement("canvas");
       const g = probe.getContext("webgl2") || probe.getContext("webgl");
       webglOk = !!(g && g.getParameter);
+      if (webglOk) {
+        const dbg = g.getExtension("WEBGL_debug_renderer_info");
+        const name = dbg ? g.getParameter(dbg.UNMASKED_RENDERER_WEBGL) : g.getParameter(g.RENDERER);
+        webglInfo = String(name || "WebGL").slice(0, 42);
+      }
     } catch (_) {}
     const wrap = canvas.parentElement;
     if (!(sv3d && sv3d.SkinViewer && sv3d.IdleAnimation && webglOk)) {
       showSkinFallback(wrap, canvas, url);
       homeSkinFailed = true;
+      setSkinState(`2D-Ersatz · ${webglInfo}`);
       return;
     }
     try {
@@ -1425,15 +1440,27 @@ async function refreshLogs() {
         clearTimeout(homeSkinPauseTimer);
         homeSkinPauseTimer = setTimeout(() => {
           if (!homeSkinViewer) return;
-          try { homeSkinViewer.renderPaused = true; } catch (_) {}
+          try {
+            homeSkinViewer.renderPaused = true;
+            homeSkinViewer.render();
+          } catch (_) {}
         }, 450);
+        let lost = false;
+        try {
+          lost = homeSkinViewer.renderer.getContext().isContextLost();
+        } catch (_) {}
+        setSkinState(lost ? `3D · Kontext verloren · ${webglInfo}` : `3D · ${webglInfo}`);
       };
-      if (p && typeof p.then === "function") p.then(ready).catch(ready);
+      if (p && typeof p.then === "function") p.then(ready).catch(() => {
+        homeSkinFailed = true;
+        setSkinState("3D · Skin-Fehler");
+      });
       else ready();
     } catch (e) {
       disposeHomeSkinViewer();
       homeSkinFailed = true;
       showSkinFallback(wrap, canvas, url);
+      setSkinState(`2D-Ersatz · ${webglInfo}`);
     }
   }
 

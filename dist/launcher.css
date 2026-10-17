@@ -86,6 +86,8 @@ body > header {
 }
 
 .icon-btn svg {
+  width: 20px;
+  height: 20px;
   fill: none;
   stroke: currentColor;
   stroke-width: 1.7;
@@ -146,8 +148,8 @@ body > header {
 }
 
 .sidebar-link svg {
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
   fill: none;
   stroke: currentColor;
   stroke-width: 1.7;
@@ -214,16 +216,16 @@ main {
 }
 
 .btn-primary {
-  background: var(--accent);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 92%, #fff), var(--accent));
   color: var(--on-accent);
-  box-shadow: none;
+  box-shadow: 0 2px 10px rgba(var(--accent-rgb), 0.18);
   border-radius: var(--radius-md);
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: var(--accent);
-  filter: brightness(1.08);
-  box-shadow: none;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 92%, #fff), var(--accent));
+  filter: brightness(1.06);
+  box-shadow: 0 4px 16px rgba(var(--accent-rgb), 0.3);
 }
 
 .btn-secondary {
@@ -257,6 +259,7 @@ main {
 
 .home-hero {
   --hero-rgb: var(--accent-rgb);
+  background: linear-gradient(120deg, var(--panel) 60%, color-mix(in srgb, var(--accent) 6%, var(--panel)));
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -347,26 +350,26 @@ main {
   justify-content: center;
   gap: 0.5rem;
   min-height: 38px;
-  padding: 0 1.1rem;
+  padding: 0 1.15rem;
   border-radius: var(--radius-md);
   border: none;
-  background: var(--accent);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 92%, #fff), var(--accent));
   color: var(--on-accent);
   font-size: 0.85rem;
   font-weight: 600;
-  box-shadow: none;
-  transition: filter var(--transition-fast);
+  box-shadow: 0 2px 12px rgba(var(--accent-rgb), 0.22);
+  transition: filter var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 .btn-play:hover:not(:disabled) {
   transform: none;
-  filter: brightness(1.08);
-  box-shadow: none;
+  filter: brightness(1.06);
+  box-shadow: 0 5px 20px rgba(var(--accent-rgb), 0.34);
 }
 
 .btn-play svg {
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
   fill: none;
   stroke: currentColor;
   stroke-width: 2;
@@ -394,8 +397,8 @@ main {
 }
 
 .btn-glass svg {
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
   fill: none;
   stroke: currentColor;
   stroke-width: 1.8;
@@ -493,8 +496,8 @@ main {
 .instance-card:hover,
 .instance-card:focus-within {
   transform: translateY(-2px);
-  border-color: var(--accent);
-  box-shadow: none;
+  border-color: color-mix(in srgb, var(--inst-rgb) 55%, var(--border));
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.28);
 }
 
 .instance-card-banner {
@@ -651,8 +654,8 @@ main {
 }
 
 .instance-card .instance-card-actions button.primary svg {
-  width: 15px;
-  height: 15px;
+  width: 16px;
+  height: 16px;
   fill: none;
   stroke: currentColor;
   stroke-width: 2;
@@ -677,8 +680,8 @@ main {
 }
 
 .icon-act svg {
-  width: 17px;
-  height: 17px;
+  width: 18px;
+  height: 18px;
   fill: none;
   stroke: currentColor;
   stroke-width: 1.7;
@@ -713,8 +716,8 @@ main {
 }
 
 .instance-card-tools .icon-act svg {
-  width: 14px;
-  height: 14px;
+  width: 15px;
+  height: 15px;
 }
 
 .instance-empty {
@@ -759,6 +762,13 @@ div.skin-fallback img {
 .home-skin-name {
   font-size: 0.92rem;
   font-weight: 600;
+}
+
+.home-skin-state {
+  font-size: 0.66rem;
+  color: var(--text-muted);
+  text-align: center;
+  word-break: break-word;
 }
 
 .home-skin .btn-secondary {
