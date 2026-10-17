@@ -141,9 +141,9 @@ public class Connect4Screen extends GameScreen {
     // ------------------------------------------------------------ KI (Alpha-Beta)
 
     private static int evaluate(int[][] b) {
-        // Mitte ist stark, Steine zaehlen, Winning-Line suchen
         int score = 0;
-        int[] centerWeight = {0, 0, 2, 4, 6, 4, 2};
+        int[] columnWeight = {0, 1, 2, 4, 7, 4, 2};
+        float[] stackFactor = {1.0f, 1.0f, 0.55f, 0.3f, 0.2f, 0.15f};
         for (int c = 0; c < COLS; c++) {
             int n = 0;
             for (int r = ROWS - 1; r >= 0; r--) {
@@ -153,11 +153,57 @@ public class Connect4Screen extends GameScreen {
                 n++;
             }
             for (int r = 0; r < n; r++) {
-                score += centerWeight[c];
+                int f = r < stackFactor.length ? Math.round(stackFactor[r] * 100) : 15;
+                int v = Math.round(columnWeight[c] * f / 100.0f);
+                score += b[r][c] == RED ? v : -v;
             }
         }
-        score += lines(b, RED) * 18 - lines(b, YELLOW) * 18;
+        score += lines(b, RED) * 80 - lines(b, YELLOW) * 80;
+        score += openThrees(b, RED) * 26 - openThrees(b, YELLOW) * 26;
+        if (winningColumn(b, RED) >= 0) {
+            score += 1200;
+        }
+        if (winningColumn(b, YELLOW) >= 0) {
+            score -= 1200;
+        }
         return score;
+    }
+
+    /** Dreierreihen, an die direkt ein Stein gelegt werden kann. */
+    private static int openThrees(int[][] b, int color) {
+        int n = 0;
+        int[][] dirs = {{1, 0}, {0, 1}, {1, 1}, {1, -1}};
+        for (int r = 0; r < ROWS; r++) {
+            for (int c = 0; c < COLS; c++) {
+                if (b[r][c] != color) {
+                    continue;
+                }
+                for (int[] d : dirs) {
+                    int ok = 1;
+                    for (int s = 1; s <= 2; s++) {
+                        int rr = r + d[1] * s;
+                        int cc = c + d[0] * s;
+                        if (rr < 0 || rr >= ROWS || cc < 0 || cc >= COLS || b[rr][cc] != color) {
+                            ok = 0;
+                            break;
+                        }
+                    }
+                    if (ok == 0) {
+                        continue;
+                    }
+                    int rr1 = r - d[1];
+                    int cc1 = c - d[0];
+                    int rr2 = r + d[1] * 2;
+                    int cc2 = c + d[0] * 2;
+                    if ((cc1 < 0 || cc1 >= COLS || b[Math.max(0, Math.min(ROWS - 1, rr1))][cc1] == EMPTY)
+                            && (cc2 < 0 || cc2 >= COLS
+                            || b[Math.max(0, Math.min(ROWS - 1, rr2))][cc2] == EMPTY)) {
+                        n++;
+                    }
+                }
+            }
+        }
+        return n;
     }
 
     private static int lines(int[][] b, int color) {
@@ -186,52 +232,55 @@ public class Connect4Screen extends GameScreen {
         return n;
     }
 
-    private static int minimax(int[][] b, int depth, int alpha, int beta, int color, int root) {
-        if (depth == 0) {
-            return evaluate(b) * (root == RED ? 1 : -1);
-        }
+    private static final java.util.Random TIE = new java.util.Random();
+
+    private static int negamax(int[][] b, int depth, int alpha, int beta, int color, int root) {
         int[] moves = legalMoves(b);
         if (moves.length == 0) {
             return 0;
         }
-        if (root == RED) {
-            int best = -9999;
-            for (int col : moves) {
-                int r = dropTo(b, col);
-                b[r][col] = color;
-                int v;
-                if (canWin(b, col, color, r)) {
-                    v = 10000;
-                } else {
-                    v = minimax(b, depth - 1, alpha, beta, YELLOW, root);
-                }
-                b[r][col] = EMPTY;
-                best = Math.max(best, v);
-                alpha = Math.max(alpha, best);
-                if (beta <= alpha) {
-                    break;
-                }
-            }
-            return best;
+        int win = 100000 - (10 - depth);
+        if (depth == 0) {
+            return evaluate(b) * (color == RED ? 1 : -1);
         }
-        int best = 9999;
+        int best = -999999;
+        int other = color == RED ? YELLOW : RED;
         for (int col : moves) {
             int r = dropTo(b, col);
             b[r][col] = color;
             int v;
             if (canWin(b, col, color, r)) {
-                v = -10000;
+                v = color == root ? win : -win;
             } else {
-                v = minimax(b, depth - 1, alpha, beta, RED, root);
+                v = -negamax(b, depth - 1, -beta, -alpha, other, root);
             }
             b[r][col] = EMPTY;
-            best = Math.min(best, v);
-            beta = Math.min(beta, best);
-            if (beta <= alpha) {
+            if (v > best) {
+                best = v;
+            }
+            if (v > alpha) {
+                alpha = v;
+            }
+            if (alpha >= beta) {
                 break;
             }
         }
         return best;
+    }
+
+    /** Gewinnt die Farbe mit einem einzelnen Wurf? */
+    private static int winningColumn(int[][] b, int color) {
+        int[] moves = legalMoves(b);
+        for (int col : moves) {
+            int r = dropTo(b, col);
+            b[r][col] = color;
+            boolean w = canWin(b, col, color, r);
+            b[r][col] = EMPTY;
+            if (w) {
+                return col;
+            }
+        }
+        return -1;
     }
 
     private void aiMove() {
@@ -239,29 +288,38 @@ public class Connect4Screen extends GameScreen {
         if (this.over || this.turn != ai) {
             return;
         }
+        int winCol = winningColumn(this.board, ai);
+        if (winCol >= 0) {
+            this.pendingCol = winCol;
+            this.thinking = true;
+            this.aiAt = System.currentTimeMillis() + 180L;
+            return;
+        }
+        int blockCol = winningColumn(this.board, myColor);
         int[] moves = legalMoves(this.board);
         if (moves.length == 0) {
             return;
         }
-        int best = moves[0];
+        int other = ai == RED ? YELLOW : RED;
+        int best = blockCol >= 0 ? blockCol : moves[0];
         int bestScore = -999999;
         for (int col : moves) {
             int r = dropTo(this.board, col);
             this.board[r][col] = ai;
-            int v;
-            if (canWin(this.board, col, ai, r)) {
-                v = 100000;
-            } else {
-                v = -minimax(this.board, 5, -100000, 100000, ai, ai);
-            }
+            int v = -negamax(this.board, 6, -999999, 999999, other, ai);
             this.board[r][col] = EMPTY;
             if (v > bestScore) {
                 bestScore = v;
                 best = col;
+            } else if (v == bestScore && TIE.nextInt(3) == 0) {
+                best = col;
             }
         }
+        if (blockCol >= 0) {
+            best = blockCol;
+        }
         this.thinking = true;
-        this.aiAt = System.currentTimeMillis() + 260L;
+        this.aiAt = System.currentTimeMillis() + 220L;
         this.pendingCol = best;
     }
 

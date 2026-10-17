@@ -11,17 +11,27 @@ public class MenschAergereDichNichtScreen extends GameScreen {
 
     public static final String ID = "madt";
 
-    private static final int MAIN = 48;
+    private static final int MAIN = 56;
     private static final int HOME_LEN = 6;
     private static final int PIECES = 4;
     private static final int IN_START = 90;
+    private static final int GRID = 15;
 
     private static final int ROT = 0;
     private static final int BLU = 1;
 
-    private final int[][] pos = new int[2][PIECES];
-    private final boolean[][] home = new boolean[2][PIECES];
+    private static final int[][] TRACK = {{0,6}, {0,7}, {0,8}, {1,8}, {2,8}, {3,8}, {4,8}, {5,8}, {6,8}, {6,9}, {6,10}, {6,11}, {6,12}, {6,13}, {6,14}, {7,14}, {8,14}, {8,13}, {8,12}, {8,11}, {8,10}, {8,9}, {8,8}, {9,8}, {10,8}, {11,8}, {12,8}, {13,8}, {14,8}, {14,7}, {14,6}, {13,6}, {12,6}, {11,6}, {10,6}, {9,6}, {8,6}, {8,5}, {8,4}, {8,3}, {8,2}, {8,1}, {8,0}, {7,0}, {6,0}, {6,1}, {6,2}, {6,3}, {6,4}, {6,5}, {6,6}, {5,6}, {4,6}, {3,6}, {2,6}, {1,6}};
+    private static final int[][][] HOME_CELLS = {{{1,7}, {2,7}, {3,7}, {4,7}, {5,7}, {6,7}}, {{7,13}, {7,12}, {7,11}, {7,10}, {7,9}, {7,8}}, {{13,7}, {12,7}, {11,7}, {10,7}, {9,7}, {8,7}}, {{7,1}, {7,2}, {7,3}, {7,4}, {7,5}, {7,6}}};
+    private static final int[][][] START_CELLS = {{{0,4}, {0,5}, {1,4}, {1,5}}, {{4,13}, {5,13}, {4,14}, {5,14}}, {{13,4}, {14,4}, {13,5}, {14,5}}, {{4,0}, {4,1}, {5,0}, {5,1}}};
+    private static final int[] START_FIELD = {1, 15, 29, 43};
+    private static final int[] HOME_ENTRY = {55, 17, 31, 45};
 
+    private static final int[] QUAD = {0, 2};
+
+    private final int[][] pos = new int[2][PIECES];
+    private final int[][] homeStep = new int[2][PIECES];
+
+    private final java.util.Random rnd = new java.util.Random();
     private int current = ROT;
     private int dice = 0;
     private int sixes = 0;
@@ -31,13 +41,11 @@ public class MenschAergereDichNichtScreen extends GameScreen {
     private int myColor = ROT;
     private boolean offerOpen = false;
     private int selected = -1;
-    private long rollAt = 0L;
-
-    private static final int[] START_FIELD = {0, MAIN / 2};
+    private long aiAt = 0L;
 
     public MenschAergereDichNichtScreen(Screen parent) {
         super(parent, "Mensch aergere dich nicht");
-        this.frame(430, 400);
+        this.frame(440, 470);
         GameNet.setSink(this::onNetMessage);
         newGame();
     }
@@ -46,7 +54,7 @@ public class MenschAergereDichNichtScreen extends GameScreen {
         for (int p = 0; p < 2; p++) {
             for (int i = 0; i < PIECES; i++) {
                 this.pos[p][i] = IN_START;
-                this.home[p][i] = false;
+                this.homeStep[p][i] = -1;
             }
         }
         this.current = ROT;
@@ -55,39 +63,36 @@ public class MenschAergereDichNichtScreen extends GameScreen {
         this.over = false;
         this.winner = -1;
         this.selected = -1;
+        this.aiAt = 0L;
         this.status = "";
         broadcast();
     }
 
-    private int startField(int p) {
-        return START_FIELD[p];
+    private int quadOf(int p) {
+        return QUAD[p];
     }
 
     private int homeEntry(int p) {
-        return (startField(p) + MAIN - 1) % MAIN;
+        return HOME_ENTRY[quadOf(p)];
+    }
+
+    private int startField(int p) {
+        return START_FIELD[quadOf(p)];
     }
 
     private boolean onTrack(int p, int i) {
-        return !this.home[p][i] && this.pos[p][i] < IN_START;
+        return this.homeStep[p][i] < 0 && this.pos[p][i] < IN_START;
     }
 
-    private boolean homeField(int p, int i) {
-        return this.home[p][i];
+    private boolean atHome(int p, int i) {
+        return this.homeStep[p][i] >= 0;
     }
 
-    private int stepsToHome(int p, int i) {
-        if (this.home[p][i]) {
-            return 0;
-        }
-        if (this.pos[p][i] >= IN_START) {
-            return HOME_LEN + 1 + ((homeEntry(p) - this.pos[p][i] + MAIN) % MAIN);
-        }
-        int e = homeEntry(p);
-        int d = (e - this.pos[p][i] + MAIN) % MAIN;
-        return d + 1;
+    private boolean inStart(int p, int i) {
+        return this.pos[p][i] == IN_START;
     }
 
-    private int pieceAt(int field, int p) {
+    private int pieceOnTrack(int field, int p) {
         for (int i = 0; i < PIECES; i++) {
             if (onTrack(p, i) && this.pos[p][i] == field) {
                 return i;
@@ -96,51 +101,139 @@ public class MenschAergereDichNichtScreen extends GameScreen {
         return -1;
     }
 
+    private int distanceToEntry(int p, int t) {
+        return (homeEntry(p) - t + MAIN) % MAIN;
+    }
+
     private boolean canMove(int p, int i, int d) {
-        if (this.home[p][i] || this.pos[p][i] >= IN_START) {
+        if (atHome(p, i)) {
             return false;
         }
-        int e = homeEntry(p);
-        int fwd = (e - this.pos[p][i] + MAIN) % MAIN;
+        if (inStart(p, i)) {
+            return d == 6;
+        }
+        int fwd = distanceToEntry(p, this.pos[p][i]);
         if (d <= fwd) {
             return true;
         }
-        int into = d - fwd - 1;
-        return into < HOME_LEN;
+        return d - fwd - 1 < HOME_LEN;
+    }
+
+    private int progress(int p, int i) {
+        if (atHome(p, i)) {
+            return MAIN + HOME_LEN + this.homeStep[p][i];
+        }
+        if (inStart(p, i)) {
+            return -1;
+        }
+        return (this.pos[p][i] - startField(p) + MAIN) % MAIN;
     }
 
     private void movePiece(int p, int i, int d) {
         if (!canMove(p, i, d)) {
             return;
         }
-        int e = homeEntry(p);
-        int fwd = (e - this.pos[p][i] + MAIN) % MAIN;
+        if (inStart(p, i)) {
+            this.pos[p][i] = startField(p);
+            return;
+        }
+        int fwd = distanceToEntry(p, this.pos[p][i]);
         if (d <= fwd) {
             int target = (this.pos[p][i] + d) % MAIN;
-            int foe = pieceAt(target, p == ROT ? BLU : ROT);
-            if (foe >= 0) {
-                this.pos[p == ROT ? BLU : ROT][foe] = IN_START;
+            int foe = p == ROT ? BLU : ROT;
+            int taken = pieceOnTrack(target, foe);
+            if (taken >= 0) {
+                this.pos[foe][taken] = IN_START;
+                this.homeStep[foe][taken] = -1;
                 this.status = "Kollege zurueck auf Start!";
             }
             this.pos[p][i] = target;
         } else {
-            this.home[p][i] = true;
-            this.pos[p][i] = HOME_LEN - 1 - (d - fwd - 1);
+            int step = d - fwd - 1;
+            this.homeStep[p][i] = step;
+            this.pos[p][i] = 0;
         }
         if (allHome(p)) {
             this.over = true;
             this.winner = p;
-            this.status = (p == myColor ? "Du gewinnst!" : "Der Kollege gewinnt");
+            this.status = p == this.myColor ? "Du gewinnst!" : "Der Kollege gewinnt";
         }
     }
 
     private boolean allHome(int p) {
         for (int i = 0; i < PIECES; i++) {
-            if (!this.home[p][i]) {
+            if (!atHome(p, i)) {
                 return false;
             }
         }
         return true;
+    }
+
+    private int bestMove(int p, int d) {
+        int foe = p == ROT ? BLU : ROT;
+        int best = -1;
+        int bestScore = Integer.MIN_VALUE;
+        int waiting = 0;
+        for (int i = 0; i < PIECES; i++) {
+            if (inStart(p, i)) {
+                waiting++;
+            }
+        }
+        for (int i = 0; i < PIECES; i++) {
+            if (!canMove(p, i, d)) {
+                continue;
+            }
+            int score;
+            if (inStart(p, i)) {
+                score = 60 + waiting * 8;
+            } else {
+                score = progress(p, i) + 20;
+                int fwd = distanceToEntry(p, this.pos[p][i]);
+                if (d > fwd) {
+                    score += 40 + (d - fwd - 1) * 30;
+                } else {
+                    int target = (this.pos[p][i] + d) % MAIN;
+                    if (pieceOnTrack(target, foe) >= 0) {
+                        score += 300;
+                    }
+                    int risk = 0;
+                    for (int j = 0; j < PIECES; j++) {
+                        if (!onTrack(foe, j)) {
+                            continue;
+                        }
+                        int dd = (this.pos[foe][j] - target + MAIN) % MAIN;
+                        if (dd >= 1 && dd <= 3) {
+                            risk += 45 - dd * 10;
+                        }
+                    }
+                    score -= risk;
+                }
+            }
+            score += this.rnd.nextInt(20);
+            if (score > bestScore) {
+                bestScore = score;
+                best = i;
+            }
+        }
+        return best;
+    }
+
+    private void humanTurn(int i) {
+        int p = this.current;
+        int d = 1 + this.rnd.nextInt(6);
+        this.dice = d;
+        int idx = canMove(p, i, d) ? i : bestMove(p, d);
+        if (idx < 0) {
+            this.status = d == 6 ? "Sechs, aber keine Figur passt" : "Passt nicht - Zug vorbei";
+            endTurn(d);
+            broadcast();
+            return;
+        }
+        movePiece(p, idx, d);
+        if (!this.over) {
+            endTurn(d);
+        }
+        broadcast();
     }
 
     private void endTurn(int d) {
@@ -153,21 +246,21 @@ public class MenschAergereDichNichtScreen extends GameScreen {
                 return;
             }
             if (this.sixes == 4) {
-                int worst = 0;
-                int worstSteps = Integer.MAX_VALUE;
+                int worst = -1;
+                int worstProgress = -1;
                 for (int i = 0; i < PIECES; i++) {
-                    if (this.home[this.current][i]) {
+                    if (atHome(p(), i)) {
                         continue;
                     }
-                    int s = stepsToHome(this.current, i);
-                    if (s < worstSteps) {
-                        worstSteps = s;
+                    int pr = progress(p(), i);
+                    if (pr > worstProgress) {
+                        worstProgress = pr;
                         worst = i;
                     }
                 }
-                if (worstSteps != Integer.MAX_VALUE && worstSteps < 1000) {
-                    this.pos[this.current][worst] = IN_START;
-                    this.home[this.current][worst] = false;
+                if (worst >= 0) {
+                    this.pos[p()][worst] = IN_START;
+                    this.homeStep[p()][worst] = -1;
                     this.status = "Vier Sechsen in Folge - Figur zurueck!";
                 }
                 this.sixes = 0;
@@ -181,76 +274,24 @@ public class MenschAergereDichNichtScreen extends GameScreen {
         nextTurn();
     }
 
+    private int p() {
+        return this.current;
+    }
+
     private void nextTurn() {
         this.current = this.current == ROT ? BLU : ROT;
         this.selected = -1;
-        if (this.mode != 0 && this.current != myColor) {
+        if (this.mode != 0 && this.current != this.myColor) {
             this.status = "Warte auf den Kollegen...";
-        } else if (this.status.isEmpty()) {
-            this.status = "Du bist am Zug";
-        }
-        broadcast();
-    }
-
-    private boolean anyMove(int p, int d) {
-        for (int i = 0; i < PIECES; i++) {
-            if (canMove(p, i, d)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private void rollAndMove(int p, int i) {
-        int d = 1 + this.rollSpin.nextInt(6);
-        this.dice = d;
-        if (!canMove(p, i, d)) {
-            this.status = "Passt nicht - Zug vorbei";
-            endTurn(d);
-            broadcast();
-            return;
-        }
-        movePiece(p, i, d);
-        if (!this.over) {
-            endTurn(d);
         }
         broadcast();
     }
 
     private void aiTurn() {
         int p = this.current;
-        int d = 1 + this.rollSpin.nextInt(6);
+        int d = 1 + this.rnd.nextInt(6);
         this.dice = d;
-        int best = -1;
-        int bestScore = Integer.MIN_VALUE;
-        for (int i = 0; i < PIECES; i++) {
-            if (!canMove(p, i, d)) {
-                continue;
-            }
-            int target = (this.pos[p][i] + d) % MAIN;
-            boolean homeNow = d > (homeEntry(p) - this.pos[p][i] + MAIN) % MAIN;
-            int score = homeNow ? 220 : (MAIN - (homeEntry(p) - target + MAIN) % MAIN);
-            int foe = pieceAt(target, p == ROT ? BLU : ROT);
-            if (foe >= 0) {
-                score += 400;
-            }
-            int risk = 0;
-            for (int j = 0; j < PIECES; j++) {
-                int q = p == ROT ? BLU : ROT;
-                if (onTrack(q, j)) {
-                    int dd = (this.pos[q][j] - target + MAIN) % MAIN;
-                    if (dd >= 1 && dd <= 3) {
-                        risk += 40 - dd * 8;
-                    }
-                }
-            }
-            score -= risk;
-            score += this.rollSpin.nextInt(25);
-            if (score > bestScore) {
-                bestScore = score;
-                best = i;
-            }
-        }
+        int best = bestMove(p, d);
         if (best < 0) {
             this.status = "Die KI kann nicht ziehen";
             endTurn(d);
@@ -264,23 +305,21 @@ public class MenschAergereDichNichtScreen extends GameScreen {
         broadcast();
     }
 
-    private final java.util.Random rollSpin = new java.util.Random();
-
     private String encode() {
-        StringBuilder sb = new StringBuilder(28);
+        StringBuilder sb = new StringBuilder(12);
         sb.append(this.current == ROT ? '0' : '1');
         sb.append(this.sixes);
         for (int p = 0; p < 2; p++) {
             for (int i = 0; i < PIECES; i++) {
-                int v = this.home[p][i] ? 80 + this.pos[p][i] : this.pos[p][i];
-                sb.append((char) ('A' + Math.min(v, 90)));
+                int v = atHome(p, i) ? 70 + this.homeStep[p][i] : this.pos[p][i];
+                sb.append((char) ('A' + v));
             }
         }
         return sb.toString();
     }
 
     private void decode(String s) {
-        if (s == null || s.length() != 11) {
+        if (s == null || s.length() != 10) {
             return;
         }
         this.current = s.charAt(0) == '0' ? ROT : BLU;
@@ -289,11 +328,11 @@ public class MenschAergereDichNichtScreen extends GameScreen {
         for (int p = 0; p < 2; p++) {
             for (int i = 0; i < PIECES; i++) {
                 int v = s.charAt(k++) - 'A';
-                if (v >= 80) {
-                    this.home[p][i] = true;
-                    this.pos[p][i] = v - 80;
+                if (v >= 70) {
+                    this.homeStep[p][i] = v - 70;
+                    this.pos[p][i] = 0;
                 } else {
-                    this.home[p][i] = false;
+                    this.homeStep[p][i] = -1;
                     this.pos[p][i] = v;
                 }
             }
@@ -335,19 +374,15 @@ public class MenschAergereDichNichtScreen extends GameScreen {
                 decode(o.get("b").getAsString());
                 this.over = false;
                 this.winner = -1;
-                checkHomeEnd();
+                if (allHome(ROT)) {
+                    this.over = true;
+                    this.winner = ROT;
+                } else if (allHome(BLU)) {
+                    this.over = true;
+                    this.winner = BLU;
+                }
             }
         } catch (Throwable ignored) {
-        }
-    }
-
-    private void checkHomeEnd() {
-        if (allHome(ROT)) {
-            this.over = true;
-            this.winner = ROT;
-        } else if (allHome(BLU)) {
-            this.over = true;
-            this.winner = BLU;
         }
     }
 
@@ -371,25 +406,58 @@ public class MenschAergereDichNichtScreen extends GameScreen {
         broadcast();
     }
 
-    private float trackRadius() {
-        return Math.min((this.pw - 80.0f), (this.ph - 120.0f)) / 2.0f;
-    }
-
-    private void fieldPos(int field, float[] out) {
-        float r = trackRadius();
-        float a = (float) (-Math.PI / 2.0 + (2.0 * Math.PI * field / MAIN));
-        float rx = r;
-        float ry = r * 0.62f;
-        out[0] = this.px + this.pw / 2.0f + rx * (float) Math.cos(a);
-        out[1] = this.py + 74.0f + r * 0.62f + ry * (float) Math.sin(a);
-    }
-
     private float cell() {
-        return Math.max(9.0f, Math.min(19.0f, trackRadius() * 0.16f));
+        float avail = Math.min(this.pw - 36.0f, this.ph - 130.0f);
+        return Math.max(12.0f, Math.min(30.0f, avail / GRID));
+    }
+
+    private float gridX() {
+        float c = cell();
+        return this.px + (this.pw - c * GRID) / 2.0f;
+    }
+
+    private float gridY() {
+        float c = cell();
+        return this.py + 46.0f;
+    }
+
+    private float cellX(int col) {
+        return gridX() + col * cell();
+    }
+
+    private float cellY(int row) {
+        return gridY() + row * cell();
     }
 
     private static int pieceColor(int p) {
         return p == ROT ? 0xFFF4534E : 0xFF4A9DFF;
+    }
+
+    private void drawCell(GuiGraphicsExtractor g, int row, int col, int base, boolean accent) {
+        float c = cell();
+        float x = cellX(col);
+        float y = cellY(row);
+        Glass.rr(g, x + 0.5f, y + 0.5f, c - 1.0f, c - 1.0f, Math.max(2.0f, c * 0.18f),
+                Glass.a(base, 0.88f));
+        if (accent) {
+            Glass.ring(g, x + 0.5f, y + 0.5f, c - 1.0f, c - 1.0f, Math.max(2.0f, c * 0.18f),
+                    0.8f, Glass.a(Palette.ACCENT, 0.45f));
+        }
+    }
+
+    private void drawPiece(GuiGraphicsExtractor g, int row, int col, int p, boolean sel) {
+        float c = cell();
+        float rad = c * (sel ? 0.40f : 0.33f);
+        float x = cellX(col) + c / 2.0f;
+        float y = cellY(row) + c / 2.0f;
+        Glass.shadowSoft(g, x - rad, y - rad + 1, rad * 2, rad * 2, rad, 2.0f, 1.0f, 0x55000000);
+        Glass.disc(g, x, y, rad, pieceColor(p));
+        Glass.disc(g, x - rad * 0.25f, y - rad * 0.25f, rad * 0.42f, Glass.a(0xFFFFFFFF, 0.24f));
+    }
+
+    private boolean myTurn() {
+        return !this.over && this.current == this.myColor
+                && (this.mode != 0 || this.current == ROT);
     }
 
     public boolean mouseClicked(MouseButtonEvent event, boolean bl) {
@@ -400,36 +468,18 @@ public class MenschAergereDichNichtScreen extends GameScreen {
             this.leave();
             return true;
         }
-        if (this.over) {
-            return super.mouseClicked(event, bl);
-        }
-        if (this.mode != 0 && this.current != this.myColor) {
-            return super.mouseClicked(event, bl);
-        }
-        if (this.mode == 0 && this.current == BLU) {
-            return super.mouseClicked(event, bl);
-        }
-        float c = cell();
-        float[] f = new float[2];
-        int p = this.current;
-        if (this.selected >= 0 && this.selected < PIECES && !this.home[p][this.selected]
-                && this.pos[p][this.selected] < IN_START) {
-            int idx = this.selected;
-            fieldPos(this.pos[p][idx], f);
-            if (hit(event.x(), event.y(), f[0] - c, f[1] - c, c * 2, c * 2)) {
-                rollAndMove(p, idx);
-                return true;
-            }
-        }
-        for (int i = 0; i < PIECES; i++) {
-            if (this.home[p][i] || this.pos[p][i] >= IN_START) {
-                continue;
-            }
-            fieldPos(this.pos[p][i], f);
-            if (hit(event.x(), event.y(), f[0] - c, f[1] - c, c * 2, c * 2)) {
-                this.selected = i;
-                this.status = "Wurf mit " + (this.dice > 0 ? this.dice : "?") + " oder neu würfeln";
-                return true;
+        if (myTurn()) {
+            float c = cell();
+            int col = (int) ((event.x() - gridX()) / c);
+            int row = (int) ((event.y() - gridY()) / c);
+            if (row >= 0 && row < GRID && col >= 0 && col < GRID
+                    && hit(event.x(), event.y(), cellX(col), cellY(row), c, c)) {
+                int idx = pick(event.x(), event.y(), row, col);
+                if (idx >= 0) {
+                    this.selected = idx;
+                    humanTurn(idx);
+                    return true;
+                }
             }
         }
         float bx = this.px + 16;
@@ -449,12 +499,44 @@ public class MenschAergereDichNichtScreen extends GameScreen {
         return super.mouseClicked(event, bl);
     }
 
+    private int pick(double mx, double my, int row, int col) {
+        int p = this.current;
+        int q = quadOf(p);
+        int sf = startField(p);
+        for (int i = 0; i < PIECES; i++) {
+            if (!onTrack(p, i)) {
+                continue;
+            }
+            int[] t = TRACK[this.pos[p][i]];
+            if (t[0] == row && t[1] == col) {
+                return i;
+            }
+        }
+        if (this.pos[p][0] >= IN_START) {
+            int[] t = TRACK[sf];
+            if (t[0] == row && t[1] == col) {
+                for (int i = 0; i < PIECES; i++) {
+                    if (inStart(p, i)) {
+                        return i;
+                    }
+                }
+            }
+        }
+        int[][] sc = START_CELLS[q];
+        for (int i = 0; i < PIECES; i++) {
+            if (inStart(p, i) && sc[i][0] == row && sc[i][1] == col) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
     public void extractRenderState(GuiGraphicsExtractor g, int mx, int my, float pt) {
         if (this.mode == 0 && this.current == BLU && !this.over) {
-            if (this.rollAt == 0L) {
-                this.rollAt = System.currentTimeMillis() + 550L;
-            } else if (System.currentTimeMillis() >= this.rollAt) {
-                this.rollAt = 0L;
+            if (this.aiAt == 0L) {
+                this.aiAt = System.currentTimeMillis() + 600L;
+            } else if (System.currentTimeMillis() >= this.aiAt) {
+                this.aiAt = 0L;
                 aiTurn();
             }
         }
@@ -464,88 +546,85 @@ public class MenschAergereDichNichtScreen extends GameScreen {
                 : (this.mode == 1 ? "Du bist Rot - Multiplayer" : "Du bist Blau - Multiplayer");
         drawChrome(g, "Mensch aergere dich nicht", sub);
 
-        float c = cell();
-        float[] f = new float[2];
+        int light = Glass.mix(0xFFEFE3CD, Palette.BG, 0.12f);
+        int dark = Glass.mix(0xFFD9C7A6, Palette.BG, 0.28f);
 
         for (int i = 0; i < MAIN; i++) {
-            fieldPos(i, f);
-            int occ = pieceAt(i, ROT);
-            int occB = pieceAt(i, BLU);
-            int base = Glass.mix(0xFFEDE0C8, Palette.BG, 0.12f);
-            if (i == startField(ROT) || i == startField(BLU)) {
-                base = Glass.mix(base, pieceColor(i == startField(ROT) ? ROT : BLU), 0.25f);
+            int[] t = TRACK[i];
+            boolean isStart = false;
+            for (int q = 0; q < 4; q++) {
+                if (START_FIELD[q] == i) {
+                    isStart = true;
+                }
             }
-            Glass.rr(g, f[0] - c * 0.42f, f[1] - c * 0.42f, c * 0.84f, c * 0.84f, 2.5f, Glass.a(base, 0.85f));
-            if (occ >= 0 || occB >= 0) {
-                boolean mine = occ >= 0;
-                int cc = pieceColor(mine ? ROT : BLU);
-                boolean sel = mine && this.selected == occ && this.current == ROT;
-                float rad = c * (sel ? 0.5f : 0.42f);
-                Glass.shadowSoft(g, f[0] - rad, f[1] - rad + 1, rad * 2, rad * 2, rad, 2.0f, 1.0f, 0x55000000);
-                Glass.disc(g, f[0], f[1], rad, cc);
-                Glass.disc(g, f[0] - rad * 0.25f, f[1] - rad * 0.25f, rad * 0.42f, Glass.a(0xFFFFFFFF, 0.25f));
+            boolean isEntry = false;
+            for (int q = 0; q < 4; q++) {
+                if (HOME_ENTRY[q] == i) {
+                    isEntry = true;
+                }
+            }
+            int base = isStart || isEntry ? Glass.mix(light, Palette.ACCENT, 0.18f) : light;
+            drawCell(g, t[0], t[1], base, false);
+        }
+
+        for (int q = 0; q < 4; q++) {
+            int p = ownerOfQuad(q);
+            int cc = p >= 0 ? pieceColor(p) : Palette.PANEL;
+            for (int s = 0; s < HOME_LEN; s++) {
+                int[] h = HOME_CELLS[q][s];
+                boolean done = false;
+                if (p >= 0) {
+                    for (int i = 0; i < PIECES; i++) {
+                        if (atHome(p, i) && this.homeStep[p][i] == s) {
+                            done = true;
+                        }
+                    }
+                }
+                drawCell(g, h[0], h[1], done ? Glass.mix(light, cc, 0.55f) : Glass.mix(light, cc, 0.16f), done);
+            }
+            int[][] sc = START_CELLS[q];
+            for (int i = 0; i < PIECES; i++) {
+                int[] s = sc[i];
+                boolean occupied = p >= 0;
+                if (p >= 0) {
+                    occupied = false;
+                    for (int k = 0; k < PIECES; k++) {
+                        if (inStart(p, k)) {
+                            occupied = true;
+                        }
+                    }
+                }
+                drawCell(g, s[0], s[1], Glass.mix(light, p >= 0 ? cc : Palette.PANEL, occupied ? 0.12f : 0.05f), false);
             }
         }
 
         for (int p = 0; p < 2; p++) {
-            int entry = homeEntry(p);
-            fieldPos(entry, f);
-            float ex = f[0];
-            float ey = f[1];
-            float cx = this.px + this.pw / 2.0f;
-            float cy = this.py + 74.0f + trackRadius() * 0.62f;
-            float dx = cx - ex;
-            float dy = cy - ey;
-            float len = (float) Math.sqrt(dx * dx + dy * dy);
-            dx /= len;
-            dy /= len;
-            for (int h = 0; h < HOME_LEN; h++) {
-                float hx = ex + dx * (c * 0.95f * (h + 1));
-                float hy = ey + dy * (c * 0.95f * (h + 1));
-                int done = 0;
-                for (int i = 0; i < PIECES; i++) {
-                    if (this.home[p][i] && this.pos[p][i] == h) {
-                        done = 1;
-                    }
-                }
-                Glass.rr(g, hx - c * 0.36f, hy - c * 0.36f, c * 0.72f, c * 0.72f, 2.5f,
-                        Glass.a(Glass.mix(0xFFEDE0C8, pieceColor(p), done > 0 ? 0.45f : 0.12f), 0.85f));
-            }
-            fieldPos(startField(p), f);
             for (int i = 0; i < PIECES; i++) {
-                float sx = f[0] - dx * (c * 0.95f * (i + 1));
-                float sy = f[1] - dy * (c * 0.95f * (i + 1));
-                boolean sel = this.current == p && this.selected == i && this.mode != 0;
-                float rad = c * (sel ? 0.44f : 0.36f);
-                if (this.pos[p][i] >= IN_START) {
-                    Glass.disc(g, sx, sy, rad, pieceColor(p));
-                    Glass.disc(g, sx - rad * 0.25f, sy - rad * 0.25f, rad * 0.4f, Glass.a(0xFFFFFFFF, 0.22f));
+                if (atHome(p, i)) {
+                    int[] h = HOME_CELLS[quadOf(p)][this.homeStep[p][i]];
+                    drawPiece(g, h[0], h[1], p, this.current == p && this.selected == i);
+                } else if (onTrack(p, i)) {
+                    int[] t = TRACK[this.pos[p][i]];
+                    drawPiece(g, t[0], t[1], p, this.current == p && this.selected == i);
                 } else {
-                    Glass.disc(g, sx, sy, rad, Glass.a(0xFF2A2A33, 0.75f));
-                    Glass.ring(g, sx - rad, sy - rad, rad * 2, rad * 2, rad, 0.8f,
-                            Glass.a(pieceColor(p), 0.5f));
+                    int[] s = START_CELLS[quadOf(p)][i];
+                    float c = cell();
+                    float rad = c * 0.22f;
+                    float x = cellX(s[1]) + c / 2.0f;
+                    float y = cellY(s[0]) + c / 2.0f;
+                    Glass.disc(g, x, y, rad, Glass.a(0xFF2A2A33, 0.7f));
+                    Glass.ring(g, x - rad, y - rad, rad * 2, rad * 2, rad, 0.7f, Glass.a(pieceColor(p), 0.5f));
                 }
             }
         }
 
-        float dw = 26.0f;
-        float dx0 = this.px + this.pw - 64.0f;
-        float dy0 = this.py + this.ph - 56.0f;
-        float t = this.dice > 0 ? this.dice : 1;
-        for (int i = 0; i < 6; i++) {
-            float fx = dx0 + (i % 3) * (dw + 5.0f);
-            float fy = dy0 + (i / 3) * (dw + 5.0f);
-            float on = (i + 1) <= t ? 1.0f : 0.25f;
-            Glass.rr(g, fx, fy, dw, dw, 5, Glass.a(0xFFFFFFFF, 0.10f + 0.12f * on));
-            Glass.ring(g, fx, fy, dw, dw, 5, 0.8f, Glass.a(Palette.ACCENT, 0.25f * on + 0.1f));
-        }
-        Glass.disc(g, this.px + this.pw - 30.0f, this.py + 44.0f, 8.0f, pieceColor(this.current));
+        Glass.disc(g, this.px + 24, this.py + this.ph - 58, 6.0f, pieceColor(this.current));
         Glass.textR(g, this.font, this.over
-                        ? (this.winner == myColor ? "Du gewinnst" : "Kollege gewinnt")
-                        : (this.mode == 0 || this.current == myColor ? "Du bist am Zug" : "Gegner ist am Zug"),
+                        ? (this.winner == this.myColor ? "Du gewinnst" : "Kollege gewinnt")
+                        : (myTurn() ? "Du bist am Zug" : "Gegner ist am Zug"),
                 this.px + this.pw - 18, this.py + this.ph - 24, Palette.MUTED, false);
         Glass.text(g, this.font, Glass.trunc(this.font,
-                        this.status.isEmpty() ? "Figur waehlen und wuerfeln" : this.status, this.pw - 150),
+                        this.status.isEmpty() ? "Eigene Figur anklicken zum Wuerfeln" : this.status, this.pw - 150),
                 this.px + 16, this.py + this.ph - 24, Palette.ACCENT, false);
 
         float bx = this.px + 16;
@@ -557,6 +636,15 @@ public class MenschAergereDichNichtScreen extends GameScreen {
         }
         this.drawClose(g);
         endFrame(g, mx, my, pt);
+    }
+
+    private int ownerOfQuad(int q) {
+        for (int p = 0; p < 2; p++) {
+            if (quadOf(p) == q) {
+                return p;
+            }
+        }
+        return -1;
     }
 
     @Override

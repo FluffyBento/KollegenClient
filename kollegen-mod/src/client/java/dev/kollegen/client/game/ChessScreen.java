@@ -767,7 +767,7 @@ public class ChessScreen extends GameScreen {
     }
 
     private boolean canMove() {
-        return !this.over && (this.mode == 0 || this.side == this.myColor);
+        return !this.over && this.side == this.myColor;
     }
 
     private void clickSquare(int s) {
