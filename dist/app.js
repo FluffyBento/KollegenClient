@@ -2776,41 +2776,62 @@ document.querySelectorAll(".settings-tab").forEach((tab) => {
 let pendingCanInstall = false;
 let pendingInstallFormat = "deb-rpm";
 const UPDATE_RELEASE_URL = "https://github.com/FluffyBento/KollegenClient/releases/latest";
+const UPDATE_FORMAT_LABEL = {
+  appimage: "AppImage",
+  nsis: "Windows Installer (.exe)",
+  msi: "Windows Installer (.msi)",
+  dmg: "macOS DMG",
+  "deb-rpm": "Paketmanager (.deb/.rpm)",
+  flatpak: "Flatpak",
+  unknown: "unbekanntes Format",
+};
+
 $("updateCheckBtn").onclick = async () => {
   const status = $("updateStatus");
   const installBtn = $("updateInstallBtn");
-  status.textContent = "Prüfe auf Updates…";
+  status.textContent = "Pruefe auf Updates\u2026";
   installBtn.style.display = "none";
   try {
     const update = await invoke("check_app_update");
-    if (update) {
-      pendingCanInstall = !!update.can_install;
-      pendingInstallFormat = update.format || "deb-rpm";
-      if (pendingCanInstall) {
-        status.textContent = "Update verfügbar: Version " + update.version + (update.notes ? "\n" + update.notes : "");
-        installBtn.textContent = "Update installieren";
-      } else if (pendingInstallFormat === "flatpak") {
-        status.textContent = "Update verfügbar: Version " + update.version + "\n\nDiese Installation ist ein Flatpak. Zum Aktualisieren bitte die neue Version herunterladen und installieren:\n\n   flatpak install --user ./dev.kollegen.Client.flatpak\n\n(falls ein Fehler 'bereits installiert' erscheint: zuerst 'flatpak uninstall dev.kollegen.client'.)" + (update.notes ? "\n\n" + update.notes : "");
-        installBtn.textContent = "Flatpak-Download öffnen";
-      } else {
-        status.textContent = "Update verfügbar: Version " + update.version + " – kann aus diesem Installationsformat (.deb/.rpm) nicht direkt installiert werden. Bitte manuell von GitHub laden." + (update.notes ? "\n" + update.notes : "");
-        installBtn.textContent = "Download auf GitHub öffnen";
-      }
-      installBtn.style.display = "";
-    } else {
+    if (!update) {
       status.textContent = "Du verwendest bereits die aktuellste Version.";
+      return;
     }
+    pendingCanInstall = !!update.can_install;
+    pendingInstallFormat = update.format || "deb-rpm";
+    const label = UPDATE_FORMAT_LABEL[pendingInstallFormat] || pendingInstallFormat;
+    const notes = update.notes ? "\n" + update.notes : "";
+    const head = "Update verfuegbar: Version " + update.version;
+    const info = "\n\nInstallation: " + label + notes;
+
+    if (pendingCanInstall) {
+      status.textContent = head + info + "\n\nKlicken zum Herunterladen und Installieren.";
+      installBtn.textContent = "Update installieren";
+      installBtn.style.display = "";
+      return;
+    }
+    if (pendingInstallFormat === "deb-rpm") {
+      status.textContent = head + info
+        + "\n\nHinweis: fuer Paketmanager-Installation wird die Datei geladen und die"
+        + " Rechteabfrage angezeigt. Ohne Rechte bitte manuell aktualisieren.";
+    } else {
+      status.textContent = head + info
+        + "\n\nDieses Format kann nicht direkt aktualisiert werden. GitHub oeffnen"
+        + " und die neue Version selbst installieren.";
+    }
+    installBtn.textContent = "GitHub oeffnen";
+    installBtn.style.display = "";
   } catch (e) {
-    status.textContent = "Update-Prüfung fehlgeschlagen: " + e;
+    status.textContent = "Update-Pruefung fehlgeschlagen: " + e;
   }
 };
+
 $("updateInstallBtn").onclick = async () => {
   const status = $("updateStatus");
   if (pendingCanInstall) {
-    status.textContent = "Update wird heruntergeladen und installiert…";
+    status.textContent = "Update wird heruntergeladen und installiert\u2026";
     try {
       await invoke("install_app_update");
-      // App restarts itself after install; this line is only reached on failure.
     } catch (e) {
       status.textContent = "Installation fehlgeschlagen: " + e;
     }

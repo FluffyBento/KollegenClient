@@ -296,23 +296,30 @@ jobs:
       - name: Set launcher version from tag
         run: bash scripts/set-version.sh "${{ github.ref_name }}"
 
-      - name: Build Windows installer (.exe)
-        run: tauri build --config tauri.conf.json --bundles nsis
+      - name: Build Windows installers (.exe + .msi)
+        run: tauri build --config tauri.conf.json --bundles nsis,msi
 
-      - name: Rename installer + signature
+      - name: Rename installers + signatures
         shell: pwsh
         run: |
-          $exe = Get-ChildItem target/release/bundle/nsis/*.exe | Select-Object -First 1
-          Copy-Item $exe.FullName "KollegenClient.exe"
-          $sig = Get-ChildItem target/release/bundle/nsis/*.exe.sig | Select-Object -First 1
+          $exe = Get-ChildItem target/release/bundle/nsis/*.exe -ErrorAction SilentlyContinue | Select-Object -First 1
+          if ($exe) { Copy-Item $exe.FullName "KollegenClient.exe" }
+          $sig = Get-ChildItem target/release/bundle/nsis/*.exe.sig -ErrorAction SilentlyContinue | Select-Object -First 1
           if ($sig) { Copy-Item $sig.FullName "KollegenClient.exe.sig" }
+          $msi = Get-ChildItem target/release/bundle/msi/*.msi -ErrorAction SilentlyContinue | Select-Object -First 1
+          if ($msi) { Copy-Item $msi.FullName "KollegenClient.msi" }
+          $msiZip = Get-ChildItem target/release/bundle/msi/*.msi.zip -ErrorAction SilentlyContinue | Select-Object -First 1
+          if ($msiZip) { Copy-Item $msiZip.FullName "KollegenClient.msi.zip" }
+          $msiSig = Get-ChildItem target/release/bundle/msi/*.msi.zip.sig -ErrorAction SilentlyContinue | Select-Object -First 1
+          if ($msiSig) { Copy-Item $msiSig.FullName "KollegenClient.msi.zip.sig" }
+          Get-ChildItem KollegenClient* | Select-Object Name, Length
 
       - name: Publish Windows artifacts to GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
-          for f in KollegenClient.exe KollegenClient.exe.sig; do
+          for f in KollegenClient.exe KollegenClient.exe.sig KollegenClient.msi KollegenClient.msi.zip KollegenClient.msi.zip.sig; do
             if [ -f "$f" ]; then
               for i in {1..3}; do
                 gh release upload "${{ github.ref_name }}" "$f" --clobber && break
@@ -430,14 +437,35 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           mkdir -p sigs
-          gh release download "${{ github.ref_name }}" \
-            --repo "${{ github.repository }}" \
-            --pattern "KollegenClient.AppImage.sig" \
-            --pattern "KollegenClient.exe.sig" \
-            --pattern "KollegenClient-aarch64.app.tar.gz.sig" \
-            --pattern "KollegenClient-x86_64.app.tar.gz.sig" \
-            --dir sigs || true
+          for sig in KollegenClient.AppImage.sig KollegenClient.exe.sig KollegenClient.msi.zip.sig \
+                     KollegenClient-aarch64.app.tar.gz.sig KollegenClient-x86_64.app.tar.gz.sig; do
+            for attempt in 1 2 3 4 5; do
+              if gh release download "${{ github.ref_name }}" --repo "${{ github.repository }}" \
+                   --pattern "$sig" --dir sigs --clobber; then
+                break
+              fi
+              echo "Signatur $sig fehlt (Versuch $attempt), warte 20s"
+              sleep 20
+            done
+          done
           ls -la sigs
+
+      - name: Verify required signatures
+        run: |
+          missing=0
+          for sig in KollegenClient.AppImage.sig KollegenClient.exe.sig \
+                     KollegenClient-aarch64.app.tar.gz.sig KollegenClient-x86_64.app.tar.gz.sig; do
+            if [ ! -s "sigs/$sig" ]; then
+              echo "FEHLT: $sig" >&2
+              missing=1
+            else
+              echo "ok: $sig"
+            fi
+          done
+          if [ "$missing" = "1" ]; then
+            echo "Updater-Manifest waere unbrauchbar - Release bitte erneut laufen lassen." >&2
+            exit 1
+          fi
 
       - name: Generate latest.json
         run: |
@@ -461,6 +489,7 @@ jobs:
           WIN_SIG=$(cat sigs/KollegenClient.exe.sig 2>/dev/null || echo "")
           MAC_SIG_A=$(cat sigs/KollegenClient-aarch64.app.tar.gz.sig 2>/dev/null || echo "")
           MAC_SIG_I=$(cat sigs/KollegenClient-x86_64.app.tar.gz.sig 2>/dev/null || echo "")
+          MSI_SIG=$(cat sigs/KollegenClient.msi.zip.sig 2>/dev/null || echo "")
           cat > latest.json <<EOF
           {
             "version": "${VERSION}",
@@ -480,9 +509,18 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          ok=0
           for i in {1..3}; do
-            gh release upload "${{ github.ref_name }}" latest.json --clobber && break
+            if gh release upload "${{ github.ref_name }}" latest.json --clobber \
+                 --repo "${{ github.repository }}"; then
+              ok=1
+              break
+            fi
             echo "Upload attempt $i failed for latest.json, retrying in 5s..."
             sleep 5
           done
+          if [ "$ok" != "1" ]; then
+            echo "latest.json konnte nicht hochgeladen werden - Auto-Update waere tot." >&2
+            exit 1
+          fi
           echo "Uploaded latest.json"

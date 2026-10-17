@@ -85,7 +85,8 @@
       "dmg",
       "deb",
       "rpm",
-      "nsis"
+      "nsis",
+      "msi"
     ],
     "icon": [
       "icons/32x32.png",
