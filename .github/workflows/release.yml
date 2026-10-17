@@ -151,11 +151,21 @@ jobs:
           distribution: 'temurin'
 
       - name: Download mod jars from release
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           rm -rf resources
           mkdir -p resources
-          gh release download "${{ github.ref_name }}" --repo "${{ github.repository }}" --pattern "kollegen-client-mod-1.21.11.jar" --dir resources --clobber
-          gh release download "${{ github.ref_name }}" --repo "${{ github.repository }}" --pattern "kollegen-client-mod-26.2.jar" --dir resources --clobber
+          for pattern in kollegen-client-mod-1.21.11.jar kollegen-client-mod-26.2.jar; do
+            for attempt in 1 2 3 4 5; do
+              if gh release download "${{ github.ref_name }}" --repo "${{ github.repository }}" --pattern "$pattern" --dir resources --clobber; then
+                break
+              fi
+              echo "Download von $pattern fehlgeschlagen (Versuch $attempt), warte 30s"
+              sleep 30
+            done
+            test -f "resources/$pattern" || { echo "$pattern fehlt weiterhin" >&2; exit 1; }
+          done
           ls -la resources/
 
       - name: Set launcher version from tag
@@ -266,11 +276,21 @@ jobs:
 
       - name: Download mod jars from release
         shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           rm -rf resources
           mkdir -p resources
-          gh release download "${{ github.ref_name }}" --repo "${{ github.repository }}" --pattern "kollegen-client-mod-1.21.11.jar" --dir resources --clobber
-          gh release download "${{ github.ref_name }}" --repo "${{ github.repository }}" --pattern "kollegen-client-mod-26.2.jar" --dir resources --clobber
+          for pattern in kollegen-client-mod-1.21.11.jar kollegen-client-mod-26.2.jar; do
+            for attempt in 1 2 3 4 5; do
+              if gh release download "${{ github.ref_name }}" --repo "${{ github.repository }}" --pattern "$pattern" --dir resources --clobber; then
+                break
+              fi
+              echo "Download von $pattern fehlgeschlagen (Versuch $attempt), warte 30s"
+              sleep 30
+            done
+            test -f "resources/$pattern" || { echo "$pattern fehlt weiterhin" >&2; exit 1; }
+          done
           ls -la resources/
 
       - name: Set launcher version from tag
@@ -341,11 +361,21 @@ jobs:
           distribution: 'temurin'
 
       - name: Download mod jars from release
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           rm -rf resources
           mkdir -p resources
-          gh release download "${{ github.ref_name }}" --repo "${{ github.repository }}" --pattern "kollegen-client-mod-1.21.11.jar" --dir resources --clobber
-          gh release download "${{ github.ref_name }}" --repo "${{ github.repository }}" --pattern "kollegen-client-mod-26.2.jar" --dir resources --clobber
+          for pattern in kollegen-client-mod-1.21.11.jar kollegen-client-mod-26.2.jar; do
+            for attempt in 1 2 3 4 5; do
+              if gh release download "${{ github.ref_name }}" --repo "${{ github.repository }}" --pattern "$pattern" --dir resources --clobber; then
+                break
+              fi
+              echo "Download von $pattern fehlgeschlagen (Versuch $attempt), warte 30s"
+              sleep 30
+            done
+            test -f "resources/$pattern" || { echo "$pattern fehlt weiterhin" >&2; exit 1; }
+          done
           ls -la resources/
 
       - name: Set launcher version from tag

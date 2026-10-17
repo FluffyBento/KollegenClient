@@ -7,6 +7,15 @@ if [ -z "$V" ]; then
   exit 1
 fi
 
+if ! [[ "$V" =~ ^[0-9]+(\.[0-9]+){0,2}([-+].*)?$ ]]; then
+  echo "ungueltige Version: $V" >&2
+  exit 1
+fi
+
+while [ "$(echo "$V" | tr -cd '.' | wc -c)" -lt 2 ]; do
+  V="${V}.0"
+done
+
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 set_inplace() {
