@@ -137,6 +137,10 @@ public class KollegenMenuScreen extends Screen {
     private volatile boolean storeLoading;
     private volatile String storeMsg = "";
     private volatile boolean pendingRebuild;
+    // Ausfallsicherung: Cache anzeigen, Fehlertext, Retry-Backoff
+    private boolean storeFromCache = false;
+    private volatile long storeFailUntil = 0L;
+    private volatile int storeFailCount = 0;
 
     public KollegenMenuScreen(Screen parent) {
         super((Component) Component.literal("Kollegen Client"));
@@ -320,15 +324,39 @@ public class KollegenMenuScreen extends Screen {
         if (this.storeLoading) {
             return;
         }
+        // Backoff nach Fehlschlag: nicht alle 20s erneut versuchen (Server evtl.
+        // länger offline). Nach Erfolg wieder normales Intervall.
+        if (this.storeFailUntil > now) {
+            return;
+        }
+        if (this.storeCache == null) {
+            // Letzte bekannte Daten von Platte laden, damit bei Backend-Ausfall
+            // die Cosmetics trotzdem sichtbar bleiben.
+            JsonObject cached = StoreClient.cachedCatalog();
+            if (cached != null) {
+                this.storeCache = cached;
+                this.storeFromCache = true;
+            }
+        }
         this.storeLoading = true;
         Thread t = new Thread(() -> {
+            boolean ok = false;
             try {
                 JsonObject data = StoreClient.catalog();
                 if (data != null) {
                     this.storeCache = data;
                     this.storeAt = System.currentTimeMillis();
+                    this.storeFromCache = false;
+                    this.storeFailUntil = 0L;
+                    ok = true;
                 }
             } catch (Throwable ignored) {
+            }
+            if (!ok) {
+                this.storeMsg = StoreClient.lastError() == null ? "Store nicht erreichbar" : StoreClient.lastError();
+                // 30s / 60s / 120s (max. 5 min) ausgesetztes Wiederholen
+                this.storeFailCount = Math.min(this.storeFailCount + 1, 5);
+                this.storeFailUntil = now + (30L << (this.storeFailCount - 1));
             }
             this.storeLoading = false;
             this.pendingRebuild = true;
@@ -641,19 +669,26 @@ public class KollegenMenuScreen extends Screen {
 
     private void layoutStore(Category cat, String q) {
         this.ensureStore();
+        boolean failed = this.storeMsg != null && !this.storeMsg.isEmpty();
         String info;
-        if (this.storeMsg != null && !this.storeMsg.isEmpty()) {
-            info = this.storeMsg;
+        if (failed) {
+            // Bei Ausfall: Grund nennen und kennzeichnen, dass evtl. alte Daten shown.
+            info = this.storeFromCache
+                    ? this.storeMsg + " - zeige letzte bekannte Daten"
+                    : this.storeMsg;
         } else if (this.storeCache == null) {
             info = this.storeLoading ? "Lade Store ..." : "Store nicht erreichbar. Im Launcher anmelden, dann Tab wechseln.";
         } else {
             int pts = num(this.storeCache, "points", -1);
             info = pts >= 0 ? "Guthaben: " + pts + " Punkte" + (StoreClient.token() == null ? " (nur Katalog, Login im Launcher zum Kaufen)" : "") : "Katalog";
+            if (this.storeFromCache) {
+                info = "Offline-Daten - " + info;
+            }
         }
         Cell i = this.addFull(K_INFO, 22.0f);
         i.text = info;
         i.data = new JsonObject();
-        i.data.addProperty("points", num(this.storeCache, "points", -1));
+        i.data.addProperty("points", failed ? -1 : num(this.storeCache, "points", -1));
         JsonArray items = null;
         try {
             if (this.storeCache != null && this.storeCache.has("catalog") && this.storeCache.get("catalog").isJsonArray()) {

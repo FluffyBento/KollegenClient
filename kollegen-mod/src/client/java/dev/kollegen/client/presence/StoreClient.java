@@ -13,6 +13,7 @@ import java.nio.file.Path;
 import java.time.Duration;
 
 public final class StoreClient {
+    public static volatile String lastError = null;
     private static final HttpClient HTTP = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(5))
             .build();
@@ -43,6 +44,37 @@ public final class StoreClient {
         return "https://kollegen.me";
     }
 
+    private static Path cacheFile() {
+        return FabricLoader.getInstance().getConfigDir().resolve("kollegen-store-cache.json");
+    }
+
+    /**
+     * Letzter erfolgreich geladener Katalog. Bei Backend-Ausfall (Netzwerk,
+     * Server down, Timeout) zeigt das Menü weiterhin die letzten bekannten
+     * Cosmetics, statt komplett leer zu wirken.
+     */
+    public static JsonObject cachedCatalog() {
+        try {
+            Path p = cacheFile();
+            if (!Files.exists(p)) return null;
+            String s = Files.readString(p).trim();
+            if (s.isEmpty()) return null;
+            JsonObject o = JsonParser.parseString(s).getAsJsonObject();
+            return o.has("catalog") && o.get("catalog").isJsonArray() ? o : null;
+        } catch (Throwable ignored) {
+            return null;
+        }
+    }
+
+    private static void saveCatalogCache(JsonObject o) {
+        try {
+            Path p = cacheFile();
+            Files.createDirectories(p.getParent());
+            Files.writeString(p, o.toString());
+        } catch (Throwable ignored) {
+        }
+    }
+
     public static JsonObject catalog() {
         String base = base();
         boolean hasTok = false;
@@ -54,17 +86,30 @@ public final class StoreClient {
             if (tok != null) b.header("Authorization", "Bearer " + tok);
             HttpResponse<String> res = HTTP.send(b.build(), HttpResponse.BodyHandlers.ofString());
             if (res.statusCode() != 200 || res.body() == null) {
-                System.out.println("[Kollegen-Store] Katalog-Fehler: HTTP " + res.statusCode() + " (" + base + ", token=" + (hasTok ? "ja" : "nein") + ")");
+                lastError = "Server antwortet mit HTTP " + res.statusCode();
+                System.out.println("[Kollegen-Store] Katalog-Fehler: " + lastError + " (" + base + ", token=" + (hasTok ? "ja" : "nein") + ")");
                 return null;
             }
             JsonObject o = JsonParser.parseString(res.body()).getAsJsonObject();
             int n = o.has("catalog") && o.get("catalog").isJsonArray() ? o.getAsJsonArray("catalog").size() : -1;
+            lastError = null;
             System.out.println("[Kollegen-Store] Katalog ok: items=" + n + " points=" + (o.has("points") ? String.valueOf(o.get("points")) : "-") + " (" + base + ", token=" + (hasTok ? "ja" : "nein") + ")");
+            saveCatalogCache(o);
             return o;
+        } catch (java.net.http.HttpConnectTimeoutException e) {
+            lastError = "Server nicht erreichbar (Zeitüberschreitung)";
+            System.out.println("[Kollegen-Store] Katalog-Exception: " + e + " (" + base + ", token=" + (hasTok ? "ja" : "nein") + ")");
+            return null;
         } catch (Throwable e) {
+            lastError = "Server nicht erreichbar";
             System.out.println("[Kollegen-Store] Katalog-Exception: " + e + " (" + base + ", token=" + (hasTok ? "ja" : "nein") + ")");
             return null;
         }
+    }
+
+    /** Kurztext zum letzten Katalog-Fehler (null = Erfolg). */
+    public static String lastError() {
+        return lastError;
     }
 
     public static JsonObject buy(String itemId) {
