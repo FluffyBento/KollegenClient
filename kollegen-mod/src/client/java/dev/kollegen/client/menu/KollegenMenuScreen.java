@@ -50,11 +50,12 @@ public class KollegenMenuScreen extends Screen {
     private static final int K_SETTING = 10;
     private static final int K_TEXT = 11;
     private static final int K_GAME = 12;
+    private static final int K_WARN = 13;
     private static final int GAP = 6;
     private static final int PET_ACTIVE_H = 92;
 
     private static final Map<String, String> SLOT_LABELS = new HashMap<String, String>();
-    private static final String[] SLOT_ORDER = new String[]{"cape", "shield", "back_accessory", "head_accessory", "face_accessory", "aura", "shoulder_accessory", "torso_accessory", "legs_accessory", "gloves", "name_color", "badge", "sticker", "font", "title"};
+    private static final String[] SLOT_ORDER = new String[]{"cape", "shield", "back_accessory", "head_accessory", "face_accessory", "aura", "shoulder_accessory", "torso_accessory", "legs_accessory", "gloves", "banner", "avatar_frame", "avatar_theme", "profile_frame", "profile_bg", "profil_stil", "name_color", "badge", "sticker", "font", "title"};
     private static final String[] PET_COLORS = new String[]{"#ffffff", "#ffd700", "#ff5f56", "#39d7ff", "#c77dff", "#7ee787", "#ff6b9d"};
 
     static {
@@ -68,6 +69,12 @@ public class KollegenMenuScreen extends Screen {
         SLOT_LABELS.put("torso_accessory", "Oberkörper");
         SLOT_LABELS.put("legs_accessory", "Unterkörper");
         SLOT_LABELS.put("gloves", "Handschuhe");
+        SLOT_LABELS.put("banner", "Banner");
+        SLOT_LABELS.put("avatar_frame", "Avatar-Rahmen");
+        SLOT_LABELS.put("avatar_theme", "Avatar-Design");
+        SLOT_LABELS.put("profile_frame", "Profil-Rahmen");
+        SLOT_LABELS.put("profile_bg", "Profil-Hintergrund");
+        SLOT_LABELS.put("profil_stil", "Profil-Stil");
         SLOT_LABELS.put("name_color", "Namensfarbe");
         SLOT_LABELS.put("badge", "Abzeichen");
         SLOT_LABELS.put("sticker", "Aufkleber");
@@ -538,7 +545,10 @@ public class KollegenMenuScreen extends Screen {
                 return true;
             }
         }
-        return false;
+        // Sicherheitsnetz: Kategorien, die der Server neu hinzugefügt hat und die
+        // noch nicht in SLOT_ORDER stehen, dürfen NICHT stillschweigend aus dem
+        // Cosmetics-Tab verschwinden. Nur Pet-Zubehör (eigener Tab) aussortieren.
+        return c != null && !c.isEmpty() && !c.startsWith("pet");
     }
 
     private static boolean matchQuery(JsonObject it, String q) {
@@ -689,6 +699,13 @@ public class KollegenMenuScreen extends Screen {
         i.text = info;
         i.data = new JsonObject();
         i.data.addProperty("points", failed ? -1 : num(this.storeCache, "points", -1));
+        if (failed) {
+            // Deutlich sichtbarer Hinweis statt eines scheinbar leeren Tabs.
+            Cell w = this.addFull(K_WARN, 34.0f);
+            w.text = (this.storeMsg == null ? "Store nicht erreichbar" : this.storeMsg)
+                    + (this.storeFromCache ? " - zeige letzte bekannte Daten" : "")
+                    + ". Automatischer Versuch folgt.";
+        }
         JsonArray items = null;
         try {
             if (this.storeCache != null && this.storeCache.has("catalog") && this.storeCache.get("catalog").isJsonArray()) {
@@ -1317,6 +1334,9 @@ public class KollegenMenuScreen extends Screen {
                 case K_GAME:
                     this.drawGameCard(g, c, X, Y, hov);
                     break;
+                case K_WARN:
+                    this.drawWarn(g, c, X, Y);
+                    break;
                 default:
                     break;
             }
@@ -1442,6 +1462,13 @@ public class KollegenMenuScreen extends Screen {
                 Glass.badge(g, Math.round(X + 14), Math.round(by), 36, 15, 7, Palette.GREEN, 0xFFFFFFFF, this.font, "Aktiv");
             }
         }
+    }
+
+    private void drawWarn(GuiGraphicsExtractor g, Cell c, float X, float Y) {
+        Glass.rr(g, X, Y, c.w, c.h, 8, Glass.a(Palette.DANGER, 0.16f));
+        Glass.ring(g, X, Y, c.w, c.h, 8, 0.5f, Glass.a(Palette.DANGER, 0.55f));
+        Icons.draw(g, Icons.WARN, X + 8, Y + (c.h - 14) / 2.0f, 14, Palette.DANGER);
+        Glass.text(g, this.font, Glass.trunc(this.font, c.text, (int) (c.w - 40)), Math.round(X + 28), Math.round(Y + (c.h - 3 - 8) / 2.0f), Palette.TEXT, false);
     }
 
     private void drawGameCard(GuiGraphicsExtractor g, Cell c, float X, float Y, boolean hov) {
