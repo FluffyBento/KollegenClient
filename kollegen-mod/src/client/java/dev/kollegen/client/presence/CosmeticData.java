@@ -38,6 +38,8 @@ public final class CosmeticData {
     public final String legsAccessoryModel;
     public final String glovesTexture;
     public final String glovesModel;
+    public final String maceTexture;
+    public final String maceModel;
 
     public CosmeticData(int level, String titleText, String titleColor, String nameColor, String badgeIcon,
                         String badgeColor, String stickerIcon, String stickerColor, String font,
@@ -46,7 +48,8 @@ public final class CosmeticData {
                         String headAccessoryTexture, String headAccessoryModel, String shieldTexture, String shieldModel,
                         String faceAccessoryTexture, String faceAccessoryModel, String auraTexture, String auraModel,
                         String shoulderAccessoryTexture, String shoulderAccessoryModel, String torsoAccessoryTexture, String torsoAccessoryModel,
-                        String legsAccessoryTexture, String legsAccessoryModel, String glovesTexture, String glovesModel) {
+                        String legsAccessoryTexture, String legsAccessoryModel, String glovesTexture, String glovesModel,
+                        String maceTexture, String maceModel) {
         this.level = level;
         this.titleText = titleText;
         this.titleColor = titleColor;
@@ -82,6 +85,8 @@ public final class CosmeticData {
         this.legsAccessoryModel = legsAccessoryModel;
         this.glovesTexture = glovesTexture;
         this.glovesModel = glovesModel;
+        this.maceTexture = maceTexture;
+        this.maceModel = maceModel;
     }
 
     public boolean isEmpty() {
@@ -100,7 +105,7 @@ public final class CosmeticData {
                 ? safeInt(root.get("level").getAsInt()) : 0;
         JsonObject c = root.has("cosmetics") && root.get("cosmetics").isJsonObject()
                 ? root.getAsJsonObject("cosmetics") : null;
-        if (c == null) return level > 0 ? new CosmeticData(level, null, null, null, null, null, null, null, null, null, 0.2, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null) : null;
+        if (c == null) return level > 0 ? new CosmeticData(level, null, null, null, null, null, null, null, null, null, 0.2, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null) : null;
         String titleText = textOf(c, "title", "text");
         String titleColor = textOf(c, "title", "color");
         String nameColor = strOf(c, "nameColor");
@@ -129,6 +134,8 @@ public final class CosmeticData {
         String legsAccessoryModel = modelOf(c, "legs_accessory", legsAccessoryTexture);
         String glovesTexture = textureOf(c, "gloves");
         String glovesModel = modelOf(c, "gloves", glovesTexture);
+        String maceTexture = textureOf(c, "mace");
+        String maceModel = modelOf(c, "mace", maceTexture);
         String petKind = null;
         double petScale = 0.2;
         String petMode = null;
@@ -153,7 +160,7 @@ public final class CosmeticData {
             } catch (Throwable ignored) {
             }
         }
-        CosmeticData d = new CosmeticData(level, titleText, titleColor, nameColor, badgeIcon, badgeColor, stickerIcon, stickerColor, font, petKind, petScale, petMode, petName, petNameColor, petVariant, capeTexture, capeModel, backAccessoryTexture, backAccessoryModel, headAccessoryTexture, headAccessoryModel, shieldTexture, shieldModel, faceAccessoryTexture, faceAccessoryModel, auraTexture, auraModel, shoulderAccessoryTexture, shoulderAccessoryModel, torsoAccessoryTexture, torsoAccessoryModel, legsAccessoryTexture, legsAccessoryModel, glovesTexture, glovesModel);
+        CosmeticData d = new CosmeticData(level, titleText, titleColor, nameColor, badgeIcon, badgeColor, stickerIcon, stickerColor, font, petKind, petScale, petMode, petName, petNameColor, petVariant, capeTexture, capeModel, backAccessoryTexture, backAccessoryModel, headAccessoryTexture, headAccessoryModel, shieldTexture, shieldModel, faceAccessoryTexture, faceAccessoryModel, auraTexture, auraModel, shoulderAccessoryTexture, shoulderAccessoryModel, torsoAccessoryTexture, torsoAccessoryModel, legsAccessoryTexture, legsAccessoryModel, glovesTexture, glovesModel, maceTexture, maceModel);
         if (d.isEmpty() && petKind == null) return null;
         return d;
     }

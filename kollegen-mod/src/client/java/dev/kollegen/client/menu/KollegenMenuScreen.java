@@ -55,7 +55,7 @@ public class KollegenMenuScreen extends Screen {
     private static final int PET_ACTIVE_H = 92;
 
     private static final Map<String, String> SLOT_LABELS = new HashMap<String, String>();
-    private static final String[] SLOT_ORDER = new String[]{"cape", "shield", "back_accessory", "head_accessory", "face_accessory", "aura", "shoulder_accessory", "torso_accessory", "legs_accessory", "gloves", "banner", "avatar_frame", "avatar_theme", "profile_frame", "profile_bg", "profil_stil", "name_color", "badge", "sticker", "font", "title"};
+    private static final String[] SLOT_ORDER = new String[]{"cape", "shield", "mace", "back_accessory", "head_accessory", "face_accessory", "aura", "shoulder_accessory", "torso_accessory", "legs_accessory", "gloves", "banner", "avatar_frame", "avatar_theme", "profile_frame", "profile_bg", "profil_stil", "name_color", "badge", "sticker", "font", "title"};
     private static final String[] PET_COLORS = new String[]{"#ffffff", "#ffd700", "#ff5f56", "#39d7ff", "#c77dff", "#7ee787", "#ff6b9d"};
 
     static {
@@ -68,6 +68,7 @@ public class KollegenMenuScreen extends Screen {
         SLOT_LABELS.put("shoulder_accessory", "Schulter");
         SLOT_LABELS.put("torso_accessory", "Oberkörper");
         SLOT_LABELS.put("legs_accessory", "Unterkörper");
+        SLOT_LABELS.put("mace", "Kriegshammer");
         SLOT_LABELS.put("gloves", "Handschuhe");
         SLOT_LABELS.put("banner", "Banner");
         SLOT_LABELS.put("avatar_frame", "Avatar-Rahmen");
