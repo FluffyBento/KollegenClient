@@ -571,7 +571,19 @@ pub fn kollegen_dm_send(data_dir: &PathBuf, to_id: &str, text: &str) -> serde_js
 
 
 pub fn kollegen_store(data_dir: &PathBuf) -> serde_json::Value {
-    get_authed(data_dir, "/api/store", &[])
+    let out = get_authed(data_dir, "/api/store", &[]);
+    let owned = out
+        .get("catalog")
+        .and_then(|c| c.as_array())
+        .map(|a| a.iter().filter(|i| i.get("owned").and_then(|o| o.as_bool()) == Some(true)).count())
+        .unwrap_or(0);
+    let total = out.get("catalog").and_then(|c| c.as_array()).map(|a| a.len()).unwrap_or(0);
+    if out.get("error").is_some() {
+        log::info!("KOLLEGEN_DIAG store fehler {:?}", out.get("error"));
+    } else {
+        log::info!("KOLLEGEN_DIAG store ok total={} owned={}", total, owned);
+    }
+    out
 }
 
 

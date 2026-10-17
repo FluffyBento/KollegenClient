@@ -1890,6 +1890,11 @@ fn cape_equip(state: State<'_, AppState>, cape_id: String) -> Value {
 }
 
 #[tauri::command]
+fn kollegen_mod_asset(state: State<'_, AppState>, file: String) -> Value {
+    crate::skins::read_mod_asset(&state.data_dir, &file)
+}
+
+#[tauri::command]
 async fn check_app_update(app: tauri::AppHandle) -> Result<Option<Value>, String> {
     match crate::app_updates::check_info(&app).await {
         Ok(Some((version, notes))) => Ok(Some(serde_json::json!({
@@ -2413,6 +2418,7 @@ fn main() {
             check_app_update,
             install_app_update,
             kollegen_me,
+            kollegen_mod_asset,
             kollegen_friends,
             kollegen_friend_add,
             kollegen_friend_remove,

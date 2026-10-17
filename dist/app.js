@@ -1,4 +1,5 @@
 const invoke = window.__TAURI__.core.invoke;
+window.__kginvoke = (cmd, args) => invoke(cmd, args);
 
 const $ = (id) => document.getElementById(id);
 
@@ -1353,12 +1354,13 @@ async function refreshLogs() {
     if (el) el.textContent = text || "";
   }
 
-  function httpsify(url) {
+  window.httpsify = function (url) {
     if (typeof url !== "string" || !url) return url;
     // Die Mojang-API liefert http:// - die CSP des Launchers laesst nur https
     // fuer Bilder und Verbindungen zu, sonst bleiben Skin und Cape unsichtbar.
     return url.startsWith("http://") ? "https://" + url.slice(7) : url;
-  }
+  };
+  const httpsify = window.httpsify;
 
   function showSkinFallback(wrap, canvas, url) {
     let fb = wrap.querySelector(".skin-fallback");
@@ -1410,6 +1412,21 @@ async function refreshLogs() {
     if (!force && key === homeSkinKey && (homeSkinViewer || homeSkinFailed)) return;
     homeSkinKey = key;
     homeSkinFailed = false;
+    if (window.kollegen3dRenderEquipped) {
+      try {
+        const meRes = await invoke("kollegen_me");
+        const meObj = meRes && !meRes.error ? meRes : null;
+        if (meObj) {
+          let cat = window.__cosmStore;
+          if (!cat || !cat.length) {
+            const st = await invoke("kollegen_store");
+            cat = (st && st.catalog) || [];
+            window.__cosmStore = cat;
+          }
+          window.kollegen3dRenderEquipped($("homeModels"), meObj.equipped || {}, cat);
+        }
+      } catch (e) {}
+    }
     const sv3d = window.skinview3d;
     let webglInfo = "kein WebGL";
     let webglOk = false;
@@ -1427,7 +1444,7 @@ async function refreshLogs() {
     if (!(sv3d && sv3d.SkinViewer && sv3d.IdleAnimation && webglOk)) {
       showSkinFallback(wrap, canvas, url);
       homeSkinFailed = true;
-      setSkinState(`2D-Ersatz · ${webglInfo}`);
+      setSkinState("");
       return;
     }
     try {
@@ -1458,7 +1475,7 @@ async function refreshLogs() {
         try {
           lost = homeSkinViewer.renderer.getContext().isContextLost();
         } catch (_) {}
-        setSkinState(lost ? `3D · Kontext verloren · ${webglInfo}` : `3D · ${webglInfo}`);
+        setSkinState(lost ? "3D-Kontext verloren" : "");
       };
       if (p && typeof p.then === "function") p.then(ready).catch(() => {
         homeSkinFailed = true;
@@ -1469,7 +1486,7 @@ async function refreshLogs() {
       disposeHomeSkinViewer();
       homeSkinFailed = true;
       showSkinFallback(wrap, canvas, url);
-      setSkinState(`2D-Ersatz · ${webglInfo}`);
+      setSkinState("");
     }
   }
 
@@ -4881,7 +4898,11 @@ startBackgroundIntervals();
       }
       return;
     }
-    try { window.__cosmCache = { t: Date.now(), me: me, store: store }; } catch (e) {}
+    try {
+      window.__cosmCache = { t: Date.now(), me: me, store: store };
+      window.__cosmStore = store.catalog || [];
+      window.__cosmMe = me;
+    } catch (e) {}
     renderCosmeticsFrom(me, store);
     return;
     function renderCosmeticsFrom(me, store) {
@@ -4965,6 +4986,39 @@ startBackgroundIntervals();
         }
         g.append(chips);
         box.appendChild(g);
+      }
+    }
+    const eqBox = $("cosmEquipped");
+    if (eqBox) {
+      eqBox.innerHTML = "";
+      const catOf = {};
+      for (const it of store.catalog) { catOf[it.id] = it; }
+      const rows = [];
+      for (const cat of Object.keys(equipped || {})) {
+        const id = equipped[cat];
+        if (!id) continue;
+        const it = catOf[id];
+        rows.push({
+          label: (cosmCatLabel(cat) || cat),
+          name: it ? (it.name || id) : id,
+          accent: (it && it.data && (it.data.accent || it.data.color1)) || null,
+        });
+      }
+      if (!rows.length) {
+        eqBox.innerHTML = '<div class="store-msg">Nichts ausgerüstet – wähle links eine Kategorie.</div>';
+      } else {
+        for (const r of rows) {
+          const row = document.createElement("div");
+          row.className = "cosm-eq-row";
+          const dot = document.createElement("span");
+          dot.className = "cosm-eq-dot";
+          if (r.accent) dot.style.background = r.accent;
+          const txt = document.createElement("span");
+          txt.className = "cosm-eq-txt";
+          txt.textContent = r.label + ": " + r.name;
+          row.append(dot, txt);
+          eqBox.appendChild(row);
+        }
       }
     }
     const PET_MODE_OPTS = {
@@ -5210,6 +5264,7 @@ startBackgroundIntervals();
     const canvas = $("cosmSkinCanvas");
     if (!canvas) return;
     let url = null;
+    const norm = (u) => (u ? window.httpsify(u) : u);
     const skinTimeout = (p, ms) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error("skin timeout")), ms))]);
     const showFallback = () => {
       const cv = $("cosmSkinCanvas");
@@ -5222,7 +5277,7 @@ startBackgroundIntervals();
         fb.alt = "";
         w.insertBefore(fb, cv);
       }
-      fb.src = url;
+      fb.src = window.httpsify(url);
       cv.style.display = "none";
     };
     try {
@@ -5260,7 +5315,7 @@ startBackgroundIntervals();
         fb.alt = "";
         wrap.insertBefore(fb, canvas);
       }
-      fb.src = url;
+      fb.src = window.httpsify(url);
       canvas.style.display = "none";
       return;
     }
@@ -5273,7 +5328,7 @@ startBackgroundIntervals();
       const fb = wrap.querySelector("img.skin-fallback");
       if (fb) fb.remove();
       cosmSkinViewer = new sv3d.SkinViewer({ canvas: canvas, width: 280, height: 560 });
-      let skinUrl = url;
+      let skinUrl = norm(url);
       if (/^https?:\/\//i.test(url)) {
         try {
           const ctrl = new AbortController();
@@ -5281,6 +5336,11 @@ startBackgroundIntervals();
           const resp = await fetch(url, { signal: ctrl.signal });
           clearTimeout(to);
           if (resp.ok) skinUrl = URL.createObjectURL(await resp.blob());
+        } catch (e) {}
+      }
+      if (window.kollegen3dRenderEquipped && me) {
+        try {
+          window.kollegen3dRenderEquipped($("cosmModels"), me.equipped || {}, window.__cosmStore || []);
         } catch (e) {}
       }
       const p = cosmSkinViewer.loadSkin(skinUrl);

@@ -89,6 +89,7 @@
           <div id="instanceList" class="instance-grid" role="list"></div>
         </div>
         <aside class="home-skin" aria-label="Dein Skin">
+          <canvas id="homeModels" width="240" height="200" class="cosm-models"></canvas>
           <canvas id="homeSkinCanvas" width="220" height="440"></canvas>
           <div id="homeSkinName" class="home-skin-name">—</div>
             <div id="homeSkinState" class="home-skin-state"></div>
@@ -276,6 +277,8 @@
       </header>
       <div class="cosm-layout">
         <div class="cosm-list">
+          <h3>Ausgerüstet im Spiel</h3>
+          <div id="cosmEquipped" class="cosm-owned"><div class="store-msg">Lade …</div></div>
           <h3>Deine Gegenstände</h3>
           <div id="cosmOwned" class="cosm-owned"><div class="store-msg">Lade …</div></div>
           <div id="cosmPetBox" class="cosm-petbox" style="display:none;">
@@ -284,6 +287,7 @@
           </div>
         </div>
         <div class="cosm-preview">
+          <canvas id="cosmModels" width="300" height="240" class="cosm-models"></canvas>
           <canvas id="cosmSkinCanvas" width="280" height="560"></canvas>
           <div id="cosmNamePreview" class="cosm-namepreview">—</div>
         </div>
@@ -443,6 +447,12 @@
 
   <div id="versionBadge">v…</div>
 
+  <script type="module">
+    import * as THREE from './three.module.js';
+    window.THREE = THREE;
+    window.dispatchEvent(new Event('kollegen3d-ready'));
+  </script>
+  <script src="kollegen3d.js"></script>
   <script src="skinview3d.bundle.js"></script>
 
   <div id="friendsWidget" class="hud-widget hud-friends" hidden>

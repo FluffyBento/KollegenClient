@@ -409,3 +409,71 @@ pub fn minecraft_profile_by_name(_data_dir: &Path, name: &str) -> Value {
         "raw_textures": textures
     })
 }
+
+pub fn read_mod_asset(data_dir: &Path, file: &str) -> serde_json::Value {
+    let clean: String = file
+        .chars()
+        .filter(|c| c.is_ascii_alphanumeric() || *c == '_' || *c == '-' || *c == '.' || *c == '/')
+        .collect();
+    let clean = clean.trim_start_matches('/').to_string();
+    if clean.is_empty() || !clean.ends_with(".png") && !clean.ends_with(".bbmodel") {
+        return serde_json::json!({ "error": "ungueltiger Dateiname" });
+    }
+    if clean.contains("..") {
+        return serde_json::json!({ "error": "ungueltiger Pfad" });
+    }
+    let entry = format!("assets/{}", clean);
+
+    let jar = ["26.2", "1.21.11", ""]
+        .iter()
+        .filter_map(|v| crate::companion::companion_jar(data_dir, v))
+        .find(|p| p.exists());
+
+    let jar = match jar {
+        Some(j) => j,
+        None => return serde_json::json!({ "error": "Mod-Jar nicht gefunden" }),
+    };
+
+    let file_h = match std::fs::File::open(&jar) {
+        Ok(f) => f,
+        Err(_) => return serde_json::json!({ "error": "Mod-Jar nicht lesbar" }),
+    };
+    let mut archive = match zip::ZipArchive::new(file_h) {
+        Ok(a) => a,
+        Err(_) => return serde_json::json!({ "error": "Mod-Jar unlesbar" }),
+    };
+    let bytes = {
+        let mut zf = match archive.by_name(&entry) {
+            Ok(z) => z,
+            Err(_) => return serde_json::json!({ "error": format!("nicht im Jar: {}", entry) }),
+        };
+        let mut b = Vec::new();
+        if std::io::Read::read_to_end(&mut zf, &mut b).is_err() {
+            return serde_json::json!({ "error": "Lesen fehlgeschlagen" });
+        }
+        b
+    };
+
+    if clean.ends_with(".bbmodel") {
+        let text = String::from_utf8_lossy(&bytes).to_string();
+        let png_name = clean.trim_end_matches(".bbmodel").to_string() + ".png";
+        let png_entry = format!("assets/{}", png_name);
+        let mut texture = String::new();
+        if let Ok(mut pz) = archive.by_name(&png_entry) {
+            let mut pb = Vec::new();
+            if std::io::Read::read_to_end(&mut pz, &mut pb).is_ok() {
+                use base64::Engine;
+                texture = format!(
+                    "data:image/png;base64,{}",
+                    base64::engine::general_purpose::STANDARD.encode(&pb)
+                );
+            }
+        }
+        serde_json::json!({ "bbmodel": text, "texture": texture })
+    } else {
+        use base64::Engine;
+        serde_json::json!({
+            "data": format!("data:image/png;base64,{}", base64::engine::general_purpose::STANDARD.encode(&bytes))
+        })
+    }
+}
