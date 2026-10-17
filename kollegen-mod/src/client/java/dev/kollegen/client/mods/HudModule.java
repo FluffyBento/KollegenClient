@@ -128,7 +128,10 @@ public abstract class HudModule extends Module {
         int tint = 0xFF000000 | this.backgroundColor.value;
         float op = (float) this.glassOpacity.value;
         float r = Math.min(7.0f, h / 2.0f);
-        Glass.glassCard(g, x, y, w, h, r, tint, op, 0.35f);
+        // PERF: HUD läuft jeden Frame im Spiel — solides Panel statt Verlauf+
+        // Ring+Schatten (spart ~75% Fills pro Element). Glas-Look bleibt über
+        // Deckkraft + Akzentleiste erhalten (wie in der alten UI).
+        Glass.rr(g, x, y, w, h, r, Glass.tint(tint, (int) (255 * Math.min(1.0f, op))));
         if (this.accentBar.value) {
             float bh = Math.max(4.0f, h - 10.0f);
             Glass.rrGrad(g, x + 3.0f, y + (h - bh) / 2.0f, 2.0f, bh, 1.0f, Palette.ACCENT, Palette.ACCENT2);
