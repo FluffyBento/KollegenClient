@@ -8,13 +8,22 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Orbitron:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="launcher.css" />
 </head>
 <body>
   <header>
     <div class="header-actions">
-      <button id="settingsBtn" class="icon-btn" title="Einstellungen" aria-label="Einstellungen">⚙</button>
+      <div id="profileWidget" class="hud-widget hud-profile" title="Profil öffnen" role="button" tabindex="0" aria-label="Profil öffnen">
+        <img id="pwAvatar" class="hud-avatar" alt="" />
+        <div class="hud-meta">
+          <div id="pwName" class="hud-name">nicht verbunden</div>
+          <div id="pwDiscord" class="hud-sub"></div>
+        </div>
+      </div>
       <button id="authBtn" class="btn-secondary">Mit Microsoft anmelden</button>
+      <img id="accountHead" class="account-head" alt="" hidden />
       <span id="authStatus" class="auth-status">nicht angemeldet</span>
+      <button id="settingsBtn" class="icon-btn" title="Einstellungen" aria-label="Einstellungen"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/></svg></button>
     </div>
   </header>
 
@@ -24,32 +33,35 @@
       <span class="sidebar-brand-text">Kollegen Client</span>
     </div>
     <div class="sidebar-nav">
+      <div class="sidebar-group">Spielen</div>
       <button class="sidebar-link active" data-tab="home" title="Home">
-        <span class="side-ico">⌂</span>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V9.5"/></svg>
         <span class="side-label">Home</span>
       </button>
       <button class="sidebar-link" data-tab="create" title="Erstellen">
-        <span class="side-ico">＋</span>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg>
         <span class="side-label">Erstellen</span>
       </button>
+      <div class="sidebar-group">Community</div>
       <button class="sidebar-link" data-tab="socials" title="Soziales" id="socialsBtn">
-        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M4 4h16a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H11l-5 4v-4H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/></svg>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
         <span class="side-label">Soziales</span>
       </button>
       <button class="sidebar-link" data-tab="store" title="Store">
-        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M20 6L12 2 4 6v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6z"/><path fill="currentColor" d="M12 8v8M8 12h8"/></svg>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
         <span class="side-label">Store</span>
       </button>
       <button class="sidebar-link" data-tab="cosmetics" title="Cosmetics">
-        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M12 2l2.6 6.2 6.7.5-5.1 4.4 1.6 6.5L12 16l-5.8 3.6 1.6-6.5-5.1-4.4 6.7-.5z"/></svg>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 15l.9 2.1L22 18l-2.1.9L19 21l-.9-2.1L16 18l2.1-.9z"/></svg>
         <span class="side-label">Cosmetics</span>
       </button>
+      <div class="sidebar-group">Konto</div>
       <button class="sidebar-link" data-tab="profile" title="Profil">
-        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
         <span class="side-label">Profil</span>
       </button>
       <button class="sidebar-link" data-tab="logs" title="Logs" id="logsBtn">
-        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path fill="currentColor" d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg>
         <span class="side-label">Logs</span>
       </button>
     </div>
@@ -63,9 +75,19 @@
 
   <main>
     <section id="homePanel" class="tab-panel active" data-tab="home" aria-labelledby="homeTitle">
-      <h2 id="homeTitle" hidden>Instanzen</h2>
+      <div id="homeHero" class="home-hero"></div>
       <div class="home-layout">
-        <div id="instanceList" class="instance-grid" role="list"></div>
+        <div class="home-main">
+          <div class="home-section-head">
+            <h2 id="homeTitle">Deine Instanzen</h2>
+            <span id="homeCount" class="home-count">0</span>
+            <div class="home-tools">
+              <input id="instanceSearch" class="search-input" type="search" placeholder="Instanzen suchen" autocomplete="off" aria-label="Instanzen suchen" />
+              <button id="homeCreateBtn" class="btn-primary">＋ Neue Instanz</button>
+            </div>
+          </div>
+          <div id="instanceList" class="instance-grid" role="list"></div>
+        </div>
         <aside class="home-skin" aria-label="Dein Skin">
           <canvas id="homeSkinCanvas" width="220" height="440"></canvas>
           <div id="homeSkinName" class="home-skin-name">—</div>
@@ -314,6 +336,9 @@
           <button class="tab" data-kind="shader" role="tab" aria-selected="false">Shader</button>
         </div>
         <div class="manage-actions">
+          <button id="manageIconBtn" class="btn-secondary">Icon ändern</button>
+          <button id="manageBannerBtn" class="btn-secondary">Banner ändern</button>
+          <button id="manageImagesResetBtn" class="btn-secondary">Bilder zurücksetzen</button>
           <button id="manageImportBtn" class="btn-secondary">Importieren</button>
           <button id="manageCloneBtn" class="btn-secondary">Instanz klonen</button>
           <button id="manageBrowseBtn" class="btn-primary">Browse</button>
@@ -418,14 +443,6 @@
   <div id="versionBadge">v…</div>
 
   <script src="skinview3d.bundle.js"></script>
-
-  <div id="profileWidget" class="hud-widget hud-profile" title="Profil öffnen" role="button" tabindex="0" aria-label="Profil öffnen">
-    <img id="pwAvatar" class="hud-avatar" alt="" />
-    <div class="hud-meta">
-      <div id="pwName" class="hud-name">nicht verbunden</div>
-      <div id="pwDiscord" class="hud-sub"></div>
-    </div>
-  </div>
 
   <div id="friendsWidget" class="hud-widget hud-friends" hidden>
     <div class="hud-friends-head">Freunde</div>

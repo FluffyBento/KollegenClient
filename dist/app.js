@@ -2,6 +2,8 @@ const invoke = window.__TAURI__.core.invoke;
 
 const $ = (id) => document.getElementById(id);
 
+const HOME_PANEL_HTML = $("homePanel") ? $("homePanel").innerHTML : "";
+
 let availableVersions = [];
 let instancesCache = [];
 
@@ -48,6 +50,326 @@ async function updateLoaderVersions() {
   }
 }
 
+const LOADER_COLORS = { vanilla: "#6abe30", fabric: "#dbb69b", forge: "#5b8def", neoforge: "#f08a3c", quilt: "#a66bf0" };
+
+const UI_ICONS = {
+  play: '<path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z" fill="currentColor" stroke="none"/>',
+  manage: '<path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/>',
+  folder: '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
+  bolt: '<path d="M13 2 4 14h7l-1 8 9-12h-7z"/>',
+  trash: '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/>',
+  image: '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.8"/><path d="m4 17 5-5 4 4 2.5-2.5L20 18"/>',
+  imageWide: '<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="7.5" cy="10.5" r="1.5"/><path d="m3 16 4.5-4.5L11 15"/>',
+  imageOff: '<path d="M3 3l18 18"/><path d="M5 6.5A2 2 0 0 1 7 5h10a2 2 0 0 1 2 2v9.5M3.5 8.5V18a2 2 0 0 0 2 2H17"/><path d="m3.5 16.5 4-4 3.5 3.5"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>'
+};
+
+function uiIcon(name) {
+  return `<svg class="ui-ico" viewBox="0 0 24 24" aria-hidden="true">${UI_ICONS[name] || ""}</svg>`;
+}
+
+function loaderColor(loader) {
+  return LOADER_COLORS[String(loader || "vanilla").toLowerCase()] || LOADER_COLORS.vanilla;
+}
+
+function loaderRgb(loader) {
+  return (hexRgb(loaderColor(loader)) || [106, 190, 48]).join(", ");
+}
+
+function relativeTime(iso) {
+  const t = Date.parse(iso || "");
+  if (!Number.isFinite(t)) return "Noch nie gespielt";
+  const sec = Math.max(0, Math.floor((Date.now() - t) / 1000));
+  if (sec < 60) return "Gerade eben";
+  const min = Math.floor(sec / 60);
+  if (min < 60) return `Vor ${min} Min.`;
+  const hrs = Math.floor(min / 60);
+  if (hrs < 24) return `Vor ${hrs} Std.`;
+  const days = Math.floor(hrs / 24);
+  if (days === 1) return "Gestern";
+  if (days < 30) return `Vor ${days} Tagen`;
+  const months = Math.floor(days / 30);
+  if (months < 12) return months === 1 ? "Vor 1 Monat" : `Vor ${months} Monaten`;
+  return "Vor über einem Jahr";
+}
+
+function sortedInstances(list) {
+  return [...list].sort((a, b) => (Date.parse(b.last_played || "") || 0) - (Date.parse(a.last_played || "") || 0));
+}
+
+function makeChip(text, cls) {
+  const c = document.createElement("span");
+  c.className = "chip-tag" + (cls ? " " + cls : "");
+  c.textContent = text;
+  return c;
+}
+
+function makeIconButton(iconName, title, cls, onclick) {
+  const b = document.createElement("button");
+  b.className = "icon-act" + (cls ? " " + cls : "");
+  b.title = title;
+  b.setAttribute("aria-label", title);
+  b.innerHTML = uiIcon(iconName);
+  b.onclick = onclick;
+  return b;
+}
+
+function makePlayButton(label, cls, onclick) {
+  const b = document.createElement("button");
+  b.className = cls;
+  b.innerHTML = uiIcon("play");
+  b.append(document.createTextNode(label));
+  b.onclick = onclick;
+  return b;
+}
+
+function openInstanceFolder(inst) {
+  invoke("open_instance_folder", { instanceName: inst.name }).catch((e) => alert("Fehler: " + e));
+}
+
+async function optimizeInstance(inst, btn) {
+  btn.disabled = true;
+  btn.classList.add("busy");
+  try {
+    const msg = await invoke("optimize_instance", { name: inst.name });
+    alert(msg || "Performance-Modpack verarbeitet.");
+  } catch (e) {
+    alert("Optimierung fehlgeschlagen: " + e);
+  }
+  btn.disabled = false;
+  btn.classList.remove("busy");
+}
+
+const instanceImageCache = new Map();
+
+function cacheKeyForImage(inst, kind) {
+  return `${inst.name}|${kind}`;
+}
+
+async function instanceImage(inst, kind) {
+  const key = cacheKeyForImage(inst, kind);
+  if (instanceImageCache.has(key)) return instanceImageCache.get(key);
+  let b64 = null;
+  try {
+    b64 = await invoke("get_instance_image", { name: inst.name, kind });
+  } catch (e) {
+    b64 = null;
+  }
+  const url = b64 ? `data:image/png;base64,${b64}` : "";
+  instanceImageCache.set(key, url);
+  return url;
+}
+
+function pickImageFile(title) {
+  const open = window.__TAURI__.dialog?.open || window.__TAURI__.pluginDialog?.open;
+  if (!open) {
+    alert("Datei-Dialog nicht verfügbar.");
+    return Promise.resolve(null);
+  }
+  return open({
+    title,
+    multiple: false,
+    filters: [{ name: "Bild", extensions: ["png", "jpg", "jpeg", "webp"] }],
+  }).then((p) => (Array.isArray(p) ? p[0] : p)).catch(() => null);
+}
+
+async function changeInstanceImage(inst, kind) {
+  const isIcon = kind === "icon";
+  const path = await pickImageFile(isIcon ? "Icon für die Instanz wählen" : "Banner für die Instanz wählen");
+  if (!path) return;
+  try {
+    await invoke("set_instance_image", { name: inst.name, kind, path });
+    instanceImageCache.delete(cacheKeyForImage(inst, kind));
+    refreshInstances();
+    toast(isIcon ? "Icon gespeichert" : "Banner gespeichert", "ok");
+  } catch (e) {
+    alert("Bild konnte nicht gespeichert werden: " + e);
+  }
+}
+
+async function resetInstanceImage(inst, kind) {
+  try {
+    await invoke("clear_instance_image", { name: inst.name, kind });
+    instanceImageCache.delete(cacheKeyForImage(inst, kind));
+    refreshInstances();
+  } catch (e) {
+    alert("Zurücksetzen fehlgeschlagen: " + e);
+  }
+}
+
+function buildInstanceCard(inst, index) {
+  const card = document.createElement("div");
+  card.className = "instance-card";
+  card.setAttribute("role", "listitem");
+  card.style.setProperty("--inst-rgb", loaderRgb(inst.loader));
+  card.style.setProperty("--i", String(Math.min(index, 12)));
+
+  const banner = document.createElement("div");
+  banner.className = "instance-card-banner";
+  const played = document.createElement("span");
+  played.className = "instance-card-played";
+  played.textContent = relativeTime(inst.last_played);
+  const tools = document.createElement("div");
+  tools.className = "instance-card-tools";
+  const iconBtn = makeIconButton("image", "Icon ändern", "", () => changeInstanceImage(inst, "icon"));
+  const bannerBtn = makeIconButton("imageWide", "Banner ändern", "", () => changeInstanceImage(inst, "banner"));
+  tools.append(iconBtn, bannerBtn);
+  if (inst.loader === "fabric" || inst.loader === "quilt") {
+    const opt = makeIconButton("bolt", "Performance-Modpack installieren", "", () => optimizeInstance(inst, opt));
+    tools.append(opt);
+  }
+  tools.append(makeIconButton("trash", "Instanz löschen", "danger", () => deleteInstance(inst.name, inst.id)));
+  banner.append(played, tools);
+
+  instanceImage(inst, "banner").then((url) => {
+    if (url) banner.style.backgroundImage = `url("${url}")`;
+  });
+
+  const top = document.createElement("div");
+  top.className = "instance-card-top";
+  const icon = document.createElement("div");
+  icon.className = "inst-icon";
+  icon.innerHTML = instIconSVG(inst.name, inst.loader);
+  instanceImage(inst, "icon").then((url) => {
+    if (!url) return;
+    icon.innerHTML = "";
+    const img = document.createElement("img");
+    img.src = url;
+    img.alt = "";
+    icon.classList.add("has-img");
+    icon.append(img);
+  });
+  const info = document.createElement("div");
+  info.className = "instance-card-info";
+  const name = document.createElement("div");
+  name.className = "instance-card-name";
+  name.textContent = inst.name;
+  name.title = inst.name;
+  const meta = document.createElement("div");
+  meta.className = "instance-card-meta";
+  const badge = document.createElement("span");
+  badge.className = "loader-badge";
+  badge.textContent = inst.loader || "?";
+  meta.append(document.createTextNode(inst.version || "?"), badge);
+  info.append(name, meta);
+  top.append(icon, info);
+
+  const chips = document.createElement("div");
+  chips.className = "instance-card-chips";
+  const modCount = Array.isArray(inst.mods) ? inst.mods.length : 0;
+  if (modCount > 0) chips.append(makeChip(`${modCount} Mods`));
+  if (inst.memory_max) chips.append(makeChip(`RAM ${inst.memory_max}`));
+  if (inst.server) chips.append(makeChip(inst.server, "server"));
+
+  const actions = document.createElement("div");
+  actions.className = "instance-card-actions";
+  const launch = makePlayButton("Starten", "primary", () => launchGame(inst.name));
+  const manage = makeIconButton("manage", "Verwalten", "", () => openManage(inst));
+  const folder = makeIconButton("folder", "Instanz-Ordner öffnen", "", () => openInstanceFolder(inst));
+  actions.append(launch, manage, folder);
+
+  const body = document.createElement("div");
+  body.className = "instance-card-body";
+  body.append(top);
+  if (chips.childElementCount > 0) body.append(chips);
+  body.append(actions);
+
+  card.append(banner, body);
+  return card;
+}
+
+function renderHomeHero(instances) {
+  const hero = $("homeHero");
+  if (!hero) return;
+  hero.innerHTML = "";
+  const copy = document.createElement("div");
+  copy.className = "hero-copy";
+  const eyebrow = document.createElement("div");
+  eyebrow.className = "hero-eyebrow";
+  const title = document.createElement("h3");
+  title.className = "hero-title";
+  const actions = document.createElement("div");
+  actions.className = "hero-actions";
+  const art = document.createElement("div");
+  art.className = "hero-art";
+
+  if (!instances.length) {
+    hero.style.setProperty("--hero-rgb", "var(--accent-rgb)");
+    eyebrow.textContent = "Willkommen";
+    title.textContent = "Bereit für dein erstes Abenteuer?";
+    const sub = document.createElement("p");
+    sub.className = "hero-sub";
+    sub.textContent = "Erstelle deine erste Instanz und leg mit den Kollegen los.";
+    const create = makePlayButton("Instanz erstellen", "btn-play", () => switchTab("create"));
+    create.querySelector("svg").outerHTML = uiIcon("plus");
+    actions.append(create);
+    copy.append(eyebrow, title, sub, actions);
+    art.innerHTML = instIconSVG("", "vanilla");
+    hero.append(copy, art);
+    return;
+  }
+
+  const inst = sortedInstances(instances)[0];
+  hero.style.setProperty("--hero-rgb", loaderRgb(inst.loader));
+  eyebrow.textContent = inst.last_played ? "Weiter spielen" : "Bereit zum Start";
+  title.textContent = inst.name;
+  title.title = inst.name;
+  const meta = document.createElement("div");
+  meta.className = "hero-meta";
+  meta.append(makeChip(inst.version || "?"), makeChip(inst.loader || "?", "loader"), makeChip(relativeTime(inst.last_played)));
+  if (inst.server) meta.append(makeChip(inst.server, "server"));
+  actions.append(
+    makePlayButton("Spielen", "btn-play", () => launchGame(inst.name)),
+    (() => {
+      const b = document.createElement("button");
+      b.className = "btn-glass";
+      b.innerHTML = uiIcon("manage");
+      b.append(document.createTextNode("Verwalten"));
+      b.onclick = () => openManage(inst);
+      return b;
+    })()
+  );
+  copy.append(eyebrow, title, meta, actions);
+  art.innerHTML = instIconSVG(inst.name, inst.loader);
+  hero.append(copy, art);
+}
+
+function renderInstanceList() {
+  const list = $("instanceList");
+  if (!list) return;
+  const all = instancesCache || [];
+  const search = $("instanceSearch");
+  const q = search ? search.value.trim().toLowerCase() : "";
+  const shown = sortedInstances(all).filter((i) => !q || `${i.name} ${i.version} ${i.loader}`.toLowerCase().includes(q));
+  const count = $("homeCount");
+  if (count) count.textContent = q ? `${shown.length} von ${all.length}` : String(all.length);
+  list.innerHTML = "";
+  if (all.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "instance-empty";
+    empty.textContent = "Noch keine Instanzen vorhanden.";
+    list.append(empty);
+    return;
+  }
+  if (shown.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "instance-empty";
+    empty.textContent = "Keine Treffer.";
+    list.append(empty);
+    return;
+  }
+  shown.forEach((inst, idx) => list.append(buildInstanceCard(inst, idx)));
+}
+
+function bindHomeControls() {
+  const search = $("instanceSearch");
+  if (search) search.oninput = renderInstanceList;
+  const create = $("homeCreateBtn");
+  if (create) create.onclick = () => switchTab("create");
+  const skinBtn = $("homeSkinOpen");
+  if (skinBtn) skinBtn.onclick = () => openProfileModal();
+}
+
 async function refreshInstances() {
   try {
     const instances = await invoke("get_instances");
@@ -56,93 +378,8 @@ async function refreshInstances() {
       renderConsoleHome();
       return;
     }
-    const list = $("instanceList");
-    list.innerHTML = "";
-    if (instances.length === 0) {
-      const empty = document.createElement("div");
-      empty.className = "instance-empty";
-      const txt = document.createElement("div");
-      txt.textContent = "Keine Instanzen vorhanden.";
-      const btn = document.createElement("button");
-      btn.className = "btn-primary";
-      btn.textContent = "＋ Erste Instanz erstellen";
-      btn.onclick = () => switchTab("create");
-      empty.append(txt, btn);
-      list.append(empty);
-      return;
-    }
-    for (const inst of instances) {
-      const card = document.createElement("div");
-      card.className = "instance-card";
-
-      const top = document.createElement("div");
-      top.className = "instance-card-top";
-      const icon = document.createElement("div");
-      icon.className = "inst-icon";
-      icon.innerHTML = instIconSVG(inst.name, inst.loader);
-      const info = document.createElement("div");
-      info.className = "instance-card-info";
-      const name = document.createElement("div");
-      name.className = "instance-card-name";
-      name.textContent = inst.name;
-      const meta = document.createElement("div");
-      meta.className = "instance-card-meta";
-      const badge = document.createElement("span");
-      badge.className = "loader-badge";
-      badge.textContent = inst.loader || "?";
-      meta.append(document.createTextNode(inst.version || "?"), document.createTextNode(" · "), badge);
-      info.append(name, meta);
-      top.append(icon, info);
-
-      const actions = document.createElement("div");
-      actions.className = "instance-card-actions";
-
-      const launch = document.createElement("button");
-      launch.textContent = "Starten";
-      launch.onclick = () => launchGame(inst.name);
-
-      const manage = document.createElement("button");
-      manage.textContent = "Verwalten";
-      manage.className = "ghost";
-      manage.onclick = () => openManage(inst);
-
-      const folder = document.createElement("button");
-      folder.textContent = "Ordner";
-      folder.className = "ghost";
-      folder.title = "Instanz-Ordner öffnen";
-      folder.onclick = () => invoke("open_instance_folder", { instanceName: inst.name }).catch((e) => alert("Fehler: " + e));
-
-      actions.append(launch, manage, folder);
-
-      if (inst.loader === "fabric" || inst.loader === "quilt") {
-        const opt = document.createElement("button");
-        opt.textContent = "Optimize";
-        opt.className = "ghost";
-        opt.title = "Performance-Modpack installieren";
-        opt.onclick = async () => {
-          opt.disabled = true;
-          opt.textContent = "…";
-          try {
-            const msg = await invoke("optimize_instance", { name: inst.name });
-            alert(msg || "Performance-Modpack verarbeitet.");
-          } catch (e) {
-            alert("Optimierung fehlgeschlagen: " + e);
-          }
-          opt.disabled = false;
-          opt.textContent = "Optimize";
-        };
-        actions.append(opt);
-      }
-
-      const del = document.createElement("button");
-      del.textContent = "Löschen";
-      del.className = "ghost danger";
-      del.onclick = () => deleteInstance(inst.name, inst.id);
-      actions.append(del);
-
-      card.append(top, actions);
-      list.append(card);
-    }
+    renderHomeHero(instances);
+    renderInstanceList();
   } catch (e) {
     console.error(e);
   }
@@ -227,6 +464,16 @@ async function refreshLogs() {
       statusEl.textContent = status.state === "done"
         ? `Angemeldet: ${status.username || ""}`
         : `Status: ${status.state} ${status.msg ? '(' + status.msg + ')' : ''}`;
+      statusEl.classList.toggle("ok", status.state === "done");
+      const head = $("accountHead");
+      if (head) {
+        if (status.state === "done" && status.username) {
+          head.src = `https://mc-heads.net/avatar/${encodeURIComponent(status.username)}/64`;
+          head.hidden = false;
+        } else {
+          head.hidden = true;
+        }
+      }
       if (status.state === "done") {
         const li = $("loginInfo");
         if (li) li.style.display = "none";
@@ -1026,6 +1273,11 @@ async function refreshLogs() {
     } catch (e) { resWrap.textContent = 'Fehler: ' + e; }
   }
 
+  function disposeProfileSkinViewer() {
+    if (!skinViewer) return;
+    try { skinViewer.dispose && skinViewer.dispose(); } catch (_) {}
+    skinViewer = null;
+  }
   let skinViewer = null;
   let currentSkinUrl = null;
   let currentCapeUrl = null;
@@ -1060,8 +1312,7 @@ async function refreshLogs() {
       try {
         if (skinViewer) { try { skinViewer.dispose && skinViewer.dispose(); } catch (_) {} skinViewer = null; }
         canvas.style.display = "";
-        const fb = canvas.parentElement.querySelector("img.skin-fallback");
-        if (fb) fb.remove();
+        dropSkinFallback(canvas.parentElement);
         skinViewer = new sv3d.SkinViewer({ canvas: canvas, width: 240, height: 480 });
         // Dieser skinview3d-Build wertet die `skin`-Option nicht aus – die
         // Textur muss explizit via loadSkin() geladen werden.
@@ -1077,10 +1328,7 @@ async function refreshLogs() {
       }
     }
     const wrap = canvas.parentElement;
-    let fb = wrap.querySelector("img.skin-fallback");
-    if (!fb) { fb = new Image(); fb.className = "skin-fallback"; wrap.append(fb); }
-    fb.src = url;
-    canvas.style.display = "none";
+    showSkinFallback(wrap, canvas, url);
   }
   function showSkinFromName(name) {
     if (name) showSkin(`https://mc-heads.net/skin/${encodeURIComponent(name)}`);
@@ -1088,6 +1336,35 @@ async function refreshLogs() {
 
   let homeSkinViewer = null;
   let homeSkinKey = "";
+  let homeSkinFailed = false;
+  let homeSkinPauseTimer = null;
+
+  function disposeHomeSkinViewer() {
+    clearTimeout(homeSkinPauseTimer);
+    homeSkinPauseTimer = null;
+    if (!homeSkinViewer) return;
+    try { homeSkinViewer.dispose && homeSkinViewer.dispose(); } catch (_) {}
+    homeSkinViewer = null;
+  }
+
+  function showSkinFallback(wrap, canvas, url) {
+    let fb = wrap.querySelector(".skin-fallback");
+    if (!fb) {
+      fb = document.createElement("div");
+      fb.className = "skin-fallback";
+      wrap.insertBefore(fb, canvas);
+    }
+    const img = fb.querySelector("img") || document.createElement("img");
+    img.alt = "";
+    if (img.src !== url) img.src = url;
+    if (!img.parentElement) fb.append(img);
+    canvas.style.display = "none";
+  }
+
+  function dropSkinFallback(wrap) {
+    const fb = wrap.querySelector(".skin-fallback");
+    if (fb) fb.remove();
+  }
 
   async function loadHomeSkin(force) {
     const canvas = $("homeSkinCanvas");
@@ -1113,8 +1390,9 @@ async function refreshLogs() {
     if (!url && nm) url = `https://mc-heads.net/skin/${encodeURIComponent(nm)}`;
     if (!url) return;
     const key = url + "|" + (currentCapeUrl || "");
-    if (!force && key === homeSkinKey && homeSkinViewer) return;
+    if (!force && key === homeSkinKey && (homeSkinViewer || homeSkinFailed)) return;
     homeSkinKey = key;
+    homeSkinFailed = false;
     const sv3d = window.skinview3d;
     let webglOk = false;
     try {
@@ -1123,43 +1401,39 @@ async function refreshLogs() {
       webglOk = !!(g && g.getParameter);
     } catch (_) {}
     const wrap = canvas.parentElement;
-    if (!(sv3d && sv3d.SkinViewer && sv3d.WalkingAnimation && webglOk)) {
-      let fb = wrap.querySelector("img.skin-fallback");
-      if (!fb) {
-        fb = new Image();
-        fb.className = "skin-fallback";
-        fb.alt = "";
-        wrap.insertBefore(fb, canvas);
-      }
-      fb.src = url;
-      canvas.style.display = "none";
+    if (!(sv3d && sv3d.SkinViewer && sv3d.IdleAnimation && webglOk)) {
+      showSkinFallback(wrap, canvas, url);
+      homeSkinFailed = true;
       return;
     }
     try {
-      if (homeSkinViewer) {
-        try { homeSkinViewer.dispose && homeSkinViewer.dispose(); } catch (_) {}
-        homeSkinViewer = null;
-      }
+      disposeHomeSkinViewer();
       canvas.style.display = "";
-      const fb = wrap.querySelector("img.skin-fallback");
-      if (fb) fb.remove();
-      homeSkinViewer = new sv3d.SkinViewer({ canvas: canvas, width: 220, height: 440 });
-      const applyCape = () => {
-        if (!currentCapeUrl || !homeSkinViewer) return;
-        try {
-          const c = homeSkinViewer.loadCape(currentCapeUrl);
-          if (c && typeof c.catch === "function") c.catch(() => {});
-        } catch (_) {}
-      };
+      dropSkinFallback(wrap);
+      homeSkinViewer = new sv3d.SkinViewer({ canvas: canvas, width: 160, height: 320 });
+      homeSkinViewer.animation = new sv3d.IdleAnimation();
       const p = homeSkinViewer.loadSkin(url);
-      if (p && typeof p.then === "function") p.then(applyCape).catch(applyCape);
-      else applyCape();
-      homeSkinViewer.animation = new sv3d.WalkingAnimation();
-      homeSkinViewer.animation.speed = 0.5;
-      homeSkinViewer.autoRotate = true;
-      homeSkinViewer.autoRotateSpeed = 1.0;
+      const ready = () => {
+        if (!homeSkinViewer) return;
+        try {
+          if (currentCapeUrl) {
+            const c = homeSkinViewer.loadCape(currentCapeUrl);
+            if (c && typeof c.catch === "function") c.catch(() => {});
+          }
+        } catch (_) {}
+        try { homeSkinViewer.renderPaused = false; } catch (_) {}
+        clearTimeout(homeSkinPauseTimer);
+        homeSkinPauseTimer = setTimeout(() => {
+          if (!homeSkinViewer) return;
+          try { homeSkinViewer.renderPaused = true; } catch (_) {}
+        }, 450);
+      };
+      if (p && typeof p.then === "function") p.then(ready).catch(ready);
+      else ready();
     } catch (e) {
-      console.error("Home-Skin fehlgeschlagen:", e);
+      disposeHomeSkinViewer();
+      homeSkinFailed = true;
+      showSkinFallback(wrap, canvas, url);
     }
   }
 
@@ -1842,6 +2116,7 @@ function applyTheme(name) {
   r.setProperty("--panel-2", pal.panel2);
   r.setProperty("--accent", accent);
   r.setProperty("--accent-dim", dim);
+  r.setProperty("--on-accent", rgb && (rgb[0] * 299 + rgb[1] * 587 + rgb[2] * 114) / 1000 < 135 ? "#ffffff" : "#05080c");
   r.setProperty("--accent-warm", accent);
   r.setProperty("--accent2", pal.accent2);
   r.setProperty("--accent3", pal.accent3 || pal.accent2 || pal.accent);
@@ -1940,7 +2215,9 @@ function restoreDesktopHome() {
   if (hint) hint.remove();
   const panel = $("homePanel");
   if (panel) {
-    panel.innerHTML = '<h2>Home</h2><ul id="instanceList"></ul>';
+    panel.innerHTML = HOME_PANEL_HTML;
+    bindHomeControls();
+    loadHomeSkin(true);
   }
 }
 
@@ -1954,7 +2231,7 @@ async function applyConsoleMode() {
   if (on) {
     renderConsoleHome();
   } else {
-    restoreDesktopHome();
+    if (document.getElementById("ps5Dock") || document.querySelector("#homePanel .ps5-topbar")) restoreDesktopHome();
     refreshInstances();
   }
 }
@@ -2872,6 +3149,12 @@ applySavedTheme()
     if (name === "home" && document.body.classList.contains("console-mode")) {
       renderConsoleHome();
     }
+    if (name !== "cosmetics" && typeof disposeCosmSkinViewer === "function") {
+      disposeCosmSkinViewer();
+    }
+    if (name !== "profile" && typeof disposeProfileSkinViewer === "function") {
+      disposeProfileSkinViewer();
+    }
     if (consoleNavActive) setConsoleFocusFirstNonIcon();
   }
   document.querySelectorAll(".sidebar-link[data-tab]").forEach((l) => {
@@ -2885,9 +3168,11 @@ const openProfileBtn = $("openProfileBtn");
 if (openProfileBtn) openProfileBtn.onclick = () => openProfileModal();
 const openProfileModalBtn = $("openProfileModalBtn");
 if (openProfileModalBtn) openProfileModalBtn.onclick = () => openProfileModal();
-const homeSkinOpen = $("homeSkinOpen");
-if (homeSkinOpen) homeSkinOpen.onclick = () => openProfileModal();
-$("profileClose").onclick = () => { $("profileModal").style.display = "none"; };
+bindHomeControls();
+$("profileClose").onclick = () => {
+  $("profileModal").style.display = "none";
+  disposeProfileSkinViewer();
+};
 $("pmCopy").onclick = () => { if (socialMe) copyText(socialMe.friend_code); };
 
 // Skin/Cape-Changer
@@ -3064,6 +3349,18 @@ $("browseBack").onclick = () => {
   closeChangeMenu();
   showManageOverview();
   manageLoadInstalled();
+};
+$("manageIconBtn").onclick = () => {
+  if (manageInst) changeInstanceImage(manageInst, "icon");
+};
+$("manageBannerBtn").onclick = () => {
+  if (manageInst) changeInstanceImage(manageInst, "banner");
+};
+$("manageImagesResetBtn").onclick = async () => {
+  if (!manageInst) return;
+  await resetInstanceImage(manageInst, "icon");
+  await resetInstanceImage(manageInst, "banner");
+  toast("Bilder zurückgesetzt", "ok");
 };
 $("manageImportBtn").onclick = async () => {
   const open = window.__TAURI__.dialog?.open || window.__TAURI__.pluginDialog?.open;
@@ -4842,6 +5139,11 @@ startBackgroundIntervals();
     }
   }
 
+  function disposeCosmSkinViewer() {
+    if (!cosmSkinViewer) return;
+    try { cosmSkinViewer.dispose && cosmSkinViewer.dispose(); } catch (_) {}
+    cosmSkinViewer = null;
+  }
   async function renderCosmSkin(me) {
     const canvas = $("cosmSkinCanvas");
     if (!canvas) return;
