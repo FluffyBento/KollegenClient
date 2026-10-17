@@ -798,7 +798,7 @@ public class ChessScreen extends GameScreen {
 
     private int[] movesFrom(int s) {
         int[] all = legalMoves(this.board, this.side, this.castling, this.ep);
-        int[] buf = new int[16];
+        int[] buf = new int[64];
         int n = 0;
         for (int mv : all) {
             if (mv / 64 == s) {
