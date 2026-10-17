@@ -1294,6 +1294,7 @@ async function refreshLogs() {
   function showSkin(url) {
     const canvas = $("skinCanvas");
     if (!canvas || !url) return;
+    url = httpsify(url);
     if (url === currentSkinUrl && skinViewer) {
       applyCapeToViewer();
       return;
@@ -1352,6 +1353,13 @@ async function refreshLogs() {
     if (el) el.textContent = text || "";
   }
 
+  function httpsify(url) {
+    if (typeof url !== "string" || !url) return url;
+    // Die Mojang-API liefert http:// - die CSP des Launchers laesst nur https
+    // fuer Bilder und Verbindungen zu, sonst bleiben Skin und Cape unsichtbar.
+    return url.startsWith("http://") ? "https://" + url.slice(7) : url;
+  }
+
   function showSkinFallback(wrap, canvas, url) {
     let fb = wrap.querySelector(".skin-fallback");
     if (!fb) {
@@ -1361,7 +1369,8 @@ async function refreshLogs() {
     }
     const img = fb.querySelector("img") || document.createElement("img");
     img.alt = "";
-    if (img.src !== url) img.src = url;
+    const safeUrl = httpsify(url);
+    if (img.src !== safeUrl) img.src = safeUrl;
     if (!img.parentElement) fb.append(img);
     canvas.style.display = "none";
   }
@@ -1381,15 +1390,15 @@ async function refreshLogs() {
     try {
       const list = await invoke("skin_list");
       const active = (list.skins || []).find((s) => s.name === list.active);
-      if (active && active.url) url = active.url;
+      if (active && active.url) url = httpsify(active.url);
     } catch (e) {}
     if (!url) {
       try {
         const prof = await invoke("skin_mc_profile");
         const sk = ((prof && prof.skins) || []).find((x) => x.state === "ACTIVE") || ((prof && prof.skins) || [])[0];
-        if (sk && sk.url) url = sk.url;
+        if (sk && sk.url) url = httpsify(sk.url);
         const cp = ((prof && prof.capes) || []).find((x) => x.state === "ACTIVE");
-        if (cp && cp.url) currentCapeUrl = cp.url;
+        if (cp && cp.url) currentCapeUrl = httpsify(cp.url);
       } catch (e) {}
     }
     if (!url && nm) url = `https://mc-heads.net/skin/${encodeURIComponent(nm)}`;
@@ -1477,7 +1486,7 @@ async function refreshLogs() {
       renderSkinLibrary(list);
       const active = (list.skins || []).find(s => s.name === list.active);
       if (active && active.url) {
-        showSkin(active.url);
+        showSkin(httpsify(active.url));
         return;
       }
       // Kein lokaler aktiver Skin: automatisch vom Minecraft-Namen ziehen
@@ -1485,7 +1494,7 @@ async function refreshLogs() {
       const fromMcProfile = (prof) => {
         const skins = (prof && prof.skins) || [];
         const s = skins.find(x => x.state === "ACTIVE") || skins[0];
-        if (s && s.url) { showSkin(s.url); return; }
+        if (s && s.url) { showSkin(httpsify(s.url)); return; }
         if (socialMe && socialMe.mc_name) showSkinFromName(socialMe.mc_name);
       };
       const fromName = () => {
@@ -1528,7 +1537,7 @@ async function refreshLogs() {
   }
 
   function switchSkin(s) {
-    showSkin(s.url);
+    showSkin(httpsify(s.url));
     invoke("skin_set_active", { name: s.name }).catch(() => {});
     invoke("skin_upload", { name: s.name, data: s.url, variant: "classic" }).then(r => {
       if (r && r.mc_uploaded) toast("Skin gewechselt", "ok");
@@ -3175,6 +3184,11 @@ applySavedTheme()
         });
       }
     }
+    if (name === "home") {
+      // Der Skin-Viewer wird beim Start ggf. erzeugt, bevor das Panel sichtbar
+      // ist. Beim Tabwechsel nachladen, damit WebGL-Kontext und Canvas stimmen.
+      loadHomeSkin(true);
+    }
     if (name === "socials") {
       renderSocialAll();
       refreshSocial();
@@ -3231,7 +3245,7 @@ if ($("skinDownloadBtn")) {
       if (r && r.state) {
         renderSkinLibrary(r.state);
         const a = (r.state.skins || []).find(s => s.name === r.state.active);
-        if (a) showSkin(a.url);
+        if (a) showSkin(httpsify(a.url));
         toast("Skin heruntergeladen", "ok");
       } else {
         toast((r && r.error) || "Download fehlgeschlagen", "error");
@@ -3252,7 +3266,7 @@ if ($("skinUploadBtn") && skinFileInput) {
         if (r && r.state) {
           renderSkinLibrary(r.state);
           const a = (r.state.skins || []).find(s => s.name === r.state.active);
-          if (a) showSkin(a.url);
+          if (a) showSkin(httpsify(a.url));
         }
         if (r && r.error) toast(r.error, "error");
         else toast(r && r.mc_uploaded ? "Skin hochgeladen & gewechselt" : "Skin lokal gespeichert", "ok");
@@ -5215,13 +5229,13 @@ startBackgroundIntervals();
       const list = await skinTimeout(invoke("skin_list"), 10000);
       const skins = (list && list.skins) || [];
       const active = skins.find((s) => s.name === (list && list.active));
-      if (active && active.url) url = active.url;
+      if (active && active.url) url = httpsify(active.url);
     } catch (e) {}
     if (!url) {
       try {
         const prof = await skinTimeout(invoke("skin_mc_profile"), 10000);
         const sk = ((prof && prof.skins) || []).find((x) => x.state === "ACTIVE") || ((prof && prof.skins) || [])[0];
-        if (sk && sk.url) url = sk.url;
+        if (sk && sk.url) url = httpsify(sk.url);
       } catch (e) {}
     }
     const nm = (me && (me.name || me.mc_name)) || "";
