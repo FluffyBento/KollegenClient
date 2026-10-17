@@ -830,7 +830,7 @@ public class KollegenMenuScreen extends Screen {
         ch.data.addProperty("game", "chess");
         Cell lu = this.addFull(K_GAME, 64.0f);
         lu.data = new JsonObject();
-        lu.data.addProperty("game", "ludo");
+        lu.data.addProperty("game", dev.kollegen.client.game.MenschAergereDichNichtScreen.ID);
     }
 
     private void addHead(String text) {
@@ -1138,6 +1138,14 @@ public class KollegenMenuScreen extends Screen {
                         }
                         if (dev.kollegen.client.game.Connect4Screen.ID.equals(game)) {
                             Minecraft.getInstance().setScreenAndShow(new dev.kollegen.client.game.Connect4Screen(this));
+                            return true;
+                        }
+                        if (dev.kollegen.client.game.ChessScreen.ID.equals(game)) {
+                            Minecraft.getInstance().setScreenAndShow(new dev.kollegen.client.game.ChessScreen(this));
+                            return true;
+                        }
+                        if (dev.kollegen.client.game.MenschAergereDichNichtScreen.ID.equals(game)) {
+                            Minecraft.getInstance().setScreenAndShow(new dev.kollegen.client.game.MenschAergereDichNichtScreen(this));
                             return true;
                         }
                     } catch (Throwable ignored) {
@@ -1493,6 +1501,14 @@ public class KollegenMenuScreen extends Screen {
         if (dev.kollegen.client.game.Connect4Screen.ID.equals(game)) {
             title = "Connect 4";
             desc = "Vier gewinnt - KI oder gegen Kollegen";
+            icon = Icons.GRID;
+        } else if (dev.kollegen.client.game.ChessScreen.ID.equals(game)) {
+            title = "Schach";
+            desc = "Komplette Regeln - KI oder gegen Kollegen";
+            icon = Icons.SPARKLE;
+        } else if (dev.kollegen.client.game.MenschAergereDichNichtScreen.ID.equals(game)) {
+            title = "Mensch aergere dich nicht";
+            desc = "Wuerfeln und raus - KI oder gegen Kollegen";
             icon = Icons.GRID;
         } else {
             title = "Tetris";
