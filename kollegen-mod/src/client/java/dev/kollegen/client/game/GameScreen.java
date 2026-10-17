@@ -22,6 +22,8 @@ public abstract class GameScreen extends Screen {
     protected int ph;
     protected float openAnim = 0.0f;
     protected String status = "";
+    protected int maxW = 0;
+    protected int maxH = 0;
 
     protected GameScreen(Screen parent, String title) {
         super(Component.literal(title));
@@ -29,8 +31,17 @@ public abstract class GameScreen extends Screen {
     }
 
     protected void frame(int maxW, int maxH) {
-        this.pw = Math.min(this.width - 12, maxW);
-        this.ph = Math.min(this.height - 12, maxH);
+        this.maxW = maxW;
+        this.maxH = maxH;
+        layout();
+    }
+
+    protected void layout() {
+        if (this.maxW <= 0 || this.maxH <= 0) {
+            return;
+        }
+        this.pw = Math.max(120, Math.min(this.width - 12, this.maxW));
+        this.ph = Math.max(120, Math.min(this.height - 12, this.maxH));
         this.px = (this.width - this.pw) / 2;
         this.py = (this.height - this.ph) / 2;
     }
@@ -104,6 +115,7 @@ public abstract class GameScreen extends Screen {
 
     /** Rahmen mit Animation zeichnen und Zeichenflaeche fuer das Spielfeld liefern. */
     protected void beginFrame(GuiGraphicsExtractor g, int mx, int my, float pt) {
+        layout();
         Glass.frame();
         this.openAnim = Math.min(1.0f, this.openAnim + Glass.dt * 5.0f);
         float open = Glass.ease(this.openAnim);
