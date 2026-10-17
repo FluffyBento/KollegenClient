@@ -184,6 +184,10 @@ if (rel.endsWith('mixin/MinecraftAccessor.java')) {
                     }
                     t = t.replace('extractRenderState(', 'renderBackground(')
                 }
+                if (rel.contains('/game/')) {
+                    // Spiel-Screens: gleicheumbenennung wie /menu/ (Screen-API)
+                    t = t.replace('extractRenderState(', 'renderBackground(')
+                }
                 if (rel.endsWith('ui/GlassSlider.java') || rel.endsWith('ui/GlassToggle.java')) {
                     t = t.replace('extractWidgetRenderState(', 'renderWidget(')
                 }

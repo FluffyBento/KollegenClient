@@ -816,11 +816,21 @@ public class KollegenMenuScreen extends Screen {
         Cell t = this.addFull(K_TITLE, 20.0f);
         t.text = Category.EXTRAS.display;
         t.data = new JsonObject();
-        t.data.addProperty("sub", "Minispiele · Punkte verdienen (100:1)");
-        this.addHead("Minispiele");
+        t.data.addProperty("sub", "Minispiele - KI oder gegen Kollegen im Spiel");
+        this.addHead("Tetris");
         Cell c = this.addFull(K_GAME, 64.0f);
         c.data = new JsonObject();
         c.data.addProperty("game", "tetris");
+        this.addHead("Brett- & Kartenspiele");
+        Cell c4 = this.addFull(K_GAME, 64.0f);
+        c4.data = new JsonObject();
+        c4.data.addProperty("game", "c4");
+        Cell ch = this.addFull(K_GAME, 64.0f);
+        ch.data = new JsonObject();
+        ch.data.addProperty("game", "chess");
+        Cell lu = this.addFull(K_GAME, 64.0f);
+        lu.data = new JsonObject();
+        lu.data.addProperty("game", "ludo");
     }
 
     private void addHead(String text) {
@@ -1121,12 +1131,16 @@ public class KollegenMenuScreen extends Screen {
                 }
                 case K_GAME: {
                     String game = str(c.data, "game", "");
-                    if ("tetris".equals(game)) {
-                        try {
+                    try {
+                        if ("tetris".equals(game)) {
                             Minecraft.getInstance().setScreenAndShow(new TetrisScreen(this));
-                        } catch (Throwable ignored) {
+                            return true;
                         }
-                        return true;
+                        if (dev.kollegen.client.game.Connect4Screen.ID.equals(game)) {
+                            Minecraft.getInstance().setScreenAndShow(new dev.kollegen.client.game.Connect4Screen(this));
+                            return true;
+                        }
+                    } catch (Throwable ignored) {
                     }
                     return false;
                 }
@@ -1472,15 +1486,28 @@ public class KollegenMenuScreen extends Screen {
     }
 
     private void drawGameCard(GuiGraphicsExtractor g, Cell c, float X, float Y, boolean hov) {
-        float h = this.hv("g:tetris", hov, 14.0f);
+        String game = str(c.data, "game", "tetris");
+        String title;
+        String desc;
+        int icon;
+        if (dev.kollegen.client.game.Connect4Screen.ID.equals(game)) {
+            title = "Connect 4";
+            desc = "Vier gewinnt - KI oder gegen Kollegen";
+            icon = Icons.GRID;
+        } else {
+            title = "Tetris";
+            desc = "Spielen und Kollegen-Punkte verdienen (100:1)";
+            icon = Icons.SPARKLE;
+        }
+        float h = this.hv("g:" + game, hov, 14.0f);
         Glass.glassCard(g, X, Y, c.w, c.h, 9, Glass.mix(Palette.PANEL, Palette.ACCENT, 0.04f * h), Glass.opacity * (0.85f + 0.3f * h), 0.0f);
         if (h > 0.01f) {
             Glass.ring(g, X, Y, c.w, c.h, 9, 0.5f, Glass.a(0xFFFFFFFF, 0.35f * h));
         }
         Glass.rr(g, X + 7, Y + (c.h - 32) / 2.0f, 32, 32, 9, Glass.a(Palette.ACCENT, 0.18f));
-        Icons.draw(g, Icons.SPARKLE, X + 7 + 32 * 0.22f, Y + (c.h - 32) / 2.0f + 32 * 0.22f, 32 * 0.56f, Palette.ACCENT);
-        Glass.textBold(g, this.font, "Tetris", Math.round(X + 48), Math.round(Y + 10), Palette.TEXT, true);
-        Glass.text(g, this.font, Glass.trunc(this.font, "Spielen und Kollegen-Punkte verdienen (100:1)", (int) (c.w - 48 - 140)), Math.round(X + 48), Math.round(Y + 30), Palette.MUTED, false);
+        Icons.draw(g, icon, X + 7 + 32 * 0.22f, Y + (c.h - 32) / 2.0f + 32 * 0.22f, 32 * 0.56f, Palette.ACCENT);
+        Glass.textBold(g, this.font, Glass.trunc(this.font, title, (int) (c.w - 60)), Math.round(X + 48), Math.round(Y + 10), Palette.TEXT, true);
+        Glass.text(g, this.font, Glass.trunc(this.font, desc, (int) (c.w - 48 - 130)), Math.round(X + 48), Math.round(Y + 30), Palette.MUTED, false);
         this.drawPill(g, X + c.w - 8 - 128, Y + (c.h - 28) / 2.0f, 128, 28, "Spielen", true, hov);
     }
 

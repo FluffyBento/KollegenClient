@@ -19,13 +19,21 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public class ChatMixin {
 
     private static boolean kollegen$busy = false;
+    /** true, wenn die zuletzt gepruefte Nachricht eine Spielnachricht war. */
+    private static boolean kollegen$gameMsg = false;
 
     @Inject(method = "addPlayerMessage(Lnet/minecraft/network/chat/Component;Lnet/minecraft/network/chat/MessageSignature;Lnet/minecraft/client/multiplayer/chat/GuiMessageTag;)V",
             at = @At("HEAD"), cancellable = true)
     private void kollegen$chat(Component message, MessageSignature signature, GuiMessageTag tag, CallbackInfo ci) {
         if (kollegen$busy) return;
         try {
+            kollegen$gameMsg = false;
             Component out = kollegen$decorateChat(message);
+            if (kollegen$gameMsg) {
+                // Spielnachricht: an Spiele verteilt und aus dem Chat entfernen.
+                ci.cancel();
+                return;
+            }
             if (out == null) return;
             ci.cancel();
             kollegen$busy = true;
@@ -57,12 +65,14 @@ public class ChatMixin {
         for (PlayerInfo pi : mc.getConnection().getOnlinePlayers()) {
             GameProfile profile = pi.getProfile();
             if (profile == null || !plain.equals(profile.name())) continue;
+            kollegen$gameMsg |= dev.kollegen.client.game.GameNet.handleChat(plain, args);
             Component next = CosmeticText.decoratePlayer(name, profile.id());
             if (next == name) return null;
             Object[] rebuilt = args.clone();
             rebuilt[0] = next;
             return Component.translatable(key, rebuilt).withStyle(message.getStyle());
         }
+        kollegen$gameMsg |= dev.kollegen.client.game.GameNet.handleChat(plain, args);
         return null;
     }
 }
