@@ -215,11 +215,13 @@ public class TetrisScreen extends Screen {
 
     private void submitScore() {
         try {
-            if (submitted || score <= 0) return;
+            if (submitted || score <= 0) {
+                return;
+            }
             submitted = true;
             awardMsg = "Wird gutgeschrieben …";
             final int s = score;
-            Thread t = new Thread(() -> {
+            Minecraft.getInstance().execute(() -> {
                 try {
                     com.google.gson.JsonObject r = StoreClient.submitMinigame("tetris", s);
                     if (r != null && r.has("awarded") && !r.get("awarded").isJsonNull()) {
@@ -234,11 +236,10 @@ public class TetrisScreen extends Screen {
                         awardMsg = "Fehler beim Gutschreiben.";
                     }
                 } catch (Throwable e) {
-                    awardMsg = "Fehler: " + String.valueOf(e.getMessage());
+                    dev.kollegen.client.KollegenMod.LOGGER.warn("Tetris-Punkte konnten nicht uebertragen werden", e);
+                    awardMsg = "Punkte konnten nicht uebertragen werden.";
                 }
-            }, "kollegen-tetris-submit");
-            t.setDaemon(true);
-            t.start();
+            });
         } catch (Throwable ignored) {
         }
     }
