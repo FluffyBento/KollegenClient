@@ -21,6 +21,7 @@ const START_POINTS = 250;
 
 
 const CATALOG = [
+  { id: 'title_luigi', category: 'title', name: 'Luigi', desc: 'Exklusiv verliehen, nicht käuflich.', price: 0, rarity: 'legendary', hidden: true, data: { text: 'Luigi', color: '#00b140' } },
   
   { id: 'title_erkunder', category: 'title', name: 'Erkunder', desc: 'Zeig deinen Entdeckermut.', price: 120, rarity: 'common', data: { text: 'Erkunder' } },
   { id: 'title_veteran', category: 'title', name: 'Veteran', desc: 'Viele Stunden im Nether überlebt.', price: 450, rarity: 'rare', data: { text: 'Veteran' } },
