@@ -20,7 +20,11 @@ public final class ControllerMode {
 
     
     private static long lastScrollAt = 0;
-    private static final long SCROLL_INTERVAL_MS = 120;
+    private static final long SCROLL_INTERVAL_MS = 55;
+    private static boolean screenWasOpen = false;
+    private static boolean prevA = false;
+    private static boolean prevB = false;
+    private static boolean prevX = false;
 
     
     
@@ -58,6 +62,7 @@ public final class ControllerMode {
         if (!active) return;
         if (mc == null || mc.getWindow() == null) return;
         long window = mc.getWindow().handle();
+        boolean screenOpen = mc.gui.screen() != null;
         if (firstTick) {
             int w = mc.getWindow().getScreenWidth();
             int h = mc.getWindow().getScreenHeight();
@@ -66,93 +71,100 @@ public final class ControllerMode {
             firstTick = false;
         }
 
-        
-        
-        boolean padOk = false;
-        int pad = GamepadDetect.scan(GAMEPAD);
-        if (pad >= 0 || pad == GamepadDetect.FORWARDED) {
-            padOk = true;
-            applyGamepad(mc, window);
+        if (screenOpen && !screenWasOpen) {
+            syncCursor(window);
+            prevA = true;
+            prevB = true;
+            prevX = true;
         }
-        
+        screenWasOpen = screenOpen;
+
+        if (screenOpen) {
+            int pad = GamepadDetect.scan(GAMEPAD);
+            if (pad >= 0 || pad == GamepadDetect.FORWARDED) {
+                applyGamepad(mc, window);
+            }
+        }
         processClick(mc, window);
-        if (!padOk) return;
+    }
+
+    private static void syncCursor(long window) {
+        try {
+            double[] x = new double[1];
+            double[] y = new double[1];
+            GLFW.glfwGetCursorPos(window, x, y);
+            cursorX = x[0];
+            cursorY = y[0];
+        } catch (Throwable ignored) {
+        }
     }
 
     private static void applyGamepad(Minecraft mc, long window) {
         float lx = GAMEPAD.axes(GLFW.GLFW_GAMEPAD_AXIS_LEFT_X);
         float ly = GAMEPAD.axes(GLFW.GLFW_GAMEPAD_AXIS_LEFT_Y);
-        
+        float ry = GAMEPAD.axes(GLFW.GLFW_GAMEPAD_AXIS_RIGHT_Y);
+
         float dead = 0.18f;
         float dx = (Math.abs(lx) < dead) ? 0 : lx;
         float dy = (Math.abs(ly) < dead) ? 0 : ly;
+        boolean dpad = false;
 
-        
-        if (GAMEPAD.buttons(GLFW.GLFW_GAMEPAD_BUTTON_DPAD_LEFT) == GLFW.GLFW_PRESS) dx = -1;
-        else if (GAMEPAD.buttons(GLFW.GLFW_GAMEPAD_BUTTON_DPAD_RIGHT) == GLFW.GLFW_PRESS) dx = 1;
-        if (GAMEPAD.buttons(GLFW.GLFW_GAMEPAD_BUTTON_DPAD_UP) == GLFW.GLFW_PRESS) dy = -1;
-        else if (GAMEPAD.buttons(GLFW.GLFW_GAMEPAD_BUTTON_DPAD_DOWN) == GLFW.GLFW_PRESS) dy = 1;
+        if (GAMEPAD.buttons(GLFW.GLFW_GAMEPAD_BUTTON_DPAD_LEFT) == GLFW.GLFW_PRESS) { dx = -1; dpad = true; }
+        else if (GAMEPAD.buttons(GLFW.GLFW_GAMEPAD_BUTTON_DPAD_RIGHT) == GLFW.GLFW_PRESS) { dx = 1; dpad = true; }
+        if (GAMEPAD.buttons(GLFW.GLFW_GAMEPAD_BUTTON_DPAD_UP) == GLFW.GLFW_PRESS) { dy = -1; dpad = true; }
+        else if (GAMEPAD.buttons(GLFW.GLFW_GAMEPAD_BUTTON_DPAD_DOWN) == GLFW.GLFW_PRESS) { dy = 1; dpad = true; }
+
+        int sw = mc.getWindow().getScreenWidth();
+        int sh = mc.getWindow().getScreenHeight();
 
         if (dx != 0 || dy != 0) {
-            
             double len = Math.hypot(dx, dy);
             double nx = dx / len, ny = dy / len;
-            
-            double speed = Math.max(8.0, mc.getWindow().getScreenWidth() / 32.0);
+            double mag = Math.min(1.0, len);
+            double top = Math.max(10.0, sw / 40.0);
+            double speed = dpad ? top * 0.6 : Math.max(2.0, top * mag * mag);
             cursorX += nx * speed;
             cursorY += ny * speed;
+            cursorX = Math.max(0, Math.min(sw - 1, cursorX));
+            cursorY = Math.max(0, Math.min(sh - 1, cursorY));
 
-            int w = mc.getWindow().getScreenWidth();
-            int h = mc.getWindow().getScreenHeight();
-            cursorX = Math.max(0, Math.min(w - 1, cursorX));
-            cursorY = Math.max(0, Math.min(h - 1, cursorY));
-
-            
-            
             try {
                 GLFW.glfwSetCursorPos(window, cursorX, cursorY);
             } catch (Throwable ignored) {
             }
+        }
 
-            
-            try {
-                if (mc.gui.screen() != null) {
-                    
-                    int sw = mc.getWindow().getScreenWidth();
+        if (Math.abs(ry) > 0.25f) {
+            long now = System.currentTimeMillis();
+            if (now - lastScrollAt >= SCROLL_INTERVAL_MS) {
+                try {
                     int gw = mc.getWindow().getGuiScaledWidth();
                     double guiX = cursorX * gw / sw;
                     double guiY = cursorY * gw / sw;
-
-                    long now = System.currentTimeMillis();
-                    
-                    if (now - lastScrollAt >= SCROLL_INTERVAL_MS) {
-                        
-                        double amount = -ny; 
-                        
-                        double scrollAmount = 0.0;
-                        if (Math.abs(amount) > 0.2) {
-                            scrollAmount = amount * 3.0; 
-                        }
-                        if (scrollAmount != 0.0) {
-                            
-                            
-                            mc.gui.screen().mouseScrolled(guiX, guiY, 0.0, scrollAmount);
-                            lastScrollAt = now;
-                        }
-                    }
+                    mc.gui.screen().mouseScrolled(guiX, guiY, 0.0, -ry * 2.0);
+                    lastScrollAt = now;
+                } catch (Throwable ignored) {
                 }
-            } catch (Throwable ignored) {
             }
         }
 
-        
         boolean a = GAMEPAD.buttons(GLFW.GLFW_GAMEPAD_BUTTON_A) == GLFW.GLFW_PRESS;
         boolean b = GAMEPAD.buttons(GLFW.GLFW_GAMEPAD_BUTTON_B) == GLFW.GLFW_PRESS;
-        if (a && !clickQueued) {
+        boolean x = GAMEPAD.buttons(GLFW.GLFW_GAMEPAD_BUTTON_X) == GLFW.GLFW_PRESS;
+        if (a && !prevA && !clickQueued) {
             click(0);
-        } else if (b && !clickQueued) {
+        } else if (x && !prevX && !clickQueued) {
             click(1);
         }
+        if (b && !prevB) {
+            try {
+                mc.gui.screen().onClose();
+            } catch (Throwable ignored) {
+            }
+        }
+        prevA = a;
+        prevB = b;
+        prevX = x;
     }
 
     private static void click(int button) {

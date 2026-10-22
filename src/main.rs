@@ -2132,16 +2132,27 @@ fn spawn_gamepad_loop(app: tauri::AppHandle, console_on: Arc<AtomicBool>, data_d
             
             
             
-            const REPEAT_DELAY: Duration = Duration::from_millis(270);
+            const REPEAT_DELAY: Duration = Duration::from_millis(340);
+            const REPEAT_FAST: Duration = Duration::from_millis(110);
+            const FAST_AFTER: Duration = Duration::from_millis(1000);
+            const SCROLL_STEP: Duration = Duration::from_millis(45);
+            let repeat_delay = std::cell::Cell::new(REPEAT_DELAY);
             let mut last_emit = Instant::now() - Duration::from_secs(1);
             let mut held_dir: Option<&'static str> = None;
+            let mut hold_name: Option<&'static str> = None;
+            let mut hold_start = Instant::now();
+            let mut last_scroll = Instant::now();
+            let mut rs_y = 0.0f32;
+            let (mut lt_down, mut rt_down) = (false, false);
+            let mut focus_check = Instant::now() - Duration::from_secs(1);
+            let mut launcher_focused = true;
             
             
             
             let (mut stick_x, mut stick_y) = (0.0f32, 0.0f32);
             let (mut arm_up, mut arm_down, mut arm_left, mut arm_right) = (false, false, false, false);
             let mut send = |action: &'static str, force: bool| {
-                if force || last_emit.elapsed() >= REPEAT_DELAY {
+                if force || last_emit.elapsed() >= repeat_delay.get() {
                     last_emit = Instant::now();
                     let _ = app.emit("console-input", action);
                 }
@@ -2166,7 +2177,14 @@ fn spawn_gamepad_loop(app: tauri::AppHandle, console_on: Arc<AtomicBool>, data_d
                     .map(|inst| utils::instance_dir(&data_dir, &inst.name).join("mods"))
                     .collect();
                 }
-                let console_on_now = console_on.load(Ordering::Relaxed);
+                if focus_check.elapsed() >= Duration::from_millis(120) {
+                    focus_check = Instant::now();
+                    launcher_focused = app
+                        .get_webview_window("main")
+                        .and_then(|w| w.is_focused().ok())
+                        .unwrap_or(true);
+                }
+                let console_on_now = console_on.load(Ordering::Relaxed) && launcher_focused;
                 if console_on_now {
                     
                     
@@ -2190,6 +2208,10 @@ fn spawn_gamepad_loop(app: tauri::AppHandle, console_on: Arc<AtomicBool>, data_d
                                     Button::North => "Y",
                                     Button::Start => "START",
                                     Button::Select => "SELECT",
+                                    Button::LeftTrigger => "LB",
+                                    Button::RightTrigger => "RB",
+                                    Button::LeftTrigger2 => { lt_down = true; "LT" }
+                                    Button::RightTrigger2 => { rt_down = true; "RT" }
                                     Button::DPadUp => { held_dir = Some("UP"); "UP" }
                                     Button::DPadDown => { held_dir = Some("DOWN"); "DOWN" }
                                     Button::DPadLeft => { held_dir = Some("LEFT"); "LEFT" }
@@ -2205,6 +2227,10 @@ fn spawn_gamepad_loop(app: tauri::AppHandle, console_on: Arc<AtomicBool>, data_d
                                     Button::DPadUp | Button::DPadDown | Button::DPadLeft | Button::DPadRight
                                 ) {
                                     held_dir = None;
+                                } else if b == Button::LeftTrigger2 {
+                                    lt_down = false;
+                                } else if b == Button::RightTrigger2 {
+                                    rt_down = false;
                                 } else if b == Button::South {
                                     let _ = app.emit("console-input", "A-UP");
                                 }
@@ -2212,6 +2238,23 @@ fn spawn_gamepad_loop(app: tauri::AppHandle, console_on: Arc<AtomicBool>, data_d
                             EventType::AxisChanged(axis, v, _) => match axis {
                                 Axis::LeftStickY => stick_y = v,
                                 Axis::LeftStickX => stick_x = v,
+                                Axis::RightStickY => rs_y = v,
+                                Axis::LeftZ => {
+                                    if v > 0.6 && !lt_down {
+                                        lt_down = true;
+                                        send("LT", true);
+                                    } else if v < 0.3 {
+                                        lt_down = false;
+                                    }
+                                }
+                                Axis::RightZ => {
+                                    if v > 0.6 && !rt_down {
+                                        rt_down = true;
+                                        send("RT", true);
+                                    } else if v < 0.3 {
+                                        rt_down = false;
+                                    }
+                                }
                                 _ => {}
                             },
                             _ => {}
@@ -2241,10 +2284,32 @@ fn spawn_gamepad_loop(app: tauri::AppHandle, console_on: Arc<AtomicBool>, data_d
                         })
                     });
                     if let Some(d) = held {
+                        if hold_name != Some(d) {
+                            hold_name = Some(d);
+                            hold_start = Instant::now();
+                        }
+                        repeat_delay.set(if hold_start.elapsed() >= FAST_AFTER {
+                            REPEAT_FAST
+                        } else {
+                            REPEAT_DELAY
+                        });
                         send(d, false);
+                    } else {
+                        hold_name = None;
+                        repeat_delay.set(REPEAT_DELAY);
+                    }
+                    if rs_y.abs() >= 0.35 && last_scroll.elapsed() >= SCROLL_STEP {
+                        last_scroll = Instant::now();
+                        let _ = app.emit(
+                            "console-input",
+                            if rs_y < 0.0 { "SCROLL_UP" } else { "SCROLL_DOWN" },
+                        );
                     }
                 } else {
                     console_was_on = false;
+                    hold_name = None;
+                    rs_y = 0.0;
+                    while gilrs.next_event().is_some() {}
                 }
                 
                 

@@ -9,6 +9,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Orbitron:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css" />
   <link rel="stylesheet" href="launcher.css" />
+  <link rel="stylesheet" href="console.css" />
 </head>
 <body>
   <header>
@@ -299,6 +300,12 @@
         <h2 id="profileTitle">Profil</h2>
       </header>
       <button id="openProfileModalBtn" class="btn-primary" style="width:100%; max-width:300px;">Profil öffnen & bearbeiten</button>
+    </section>
+
+    <section id="supportPanel" class="panel tab-panel" data-tab="support" aria-labelledby="supportTitle" hidden>
+      <header class="panel-header">
+        <h2 id="supportTitle">Support</h2>
+      </header>
     </section>
 
     <section id="logsPanel" class="panel tab-panel" data-tab="logs" aria-labelledby="logsTitle" hidden>
@@ -640,6 +647,7 @@
   <script src="qrcode.js"></script>
   <script src="js/three.min.js"></script>
   <script src="js/cosmetic3d.js"></script>
+  <script src="console.js"></script>
   <script src="app.js"></script>
   <script>
     (function () {

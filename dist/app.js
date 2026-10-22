@@ -657,7 +657,7 @@ async function refreshLogs() {
     renderProfileWidget();
     renderFriendsWidget();
     renderSocialPanel();
-    renderGroups();
+    if (window.renderGroups) { try { window.renderGroups(); } catch (e) {} }
     if (window.renderKollegenSummary) { try { window.renderKollegenSummary(); } catch (e) {} }
     if (window.renderKollegenStore) { try { window.renderKollegenStore(); } catch (e) {} }
   }
@@ -2261,11 +2261,7 @@ function initSteamDeckTab() {
   steamdeckToggle.checked = !!s.steamdeck_mode;
 }
 function restoreDesktopHome() {
-  document.body.classList.remove("ps5-ready");
-  const dock = document.getElementById("ps5Dock");
-  if (dock) dock.remove();
-  const hint = document.getElementById("ps5Hint");
-  if (hint) hint.remove();
+  removeConsoleChrome();
   const panel = $("homePanel");
   if (panel) {
     panel.innerHTML = HOME_PANEL_HTML;
@@ -2284,7 +2280,7 @@ async function applyConsoleMode() {
   if (on) {
     renderConsoleHome();
   } else {
-    if (document.getElementById("ps5Dock") || document.querySelector("#homePanel .ps5-topbar")) restoreDesktopHome();
+    if (document.getElementById("kcTopbar") || document.querySelector("#homePanel .kc-home")) restoreDesktopHome();
     refreshInstances();
   }
 }
@@ -2296,494 +2292,6 @@ if (steamdeckToggle) {
     await applyConsoleMode();
   };
 }
-// Rendert das Konsolen-Startmenü (PS5-artig, dunkel/schlank): ein großes
-// horizontales Hero oben, darunter horizontale Reihen runder Kacheln und eine
-// eigene Icon-Dock-Leiste unten. Die Theme-Farben werden weiterhin genutzt.
-function ensureConsoleDock() {
-  if (document.getElementById("ps5Dock")) return;
-  const dock = document.createElement("div");
-  dock.id = "ps5Dock";
-  dock.className = "ps5-dock";
-  const mk = (tab, ico, label) => {
-    const b = document.createElement("button");
-    b.className = "ps5-dock-btn";
-    b.dataset.tab = tab;
-    const i = document.createElement("span");
-    i.className = "ps5-dock-ico";
-    i.textContent = ico;
-    b.append(i);
-    if (label) {
-      const l = document.createElement("span");
-      l.className = "ps5-dock-label";
-      l.textContent = label;
-      b.append(l);
-    }
-    b.onclick = (e) => {
-      e.preventDefault();
-      if (tab === "settings") {
-        $("settingsBtn").click();
-      } else {
-        switchTab(tab);
-      }
-      if (consoleNavActive) refreshConsoleFocusables();
-    };
-    return b;
-  };
-  dock.append(
-    mk("home", "▦", "Home"),
-    mk("create", "＋", "Erstellen"),
-    mk("socials", "⌂", "Sozial"),
-    mk("logs", "☰", "Logs"),
-    mk("settings", "⚙", "Einst.")
-  );
-  document.body.appendChild(dock);
-  const hint = document.createElement("div");
-  hint.id = "ps5Hint";
-  hint.className = "ps5-hint";
-  hint.textContent = "A Starten · X Verwalten · Y Erstellen · B Zurück · Start Einstellungen · Select Zurück";
-  document.body.appendChild(hint);
-  setTimeout(() => document.body.classList.add("ps5-ready"), 30);
-}
-
-function renderConsoleHome() {
-  ensureConsoleDock();
-  const panel = $("homePanel");
-  if (!panel) return;
-  panel.innerHTML = "";
-
-  // Kopfzeile mit Logo (Switch-Hauptmenü-Stil: Marke links oben)
-  const topbar = document.createElement("div");
-  topbar.className = "ps5-topbar";
-  const logo = document.createElement("img");
-  logo.className = "ps5-logo";
-  logo.src = "Kollegen.png";
-  logo.alt = "Kollegen Client";
-  const brand = document.createElement("div");
-  brand.className = "ps5-brand";
-  brand.textContent = "Kollegen Client";
-  topbar.append(logo, brand);
-  panel.append(topbar);
-
-  // Horizontale Reihe grosser Hero-Karten (eine pro Instanz), wie Spiele-Tiles
-  // im Switch-Hauptmenü. Links/Rechts (D-Pad/Stick/WASD) wählt die Karte.
-  const instances = instancesCache || [];
-  const heroRow = document.createElement("div");
-  heroRow.className = "ps5-hero-row";
-  if (instances.length === 0) {
-    const empty = document.createElement("div");
-    empty.className = "ps5-empty";
-    empty.textContent = "Keine Instanzen. Drücke Y, um eine neue zu erstellen.";
-    heroRow.append(empty);
-  } else {
-    instances.forEach((inst, idx) => {
-      const card = document.createElement("div");
-      card.className = "ps5-hcard" + (idx === 0 ? " ps5-hcard-first" : "");
-      card.dataset.inst = inst.name;
-      card.tabIndex = 0;
-      card.setAttribute("role", "button");
-      const cicon = document.createElement("div");
-      cicon.className = "ps5-hcard-icon";
-      cicon.textContent = (inst.name || "?").charAt(0).toUpperCase();
-      const cbody = document.createElement("div");
-      cbody.className = "ps5-hcard-body";
-      const ctitle = document.createElement("div");
-      ctitle.className = "ps5-hcard-title";
-      ctitle.textContent = inst.name;
-      const cmeta = document.createElement("div");
-      cmeta.className = "ps5-hcard-meta";
-      cmeta.textContent = `${inst.version} · ${inst.loader}`;
-      const chint = document.createElement("div");
-      chint.className = "ps5-hcard-hint";
-      chint.textContent = "A Starten · X Verwalten";
-      cbody.append(ctitle, cmeta, chint);
-      card.append(cicon, cbody);
-      heroRow.append(card);
-    });
-  }
-  panel.append(heroRow);
-
-  const dock = document.getElementById("ps5Dock");
-  if (dock) {
-    dock.querySelectorAll(".ps5-dock-btn").forEach((b) => {
-      b.classList.toggle("active", b.dataset.tab === "home");
-    });
-  }
-}
-// ─ Konsolen-/Controller-Navigation ─
-// Im Konsolen-Modus kannst du per Pfeiltasten, WASD und Gamepad (D-Pad/Stick +
-// A) durch den Launcher navigieren. "A" aktiviert, "B"/Esc schließt Modals.
-let consoleFocusables = [];
-let consoleFocusIndex = -1;
-let consoleNavActive = false;
-
-// Backend-Gamepad (gilrs) → Konsolenaktion. WebKitGTK kann auf Linux die
-// JS-Gamepad-API praktisch nicht, deshalb liest der Rust-Thread den Controller
-// und sendet `console-input`-Events. Diese Funktion mappt sie auf die gleichen
-// Aktionen wie die Tastatur (siehe consoleNavKey / Gamepad-Polling weiter unten).
-function consoleInputAction(action) {
-  if (!consoleNavActive) return;
-  // v1.10.9: kein 280ms-Richtungs-Cooldown mehr – das Backend (gilrs) liefert
-  // pro Drücker genau ein Event und regelt die Wiederholung beim Halten selbst.
-  // Der alte Cooldown hier hat schnell aufeinanderfolgende D-Pad-Drucke
-  // verschluckt (man musste bei jedem zweiten Schritt doppelt drücken).
-  switch (action) {
-    case "A": consoleDoStart(); break;
-    case "X": consoleDoManage(); break;
-    case "Y": try { switchTab("create"); } catch (e) {} break;
-    case "B":
-    case "SELECT": consoleCloseModal(); break;
-    case "START": consoleOpenSettings(); break;
-    case "UP": moveConsoleFocus(0, -1); break;
-    case "DOWN": moveConsoleFocus(0, 1); break;
-    case "LEFT": moveConsoleFocus(-1, 0); break;
-    case "RIGHT": moveConsoleFocus(1, 0); break;
-  }
-}
-if (window.__TAURI__?.event?.listen && !window.__consoleNavTauriSub) {
-  window.__consoleNavTauriSub = true;
-  window.__TAURI__.event.listen("console-input", (e) => {
-    consoleInputAction(String(e?.payload || ""));
-  });
-}
-
-
-function computeConsoleFocusables() {
-  const list = [];
-  // Sichtbares Modal zuerst (sonst Sidebar/Panel)
-  const modals = Array.from(document.querySelectorAll(".modal"));
-  const openModal = modals.find((m) => m.style.display && m.style.display !== "none");
-  const root = openModal || document.body;
-  const sel = ".sidebar-link, button, select, input[type=checkbox], input[type=text], " +
-    "input:not([type]), textarea, [tabindex], label.settings-check";
-  root.querySelectorAll(sel).forEach((el) => {
-    const r = el.getBoundingClientRect();
-    if (r.width === 0 && r.height === 0) return;
-    const cs = getComputedStyle(el);
-    if (cs.visibility === "hidden" || cs.display === "none") return;
-    if (el.disabled) return;
-    // Checkboxen in "Settings-Check"-Zeilen überspringen: das umgebende Label
-    // ist der Fokuspunkt (sonst doppelte Einträge → nervige Navigation).
-    if (el.type === "checkbox" && el.closest && el.closest("label.settings-check")) return;
-    if (!openModal && !isVisibleAtAll(el)) return;
-    list.push(el);
-  });
-  return list;
-}
-
-function isVisibleAtAll(el) {
-  let n = el;
-  while (n && n !== document.body) {
-    const stale = n.style && n.style.display;
-    if (stale === "none") return false;
-    n = n.parentElement;
-  }
-  return true;
-}
-
-function refreshConsoleFocusables() {
-  consoleFocusables = computeConsoleFocusables();
-  consoleFocusables.forEach((el, i) => el.classList.toggle("cfocus", i === consoleFocusIndex));
-}
-
-// Fokus nach Tab-/Modal-Wechsel auf das erste "echte" Bedienelement setzen
-// (überspringt Kopf-Schließ-Buttons .icon-btn, damit nicht der ✕ am Anfang landet).
-function setConsoleFocusFirstNonIcon() {
-  refreshConsoleFocusables();
-  let i = consoleFocusables.findIndex((el) => !el.classList.contains("icon-btn"));
-  if (i < 0) i = 0;
-  setConsoleFocus(i);
-}
-
-function setConsoleFocus(index) {
-  if (!consoleFocusables.length) return;
-  if (index < 0) index = consoleFocusables.length - 1;
-  if (index >= consoleFocusables.length) index = 0;
-  consoleFocusIndex = index;
-  consoleFocusables.forEach((el, i) => el.classList.toggle("cfocus", i === index));
-  const el = consoleFocusables[index];
-  try { el.scrollIntoView({ block: "nearest" }); } catch (e) {}
-  const r = el.getBoundingClientRect();
-  let cx = r.left + r.width / 2;
-  let cy = r.top + r.height / 2;
-  if (typeof window.__consoleNavCursor === "function") window.__consoleNavCursor(cx, cy);
-}
-
-function moveConsoleFocus(dx, dy) {
-  if (!consoleFocusables.length) return;
-  // Im Konsolenmodus ändert ←/→ direkt die Auswahl eines Dropdowns; ↑/↓ bleibt
-  // Fokus-Navigation.
-  if (dx !== 0 && changeConsoleSelect(dx)) return;
-  const cur = consoleFocusables[Math.max(0, consoleFocusIndex)];
-  const c = cur ? cur.getBoundingClientRect() : { left: 0, top: 0, width: 0, height: 0 };
-  const ccx = c.left + c.width / 2;
-  const ccy = c.top + c.height / 2;
-  let best = null;
-  let bestScore = Infinity;
-  const allowed = (dx !== 0 ? dx > 0 ? 1 : -1 : 0);
-  const allowedY = (dy !== 0 ? dy > 0 ? 1 : -1 : 0);
-  consoleFocusables.forEach((el, i) => {
-    if (i === consoleFocusIndex) return;
-    const r = el.getBoundingClientRect();
-    const ex = r.left + r.width / 2;
-    const ey = r.top + r.height / 2;
-    let relX = ex - ccx;
-    let relY = ey - ccy;
-    if (dx !== 0 && Math.sign(relX) !== allowed) return;
-    if (dy !== 0 && Math.sign(relY) !== allowedY) return;
-    const dist = Math.hypot(relX, relY);
-    // Bevorzuge gleichgerichtete Bewegungen stark
-    const penal = (dx !== 0 ? Math.abs(relY) * 1.6 : 0) + (dy !== 0 ? Math.abs(relX) * 1.6 : 0);
-    const score = dist + penal;
-    if (score < bestScore) { bestScore = score; best = i; }
-  });
-  if (best != null) setConsoleFocus(best);
-}
-
-function activateConsoleFocus() {
-  const el = consoleFocusables[consoleFocusIndex];
-  if (!el) return;
-  if (el.type === "checkbox") {
-    el.checked = !el.checked;
-    el.dispatchEvent(new Event("change"));
-  } else if (el.tagName === "SELECT") {
-    openConsolePicker(el);
-  } else if (el.tagName === "A" || el.tagName === "BUTTON" || el.tagName === "LABEL") {
-    // LABEL: die Settings-Checkboxen sind <label class=settings-check> mit
-    // verstecktem <input> – ein Klick auf das Label schaltet sie um.
-    el.click();
-  } else if (el.tagName === "INPUT" || el.tagName === "TEXTAREA") {
-    el.focus();
-  }
-}
-
-function consoleCloseModal() {
-  if (closeConsolePicker()) return true;
-  const modals = Array.from(document.querySelectorAll(".modal"));
-  const open = modals.find((m) => m.style.display && m.style.display !== "none");
-  if (!open) return false;
-  open.style.display = "none";
-  refreshConsoleFocusables();
-  return true;
-}
-
-// ── Gamepad-/Tastatur-Shortcuts (statt nur Auswahl über Buttons) ──
-// Standard-Gamepad-Mapping (Web Gamepad API): 0=A 1=B 2=X 3=Y 8=Select 9=Start
-// A = Aktivieren, B = Instanz starten, Y = Instanz verwalten, X = Menü-Aktion,
-// Start = Einstellungen, Select = Zurück/Modal schließen.
-function consoleFocusedEl() {
-  return consoleFocusables[consoleFocusIndex] || null;
-}
-
-function consoleFocusedInstance() {
-  const el = consoleFocusedEl();
-  if (!el) return null;
-  let n = el.closest && el.closest("[data-inst]");
-  if (!n && el.parentElement) n = el.parentElement.closest && el.parentElement.closest("[data-inst]");
-  if (!n || !(instancesCache)) return null;
-  const name = n.dataset.inst;
-  return instancesCache.find((i) => i.name === name) || null;
-}
-
-let consolePickerTarget = null;
-
-// Durchblättern eines fokussierten <select> per ←/→: Das native WebKitGTK-Dropdown
-// ist im Konsolenmodus nicht mit dem D-Pad bedienbar, deshalb ändern wir die
-// Auswahl direkt und feuern `change` (kaskadiert z. B. Loader-Versionen).
-function changeConsoleSelect(step) {
-  const el = consoleFocusedEl();
-  if (!el || el.tagName !== "SELECT") return false;
-  const opts = Array.from(el.options).filter((o) => !o.disabled);
-  if (!opts.length) return true;
-  const sel = el.selectedOptions[0];
-  let idx = opts.indexOf(sel);
-  if (idx < 0) idx = 0;
-  idx = (idx + step + opts.length) % opts.length;
-  try { el.value = opts[idx].value; el.selectedIndex = opts[idx].index; } catch (e) { return true; }
-  el.dispatchEvent(new Event("change", { bubbles: true }));
-  return true;
-}
-
-// Auswahl-Popup für Dropdowns: A öffnet eine echte Liste; D-Pad scrollt, A wählt.
-function openConsolePicker(select) {
-  const modal = $("pickModal");
-  const list = $("pickList");
-  if (!modal || !list) { try { select.click(); } catch (e) {} return; }
-  const opts = Array.from(select.options).filter((o) => !o.disabled);
-  if (!opts.length) return;
-  consolePickerTarget = select;
-  $("pickTitle").textContent = select.getAttribute("aria-label") || select.title || "Auswahl";
-  list.innerHTML = "";
-  let startIdx = 0;
-  opts.forEach((o, i) => {
-    if (o.selected) startIdx = i;
-    const b = document.createElement("button");
-    b.type = "button";
-    b.className = "picker-option" + (o.selected ? " picked" : "");
-    b.textContent = o.textContent.trim();
-    b.onclick = () => pickConsoleOption(select, o);
-    list.append(b);
-  });
-  modal.style.display = "flex";
-  if (consoleNavActive) {
-    refreshConsoleFocusables();
-    // Der ✕-Header-Button steht in der Fokusliste vor den Optionen – daher den
-    // Listen-Versatz ermitteln, statt stumpf Index = Option zu setzen.
-    const optsStart = consoleFocusables.findIndex((el) => el.classList.contains("picker-option"));
-    const i = optsStart >= 0 ? optsStart + startIdx : startIdx;
-    setConsoleFocus(Math.min(consoleFocusables.length - 1, i));
-  }
-}
-
-function pickConsoleOption(select, option) {
-  try { select.value = option.value; select.selectedIndex = option.index; } catch (e) {}
-  select.dispatchEvent(new Event("change", { bubbles: true }));
-  closeConsolePicker();
-}
-
-function closeConsolePicker() {
-  const modal = $("pickModal");
-  if (!modal || modal.style.display === "none") return false;
-  modal.style.display = "none";
-  if (consoleNavActive) {
-    refreshConsoleFocusables();
-    const i = consoleFocusables.indexOf(consolePickerTarget);
-    if (i >= 0) setConsoleFocus(i);
-  }
-  consolePickerTarget = null;
-  return true;
-}
-
-function consoleDoStart() {
-  // Zuerst das fokussierte, auslösbare Element aktivieren – v. a. wenn ein Modal
-  // offen ist: "A" muss Buttons/Checkboxen darin auslösen, nicht das Modal schließen.
-  const el = consoleFocusedEl();
-  if (el) {
-    const tag = el.tagName;
-    if (el.type === "checkbox") { el.checked = !el.checked; el.dispatchEvent(new Event("change")); return; }
-    if (tag === "SELECT") { openConsolePicker(el); return; }
-    if (tag === "BUTTON" || tag === "A" || tag === "LABEL") { el.click(); return; }
-  }
-  const inst = consoleFocusedInstance();
-  if (inst) { launchGame(inst.name); return; }
-  // Nichts Sinnvolles fokussiert → offenes Modal schließen ("A" als Abbrechen).
-  if (consoleCloseModal()) return;
-}
-
-function consoleDoManage() {
-  const inst = consoleFocusedInstance();
-  if (inst) { openManage(inst); return; }
-}
-
-function consoleOpenSettings() {
-  closeConsolePicker();
-  const s = $("settingsBtn");
-  if (s) s.click();
-  if (consoleNavActive) refreshConsoleFocusables();
-}
-
-
-function consoleNavKey(e) {
-  const k = e.key;
-  const arrows = k === "ArrowUp" || k === "ArrowDown" || k === "ArrowLeft" || k === "ArrowRight";
-  const wasd = k === "w" || k === "s" || k === "a" || k === "d";
-  if (arrows || wasd) {
-    const tag = (e.target && e.target.tagName) || "";
-    const isField = /INPUT|TEXTAREA/.test(tag);
-    // In Textfeldern typst du normal: WASD soll nicht kapern; nur mit den
-    // Pfeiltasten wechselst du zum nächsten Feld.
-    if (isField && wasd) return;
-    e.preventDefault();
-    const dx = (k === "ArrowRight" || k === "d") ? 1 : (k === "ArrowLeft" || k === "a") ? -1 : 0;
-    const dy = (k === "ArrowDown" || k === "s") ? 1 : (k === "ArrowUp" || k === "w") ? -1 : 0;
-    moveConsoleFocus(dx, dy);
-    return;
-  }
-  if (k === "Enter") { e.preventDefault(); consoleDoStart(); return; }
-  if (k === "Escape") { e.preventDefault(); consoleCloseModal(); return; }
-  const tag = (e.target && e.target.tagName) || "";
-  const isField = /INPUT|TEXTAREA/.test(tag);
-  if (!isField) {
-    if (k === "x" || k === "X") { e.preventDefault(); consoleDoManage(); return; }
-    if (k === "y" || k === "Y") { e.preventDefault(); try { switchTab("create"); } catch (err) {} return; }
-  }
-}
-
-function setupConsoleNavigation(on) {
-  consoleNavActive = on;
-  document.body.classList.toggle("console-nav", on);
-  if (!on) {
-    consoleFocusables.forEach((el) => el.classList.remove("cfocus", "console-nav"));
-    document.onkeydown = null;
-    if (window.__consoleNavLoop) { clearInterval(window.__consoleNavLoop); window.__consoleNavLoop = null; }
-    return;
-  }
-  // Tastatur
-  document.onkeydown = consoleNavKey;
-  // Ersten Fokus setzen
-  refreshConsoleFocusables();
-  setConsoleFocus(0);
-  // Gamepad-Polling (D-Pad/Stick + A). Seit v1.10.6 ist das Backend (gilrs) die
-  // zuverlässige, alleinige Eingabequelle — WebKitGTK kann die Web-Gamepad-API
-  // auf Linux praktisch nicht, und ein aktives Web-Polling würde doppelt
-  // navigieren (→ mehrere Tabs bei kurzer Bewegung). Daher hier nur ein Pflicht-
-  // leerer Guard: die eigentliche Steuerung kommt als `console-input`-Events aus
-  // dem Rust-Gamepad-Thread (siehe consoleInputAction).
-  window.__consoleNavLoop = setInterval(() => {
-    if (window.__TAURI__) return; // Backend übernimmt die Steuerung
-    const gp = navigator.getGamepads && navigator.getGamepads();
-    if (!gp) return;
-    const pad = Array.from(gp).find((p) => p && p.connected);
-    if (!pad) return;
-    const ax = pad.axes ? pad.axes[0] || 0 : 0;
-    const ay = pad.axes ? pad.axes[1] || 0 : 0;
-    const dpad = (pad.buttons && pad.buttons.length) ? [
-      pad.buttons[12]?.value, // up
-      pad.buttons[13]?.value, // down
-      pad.buttons[14]?.value, // left
-      pad.buttons[15]?.value  // right
-    ] : null;
-    const repeat = (window.__consoleNavLastDir === (JSON.stringify([ax, ay, dpad]))) ? 1 : 0;
-    const now = Date.now() - (window.__consoleNavLastT || 0);
-    if (now < (repeat ? 320 : 0)) return;
-    const up = (dpad && dpad[0] > 0.5) || ay < -0.5;
-    const down = (dpad && dpad[1] > 0.5) || ay > 0.5;
-    const left = (dpad && dpad[2] > 0.5) || ax < -0.5;
-    const right = (dpad && dpad[3] > 0.5) || ax > 0.5;
-    let dx = right ? 1 : left ? -1 : 0;
-    let dy = down ? 1 : up ? -1 : 0;
-    if (dx || dy) {
-      moveConsoleFocus(dx, dy);
-      window.__consoleNavLastT = Date.now();
-      window.__consoleNavLastDir = JSON.stringify([ax, ay, dpad]);
-      return;
-    }
-    // Edge-Trigger für Aktionen (A/B/X/Y/Start/Select) mit Entprellung.
-    const btns = pad.buttons || [];
-    if (!window.__consoleNavBtns) window.__consoleNavBtns = {};
-    const map = { 0: "A", 1: "B", 2: "X", 3: "Y", 8: "SELECT", 9: "START" };
-    for (const idx in map) {
-      const down = btns[idx] ? btns[idx].value > 0.5 : false;
-      const was = !!window.__consoleNavBtns[map[idx]];
-      if (down && !was) {
-        window.__consoleNavBtns[map[idx]] = true;
-        if (map[idx] === "A") { consoleDoStart(); return; }
-        if (map[idx] === "X") { consoleDoManage(); return; }
-        if (map[idx] === "Y") { try { switchTab("create"); } catch (e) {} return; }
-        if (map[idx] === "B") { consoleCloseModal(); return; }
-        if (map[idx] === "SELECT") { consoleCloseModal(); return; }
-        if (map[idx] === "START") { consoleOpenSettings(); return; }
-      }
-      if (!down && was) window.__consoleNavBtns[map[idx]] = false;
-    }
-  }, 80);
-  // Fokusliste nach UI-Änderungen aktualisieren
-  if (!window.__consoleNavRescan) {
-    window.__consoleNavRescan = setInterval(() => {
-      if (document.body.classList.contains("console-mode")) refreshConsoleFocusables();
-    }, 500);
-  }
-}
-
 $("pickClose").onclick = () => closeConsolePicker();
 
 $("settingsClose").onclick = () => {
@@ -3193,14 +2701,7 @@ applySavedTheme()
       if (on) p.removeAttribute("hidden");
       else p.setAttribute("hidden", "");
     });
-    if (document.body.classList.contains("console-mode")) {
-      const dock = document.getElementById("ps5Dock");
-      if (dock) {
-        dock.querySelectorAll(".ps5-dock-btn").forEach((b) => {
-          b.classList.toggle("active", b.dataset.tab === name);
-        });
-      }
-    }
+    if (document.body.classList.contains("console-mode")) kcSyncTabs(name);
     if (name === "home") {
       // Der Skin-Viewer wird beim Start ggf. erzeugt, bevor das Panel sichtbar
       // ist. Beim Tabwechsel nachladen, damit WebGL-Kontext und Canvas stimmen.
@@ -4448,6 +3949,9 @@ startBackgroundIntervals();
   function storeCard(item) {
     const card = document.createElement("div");
     card.className = "store-card rar-" + (item.rarity || "common") + (item.owned ? " owned" : "") + (item.equippedCategory ? " equipped" : "");
+    card.tabIndex = 0;
+    card.setAttribute("role", "button");
+    card.dataset.kcKey = "shop:" + item.id;
     const rarArr = STORE_RAR[item.rarity] || ["", "r-common"];
     const pv = document.createElement("div");
     pv.className = "store-pv";
@@ -4472,6 +3976,7 @@ startBackgroundIntervals();
     body.append(t, d, price);
     const btn = document.createElement("button");
     btn.className = "cardBtn";
+    btn.tabIndex = -1;
     const b = storeButtonFor(item);
     btn.textContent = b.txt;
     if (b.disabled) btn.disabled = true;
@@ -4485,6 +3990,10 @@ startBackgroundIntervals();
 
   window.renderKollegenStore = renderStore;
   window.renderCosmetics = renderCosmetics;
+  window.kollegenStore = {
+    preview: (item) => storePreview(item),
+    open: (id) => { const it = byId(id); if (it) storeOpenModal(it); }
+  };
   function renderStore() {
     const grid = $("storeGridMain");
     if (!kmCat) {
@@ -5666,6 +5175,7 @@ startBackgroundIntervals();
   let groupSinceMsg = 0;
   let groupMemberNames = {};
 
+  window.renderGroups = renderGroups;
   async function renderGroups() {
     const el = $("kollegenGroups");
     if (!el) return;
