@@ -525,7 +525,7 @@ pub fn companion_jar(data_dir: &Path, version: &str) -> Option<PathBuf> {
 
 
 
-fn relax_companion_constraints(jar: &Path) -> PathBuf {
+fn relax_companion_constraints(jar: &Path, version: &str) -> PathBuf {
     let patched = std::env::temp_dir().join(format!(
         "kollegen-mod-relaxed-{}.jar",
         std::process::id()
@@ -560,6 +560,12 @@ fn relax_companion_constraints(jar: &Path) -> PathBuf {
                                     "minecraft".to_string(),
                                     serde_json::Value::String(">=1.21".to_string()),
                                 );
+                                if version.starts_with("1.21.") {
+                                    depends.insert(
+                                        "java".to_string(),
+                                        serde_json::Value::String(">=21".to_string()),
+                                    );
+                                }
                             }
                             if let Ok(patched_bytes) = serde_json::to_vec(&doc) {
                                 let _ = writer.start_file(&name, opts);
@@ -728,7 +734,7 @@ pub fn install_companion_mod(data_dir: &Path, instance_name: &str, version: &str
     };
     
     
-    let jar = relax_companion_constraints(&source);
+    let jar = relax_companion_constraints(&source, version);
 
     let mods_dir = crate::utils::instance_dir(data_dir, instance_name).join("mods");
     if let Err(e) = std::fs::create_dir_all(&mods_dir) {
