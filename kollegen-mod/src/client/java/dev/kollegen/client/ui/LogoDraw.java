@@ -1,6 +1,5 @@
 package dev.kollegen.client.ui;
 
-import com.mojang.blaze3d.pipeline.RenderPipeline;
 import com.mojang.blaze3d.platform.Window;
 import java.io.InputStream;
 import java.util.HashMap;

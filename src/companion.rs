@@ -23,10 +23,11 @@ pub const COMPANION_MOD_FILENAME: &str = "kollegen-client-mod.jar";
 pub const COMPANION_MOD_PREFIX: &str = "kollegen-client";
 pub const COMPANION_MOD_FILENAME_1_21: &str = "kollegen-client-mod-1.21.11.jar";
 pub const COMPANION_MOD_FILENAME_26_2: &str = "kollegen-client-mod-26.2.jar";
+pub const COMPANION_MOD_FILENAME_26_3: &str = "kollegen-client-mod-26.3.jar";
 pub const COMPANION_MOD_VERSION: &str = "1.21.89";
 
 pub fn companion_target_versions() -> &'static [&'static str] {
-    &["1.21.11", "26.2"]
+    &["1.21.11", "26.2", "26.3"]
 }
 
 pub fn is_version_supported(version: &str) -> bool {
@@ -40,7 +41,10 @@ fn version_compatible(instance_version: &str, target_version: &str) -> bool {
     if target_version == "1.21.11" && instance_version.starts_with("1.21.") {
         return true;
     }
-    if target_version == "26.2" && (instance_version.starts_with("26.") || instance_version == "1.21.11") {
+    if target_version == "26.3" && instance_version.starts_with("26.3") {
+        return true;
+    }
+    if target_version == "26.2" && (instance_version.starts_with("26.2") || (instance_version.starts_with("26.") && !instance_version.starts_with("26.3"))) {
         return true;
     }
     false
@@ -49,7 +53,9 @@ fn version_compatible(instance_version: &str, target_version: &str) -> bool {
 fn companion_filename_for_version(version: &str) -> &'static str {
     if version.starts_with("1.21.") {
         COMPANION_MOD_FILENAME_1_21
-    } else if version.starts_with("26.") || version == "1.21.11" {
+    } else if version.starts_with("26.3") {
+        COMPANION_MOD_FILENAME_26_3
+    } else if version.starts_with("26.") {
         COMPANION_MOD_FILENAME_26_2
     } else {
         COMPANION_MOD_FILENAME
@@ -61,6 +67,7 @@ pub fn is_companion_mod_name(filename: &str) -> bool {
     lc == COMPANION_MOD_FILENAME
         || lc == COMPANION_MOD_FILENAME_1_21
         || lc == COMPANION_MOD_FILENAME_26_2
+        || lc == COMPANION_MOD_FILENAME_26_3
         || (lc.starts_with(COMPANION_MOD_PREFIX) && lc.ends_with(".jar"))
 }
 
@@ -558,12 +565,17 @@ fn relax_companion_constraints(jar: &Path, version: &str) -> PathBuf {
                             {
                                 depends.insert(
                                     "minecraft".to_string(),
-                                    serde_json::Value::String(">=1.21".to_string()),
+                                    serde_json::Value::String(if version.starts_with("26.3") { ">=26.3".to_string() } else if version.starts_with("26.") { ">=26.2".to_string() } else { ">=1.21".to_string() }),
                                 );
                                 if version.starts_with("1.21.") {
                                     depends.insert(
                                         "java".to_string(),
                                         serde_json::Value::String(">=21".to_string()),
+                                    );
+                                } else {
+                                    depends.insert(
+                                        "java".to_string(),
+                                        serde_json::Value::String(">=25".to_string()),
                                     );
                                 }
                             }
