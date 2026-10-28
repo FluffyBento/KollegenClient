@@ -395,7 +395,7 @@ fn clone_instance_v2(
     new_loader: String,
     new_loader_version: Option<String>,
 ) -> Result<types::Instance, String> {
-    let mut instances = utils::load_json::<Vec<types::Instance>>(
+    let instances = utils::load_json::<Vec<types::Instance>>(
         &utils::instances_file(&state.data_dir),
         vec![],
     );
@@ -445,7 +445,7 @@ fn clone_instance_v2(
     copy_dir_recursive(&source_dir.join("resourcepacks"), &new_dir.join("resourcepacks"))?;
     copy_dir_recursive(&source_dir.join("shaderpacks"), &new_dir.join("shaderpacks"))?;
     
-    let mut new_inst = types::Instance {
+    let new_inst = types::Instance {
         id: uuid::Uuid::new_v4().to_string(),
         name: new_name.clone(),
         version: new_version.clone(),
@@ -2079,7 +2079,6 @@ fn read_forward_state(gilrs: &mut gilrs::Gilrs) -> (bool, [f32; 6], [u8; 15], bo
     use gilrs::{Axis, Button};
     let mut axes = [0.0f32; 6];
     let mut buttons = [0u8; 15];
-    let mut guide = false;
     for (_, gamepad) in gilrs.gamepads() {
         if !gamepad.is_connected() {
             continue;
@@ -2104,7 +2103,7 @@ fn read_forward_state(gilrs: &mut gilrs::Gilrs) -> (bool, [f32; 6], [u8; 15], bo
         buttons[12] = if gamepad.is_pressed(Button::DPadRight) { 1 } else { 0 };
         buttons[13] = if gamepad.is_pressed(Button::DPadDown) { 1 } else { 0 };
         buttons[14] = if gamepad.is_pressed(Button::DPadLeft) { 1 } else { 0 };
-        guide = gamepad.is_pressed(Button::Mode) || EVDEV_GUIDE.load(Ordering::Relaxed);
+        let guide = gamepad.is_pressed(Button::Mode) || EVDEV_GUIDE.load(Ordering::Relaxed);
         return (true, axes, buttons, guide);
     }
     (false, axes, buttons, false)
@@ -2349,6 +2348,7 @@ fn spawn_gamepad_loop(app: tauri::AppHandle, console_on: Arc<AtomicBool>, data_d
 
 static EVDEV_GUIDE: AtomicBool = AtomicBool::new(false);
 
+#[cfg(target_os = "linux")]
 fn poll_evdev_guide() {
     use std::os::unix::fs::OpenOptionsExt;
     for entry in std::fs::read_dir("/dev/input").into_iter().flatten().flatten() {
@@ -2408,9 +2408,13 @@ fn poll_evdev_guide() {
 }
 
 // O_NONBLOCK flag value (Linux)
+#[cfg(target_os = "linux")]
 fn libc_o_nonblock() -> i32 {
     0o4000
 }
+
+#[cfg(not(target_os = "linux"))]
+fn poll_evdev_guide() {}
 
 fn main() {
     

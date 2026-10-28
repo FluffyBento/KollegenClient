@@ -143,7 +143,7 @@ pub fn import_skin(data_dir: &Path, name: &str, bytes: &[u8]) -> Value {
             }
         }
     }
-    if let Some(n) = existing_name {
+    if existing_name.is_some() {
         return list_skins(data_dir);
     }
 
