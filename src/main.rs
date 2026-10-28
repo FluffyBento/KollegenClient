@@ -575,6 +575,13 @@ fn auto_resolve_conflict(
                 .map(|s| s.to_string_lossy().to_string())
                 .unwrap_or_else(|| "Bundle".to_string());
             let _ = std::fs::remove_file(&bundle);
+            // Eventuelle Standalone-Kopie dieser gebündelten Mod ebenfalls löschen
+            if let Some(standalone) = find_mod_jar(&mods_dir, &modid, &name) {
+                let sname = standalone.file_name().map(|s| s.to_string_lossy().to_string()).unwrap_or_default();
+                if !crate::companion::is_companion_mod_name(&sname) && !sname.starts_with("kollegen-bundle") {
+                    let _ = std::fs::remove_file(&standalone);
+                }
+            }
             let comp = crate::companion::companion_jar(&state.data_dir, &mc_version);
             crate::instance::enforce_bundled_mods(&mods_dir, &mc_version, comp.as_deref());
             // „Erneuert" nur melden, wenn die bereitgestellte Datei wirklich
@@ -757,6 +764,8 @@ fn conflict_excerpt(text: &str) -> String {
         if l.starts_with("- Remove")
             || l.starts_with("- Replace")
             || l.starts_with("- add ")
+            || l.starts_with("- Mod ")
+            || l.starts_with("Mod ")
             || l.to_lowercase().starts_with("a potential solution")
         {
             lines.push(l.to_string());
@@ -771,36 +780,50 @@ fn conflict_excerpt(text: &str) -> String {
     lines.join("\n")
 }
 
-fn parse_conflict_targets(text: &str) -> Vec<(String, String)> {    let mut out = Vec::new();
+fn parse_conflict_targets(text: &str) -> Vec<(String, String)> {
+    let mut out = Vec::new();
+    let ignored_modids = ["minecraft", "java", "fabricloader", "fabric", "quilt_loader"];
+
     for line in text.lines() {
         let l = line.trim();
-        if !(l.starts_with("- Remove") || l.starts_with("- Replace")) {
+        let is_target = l.starts_with("- Remove")
+            || l.starts_with("- Replace")
+            || l.starts_with("- Mod ")
+            || l.starts_with("Mod ");
+
+        if !is_target {
             continue;
         }
-        let s = match l.find('(') {
+
+        let (name, after_name_idx) = if let Some(a) = l.find('\'') {
+            if let Some(b) = l[a + 1..].find('\'') {
+                (l[a + 1..a + 1 + b].to_string(), a + 1 + b + 1)
+            } else {
+                (String::new(), 0)
+            }
+        } else {
+            (String::new(), 0)
+        };
+
+        let rest = &l[after_name_idx..];
+        let s = match rest.find('(') {
             Some(s) => s,
             None => continue,
         };
-        let e = match l[s..].find(')') {
+        let e = match rest[s..].find(')') {
             Some(e) => e,
             None => continue,
         };
-        let modid = l[s + 1..s + e].trim().to_string();
-        if modid.is_empty() {
+        let modid = rest[s + 1..s + e].trim().to_string();
+        if modid.is_empty() || ignored_modids.contains(&modid.as_str()) {
             continue;
         }
         
-        
-        let name = if let Some(a) = l.find('\'') {
-            if let Some(b) = l[a + 1..].find('\'') {
-                l[a + 1..a + 1 + b].to_string()
-            } else {
-                modid.clone()
-            }
-        } else {
-            modid.clone()
-        };
-        out.push((modid, name));
+        let name = if name.is_empty() { modid.clone() } else { name };
+
+        if !out.iter().any(|(m, _): &(String, String)| m == &modid) {
+            out.push((modid, name));
+        }
     }
     out
 }
@@ -2611,6 +2634,44 @@ fn main() {
             std::process::exit(1);
         });
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_conflict_targets_from_crash_log() {
+        let log = r#"
+Incompatible mods found!
+net.fabricmc.loader.impl.FormattedException: Some of your mods are incompatible with the game or each other!
+A potential solution has been determined, this may resolve your problem:
+	 - Replace 'Minecraft' (minecraft) 26.3 with version 26.2.
+More details:
+	 - Mod 'Chat Heads' (chat_heads) 1.3.2 requires any version between 26.1 (inclusive) and 26.2 (inclusive) of 'Minecraft' (minecraft), but only the wrong version is present: 26.3!
+	 - Mod 'EntityCulling' (entityculling) 1.11.2 requires any version between 26.2 (inclusive) and 26.3- (exclusive) of 'Minecraft' (minecraft), but only the wrong version is present: 26.3!
+	 - Mod 'Fabric API' (fabric-api) 0.161.0+26.2 requires any 26.2.x version of 'Minecraft' (minecraft), but only the wrong version is present: 26.3!
+	 - Mod 'ImmediatelyFast' (immediatelyfast) 1.16.5+26.2 requires any 26.2.x version of 'Minecraft' (minecraft), but only the wrong version is present: 26.3!
+	 - Mod 'Sodium' (sodium) 0.9.2+mc26.2 requires any version between 26.2 (inclusive) and 26.3- (exclusive) of 'Minecraft' (minecraft), but only the wrong version is present: 26.3!
+	 - Mod 'Lithium' (lithium) 0.25.3+mc26.2 requires any version between 26.2 (inclusive) and 26.3- (exclusive) of 'Minecraft' (minecraft), but only the wrong version is present: 26.3!
+	 - Mod 'Mod Menu' (modmenu) 20.0.3 requires any version between 26.2 (inclusive) and 26.3-alpha.3 (exclusive) of 'Minecraft' (minecraft), but only the wrong version is present: 26.3!
+	 - Mod 'Silk (All modules)' (silk-all) 1.12.0 requires any 26.2.x version of 'Minecraft' (minecraft), but only the wrong version is present: 26.3!
+	 - Mod '3d-Skin-Layers' (skinlayers3d) 1.11.4 requires any version between 26.2 (inclusive) and 26.3- (exclusive) of 'Minecraft' (minecraft), but only the wrong version is present: 26.3!
+	 - Mod 'ViaFabricPlus' (viafabricplus) 5.0.3 requires version 26.2 of 'Minecraft' (minecraft), but only the wrong version is present: 26.3!
+	 - Mod 'Simple Voice Chat' (voicechat) 2.6.24+26.2 requires any 26.2.x version of 'Minecraft' (minecraft), but only the wrong version is present: 26.3!
+	 - Mod 'TRansition' (transition) 1.0.27 requires any version between 26.2 (inclusive) and 26.3- (exclusive) of 'Minecraft' (minecraft), but only the wrong version is present: 26.3!
+	 - Mod 'TRender' (trender) 1.0.12 requires any version between 26.2 (inclusive) and 26.3- (exclusive) of 'Minecraft' (minecraft), but only the wrong version is present: 26.3!
+"#;
+        let targets = parse_conflict_targets(log);
+        assert!(!targets.iter().any(|(id, _)| id == "minecraft"));
+        assert!(targets.iter().any(|(id, name)| id == "chat_heads" && name == "Chat Heads"));
+        assert!(targets.iter().any(|(id, name)| id == "fabric-api" && name == "Fabric API"));
+        assert!(targets.iter().any(|(id, name)| id == "sodium" && name == "Sodium"));
+        assert!(targets.iter().any(|(id, name)| id == "modmenu" && name == "Mod Menu"));
+        assert!(targets.iter().any(|(id, name)| id == "entityculling" && name == "EntityCulling"));
+        assert!(targets.iter().any(|(id, name)| id == "silk-all" && name == "Silk (All modules)"));
+    }
+}
+
 
 
 

@@ -1273,7 +1273,6 @@ pub(crate) fn enforce_bundled_mods(mods_dir: &Path, mc_version: &str, companion_
     
     
     let autoremove = mods_dir.join(".kollegen-autoremove").exists();
-    if autoremove {
     if let Ok(entries) = fs::read_dir(mods_dir) {
         for e in entries.flatten() {
             let p = e.path();
@@ -1282,7 +1281,7 @@ pub(crate) fn enforce_bundled_mods(mods_dir: &Path, mc_version: &str, companion_
             }
             let name = e.file_name().to_string_lossy().to_lowercase();
             
-            
+            // 1. Altes, nicht mehr unterstütztes Bundle? Weg damit.
             if LEGACY_BUNDLE_JARS
                 .iter()
                 .any(|l| name == *l || name == format!("{l}.disabled"))
@@ -1292,13 +1291,7 @@ pub(crate) fn enforce_bundled_mods(mods_dir: &Path, mc_version: &str, companion_
                 continue;
             }
             
-            
-            
-            
-            
-            
-            
-            
+            // 2. Standalone-FLK entfernen (Essential bündelt es ohnehin).
             if name.starts_with("fabric-language-kotlin") || name.starts_with("fabric_language_kotlin") {
                 info!("Entferne eigenständiges FLK (Essential stellt es selbst bereit): {}", name);
                 let _ = fs::remove_file(&p);
@@ -1313,12 +1306,12 @@ pub(crate) fn enforce_bundled_mods(mods_dir: &Path, mc_version: &str, companion_
             let will_replace = decisions.iter().any(|&(jn, _, _, wd)| {
                 wd && bundle_standalone_prefixes(jn).iter().any(|pre| name.starts_with(*pre))
             });
-            if will_replace {
-                info!("Entferne Standalone-Kopie (bündelt der Kollegen Client): {}", name);
+            let incompatible = !crate::companion::jar_supports_mc(&p, mc_version);
+            if (will_replace && autoremove) || (will_replace && incompatible) {
+                info!("Entferne unpassende/ersetzte Standalone-Kopie: {}", name);
                 let _ = fs::remove_file(&p);
             }
         }
-    }
     } 
 
     

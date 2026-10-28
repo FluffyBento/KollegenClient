@@ -276,13 +276,38 @@ fn jar_mc_constraint(p: &Path) -> Option<String> {
 }
 
 fn mc_constraint_supports(constraint: &str, version: &str) -> bool {
+    let c = constraint.trim();
+    if c == "*" {
+        return true;
+    }
     if version.starts_with("1.21.") {
-        return constraint.contains("1.21");
+        return c.contains("1.21");
     }
-    if version.starts_with("26.") {
-        return constraint.contains("26");
+    if version == "26.3" || version.starts_with("26.3") {
+        if c.contains("<26.3") || c.contains("<=26.2") || c.contains("26.2.x") || c.contains("~26.2") {
+            return false;
+        }
+        if c.contains("26.3") {
+            return true;
+        }
+        if c.contains(">=26") {
+            return true;
+        }
+        return false;
     }
-    constraint.contains(version)
+    if version == "26.2" || version.starts_with("26.2") {
+        if c.contains("26.2") {
+            return true;
+        }
+        if c.contains("<26.2") || c.contains("<=26.1") || c.contains("26.1.x") || c.contains("~26.1") || c.contains(">=26.3") {
+            return false;
+        }
+        if c.contains(">=26") {
+            return true;
+        }
+        return false;
+    }
+    c.contains(version)
 }
 
 pub(crate) fn jar_supports_mc(p: &Path, version: &str) -> bool {
@@ -773,5 +798,27 @@ pub fn install_companion_mod(data_dir: &Path, instance_name: &str, version: &str
             "Konnte Kollegen-Client-Mod in Instanz '{}' nicht injizieren: {}",
             instance_name, e
         ),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_mc_constraint_supports_26_3() {
+        // 26.2 specific mods should NOT match 26.3
+        assert!(!mc_constraint_supports(">=26.1 <=26.2", "26.3"));
+        assert!(!mc_constraint_supports(">=26.2 <26.3-", "26.3"));
+        assert!(!mc_constraint_supports("26.2.x", "26.3"));
+        assert!(!mc_constraint_supports("~26.2", "26.3"));
+        assert!(!mc_constraint_supports("26.2", "26.3"));
+
+        // 26.3 compatible mods SHOULD match 26.3
+        assert!(mc_constraint_supports("26.3", "26.3"));
+        assert!(mc_constraint_supports("26.3.x", "26.3"));
+        assert!(mc_constraint_supports(">=26.3-", "26.3"));
+        assert!(mc_constraint_supports("~26.3-", "26.3"));
+        assert!(mc_constraint_supports("*", "26.3"));
     }
 }
