@@ -31,6 +31,9 @@ public class ChessScreen extends GameScreen {
     private int[] targets = new int[0];
     private int lastFrom = -1;
     private int lastTo = -1;
+    private float moveAnim = 0.0f;
+    private int animFrom = -1;
+    private int animTo = -1;
 
     private volatile boolean thinking = false;
     private volatile int aiBest = -1;
@@ -39,7 +42,7 @@ public class ChessScreen extends GameScreen {
 
     public ChessScreen(Screen parent) {
         super(parent, "Schach");
-        this.frame(420, 470);
+        this.frame(440, 490);
         GameNet.setSink(this::onNetMessage);
         newGame();
     }
@@ -65,6 +68,7 @@ public class ChessScreen extends GameScreen {
         this.lastFrom = -1;
         this.lastTo = -1;
         this.flip = this.mode == 2;
+        this.myColor = WHITE;
         this.aiReady = false;
         this.aiBest = -1;
         this.status = "";
@@ -125,7 +129,7 @@ public class ChessScreen extends GameScreen {
         int f0 = fileOf(s);
         int r0 = rankOf(s);
 
-        int dir = by == WHITE ? -1 : 1;
+        int dir = by == WHITE ? 1 : -1;
         if (onBoard(f0 - 1, r0 - dir) && b[sq(f0 - 1, r0 - dir)] == (by == WHITE ? 'P' : 'p')) {
             return true;
         }
@@ -507,7 +511,6 @@ public class ChessScreen extends GameScreen {
                 alpha = best;
             }
             if (alpha >= beta) {
-
                 if (quiet && captured == 0) {
                     best += 60;
                 }
@@ -609,6 +612,9 @@ public class ChessScreen extends GameScreen {
     private void playMove(int mv) {
         int from = mv / 64;
         int to = mv % 64;
+        this.animFrom = from;
+        this.animTo = to;
+        this.moveAnim = 0.0f;
         applyRaw(this.board, from, to, this.side);
         this.lastFrom = from;
         this.lastTo = to;
@@ -847,7 +853,7 @@ public class ChessScreen extends GameScreen {
 
     private float squareSize() {
         float avail = Math.min((this.pw - 40.0f) / 8.0f, (this.ph - 104.0f) / 8.0f);
-        return Math.max(20.0f, Math.min(46.0f, avail));
+        return Math.max(20.0f, Math.min(56.0f, avail));
     }
 
     private float boardX() {
@@ -857,7 +863,7 @@ public class ChessScreen extends GameScreen {
 
     private float boardY() {
         float s = squareSize();
-        return this.py + 48.0f + ((this.ph - 104.0f) - s * 8) / 2.0f;
+        return this.py + 56.0f + ((this.ph - 104.0f) - s * 8) / 2.0f;
     }
 
     private static final String GLYPH_W = "\u2654\u2655\u2656\u2657\u2658\u2659";
@@ -881,6 +887,9 @@ public class ChessScreen extends GameScreen {
     }
 
     public void extractRenderState(GuiGraphicsExtractor g, int mx, int my, float pt) {
+        if (this.moveAnim > 0.0f) {
+            this.moveAnim = Math.min(1.0f, this.moveAnim + Glass.dt * 8.0f);
+        }
 
         if (this.mode == 0 && this.aiReady && !this.over) {
             this.aiReady = false;
@@ -903,11 +912,11 @@ public class ChessScreen extends GameScreen {
         float gx = boardX();
         float gy = boardY();
 
-        Glass.rr(g, gx - 6, gy - 6, s * 8 + 12, s * 8 + 12, 10, Glass.a(Palette.PANEL, 0.9f));
-        Glass.ring(g, gx - 6, gy - 6, s * 8 + 12, s * 8 + 12, 10, 0.6f, Glass.a(0xFFFFFFFF, 0.16f));
+        Glass.rr(g, gx - 8, gy - 8, s * 8 + 16, s * 8 + 16, 14, Glass.a(Palette.PANEL, 0.92f));
+        Glass.ring(g, gx - 8, gy - 8, s * 8 + 16, s * 8 + 16, 14, 0.8f, Glass.a(0xFFFFFFFF, 0.20f));
 
-        int light = Glass.mix(0xFFEDE0C8, Palette.BG, 0.10f);
-        int dark = Glass.mix(0xFF7A5C3E, Palette.BG, 0.25f);
+        int light = Glass.mix(0xFFEDE0C8, Palette.BG, 0.08f);
+        int dark = Glass.mix(0xFF7A5C3E, Palette.BG, 0.22f);
 
         for (int row = 0; row < 8; row++) {
             for (int col = 0; col < 8; col++) {
@@ -916,29 +925,48 @@ public class ChessScreen extends GameScreen {
                 float y = gy + row * s;
                 boolean isLight = (fileOf(sqq) + rankOf(sqq)) % 2 == 0;
                 int fill = isLight ? light : dark;
-                Glass.rr(g, x, y, s, s, 2, Glass.a(fill, 0.92f));
+                Glass.rr(g, x + 1, y + 1, s - 2, s - 2, 2, Glass.a(fill, 0.95f));
 
-                if (sqq == this.selectedSq || (sqq == this.lastFrom && this.selectedSq < 0)) {
-                    Glass.rr(g, x, y, s, s, 2, Glass.a(Palette.ACCENT, 0.30f));
+                boolean sel = sqq == this.selectedSq;
+                boolean lastFrom = sqq == this.lastFrom && this.selectedSq < 0;
+                boolean lastTo = sqq == this.lastTo;
+                boolean hover = sqq == this.hoverSq;
+
+                if (sel || lastFrom) {
+                    Glass.rr(g, x + 1, y + 1, s - 2, s - 2, 2, Glass.a(Palette.ACCENT, 0.28f));
                 }
-                if (sqq == this.lastTo) {
-                    Glass.rr(g, x + s * 0.3f, y + s * 0.3f, s * 0.4f, s * 0.4f, s * 0.2f,
-                            Glass.a(Palette.ACCENT, 0.45f));
+                if (lastTo) {
+                    Glass.rr(g, x + 1, y + 1, s - 2, s - 2, 2, Glass.a(0xFF4ADE80, 0.35f));
+                }
+                if (hover && !sel && !lastFrom && !lastTo && canMove()) {
+                    Glass.rr(g, x + 1, y + 1, s - 2, s - 2, 2, Glass.a(0xFFFFFFFF, 0.10f));
                 }
                 for (int mv : this.targets) {
                     if (mv % 64 == sqq) {
-                        Glass.disc(g, x + s / 2, y + s / 2, s * 0.14f, Glass.a(Palette.ACCENT, 0.65f));
+                        Glass.disc(g, x + s / 2.0f, y + s / 2.0f, s * 0.16f, Glass.a(Palette.ACCENT, 0.70f));
                     }
                 }
-                if (sqq == this.hoverSq) {
-                    Glass.ring(g, x, y, s, s, 3, 0.7f, Glass.a(0xFFFFFFFF, 0.30f));
-                }
-                char p = this.board[sqq];
-                if (p != '.') {
+                if (this.moveAnim > 0.0f && this.animFrom == sqq) {
+                    float t = Glass.ease(this.moveAnim);
+                    float ax = x + s / 2.0f;
+                    float ay = y + s / 2.0f;
+                    float tx = gx + fileOf(this.animTo) * s + s / 2.0f;
+                    float ty = gy + rankOf(this.animTo) * s + s / 2.0f;
+                    float px2 = ax + (tx - ax) * t;
+                    float py2 = ay + (ty - ay) * t;
+                    Glass.shadowSoft(g, px2 - s * 0.20f, py2 - s * 0.20f + 1.5f, s * 0.40f, s * 0.40f, s * 0.20f, 2.0f, 1.0f, 0x55000000);
+                    char p = this.board[this.animTo];
                     String gl = glyph(p);
-                    float cy = y + (s - 8.0f) / 2.0f;
-                    Glass.textC(g, this.font, gl, Math.round(x + s / 2), Math.round(cy),
-                            isWhite(p) ? 0xFFFFFDF6 : 0xFF23201C, true);
+                    float cy = py2 - 8.0f / 2.0f;
+                    Glass.textC(g, this.font, gl, Math.round(px2), Math.round(cy), isWhite(p) ? 0xFFFFFDF6 : 0xFF23201C, true);
+                } else {
+                    char p = this.board[sqq];
+                    if (p != '.') {
+                        String gl = glyph(p);
+                        float cy = y - 8.0f / 2.0f;
+                        Glass.shadowSoft(g, x + s * 0.25f, y + s * 0.25f + 1.5f, s * 0.50f, s * 0.50f, s * 0.25f, 2.0f, 1.0f, 0x55000000);
+                        Glass.textC(g, this.font, gl, Math.round(x + s / 2), Math.round(cy), isWhite(p) ? 0xFFFFFDF6 : 0xFF23201C, true);
+                    }
                 }
             }
         }

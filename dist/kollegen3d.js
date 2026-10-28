@@ -7,8 +7,14 @@
   let THREE = null;
 
   function onReady(fn) {
-    if (window.THREE) fn();
-    else window.addEventListener(READY, fn, { once: true });
+    if (window.THREE) { fn(); return; }
+    let tries = 0;
+    const iv = setInterval(() => {
+      tries++;
+      if (window.THREE) { clearInterval(iv); fn(); }
+      else if (tries > 50) { clearInterval(iv); }
+    }, 100);
+    window.addEventListener(READY, fn, { once: true });
   }
 
   /* Eine Boxflaeche als Dreieck: Positionen + UV. */
@@ -73,7 +79,7 @@
     const w = canvas.clientWidth || 300;
     const h = canvas.clientHeight || 420;
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x0a0c10);
+    scene.background = null;
 
     const camera = new THREE.PerspectiveCamera(45, w / h, 0.1, 500);
     camera.position.set(0, 0.4, 2.2);
@@ -181,7 +187,27 @@
         jobs.push({ cat, it });
       }
       if (!jobs.length) {
-        if (canvas) canvas.innerHTML = "";
+        if (canvas) {
+          const ctx = canvas.getContext("2d");
+          if (ctx) {
+            canvas.width = canvas.width;
+            ctx.fillStyle = "#888";
+            ctx.font = "11px sans-serif";
+            ctx.textAlign = "center";
+            const eq = equipped || {};
+            const keys = Object.keys(eq).filter((k) => eq[k]);
+            ctx.fillText("Keine Cosmetics ausgeruestet", canvas.width/2, canvas.height/2 - 20);
+            ctx.fillText("equipped keys: " + (keys.length ? keys.join(", ") : "(leer)"), canvas.width/2, canvas.height/2);
+            if (keys.length) {
+              const id = eq[keys[0]];
+              ctx.fillText("first id: " + JSON.stringify(id), canvas.width/2, canvas.height/2 + 15);
+              const it = byId[id];
+              ctx.fillText("byId found: " + (it ? "ja" : "nein"), canvas.width/2, canvas.height/2 + 30);
+              if (it) ctx.fillText("has model: " + (it.data && it.data.model ? "ja" : "nein"), canvas.width/2, canvas.height/2 + 45);
+            }
+            ctx.fillText("catalog: " + (catalog ? catalog.length : 0), canvas.width/2, canvas.height/2 + 60);
+          }
+        }
         return;
       }
       const assets = [];

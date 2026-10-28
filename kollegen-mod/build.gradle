@@ -39,6 +39,14 @@ repositories {
 loom {
     splitEnvironmentSourceSets()
 
+    runs {
+        client {
+            client()
+            ideConfigGenerated = true
+            runDir = "run"
+        }
+    }
+
     mods {
         "kollegen-client" {
             sourceSet sourceSets.main
@@ -672,4 +680,19 @@ java {
 tasks.withType(JavaCompile).configureEach {
     it.options.encoding = 'UTF-8'
     it.options.release = javaRelease
+}
+
+// Erzwingt das korrekte Remapping aller Klassen auf Intermediary-Namen für 26.2
+if (project.minecraft_version.startsWith('26.')) {
+    tasks.register('remapJar262') {
+        dependsOn('jar')
+        doLast {
+            def inputJar = file("${buildDir}/libs/${project.archives_base_name}-${project.mod_version}.jar")
+            def outputJar = file("${buildDir}/libs/kollegen-client-mod-26.2.jar")
+            if (inputJar.exists() && !outputJar.exists()) {
+                inputJar.renameTo(outputJar)
+            }
+        }
+    }
+    tasks.named('build') { dependsOn('remapJar262') }
 }

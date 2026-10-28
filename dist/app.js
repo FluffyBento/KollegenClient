@@ -368,7 +368,21 @@ function bindHomeControls() {
   const create = $("homeCreateBtn");
   if (create) create.onclick = () => switchTab("create");
   const skinBtn = $("homeSkinOpen");
-  if (skinBtn) skinBtn.onclick = () => openProfileModal();
+  if (skinBtn) skinBtn.onclick = () => openProfileModal(true);
+  const inviteBtn = $("homeInviteBtn");
+  if (inviteBtn) {
+    inviteBtn.onclick = async () => {
+      const user = (socialMe && (socialMe.mc_name || socialMe.username || socialMe.global_name)) || "Jemand";
+      const text = `${user} nutzt den **Kollegen Client** und findet DU solltest es auch!\n## [DOWNLOAD](https://kollegen.me/minecraft)`;
+      try {
+        if (navigator.share) {
+          await navigator.share({ title: "Kollegen Client", text });
+          return;
+        }
+      } catch (e) {}
+      try { await copyText(text); toast("Einladungstext kopiert", "ok"); } catch (e) { toast("Kopieren fehlgeschlagen", "error"); }
+    };
+  }
 }
 
 async function refreshInstances() {
@@ -381,6 +395,7 @@ async function refreshInstances() {
     }
     renderHomeHero(instances);
     renderInstanceList();
+    if (typeof renderHomeExtras === "function") renderHomeExtras();
   } catch (e) {
     console.error(e);
   }
@@ -564,13 +579,18 @@ async function refreshLogs() {
     const online = friends.filter((f) =>
       f.presence_known ? (f.status && f.status !== "offline") : true
     );
-    if (!friends.length) {
-      hint.style.display = "";
-      hint.textContent = connected
-        ? "Noch keine Freunde geladen."
-        : "Verbinde dich mit Discord, um deine Freunde zu sehen.";
-      return;
-    }
+     if (!friends.length) {
+       // Nur anzeigen, wenn keine Kollegen-Freunde vorhanden sind
+       if (socialFriends && socialFriends.length) {
+         hint.style.display = "none";
+         return;
+       }
+       hint.style.display = "";
+       hint.textContent = connected
+         ? "Noch keine Discord-Freunde geladen."
+         : "Verbinde dich mit Discord, um deine Freunde zu sehen.";
+       return;
+     }
     if (!online.length) {
       hint.style.display = "";
       hint.textContent = "Keine Freunde gerade online.";
@@ -601,7 +621,7 @@ async function refreshLogs() {
       if (f.kollegen) {
         const badge = document.createElement("span");
         badge.className = "friend-badge";
-        badge.textContent = "⚡ Kollegen Client";
+        badge.textContent = "Kollegen Client";
         badge.title = "Nutzt den Kollegen Client – Freunden kann direkt beigetreten werden.";
         name.append(" ", badge);
       }
@@ -728,21 +748,21 @@ async function refreshLogs() {
 
   function normalizeFriend(f) {
     if (!f) return f;
-    const accts = Array.isArray(f.accounts) ? f.accounts : [];
-    const disc = accts.find((a) => (a.type || "").toLowerCase().indexOf("discord") >= 0) || null;
-    const avatar = (disc && (disc.avatar_url || disc.avatar)) || f.avatar || "";
-    const name = f.name || f.mc_name || f.global_name || f.username || "";
-    return {
-      id: f.id || "",
-      mc_name: name,
-      username: name,
-      global_name: name,
-      uuid: f.uuid || null,
-      friend_code: f.code || f.friend_code || "",
-      code: f.code || f.friend_code || "",
-      server: f.server || null,
-      online: !!f.online,
-      level: typeof f.level === "number" ? f.level : null,
+     const accts = Array.isArray(f.accounts) ? f.accounts : [];
+     const disc = accts.find((a) => (a.type || "").toLowerCase().indexOf("discord") >= 0) || null;
+     const avatar = (disc && (disc.avatar_url || disc.avatar)) || f.avatar || "";
+     const name = f.name || f.mc_name || f.global_name || f.username || "";
+     return {
+       id: f.id || "",
+       mc_name: name,
+       username: name,
+       global_name: name,
+       uuid: f.uuid || null,
+       friend_code: f.code || f.friend_code || "",
+       code: f.code || f.friend_code || "",
+       server: f.server || null,
+       online: !!(f.online || f.is_online || f.status === "online" || f.status === "Online" || f.online_status === "online"),
+       level: typeof f.level === "number" ? f.level : null,
       equipped: f.equipped && typeof f.equipped === "object" ? f.equipped : {},
       avatar,
       accounts: accts,
@@ -863,10 +883,19 @@ async function refreshLogs() {
     renderFriendsList("fwList", socialFriends, false);
   }
 
-  function renderSocialPanel() {
-    renderKollegenRequests();
-    renderFriendsList("kollegenFriends", socialFriends, true);
-  }
+   function renderSocialPanel() {
+     renderKollegenRequests();
+     renderFriendsList("kollegenFriends", socialFriends, true);
+     const hint = $("kollegenHint");
+     if (hint) {
+       if (!socialFriends || !socialFriends.length) {
+         hint.textContent = "Noch keine Kollegen-Freunde. Füge welche über deinen Code hinzu.";
+         hint.style.display = "";
+       } else {
+         hint.style.display = "none";
+       }
+     }
+   }
 
   // Eingehende Freundesanfragen (Anfrage → Annehmen/Ablehnen), neueste zuerst.
   function renderKollegenRequests() {
@@ -1032,12 +1061,15 @@ async function refreshLogs() {
     wrap.append(card);
   }
 
-  function openProfileModal() {
-    const m = $("profileModal");
-    if (!m) return;
-    m.style.display = "flex";
-    pmSetView(false);
-    setTimeout(() => loadSkinChanger(false), 60);
+     function openProfileModal(skinOnly) {
+       skinOnly = !!skinOnly;
+       const m = $("profileModal");
+       if (!m) return;
+       m.style.display = "flex";
+       const content = m.querySelector(".profile-modal");
+       if (content) content.classList.toggle("skin-only", skinOnly);
+       if (!skinOnly) pmSetView(false);
+       setTimeout(() => loadSkinChanger(false), 60);
 
     // Load profile customization from settings
     try {
@@ -1262,15 +1294,36 @@ async function refreshLogs() {
       // show basic info + skin preview
       resWrap.innerHTML = '';
       const title = document.createElement('div'); title.textContent = `${res.name} · ${res.uuid}`; resWrap.append(title);
+      // Freundes-Code nachschlagen (falls Person sich im Client/Website angemeldet hat)
+      try {
+        const j = await invoke('kollegen_browse_profiles', { search: res.name });
+        const items = (j && j.items) ? j.items : [];
+        const match = items.find(p => (p.name || p.mc_name || '').toLowerCase() === (res.name || '').toLowerCase());
+        if (match && (match.friend_code || match.code)) {
+          const code = document.createElement('div');
+          code.textContent = 'Freundes-Code: ' + (match.friend_code || match.code);
+          code.style.color = 'var(--accent)';
+          code.style.fontWeight = '600';
+          resWrap.append(code);
+        }
+      } catch (e) {}
       if (res.skin_data_url) {
         const img = document.createElement('img'); img.src = res.skin_data_url; img.style.maxWidth = '140px'; img.style.borderRadius='6px'; resWrap.append(img);
-        showSkin(res.skin_data_url);
+        showViewProfileSkin(res.skin_data_url, res.cape_data_url);
+        const dlBtn = document.createElement('button'); dlBtn.className = 'btn-secondary'; dlBtn.textContent = 'Skin herunterladen';
+        dlBtn.onclick = () => {
+          const name = (res.name || 'skin') + '-' + Date.now();
+          invoke('skin_upload', { name, data: res.skin_data_url, variant: 'classic' }).then(r => {
+            if (r && r.ok) { toast('Skin gespeichert', 'ok'); loadSkinChanger(true); }
+            else toast((r && r.error) || 'Fehler', 'error');
+          }).catch(e => toast('Download fehlgeschlagen: ' + e, 'error'));
+        };
+        resWrap.append(dlBtn);
       } else if (res.skin_url) {
         const img = document.createElement('img'); img.src = res.skin_url; img.style.maxWidth = '140px'; img.style.borderRadius='6px'; resWrap.append(img);
-        showSkin(res.skin_url);
+        showViewProfileSkin(res.skin_url, res.cape_data_url);
       }
       if (res.cape_data_url) { const c = document.createElement('img'); c.src = res.cape_data_url; c.style.maxWidth='160px'; resWrap.append(c); }
-      const raw = document.createElement('pre'); raw.style.maxHeight='8rem'; raw.style.overflow='auto'; raw.textContent = JSON.stringify(res.raw_textures || {}, null, 2); resWrap.append(raw);
     } catch (e) { resWrap.textContent = 'Fehler: ' + e; }
   }
 
@@ -1332,6 +1385,39 @@ async function refreshLogs() {
     const wrap = canvas.parentElement;
     showSkinFallback(wrap, canvas, url);
   }
+  function showViewProfileSkin(url, capeUrl) {
+    const canvas = $("viewProfileCanvas");
+    if (!canvas || !url) return;
+    url = httpsify(url);
+    const sv3d = window.skinview3d;
+    let webglOk = false;
+    try {
+      const probe = document.createElement("canvas");
+      const g = probe.getContext("webgl2") || probe.getContext("webgl");
+      webglOk = !!(g && g.getParameter);
+    } catch (_) {}
+    if (window.__vpSkinViewer) { try { window.__vpSkinViewer.dispose && window.__vpSkinViewer.dispose(); } catch (_) {} window.__vpSkinViewer = null; }
+    if (!(sv3d && sv3d.SkinViewer && sv3d.IdleAnimation && webglOk)) {
+      canvas.style.display = "none";
+      return;
+    }
+    try {
+      canvas.style.display = "";
+      window.__vpSkinViewer = new sv3d.SkinViewer({ canvas: canvas, width: 220, height: 440 });
+      const v = window.__vpSkinViewer;
+      const pp = v.loadSkin(url);
+      const ready = () => {
+        if (capeUrl) { try { const c = v.loadCape(httpsify(capeUrl)); if (c && c.catch) c.catch(()=>{}); } catch (_) {} }
+      };
+      if (pp && pp.then) pp.then(ready).catch(ready); else ready();
+      v.animation = new sv3d.IdleAnimation();
+      v.autoRotate = true;
+      v.autoRotateSpeed = 1.0;
+    } catch (e) {
+      canvas.style.display = "none";
+    }
+  }
+
   function showSkinFromName(name) {
     if (name) showSkin(`https://mc-heads.net/skin/${encodeURIComponent(name)}`);
   }
@@ -1411,23 +1497,8 @@ async function refreshLogs() {
     const key = url + "|" + (currentCapeUrl || "");
     if (!force && key === homeSkinKey && (homeSkinViewer || homeSkinFailed)) return;
     homeSkinKey = key;
-    homeSkinFailed = false;
-    if (window.kollegen3dRenderEquipped) {
-      try {
-        const meRes = await invoke("kollegen_me");
-        const meObj = meRes && !meRes.error ? meRes : null;
-        if (meObj) {
-          let cat = window.__cosmStore;
-          if (!cat || !cat.length) {
-            const st = await invoke("kollegen_store");
-            cat = (st && st.catalog) || [];
-            window.__cosmStore = cat;
-          }
-          window.kollegen3dRenderEquipped($("homeModels"), meObj.equipped || {}, cat);
-        }
-      } catch (e) {}
-    }
-    const sv3d = window.skinview3d;
+     homeSkinFailed = false;
+     const sv3d = window.skinview3d;
     let webglInfo = "kein WebGL";
     let webglOk = false;
     try {
@@ -1581,27 +1652,36 @@ async function refreshLogs() {
     capes.forEach(c => {
       const el = document.createElement("div");
       el.className = "cape-item" + (c.state === "ACTIVE" ? " active" : "");
-      const img = document.createElement("img");
-      img.src = c.url;
-      const capName = c.alias || c.capeName || c.name || "Cape";
-      img.alt = capName;
-      img.loading = "lazy";
-      // Bricht das Bild fehl (z. B. CORS), zeigen wir nur den Namen, damit
-      // die Capes weiterhin unterscheidbar bleiben.
-      img.onerror = () => { img.style.visibility = "hidden"; };
-      const name = document.createElement("span");
-      name.textContent = capName;
-      const btn = document.createElement("button");
-      btn.textContent = c.state === "ACTIVE" ? "Aktiv" : "Ausrüsten";
-      btn.disabled = c.state === "ACTIVE";
-      btn.onclick = () => equipCape(c.id, c.url);
-      el.append(img, name, btn);
-      list.append(el);
-      if (c.state === "ACTIVE") {
-        currentCapeUrl = c.url;
-        applyCapeToViewer();
-      }
-    });
+       const img = document.createElement("img");
+       const capName = c.alias || c.capeName || c.name || "Cape";
+       const capeUrl = httpsify(c.url || c.cape_url || c.capeUrl || c.data_url || c.dataUrl || null);
+       if (capeUrl) {
+         img.src = capeUrl;
+         img.loading = "lazy";
+       } else {
+         img.style.background = "var(--bg-elevated)";
+         img.style.minHeight = "64px";
+       }
+       img.alt = capName;
+       img.onerror = () => {
+         img.style.visibility = "visible";
+         img.style.background = "var(--bg-elevated)";
+         img.style.minHeight = "64px";
+         img.alt = capName;
+       };
+       const name = document.createElement("span");
+       name.textContent = capName;
+       const btn = document.createElement("button");
+       btn.textContent = c.state === "ACTIVE" ? "Aktiv" : "Ausrüsten";
+       btn.disabled = c.state === "ACTIVE";
+       btn.onclick = () => equipCape(c.id, capeUrl);
+       el.append(img, name, btn);
+       list.append(el);
+       if (c.state === "ACTIVE") {
+         currentCapeUrl = capeUrl;
+         applyCapeToViewer();
+       }
+     });
   }
 
   function equipCape(id, url) {
@@ -2106,11 +2186,14 @@ function pushTheme() {
 }
 
 // Einladen zum Launcher: Text + Link zum GitHub-Repo.
-$("inviteLauncherBtn").onclick = () => {
-  const url = "https://github.com/FluffyBento/KollegenClient";
-  copyText(url);
-  invoke("open_url", { url }).catch(() => window.open(url, "_blank"));
-};
+const inviteLauncherBtn = $("inviteLauncherBtn");
+if (inviteLauncherBtn) {
+  inviteLauncherBtn.onclick = () => {
+    const url = "https://github.com/FluffyBento/KollegenClient";
+    copyText(url);
+    invoke("open_url", { url }).catch(() => window.open(url, "_blank"));
+  };
+}
 
 // Beim Start die aktuelle Launcher-Theme an den Mod weitergeben.
 pushTheme();
@@ -2729,6 +2812,9 @@ applySavedTheme()
     if (name === "home" && document.body.classList.contains("console-mode")) {
       renderConsoleHome();
     }
+    if (name === "support" && typeof renderConsoleSupport === "function") {
+      try { renderConsoleSupport(); } catch (e) { console.error(e); }
+    }
     if (name !== "cosmetics" && typeof disposeCosmSkinViewer === "function") {
       disposeCosmSkinViewer();
     }
@@ -2760,10 +2846,27 @@ const skinFileInput = $("skinFileInput");
 if ($("skinDownloadBtn")) {
   $("skinDownloadBtn").onclick = () => {
     invoke("skin_download_current").then(r => {
-      if (r && r.state) {
-        renderSkinLibrary(r.state);
-        const a = (r.state.skins || []).find(s => s.name === r.state.active);
-        if (a) showSkin(httpsify(a.url));
+      const st = (r && (r.state || r)) || null;
+      if (st) {
+        renderSkinLibrary(st);
+        const a = (st.skins || []).find(s => s.name === st.active);
+        if (a) {
+          showSkin(httpsify(a.url));
+          const [meta, b64] = String(a.url || "").split(",");
+          const mime = (meta || "image/png").match(/data:(.*?);/)?.[1] || "image/png";
+          const bin = atob(b64 || "");
+          const bytes = new Uint8Array(bin.length);
+          for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+          const blob = new Blob([bytes], { type: mime });
+          const objUrl = URL.createObjectURL(blob);
+          const dl = document.createElement("a");
+          dl.href = objUrl;
+          dl.download = (a.name || "minecraft-skin") + ".png";
+          document.body.appendChild(dl);
+          dl.click();
+          dl.remove();
+          setTimeout(() => URL.revokeObjectURL(objUrl), 4000);
+        }
         toast("Skin heruntergeladen", "ok");
       } else {
         toast((r && r.error) || "Download fehlgeschlagen", "error");
@@ -3898,8 +4001,8 @@ startBackgroundIntervals();
     if (equipped) return { txt: "Ausgerüstet ✓", disabled: true, act: "" };
     if (owned) return { txt: "Ausrüsten", disabled: false, act: "equip" };
     if (!logged) return { txt: "Anmelden zum Kaufen", disabled: true, act: "" };
-    if (item.price > (kmState.points || 0)) return { txt: `Nicht genug ★ ${kmState.points}`, disabled: true, act: "" };
-    return { txt: `Kaufen · ★ ${item.price}`, disabled: false, act: "buy" };
+    if (item.price > (kmState.points || 0)) return { txt: `Nicht genug Punkte`, disabled: true, act: "" };
+    return { txt: `Kaufen · ${item.price} Punkte`, disabled: false, act: "buy" };
   }
 
   let c3dObserver = null;
@@ -3972,7 +4075,7 @@ startBackgroundIntervals();
     d.textContent = item.desc || "";
     const price = document.createElement("div");
     price.className = "store-price";
-    price.textContent = "★ " + item.price;
+    price.textContent = item.price + " Punkte";
     body.append(t, d, price);
     const btn = document.createElement("button");
     btn.className = "cardBtn";
@@ -4034,7 +4137,7 @@ startBackgroundIntervals();
     if (wallet) {
       if (logged) {
         wallet.style.display = "flex";
-        $("storePtsMain").textContent = "★ " + (kmState.points || 0);
+        $("storePtsMain").textContent = (kmState.points || 0) + " Punkte";
         $("storeLvlMain").textContent = "Level " + kmState.level;
       } else wallet.style.display = "none";
     }
@@ -4139,7 +4242,7 @@ startBackgroundIntervals();
     d.textContent = item.desc || "";
     d.style.cssText = "color:#a9b3c0;font-size:.9rem;margin-top:.6rem;";
     const pr = document.createElement("div");
-    pr.textContent = "★ " + item.price;
+    pr.textContent = item.price + " Punkte";
     pr.className = "store-price";
     pr.style.cssText = "margin-top:.6rem;font-size:1.1rem;";
     const btn = document.createElement("button");
@@ -4188,7 +4291,7 @@ startBackgroundIntervals();
         total += (it.price || 0);
         const row = document.createElement("button");
         row.style.cssText = "display:flex;align-items:center;gap:.6rem;background:var(--panel-2);border:1px solid var(--border-secondary);border-radius:10px;padding:.45rem .6rem;color:inherit;cursor:pointer;text-align:left;";
-        row.innerHTML = `<span style="font-weight:700;">${esc(it.name || it.id)}</span><span style="margin-left:auto;color:#ffd479;">★ ${it.price || 0}</span>`;
+        row.innerHTML = `<span style="font-weight:700;">${esc(it.name || it.id)}</span><span style="margin-left:auto;color:var(--accent);">${it.price || 0} Punkte</span>`;
         row.onclick = () => { storeCloseModal(); setTimeout(() => storeOpenModal(it), 50); };
         list.append(row);
       }
@@ -4196,7 +4299,7 @@ startBackgroundIntervals();
       const tot = document.createElement("div");
       tot.className = "store-price";
       tot.style.cssText = "margin-top:.8rem;";
-      tot.textContent = "Gesamt ★ " + total;
+      tot.textContent = "Gesamt " + total + " Punkte";
       body.append(tot);
     }
     m.style.display = "flex";
@@ -4231,7 +4334,7 @@ startBackgroundIntervals();
       for (const p of pkgs) {
         const card = document.createElement("button");
         card.className = "pkg-card rar-" + (p.rarity || "common");
-        card.innerHTML = `<span class="pkg-name">${esc(p.name || "Paket")}</span><span class="pkg-price">★ ${p.price || 0}</span>`;
+        card.innerHTML = `<span class="pkg-name">${esc(p.name || "Paket")}</span><span class="pkg-price">${p.price || 0} Punkte</span>`;
         card.onclick = () => storeOpenPackage(p);
         row.append(card);
       }
@@ -4335,6 +4438,7 @@ startBackgroundIntervals();
 
   let cosmSkinViewer = null;
   let cosmSkinKey = "";
+  let cosmSkinUrlCache = null;
   async function renderCosmetics(force) {
     try {
       const cc = window.__cosmCache;
@@ -4391,28 +4495,38 @@ startBackgroundIntervals();
     } else {
       if (!errText) errText = storeRes.reason?.message || "timeout"; storeState = "fehler";
     }
-    if (!me || !store) {
-      stopDbg();
-      if (box) {
-        box.innerHTML = "";
-        const msg = document.createElement("div");
-        msg.className = "store-msg";
-        msg.textContent = "Laden fehlgeschlagen" + (errText ? ": " + errText : "") + ".";
-        box.appendChild(msg);
-        const retry = document.createElement("button");
-        retry.className = "btn-secondary";
-        retry.textContent = "Erneut versuchen";
-        retry.onclick = () => renderCosmetics(true);
-        box.appendChild(retry);
-      }
-      return;
+     if (!me || !store) {
+       stopDbg();
+       // Automatischer Retry bei transienten Netzwerkfehlern (bis zu 2x)
+       const retryCount = window.__cosmRetryCount || 0;
+       if (retryCount < 2) {
+         window.__cosmRetryCount = retryCount + 1;
+         setTimeout(() => renderCosmetics(true), 2000);
+         if (box) box.innerHTML = '<div class="store-msg">Laden fehlgeschlagen, versuche erneut …</div>';
+         return;
+       }
+       window.__cosmRetryCount = 0;
+       if (box) {
+         box.innerHTML = "";
+         const msg = document.createElement("div");
+         msg.className = "store-msg";
+         msg.textContent = "Laden fehlgeschlagen" + (errText ? ": " + errText : "") + ".";
+         box.appendChild(msg);
+         const retry = document.createElement("button");
+         retry.className = "btn-secondary";
+         retry.textContent = "Erneut versuchen";
+         retry.onclick = () => { window.__cosmRetryCount = 0; renderCosmetics(true); };
+         box.appendChild(retry);
+       }
+       return;
     }
     try {
       window.__cosmCache = { t: Date.now(), me: me, store: store };
       window.__cosmStore = store.catalog || [];
       window.__cosmMe = me;
     } catch (e) {}
-    renderCosmeticsFrom(me, store);
+     window.__cosmRetryCount = 0;
+     renderCosmeticsFrom(me, store);
     return;
     function renderCosmeticsFrom(me, store) {
     const equipped = me.equipped || {};
@@ -4497,9 +4611,9 @@ startBackgroundIntervals();
         box.appendChild(g);
       }
     }
-    const eqBox = $("cosmEquipped");
-    if (eqBox) {
-      eqBox.innerHTML = "";
+     const eqBox = $("cosmEquipped");
+     if (eqBox) {
+       eqBox.innerHTML = "";
       const catOf = {};
       for (const it of store.catalog) { catOf[it.id] = it; }
       const rows = [];
@@ -4529,8 +4643,33 @@ startBackgroundIntervals();
           eqBox.appendChild(row);
         }
       }
-    }
-    const PET_MODE_OPTS = {
+     }
+     // Store-ausgerüsteten Cape auf die Skin-Viewer anwenden
+     (function () {
+       const eqCapeId = equipped && equipped.cape;
+       const eqCapeItem = eqCapeId ? (store.catalog || []).find((it) => it.id === eqCapeId) : null;
+       if (eqCapeItem && eqCapeItem.data && eqCapeItem.data.texture) {
+         const texPath = eqCapeItem.data.texture;
+         invoke("kollegen_mod_asset", { file: texPath }).then((res) => {
+           let url = null;
+           if (res && res.texture) url = res.texture;
+           else if (res && res.data) url = res.data;
+           if (url) {
+             currentCapeUrl = url;
+             applyCapeToViewer();
+             if (homeSkinViewer) {
+               try { homeSkinViewer.loadCape(url); } catch (_) {}
+             }
+             if (cosmSkinViewer) {
+               try { const c = cosmSkinViewer.loadCape(url); if (c && typeof c.catch === "function") c.catch(() => {}); } catch (_) {}
+             }
+           }
+         }).catch(() => {});
+       } else if (!eqCapeId) {
+         currentCapeUrl = null;
+       }
+     })();
+     const PET_MODE_OPTS = {
       pet_allay: [["follow", "Folgen"], ["hover", "Fliegen"], ["shoulder", "Schulter"], ["head", "Kopf"]],
       pet_blub: [["follow", "Folgen"]],
     };
@@ -4639,7 +4778,7 @@ startBackgroundIntervals();
           nameRow.append(nameIn);
           const saveBtn = document.createElement("button");
           saveBtn.className = "pet-savebtn";
-          saveBtn.textContent = "💾";
+          saveBtn.textContent = "Speichern";
           saveBtn.title = "Name speichern";
           saveBtn.dataset.petField = it.id;
           saveBtn.dataset.petKind = "save";
@@ -4789,23 +4928,26 @@ startBackgroundIntervals();
       fb.src = window.httpsify(url);
       cv.style.display = "none";
     };
-    try {
-      const list = await skinTimeout(invoke("skin_list"), 10000);
-      const skins = (list && list.skins) || [];
-      const active = skins.find((s) => s.name === (list && list.active));
-      if (active && active.url) url = httpsify(active.url);
-    } catch (e) {}
+    if (cosmSkinUrlCache) url = cosmSkinUrlCache;
     if (!url) {
       try {
-        const prof = await skinTimeout(invoke("skin_mc_profile"), 10000);
-        const sk = ((prof && prof.skins) || []).find((x) => x.state === "ACTIVE") || ((prof && prof.skins) || [])[0];
-        if (sk && sk.url) url = httpsify(sk.url);
+        const list = await skinTimeout(invoke("skin_list"), 5000);
+        const skins = (list && list.skins) || [];
+        const active = skins.find((s) => s.name === (list && list.active));
+        if (active && active.url) { url = httpsify(active.url); cosmSkinUrlCache = url; }
       } catch (e) {}
+      if (!url) {
+        try {
+          const prof = await skinTimeout(invoke("skin_mc_profile"), 5000);
+          const sk = ((prof && prof.skins) || []).find((x) => x.state === "ACTIVE") || ((prof && prof.skins) || [])[0];
+          if (sk && sk.url) { url = httpsify(sk.url); cosmSkinUrlCache = url; }
+        } catch (e) {}
+      }
     }
     const nm = (me && (me.name || me.mc_name)) || "";
     if (!url && nm) url = `https://mc-heads.net/skin/${encodeURIComponent(nm)}`;
     if (!url) return;
-    const key = url;
+    const key = url + "|" + (currentCapeUrl || "");
     if (key === cosmSkinKey && cosmSkinViewer) return;
     cosmSkinKey = key;
     const sv3d = window.skinview3d;
@@ -4847,17 +4989,26 @@ startBackgroundIntervals();
           if (resp.ok) skinUrl = URL.createObjectURL(await resp.blob());
         } catch (e) {}
       }
-      if (window.kollegen3dRenderEquipped && me) {
-        try {
-          window.kollegen3dRenderEquipped($("cosmModels"), me.equipped || {}, window.__cosmStore || []);
-        } catch (e) {}
-      }
-      const p = cosmSkinViewer.loadSkin(skinUrl);
-      if (p && typeof p.then === "function") p.catch(() => { showFallback(); });
-      cosmSkinViewer.animation = new sv3d.WalkingAnimation();
-      cosmSkinViewer.animation.speed = 0.5;
-      cosmSkinViewer.autoRotate = true;
-      cosmSkinViewer.autoRotateSpeed = 1.0;
+       if (window.kollegen3dRenderEquipped && me) {
+         try {
+           const cm = $("cosmModels");
+           if (cm) {
+             if (!window.__cosmStore || !window.__cosmStore.length) {
+               try { const st = await invoke("kollegen_store"); window.__cosmStore = (st && st.catalog) || []; } catch (e) {}
+             }
+             window.kollegen3dRenderEquipped(cm, me.equipped || {}, window.__cosmStore || []);
+           }
+         } catch (e) {}
+       }
+       const p = cosmSkinViewer.loadSkin(skinUrl);
+       if (p && typeof p.then === "function") p.catch(() => { showFallback(); });
+       cosmSkinViewer.animation = new sv3d.WalkingAnimation();
+       cosmSkinViewer.animation.speed = 0.5;
+       cosmSkinViewer.autoRotate = true;
+       cosmSkinViewer.autoRotateSpeed = 1.0;
+       if (currentCapeUrl) {
+         try { const c = cosmSkinViewer.loadCape(currentCapeUrl); if (c && typeof c.catch === "function") c.catch(() => {}); } catch (_) {}
+       }
     } catch (e) {
       console.error("Cosmetics-Skin fehlgeschlagen:", e);
       showFallback();
@@ -4871,7 +5022,7 @@ startBackgroundIntervals();
     const st = window.kmState;
     if (!st || !kmMe) return;
     const pts = $("spPoints");
-    if (pts) pts.textContent = "★ " + (typeof st.points === "number" ? st.points : "–") + " Points · " + (typeof st.level === "number" ? "Level " + st.level : "Level –");
+    if (pts) pts.textContent = (typeof st.points === "number" ? st.points : "–") + " Punkte · " + (typeof st.level === "number" ? "Level " + st.level : "Level –");
     const total = typeof st.points_total === "number" ? st.points_total : 0;
     const inLevel = total ? ((total - 1) % 300 + 300) % 300 + 1 : 1;
     const fill = $("spProgressFill");

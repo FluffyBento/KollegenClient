@@ -2056,7 +2056,7 @@ fn setup_webkit_appimage_env() {
 
 
 
-fn forward_gamepad_json(present: bool, axes: &[f32; 6], buttons: &[u8; 15]) -> String {
+fn forward_gamepad_json(present: bool, axes: &[f32; 6], buttons: &[u8; 15], guide: bool) -> String {
     let t = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_millis() as u64)
@@ -2065,7 +2065,8 @@ fn forward_gamepad_json(present: bool, axes: &[f32; 6], buttons: &[u8; 15]) -> S
         "present": present,
         "t": t,
         "axes": axes,
-        "buttons": buttons
+        "buttons": buttons,
+        "guide": guide
     })
     .to_string()
 }
@@ -2074,10 +2075,11 @@ fn forward_gamepad_json(present: bool, axes: &[f32; 6], buttons: &[u8; 15]) -> S
 
 
 
-fn read_forward_state(gilrs: &mut gilrs::Gilrs) -> (bool, [f32; 6], [u8; 15]) {
+fn read_forward_state(gilrs: &mut gilrs::Gilrs) -> (bool, [f32; 6], [u8; 15], bool) {
     use gilrs::{Axis, Button};
     let mut axes = [0.0f32; 6];
     let mut buttons = [0u8; 15];
+    let mut guide = false;
     for (_, gamepad) in gilrs.gamepads() {
         if !gamepad.is_connected() {
             continue;
@@ -2102,9 +2104,10 @@ fn read_forward_state(gilrs: &mut gilrs::Gilrs) -> (bool, [f32; 6], [u8; 15]) {
         buttons[12] = if gamepad.is_pressed(Button::DPadRight) { 1 } else { 0 };
         buttons[13] = if gamepad.is_pressed(Button::DPadDown) { 1 } else { 0 };
         buttons[14] = if gamepad.is_pressed(Button::DPadLeft) { 1 } else { 0 };
-        return (true, axes, buttons);
+        guide = gamepad.is_pressed(Button::Mode) || EVDEV_GUIDE.load(Ordering::Relaxed);
+        return (true, axes, buttons, guide);
     }
-    (false, axes, buttons)
+    (false, axes, buttons, false)
 }
 
 
@@ -2261,10 +2264,10 @@ fn spawn_gamepad_loop(app: tauri::AppHandle, console_on: Arc<AtomicBool>, data_d
                         }
                     }
                     
-                    if stick_y <= -0.60 && !arm_up { arm_up = true; send("UP", true); }
-                    if stick_y >= -0.30 && arm_up { arm_up = false; }
-                    if stick_y >= 0.60 && !arm_down { arm_down = true; send("DOWN", true); }
-                    if stick_y <= 0.30 && arm_down { arm_down = false; }
+                    if stick_y >= 0.60 && !arm_up { arm_up = true; send("UP", true); }
+                    if stick_y <= 0.30 && arm_up { arm_up = false; }
+                    if stick_y <= -0.60 && !arm_down { arm_down = true; send("DOWN", true); }
+                    if stick_y >= -0.30 && arm_down { arm_down = false; }
                     if stick_x <= -0.60 && !arm_left { arm_left = true; send("LEFT", true); }
                     if stick_x >= -0.30 && arm_left { arm_left = false; }
                     if stick_x >= 0.60 && !arm_right { arm_right = true; send("RIGHT", true); }
@@ -2317,7 +2320,9 @@ fn spawn_gamepad_loop(app: tauri::AppHandle, console_on: Arc<AtomicBool>, data_d
                 
                 
                 
-                let (fwd_present, fwd_axes, fwd_buttons) = read_forward_state(&mut gilrs);
+                poll_evdev_guide();
+                let (fwd_present, fwd_axes, fwd_buttons, fwd_guide) = read_forward_state(&mut gilrs);
+                let fwd_guide = fwd_guide || EVDEV_GUIDE.load(Ordering::Relaxed);
                 
                 
                 let payload = [fwd_present as u8 as f32, fwd_axes[0], fwd_axes[1], fwd_axes[2],
@@ -2328,7 +2333,7 @@ fn spawn_gamepad_loop(app: tauri::AppHandle, console_on: Arc<AtomicBool>, data_d
                 let changed = last_payload.as_deref() != Some(payload.as_slice());
                 let heartbeat = fwd_last.elapsed() >= FWD_HEARTBEAT;
                 if changed || heartbeat {
-                    let json = forward_gamepad_json(fwd_present, &fwd_axes, &fwd_buttons);
+                    let json = forward_gamepad_json(fwd_present, &fwd_axes, &fwd_buttons, fwd_guide);
                     last_payload = Some(payload);
                     fwd_last = Instant::now();
                     for dir in &fwd_dirs {
@@ -2340,6 +2345,71 @@ fn spawn_gamepad_loop(app: tauri::AppHandle, console_on: Arc<AtomicBool>, data_d
             }
         })
         .ok();
+}
+
+static EVDEV_GUIDE: AtomicBool = AtomicBool::new(false);
+
+fn poll_evdev_guide() {
+    use std::os::unix::fs::OpenOptionsExt;
+    for entry in std::fs::read_dir("/dev/input").into_iter().flatten().flatten() {
+        let path = entry.path();
+        let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+        if !name.starts_with("event") {
+            continue;
+        }
+        let devname_path = format!("/sys/class/input/{}/device/name", name);
+        let devname = std::fs::read_to_string(&devname_path).unwrap_or_default();
+        let dl = devname.to_lowercase();
+        if !dl.contains("controller") && !dl.contains("gamepad") && !dl.contains("wireless") {
+            continue;
+        }
+        let file = match std::fs::OpenOptions::new()
+            .read(true)
+            .custom_flags(libc_o_nonblock())
+            .open(&path)
+        {
+            Ok(f) => f,
+            Err(_) => continue,
+        };
+        let mut buf = [0u8; 24 * 128];
+        loop {
+            use std::io::Read;
+            match (&file).read(&mut buf) {
+                Ok(0) => break,
+                Ok(n) => {
+                    let events = n / 24;
+                    for i in 0..events {
+                        let off = i * 24;
+                        if off + 24 > n {
+                            break;
+                        }
+                        let ev_type = u16::from_ne_bytes([buf[off + 16], buf[off + 17]]);
+                        let ev_code = u16::from_ne_bytes([buf[off + 18], buf[off + 19]]);
+                        let ev_value = i32::from_ne_bytes([
+                            buf[off + 20],
+                            buf[off + 21],
+                            buf[off + 22],
+                            buf[off + 23],
+                        ]);
+                        // EV_KEY = 1, KEY_MODE/PS = 316 (BTN_MODE)
+                        if ev_type == 1 && ev_code == 316 {
+                            if ev_value == 1 {
+                                EVDEV_GUIDE.store(true, Ordering::Relaxed);
+                            } else if ev_value == 0 {
+                                EVDEV_GUIDE.store(false, Ordering::Relaxed);
+                            }
+                        }
+                    }
+                }
+                Err(_) => break,
+            }
+        }
+    }
+}
+
+// O_NONBLOCK flag value (Linux)
+fn libc_o_nonblock() -> i32 {
+    0o4000
 }
 
 fn main() {

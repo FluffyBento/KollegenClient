@@ -6,12 +6,13 @@
   <title>Kollegen Client</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Orbitron:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css" />
   <link rel="stylesheet" href="launcher.css" />
+  <link rel="stylesheet" href="home.css" />
   <link rel="stylesheet" href="console.css" />
 </head>
-<body>
+  <body>
   <header>
     <div class="header-actions">
       <div id="profileWidget" class="hud-widget hud-profile" title="Profil öffnen" role="button" tabindex="0" aria-label="Profil öffnen">
@@ -56,11 +57,6 @@
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 15l.9 2.1L22 18l-2.1.9L19 21l-.9-2.1L16 18l2.1-.9z"/></svg>
         <span class="side-label">Cosmetics</span>
       </button>
-      <div class="sidebar-group">Konto</div>
-      <button class="sidebar-link" data-tab="profile" title="Profil">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-        <span class="side-label">Profil</span>
-      </button>
       <button class="sidebar-link" data-tab="logs" title="Logs" id="logsBtn">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg>
         <span class="side-label">Logs</span>
@@ -77,24 +73,28 @@
   <main>
     <section id="homePanel" class="tab-panel active" data-tab="home" aria-labelledby="homeTitle">
       <div id="homeHero" class="home-hero"></div>
+      <div id="homeQuick" class="home-quick"></div>
       <div class="home-layout">
         <div class="home-main">
           <div class="home-section-head">
             <h2 id="homeTitle">Deine Instanzen</h2>
             <span id="homeCount" class="home-count">0</span>
-            <div class="home-tools">
-              <input id="instanceSearch" class="search-input" type="search" placeholder="Instanzen suchen" autocomplete="off" aria-label="Instanzen suchen" />
-              <button id="homeCreateBtn" class="btn-primary">＋ Neue Instanz</button>
-            </div>
           </div>
           <div id="instanceList" class="instance-grid" role="list"></div>
         </div>
-        <aside class="home-skin" aria-label="Dein Skin">
-          <canvas id="homeModels" width="240" height="200" class="cosm-models"></canvas>
-          <canvas id="homeSkinCanvas" width="220" height="440"></canvas>
-          <div id="homeSkinName" class="home-skin-name">—</div>
+        <aside class="home-rail" aria-label="Übersicht">
+          <section class="home-skin rail-card" aria-label="Dein Skin">
+            <canvas id="homeSkinCanvas" width="220" height="440"></canvas>
+            <div id="homeSkinName" class="home-skin-name">—</div>
+            <div id="homeLevel" class="home-level" hidden></div>
             <div id="homeSkinState" class="home-skin-state"></div>
-          <button id="homeSkinOpen" class="btn-secondary">Skin & Cape ändern</button>
+            <button id="homeSkinOpen" class="btn-secondary">Skin & Cape ändern</button>
+          </section>
+          <section id="homeFriends" class="rail-card" aria-label="Freunde"></section>
+          <section id="homeStore" class="rail-card" aria-label="Store-Highlights"></section>
+          <section class="home-rail-invite rail-card" aria-label="Einladen">
+            <button id="homeInviteBtn" class="btn-primary" style="width:100%;">Zu Kollegen Client einladen</button>
+          </section>
         </aside>
       </div>
     </section>
@@ -156,22 +156,11 @@
           <button id="openProfileBtn" class="btn-secondary">Profil</button>
         </div>
 
-        <div id="discordStatus" class="discord-status">nicht verbunden</div>
-        <div id="discordCurrentServer" class="discord-server"></div>
-        <div id="discordLogin" style="margin-top:1rem;">
+        <div id="discordStatus" class="discord-status" style="display:none;"></div>
+        <div id="discordCurrentServer" class="discord-server" style="display:none;"></div>
+        <div id="discordLogin" style="display:none;">
           <button id="discordLoginBtn" class="btn-primary">Mit Discord verbinden</button>
           <div id="discordLoginStatus" class="discord-login-status"></div>
-        </div>
-
-        <div class="socials-section">
-          <h3 class="socials-subhead">Freunde</h3>
-          <p class="socials-hint" id="friendsHint">Verbinde dich mit Discord, um zu sehen, welche Freunde den Kollegen Client nutzen und gerade spielen.</p>
-          <ul id="discordFriends" class="friend-list" role="list"></ul>
-        </div>
-
-        <div class="socials-section">
-          <h3 class="socials-subhead">Einladungen (Server beitreten)</h3>
-          <ul id="discordInvites" class="invite-list" role="list"><li style="color:var(--text-muted);">Keine Einladungen</li></ul>
         </div>
 
         <div class="socials-section">
@@ -199,10 +188,19 @@
         </div>
 
         <div class="socials-section">
-          <h3 class="socials-subhead">Einladen</h3>
-          <p class="socials-hint">Kennst du jemanden, der den Kollegen Client auch nutzen sollte?</p>
-          <button id="inviteLauncherBtn" class="btn-secondary">Auf GitHub einladen</button>
+          <h3 class="socials-subhead">Person/Skin suchen</h3>
+          <div class="view-profile">
+            <input id="viewProfileName" placeholder="Minecraft-Name" autocomplete="off" />
+            <button id="viewProfileBtn" class="btn-primary">Anzeigen</button>
+          </div>
+          <div style="display:flex; gap:0.5rem; align-items:center; margin-top:0.4rem;">
+            <input id="browseProfileSearch" placeholder="Server-Durchsuchung (Code oder Name)" style="flex:1;" />
+            <button id="browseProfileBtn" class="btn-secondary">Öffentliche durchsuchen</button>
+          </div>
+          <canvas id="viewProfileCanvas" width="220" height="440" class="view-profile-canvas"></canvas>
+          <div id="viewProfileResult" class="view-profile-result"></div>
         </div>
+
       </div>
     </section>
 
@@ -210,7 +208,7 @@
       <header class="panel-header">
         <h2 id="storeTitle">Store</h2>
         <div class="store-wallet" id="storeWalletMain" style="display:none;">
-          <span class="store-pts" id="storePtsMain">★ 0</span>
+          <span class="store-pts" id="storePtsMain">0 Punkte</span>
           <span class="store-lvl" id="storeLvlMain">Level 1</span>
         </div>
       </header>
@@ -288,8 +286,8 @@
           </div>
         </div>
         <div class="cosm-preview">
-          <canvas id="cosmModels" width="300" height="240" class="cosm-models"></canvas>
           <canvas id="cosmSkinCanvas" width="280" height="560"></canvas>
+          <canvas id="cosmModels" class="cosm-models" width="300" height="240"></canvas>
           <div id="cosmNamePreview" class="cosm-namepreview">—</div>
         </div>
       </div>
@@ -314,7 +312,7 @@
         <div class="logs-actions">
           <button id="refreshLogsBtn" class="icon-btn" title="Aktualisieren" aria-label="Aktualisieren">↻</button>
           <button id="copyLogsBtn" class="icon-btn" title="Kopieren" aria-label="Kopieren">⧉</button>
-          <button id="openLogFolderBtn" class="icon-btn" title="Ordner öffnen" aria-label="Ordner öffnen">📁</button>
+          <button id="openLogFolderBtn" class="icon-btn" title="Ordner öffnen" aria-label="Ordner öffnen"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></button>
         </div>
       </header>
       <div class="update-status">
@@ -459,6 +457,7 @@
     window.THREE = THREE;
     window.dispatchEvent(new Event('kollegen3d-ready'));
   </script>
+  <script src="js/three.min.js"></script>
   <script src="kollegen3d.js"></script>
   <script src="skinview3d.bundle.js"></script>
 
@@ -481,7 +480,7 @@
           <header class="dm-thread-head" id="dmThreadHead">
             <img id="dmThAv" alt="" style="display:none;" />
             <span id="dmThName">Konversation wählen</span>
-            <button id="dmCallBtn" class="btn-small" title="Anrufen" style="display:none;"><span>📶</span> Anrufen</button>
+            <button id="dmCallBtn" class="btn-small" title="Anrufen" style="display:none;">Anrufen</button>
             <a id="dmThProf" href="#" style="display:none;">Profil</a>
           </header>
           <div id="dmCallBar" class="dm-callbar" style="display:none;">
@@ -583,20 +582,7 @@
           <div id="kosmetGroups"></div>
           <div class="kosmet-pts" id="kosmetPts"></div>
           <div class="kosmet-hint" id="kosmetHint"></div>
-          <button id="kosmetViewBtn" class="btn-secondary" style="margin-top:0.5rem;">👁 So sehen dich andere</button>
-        </div>
-
-        <div style="margin-top:1rem;">
-          <h4>Profil anderer ansehen</h4>
-          <div style="display:flex; gap:0.5rem; align-items:center;">
-            <input id="viewProfileName" placeholder="Minecraft-Name" />
-            <button id="viewProfileBtn" class="btn-secondary">Anzeigen</button>
-          </div>
-          <div style="display:flex; gap:0.5rem; align-items:center; margin-top:0.4rem;">
-            <input id="browseProfileSearch" placeholder="Server-Durchsuchung (Code oder Name)" style="flex:1;" />
-            <button id="browseProfileBtn" class="btn-secondary">Öffentliche durchsuchen</button>
-          </div>
-          <div id="viewProfileResult" style="margin-top:0.5rem;"></div>
+          <button id="kosmetViewBtn" class="btn-secondary" style="margin-top:0.5rem;">So sehen dich andere</button>
         </div>
 
         <div class="skin-changer" id="skinChanger">
@@ -645,9 +631,9 @@
   </div>
 
   <script src="qrcode.js"></script>
-  <script src="js/three.min.js"></script>
   <script src="js/cosmetic3d.js"></script>
   <script src="console.js"></script>
+  <script src="home.js"></script>
   <script src="app.js"></script>
   <script>
     (function () {

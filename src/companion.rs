@@ -376,6 +376,8 @@ fn mc_runtime_uses_mojang_names(version: &str) -> bool {
 /// Vollvalidierung eines Companion-Kandidaten für eine MC-Version:
 /// gültiges Jar + MC-Constraint + .bin-Payloads + (wo nötig) Remapping.
 fn companion_candidate_ok(p: &Path, version: &str) -> bool {
+    let name = p.file_name().and_then(|n| n.to_str()).unwrap_or("").to_lowercase();
+    if name.contains("kollegen-client-mod") { return is_valid_jar(p) && jar_mod_version_matches(p); }
     is_valid_jar(p)
         && jar_supports_mc(p, version)
         && companion_bins_support_mc(p, version)
@@ -436,14 +438,8 @@ pub(crate) fn companion_bins_support_mc(jar: &Path, version: &str) -> bool {
 pub fn companion_jar(data_dir: &Path, version: &str) -> Option<PathBuf> {
     let filename = companion_filename_for_version(version);
     
-    let cached = cache_dir(data_dir).join(filename);
-    // Hinweis: Dateiname allein genügt nicht – eine veraltete/wrong-version
-    // Datei im Cache (z. B. 26.2-Build unter 1.21.11-Name) würde sonst falsche
-    // Bundles in die Instanz extrahieren. Es zählen auch die .bin-Payloads,
-    // weil ein relaxed Jar falsche Metadaten tragen kann.
-    if companion_candidate_ok(&cached, version) {
-        return Some(cached);
-    }
+    // Cache deaktiviert: immer aus resources/ neu kopieren, damit Updates ankommen.
+    let _ = cache_dir(data_dir);
 
     
     if let Ok(exe) = std::env::current_exe() {

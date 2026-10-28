@@ -6,6 +6,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.input.MouseButtonInfo;
 import org.lwjgl.glfw.GLFW;
 import org.lwjgl.glfw.GLFWGamepadState;
+import java.nio.ByteBuffer;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -25,6 +26,9 @@ public final class ControllerMode {
     private static boolean prevA = false;
     private static boolean prevB = false;
     private static boolean prevX = false;
+    private static boolean prevGuide = false;
+    private static boolean guideDiagDone = false;
+    private static boolean prevCombo = false;
 
     
     
@@ -44,17 +48,23 @@ public final class ControllerMode {
                     .resolve("mods").resolve(".kollegen-controller");
             String s = Files.exists(state) ? Files.readString(state).trim() : "";
             active = s.equalsIgnoreCase("on");
-            if (active) {
-                KollegenMod.LOGGER.info("Kollegen Controller-Modus aktiv (SteamDeck).");
-            }
         } catch (Throwable t) {
-            KollegenMod.LOGGER.error("Konnte Controller-Zustand nicht lesen", t);
             active = false;
         }
     }
 
     public static boolean isActive() {
         return active;
+    }
+
+    public static void setActive(boolean a) {
+        active = a;
+        try {
+            Path state = FabricLoader.getInstance().getGameDir()
+                    .resolve("mods").resolve(".kollegen-controller");
+            Files.writeString(state, a ? "on" : "off");
+        } catch (Throwable ignored) {
+        }
     }
 
     
@@ -78,6 +88,45 @@ public final class ControllerMode {
             prevX = true;
         }
         screenWasOpen = screenOpen;
+
+        // Immer scannen, damit GAMEPAD-State aktuell ist (auch im Spiel, ohne Screen).
+        try { GamepadDetect.scan(GAMEPAD); } catch (Throwable ignored) {}
+
+        // Kombi D-Pad-Unten + Start oeffnet das Kollegen-Menue.
+        boolean comboNow = false;
+        try {
+            comboNow = (GAMEPAD.buttons(GLFW.GLFW_GAMEPAD_BUTTON_DPAD_DOWN) == GLFW.GLFW_PRESS)
+                    && (GAMEPAD.buttons(GLFW.GLFW_GAMEPAD_BUTTON_START) == GLFW.GLFW_PRESS);
+        } catch (Throwable ignored) {
+        }
+        if (comboNow && !prevCombo && mc.gui.screen() == null) {
+            try {
+                mc.setScreenAndShow(new dev.kollegen.client.menu.KollegenMenuScreen(mc.gui.screen()));
+            } catch (Throwable ignored) {
+            }
+        }
+        prevCombo = comboNow;
+
+        // PS-Taste (raw button 8) oeffnet das Kollegen-Menue.
+        boolean guideNow = false;
+        try {
+            for (int jid = GLFW.GLFW_JOYSTICK_1; jid <= GLFW.GLFW_JOYSTICK_LAST; jid++) {
+                if (!GLFW.glfwJoystickPresent(jid)) continue;
+                ByteBuffer btns = GLFW.glfwGetJoystickButtons(jid);
+                if (btns == null || btns.limit() <= 8) continue;
+                if (btns.get(8) == GLFW.GLFW_PRESS) { guideNow = true; break; }
+            }
+        } catch (Throwable ignored) {
+        }
+        // Launcher-Forward als Fallback
+        if (!guideNow) guideNow = readGuideButton();
+        if (guideNow && !prevGuide && mc.gui.screen() == null) {
+            try {
+                mc.setScreenAndShow(new dev.kollegen.client.menu.KollegenMenuScreen(mc.gui.screen()));
+            } catch (Throwable ignored) {
+            }
+        }
+        prevGuide = guideNow;
 
         if (screenOpen) {
             int pad = GamepadDetect.scan(GAMEPAD);
@@ -202,5 +251,55 @@ public final class ControllerMode {
             clickQueued = false;
             clickPressed = false;
         }
+    }
+
+    private static boolean readGuideButton() {
+        // 1) Launcher-Forward (.kollegen-gamepad)
+        try {
+            Path p = FabricLoader.getInstance().getGameDir().resolve("mods").resolve(".kollegen-gamepad");
+            if (java.nio.file.Files.exists(p)) {
+                String raw = java.nio.file.Files.readString(p);
+                com.google.gson.JsonObject o = com.google.gson.JsonParser.parseString(raw).getAsJsonObject();
+                if (o.has("guide") && o.get("guide").getAsBoolean()) {
+                    long t = o.has("t") ? o.get("t").getAsLong() : 0L;
+                    if (t == 0L || System.currentTimeMillis() - t <= 1500) return true;
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+        // 2) Roh-GLFW: Guide-Button ist bei vielen Controllern der letzte Button.
+        try {
+            for (int jid = GLFW.GLFW_JOYSTICK_1; jid <= GLFW.GLFW_JOYSTICK_LAST; jid++) {
+                if (!GLFW.glfwJoystickPresent(jid)) continue;
+                ByteBuffer btns = GLFW.glfwGetJoystickButtons(jid);
+                if (btns == null) continue;
+                int n = btns.limit();
+                // Diagnose: raw button state (throttled via kollegen guide diag)
+                if (n > 0 && !guideDiagDone) {
+                    StringBuilder sb = new StringBuilder("[kollegen-guide] jid=").append(jid)
+                            .append(" rawButtons=").append(n).append(" pressed=[");
+                    boolean any = false;
+                    for (int i = 0; i < n; i++) {
+                        if (btns.get(i) == GLFW.GLFW_PRESS) {
+                            if (any) sb.append(",");
+                            sb.append(i);
+                            any = true;
+                        }
+                    }
+                    sb.append("]");
+                    KollegenMod.LOGGER.info(sb.toString());
+                    if (any) guideDiagDone = true;
+                }
+                if (n <= 15) continue;
+                // Kandidaten-Indizes fuer Guide/Home (variieren je nach Treiber)
+                // PS4: raw button 8 = PS-Taste (laut Diagnose)
+                for (int idx : new int[] { 8, n - 1, n - 2, 10, 11, 12, 13, 14, 15, 16, 17 }) {
+                    if (idx < 0 || idx >= n) continue;
+                    if (btns.get(idx) == GLFW.GLFW_PRESS) return true;
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+        return false;
     }
 }

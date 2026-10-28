@@ -2,11 +2,7 @@ body.console-mode {
   padding-left: 0;
   padding-top: 4.6rem;
   padding-bottom: 3.6rem;
-  background:
-    radial-gradient(1100px 520px at 12% -8%, rgba(var(--accent-rgb), 0.12), transparent 60%),
-    radial-gradient(900px 480px at 100% 0%, rgba(0, 212, 255, 0.07), transparent 60%),
-    var(--bg);
-  background-attachment: fixed;
+  background: var(--bg);
   user-select: none;
   -webkit-user-select: none;
   cursor: default;
@@ -72,9 +68,7 @@ body.console-mode .kc-topbar {
   align-items: center;
   gap: 1rem;
   padding: 0 2.4rem;
-  background: linear-gradient(180deg, rgba(10, 12, 16, 0.96), rgba(10, 12, 16, 0.78));
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
+  background: rgba(10, 12, 16, 0.97);
   border-bottom: 1px solid var(--border-primary);
 }
 
@@ -82,10 +76,10 @@ body.console-mode .kc-topbar {
   display: flex;
   align-items: center;
   gap: 0.7rem;
-  font-family: "Orbitron", "Space Grotesk", sans-serif;
+  font-family: "Inter", system-ui, sans-serif;
   font-weight: 700;
   font-size: 1.05rem;
-  color: var(--accent);
+  color: var(--text-primary);
   white-space: nowrap;
 }
 
@@ -109,9 +103,9 @@ body.console-mode .kc-topbar {
   padding: 0.6rem 1.05rem;
   background: transparent;
   border: 1px solid transparent;
-  border-radius: 999px;
+  border-radius: var(--radius-md);
   color: var(--text-secondary);
-  font-family: "Space Grotesk", sans-serif;
+  font-family: "Inter", system-ui, sans-serif;
   font-size: 0.95rem;
   font-weight: 600;
   box-shadow: none;
@@ -152,10 +146,10 @@ body.console-mode .kc-topbar {
 
 .kc-wallet {
   padding: 0.4rem 0.8rem;
-  border-radius: 999px;
-  background: rgba(var(--accent-rgb), 0.12);
-  border: 1px solid rgba(var(--accent-rgb), 0.35);
-  color: var(--accent);
+  border-radius: var(--radius-md);
+  background: var(--panel);
+  border: 1px solid var(--border-primary);
+  color: var(--text-primary);
   font-size: 0.82rem;
   font-weight: 700;
   white-space: nowrap;
@@ -168,7 +162,7 @@ body.console-mode .kc-topbar {
   padding: 0.35rem 0.8rem 0.35rem 0.4rem;
   background: var(--panel);
   border: 1px solid var(--border-primary);
-  border-radius: 999px;
+  border-radius: var(--radius-md);
   color: var(--text-primary);
   font-size: 0.85rem;
   font-weight: 600;
@@ -229,7 +223,7 @@ body.console-mode .kc-topbar {
   background: #2a2f40;
   border: 1px solid #3a4157;
   color: var(--text-primary);
-  font-family: "Space Grotesk", sans-serif;
+  font-family: "Inter", system-ui, sans-serif;
   font-style: normal;
   font-size: 0.7rem;
   font-weight: 700;
@@ -260,9 +254,7 @@ body.console-mode .kc-hints {
   justify-content: space-between;
   gap: 1rem;
   padding: 0 2.4rem;
-  background: linear-gradient(0deg, rgba(10, 12, 16, 0.97), rgba(10, 12, 16, 0.8));
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
+  background: rgba(10, 12, 16, 0.97);
   border-top: 1px solid var(--border-primary);
 }
 
@@ -295,7 +287,7 @@ body.console-mode .kc-toast {
   transform: translate(-50%, 12px);
   z-index: 300;
   padding: 0.6rem 1.2rem;
-  border-radius: 999px;
+  border-radius: var(--radius-md);
   background: var(--panel-elevated);
   border: 1px solid var(--accent);
   color: var(--text-primary);
@@ -327,10 +319,8 @@ body.console-mode .kc-toast.show {
   min-height: 15rem;
   padding: 2rem 2.4rem;
   border-radius: var(--radius-xl);
-  border: 1px solid rgba(var(--hero-rgb), 0.35);
-  background:
-    radial-gradient(700px 320px at 85% 40%, rgba(var(--hero-rgb), 0.28), transparent 70%),
-    linear-gradient(120deg, var(--panel-elevated), var(--panel));
+  border: 1px solid var(--border-primary);
+  background: var(--panel);
   overflow: hidden;
   transition: border-color var(--transition-normal);
 }
@@ -348,10 +338,8 @@ body.console-mode .kc-toast.show {
 
 .kc-eyebrow {
   font-size: 0.85rem;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: rgb(var(--hero-rgb));
+  font-weight: 500;
+  color: var(--text-muted);
 }
 
 .kc-hero-title {
@@ -378,7 +366,7 @@ body.console-mode .kc-toast.show {
 
 .kc-chip-tag {
   padding: 0.25rem 0.7rem;
-  border-radius: 999px;
+  border-radius: var(--radius-sm);
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid var(--border-primary);
   color: var(--text-secondary);
@@ -403,11 +391,11 @@ body.console-mode .kc-toast.show {
   align-items: center;
   gap: 0.6rem;
   padding: 0.8rem 1.6rem;
-  border-radius: 999px;
+  border-radius: var(--radius-md);
   background: rgba(255, 255, 255, 0.07);
   border: 1px solid var(--border-secondary);
   color: var(--text-primary);
-  font-family: "Space Grotesk", sans-serif;
+  font-family: "Inter", system-ui, sans-serif;
   font-size: 1.05rem;
   font-weight: 700;
   box-shadow: none;
@@ -434,7 +422,6 @@ body.console-mode .kc-toast.show {
   width: 9.5rem;
   height: 9.5rem;
   opacity: 0.95;
-  filter: drop-shadow(0 12px 28px rgba(var(--hero-rgb), 0.45));
 }
 
 .kc-hero-art svg {
@@ -451,7 +438,7 @@ body.console-mode .kc-toast.show {
   align-items: center;
   gap: 0.7rem;
   padding: 0.5rem 1rem 0.5rem 0.5rem;
-  border-radius: 999px;
+  border-radius: var(--radius-lg);
   background: rgba(10, 12, 16, 0.55);
   border: 1px solid var(--border-primary);
 }
@@ -517,6 +504,8 @@ body.console-mode .kc-toast.show {
   overflow: hidden;
   cursor: pointer;
   transition: transform var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast);
+  content-visibility: auto;
+  contain-intrinsic-size: 0 220px;
 }
 
 .kc-tile-art {
@@ -524,7 +513,7 @@ body.console-mode .kc-toast.show {
   align-items: center;
   justify-content: center;
   height: 7.5rem;
-  background: radial-gradient(circle at 50% 40%, rgba(var(--tile-rgb), 0.28), rgba(var(--tile-rgb), 0.04) 70%), var(--bg-elevated);
+  background: var(--bg-elevated);
 }
 
 .kc-tile-art svg {
@@ -559,7 +548,7 @@ body.console-mode .kc-toast.show {
 }
 
 .kc-link .kc-link-art {
-  background: linear-gradient(135deg, rgba(var(--accent-rgb), 0.18), rgba(0, 212, 255, 0.1)), var(--bg-elevated);
+  background: var(--bg-elevated);
   color: var(--accent);
 }
 
@@ -590,12 +579,11 @@ body.console-mode .kc-toast.show {
 
 .kc-shop.rar-rare { border-color: rgba(var(--accent-rgb), 0.45); }
 .kc-shop.rar-epic { border-color: rgba(199, 125, 255, 0.55); }
-.kc-shop.rar-legendary { border-color: rgba(255, 179, 0, 0.7); box-shadow: 0 0 16px rgba(255, 179, 0, 0.14); }
+.kc-shop.rar-legendary { border-color: rgba(255, 179, 0, 0.7); }
 
 body.console-mode .cfocus {
   outline: 3px solid var(--accent);
   outline-offset: 3px;
-  box-shadow: 0 0 0 6px rgba(var(--accent-rgb), 0.18), var(--shadow-glow-lg);
   z-index: 2;
 }
 
@@ -735,6 +723,8 @@ body.console-mode .picker-option {
 }
 
 .kc-card {
+  content-visibility: auto;
+  contain-intrinsic-size: 0 52px;
   display: flex;
   align-items: center;
   gap: 1rem;
@@ -802,7 +792,7 @@ body.console-mode .picker-option {
   border: none;
   border-radius: var(--radius-lg);
   color: var(--text-primary);
-  font-family: "Space Grotesk", sans-serif;
+  font-family: "Inter", system-ui, sans-serif;
   font-size: 1rem;
   font-weight: 600;
   text-align: left;

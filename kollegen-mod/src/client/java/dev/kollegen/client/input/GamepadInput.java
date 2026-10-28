@@ -49,8 +49,7 @@ public final class GamepadInput {
 
     
     public static boolean isActive(Minecraft mc) {
-        if (!ControllerMode.isActive()) return false;
-        return isAnyGamepadPresent();
+        return false;
     }
 
     
@@ -58,13 +57,19 @@ public final class GamepadInput {
         return GamepadDetect.scan(GAMEPAD) != -1;
     }
 
-    
+    public static boolean isPhysicalGamepadPresent() {
+        for (int jid = GLFW.GLFW_JOYSTICK_1; jid <= GLFW.GLFW_JOYSTICK_LAST; jid++) {
+            if (GLFW.glfwJoystickPresent(jid)) return true;
+        }
+        return false;
+    }
+
     public static boolean takeOverMovement() {
         Minecraft mc = Minecraft.getInstance();
         if (mc == null || mc.player == null || mc.level == null) return false;
         if (mc.gui.screen() != null) return false;
         if (!ControllerMode.isActive()) return false;
-        return isAnyGamepadPresent();
+        return isPhysicalGamepadPresent();
     }
 
     

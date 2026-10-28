@@ -7,15 +7,6 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.MouseButtonEvent;
 
-/**
- * Connect 4 (Vier gewinnt) - gegen die KI oder gegen einen anderen Kollegen
- * auf demselben Server.
- *
- * Brett 7 x 6, Spieler 1 = Rot (Gastgeber), Spieler 2 = Gelb.
- * Multiplayer laeuft ueber {@link GameNet} (Chat-Relay); die komplette
- * Partie wird bei jedem Zug mitgesendet, damit ein spaeter Joinender den
- * Stand sieht.
- */
 public class Connect4Screen extends GameScreen {
 
     public static final String ID = "c4";
@@ -26,10 +17,8 @@ public class Connect4Screen extends GameScreen {
     private static final int YELLOW = 2;
 
     private final int[][] board = new int[ROWS][COLS];
-    /** Marker fuer den gerade fallenden Stein (Animation). */
     private final float[] dropAnim = new float[COLS];
 
-    /** 0 = ki/lokal, 1 = ich bin Rot (host), 2 = ich bin Gelb (gast). */
     private int mode = 0;
     private int myColor = RED;
     private int turn = RED;
@@ -44,11 +33,9 @@ public class Connect4Screen extends GameScreen {
 
     public Connect4Screen(Screen parent) {
         super(parent, "Connect 4");
-        this.frame(340, 400);
+        this.frame(360, 420);
         GameNet.setSink(this::onNetMessage);
     }
-
-    // ---------------------------------------------------------------- Logik
 
     private static int dropTo(int[][] b, int col) {
         for (int r = ROWS - 1; r >= 0; r--) {
@@ -112,7 +99,7 @@ public class Connect4Screen extends GameScreen {
         if (canWin(this.board, col, color, r)) {
             this.over = true;
             this.winner = color;
-            this.status = (color == myColor ? "Du gewinnst!" : "Rot/Gelb gewinnt") + " - Neues Spiel?";
+            this.status = (color == myColor ? "Du gewinnst!" : "Der Kollege gewinnt") + " - Neues Spiel?";
         } else if (isFull(this.board)) {
             this.over = true;
             this.winner = EMPTY;
@@ -137,8 +124,6 @@ public class Connect4Screen extends GameScreen {
         this.status = "";
         broadcast();
     }
-
-    // ------------------------------------------------------------ KI (Alpha-Beta)
 
     private static int evaluate(int[][] b) {
         int score = 0;
@@ -169,7 +154,6 @@ public class Connect4Screen extends GameScreen {
         return score;
     }
 
-    /** Dreierreihen, an die direkt ein Stein gelegt werden kann. */
     private static int openThrees(int[][] b, int color) {
         int n = 0;
         int[][] dirs = {{1, 0}, {0, 1}, {1, 1}, {1, -1}};
@@ -268,7 +252,6 @@ public class Connect4Screen extends GameScreen {
         return best;
     }
 
-    /** Gewinnt die Farbe mit einem einzelnen Wurf? */
     private static int winningColumn(int[][] b, int color) {
         int[] moves = legalMoves(b);
         for (int col : moves) {
@@ -323,8 +306,6 @@ public class Connect4Screen extends GameScreen {
         this.pendingCol = best;
     }
 
-    // ------------------------------------------------------ Multiplayer (Chat)
-
     private void broadcast() {
         if (this.mode == 0) {
             return;
@@ -344,7 +325,6 @@ public class Connect4Screen extends GameScreen {
         return Integer.toString(Math.max(0, v), 36);
     }
 
-    /** Brett als kurzer String: jede Ziffer = Spieler (0 leer, 1 rot, 2 gelb). */
     private String encode() {
         StringBuilder sb = new StringBuilder(COLS * ROWS);
         for (int r = 0; r < ROWS; r++) {
@@ -379,22 +359,18 @@ public class Connect4Screen extends GameScreen {
                 this.offerOpen = true;
                 this.status = "Einladung von einem Kollegen";
             } else if ("acc".equals(type)) {
-                // Gast hat angenommen: ich bin Rot, Gast ist Gelb.
                 this.mode = 1;
                 this.myColor = RED;
                 this.turn = RED;
                 this.status = "Gegner ist dabei";
             } else if ("st".equals(type)) {
                 if (this.mode == 0) {
-                    // Wir wurden ueber eine Annahme in die Partie geholt.
                     this.mode = 1;
                     this.myColor = RED;
                 }
                 decode(o.get("b").getAsString());
                 this.over = false;
                 this.winner = EMPTY;
-                // Aus dem Brett den naechsten Zug ableiten (Letzter Stein fehlt in der
-                // uebertragenen Ansicht nicht - wir berechnen ihn aus dem Brett).
                 this.turn = inferTurn();
                 broadcast();
             }
@@ -418,7 +394,6 @@ public class Connect4Screen extends GameScreen {
             this.over = true;
             return red == yellow ? RED : YELLOW;
         }
-        // Gewinner pruefen
         for (int c = 0; c < COLS && !this.over; c++) {
             for (int r = 0; r < ROWS; r++) {
                 if (this.board[r][c] == EMPTY) {
@@ -457,8 +432,6 @@ public class Connect4Screen extends GameScreen {
         broadcast();
     }
 
-    // ---------------------------------------------------------------- Eingabe
-
     public boolean mouseClicked(MouseButtonEvent event, boolean bl) {
         if (event.button() != 0) {
             return super.mouseClicked(event, bl);
@@ -477,7 +450,6 @@ public class Connect4Screen extends GameScreen {
                 return true;
             }
         }
-        // Buttons
         float bx = this.px + 16;
         float by = this.py + this.ph - 40;
         if (hit(event.x(), event.y(), bx, by, 90, 22)) {
@@ -542,11 +514,9 @@ public class Connect4Screen extends GameScreen {
         }
     }
 
-    // ---------------------------------------------------------------- Zeichnen
-
     private float cellSize() {
         float avail = Math.min((this.pw - 40.0f) / COLS, (this.ph - 96.0f) / ROWS);
-        return Math.max(18.0f, Math.min(46.0f, avail));
+        return Math.max(18.0f, Math.min(52.0f, avail));
     }
 
     private float boardX() {
@@ -556,7 +526,7 @@ public class Connect4Screen extends GameScreen {
 
     private float boardY() {
         float cell = cellSize();
-        return this.py + 50.0f + ((this.ph - 96.0f) - cell * ROWS) / 2.0f;
+        return this.py + 56.0f + ((this.ph - 96.0f) - cell * ROWS) / 2.0f;
     }
 
     private static int chipColor(int v) {
@@ -573,7 +543,7 @@ public class Connect4Screen extends GameScreen {
         runAi();
         for (int c = 0; c < COLS; c++) {
             if (this.dropAnim[c] < 1.0f) {
-                this.dropAnim[c] = Math.min(1.0f, this.dropAnim[c] + Glass.dt * 6.0f);
+                this.dropAnim[c] = Math.min(1.0f, this.dropAnim[c] + Glass.dt * 7.0f);
             }
         }
         beginFrame(g, mx, my, pt);
@@ -588,15 +558,14 @@ public class Connect4Screen extends GameScreen {
         float w = cell * COLS;
         float h = cell * ROWS;
 
-        Glass.rr(g, gx - 4, gy - 4, w + 8, h + 8, 12, Glass.a(Palette.PANEL, 0.85f));
-        Glass.ring(g, gx - 4, gy - 4, w + 8, h + 8, 12, 0.5f, Glass.a(0xFFFFFFFF, 0.18f));
+        Glass.rr(g, gx - 6, gy - 6, w + 12, h + 12, 14, Glass.a(Palette.PANEL, 0.90f));
+        Glass.ring(g, gx - 6, gy - 6, w + 12, h + 12, 14, 0.8f, Glass.a(0xFFFFFFFF, 0.18f));
 
-        // Hover-Spalte andeuten
-        if (this.hoverCol >= 0 && !this.over && (this.mode == 0 ? this.turn == myColor : this.turn == myColor)) {
+        if (this.hoverCol >= 0 && !this.over && this.turn == myColor) {
             int r = dropTo(this.board, this.hoverCol);
             if (r >= 0) {
-                Glass.rr(g, gx + this.hoverCol * cell + 1, gy + r * cell + 1, cell - 2, cell - 2, cell / 2 - 1,
-                        Glass.a(myColor == RED ? chipColor(RED) : chipColor(YELLOW), 0.22f));
+                Glass.rr(g, gx + this.hoverCol * cell + 2, gy + r * cell + 2, cell - 4, cell - 4, cell / 2 - 2,
+                        Glass.a(myColor == RED ? chipColor(RED) : chipColor(YELLOW), 0.25f));
             }
         }
 
@@ -605,32 +574,31 @@ public class Connect4Screen extends GameScreen {
                 int v = this.board[r][c];
                 float x = gx + c * cell;
                 float y = gy + r * cell;
-                Glass.rr(g, x + 1, y + 1, cell - 2, cell - 2, cell / 2 - 2, Glass.a(0xFF000000, 0.30f));
+                Glass.rr(g, x + 1, y + 1, cell - 2, cell - 2, cell / 2 - 1, Glass.a(0xFF000000, 0.35f));
                 if (v != EMPTY) {
                     int col = chipColor(v);
                     float anim = (this.lastCol == c && this.dropAnim[c] < 1.0f) ? this.dropAnim[c] : 1.0f;
-                    float scale = 0.6f + 0.4f * Glass.ease(anim);
+                    float scale = 0.5f + 0.5f * Glass.ease(anim);
                     float rad = (cell - 2) * 0.5f * scale;
                     float cx = x + cell / 2.0f;
                     float cy = y + cell / 2.0f;
-                    Glass.shadowSoft(g, cx - rad, cy - rad + 1.5f, rad * 2, rad * 2, rad, 2.0f, 1.0f, 0x55000000);
+                    Glass.shadowSoft(g, cx - rad, cy - rad + 2.0f, rad * 2, rad * 2, rad, 2.0f, 1.0f, 0x77000000);
                     Glass.disc(g, cx, cy, rad, col);
-                    Glass.disc(g, cx - rad * 0.25f, cy - rad * 0.25f, rad * 0.45f, Glass.a(0xFFFFFFFF, 0.22f));
+                    Glass.disc(g, cx - rad * 0.22f, cy - rad * 0.22f, rad * 0.40f, Glass.a(0xFFFFFFFF, 0.30f));
+                    Glass.ring(g, cx - rad, cy - rad, rad * 2, rad * 2, rad, 0.5f, Glass.a(0xFFFFFFFF, 0.25f));
                 }
             }
         }
 
-        // Zug-Indikator
-        if (!this.over && (this.mode == 0 || this.turn == myColor)) {
-            int next = this.turn == RED ? RED : YELLOW;
-            Glass.disc(g, this.px + this.pw - 52, this.py + this.ph - 58, 7, chipColor(next));
+        if (!this.over && this.turn == myColor) {
+            int next = this.turn;
+            Glass.disc(g, this.px + this.pw - 52, this.py + this.ph - 58, 8, chipColor(next));
             Glass.text(g, this.font, this.status.isEmpty() ? "Du bist am Zug" : this.status,
                     this.px + 16, this.py + this.ph - 56, Palette.MUTED, false);
         } else if (!this.over) {
             Glass.text(g, this.font, "Gegner ist am Zug", this.px + 16, this.py + this.ph - 56, Palette.MUTED, false);
         }
 
-        // Buttons
         float bx = this.px + 16;
         float by = this.py + this.ph - 40;
         drawButton(g, mx, my, bx, by, 90, 22, this.over ? "Neues Spiel" : "Neu", this.over);

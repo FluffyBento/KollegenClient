@@ -264,7 +264,7 @@ function kcTick() {
   const hasWallet = !!(st && !st.needsAuth && typeof st.points === "number");
   if (wallet) {
     if (wallet.hidden === hasWallet) wallet.hidden = !hasWallet;
-    if (hasWallet) kcSetText(wallet, "★ " + st.points + " · Lv " + (st.level || 1));
+    if (hasWallet) kcSetText(wallet, st.points + " Punkte · Lv " + (st.level || 1));
   }
   const login = kcNeedsLogin();
   const src = login ? "" : kcAvatarSrc();
@@ -430,7 +430,7 @@ function kcBuildStoreRow() {
     const body = kcEl("div", "kc-tile-body");
     body.append(
       kcEl("div", "kc-tile-title", item.name),
-      kcEl("div", "kc-tile-meta", item.owned ? "Im Besitz" : "★ " + item.price)
+      kcEl("div", "kc-tile-meta", item.owned ? "Im Besitz" : item.price + " Punkte")
     );
     t.append(pv, body);
     t.onclick = () => {
@@ -641,14 +641,8 @@ function kcCollect() {
     out.push({ el, byCursor: !!byCursor });
   };
   root.querySelectorAll(KC_SEL).forEach((el) => consider(el, false));
-  root.querySelectorAll("div, span, li, img, article, tr, p, h3, h4").forEach((el) => {
-    if (seen.has(el)) return;
-    const clickable = typeof el.onclick === "function";
-    if (!clickable && getComputedStyle(el).cursor !== "pointer") return;
-    const parent = el.parentElement;
-    if (parent && (parent.closest(KC_SEL) || (!clickable && getComputedStyle(parent).cursor === "pointer"))) return;
-    consider(el, true);
-  });
+  // byCursor-Fallback deaktiviert: teurer DOM-Walk + getComputedStyle pro Sync.
+  // Interaktive Elemente sind ueber KC_SEL abgedeckt (tabindex/role=button/onclick).
   const els = out.map((o) => o.el);
   return out
     .filter((o) => {
@@ -744,7 +738,7 @@ function refreshConsoleFocusables() {
 function kcScheduleSync() {
   if (!consoleNavActive) return;
   if (kcSyncTimer) clearTimeout(kcSyncTimer);
-  kcSyncTimer = setTimeout(() => { kcSyncTimer = null; refreshConsoleFocusables(); }, 90);
+  kcSyncTimer = setTimeout(() => { kcSyncTimer = null; refreshConsoleFocusables(); }, 50);
 }
 
 function kcReveal(el) {
@@ -753,8 +747,12 @@ function kcReveal(el) {
   if (top && top.contains(el)) return;
   const first = consoleFocusables.find((e) => !(top && top.contains(e)));
   try {
-    if (first === el && !kcTopModal()) window.scrollTo({ top: 0, behavior: "smooth" });
-    else el.scrollIntoView({ block: "nearest", inline: "center", behavior: "smooth" });
+    const r = el.getBoundingClientRect();
+    const inView = r.top >= 0 && r.bottom <= (window.innerHeight || document.documentElement.clientHeight);
+    if (!inView) {
+      if (first === el && !kcTopModal()) window.scrollTo({ top: 0, behavior: "auto" });
+      else el.scrollIntoView({ block: "nearest", inline: "center", behavior: "auto" });
+    }
   } catch (e) {}
 }
 

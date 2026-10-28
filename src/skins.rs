@@ -129,6 +129,24 @@ fn save_skin_bytes(data_dir: &Path, name: &str, bytes: &[u8]) -> Result<String, 
 
 
 pub fn import_skin(data_dir: &Path, name: &str, bytes: &[u8]) -> Value {
+    // Deduplizierung: wenn ein Skin mit identischem Inhalt bereits existiert, diesen wiederverwenden.
+    let mut existing_name: Option<String> = None;
+    let idx = read_index(data_dir);
+    let skins = idx.get("skins").and_then(|s| s.as_array()).cloned().unwrap_or_default();
+    for sk in &skins {
+        if let Some(f) = sk.get("file").and_then(|x| x.as_str()) {
+            if let Ok(old_bytes) = std::fs::read(skins_dir(data_dir).join(f)) {
+                if old_bytes == bytes {
+                    existing_name = sk.get("name").and_then(|n| n.as_str()).map(|s| s.to_string());
+                    break;
+                }
+            }
+        }
+    }
+    if let Some(n) = existing_name {
+        return list_skins(data_dir);
+    }
+
     let file = match save_skin_bytes(data_dir, name, bytes) {
         Ok(f) => f,
         Err(e) => return serde_json::json!({ "error": e }),
@@ -241,7 +259,8 @@ pub fn download_current_skin(data_dir: &Path) -> Value {
         }
     };
     let name = format!("minecraft-{}", now_secs());
-    import_skin(data_dir, &name, &bytes)
+    let state = import_skin(data_dir, &name, &bytes);
+    serde_json::json!({ "state": state })
 }
 
 
@@ -413,6 +432,7 @@ pub fn minecraft_profile_by_name(_data_dir: &Path, name: &str) -> Value {
 pub fn read_mod_asset(data_dir: &Path, file: &str) -> serde_json::Value {
     let clean: String = file
         .chars()
+        .map(|c| if c == ':' { '/' } else { c })
         .filter(|c| c.is_ascii_alphanumeric() || *c == '_' || *c == '-' || *c == '.' || *c == '/')
         .collect();
     let clean = clean.trim_start_matches('/').to_string();

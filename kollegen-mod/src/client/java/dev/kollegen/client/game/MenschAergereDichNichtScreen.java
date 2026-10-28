@@ -42,10 +42,11 @@ public class MenschAergereDichNichtScreen extends GameScreen {
     private boolean offerOpen = false;
     private int selected = -1;
     private long aiAt = 0L;
+    private float dicePulse = 0.0f;
 
     public MenschAergereDichNichtScreen(Screen parent) {
         super(parent, "Mensch aergere dich nicht");
-        this.frame(440, 470);
+        this.frame(460, 490);
         GameNet.setSink(this::onNetMessage);
         newGame();
     }
@@ -408,7 +409,7 @@ public class MenschAergereDichNichtScreen extends GameScreen {
 
     private float cell() {
         float avail = Math.min(this.pw - 36.0f, this.ph - 130.0f);
-        return Math.max(12.0f, Math.min(30.0f, avail / GRID));
+        return Math.max(12.0f, Math.min(34.0f, avail / GRID));
     }
 
     private float gridX() {
@@ -418,7 +419,7 @@ public class MenschAergereDichNichtScreen extends GameScreen {
 
     private float gridY() {
         float c = cell();
-        return this.py + 46.0f;
+        return this.py + 52.0f;
     }
 
     private float cellX(int col) {
@@ -438,7 +439,7 @@ public class MenschAergereDichNichtScreen extends GameScreen {
         float x = cellX(col);
         float y = cellY(row);
         Glass.rr(g, x + 0.5f, y + 0.5f, c - 1.0f, c - 1.0f, Math.max(2.0f, c * 0.18f),
-                Glass.a(base, 0.88f));
+                Glass.a(base, 0.90f));
         if (accent) {
             Glass.ring(g, x + 0.5f, y + 0.5f, c - 1.0f, c - 1.0f, Math.max(2.0f, c * 0.18f),
                     0.8f, Glass.a(Palette.ACCENT, 0.45f));
@@ -447,12 +448,13 @@ public class MenschAergereDichNichtScreen extends GameScreen {
 
     private void drawPiece(GuiGraphicsExtractor g, int row, int col, int p, boolean sel) {
         float c = cell();
-        float rad = c * (sel ? 0.40f : 0.33f);
+        float rad = c * (sel ? 0.42f : 0.34f);
         float x = cellX(col) + c / 2.0f;
         float y = cellY(row) + c / 2.0f;
-        Glass.shadowSoft(g, x - rad, y - rad + 1, rad * 2, rad * 2, rad, 2.0f, 1.0f, 0x55000000);
+        Glass.shadowSoft(g, x - rad, y - rad + 1.5f, rad * 2, rad * 2, rad, 2.0f, 1.0f, 0x66000000);
         Glass.disc(g, x, y, rad, pieceColor(p));
-        Glass.disc(g, x - rad * 0.25f, y - rad * 0.25f, rad * 0.42f, Glass.a(0xFFFFFFFF, 0.24f));
+        Glass.ring(g, x - rad, y - rad, rad * 2, rad * 2, rad, 0.6f, Glass.a(0xFFFFFFFF, 0.25f));
+        Glass.disc(g, x - rad * 0.28f, y - rad * 0.28f, rad * 0.45f, Glass.a(0xFFFFFFFF, 0.20f));
     }
 
     private boolean myTurn() {
@@ -540,14 +542,18 @@ public class MenschAergereDichNichtScreen extends GameScreen {
                 aiTurn();
             }
         }
+        dicePulse += Glass.dt * 3.0f;
+        if (dicePulse > 1.0f) {
+            dicePulse = 0.0f;
+        }
         beginFrame(g, mx, my, pt);
         String sub = this.mode == 0
                 ? "Du bist Rot - gegen die KI"
                 : (this.mode == 1 ? "Du bist Rot - Multiplayer" : "Du bist Blau - Multiplayer");
         drawChrome(g, "Mensch aergere dich nicht", sub);
 
-        int light = Glass.mix(0xFFEFE3CD, Palette.BG, 0.12f);
-        int dark = Glass.mix(0xFFD9C7A6, Palette.BG, 0.28f);
+        int light = Glass.mix(0xFFEFE3CD, Palette.BG, 0.10f);
+        int dark = Glass.mix(0xFFD9C7A6, Palette.BG, 0.26f);
 
         for (int i = 0; i < MAIN; i++) {
             int[] t = TRACK[i];
@@ -563,7 +569,7 @@ public class MenschAergereDichNichtScreen extends GameScreen {
                     isEntry = true;
                 }
             }
-            int base = isStart || isEntry ? Glass.mix(light, Palette.ACCENT, 0.18f) : light;
+            int base = isStart || isEntry ? Glass.mix(light, Palette.ACCENT, 0.16f) : light;
             drawCell(g, t[0], t[1], base, false);
         }
 
@@ -580,14 +586,13 @@ public class MenschAergereDichNichtScreen extends GameScreen {
                         }
                     }
                 }
-                drawCell(g, h[0], h[1], done ? Glass.mix(light, cc, 0.55f) : Glass.mix(light, cc, 0.16f), done);
+                drawCell(g, h[0], h[1], done ? Glass.mix(light, cc, 0.50f) : Glass.mix(light, cc, 0.14f), done);
             }
             int[][] sc = START_CELLS[q];
             for (int i = 0; i < PIECES; i++) {
                 int[] s = sc[i];
-                boolean occupied = p >= 0;
+                boolean occupied = false;
                 if (p >= 0) {
-                    occupied = false;
                     for (int k = 0; k < PIECES; k++) {
                         if (inStart(p, k)) {
                             occupied = true;
@@ -609,16 +614,19 @@ public class MenschAergereDichNichtScreen extends GameScreen {
                 } else {
                     int[] s = START_CELLS[quadOf(p)][i];
                     float c = cell();
-                    float rad = c * 0.22f;
+                    float rad = c * 0.24f;
                     float x = cellX(s[1]) + c / 2.0f;
                     float y = cellY(s[0]) + c / 2.0f;
-                    Glass.disc(g, x, y, rad, Glass.a(0xFF2A2A33, 0.7f));
-                    Glass.ring(g, x - rad, y - rad, rad * 2, rad * 2, rad, 0.7f, Glass.a(pieceColor(p), 0.5f));
+                    Glass.disc(g, x, y, rad, Glass.a(0xFF2A2A33, 0.75f));
+                    Glass.ring(g, x - rad, y - rad, rad * 2, rad * 2, rad, 0.7f, Glass.a(pieceColor(p), 0.45f));
                 }
             }
         }
 
-        Glass.disc(g, this.px + 24, this.py + this.ph - 58, 6.0f, pieceColor(this.current));
+        float pulse = 0.80f + 0.20f * (float) Math.sin(dicePulse * Math.PI * 2.0f);
+        int diceCol = pieceColor(this.current);
+        Glass.disc(g, this.px + 24, this.py + this.ph - 58, 7.0f * pulse, diceCol);
+        Glass.ring(g, this.px + 17, this.py + this.ph - 65, 14.0f, 14.0f, 7.0f, 0.8f, Glass.a(diceCol, 0.30f));
         Glass.textR(g, this.font, this.over
                         ? (this.winner == this.myColor ? "Du gewinnst" : "Kollege gewinnt")
                         : (myTurn() ? "Du bist am Zug" : "Gegner ist am Zug"),

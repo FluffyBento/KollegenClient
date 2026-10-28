@@ -821,6 +821,10 @@ public class KollegenMenuScreen extends Screen {
         Cell c = this.addFull(K_GAME, 64.0f);
         c.data = new JsonObject();
         c.data.addProperty("game", "tetris");
+        this.addHead("Snake");
+        Cell cs = this.addFull(K_GAME, 64.0f);
+        cs.data = new JsonObject();
+        cs.data.addProperty("game", "snake");
         this.addHead("Brett- & Kartenspiele");
         Cell c4 = this.addFull(K_GAME, 64.0f);
         c4.data = new JsonObject();
@@ -1134,6 +1138,10 @@ public class KollegenMenuScreen extends Screen {
                     try {
                         if ("tetris".equals(game)) {
                             Minecraft.getInstance().setScreenAndShow(new TetrisScreen(this));
+                            return true;
+                        }
+                        if ("snake".equals(game)) {
+                            Minecraft.getInstance().setScreenAndShow(new dev.kollegen.client.game.SnakeScreen(this));
                             return true;
                         }
                         if (dev.kollegen.client.game.Connect4Screen.ID.equals(game)) {
@@ -1510,6 +1518,10 @@ public class KollegenMenuScreen extends Screen {
             title = "Mensch aergere dich nicht";
             desc = "Wuerfeln und raus - KI oder gegen Kollegen";
             icon = Icons.GRID;
+        } else if ("snake".equals(game)) {
+            title = "Snake";
+            desc = "Fressen und wachsen - nicht an die Wand laufen";
+            icon = Icons.SNAKE;
         } else {
             title = "Tetris";
             desc = "Spielen und Kollegen-Punkte verdienen (100:1)";
