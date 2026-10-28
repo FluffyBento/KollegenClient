@@ -27,6 +27,8 @@ import java.util.UUID;
 public final class CosmeticRenderLayer extends RenderLayer<AvatarRenderState, PlayerModel> {
     private static boolean kollegen$loggedRender;
     private static boolean kollegen$loggedNoModel;
+    private static boolean kollegen$loggedNoMaceModel;
+    private static boolean kollegen$loggedMace;
     public CosmeticRenderLayer(RenderLayerParent<AvatarRenderState, PlayerModel> parent) {
         super(parent);
     }
@@ -88,6 +90,15 @@ public final class CosmeticRenderLayer extends RenderLayer<AvatarRenderState, Pl
                     Player player = mc.level != null ? mc.level.getPlayerByUUID(id) : null;
                     if (player != null) {
                         renderShield(poseStack, collector, model, player, data.shieldTexture, data.shieldModel, packedLight);
+                    }
+                } catch (Throwable ignored) {
+                }
+            }
+            if (data.maceTexture != null) {
+                try {
+                    Player player = mc.level != null ? mc.level.getPlayerByUUID(id) : null;
+                    if (player != null) {
+                        renderMace(poseStack, collector, model, player, data.maceTexture, data.maceModel, packedLight);
                     }
                 } catch (Throwable ignored) {
                 }
@@ -224,6 +235,65 @@ public final class CosmeticRenderLayer extends RenderLayer<AvatarRenderState, Pl
             poseStack.popPose();
         } catch (Throwable ignored) {
         }
+    }
+
+    private static void renderMace(PoseStack poseStack, SubmitNodeCollector collector, PlayerModel parent, Player player, String texture, String modelPath, int packedLight) {
+        try {
+            if (player == null || texture == null) return;
+            ItemStack main = player.getItemBySlot(EquipmentSlot.MAINHAND);
+            if (main == null || main.getItem() != net.minecraft.world.item.Items.MACE) return;
+            boolean useLeft;
+            try {
+                useLeft = player.getMainArm() == net.minecraft.world.entity.HumanoidArm.LEFT;
+            } catch (Throwable ignored) {
+                useLeft = false;
+            }
+            ModelPart arm = useLeft ? parent.leftArm : parent.rightArm;
+            if (arm == null) return;
+            Identifier tex = Identifier.tryParse(texture);
+            if (tex == null) return;
+            BbModel bb = null;
+            if (modelPath != null) {
+                Identifier modelId = Identifier.tryParse(modelPath);
+                if (modelId != null) {
+                    Minecraft mc = Minecraft.getInstance();
+                    if (mc != null) bb = BbModel.load(mc.getResourceManager(), modelId);
+                }
+            }
+            if (bb == null) {
+                if (!kollegen$loggedNoMaceModel) {
+                    kollegen$loggedNoMaceModel = true;
+                    System.out.println("KOLLEGENDBG mace-model-missing " + modelPath);
+                }
+                return;
+            }
+            if (!kollegen$loggedMace) {
+                kollegen$loggedMace = true;
+                System.out.println("KOLLEGENDBG render-custom-mace left=" + useLeft + " center=" + bb.cx + "," + bb.cy + "," + bb.cz);
+            }
+            RenderType type = RenderTypes.entityTranslucent(tex);
+            poseStack.pushPose();
+            arm.translateAndRotate(poseStack);
+            float mountYaw = 0.0F;
+            try {
+                if (bb.bones != null && !bb.bones.isEmpty() && bb.bones.get(0) != null) {
+                    mountYaw = bb.bones.get(0).ry;
+                }
+            } catch (Throwable ignored) {
+            }
+            poseStack.translate(0.0F - bb.cx, 0.62F - bb.cy, -0.30F - bb.cz);
+            float yawDeg = (useLeft ? -90.0F : 90.0F) - mountYaw;
+            poseStack.mulPose(new Quaternionf().rotateY((float) Math.toRadians(ywDegSafe(yawDeg))));
+            poseStack.mulPose(new Quaternionf().rotateX(-58.0F));
+            renderModelContents(poseStack, collector, type, bb, packedLight, animTime(), null, 0, 1.0F);
+            poseStack.popPose();
+        } catch (Throwable ignored) {
+        }
+    }
+
+    private static float ywDegSafe(float deg) {
+        if (Float.isNaN(deg) || Float.isInfinite(deg)) return 0.0F;
+        return deg;
     }
 
     private static double animTime() {

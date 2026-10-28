@@ -21,6 +21,7 @@ if (project.minecraft_version.startsWith('1.21')) {
 }
 
 version = project.mod_version
+ext.minecraft_range = (project.minecraft_version.toString().startsWith('1.21')) ? '>=1.21' : ('>=' + project.minecraft_version)
 group = project.maven_group
 
 base {
@@ -477,8 +478,9 @@ def chatHeadsTask = vendorModResource('dev/kollegen/client/chatheads.bin', 'chat
 
 processResources {
     inputs.property 'version', project.version
+    inputs.property 'minecraft_range', project.minecraft_range
     filesMatching('fabric.mod.json') {
-        expand(['version': project.version])
+        expand(['version': project.version, 'minecraft_range': project.minecraft_range])
     }
 }
 

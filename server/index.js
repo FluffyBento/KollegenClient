@@ -21,6 +21,11 @@ const START_POINTS = 250;
 
 
 const CATALOG = [
+  { id: 'pkg_fluffybento', category: 'package', name: 'FluffyBento-Paket', desc: 'Cape, Schild, Flügel und Visier von FluffyBento.', price: 0, rarity: 'legendary', comingSoon: true, data: { comingSoon: true, items: ['cape_fluffybento', 'schild_fluffybento', 'back_fluffybento', 'head_fluffybento'] } },
+  { id: 'pkg_limitlos', category: 'package', name: 'Limit_Los-Paket', desc: 'Cape, Bandana, Schild, Schwert und Dolche von Limit_Los.', price: 0, rarity: 'legendary', comingSoon: true, data: { comingSoon: true, items: ['cape_limitlos', 'head_limitlos', 'shield_limitlos', 'back_limitlos', 'shoulder_limitlos'] } },
+  { id: 'pkg_zerocraft77', category: 'package', name: 'Zerocraft77-Paket', desc: 'Cape, Bandana, Flügel, Handschuhe und Schild von Zerocraft77.', price: 0, rarity: 'legendary', comingSoon: true, data: { comingSoon: true, items: ['cape_zerocraft77', 'head_zerocraft77', 'back_zerocraft77', 'gloves_zerocraft77', 'shield_zerocraft77'] } },
+  { id: 'pkg_irongirl', category: 'package', name: 'Irongirl-Paket', desc: 'Cape, Flügel, Halo und Schild von Irongirl.', price: 0, rarity: 'legendary', comingSoon: true, data: { comingSoon: true, items: ['cape_irongirl', 'back_irongirl', 'head_irongirl', 'shield_irongirl'] } },
+  { id: 'title_luigi', category: 'title', name: 'Luigi', desc: 'Exklusiv verliehen, nicht käuflich.', price: 0, rarity: 'legendary', hidden: true, data: { text: 'Luigi', color: '#00b140' } },
   
   { id: 'title_erkunder', category: 'title', name: 'Erkunder', desc: 'Zeig deinen Entdeckermut.', price: 120, rarity: 'common', data: { text: 'Erkunder' } },
   { id: 'title_veteran', category: 'title', name: 'Veteran', desc: 'Viele Stunden im Nether überlebt.', price: 450, rarity: 'rare', data: { text: 'Veteran' } },
@@ -123,6 +128,7 @@ const CATALOG = [
   { id: 'skin_snow_fox', category: 'pet_skin', name: 'Schneefuchs', desc: 'Weißer Skin für Fuchs. Exklusiv verliehen.', price: 0, rarity: 'legendary', hidden: true, data: { variantOf: 'pet_fox', variant: 'snow', label: 'Schneefuchs' } },
   { id: 'skin_zombie_nautilus', category: 'pet_skin', name: 'Zombie-Nautilus', desc: 'Dunkler Skin für Nautilus. Exklusiv verliehen.', price: 0, rarity: 'legendary', hidden: true, data: { variantOf: 'pet_nautilus', variant: 'zombie', label: 'Zombie' } },
 
+  { id: 'mace_kriegshammer', category: 'mace', name: 'Kollegen Kriegshammer', desc: 'Ersetzt den normalen Mace durch einen kollektiven Kriegshammer.', price: 2400, rarity: 'legendary', featured: true, data: { texture: 'kollegen:cosmetics/store/kollegen_warhammer.png', model: 'kollegen:cosmetics/store/kollegen_warhammer.bbmodel' } },
   { id: 'cape_fluffybento', category: 'cape', name: 'FluffyBento Cape', desc: 'FluffyBento Cape.', price: 0, rarity: 'legendary', featured: true, hidden: true, data: { texture: 'kollegen:cosmetics/fluffybento/FluffyBento_cape.png', model: 'kollegen:cosmetics/fluffybento/FluffyBento_cape.bbmodel' } },
   { id: 'schild_fluffybento', category: 'shield', name: 'FluffyBento Schild', desc: 'FluffyBento Schild.', price: 0, rarity: 'legendary', featured: true, hidden: true, data: { texture: 'kollegen:cosmetics/fluffybento/FluffyBento_schild.png', model: 'kollegen:cosmetics/fluffybento/FluffyBento_schild.bbmodel' } },
   { id: 'back_fluffybento', category: 'back_accessory', name: 'FluffyBento Flügel', desc: 'FluffyBento Flügel.', price: 0, rarity: 'legendary', featured: true, hidden: true, data: { texture: 'kollegen:cosmetics/fluffybento/FluffyBento_fluegel.png', model: 'kollegen:cosmetics/fluffybento/FluffyBento_fluegel.bbmodel' } },
