@@ -1,6 +1,6 @@
 [Desktop Entry]
 Name=Kollegen Client
-Comment=Minecraft-Client mit Freundes- und Discord-Integration
+Comment=Bester Minecraft-Client
 Exec=kollegen-client
 Icon=dev.kollegen.client
 Type=Application
