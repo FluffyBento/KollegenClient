@@ -20,6 +20,7 @@ public final class Visual {
 
     
     public static float zoomFovDivisor = 1.0f;
+    public static boolean noFogEnabled = false;
 
     private Visual() {
     }
@@ -29,6 +30,23 @@ public final class Visual {
         ModuleManager.register(new ReducedParticles());
         ModuleManager.register(new Zoom());
         ModuleManager.register(new Freecam());
+        ModuleManager.register(new NoFog());
+    }
+
+    private static class NoFog extends Module {
+        NoFog() {
+            super("nofog", "Kein Nebel", "Entfernt den atmosphärischen Nebel für freie Sicht.", Category.VISUAL);
+        }
+
+        @Override
+        public void onEnable() {
+            noFogEnabled = true;
+        }
+
+        @Override
+        public void onDisable() {
+            noFogEnabled = false;
+        }
     }
 
     

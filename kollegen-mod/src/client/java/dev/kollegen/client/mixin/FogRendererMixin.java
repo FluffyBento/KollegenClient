@@ -22,6 +22,11 @@ public class FogRendererMixin {
             FogData data = cir.getReturnValue();
             if (data == null) return;
 
+            if (dev.kollegen.client.mods.modules.Visual.noFogEnabled) {
+                data.renderDistanceStart = 100000.0f;
+                data.renderDistanceEnd = 100000.0f;
+            }
+
             if (Performance.KollegenDistance.isDistanceEnabled()) {
                 net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
                 int renderDist = Performance.KollegenDistance.getMaxChunkDistance();

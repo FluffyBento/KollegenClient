@@ -10,6 +10,7 @@ import dev.kollegen.client.mods.Module;
 import dev.kollegen.client.mods.ModuleManager;
 import dev.kollegen.client.mods.Palette;
 import dev.kollegen.client.mods.SliderSetting;
+import dev.kollegen.client.mods.StringSetting;
 import dev.kollegen.client.ui.Glass;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -26,6 +27,14 @@ import java.util.List;
 
 public final class Hud {
 
+    public static double lastAttackReach = -1.0;
+    public static long lastAttackTime = 0L;
+
+    public static void recordAttackHit(double dist) {
+        lastAttackReach = dist;
+        lastAttackTime = System.currentTimeMillis();
+    }
+
     private Hud() {
     }
 
@@ -35,6 +44,7 @@ public final class Hud {
         ModuleManager.register(new Ping());
         ModuleManager.register(new Tps());
         ModuleManager.register(new Direction());
+        ModuleManager.register(new DayCounter());
         ModuleManager.register(new Clock());
         ModuleManager.register(new Keystrokes());
         ModuleManager.register(new Cps());
@@ -131,23 +141,123 @@ public final class Hud {
     }
 
     private static class Direction extends HudModule {
+        private final ModeSetting style = new ModeSetting("Stil", "Anzeigestil der Richtung.", new String[]{"Kompass-Leiste", "Text"}, 0);
+        private final SliderSetting compassWidth = new SliderSetting("Breite", "Breite des Kompasses in Pixeln.", 180.0, 100.0, 300.0, 10.0);
+        private final BooleanSetting showDegrees = new BooleanSetting("Gradzahl", "Zeigt den genauen Blickwinkel in Grad über der Leiste.", true);
+
         Direction() {
-            super("direction", "Richtung", "Blickrichtung (Himmelsrichtung + Yaw).");
+            super("direction", "Richtung", "Blickrichtung als moderne Kompass-Leiste oder Text.");
+            add(style);
+            add(compassWidth);
+            add(showDegrees);
         }
 
         @Override
         public void onRenderHud(GuiGraphicsExtractor g, float td) {
             if (mc.player == null) return;
             float yaw = mc.player.getYRot();
-            int y = (int) Math.floor(yaw);
-            if (y < 0) y += 360;
-            String cardinal;
-            if (y >= 315 || y < 45) cardinal = "S";
-            else if (y < 135) cardinal = "W";
-            else if (y < 225) cardinal = "N";
-            else cardinal = "E";
+            float heading = (yaw + 180f) % 360f;
+            if (heading < 0f) heading += 360f;
+
+            if (style.index == 1) {
+                int y = (int) Math.floor(yaw);
+                if (y < 0) y += 360;
+                String cardinal;
+                if (y >= 315 || y < 45) cardinal = "S";
+                else if (y < 135) cardinal = "W";
+                else if (y < 225) cardinal = "N";
+                else cardinal = "E";
+                List<String> lines = new ArrayList<>();
+                lines.add("Blick: " + cardinal + " (" + ((int) yaw) + "°)");
+                renderLines(g, lines, 0, 0);
+                return;
+            }
+
+            // Kompass-Leiste (inspiriert vom Norisk Client)
+            int w = (int) compassWidth.value;
+            int h = 18;
+            boolean deg = showDegrees.value;
+            int totalH = deg ? h + 16 : h;
+
+            int[] a = anchor(mc.getWindow().getGuiScaledWidth(), mc.getWindow().getGuiScaledHeight(), w, totalH);
+            int x = a[0];
+            int y = a[1] + (deg ? 16 : 0);
+
+            if (background.value) {
+                Glass.fillRound(g, x, y, w, h, 6, backgroundColor.value);
+                Glass.ring(g, x, y, w, h, 6, 0.5f, 0x22FFFFFF);
+            }
+            if (accentBar.value) {
+                Glass.rrGrad(g, x + 2, y + 2, 2.5f, h - 4, 1.2f, Palette.ACCENT, Glass.a(Palette.ACCENT, 0.35f));
+            }
+
+            markBounds(x, deg ? y - 16 : y, w, totalH);
+
+            float centerX = x + w / 2.0f;
+            float pixelsPerDegree = w / 100.0f;
+
+            for (int degMark = 0; degMark < 360; degMark += 15) {
+                float diff = (degMark - heading + 540f) % 360f - 180f;
+                float mx = centerX + diff * pixelsPerDegree;
+
+                if (mx < x + 6 || mx > x + w - 6) continue;
+
+                float dist = Math.abs(mx - centerX);
+                float maxDist = (w / 2.0f) - 6;
+                float fade = Math.max(0.18f, 1.0f - (dist / maxDist) * 0.82f);
+                int aVal = (int) (fade * 255);
+                int markColor = (aVal << 24) | (color.value & 0x00FFFFFF);
+
+                if (degMark % 45 == 0) {
+                    String label = switch (degMark) {
+                        case 0 -> "N";
+                        case 45 -> "NE";
+                        case 90 -> "E";
+                        case 135 -> "SE";
+                        case 180 -> "S";
+                        case 225 -> "SW";
+                        case 270 -> "W";
+                        case 315 -> "NW";
+                        default -> "";
+                    };
+                    int tw = mc.font.width(label);
+                    g.text(mc.font, label, Math.round(mx - tw / 2.0f), Math.round(y + (h - 8) / 2.0f), markColor, true);
+                } else {
+                    int tw = mc.font.width("|");
+                    g.text(mc.font, "|", Math.round(mx - tw / 2.0f), Math.round(y + (h - 8) / 2.0f), markColor, true);
+                }
+            }
+
+            if (deg) {
+                int headingInt = Math.round(heading) % 360;
+                String degStr = String.valueOf(headingInt);
+                int dw = mc.font.width(degStr);
+                g.text(mc.font, degStr, Math.round(centerX - dw / 2.0f), Math.round(y - 14), 0xFFFFFFFF, true);
+
+                int rx = Math.round(centerX);
+                int ry = y - 3;
+                g.fill(rx - 3, ry - 2, rx + 4, ry - 1, 0xFFE05252);
+                g.fill(rx - 2, ry - 1, rx + 3, ry,     0xFFE05252);
+                g.fill(rx - 1, ry,     rx + 2, ry + 1, 0xFFE05252);
+                g.fill(rx,     ry + 1, rx + 1, ry + 2, 0xFFE05252);
+            }
+        }
+    }
+
+    private static class DayCounter extends HudModule {
+        private final StringSetting prefix = new StringSetting("Präfix", "Präfix vor der Tagesanzahl.", "Tag ");
+
+        DayCounter() {
+            super("daycounter", "Tageszähler", "Zeigt den aktuellen Minecraft-Tag der Welt an.");
+            add(prefix);
+        }
+
+        @Override
+        public void onRenderHud(GuiGraphicsExtractor g, float td) {
+            if (mc.level == null) return;
+            long day = mc.level.getLevelData() != null ? mc.level.getLevelData().getGameTime() / 24000L : 0L;
             List<String> lines = new ArrayList<>();
-            lines.add("Blick: " + cardinal + " (" + ((int) yaw) + "°)");
+            lines.add((prefix.value == null ? "Tag " : prefix.value) + day);
             renderLines(g, lines, 0, 0);
         }
     }
@@ -438,26 +548,36 @@ public final class Hud {
     }
 
     private static class Reach extends HudModule {
+        private final ModeSetting mode = new ModeSetting("Modus", "Anzeigemodus der Reichweite.", new String[]{"Letzter Treffer", "Fadenkreuz"}, 0);
+
         Reach() {
-            super("reach", "Reichweite", "Distanz zum anvisierten Ziel (Block/Entität).");
+            super("reach", "Reichweite", "Distanz des letzten Angriffs-Treffers oder Ziels.");
+            add(mode);
         }
 
         @Override
         public void onRenderHud(GuiGraphicsExtractor g, float td) {
             List<String> lines = new ArrayList<>();
             double d = -1;
-            try {
-                var hr = mc.hitResult;
-                if (hr != null) {
-                    if (hr.getType() == net.minecraft.world.phys.HitResult.Type.BLOCK) {
-                        var center = net.minecraft.world.phys.Vec3.atCenterOf(((net.minecraft.world.phys.BlockHitResult) hr).getBlockPos());
-                        d = mc.player.position().distanceTo(center);
-                    } else if (hr.getType() == net.minecraft.world.phys.HitResult.Type.ENTITY) {
-                        var e = ((net.minecraft.world.phys.EntityHitResult) hr).getEntity();
-                        d = mc.player.position().distanceTo(e.position());
-                    }
+            if (mc.player == null) return;
+
+            if (mode.index == 0) {
+                if (System.currentTimeMillis() - lastAttackTime < 3000L && lastAttackReach > 0) {
+                    d = lastAttackReach;
                 }
-            } catch (Throwable ignored) {
+            } else {
+                try {
+                    var hr = mc.hitResult;
+                    if (hr != null) {
+                        if (hr.getType() == net.minecraft.world.phys.HitResult.Type.BLOCK) {
+                            var center = net.minecraft.world.phys.Vec3.atCenterOf(((net.minecraft.world.phys.BlockHitResult) hr).getBlockPos());
+                            d = mc.player.getEyePosition().distanceTo(center);
+                        } else if (hr.getType() == net.minecraft.world.phys.HitResult.Type.ENTITY) {
+                            d = mc.player.getEyePosition().distanceTo(hr.getLocation());
+                        }
+                    }
+                } catch (Throwable ignored) {
+                }
             }
             lines.add("Reichweite: " + (d < 0 ? "–" : String.format("%.2f", d) + " m"));
             renderLines(g, lines, 0, 0);

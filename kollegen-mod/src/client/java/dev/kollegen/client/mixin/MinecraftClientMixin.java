@@ -53,6 +53,20 @@ public class MinecraftClientMixin {
         }
     }
 
+    @Inject(method = "startAttack", at = @At("RETURN"))
+    private void kollegen_client$trackAttackReach(CallbackInfoReturnable<Boolean> cir) {
+        try {
+            if (cir.getReturnValue()) {
+                Minecraft mc = (Minecraft) (Object) this;
+                if (mc.player != null && mc.hitResult instanceof net.minecraft.world.phys.EntityHitResult ehr) {
+                    double dist = mc.player.getEyePosition().distanceTo(ehr.getLocation());
+                    dev.kollegen.client.mods.modules.Hud.recordAttackHit(dist);
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+    }
+
     @Inject(method = "startUseItem", at = @At("HEAD"), cancellable = true)
     private void kollegen_client$freecamUse(CallbackInfo ci) {
         if (Freecam.isActive()) {

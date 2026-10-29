@@ -204,7 +204,7 @@ public class KollegenMenuScreen extends Screen {
     private void createSearch() {
         int sx = this.searchX();
         int sw = Math.max(50, this.rightButtonsX() - 8 - sx);
-        this.search = new EditBox(this.font, sx + 20, this.py + 11, sw - 26, 14, (Component) Component.literal(""));
+        this.search = new EditBox(this.font, sx + 20, this.py + 13, sw - 26, 14, (Component) Component.literal(""));
         this.search.setBordered(false);
         this.search.setMaxLength(40);
         this.search.setHint((Component) Component.literal("Modul suchen"));
@@ -1040,6 +1040,12 @@ public class KollegenMenuScreen extends Screen {
             if (hit(mx, my, this.hudX(), by, this.hudBtnW(), 22)) {
                 HudModule.editMode = true;
                 Minecraft.getInstance().setScreenAndShow((Screen) new HudEditScreen(this));
+                return true;
+            }
+            int sx = this.searchX();
+            int sw = Math.max(50, this.rightButtonsX() - 8 - sx);
+            if (hit(mx, my, sx, this.py + 8, sw, 20)) {
+                this.search.setFocused(true);
                 return true;
             }
             for (int i = 0; i < this.cats.length; i++) {
