@@ -1,5 +1,6 @@
 package dev.kollegen.client.menu;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import dev.kollegen.client.mods.HudModule;
 import dev.kollegen.client.mods.Module;
 import dev.kollegen.client.mods.ModuleManager;
@@ -37,12 +38,25 @@ public class HudEditScreen extends Screen {
         return c;
     }
 
+    private float cachedBarW = 0.0f;
+    private float cachedAutoW = 0.0f;
+    private float cachedDoneW = 0.0f;
+
     private static boolean hit(double mx, double my, float x, float y, float w, float h) {
         return mx >= x && mx < x + w && my >= y && my < y + h;
     }
 
+    private void ensureBarSizes() {
+        if (this.cachedBarW <= 0.0f) {
+            this.cachedAutoW = 14 + this.font.width("Auto-Anordnen") + 14;
+            this.cachedDoneW = 14 + this.font.width("Fertig") + 14;
+            this.cachedBarW = 14 + 14 + this.font.width("Auto-Anordnen") + 14 + 14 + this.font.width("Fertig") + 14 + 18;
+        }
+    }
+
     private float barW() {
-        return 14 + 14 + this.font.width("Auto-Anordnen") + 14 + 14 + this.font.width("Fertig") + 14 + 18;
+        this.ensureBarSizes();
+        return this.cachedBarW;
     }
 
     private float barX() {
@@ -54,7 +68,8 @@ public class HudEditScreen extends Screen {
     }
 
     private float autoW() {
-        return 14 + this.font.width("Auto-Anordnen") + 14;
+        this.ensureBarSizes();
+        return this.cachedAutoW;
     }
 
     private void finish() {
@@ -66,7 +81,7 @@ public class HudEditScreen extends Screen {
     public boolean mouseClicked(MouseButtonEvent event, boolean bl) {
         double mx = event.x();
         double my = event.y();
-        if (event.button() == 0) {
+        if (event.button() == InputConstants.MOUSE_BUTTON_LEFT) {
             float bx = this.barX() + 9;
             float by = this.barY() + 4;
             if (hit(mx, my, bx, by, this.autoW(), 20)) {
@@ -90,7 +105,7 @@ public class HudEditScreen extends Screen {
     }
 
     public boolean mouseReleased(MouseButtonEvent event) {
-        if (event.button() == 0 && HudModule.dragging != null) {
+        if (event.button() == InputConstants.MOUSE_BUTTON_LEFT && HudModule.dragging != null) {
             HudModule.dragging = null;
             ModuleManager.save();
             return true;
@@ -99,7 +114,7 @@ public class HudEditScreen extends Screen {
     }
 
     public boolean keyPressed(KeyEvent ki) {
-        if (ki.key() == 256) {
+        if (ki.key() == InputConstants.KEY_ESCAPE || ki.isEscape()) {
             this.finish();
             return true;
         }
@@ -169,7 +184,7 @@ public class HudEditScreen extends Screen {
         Glass.pill(g, bx + 9 + 12, by + 4, this.autoW() - 12, 20, this.hv("auto", ha), false, false);
         Glass.textC(g, this.font, "Auto-Anordnen", Math.round(bx + 9 + 12 + (this.autoW() - 12) / 2), Math.round(by + 10), Palette.TEXT, false);
         float fx = bx + 9 + this.autoW() + 6;
-        float fw = 14 + this.font.width("Fertig") + 14;
+        float fw = this.cachedDoneW;
         boolean hf = hit(mx, my, fx, by + 4, fw, 20);
         Glass.pill(g, fx, by + 4, fw, 20, this.hv("done", hf), true, false);
         Glass.textC(g, this.font, "Fertig", Math.round(fx + fw / 2), Math.round(by + 10), 0xFFFFFFFF, false);

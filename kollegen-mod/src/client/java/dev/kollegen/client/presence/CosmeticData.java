@@ -179,14 +179,19 @@ public final class CosmeticData {
         }
     }
 
+    private static String normalizeAsset(String s) {
+        if (s == null || s.isEmpty()) return null;
+        return s.toLowerCase(java.util.Locale.ROOT);
+    }
+
     private static String textureOf(JsonObject o, String key) {
         if (!o.has(key) || o.get(key).isJsonNull()) return null;
         try {
             if (o.get(key).isJsonObject()) {
-                return strOf(o.getAsJsonObject(key), "texture");
+                return normalizeAsset(strOf(o.getAsJsonObject(key), "texture"));
             }
             String s = o.get(key).getAsString();
-            return s == null || s.isEmpty() ? null : s;
+            return s == null || s.isEmpty() ? null : normalizeAsset(s);
         } catch (Throwable ignored) {
             return null;
         }
@@ -197,15 +202,15 @@ public final class CosmeticData {
             try {
                 if (o.get(key).isJsonObject()) {
                     String m = strOf(o.getAsJsonObject(key), "model");
-                    if (m != null) return m;
+                    if (m != null) return normalizeAsset(m);
                 }
             } catch (Throwable ignored) {
             }
         }
         String direct = strOf(o, key + "Model");
-        if (direct != null) return direct;
+        if (direct != null) return normalizeAsset(direct);
         if (texture != null && texture.endsWith(".png")) {
-            return texture.substring(0, texture.length() - 4) + ".bbmodel";
+            return normalizeAsset(texture.substring(0, texture.length() - 4) + ".bbmodel");
         }
         return null;
     }

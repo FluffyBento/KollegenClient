@@ -10,6 +10,7 @@
   <link rel="stylesheet" href="styles.css" />
   <link rel="stylesheet" href="launcher.css" />
   <link rel="stylesheet" href="home.css" />
+  <link rel="stylesheet" href="social-store.css" />
   <link rel="stylesheet" href="console.css" />
 </head>
   <body>
@@ -133,104 +134,131 @@
       </form>
     </section>
 
-    <section id="socialsPanel" class="panel tab-panel" data-tab="socials" aria-labelledby="socialsTitle" hidden>
-      <header class="panel-header">
+    <section id="socialsPanel" class="tab-panel sx-page" data-tab="socials" aria-labelledby="socialsTitle" hidden>
+      <div class="sx-head">
         <h2 id="socialsTitle">Soziales</h2>
-      </header>
-      <div class="socials-body">
-        <div class="socials-profile">
-          <img id="spAvatar" class="socials-profile-avatar" alt="" style="display:none;" />
-          <div class="socials-profile-meta">
-            <div id="spName" class="socials-profile-name">nicht verbunden</div>
-            <div id="spDiscord" class="socials-profile-sub"></div>
-            <div id="spPoints" class="socials-profile-sub"></div>
+        <span class="sx-head-sub">Freunde, Gruppen und Profile</span>
+      </div>
+      <div class="sx-layout">
+        <div class="sx-main">
+          <section class="sx-card" aria-label="Freunde">
+            <div class="sx-card-head">
+              <h3 class="sx-title">Freunde</h3>
+            </div>
+            <div class="add-friend">
+              <input id="friendCodeInput" placeholder="Freundes-Code eingeben" autocomplete="off" />
+              <button id="friendCodeAdd" class="btn-primary">Hinzufügen</button>
+            </div>
+            <div id="kollegenRequestsWrap" class="sx-requests" style="display:none;">
+              <div class="sx-sub">Freundesanfragen</div>
+              <ul id="kollegenRequests" class="friend-list" role="list"></ul>
+            </div>
+            <p class="socials-hint" id="kollegenHint">Verbinde dich mit Discord, um Freunde zu sehen und hinzuzufügen.</p>
+            <ul id="kollegenFriends" class="friend-list" role="list"></ul>
+          </section>
+
+          <section class="sx-card" aria-label="Gruppen">
+            <div class="sx-card-head">
+              <h3 class="sx-title">Gruppen</h3>
+            </div>
+            <p class="socials-hint">Erstelle eine Gruppe, um zusammen zu chatten oder anzurufen.</p>
+            <div class="add-friend">
+              <input id="groupNameInput" placeholder="Gruppenname" autocomplete="off" maxlength="60" />
+              <button id="groupCreateBtn" class="btn-primary">Erstellen</button>
+            </div>
+            <ul id="kollegenGroups" class="friend-list" role="list"><li class="list-empty">Lade Gruppen…</li></ul>
+          </section>
+        </div>
+
+        <aside class="sx-rail" aria-label="Dein Profil">
+          <section class="rail-card socials-profile" aria-label="Profil">
+            <div class="socials-profile-top">
+              <img id="spAvatar" class="socials-profile-avatar" alt="" style="display:none;" />
+              <div class="socials-profile-meta">
+                <div id="spName" class="socials-profile-name">nicht verbunden</div>
+                <div id="spDiscord" class="socials-profile-sub"></div>
+                <div id="spPoints" class="socials-profile-sub"></div>
+              </div>
+            </div>
             <div class="socials-progress" id="spProgressWrap" style="display:none;">
               <div class="socials-progress-bar"><div id="spProgressFill" style="height:100%;width:0%;"></div></div>
               <div id="spProgressLabel" class="socials-profile-sub"></div>
             </div>
-            <div id="spCodeWrap" style="display:none;">
-              <span class="socials-code">Freundes-Code: <code id="spCode"></code></span>
+            <div id="spCodeWrap" class="socials-codebox" style="display:none;">
+              <span class="socials-code"><span class="socials-code-label">Freundes-Code</span><code id="spCode"></code></span>
               <button id="spCodeCopy" class="btn-small">Kopieren</button>
             </div>
-          </div>
-          <button id="openProfileBtn" class="btn-secondary">Profil</button>
-        </div>
+            <button id="openProfileBtn" class="btn-secondary sx-wide">Profil öffnen</button>
+          </section>
 
-        <div id="discordStatus" class="discord-status" style="display:none;"></div>
-        <div id="discordCurrentServer" class="discord-server" style="display:none;"></div>
-        <div id="discordLogin" style="display:none;">
-          <button id="discordLoginBtn" class="btn-primary">Mit Discord verbinden</button>
-          <div id="discordLoginStatus" class="discord-login-status"></div>
-        </div>
+          <section class="rail-card" aria-label="Discord">
+            <div class="rail-head"><div class="rail-title"><h3>Discord</h3></div></div>
+            <div id="discordStatus" class="discord-status"></div>
+            <div id="discordCurrentServer" class="discord-server"></div>
+            <div id="discordLogin">
+              <button id="discordLoginBtn" class="btn-primary sx-wide">Mit Discord verbinden</button>
+              <div id="discordLoginStatus" class="discord-login-status"></div>
+            </div>
+          </section>
 
-        <div class="socials-section">
-          <h3 class="socials-subhead">Freunde verwalten</h3>
-          <p class="socials-hint" id="kollegenHint">Verbinde dich mit Discord, um Freunde zu sehen und hinzuzufügen.</p>
-          <div class="add-friend">
-            <input id="friendCodeInput" placeholder="Freundes-Code" autocomplete="off" />
-            <button id="friendCodeAdd" class="btn-primary">Hinzufügen</button>
-          </div>
-          <div id="kollegenRequestsWrap" style="display:none;">
-            <div class="socials-subhead" style="margin-top:0.4rem;margin-bottom:0.35rem;">Freundesanfragen</div>
-            <ul id="kollegenRequests" class="friend-list" role="list"></ul>
-          </div>
-          <ul id="kollegenFriends" class="friend-list" role="list"></ul>
-        </div>
-
-        <div class="socials-section">
-          <h3 class="socials-subhead">Gruppen</h3>
-          <p class="socials-hint">Erstelle eine Gruppe, um zusammen zu chatten oder anzurufen.</p>
-          <div class="add-friend">
-            <input id="groupNameInput" placeholder="Gruppenname" autocomplete="off" maxlength="60" />
-            <button id="groupCreateBtn" class="btn-primary">Erstellen</button>
-          </div>
-          <ul id="kollegenGroups" class="friend-list" role="list"><li style="color:var(--text-muted);">Lade Gruppen…</li></ul>
-        </div>
-
-        <div class="socials-section">
-          <h3 class="socials-subhead">Person/Skin suchen</h3>
-          <div class="view-profile">
-            <input id="viewProfileName" placeholder="Minecraft-Name" autocomplete="off" />
-            <button id="viewProfileBtn" class="btn-primary">Anzeigen</button>
-          </div>
-          <div style="display:flex; gap:0.5rem; align-items:center; margin-top:0.4rem;">
-            <input id="browseProfileSearch" placeholder="Server-Durchsuchung (Code oder Name)" style="flex:1;" />
-            <button id="browseProfileBtn" class="btn-secondary">Öffentliche durchsuchen</button>
-          </div>
-          <canvas id="viewProfileCanvas" width="220" height="440" class="view-profile-canvas"></canvas>
-          <div id="viewProfileResult" class="view-profile-result"></div>
-        </div>
-
+          <section class="rail-card" aria-label="Person suchen">
+            <div class="rail-head"><div class="rail-title"><h3>Person / Skin suchen</h3></div></div>
+            <div class="view-profile">
+              <input id="viewProfileName" placeholder="Minecraft-Name" autocomplete="off" />
+              <button id="viewProfileBtn" class="btn-primary sx-wide">Anzeigen</button>
+            </div>
+            <div class="sx-browse">
+              <input id="browseProfileSearch" placeholder="Code oder Name" />
+              <button id="browseProfileBtn" class="btn-secondary sx-wide">Öffentliche durchsuchen</button>
+            </div>
+            <canvas id="viewProfileCanvas" width="220" height="440" class="view-profile-canvas"></canvas>
+            <div id="viewProfileResult" class="view-profile-result"></div>
+          </section>
+        </aside>
       </div>
     </section>
 
-    <section id="storePanel" class="panel tab-panel" data-tab="store" aria-labelledby="storeTitle" hidden>
-      <header class="panel-header">
+    <section id="storePanel" class="tab-panel sx-page" data-tab="store" aria-labelledby="storeTitle" hidden>
+      <div class="sx-head">
         <h2 id="storeTitle">Store</h2>
+        <span class="sx-head-sub" id="storeCount"></span>
         <div class="store-wallet" id="storeWalletMain" style="display:none;">
           <span class="store-pts" id="storePtsMain">0 Punkte</span>
           <span class="store-lvl" id="storeLvlMain">Level 1</span>
         </div>
-      </header>
+      </div>
+
       <div class="store-show" id="storeShow" style="display:none;">
         <div class="store-show-banner" id="storeShowBanner"></div>
-        <img id="storeShowAv" class="store-show-av" alt="" />
-        <div class="store-show-meta">
-          <div id="storeShowName" class="store-show-name">Dein Profil</div>
-          <div id="storeShowSub" class="store-show-sub"></div>
-          <div class="store-show-bar"><div id="storeShowFill" style="width:0%;"></div></div>
-          <div class="store-show-col"><span id="storeShowColl">0 gesammelt</span><span id="storeShowPct">0%</span></div>
+        <div class="store-show-row">
+          <img id="storeShowAv" class="store-show-av" alt="" />
+          <div class="store-show-meta">
+            <div id="storeShowName" class="store-show-name">Dein Profil</div>
+            <div id="storeShowSub" class="store-show-sub"></div>
+          </div>
+          <div class="store-show-prog">
+            <div class="store-show-col"><span id="storeShowColl">0 gesammelt</span><span id="storeShowPct">0%</span></div>
+            <div class="store-show-bar"><div id="storeShowFill" style="width:0%;"></div></div>
+          </div>
         </div>
       </div>
+
+      <div id="storePkgSlot"></div>
+
       <div class="store-tools">
+        <div class="store-tabs store-seg" id="storeGroupMain" role="tablist">
+          <button class="tab active" data-g="profil" role="tab" aria-selected="true">Profil</button>
+          <button class="tab" data-g="ingame" role="tab" aria-selected="false">Ingame</button>
+        </div>
+        <input id="storeSearch" class="search-input store-search" type="search" placeholder="Items suchen" autocomplete="off" />
         <div class="store-rar" id="storeRarChipsMain">
-          <button class="chip active" data-r="alle">Alle Raritäten</button>
+          <button class="chip active" data-r="alle">Alle</button>
           <button class="chip" data-r="common">Gewöhnlich</button>
           <button class="chip" data-r="rare">Selten</button>
           <button class="chip" data-r="epic">Episch</button>
           <button class="chip" data-r="legendary">Legendär</button>
         </div>
-        <select id="storeSortMain" class="store-sort">
+        <select id="storeSortMain" class="store-sort" aria-label="Sortierung">
           <option value="featured">Empfohlen</option>
           <option value="price-asc">Preis ↑</option>
           <option value="price-desc">Preis ↓</option>
@@ -238,36 +266,37 @@
           <option value="name">Name</option>
         </select>
       </div>
-      <div class="store-tabs" id="storeGroupMain" role="tablist">
-        <button class="tab active" data-g="profil" role="tab" aria-selected="true">Profil</button>
-        <button class="tab" data-g="ingame" role="tab" aria-selected="false">Ingame</button>
+
+      <div class="store-layout">
+        <div class="store-tabs store-cats" id="storeTabsMain" role="tablist" aria-label="Kategorien">
+          <button class="tab active" data-f="alle" role="tab" aria-selected="true">Alle</button>
+          <button class="tab" data-f="title" role="tab" aria-selected="false">Titel</button>
+          <button class="tab" data-f="avatar_frame" role="tab" aria-selected="false">Avatar-Rahmen</button>
+          <button class="tab" data-f="avatar_theme" role="tab" aria-selected="false">Avatar-Hintergrund</button>
+          <button class="tab" data-f="badge" role="tab" aria-selected="false">Abzeichen</button>
+          <button class="tab" data-f="profile_frame" role="tab" aria-selected="false">Profil-Rahmen</button>
+          <button class="tab" data-f="profile_bg" role="tab" aria-selected="false">Profil-Hintergrund</button>
+          <button class="tab" data-f="banner" role="tab" aria-selected="false">Banner</button>
+          <button class="tab" data-f="profil_stil" role="tab" aria-selected="false">Profilstil</button>
+          <button class="tab" data-f="font" role="tab" aria-selected="false">Schriftart</button>
+          <button class="tab" data-f="name_color" role="tab" aria-selected="false">Namensfarbe</button>
+          <button class="tab" data-f="sticker" role="tab" aria-selected="false">Aufkleber</button>
+          <button class="tab" data-f="pet" role="tab" aria-selected="false">Pet</button>
+          <button class="tab" data-f="cape" role="tab" aria-selected="false">Cape</button>
+          <button class="tab" data-f="shield" role="tab" aria-selected="false">Schild</button>
+          <button class="tab" data-f="back_accessory" role="tab" aria-selected="false">Rücken</button>
+          <button class="tab" data-f="head_accessory" role="tab" aria-selected="false">Kopf</button>
+          <button class="tab" data-f="face_accessory" role="tab" aria-selected="false">Gesicht</button>
+          <button class="tab" data-f="aura" role="tab" aria-selected="false">Aura</button>
+          <button class="tab" data-f="shoulder_accessory" role="tab" aria-selected="false">Schulter</button>
+          <button class="tab" data-f="torso_accessory" role="tab" aria-selected="false">Oberkörper</button>
+          <button class="tab" data-f="legs_accessory" role="tab" aria-selected="false">Unterkörper</button>
+          <button class="tab" data-f="gloves" role="tab" aria-selected="false">Handschuhe</button>
+        </div>
+        <div class="store-main">
+          <div class="store-grid" id="storeGridMain" role="tabpanel"><div class="store-msg">Lade Store…</div></div>
+        </div>
       </div>
-      <div class="store-tabs" id="storeTabsMain" role="tablist">
-        <button class="tab active" data-f="alle" role="tab" aria-selected="true">Alle</button>
-        <button class="tab" data-f="title" role="tab" aria-selected="false">Titel</button>
-        <button class="tab" data-f="avatar_frame" role="tab" aria-selected="false">Avatar-Rahmen</button>
-        <button class="tab" data-f="avatar_theme" role="tab" aria-selected="false">Avatar-Hintergrund</button>
-        <button class="tab" data-f="badge" role="tab" aria-selected="false">Abzeichen</button>
-        <button class="tab" data-f="profile_frame" role="tab" aria-selected="false">Profil-Rahmen</button>
-        <button class="tab" data-f="profile_bg" role="tab" aria-selected="false">Profil-Hintergrund</button>
-        <button class="tab" data-f="banner" role="tab" aria-selected="false">Banner</button>
-        <button class="tab" data-f="profil_stil" role="tab" aria-selected="false">Profilstil</button>
-        <button class="tab" data-f="font" role="tab" aria-selected="false">Schriftart</button>
-        <button class="tab" data-f="name_color" role="tab" aria-selected="false">Namensfarbe</button>
-        <button class="tab" data-f="sticker" role="tab" aria-selected="false">Aufkleber</button>
-        <button class="tab" data-f="pet" role="tab" aria-selected="false">Pet</button>
-        <button class="tab" data-f="cape" role="tab" aria-selected="false">Cape</button>
-        <button class="tab" data-f="shield" role="tab" aria-selected="false">Schild</button>
-        <button class="tab" data-f="back_accessory" role="tab" aria-selected="false">Rücken</button>
-        <button class="tab" data-f="head_accessory" role="tab" aria-selected="false">Kopf</button>
-        <button class="tab" data-f="face_accessory" role="tab" aria-selected="false">Gesicht</button>
-        <button class="tab" data-f="aura" role="tab" aria-selected="false">Aura</button>
-        <button class="tab" data-f="shoulder_accessory" role="tab" aria-selected="false">Schulter</button>
-        <button class="tab" data-f="torso_accessory" role="tab" aria-selected="false">Oberkörper</button>
-        <button class="tab" data-f="legs_accessory" role="tab" aria-selected="false">Unterkörper</button>
-        <button class="tab" data-f="gloves" role="tab" aria-selected="false">Handschuhe</button>
-      </div>
-      <div class="store-grid" id="storeGridMain" role="tabpanel"><div class="store-msg">Lade Store…</div></div>
     </section>
 
     <section id="cosmeticsPanel" class="panel tab-panel" data-tab="cosmetics" aria-labelledby="cosmeticsTitle" hidden>
@@ -408,12 +437,12 @@
             <span>Kollegen-Begleit-Mod automatisch installieren</span>
           </label>
           <p class="socials-hint">Ausschalten, falls ein Server (z.&nbsp;B. GommeHD) modifizierte Clients mit „invalid packet" kickt – ohne Mod ist der Client unverändert.</p>
-          <h3>Performance-Mods</h3>
+          <h3>Performance-Optimierungen</h3>
           <label class="settings-check">
             <input type="checkbox" id="perfModsToggle" />
-            <span>Performance-Modpack (Sodium, Lithium, FerriteCore, …) automatisch installieren</span>
+            <span>Kollegen Performance-Optimierungen automatisch installieren</span>
           </label>
-          <p class="socials-hint">Bei Fabric-/Quilt-Instanzen werden die stärksten bekannten Performance-Mods vorinstalliert. Bestehende Instanzen lassen sich über den „Optimize"-Knopf nachrüsten.</p>
+          <p class="socials-hint">Bei Fabric-/Quilt-Instanzen werden die stärksten Performance-Optimierungen vorinstalliert. Bestehende Instanzen lassen sich über den „Optimize"-Knopf nachrüsten.</p>
         </section>
         <section id="settingsThemes" class="settings-section" role="tabpanel" hidden>
           <h3>Theme (Farbschema)</h3>

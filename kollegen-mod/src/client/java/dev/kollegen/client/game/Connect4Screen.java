@@ -1,5 +1,6 @@
 package dev.kollegen.client.game;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import com.google.gson.JsonObject;
 import dev.kollegen.client.mods.Palette;
 import dev.kollegen.client.ui.Glass;
@@ -433,7 +434,7 @@ public class Connect4Screen extends GameScreen {
     }
 
     public boolean mouseClicked(MouseButtonEvent event, boolean bl) {
-        if (event.button() != 0) {
+        if (event.button() != InputConstants.MOUSE_BUTTON_LEFT) {
             return super.mouseClicked(event, bl);
         }
         if (this.closeClicked(event)) {

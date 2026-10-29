@@ -370,7 +370,7 @@ public class TetrisScreen extends Screen {
         try {
             double mx = event.x();
             double my = event.y();
-            if (event.button() == 0) {
+            if (event.button() == InputConstants.MOUSE_BUTTON_LEFT) {
                 if (mx >= xX && mx <= xX + 24 && my >= xY && my < xY + 24) {
                     try {
                         Minecraft.getInstance().setScreenAndShow(parent);

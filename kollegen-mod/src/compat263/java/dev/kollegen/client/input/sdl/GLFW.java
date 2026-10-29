@@ -170,11 +170,11 @@ public final class GLFW {
     public static int glfwGetKey(long window, int key) {
         try {
             int k = key;
-            if (key == GLFW_KEY_RIGHT_SHIFT) k = InputConstants.KEY_RSHIFT;
-            else if (key == GLFW_KEY_LEFT_SHIFT) k = InputConstants.KEY_LSHIFT;
-            else if (key == GLFW_KEY_RIGHT_CONTROL) k = InputConstants.KEY_RCONTROL;
-            else if (key == GLFW_KEY_LEFT_CONTROL) k = InputConstants.KEY_LCONTROL;
-            else if (key == GLFW_KEY_SPACE) k = InputConstants.KEY_SPACE;
+            if (key == GLFW_KEY_RIGHT_SHIFT || key == InputConstants.KEY_RSHIFT) k = InputConstants.KEY_RSHIFT;
+            else if (key == GLFW_KEY_LEFT_SHIFT || key == InputConstants.KEY_LSHIFT) k = InputConstants.KEY_LSHIFT;
+            else if (key == GLFW_KEY_RIGHT_CONTROL || key == InputConstants.KEY_RCONTROL) k = InputConstants.KEY_RCONTROL;
+            else if (key == GLFW_KEY_LEFT_CONTROL || key == InputConstants.KEY_LCONTROL) k = InputConstants.KEY_LCONTROL;
+            else if (key == GLFW_KEY_SPACE || key == InputConstants.KEY_SPACE) k = InputConstants.KEY_SPACE;
             return InputConstants.isKeyDown(k) ? GLFW_PRESS : GLFW_RELEASE;
         } catch (Throwable t) {
             return GLFW_RELEASE;

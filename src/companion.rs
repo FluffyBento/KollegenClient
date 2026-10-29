@@ -50,7 +50,7 @@ fn version_compatible(instance_version: &str, target_version: &str) -> bool {
     false
 }
 
-fn companion_filename_for_version(version: &str) -> &'static str {
+pub fn companion_filename_for_version(version: &str) -> &'static str {
     if version.starts_with("1.21.") {
         COMPANION_MOD_FILENAME_1_21
     } else if version.starts_with("26.3") {
@@ -275,6 +275,19 @@ fn jar_mc_constraint(p: &Path) -> Option<String> {
     v.get("depends")?.get("minecraft")?.as_str().map(|s| s.to_string())
 }
 
+pub(crate) fn jar_has_fabric_mod_json(p: &Path) -> bool {
+    let file = match std::fs::File::open(p) {
+        Ok(f) => f,
+        Err(_) => return false,
+    };
+    let mut archive = match zip::ZipArchive::new(file) {
+        Ok(a) => a,
+        Err(_) => return false,
+    };
+    let ok = archive.by_name("fabric.mod.json").is_ok();
+    ok
+}
+
 fn mc_constraint_supports(constraint: &str, version: &str) -> bool {
     let c = constraint.trim();
     if c == "*" {
@@ -409,7 +422,10 @@ fn mc_runtime_uses_mojang_names(version: &str) -> bool {
 /// gültiges Jar + MC-Constraint + .bin-Payloads + (wo nötig) Remapping.
 fn companion_candidate_ok(p: &Path, version: &str) -> bool {
     let name = p.file_name().and_then(|n| n.to_str()).unwrap_or("").to_lowercase();
-    if name.contains("kollegen-client-mod") { return is_valid_jar(p) && jar_mod_version_matches(p); }
+    let expected = companion_filename_for_version(version);
+    if name.starts_with("kollegen-client-mod-") && name != expected {
+        return false;
+    }
     is_valid_jar(p)
         && jar_supports_mc(p, version)
         && companion_bins_support_mc(p, version)
@@ -548,6 +564,10 @@ pub fn companion_jar(data_dir: &Path, version: &str) -> Option<PathBuf> {
         }
     }
 
+    let cached = cache_dir(data_dir).join(filename);
+    if companion_candidate_ok(&cached, version) {
+        return Some(cached);
+    }
 
     try_download(data_dir, version)
 }
@@ -692,6 +712,7 @@ pub fn install_companion_mod(data_dir: &Path, instance_name: &str, version: &str
     // Es werden ausschließlich eigene kollegen-client*.jar-Dateien angefasst.
     {
         let mods_dir = crate::utils::instance_dir(data_dir, instance_name).join("mods");
+        let expected_companion = companion_filename_for_version(version);
         if let Ok(entries) = std::fs::read_dir(&mods_dir) {
             for e in entries.flatten() {
                 let p = e.path();
@@ -699,12 +720,14 @@ pub fn install_companion_mod(data_dir: &Path, instance_name: &str, version: &str
                     continue;
                 }
                 let name = e.file_name().to_string_lossy().to_lowercase();
-                if is_companion_mod_name(&name) && !companion_candidate_ok(&p, version) {
-                    warn!(
-                        "Entferne unpassende Companion-Altlast für MC {}: {}",
-                        version, name
-                    );
-                    let _ = std::fs::remove_file(&p);
+                if is_companion_mod_name(&name) {
+                    if name != expected_companion || !companion_candidate_ok(&p, version) {
+                        warn!(
+                            "Entferne unpassende Companion-Altlast für MC {}: {}",
+                            version, name
+                        );
+                        let _ = std::fs::remove_file(&p);
+                    }
                 }
             }
         }
@@ -785,19 +808,36 @@ pub fn install_companion_mod(data_dir: &Path, instance_name: &str, version: &str
 
     let target = mods_dir.join(companion_filename_for_version(version));
 
-    
-    
-    
-    
-    match std::fs::copy(&jar, &target) {
-        Ok(_) => info!(
-            "Kollegen-Client-Mod in Instanz '{}' (MC {}) injiziert.",
+    // Hash/Content check to preserve mtime, OS page-cache & AOT/CDS caches
+    let mut needs_copy = true;
+    if target.is_file() {
+        if let (Ok(meta_src), Ok(meta_tgt)) = (std::fs::metadata(&jar), std::fs::metadata(&target)) {
+            if meta_src.len() == meta_tgt.len() {
+                if let (Ok(data_src), Ok(data_tgt)) = (std::fs::read(&jar), std::fs::read(&target)) {
+                    if data_src == data_tgt {
+                        needs_copy = false;
+                    }
+                }
+            }
+        }
+    }
+
+    if needs_copy {
+        match std::fs::copy(&jar, &target) {
+            Ok(_) => info!(
+                "Kollegen-Client-Mod in Instanz '{}' (MC {}) injiziert.",
+                instance_name, version
+            ),
+            Err(e) => warn!(
+                "Konnte Kollegen-Client-Mod in Instanz '{}' nicht injizieren: {}",
+                instance_name, e
+            ),
+        }
+    } else {
+        info!(
+            "Kollegen-Client-Mod in Instanz '{}' (MC {}) ist unverändert (mtime/Cache geschont).",
             instance_name, version
-        ),
-        Err(e) => warn!(
-            "Konnte Kollegen-Client-Mod in Instanz '{}' nicht injizieren: {}",
-            instance_name, e
-        ),
+        );
     }
 }
 
@@ -820,5 +860,14 @@ mod tests {
         assert!(mc_constraint_supports(">=26.3-", "26.3"));
         assert!(mc_constraint_supports("~26.3-", "26.3"));
         assert!(mc_constraint_supports("*", "26.3"));
+    }
+
+    #[test]
+    fn test_companion_candidate_filename_mismatch() {
+        let p_26_2 = Path::new("/path/to/kollegen-client-mod-26.2.jar");
+        assert!(!companion_candidate_ok(p_26_2, "26.3"));
+        let p_1_21 = Path::new("/path/to/kollegen-client-mod-1.21.11.jar");
+        assert!(!companion_candidate_ok(p_1_21, "26.2"));
+        assert!(!companion_candidate_ok(p_1_21, "26.3"));
     }
 }

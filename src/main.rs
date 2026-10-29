@@ -386,6 +386,43 @@ fn get_logs(state: State<'_, AppState>) -> Result<Vec<String>, String> {
     Ok(logs)
 }
 
+fn resolve_jar_pid(
+    jar_path: &std::path::Path,
+    data_dir: &std::path::Path,
+    source_name: &str,
+    new_version: &str,
+    new_loader: &str,
+) -> Option<String> {
+    if let Ok(file) = std::fs::File::open(jar_path) {
+        if let Ok(mut archive) = zip::ZipArchive::new(file) {
+            if let Ok(mut entry) = archive.by_name("fabric.mod.json") {
+                let mut text = String::new();
+                if std::io::Read::read_to_string(&mut entry, &mut text).is_ok() {
+                    if let Ok(v) = serde_json::from_str::<serde_json::Value>(&text) {
+                        let modid = v.get("id").and_then(|x| x.as_str()).unwrap_or("");
+                        let name = v.get("name").and_then(|x| x.as_str()).unwrap_or(modid);
+                        if let Some(pid) = resolve_mod_pid(data_dir, source_name, modid, name, new_version, new_loader) {
+                            return Some(pid);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    if let Some(stem) = jar_path.file_stem().and_then(|s| s.to_str()) {
+        let cleaned: String = stem.chars()
+            .take_while(|c| !c.is_ascii_digit())
+            .filter(|c| *c != '-' && *c != '_')
+            .collect();
+        if cleaned.len() >= 3 {
+            if let Some(pid) = resolve_mod_pid(data_dir, source_name, "", &cleaned, new_version, new_loader) {
+                return Some(pid);
+            }
+        }
+    }
+    None
+}
+
 #[tauri::command]
 fn clone_instance_v2(
     state: State<'_, AppState>,
@@ -408,11 +445,9 @@ fn clone_instance_v2(
         return Err(format!("Eine Instanz mit dem Namen '{}' existiert bereits.", new_name));
     }
     
-    let dir = utils::instance_dir(&state.data_dir, &new_name);
-    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
-    
     let source_dir = utils::instance_dir(&state.data_dir, &source_name);
     let new_dir = utils::instance_dir(&state.data_dir, &new_name);
+    std::fs::create_dir_all(&new_dir).map_err(|e| e.to_string())?;
     
     fn copy_dir_recursive(src: &std::path::Path, dst: &std::path::Path) -> Result<(), String> {
         if !src.exists() {
@@ -441,9 +476,240 @@ fn clone_instance_v2(
         Ok(())
     }
     
-    copy_dir_recursive(&source_dir.join("mods"), &new_dir.join("mods"))?;
+    // 1. Einstellungen übernehmen (config-Ordner rekursiv kopieren)
+    copy_dir_recursive(&source_dir.join("config"), &new_dir.join("config"))?;
+    
+    // 2. Vanilla Minecraft Optionen, Shader-Auswahl, Serverliste, Command-History
+    for opt_file in [
+        "options.txt",
+        "optionsshaders.txt",
+        "servers.dat",
+        "servers.dat_old",
+        "servers.essential.dat",
+        "command_history.txt",
+    ] {
+        let src_file = source_dir.join(opt_file);
+        if src_file.is_file() {
+            let _ = std::fs::copy(&src_file, new_dir.join(opt_file));
+        }
+    }
+    
+    // 3. Resourcepacks und Shaderpacks übernehmen
     copy_dir_recursive(&source_dir.join("resourcepacks"), &new_dir.join("resourcepacks"))?;
     copy_dir_recursive(&source_dir.join("shaderpacks"), &new_dir.join("shaderpacks"))?;
+    
+    // 4. Instanz-Icon und -Banner übernehmen
+    if let Ok(entries) = std::fs::read_dir(&source_dir) {
+        for e in entries.flatten() {
+            let p = e.path();
+            if p.is_file() {
+                let name = e.file_name().to_string_lossy().to_string();
+                if name.starts_with("kollegen-icon.")
+                    || name.starts_with("kollegen-banner.")
+                    || name == "icon.png"
+                {
+                    let _ = std::fs::copy(&p, new_dir.join(&name));
+                }
+            }
+        }
+    }
+    
+    // 5. Metadata-Ordner (.kollegen) übernehmen
+    let source_meta_dir = source_dir.join(".kollegen");
+    let new_meta_dir = new_dir.join(".kollegen");
+    if source_meta_dir.exists() {
+        copy_dir_recursive(&source_meta_dir, &new_meta_dir)?;
+    }
+    
+    // 6. Mods behandeln
+    let new_mods_dir = new_dir.join("mods");
+    std::fs::create_dir_all(&new_mods_dir).map_err(|e| e.to_string())?;
+    
+    let same_version = source.version == new_version
+        && source.loader.eq_ignore_ascii_case(&new_loader);
+        
+    if same_version {
+        // Gleiche Version: Mods direkt kopieren
+        copy_dir_recursive(&source_dir.join("mods"), &new_mods_dir)?;
+    } else {
+        // Andere Version: Mod-Versionen für Ziel-Version aktualisieren!
+        // Kopiere Bundle-/Renderer-Flags falls vorhanden
+        for flag in [
+            ".kollegen-bundles.json",
+            ".kollegen-renderer",
+            ".kollegen-controller",
+            ".kollegen-gamepad",
+        ] {
+            let src_flag = source_dir.join("mods").join(flag);
+            if src_flag.is_file() {
+                let _ = std::fs::copy(&src_flag, new_mods_dir.join(flag));
+            }
+        }
+        
+        let source_meta = crate::modrinth::load_meta(&state.data_dir, &source_name);
+        let mut mod_project_map: std::collections::HashMap<String, String> =
+            std::collections::HashMap::new();
+        if let Some(mod_obj) = source_meta.get("mod").and_then(|v| v.as_object()) {
+            for (fname, pid_val) in mod_obj {
+                if let Some(pid) = pid_val.as_str() {
+                    mod_project_map.insert(fname.clone(), pid.to_string());
+                }
+            }
+        }
+        
+        let source_mods_dir = source_dir.join("mods");
+        let mut mods_to_update: Vec<(String, Option<String>)> = Vec::new();
+        
+        if let Ok(entries) = std::fs::read_dir(&source_mods_dir) {
+            for entry in entries.flatten() {
+                let p = entry.path();
+                if !p.is_file() {
+                    continue;
+                }
+                let fname = entry.file_name().to_string_lossy().to_string();
+                let fname_lower = fname.to_lowercase();
+                if !fname_lower.ends_with(".jar") && !fname_lower.ends_with(".jar.disabled") {
+                    continue;
+                }
+                
+                // Begleit-Mod, Integrations-Bundles und Renderer-Mods werden
+                // für die Ziel-Version separat frisch bereitgestellt
+                if crate::companion::is_companion_mod_name(&fname_lower)
+                    || fname_lower.starts_with("kollegen-bundle")
+                    || crate::modrinth::is_managed_renderer_mod(&fname_lower)
+                {
+                    continue;
+                }
+                
+                // Essential wird per ensure_essential geladen
+                if fname_lower.starts_with("essential") {
+                    continue;
+                }
+                
+                // Wenn die Mod bereits kompatibel mit der Ziel-Version ist, direkt übernehmen
+                if crate::companion::jar_supports_mc(&p, &new_version) {
+                    let _ = std::fs::copy(&p, new_mods_dir.join(&fname));
+                    if let Some(pid) = mod_project_map.get(&fname) {
+                        let _ = crate::modrinth::record_install(
+                            &state.data_dir,
+                            &new_name,
+                            "mod",
+                            &fname,
+                            pid,
+                        );
+                    }
+                    continue;
+                }
+                
+                // Inkompatibel: Passende Version über Modrinth suchen
+                let pid = mod_project_map.get(&fname).cloned().or_else(|| {
+                    resolve_jar_pid(&p, &state.data_dir, &source_name, &new_version, &new_loader)
+                });
+                mods_to_update.push((fname, pid));
+            }
+        }
+        
+        for (fname, pid_opt) in mods_to_update {
+            if let Some(pid) = pid_opt {
+                utils::append_log(
+                    &state,
+                    &format!(
+                        "Klone: Aktualisiere Mod '{}' ({}) für MC {} / {}...",
+                        fname, pid, new_version, new_loader
+                    ),
+                );
+                match crate::modrinth::install_content(
+                    &new_name,
+                    &state.data_dir,
+                    "mod",
+                    &pid,
+                    &new_version,
+                    &new_loader,
+                    None,
+                ) {
+                    Ok(_) => {
+                        utils::append_log(
+                            &state,
+                            &format!(
+                                "✓ Mod '{}' erfolgreich für {} aktualisiert.",
+                                fname, new_version
+                            ),
+                        );
+                    }
+                    Err(e) => {
+                        warn!(
+                            "Mod '{}' ({}) nicht aktualisierbar für {} / {}: {}",
+                            fname, pid, new_version, new_loader, e
+                        );
+                        utils::append_log(
+                            &state,
+                            &format!(
+                                "⚠️ Mod '{}' hat keine kompatible Version für {} – übersprungen.",
+                                fname, new_version
+                            ),
+                        );
+                    }
+                }
+            } else {
+                warn!(
+                    "Inkompatible Mod '{}' übersprungen (keine Modrinth-ID ermittelbar).",
+                    fname
+                );
+                utils::append_log(
+                    &state,
+                    &format!(
+                        "⚠️ Inkompatible Mod '{}' übersprungen (keine passende Version für {}).",
+                        fname, new_version
+                    ),
+                );
+            }
+        }
+    }
+    
+    // Begleit-Mod und Bundles für Zielversion installieren
+    crate::companion::install_companion_mod(
+        &state.data_dir,
+        &new_name,
+        &new_version,
+        &new_loader,
+    );
+    let comp = crate::companion::companion_jar(&state.data_dir, &new_version);
+    crate::instance::enforce_bundled_mods(&new_mods_dir, &new_version, comp.as_deref());
+    
+    // Essential Mod für Zielversion
+    if !new_loader.eq_ignore_ascii_case("vanilla") {
+        let _ = crate::utils::ensure_essential(&new_name, &state.data_dir, &new_version);
+    }
+    
+    // Renderer Konsistenz prüfen
+    crate::instance::enforce_renderer_consistency(&new_mods_dir, source.vulkan_enabled);
+    
+    // Performance Mods nachziehen
+    if new_loader.eq_ignore_ascii_case("fabric") || new_loader.eq_ignore_ascii_case("quilt") {
+        let settings = utils::load_json::<types::Settings>(
+            &utils::settings_file(&state.data_dir),
+            types::Settings::default(),
+        );
+        if settings.perf_mods {
+            let _ = crate::modrinth::install_perf_mods(
+                &state.data_dir,
+                &new_name,
+                &new_version,
+                &new_loader,
+            );
+        }
+    }
+    
+    // Benötigtes Java sicherstellen
+    let required_java = required_java_for_version(&new_version);
+    if java::find_java(&state.data_dir, required_java).is_err() {
+        let _ = java::download_jre_internal(required_java).map_err(|e| {
+            warn!(
+                "JRE {} konnte für geklonte Instanz nicht automatisch heruntergeladen werden: {}",
+                required_java, e
+            )
+        });
+    }
     
     let new_inst = types::Instance {
         id: uuid::Uuid::new_v4().to_string(),
@@ -451,8 +717,12 @@ fn clone_instance_v2(
         version: new_version.clone(),
         loader: new_loader.clone(),
         loader_version: new_loader_version.clone(),
-        description: source.description.clone(),
-        mods: source.mods.clone(),
+        description: if source.description.is_empty() {
+            format!("Geklont von {}", source_name)
+        } else {
+            source.description.clone()
+        },
+        mods: vec!["essentialmod.jar".to_string()],
         vulkan_enabled: source.vulkan_enabled,
         memory_min: source.memory_min.clone(),
         memory_max: source.memory_max.clone(),
@@ -468,8 +738,6 @@ fn clone_instance_v2(
     );
     instances.push(new_inst.clone());
     utils::save_json(&utils::instances_file(&state.data_dir), &instances).map_err(|e| e.to_string())?;
-    
-    crate::instance::ensure_kollegen_mod(&state.data_dir, &new_name, &new_loader, &new_version);
     
     Ok(new_inst)
 }
@@ -610,6 +878,14 @@ fn auto_resolve_conflict(
         };
         let fname = jar.file_name().unwrap().to_string_lossy().to_string();
         if crate::companion::is_companion_mod_name(&fname) {
+            let expected_companion = crate::companion::companion_filename_for_version(&mc_version);
+            if fname != expected_companion {
+                let _ = std::fs::remove_file(&jar);
+                fixed.push(format!("Inkompatible Begleit-Mod entfernt: {}", fname));
+                let comp = crate::companion::companion_jar(&state.data_dir, &mc_version);
+                crate::companion::install_companion_mod(&state.data_dir, &instance_name, &mc_version, &loader);
+                crate::instance::enforce_bundled_mods(&mods_dir, &mc_version, comp.as_deref());
+            }
             continue;
         }
 
@@ -1018,7 +1294,9 @@ fn required_java_for_version(version: &str) -> u32 {
     let mut it = version.split('.');
     let major: u32 = it.next().and_then(|s| s.parse().ok()).unwrap_or(99);
     let minor: u32 = it.next().and_then(|s| s.parse().ok()).unwrap_or(0);
-    if major > 1 || (major == 1 && minor >= 21) {
+    if major >= 26 {
+        25
+    } else if major > 1 || (major == 1 && minor >= 21) {
         21
     } else if major == 1 && minor >= 17 {
         17

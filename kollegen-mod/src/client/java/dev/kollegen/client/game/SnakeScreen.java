@@ -95,18 +95,18 @@ public class SnakeScreen extends GameScreen {
     @Override
     public boolean keyPressed(KeyEvent ki) {
         int k = ki.key();
-        if (k == 256) {
+        if (k == InputConstants.KEY_ESCAPE || ki.isEscape()) {
             this.leave();
             return true;
         }
         if (over) {
-            if (k == InputConstants.KEY_RETURN || k == InputConstants.KEY_NUMPADENTER || k == InputConstants.KEY_SPACE) {
+            if (k == InputConstants.KEY_RETURN || k == InputConstants.KEY_NUMPADENTER || k == InputConstants.KEY_SPACE || ki.isConfirmation()) {
                 reset();
                 return true;
             }
             return super.keyPressed(ki);
         }
-        if (k == InputConstants.KEY_LEFT || k == 65) {
+        if (k == InputConstants.KEY_LEFT || k == InputConstants.KEY_A || k == 65 || ki.isLeft()) {
             if (dx != 1) {
                 ndx = -1;
                 ndy = 0;
@@ -114,7 +114,7 @@ public class SnakeScreen extends GameScreen {
             started = true;
             return true;
         }
-        if (k == InputConstants.KEY_RIGHT || k == 68) {
+        if (k == InputConstants.KEY_RIGHT || k == InputConstants.KEY_D || k == 68 || ki.isRight()) {
             if (dx != -1) {
                 ndx = 1;
                 ndy = 0;
@@ -122,7 +122,7 @@ public class SnakeScreen extends GameScreen {
             started = true;
             return true;
         }
-        if (k == InputConstants.KEY_UP || k == 87) {
+        if (k == InputConstants.KEY_UP || k == InputConstants.KEY_W || k == 87 || ki.isUp()) {
             if (dy != 1) {
                 ndx = 0;
                 ndy = -1;
@@ -130,7 +130,7 @@ public class SnakeScreen extends GameScreen {
             started = true;
             return true;
         }
-        if (k == InputConstants.KEY_DOWN || k == 83) {
+        if (k == InputConstants.KEY_DOWN || k == InputConstants.KEY_S || k == 83 || ki.isDown()) {
             if (dy != -1) {
                 ndx = 0;
                 ndy = 1;
@@ -225,7 +225,7 @@ public class SnakeScreen extends GameScreen {
 
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean bl) {
-        if (event.button() == 0 && this.closeClicked(event)) {
+        if (event.button() == InputConstants.MOUSE_BUTTON_LEFT && this.closeClicked(event)) {
             this.leave();
             return true;
         }

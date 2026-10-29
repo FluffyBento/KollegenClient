@@ -4,6 +4,7 @@ import dev.kollegen.client.mods.ColorSetting;
 import dev.kollegen.client.mods.ModuleManager;
 import dev.kollegen.client.mods.Palette;
 import dev.kollegen.client.ui.Glass;
+import com.mojang.blaze3d.platform.InputConstants;
 import java.util.HashMap;
 import java.util.Map;
 import net.minecraft.client.Minecraft;
@@ -125,7 +126,7 @@ public class ColorPickerScreen extends Screen {
     public boolean mouseClicked(MouseButtonEvent event, boolean bl) {
         double mx = event.x();
         double my = event.y();
-        if (event.button() == 0) {
+        if (event.button() == InputConstants.MOUSE_BUTTON_LEFT) {
             for (int i = 0; i < 3; i++) {
                 if (hit(mx, my, this.bx - 6, this.barY(i) - 4, this.bw + 12, 22)) {
                     this.dragBar = i;
@@ -143,7 +144,7 @@ public class ColorPickerScreen extends Screen {
     }
 
     public boolean mouseDragged(MouseButtonEvent event, double dx, double dy) {
-        if (this.dragBar >= 0 && event.button() == 0) {
+        if (this.dragBar >= 0 && event.button() == InputConstants.MOUSE_BUTTON_LEFT) {
             this.setBar(this.dragBar, event.x());
             return true;
         }
@@ -151,14 +152,14 @@ public class ColorPickerScreen extends Screen {
     }
 
     public boolean mouseReleased(MouseButtonEvent event) {
-        if (event.button() == 0) {
+        if (event.button() == InputConstants.MOUSE_BUTTON_LEFT) {
             this.dragBar = -1;
         }
         return super.mouseReleased(event);
     }
 
     public boolean keyPressed(KeyEvent ki) {
-        if (ki.key() == 256) {
+        if (ki.key() == InputConstants.KEY_ESCAPE || ki.isEscape()) {
             this.close();
             return true;
         }

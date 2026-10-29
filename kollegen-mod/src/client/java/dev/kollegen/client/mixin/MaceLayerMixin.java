@@ -20,9 +20,6 @@ import java.util.UUID;
 
 @Mixin(PlayerItemInHandLayer.class)
 public class MaceLayerMixin {
-    private static boolean kollegen$loggedHideMace;
-    private static boolean kollegen$loggedMaceKept;
-
     @Inject(method = "submitArmWithItem(Lnet/minecraft/client/renderer/entity/state/AvatarRenderState;Lnet/minecraft/client/renderer/item/ItemStackRenderState;Lnet/minecraft/world/item/ItemStack;Lnet/minecraft/world/entity/HumanoidArm;Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/SubmitNodeCollector;I)V",
             at = @At("HEAD"), cancellable = true)
     private void kollegen$hideVanillaMace(AvatarRenderState state, ItemStackRenderState renderState, ItemStack stack, HumanoidArm arm,
@@ -33,14 +30,7 @@ public class MaceLayerMixin {
             if (id == null) return;
             CosmeticData data = KollegenPresence.getCosmetics(id);
             if (data != null && data.maceTexture != null) {
-                if (!kollegen$loggedHideMace) {
-                    kollegen$loggedHideMace = true;
-                    System.out.println("KOLLEGENDBG hide-vanilla-mace " + id);
-                }
                 ci.cancel();
-            } else if (!kollegen$loggedMaceKept) {
-                kollegen$loggedMaceKept = true;
-                System.out.println("KOLLEGENDBG vanilla-mace-kept nodata=" + (data == null));
             }
         } catch (Throwable ignored) {
         }

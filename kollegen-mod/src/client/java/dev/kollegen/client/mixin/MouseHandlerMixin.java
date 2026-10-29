@@ -1,5 +1,6 @@
 package dev.kollegen.client.mixin;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import dev.kollegen.client.mods.ClickTracker;
 import dev.kollegen.client.mods.HudModule;
 import dev.kollegen.client.mods.ModuleManager;
@@ -38,16 +39,16 @@ public class MouseHandlerMixin {
         int mods = info.modifiers();
         if (action != 0 && action != 1) return;
         boolean press = action == 1;
-        if (button == 0) {
+        if (button == InputConstants.MOUSE_BUTTON_LEFT) {
             if (press) ClickTracker.pressLeft();
             else ClickTracker.releaseLeft();
-        } else if (button == 1) {
+        } else if (button == InputConstants.MOUSE_BUTTON_RIGHT) {
             if (press) ClickTracker.pressRight();
             else ClickTracker.releaseRight();
         }
 
         
-        if (button == 0) {
+        if (button == InputConstants.MOUSE_BUTTON_LEFT) {
             Minecraft mc = Minecraft.getInstance();
             if (mc.gui.screen() == null) {
                 if (press) {

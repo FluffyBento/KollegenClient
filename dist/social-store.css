@@ -1,0 +1,926 @@
+/* ==========================================================================
+   Soziales + Store – gleicher flacher Stil wie Home (home.css / launcher.css)
+   Regeln: keine Schatten, kein Blur, keine Dauer-Animationen, 1px-Borders.
+   ========================================================================== */
+
+:root {
+  --r-common-rgb: 125, 138, 160;
+  --r-rare-rgb: 77, 163, 255;
+  --r-epic-rgb: 199, 125, 255;
+  --r-legendary-rgb: 255, 179, 0;
+}
+
+/* ---------- Seitenkopf ---------- */
+.sx-page {
+  margin-bottom: 0;
+}
+
+.sx-head {
+  display: flex;
+  align-items: baseline;
+  gap: 0.7rem;
+  margin-bottom: 1rem;
+}
+
+.sx-head h2 {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 600;
+}
+
+.sx-head-sub {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.sx-wide {
+  width: 100%;
+  padding: 0.5rem 0.9rem;
+  font-size: 0.8rem;
+}
+
+/* ==========================================================================
+   SOZIALES
+   ========================================================================== */
+.sx-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 1rem;
+  align-items: start;
+}
+
+.sx-main {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.sx-rail {
+  position: sticky;
+  top: 4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.sx-card,
+.sx-rail .rail-card {
+  margin-bottom: 0;
+}
+
+.sx-card {
+  padding: 1rem;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.sx-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.7rem;
+}
+
+.sx-title {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.sx-sub {
+  margin: 0.2rem 0 0.4rem;
+  font-size: 0.74rem;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.sx-requests {
+  margin-bottom: 0.8rem;
+  padding: 0.6rem;
+  border: 1px solid rgba(var(--accent-rgb), 0.35);
+  border-radius: var(--radius-md);
+  background: rgba(var(--accent-rgb), 0.05);
+}
+
+.sx-page .socials-hint {
+  margin: 0 0 0.7rem;
+  font-size: 0.78rem;
+}
+
+.sx-page .add-friend {
+  align-items: stretch;
+  margin-bottom: 0.8rem;
+}
+
+.sx-page .add-friend input,
+.sx-page .view-profile input,
+.sx-page .sx-browse input {
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.82rem;
+  background: var(--bg);
+}
+
+.sx-page .add-friend button {
+  padding: 0.5rem 1rem;
+  font-size: 0.8rem;
+}
+
+/* Listen (Freunde, Anfragen, Gruppen) */
+.sx-page .friend-list {
+  gap: 0.4rem;
+}
+
+.sx-page .friend-list li {
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  padding: 0.5rem 0.65rem;
+  background: var(--panel-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.sx-page .friend-list li:hover {
+  border-color: var(--text-muted);
+}
+
+.sx-page .friend-list li.friend-kollegen {
+  border-color: rgba(var(--accent-rgb), 0.4);
+}
+
+.sx-page .friend-list li.list-empty {
+  justify-content: center;
+  padding: 1.1rem;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  background: transparent;
+  border-style: dashed;
+}
+
+.sx-page .friend-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+  image-rendering: pixelated;
+  border: 1px solid var(--border);
+}
+
+.sx-page .friend-name {
+  font-size: 0.84rem;
+}
+
+.sx-page .friend-sub {
+  font-size: 0.72rem;
+}
+
+.sx-page .friend-list li button {
+  padding: 0.3rem 0.65rem;
+  font-size: 0.74rem;
+  font-weight: 500;
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: none;
+}
+
+.sx-page .friend-list li button:hover:not(:disabled) {
+  color: var(--text-primary);
+  border-color: var(--accent);
+  background: transparent;
+}
+
+#kollegenFriends li button:last-child:hover:not(:disabled) {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+#kollegenRequests li button:first-of-type {
+  background: var(--accent);
+  color: var(--on-accent);
+  border-color: transparent;
+  font-weight: 600;
+}
+
+#kollegenRequests li button:first-of-type:hover:not(:disabled) {
+  background: var(--accent);
+  color: var(--on-accent);
+  filter: brightness(1.06);
+}
+
+.status-dot.online {
+  background: var(--success);
+}
+
+/* Profilkarte */
+.sx-rail .socials-profile {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.8rem;
+  margin: 0;
+  background: var(--panel);
+  border: 1px solid var(--border);
+}
+
+.socials-profile-top {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.sx-rail .socials-profile-avatar {
+  width: 52px;
+  height: 52px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+}
+
+.sx-rail .socials-profile-name {
+  font-size: 0.95rem;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sx-rail .socials-profile-sub {
+  margin-top: 0.1rem;
+  font-size: 0.74rem;
+  color: var(--text-muted);
+}
+
+.sx-rail .socials-progress {
+  margin: 0;
+}
+
+.sx-rail .socials-progress-bar {
+  height: 6px;
+  margin-bottom: 0.35rem;
+  background: var(--panel-elevated);
+  border-radius: 2px;
+}
+
+.socials-progress-bar > div {
+  background: var(--accent);
+}
+
+.socials-codebox {
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  padding: 0.45rem 0.6rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.socials-codebox:not([style*="display:none"]):not([style*="display: none"]) {
+  display: flex;
+}
+
+.socials-code {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.socials-code-label {
+  font-size: 0.66rem;
+  color: var(--text-muted);
+}
+
+.socials-code code {
+  font-size: 0.9rem;
+  letter-spacing: 0.06em;
+  color: var(--text-primary);
+}
+
+/* Discord + Suche */
+.sx-rail .discord-status {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  font-size: 0.8rem;
+}
+
+.sx-rail .discord-server:not(:empty) {
+  margin-bottom: 0.6rem;
+}
+
+.sx-rail #discordLoginBtn {
+  margin-top: 0.1rem;
+}
+
+.sx-browse {
+  margin-top: 0.8rem;
+  padding-top: 0.8rem;
+  border-top: 1px solid var(--border);
+}
+
+.sx-rail .view-profile input,
+.sx-rail .sx-browse input {
+  margin-bottom: 0.5rem;
+}
+
+.sx-rail .view-profile-canvas {
+  display: block;
+  width: 120px;
+  height: auto;
+  margin: 0.8rem auto 0;
+}
+
+.sx-rail .view-profile-result {
+  margin-top: 0.7rem;
+  padding: 0.7rem;
+  font-size: 0.78rem;
+  background: var(--panel-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.sx-rail .view-profile-result:empty {
+  display: none;
+}
+
+@media (max-width: 1100px) {
+  .sx-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .sx-rail {
+    position: static;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    align-items: start;
+  }
+}
+
+/* ==========================================================================
+   STORE
+   ========================================================================== */
+
+/* Wallet */
+.sx-head .store-wallet {
+  margin: 0 0 0 auto;
+  padding: 0.35rem 0.8rem;
+  gap: 0.7rem;
+  align-self: center;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.sx-head .store-pts {
+  font-size: 0.86rem;
+  color: var(--accent);
+}
+
+.sx-head .store-lvl {
+  margin: 0;
+  padding-left: 0.7rem;
+  border-left: 1px solid var(--border);
+  font-size: 0.76rem;
+}
+
+/* Profil-Showcase (kompakt) */
+.store-show {
+  position: relative;
+  flex-direction: column;
+  margin-bottom: 1rem;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.store-show-banner {
+  height: 52px;
+  background: var(--panel-elevated);
+}
+
+.store-show-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1;
+  gap: 0.9rem;
+  padding: 0 1rem 0.8rem;
+}
+
+.store-show-av {
+  flex: 0 0 auto;
+  width: 52px;
+  height: 52px;
+  margin: -22px 0 0;
+  border-radius: var(--radius-md);
+  border: 2px solid var(--panel);
+  image-rendering: pixelated;
+}
+
+.store-show-meta {
+  flex: 1;
+  min-width: 0;
+  padding: 0.55rem 0 0;
+}
+
+.store-show-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+.store-show-sub {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.74rem;
+  color: var(--text-muted);
+}
+
+.store-show-prog {
+  flex: 0 0 220px;
+  padding-top: 0.55rem;
+}
+
+.store-show-col {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.3rem;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.store-show-bar {
+  height: 6px;
+  margin: 0;
+  background: var(--panel-elevated);
+  border-radius: 2px;
+}
+
+/* Pakete */
+.pkg-strip {
+  margin-bottom: 1rem;
+}
+
+.pkg-head {
+  margin: 0 0 0.5rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.pkg-row {
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 0.75rem;
+}
+
+.pkg-card {
+  --rar-rgb: var(--r-common-rgb);
+  min-height: 0;
+  padding: 0.8rem 0.9rem;
+  gap: 0.15rem;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-top: 2px solid rgb(var(--rar-rgb));
+  border-radius: var(--radius-lg);
+}
+
+.pkg-card.rar-rare { --rar-rgb: var(--r-rare-rgb); }
+.pkg-card.rar-epic { --rar-rgb: var(--r-epic-rgb); }
+.pkg-card.rar-legendary { --rar-rgb: var(--r-legendary-rgb); }
+
+.pkg-card:hover {
+  border-color: var(--text-muted);
+  border-top-color: rgb(var(--rar-rgb));
+  background: var(--panel-elevated);
+}
+
+.pkg-name {
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.pkg-price {
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--accent);
+}
+
+/* Werkzeugleiste */
+.store-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.6rem;
+  margin-bottom: 0.9rem;
+}
+
+.store-seg {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  gap: 0;
+  margin: 0;
+  padding: 2px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.store-seg .tab {
+  padding: 0.35rem 0.95rem;
+  font-size: 0.78rem;
+  border: 0;
+  border-radius: var(--radius-sm);
+}
+
+.store-seg .tab.active,
+.store-seg .tab.on {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.store-search.search-input {
+  flex: 1 1 180px;
+  width: auto;
+  max-width: 260px;
+}
+
+.store-rar {
+  gap: 0.3rem;
+  margin-left: auto;
+}
+
+.store-rar .chip {
+  padding: 0.32rem 0.7rem;
+  font-size: 0.72rem;
+  font-weight: 500;
+  background: transparent;
+}
+
+.store-rar .chip[data-r="common"]::before,
+.store-rar .chip[data-r="rare"]::before,
+.store-rar .chip[data-r="epic"]::before,
+.store-rar .chip[data-r="legendary"]::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 0.4rem;
+  border-radius: 50%;
+  vertical-align: middle;
+  background: rgb(var(--c));
+}
+
+.store-rar .chip[data-r="common"] { --c: var(--r-common-rgb); }
+.store-rar .chip[data-r="rare"] { --c: var(--r-rare-rgb); }
+.store-rar .chip[data-r="epic"] { --c: var(--r-epic-rgb); }
+.store-rar .chip[data-r="legendary"] { --c: var(--r-legendary-rgb); }
+
+.store-rar .chip.active,
+.store-rar .chip.on {
+  background: var(--panel-elevated);
+  border-color: var(--text-muted);
+  color: var(--text-primary);
+}
+
+.store-sort {
+  padding: 0.4rem 0.7rem;
+  font-size: 0.78rem;
+  background: var(--panel);
+}
+
+/* Layout: Kategorien links, Grid rechts (nur Desktop-Modus) */
+body:not(.console-mode) .store-layout {
+  display: grid;
+  grid-template-columns: 184px minmax(0, 1fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+body:not(.console-mode) .store-cats {
+  position: sticky;
+  top: 4rem;
+  display: flex;
+  flex-direction: column;
+  flex-wrap: nowrap;
+  gap: 1px;
+  max-height: calc(100vh - 6rem);
+  margin: 0;
+  padding: 0.35rem;
+  overflow-y: auto;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+body:not(.console-mode) .store-cats .tab {
+  position: relative;
+  width: 100%;
+  padding: 0.42rem 0.65rem;
+  text-align: left;
+  font-size: 0.78rem;
+  font-weight: 500;
+  border: 0;
+  border-radius: var(--radius-sm);
+}
+
+body:not(.console-mode) .store-cats .tab.active,
+body:not(.console-mode) .store-cats .tab.on {
+  background: var(--panel-elevated);
+  color: var(--text-primary);
+}
+
+body:not(.console-mode) .store-cats .tab.active::before {
+  content: "";
+  position: absolute;
+  left: -0.35rem;
+  top: 22%;
+  bottom: 22%;
+  width: 2px;
+  border-radius: 0 2px 2px 0;
+  background: var(--accent);
+}
+
+.store-main {
+  min-width: 0;
+}
+
+/* Grid */
+.store-grid {
+  grid-template-columns: repeat(auto-fill, minmax(188px, 1fr));
+  gap: 0.75rem;
+}
+
+.store-msg {
+  padding: 2.5rem 1rem;
+  font-size: 0.85rem;
+}
+
+.store-more {
+  grid-column: 1 / -1;
+  height: 1px;
+}
+
+/* Karte – Performance: content-visibility, nur Border-Wechsel beim Hover */
+.store-card {
+  --rar-rgb: var(--r-common-rgb);
+  gap: 0;
+  padding: 0;
+  overflow: hidden;
+  cursor: pointer;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: none;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 250px;
+  transition: border-color var(--transition-fast);
+}
+
+.store-card.rar-rare { --rar-rgb: var(--r-rare-rgb); }
+.store-card.rar-epic { --rar-rgb: var(--r-epic-rgb); }
+.store-card.rar-legendary { --rar-rgb: var(--r-legendary-rgb); }
+
+.store-card::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 2px;
+  background: rgb(var(--rar-rgb));
+  z-index: 2;
+}
+
+.store-card,
+.store-card.rar-rare,
+.store-card.rar-epic,
+.store-card.rar-legendary,
+.store-card.owned {
+  border-color: var(--border);
+}
+
+.store-card:hover {
+  border-color: var(--text-muted);
+}
+
+.store-card.equipped {
+  border-color: var(--accent);
+  box-shadow: none;
+}
+
+.store-pv {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  border-radius: 0;
+  background-color: var(--bg);
+  background-image: radial-gradient(rgba(var(--rar-rgb), 0.26) 1px, transparent 1.4px);
+  background-size: 12px 12px;
+}
+
+/* Rarität links oben, Status rechts oben */
+.store-card .store-badge {
+  top: 0.55rem;
+  left: 0.5rem;
+  right: auto;
+  z-index: 1;
+}
+
+.store-badge {
+  padding: 0.1rem 0.4rem;
+  font-size: 0.62rem;
+  font-weight: 600;
+  background: rgba(10, 12, 16, 0.78);
+  color: rgb(var(--rar-rgb, var(--r-common-rgb)));
+  border: 1px solid rgba(var(--rar-rgb, var(--r-common-rgb)), 0.45);
+}
+
+.store-badge.r-common { --rar-rgb: var(--r-common-rgb); }
+.store-badge.r-rare { --rar-rgb: var(--r-rare-rgb); }
+.store-badge.r-epic { --rar-rgb: var(--r-epic-rgb); }
+.store-badge.r-legendary { --rar-rgb: var(--r-legendary-rgb); }
+
+.store-card[data-state] .store-pv::after {
+  position: absolute;
+  top: 0.55rem;
+  right: 0.5rem;
+  padding: 0.1rem 0.4rem;
+  font-size: 0.62rem;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  background: rgba(10, 12, 16, 0.78);
+}
+
+.store-card[data-state="owned"] .store-pv::after {
+  content: "Im Besitz";
+  color: var(--success);
+  border: 1px solid rgba(0, 230, 118, 0.4);
+}
+
+.store-card[data-state="equipped"] .store-pv::after {
+  content: "Ausgerüstet";
+  color: var(--accent);
+  border: 1px solid rgba(var(--accent-rgb), 0.5);
+}
+
+.store-card-body {
+  gap: 0.15rem;
+  padding: 0.65rem 0.75rem 0.75rem;
+}
+
+.store-card-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.84rem;
+}
+
+.store-card-desc {
+  display: block;
+  flex: 0 0 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.72rem;
+}
+
+.store-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-top: 0.55rem;
+}
+
+.store-price {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+.store-price small {
+  font-size: 0.68rem;
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+.store-card.owned .store-price,
+.store-card.cant .store-price {
+  color: var(--text-muted);
+}
+
+.store-foot .cardBtn {
+  padding: 0.3rem 0.7rem;
+  font-size: 0.74rem;
+  font-weight: 600;
+  white-space: nowrap;
+  box-shadow: none;
+}
+
+.store-foot .cardBtn.buy {
+  background: var(--accent);
+  border-color: transparent;
+  color: var(--on-accent);
+}
+
+.store-foot .cardBtn.buy:hover:not(:disabled) {
+  filter: brightness(1.06);
+}
+
+.store-foot .cardBtn:disabled {
+  opacity: 0.5;
+}
+
+/* Detail-Modal */
+.store-item-content .store-pv-lg {
+  aspect-ratio: 16 / 9;
+  margin-bottom: 0.9rem;
+  border-radius: var(--radius-md);
+  background-color: var(--bg);
+  background-image: radial-gradient(rgba(var(--rar-rgb, var(--r-common-rgb)), 0.26) 1px, transparent 1.4px);
+  background-size: 12px 12px;
+  border: 1px solid var(--border);
+}
+
+.store-mm-head {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.store-mm-head .store-badge {
+  position: static;
+}
+
+.store-mm-title {
+  margin-top: 0.5rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.store-mm-cat {
+  margin-top: 0.2rem;
+  font-size: 0.74rem;
+  color: var(--text-muted);
+}
+
+.store-mm-desc {
+  margin-top: 0.6rem;
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+}
+
+.store-mm-price {
+  margin-top: 0.8rem;
+  font-size: 1.05rem;
+}
+
+.store-mm-btn {
+  width: 100%;
+  margin-top: 0.9rem;
+}
+
+@media (max-width: 900px) {
+  body:not(.console-mode) .store-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  body:not(.console-mode) .store-cats {
+    position: static;
+    flex-direction: row;
+    max-height: none;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+  }
+
+  body:not(.console-mode) .store-cats .tab {
+    flex: 0 0 auto;
+    width: auto;
+  }
+
+  body:not(.console-mode) .store-cats .tab.active::before {
+    display: none;
+  }
+
+  .store-show-prog {
+    display: none;
+  }
+
+  .store-rar {
+    margin-left: 0;
+  }
+}
+
+/* Home-Kacheln: gleiche Raritätsfarben wie im Store */
+.store-mini-tile.rar-rare { border-top-color: rgb(var(--r-rare-rgb)); }
+.store-mini-tile.rar-epic { border-top-color: rgb(var(--r-epic-rgb)); }
+.store-mini-tile.rar-legendary { border-top-color: rgb(var(--r-legendary-rgb)); }

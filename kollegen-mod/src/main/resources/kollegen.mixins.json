@@ -20,6 +20,11 @@
     "SkyBodiesMixin",
     "ChatScreenMixin",
     "ParticleEngineMixin",
+    "BlockEntityRenderDispatcherMixin",
+    "EntityRendererMixin",
+    "FontMixin",
+    "BlockTintCacheMixin",
+    "ItemClusterRenderStateMixin",
     "InventoryScreenMixin",
     "ScreenLogoMixin",
     "ContainerScreenMixin",
@@ -38,7 +43,15 @@
     "PlayerCosmeticsMixin",
     "ShieldLayerMixin",
     "CapeLayerMixin",
-    "MaceLayerMixin"
+    "MaceLayerMixin",
+    "WeatherEffectRendererMixin",
+    "FramerateLimitTrackerMixin",
+    "SoundEngineMixin",
+    "ClientChunkCacheMixin",
+    "ClientLevelMixin",
+    "FrustumAccessor",
+    "DynamicGpuDataStorageMappedMixin",
+    "DynamicGpuDataStorageNonMappedMixin"
   ],
   "injectors": {
     "defaultRequire": 1

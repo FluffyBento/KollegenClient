@@ -137,7 +137,7 @@ public final class BbModel {
                 CACHE.put(key, model);
                 return model;
             }
-        } catch (Throwable ignored) {
+        } catch (Throwable t) {
             MISSING.put(key, Boolean.TRUE);
             return null;
         }
@@ -634,12 +634,19 @@ public final class BbModel {
         return new float[][]{{face.u2, face.v1}, {face.u1, face.v1}, {face.u1, face.v2}, {face.u2, face.v2}};
     }
 
+    private static final float[][] STATIC_NORMALS = {
+        {0.0F, -1.0F, 0.0F},  // DOWN = 0
+        {0.0F, 1.0F, 0.0F},   // UP = 1
+        {0.0F, 0.0F, -1.0F},  // NORTH = 2
+        {0.0F, 0.0F, 1.0F},   // SOUTH = 3
+        {-1.0F, 0.0F, 0.0F},  // WEST = 4
+        {1.0F, 0.0F, 0.0F}    // EAST = 5
+    };
+
     public static float[] normalFor(int dir) {
-        if (dir == DOWN) return new float[]{0.0F, -1.0F, 0.0F};
-        if (dir == UP) return new float[]{0.0F, 1.0F, 0.0F};
-        if (dir == NORTH) return new float[]{0.0F, 0.0F, -1.0F};
-        if (dir == SOUTH) return new float[]{0.0F, 0.0F, 1.0F};
-        if (dir == WEST) return new float[]{-1.0F, 0.0F, 0.0F};
-        return new float[]{1.0F, 0.0F, 0.0F};
+        if (dir >= 0 && dir < STATIC_NORMALS.length) {
+            return STATIC_NORMALS[dir];
+        }
+        return STATIC_NORMALS[5];
     }
 }

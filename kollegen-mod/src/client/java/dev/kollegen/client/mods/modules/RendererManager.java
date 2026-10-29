@@ -114,8 +114,23 @@ public final class RendererManager {
                     KollegenMod.LOGGER.warn("Kollegen: eingebettete Mod '{}' fehlt (Build-Fehler).", resource);
                     removeIfBroken(jar, fileName);
                 } else {
-                    Files.copy(in, jar, StandardCopyOption.REPLACE_EXISTING);
-                    removeIfBroken(jar, fileName);
+                    byte[] payload = in.readAllBytes();
+                    boolean needsCopy = true;
+                    if (Files.exists(jar) && Files.isRegularFile(jar)) {
+                        try {
+                            if (Files.size(jar) == payload.length) {
+                                byte[] existing = Files.readAllBytes(jar);
+                                if (java.util.Arrays.equals(existing, payload)) {
+                                    needsCopy = false;
+                                }
+                            }
+                        } catch (IOException ignored) {
+                        }
+                    }
+                    if (needsCopy) {
+                        Files.write(jar, payload);
+                        removeIfBroken(jar, fileName);
+                    }
                 }
             } catch (IOException e) {
                 KollegenMod.LOGGER.warn("Kollegen: Mod '{}' konnte nicht deployt werden: {}", fileName, e.getMessage());

@@ -1,9 +1,11 @@
 package dev.kollegen.client.presence;
 
 import com.mojang.blaze3d.vertex.PoseStack;
+import dev.kollegen.client.mods.modules.Performance;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.SubmitNodeCollector;
+import net.minecraft.client.renderer.culling.Frustum;
 import net.minecraft.client.renderer.entity.EntityRenderDispatcher;
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
 import net.minecraft.client.renderer.entity.state.LivingEntityRenderState;
@@ -114,6 +116,10 @@ public final class PetRenderer {
     }
 
     public static void extractPets(Minecraft mc, DeltaTracker tracker, LevelRenderState state) {
+        extractPets(mc, tracker, state, null);
+    }
+
+    public static void extractPets(Minecraft mc, DeltaTracker tracker, LevelRenderState state, Frustum frustum) {
         if (mc.level == null || state == null) return;
 
         float partial = 0.0F;
@@ -147,6 +153,13 @@ public final class PetRenderer {
         }
         if (pet.entity instanceof EnderDragon) continue;
         if (BlubPets.isBlubDisplay(pet.entity)) continue;
+
+        if (frustum != null && Performance.KollegenTricks.shouldCullPets()) {
+            var bb = pet.entity.getBoundingBox();
+            if (bb != null && !frustum.isVisible(bb.inflate(1.5))) {
+                continue;
+            }
+        }
 
             try {
                 EntityRenderState renderState = dispatcher.extractEntity(pet.entity, partial);

@@ -1,5 +1,6 @@
 package dev.kollegen.client.input;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import dev.kollegen.client.KollegenMod;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
@@ -201,9 +202,9 @@ public final class ControllerMode {
         boolean b = GAMEPAD.buttons(GLFW.GLFW_GAMEPAD_BUTTON_B) == GLFW.GLFW_PRESS;
         boolean x = GAMEPAD.buttons(GLFW.GLFW_GAMEPAD_BUTTON_X) == GLFW.GLFW_PRESS;
         if (a && !prevA && !clickQueued) {
-            click(0);
+            click(InputConstants.MOUSE_BUTTON_LEFT);
         } else if (x && !prevX && !clickQueued) {
-            click(1);
+            click(InputConstants.MOUSE_BUTTON_RIGHT);
         }
         if (b && !prevB) {
             try {
@@ -222,7 +223,7 @@ public final class ControllerMode {
         clickPressed = false;
     }
 
-    private static int clickButton = 0;
+    private static int clickButton = InputConstants.MOUSE_BUTTON_LEFT;
     private static boolean clickPressed = false;
 
     private static void processClick(Minecraft mc, long window) {

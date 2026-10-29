@@ -12,6 +12,7 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
+import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
@@ -190,7 +191,7 @@ private void computeScroll() {
     public boolean mouseClicked(MouseButtonEvent event, boolean bl) {
         double mx = event.x();
         double my = event.y();
-        if (event.button() != 0) return super.mouseClicked(event, bl);
+        if (event.button() != InputConstants.MOUSE_BUTTON_LEFT) return super.mouseClicked(event, bl);
         
         // Tab click in sidebar - with safe hitbox
         if (mx >= px && mx <= px + SW && my >= sidebarTop && my <= sidebarBottom) {
@@ -232,7 +233,7 @@ private void computeScroll() {
 
     @Override
     public boolean keyPressed(KeyEvent ki) {
-        if (ki.key() == GLFW.GLFW_KEY_ENTER || ki.key() == GLFW.GLFW_KEY_KP_ENTER) {
+        if (ki.key() == InputConstants.KEY_RETURN || ki.key() == InputConstants.KEY_NUMPADENTER || ki.isConfirmation()) {
             if (codeInp != null && codeInp.isFocused()) { apiAddFriend(); return true; }
             if (groupInp != null && groupInp.isFocused()) { apiCreateGroup(); return true; }
             if (chatInp != null && chatInp.isFocused()) { sendThread(); return true; }

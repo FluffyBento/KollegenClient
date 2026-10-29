@@ -2442,7 +2442,7 @@ dependencies = [
 
 [[package]]
 name = "kollegen-client"
-version = "1.23.2"
+version = "1.23.3"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2456,6 +2456,7 @@ dependencies = [
  "gilrs",
  "image",
  "lazy_static",
+ "libc",
  "log",
  "once_cell",
  "open",

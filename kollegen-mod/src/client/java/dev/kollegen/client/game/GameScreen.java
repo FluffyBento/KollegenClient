@@ -1,5 +1,6 @@
 package dev.kollegen.client.game;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import dev.kollegen.client.mods.Palette;
 import dev.kollegen.client.ui.Glass;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -81,7 +82,7 @@ public abstract class GameScreen extends Screen {
 
     /** X-Knopf oben rechts. */
     protected boolean closeClicked(MouseButtonEvent event) {
-        return event.button() == 0 && hit(event.x(), event.y(), this.px + this.pw - 34, this.py + 12, 22, 22);
+        return event.button() == InputConstants.MOUSE_BUTTON_LEFT && hit(event.x(), event.y(), this.px + this.pw - 34, this.py + 12, 22, 22);
     }
 
     protected void drawClose(GuiGraphicsExtractor g) {
@@ -93,7 +94,7 @@ public abstract class GameScreen extends Screen {
     }
 
     public boolean keyPressed(KeyEvent ki) {
-        if (ki.key() == 256) {
+        if (ki.key() == InputConstants.KEY_ESCAPE || ki.isEscape()) {
             this.leave();
             return true;
         }

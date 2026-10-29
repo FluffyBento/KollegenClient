@@ -1,6 +1,7 @@
 package dev.kollegen.client.mods;
 
 import com.google.gson.JsonObject;
+import com.mojang.blaze3d.platform.InputConstants;
 import dev.kollegen.client.ui.GlassButton;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.screens.Screen;
@@ -28,13 +29,13 @@ public class KeybindSetting extends Setting {
 
     public static String keyName(int key) {
         if (key <= 0) return "Keine";
-        if (key == GLFW.GLFW_KEY_LEFT_SHIFT) return "Links-Shift";
-        if (key == GLFW.GLFW_KEY_RIGHT_SHIFT) return "Rechts-Shift";
-        if (key == GLFW.GLFW_KEY_LEFT_CONTROL) return "Links-Strg";
-        if (key == GLFW.GLFW_KEY_RIGHT_CONTROL) return "Rechts-Strg";
-        if (key == GLFW.GLFW_KEY_SPACE) return "Leertaste";
-        if (key == GLFW.GLFW_KEY_LEFT_ALT) return "Links-Alt";
-        if (key == GLFW.GLFW_KEY_RIGHT_ALT) return "Rechts-Alt";
+        if (key == GLFW.GLFW_KEY_LEFT_SHIFT || key == InputConstants.KEY_LSHIFT) return "Links-Shift";
+        if (key == GLFW.GLFW_KEY_RIGHT_SHIFT || key == InputConstants.KEY_RSHIFT) return "Rechts-Shift";
+        if (key == GLFW.GLFW_KEY_LEFT_CONTROL || key == InputConstants.KEY_LCONTROL) return "Links-Strg";
+        if (key == GLFW.GLFW_KEY_RIGHT_CONTROL || key == InputConstants.KEY_RCONTROL) return "Rechts-Strg";
+        if (key == GLFW.GLFW_KEY_SPACE || key == InputConstants.KEY_SPACE) return "Leertaste";
+        if (key == GLFW.GLFW_KEY_LEFT_ALT || key == InputConstants.KEY_LALT) return "Links-Alt";
+        if (key == GLFW.GLFW_KEY_RIGHT_ALT || key == InputConstants.KEY_RALT) return "Rechts-Alt";
         if (key >= GLFW.GLFW_KEY_A && key <= GLFW.GLFW_KEY_Z)
             return String.valueOf((char) ('A' + (key - GLFW.GLFW_KEY_A)));
         if (key >= GLFW.GLFW_KEY_0 && key <= GLFW.GLFW_KEY_9)

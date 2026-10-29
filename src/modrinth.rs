@@ -611,14 +611,14 @@ fn meta_path(data_dir: &Path, instance_name: &str) -> PathBuf {
         .join("installed.json")
 }
 
-fn load_meta(data_dir: &Path, instance_name: &str) -> Value {
+pub(crate) fn load_meta(data_dir: &Path, instance_name: &str) -> Value {
     fs::read_to_string(meta_path(data_dir, instance_name))
         .ok()
         .and_then(|s| serde_json::from_str(&s).ok())
         .unwrap_or_else(|| serde_json::json!({ "mod": {}, "resourcepack": {}, "shader": {} }))
 }
 
-fn save_meta(data_dir: &Path, instance_name: &str, meta: &Value) -> Result<()> {
+pub(crate) fn save_meta(data_dir: &Path, instance_name: &str, meta: &Value) -> Result<()> {
     let p = meta_path(data_dir, instance_name);
     if let Some(parent) = p.parent() {
         fs::create_dir_all(parent)?;
@@ -628,7 +628,7 @@ fn save_meta(data_dir: &Path, instance_name: &str, meta: &Value) -> Result<()> {
 }
 
 
-fn record_install(
+pub(crate) fn record_install(
     data_dir: &Path,
     instance_name: &str,
     kind: &str,

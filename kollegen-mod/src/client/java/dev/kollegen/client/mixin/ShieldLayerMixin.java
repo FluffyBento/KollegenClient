@@ -20,8 +20,6 @@ import java.util.UUID;
 
 @Mixin(PlayerItemInHandLayer.class)
 public class ShieldLayerMixin {
-    private static boolean kollegen$loggedHide;
-    private static boolean kollegen$loggedMiss;
     @Inject(method = "submitArmWithItem(Lnet/minecraft/client/renderer/entity/state/AvatarRenderState;Lnet/minecraft/client/renderer/item/ItemStackRenderState;Lnet/minecraft/world/item/ItemStack;Lnet/minecraft/world/entity/HumanoidArm;Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/SubmitNodeCollector;I)V",
             at = @At("HEAD"), cancellable = true)
     private void kollegen$hideVanillaShield(AvatarRenderState state, ItemStackRenderState renderState, ItemStack stack, HumanoidArm arm,
@@ -32,14 +30,7 @@ public class ShieldLayerMixin {
             if (id == null) return;
             CosmeticData data = KollegenPresence.getCosmetics(id);
             if (data != null && data.shieldTexture != null) {
-                if (!kollegen$loggedHide) {
-                    kollegen$loggedHide = true;
-                    System.out.println("KOLLEGENDBG hide-vanilla-shield " + id);
-                }
                 ci.cancel();
-            } else if (!kollegen$loggedMiss) {
-                kollegen$loggedMiss = true;
-                System.out.println("KOLLEGENDBG vanilla-shield-kept nodata=" + (data == null));
             }
         } catch (Throwable ignored) {
         }

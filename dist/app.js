@@ -951,7 +951,7 @@ async function refreshLogs() {
     if (!list) return;
     list.innerHTML = "";
     if (!arr || !arr.length) {
-      list.innerHTML = `<li style="color:#888;">Keine Freunde – füge welche über deinen Code hinzu.</li>`;
+      list.innerHTML = `<li class="list-empty">Keine Freunde – füge welche über deinen Code hinzu.</li>`;
       return;
     }
     for (const u of arr) {
@@ -3101,22 +3101,22 @@ $("manageCloneBtn").onclick = async () => {
     <h3>Instanz klonen</h3>
     <div style="margin-top: 1rem;">
       <label>Neuer Instanz-Name:</label>
-      <input type="text" id="cloneName" placeholder="Neuer Instanz-Name" style="width: 100%; padding: 0.5rem; margin-top: 0.5rem;" />
+      <input type="text" id="cloneName" value="${manageInst.name} (Kopie)" placeholder="Neuer Instanz-Name" style="width: 100%; padding: 0.5rem; margin-top: 0.5rem;" />
     </div>
     <div style="margin-top: 1rem;">
       <label>Ziel-Version:</label>
       <select id="cloneVersion" style="width: 100%; padding: 0.5rem; margin-top: 0.5rem;">
-        ${versions.map(v => `<option value="${v}">${v}</option>`).join('')}
+        ${versions.map(v => `<option value="${v}" ${v === manageInst.version ? 'selected' : ''}>${v}</option>`).join('')}
       </select>
     </div>
     <div style="margin-top: 1rem;">
       <label>Mod-Loader:</label>
       <select id="cloneLoader" style="width: 100%; padding: 0.5rem; margin-top: 0.5rem;">
-        <option value="fabric">Fabric</option>
-        <option value="forge">Forge</option>
-        <option value="neoforge">NeoForge</option>
-        <option value="quilt">Quilt</option>
-        <option value="vanilla">Vanilla</option>
+        <option value="fabric" ${manageInst.loader === 'fabric' ? 'selected' : ''}>Fabric</option>
+        <option value="forge" ${manageInst.loader === 'forge' ? 'selected' : ''}>Forge</option>
+        <option value="neoforge" ${manageInst.loader === 'neoforge' ? 'selected' : ''}>NeoForge</option>
+        <option value="quilt" ${manageInst.loader === 'quilt' ? 'selected' : ''}>Quilt</option>
+        <option value="vanilla" ${manageInst.loader === 'vanilla' ? 'selected' : ''}>Vanilla</option>
       </select>
     </div>
     <div style="margin-top: 1.5rem; display: flex; gap: 0.5rem; justify-content: flex-end;">
@@ -3159,6 +3159,10 @@ $("manageCloneBtn").onclick = async () => {
         return;
       }
       
+      confirmBtn.disabled = true;
+      confirmBtn.textContent = "Wird geklont...";
+      toast(`Instanz "${manageInst.name}" wird geklont und Mods angepasst...`, "info");
+
       try {
         const newInst = await invoke("clone_instance_v2", {
           sourceName: manageInst.name,
@@ -3956,6 +3960,11 @@ startBackgroundIntervals();
   const STORE_INGAME_CATS = ["pet", "clothing", "effect", "cape", "shield", "back_accessory", "head_accessory", "face_accessory", "aura", "shoulder_accessory", "torso_accessory", "legs_accessory", "gloves", "pet_skin"];
   let storeRar = "alle";
   let storeSort = "featured";
+  let storeQuery = "";
+  const STORE_CHUNK = 40;
+  let storeList = [];
+  let storeShown = 0;
+  let storeMoreObs = null;
 
   function storePreview(item) {
     const av = previewAvatar() || "https://mc-heads.net/avatar/MHF_Steve/64";
@@ -3982,7 +3991,7 @@ startBackgroundIntervals();
 
   function storeFiltered() {
     const ingame = (c) => STORE_INGAME_CATS.includes(c);
-    const items = (kmCat || []).filter((i) => (storeGroup === "ingame" ? ingame(i.category) : !ingame(i.category)) && (storeFilter === "alle" || i.category === storeFilter) && (storeRar === "alle" || i.rarity === storeRar));
+    const items = (kmCat || []).filter((i) => (storeGroup === "ingame" ? ingame(i.category) : !ingame(i.category)) && (storeFilter === "alle" || i.category === storeFilter) && (storeRar === "alle" || i.rarity === storeRar) && (!storeQuery || ((i.name || "") + " " + (i.desc || "")).toLowerCase().includes(storeQuery)));
     items.sort((a, b) => {
       if (storeSort === "featured") { const f = ((b.featured ? 1 : 0) - (a.featured ? 1 : 0)) || ((STORE_RANK[b.rarity] ?? -1) - (STORE_RANK[a.rarity] ?? -1)); return f || a.price - b.price; }
       if (storeSort === "price-asc") return a.price - b.price;
@@ -3998,11 +4007,11 @@ startBackgroundIntervals();
     const logged = !!(kmState && !kmState.needsAuth && typeof kmState.points === "number");
     const owned = logged && item.owned;
     const equipped = logged && item.equippedCategory;
-    if (equipped) return { txt: "Ausgerüstet ✓", disabled: true, act: "" };
-    if (owned) return { txt: "Ausrüsten", disabled: false, act: "equip" };
-    if (!logged) return { txt: "Anmelden zum Kaufen", disabled: true, act: "" };
-    if (item.price > (kmState.points || 0)) return { txt: `Nicht genug Punkte`, disabled: true, act: "" };
-    return { txt: `Kaufen · ${item.price} Punkte`, disabled: false, act: "buy" };
+    if (equipped) return { txt: "Ausgerüstet ✓", short: "Ausgerüstet", disabled: true, act: "", cls: "" };
+    if (owned) return { txt: "Ausrüsten", short: "Ausrüsten", disabled: false, act: "equip", cls: "" };
+    if (!logged) return { txt: "Anmelden zum Kaufen", short: "Anmelden", disabled: true, act: "", cls: "" };
+    if (item.price > (kmState.points || 0)) return { txt: "Nicht genug Punkte", short: "Zu teuer", disabled: true, act: "", cls: "" };
+    return { txt: `Kaufen · ${item.price} Punkte`, short: "Kaufen", disabled: false, act: "buy", cls: "buy" };
   }
 
   let c3dObserver = null;
@@ -4049,11 +4058,41 @@ startBackgroundIntervals();
       c3dObserver.observe(pv);
     } catch (e) {}
   }
+  // Zustand einer Karte (Klassen, Status-Label, Fußzeile) – ohne die Vorschau neu zu bauen.
+  function storeApplyState(card, item) {
+    const logged = !!(kmState && !kmState.needsAuth && typeof kmState.points === "number");
+    const b = storeButtonFor(item);
+    card.classList.toggle("owned", !!item.owned);
+    card.classList.toggle("equipped", !!item.equippedCategory);
+    card.classList.toggle("cant", logged && !item.owned && item.price > (kmState.points || 0));
+    if (logged && item.equippedCategory) card.dataset.state = "equipped";
+    else if (logged && item.owned) card.dataset.state = "owned";
+    else delete card.dataset.state;
+    let foot = card.querySelector(".store-foot");
+    if (!foot) {
+      foot = document.createElement("div");
+      foot.className = "store-foot";
+      card.querySelector(".store-card-body").append(foot);
+    }
+    foot.innerHTML = "";
+    const price = document.createElement("div");
+    price.className = "store-price";
+    price.innerHTML = esc(String(item.price)) + " <small>Punkte</small>";
+    const btn = document.createElement("button");
+    btn.className = "cardBtn " + b.cls;
+    btn.tabIndex = -1;
+    btn.dataset.act = b.act;
+    btn.textContent = b.short;
+    if (b.disabled) btn.disabled = true;
+    foot.append(price, btn);
+  }
+
   function storeCard(item) {
     const card = document.createElement("div");
-    card.className = "store-card rar-" + (item.rarity || "common") + (item.owned ? " owned" : "") + (item.equippedCategory ? " equipped" : "");
+    card.className = "store-card rar-" + (item.rarity || "common");
     card.tabIndex = 0;
     card.setAttribute("role", "button");
+    card.dataset.id = item.id;
     card.dataset.kcKey = "shop:" + item.id;
     const rarArr = STORE_RAR[item.rarity] || ["", "r-common"];
     const pv = document.createElement("div");
@@ -4070,25 +4109,49 @@ startBackgroundIntervals();
     const t = document.createElement("div");
     t.className = "store-card-title";
     t.textContent = item.name;
+    t.title = item.name || "";
     const d = document.createElement("div");
     d.className = "store-card-desc";
     d.textContent = item.desc || "";
-    const price = document.createElement("div");
-    price.className = "store-price";
-    price.textContent = item.price + " Punkte";
-    body.append(t, d, price);
-    const btn = document.createElement("button");
-    btn.className = "cardBtn";
-    btn.tabIndex = -1;
-    const b = storeButtonFor(item);
-    btn.textContent = b.txt;
-    if (b.disabled) btn.disabled = true;
-    if (b.act === "equip") btn.onclick = (e) => { e.stopPropagation(); storeEquip(item.id); };
-    if (b.act === "buy") btn.onclick = (e) => { e.stopPropagation(); storeBuy(item.id); };
-    body.append(btn);
+    body.append(t, d);
     card.append(body);
-    card.addEventListener("click", () => storeOpenModal(item));
+    storeApplyState(card, item);
     return card;
+  }
+
+  // Bereits gerenderte Karten nur aktualisieren (Kauf/Ausrüsten) – kein Neuaufbau, kein Scroll-Sprung.
+  function storeRefreshCards() {
+    const grid = $("storeGridMain");
+    if (!grid) return;
+    grid.querySelectorAll(".store-card").forEach((card) => {
+      const it = byId(card.dataset.id);
+      if (it) storeApplyState(card, it);
+    });
+  }
+
+  // Weitere Karten in Häppchen anhängen, damit nie hunderte Karten auf einmal gebaut werden.
+  function storeRenderChunk() {
+    const grid = $("storeGridMain");
+    if (!grid) return;
+    const old = grid.querySelector(".store-more");
+    if (old) { try { storeMoreObs && storeMoreObs.unobserve(old); } catch (e) {} old.remove(); }
+    const end = Math.min(storeList.length, storeShown + STORE_CHUNK);
+    const frag = document.createDocumentFragment();
+    for (let i = storeShown; i < end; i++) frag.append(storeCard(storeList[i]));
+    storeShown = end;
+    grid.append(frag);
+    if (storeShown < storeList.length) {
+      const sentinel = document.createElement("div");
+      sentinel.className = "store-more";
+      grid.append(sentinel);
+      if (typeof IntersectionObserver === "undefined") { storeRenderChunk(); return; }
+      if (!storeMoreObs) {
+        storeMoreObs = new IntersectionObserver((ents) => {
+          if (ents.some((e) => e.isIntersecting)) storeRenderChunk();
+        }, { rootMargin: "700px" });
+      }
+      storeMoreObs.observe(sentinel);
+    }
   }
 
   window.renderKollegenStore = renderStore;
@@ -4101,6 +4164,7 @@ startBackgroundIntervals();
     const grid = $("storeGridMain");
     if (!kmCat) {
       if (grid) {
+        delete grid.dataset.sig;
         grid.innerHTML = "";
         const msg = document.createElement("div");
         msg.className = "store-msg";
@@ -4128,10 +4192,20 @@ startBackgroundIntervals();
     const items = storeFiltered();
     try { storeRenderPackages(); } catch (e) {}
     if (grid) {
-      grid.innerHTML = "";
-      if (!items.length) grid.innerHTML = `<div class="store-msg">Keine Items in dieser Auswahl.</div>`;
-      else for (const it of items) grid.append(storeCard(it));
+      const sig = items.map((i) => i.id).join("|");
+      if (grid.dataset.sig === sig && grid.querySelector(".store-card")) {
+        storeRefreshCards();
+      } else {
+        grid.dataset.sig = sig;
+        grid.innerHTML = "";
+        storeList = items;
+        storeShown = 0;
+        if (!items.length) grid.innerHTML = `<div class="store-msg">Keine Items in dieser Auswahl.</div>`;
+        else storeRenderChunk();
+      }
     }
+    const cnt = $("storeCount");
+    if (cnt) cnt.textContent = items.length + (items.length === 1 ? " Item" : " Items");
     const logged = kmState && !kmState.needsAuth && typeof kmState.level === "number";
     const wallet = $("storeWalletMain");
     if (wallet) {
@@ -4221,6 +4295,7 @@ startBackgroundIntervals();
     const rarArr = STORE_RAR[item.rarity] || ["", "r-common"];
     const pv = document.createElement("div");
     pv.className = "store-pv store-pv-lg";
+    pv.style.setProperty("--rar-rgb", "var(--r-" + (item.rarity || "common") + "-rgb)");
     pv.innerHTML = storePreview(item);
     try {
       if (window.Cosmetic3D && window.Cosmetic3D.ready() && window.Cosmetic3D.keyFor(item)) {
@@ -4229,32 +4304,34 @@ startBackgroundIntervals();
         window.Cosmetic3D.mount(pv, item);
       }
     } catch (e) {}
+    const head = document.createElement("div");
+    head.className = "store-mm-head";
     const rar = document.createElement("span");
     rar.className = "store-badge " + rarArr[1];
     rar.textContent = rarArr[0];
+    head.append(rar);
     const t = document.createElement("div");
     t.className = "store-mm-title";
     t.textContent = item.name;
     const cat = document.createElement("div");
+    cat.className = "store-mm-cat";
     cat.textContent = storeCatLabel(item.category);
-    cat.style.cssText = "color:#7d8aa0;font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;margin-top:.35rem;";
     const d = document.createElement("div");
+    d.className = "store-mm-desc";
     d.textContent = item.desc || "";
-    d.style.cssText = "color:#a9b3c0;font-size:.9rem;margin-top:.6rem;";
     const pr = document.createElement("div");
+    pr.className = "store-price store-mm-price";
     pr.textContent = item.price + " Punkte";
-    pr.className = "store-price";
-    pr.style.cssText = "margin-top:.6rem;font-size:1.1rem;";
     const btn = document.createElement("button");
-    btn.className = "cardBtn";
-    btn.style.cssText = "margin-top:1rem;";
+    btn.className = "cardBtn store-mm-btn";
     const b = storeButtonFor(item);
+    if (b.cls) btn.classList.add(b.cls);
     btn.textContent = b.txt;
     if (b.disabled) btn.disabled = true;
     if (b.act === "equip") btn.onclick = () => { storeEquip(item.id); storeCloseModal(); };
     if (b.act === "buy") btn.onclick = () => { storeBuy(item.id); storeCloseModal(); };
     body.innerHTML = "";
-    body.append(pv, rar, t, cat, d, pr, btn);
+    body.append(pv, head, t, cat, d, pr, btn);
     m.style.display = "flex";
   }
 
@@ -4306,39 +4383,31 @@ startBackgroundIntervals();
   }
 
   function storeRenderPackages() {
-    const panel = $("storePanel");
-    const grid = $("storeGridMain");
-    if (!panel || !grid) return;
-    let strip = $("storePkgStrip");
-    if (!strip) {
-      strip = document.createElement("div");
-      strip.id = "storePkgStrip";
-      strip.className = "pkg-strip";
-      panel.insertBefore(strip, grid);
-    }
+    const slot = $("storePkgSlot");
+    if (!slot) return;
     const pkgs = (kmCat || []).filter((i) => i.category === "package" && !i.hidden);
-    strip.innerHTML = "";
+    const sig = pkgs.map((p) => p.id).join("|");
+    if (slot.dataset.sig === sig) return;
+    slot.dataset.sig = sig;
+    slot.innerHTML = "";
+    if (!pkgs.length) return;
+    const strip = document.createElement("div");
+    strip.id = "storePkgStrip";
+    strip.className = "pkg-strip";
     const head = document.createElement("div");
     head.className = "pkg-head";
     head.textContent = "Pakete";
-    strip.append(head);
     const row = document.createElement("div");
     row.className = "pkg-row";
-    strip.append(row);
-    if (!pkgs.length) {
-      const ph = document.createElement("div");
-      ph.className = "pkg-card pkg-empty";
-      ph.innerHTML = "<span>Pakete – bald verfügbar</span>";
-      row.append(ph);
-    } else {
-      for (const p of pkgs) {
-        const card = document.createElement("button");
-        card.className = "pkg-card rar-" + (p.rarity || "common");
-        card.innerHTML = `<span class="pkg-name">${esc(p.name || "Paket")}</span><span class="pkg-price">${p.price || 0} Punkte</span>`;
-        card.onclick = () => storeOpenPackage(p);
-        row.append(card);
-      }
+    for (const p of pkgs) {
+      const card = document.createElement("button");
+      card.className = "pkg-card rar-" + (p.rarity || "common");
+      card.innerHTML = `<span class="pkg-name">${esc(p.name || "Paket")}</span><span class="pkg-price">${p.price || 0} Punkte</span>`;
+      card.onclick = () => storeOpenPackage(p);
+      row.append(card);
     }
+    strip.append(head, row);
+    slot.append(strip);
   }
 
   function storeCloseModal() {
@@ -4425,6 +4494,39 @@ startBackgroundIntervals();
         storeFilter = "alle";
         storeSyncTabs();
         renderStore();
+      });
+    }
+    const search = $("storeSearch");
+    if (search && !search.dataset.bound) {
+      search.dataset.bound = "1";
+      let tmr = null;
+      search.addEventListener("input", () => {
+        clearTimeout(tmr);
+        tmr = setTimeout(() => { storeQuery = (search.value || "").trim().toLowerCase(); renderStore(); }, 160);
+      });
+    }
+    const gridEl = $("storeGridMain");
+    if (gridEl && !gridEl.dataset.delegated) {
+      gridEl.dataset.delegated = "1";
+      const itemOf = (el) => { const c = el.closest(".store-card"); return c ? byId(c.dataset.id) : null; };
+      gridEl.addEventListener("click", (e) => {
+        const it = itemOf(e.target);
+        if (!it) return;
+        const btn = e.target.closest(".cardBtn");
+        if (btn) {
+          e.stopPropagation();
+          if (btn.disabled) return;
+          if (btn.dataset.act === "equip") storeEquip(it.id);
+          else if (btn.dataset.act === "buy") storeBuy(it.id);
+          return;
+        }
+        storeOpenModal(it);
+      });
+      gridEl.addEventListener("keydown", (e) => {
+        if (e.key !== "Enter" && e.key !== " ") return;
+        if (e.target.closest(".cardBtn")) return;
+        const it = itemOf(e.target);
+        if (it) { e.preventDefault(); storeOpenModal(it); }
       });
     }
     storeSyncChips();
@@ -5335,7 +5437,7 @@ startBackgroundIntervals();
     list = Array.isArray(list) ? list : [];
     groupsCache = list;
     el.innerHTML = "";
-    if (!list.length) { el.innerHTML = `<li style="color:#888;">Noch keine Gruppen. Erstelle die erste!</li>`; return; }
+    if (!list.length) { el.innerHTML = `<li class="list-empty">Noch keine Gruppen. Erstelle die erste!</li>`; return; }
     for (const g of list) {
       const li = document.createElement("li");
       const ic = document.createElement("div");

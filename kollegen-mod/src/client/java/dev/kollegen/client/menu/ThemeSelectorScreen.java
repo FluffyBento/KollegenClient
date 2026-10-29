@@ -1,5 +1,6 @@
 package dev.kollegen.client.menu;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import dev.kollegen.client.mods.Palette;
 import dev.kollegen.client.ui.Glass;
 import dev.kollegen.client.ui.Icons;
@@ -93,7 +94,7 @@ public class ThemeSelectorScreen extends Screen {
     public boolean mouseClicked(MouseButtonEvent event, boolean bl) {
         double mx = event.x();
         double my = event.y();
-        if (event.button() == 0) {
+        if (event.button() == InputConstants.MOUSE_BUTTON_LEFT) {
             if (hit(mx, my, this.px + 12, this.py + 10, 22, 22)) {
                 this.close();
                 return true;
@@ -118,7 +119,7 @@ public class ThemeSelectorScreen extends Screen {
     }
 
     public boolean mouseDragged(MouseButtonEvent event, double dx, double dy) {
-        if (this.dragSlider && event.button() == 0) {
+        if (this.dragSlider && event.button() == InputConstants.MOUSE_BUTTON_LEFT) {
             this.setSlider(event.x());
             return true;
         }
@@ -126,7 +127,7 @@ public class ThemeSelectorScreen extends Screen {
     }
 
     public boolean mouseReleased(MouseButtonEvent event) {
-        if (this.dragSlider && event.button() == 0) {
+        if (this.dragSlider && event.button() == InputConstants.MOUSE_BUTTON_LEFT) {
             this.dragSlider = false;
             Palette.saveTheme();
             return true;
@@ -143,7 +144,7 @@ public class ThemeSelectorScreen extends Screen {
     }
 
     public boolean keyPressed(KeyEvent ki) {
-        if (ki.key() == 256) {
+        if (ki.key() == InputConstants.KEY_ESCAPE || ki.isEscape()) {
             this.close();
             return true;
         }

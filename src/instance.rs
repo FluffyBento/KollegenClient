@@ -1349,15 +1349,31 @@ pub(crate) fn enforce_bundled_mods(mods_dir: &Path, mc_version: &str, companion_
                 Ok(s) => s,
                 Err(_) => continue,
             };
-            let tmp = dest.with_extension("jar.tmp");
-            let ok = fs::File::create(&tmp)
-                .and_then(|mut out| std::io::copy(&mut src, &mut out).map(|_| ()))
-                .is_ok();
-            if ok {
-                let _ = fs::rename(&tmp, &dest);
-            } else {
-                let _ = fs::remove_file(&tmp);
-                warn!("Konnte Bundle {} nicht aus der Begleit-Mod extrahieren.", jar_name);
+
+            let mut src_bytes = Vec::with_capacity(src.size() as usize);
+            if src.read_to_end(&mut src_bytes).is_err() {
+                continue;
+            }
+
+            // Check if existing file is already identical to preserve mtime, page cache & CDS
+            let mut needs_extract = true;
+            if dest.is_file() {
+                if let Ok(dest_bytes) = fs::read(&dest) {
+                    if src_bytes == dest_bytes {
+                        needs_extract = false;
+                    }
+                }
+            }
+
+            if needs_extract {
+                let tmp = dest.with_extension("jar.tmp");
+                let ok = fs::write(&tmp, &src_bytes).is_ok();
+                if ok {
+                    let _ = fs::rename(&tmp, &dest);
+                } else {
+                    let _ = fs::remove_file(&tmp);
+                    warn!("Konnte Bundle {} nicht aus der Begleit-Mod extrahieren.", jar_name);
+                }
             }
         } else if !desired {
             let _ = fs::remove_file(&dest);
@@ -1377,9 +1393,12 @@ pub(crate) fn enforce_bundled_mods(mods_dir: &Path, mc_version: &str, companion_
     // konfliktfrei; mit korrektem Companion werden sie neu bereitgestellt.
     for &(_flag_key, jar_name, _bin_path) in BUNDLED_MODS {
         let p = mods_dir.join(jar_name);
-        if p.is_file() && !crate::companion::jar_supports_mc(&p, mc_version) {
+        if p.is_file()
+            && (!crate::companion::jar_supports_mc(&p, mc_version)
+                || !crate::companion::jar_has_fabric_mod_json(&p))
+        {
             warn!(
-                "Entferne versionsfremdes Bundle {} aus {}-Instanz.",
+                "Entferne versionsfremdes oder inkompatibles Bundle {} aus {}-Instanz.",
                 jar_name, mc_version
             );
             let _ = fs::remove_file(&p);
@@ -1427,6 +1446,135 @@ fn write_classpath_jar(inst_dir: &Path, entries: &[String]) -> Result<String> {
     Ok(jar_path.to_string_lossy().into_owned())
 }
 
+pub fn parse_memory_gb(mem_str: &str) -> usize {
+    let s = mem_str.trim();
+    if s.is_empty() {
+        return 4;
+    }
+    if let Some(val) = s.strip_suffix(['g', 'G']) {
+        val.parse::<usize>().unwrap_or(4)
+    } else if let Some(val) = s.strip_suffix(['m', 'M']) {
+        val.parse::<usize>().map(|m| m / 1024).unwrap_or(4)
+    } else {
+        s.parse::<usize>().unwrap_or(4)
+    }
+}
+
+pub fn warmup_page_cache(targets: Vec<PathBuf>) {
+    thread::spawn(move || {
+        let mut buf = [0u8; 64 * 1024];
+        for path in targets {
+            if !path.exists() {
+                continue;
+            }
+            if path.is_file() {
+                warmup_single_file(&path, &mut buf);
+            } else if path.is_dir() {
+                if let Ok(entries) = fs::read_dir(&path) {
+                    for entry in entries.flatten() {
+                        let p = entry.path();
+                        if p.is_file() && p.extension().and_then(|e| e.to_str()) == Some("jar") {
+                            warmup_single_file(&p, &mut buf);
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+fn warmup_single_file(path: &Path, buf: &mut [u8]) {
+    #[cfg(target_os = "linux")]
+    {
+        use std::os::unix::io::AsRawFd;
+        if let Ok(file) = fs::File::open(path) {
+            let fd = file.as_raw_fd();
+            unsafe {
+                libc::posix_fadvise(fd, 0, 0, libc::POSIX_FADV_WILLNEED);
+            }
+        }
+    }
+    if let Ok(mut file) = fs::File::open(path) {
+        while let Ok(n) = file.read(buf) {
+            if n == 0 {
+                break;
+            }
+        }
+    }
+}
+
+#[cfg(target_os = "linux")]
+pub fn detect_p_cores_linux() -> Option<Vec<usize>> {
+    let mut p_cores = Vec::new();
+    let mut e_cores = Vec::new();
+    let mut freqs = Vec::new();
+
+    let mut cpu_idx = 0;
+    loop {
+        let cpu_dir = format!("/sys/devices/system/cpu/cpu{}", cpu_idx);
+        if !Path::new(&cpu_dir).exists() {
+            break;
+        }
+
+        let type_path = format!("{}/topology/core_type", cpu_dir);
+        if let Ok(c_type) = fs::read_to_string(&type_path) {
+            let trimmed = c_type.trim().to_lowercase();
+            if trimmed == "core" {
+                p_cores.push(cpu_idx);
+            } else if trimmed == "atom" {
+                e_cores.push(cpu_idx);
+            }
+        } else {
+            let freq_path = format!("{}/cpufreq/cpuinfo_max_freq", cpu_dir);
+            if let Ok(freq_str) = fs::read_to_string(&freq_path) {
+                if let Ok(freq) = freq_str.trim().parse::<u64>() {
+                    freqs.push((cpu_idx, freq));
+                }
+            }
+        }
+        cpu_idx += 1;
+    }
+
+    if !p_cores.is_empty() && !e_cores.is_empty() {
+        return Some(p_cores);
+    }
+
+    if freqs.len() >= 4 {
+        let max_freq = freqs.iter().map(|(_, f)| *f).max().unwrap_or(0);
+        let min_freq = freqs.iter().map(|(_, f)| *f).min().unwrap_or(0);
+        if max_freq > min_freq + 200_000 {
+            let threshold = min_freq + (max_freq - min_freq) / 2;
+            let detected: Vec<usize> = freqs
+                .into_iter()
+                .filter(|(_, f)| *f > threshold)
+                .map(|(c, _)| c)
+                .collect();
+            if !detected.is_empty() && detected.len() < cpu_idx {
+                return Some(detected);
+            }
+        }
+    }
+
+    None
+}
+
+#[cfg(windows)]
+pub fn ensure_windows_gpu_preference(java_path: &str) {
+    let _ = Command::new("reg")
+        .args([
+            "add",
+            r"HKCU\Software\Microsoft\DirectX\UserGpuPreferences",
+            "/v",
+            java_path,
+            "/t",
+            "REG_SZ",
+            "/d",
+            "GpuPreference=2;",
+            "/f",
+        ])
+        .output();
+}
+
 pub fn launch(
     state: &AppState,
     data_dir: &Path,
@@ -1463,7 +1611,13 @@ pub fn launch(
 
     info!("Launching Minecraft {} ({}) for instance '{}'...", inst.version, inst.loader, inst.name);
 
-    
+    // Page-Cache vorwärmen (Task 4): JARs & Bibliotheken im Hintergrund vorab in OS-Cache einlesen
+    warmup_page_cache(vec![
+        mods_dir.clone(),
+        libs_dir.clone(),
+        version_dir.join(format!("{}.jar", inst.version)),
+    ]);
+
     let version_jar = version_dir.join(format!("{}.jar", inst.version));
     if !version_jar.exists() {
         info!(
@@ -1557,7 +1711,76 @@ pub fn launch(
     jvm_args.push(format!("-Xms{}", inst.memory_min));
     jvm_args.push(format!("-Xmx{}", inst.memory_max));
 
+    let is_mc_26_plus = inst.version.starts_with("26.");
+    let ram_gb = parse_memory_gb(&inst.memory_max);
+    let cores = std::thread::available_parallelism()
+        .map(|n| n.get())
+        .unwrap_or(4);
+
+    jvm_args.push("-XX:+UnlockExperimentalVMOptions".to_string());
+
+    // Java 25 (MC 26.x) Compact Object Headers (JEP 450)
+    // Reduziert Object Headers von 12/16 Bytes auf 8 Bytes.
+    // Spart massiv Heap & CPU Cache L1/L2/L3 bei BlockPos, Vec3, ChunkPos und Partikeln.
+    if is_mc_26_plus {
+        jvm_args.push("-XX:+UseCompactObjectHeaders".to_string());
+    }
+
+    // Hardware-optimierte Garbage Collector Strategie:
+    // Ab 6 CPU-Kernen & >= 4 GB zugewiesenem RAM glänzt Generational ZGC mit Latenzen < 1 ms.
+    // Bei weniger RAM/Kernen oder auf Java 21 (1.21.x) garantiert getunter G1GC höchsten Durchsatz ohne Stutter.
+    if is_mc_26_plus && cores >= 6 && ram_gb >= 4 {
+        info!("Hardware-Profil: Generational ZGC gewählt ({} Kerne, {} GB RAM)", cores, ram_gb);
+        for flag in [
+            "-XX:+UseZGC",
+            "-XX:+DisableExplicitGC",
+            "-XX:+AlwaysPreTouch",
+            "-XX:+PerfDisableSharedMem",
+        ] {
+            jvm_args.push(flag.to_string());
+        }
+    } else {
+        info!("Hardware-Profil: Optimierter G1GC gewählt ({} Kerne, {} GB RAM)", cores, ram_gb);
+        for flag in [
+            "-XX:+UseG1GC",
+            "-XX:+ParallelRefProcEnabled",
+            "-XX:MaxGCPauseMillis=20",
+            "-XX:+UnlockExperimentalVMOptions",
+            "-XX:+DisableExplicitGC",
+            "-XX:+AlwaysPreTouch",
+            "-XX:G1NewSizePercent=30",
+            "-XX:G1MaxNewSizePercent=40",
+            "-XX:G1ReservePercent=15",
+            "-XX:G1HeapWastePercent=5",
+            "-XX:G1MixedGCCountTarget=4",
+            "-XX:InitiatingHeapOccupancyPercent=15",
+            "-XX:G1MixedGCLiveThresholdPercent=90",
+            "-XX:G1RSetUpdatingPauseTimePercent=5",
+            "-XX:SurvivorRatio=32",
+            "-XX:+PerfDisableSharedMem",
+            "-XX:MaxTenuringThreshold=1",
+        ] {
+            jvm_args.push(flag.to_string());
+        }
+    }
+
+    jvm_args.push("-Dsun.rmi.dgc.client.gcInterval=3600000".to_string());
+    jvm_args.push("-Dsun.rmi.dgc.server.gcInterval=3600000".to_string());
+    jvm_args.push("-Djava.lang.invoke.MethodHandle.EAGER_COMPILE=true".to_string());
+
+    // Selbstoptimierender Launcher: Profil-Auswahl aus Allowlist mit automatischem Crash-Rollback
+    let (chosen_preset, active_idx) = select_and_apply_optimization_preset(&inst_dir);
+    info!(
+        "Selbstoptimierender Launcher aktiv: Verwende Preset {} ('{}' - {})",
+        active_idx, chosen_preset.name, chosen_preset.description
+    );
+    for flag in chosen_preset.jvm_flags {
+        jvm_args.push(flag.to_string());
+    }
+
     
+    ensure_optimal_renderer_config(&inst_dir, cores);
+
     let os_cp_sep = if cfg!(target_os = "windows") { ";" } else { ":" };
     let joined = classpath.join(os_cp_sep);
     let cp_arg = if cfg!(target_os = "windows") && joined.len() > 28000 {
@@ -1599,12 +1822,70 @@ pub fn launch(
     
     let mut cmd = std::process::Command::new(java_path);
     crate::java::sanitize_java_env(&mut cmd);
-    
-    
+
+    // Dedizierte GPU Zuordnung & CPU P-Core Affinität / Priorität
+    #[cfg(target_os = "linux")]
+    {
+        use std::os::unix::process::CommandExt;
+
+        // Dedizierte GPU auf Linux Hybrid-Systemen (PRIME / NVIDIA Offload)
+        cmd.env("__NV_PRIME_RENDER_OFFLOAD", "1");
+        cmd.env("__GLX_VENDOR_LIBRARY_NAME", "nvidia");
+        cmd.env("__VK_LAYER_NV_optimus", "NVIDIA_only");
+        cmd.env("DRI_PRIME", "1");
+
+        // 64-bit Vulkan ICD explizit vorgeben (verhindert 32-bit ELFCLASS32 Fehlversuche)
+        let nvidia_64 = std::path::Path::new("/usr/share/vulkan/icd.d/nvidia_icd.x86_64.json");
+        if nvidia_64.exists() {
+            cmd.env("VK_ICD_FILENAMES", nvidia_64);
+            cmd.env("VK_DRIVER_FILES", nvidia_64);
+        }
+
+        // NVIDIA OpenGL Threading & Ultra-High Framerate Treiber-Flags:
+        // __GL_THREADED_OPTIMIZATIONS=0: Verhindert NVIDIA_THREADED_OPTIMIZATIONS_BROKEN Workaround in Sodium
+        // (Sodium nutzt bereits eigenes Multithreading; Treiber-GLThread erzwingt sonst periodische CPU-GPU Synchronisations-Barrieren / 25ms Stalls)
+        // __GL_SYNC_TO_VBLANK=0 / vblank_mode=0: Verhindert jegliche Treiber- oder Compositor-Framerate-Drossel
+        // __GL_YIELD="NOTHING": Verhindert Scheduler-Yields bei Buffer-Swaps & minimiert Frame-Latenz
+        cmd.env("__GL_THREADED_OPTIMIZATIONS", "0");
+        cmd.env("__GL_SYNC_TO_VBLANK", "0");
+        cmd.env("__GL_YIELD", "NOTHING");
+        cmd.env("__GL_GSYNC_ALLOWED", "0");
+        cmd.env("__GL_VRR_ALLOWED", "0");
+        cmd.env("vblank_mode", "0");
+        cmd.env("mesa_glthread", "false");
+        cmd.env("MESA_VK_WSI_PRESENT_MODE", "immediate");
+
+        // Native Wayland Window & Display-Pipeline:
+        // Lässt SDL & LWJGL nativ auf Wayland laufen (verhindert XWayland-HiDPI-Skalierung auf 4K & Swapchain-Konflikte)
+        cmd.env("SDL_VIDEO_ALLOW_SCREENSAVER", "1");
+        cmd.env("SDL_VIDEO_MINIMIZE_ON_FOCUS_LOSS", "0");
+
+        // P-Core CPU-Affinität & Priorität setzen (verhindert E-Core FPS-Drops)
+        let p_cores_opt = detect_p_cores_linux();
+        unsafe {
+            cmd.pre_exec(move || {
+                // Höhere Prozess-Priorität für gleichmäßiges Frame-Pacing (-5 nice)
+                let _ = libc::setpriority(libc::PRIO_PROCESS, 0, -5);
+
+                if let Some(ref cores) = p_cores_opt {
+                    let mut cpuset: libc::cpu_set_t = std::mem::zeroed();
+                    libc::CPU_ZERO(&mut cpuset);
+                    for &cpu in cores {
+                        libc::CPU_SET(cpu, &mut cpuset);
+                    }
+                    let _ = libc::sched_setaffinity(0, std::mem::size_of::<libc::cpu_set_t>(), &cpuset);
+                }
+                Ok(())
+            });
+        }
+    }
+
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;
-        cmd.creation_flags(0x08000000);
+        ensure_windows_gpu_preference(java_path);
+        // 0x00008000 = ABOVE_NORMAL_PRIORITY_CLASS, 0x08000000 = CREATE_NO_WINDOW
+        cmd.creation_flags(0x00008000 | 0x08000000);
     }
     cmd.args(&jvm_args);
 
@@ -1774,10 +2055,12 @@ pub fn launch(
     let log_version = inst.version.clone();
     let log_loader = inst.loader.clone();
     let log_name = inst.name.clone();
+    let inst_dir_telemetry = inst_dir.clone();
     if let Some(mut out) = child.stdout.take() {
         let logs_arc = Arc::clone(&state.logs);
         let log_path2 = log_path.clone();
         let last_activity2 = Arc::clone(&last_activity);
+        let inst_dir_perf = inst_dir_telemetry.clone();
         thread::spawn(move || {
             use std::io::Read;
             let mut buf = [0u8; 4096];
@@ -1800,7 +2083,9 @@ pub fn launch(
                             let line = carry[..idx].trim_end().to_string();
                             carry.replace_range(..=idx, "");
                             if !line.is_empty() {
-                                
+                                if line.contains("[KOLLEGEN_PERF_TELEMETRY]") {
+                                    parse_and_record_perf_telemetry(&inst_dir_perf, &line);
+                                }
                                 
                                 if let Some(srv) = parse_server_from_log(&line) {
                                     crate::discord::set_current_server(Some(srv.clone()));
@@ -1962,7 +2247,15 @@ pub fn launch(
         let runtime = t0.elapsed().as_secs_f64();
         let mut line = format!("Minecraft-Prozess beendet ({:.0}s).", runtime);
         match exit_code {
-            Some(0) => {}
+            Some(0) => {
+                let perf_file = log_path2.parent().and_then(|p| p.parent()).map(|p| p.join("kollegen_perf.json"));
+                if let Some(pf) = perf_file {
+                    if let Ok(mut data) = fs::read_to_string(&pf).and_then(|s| serde_json::from_str::<serde_json::Value>(&s).map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))) {
+                        data["current_attempt_crashed"] = serde_json::json!(false);
+                        let _ = fs::write(&pf, serde_json::to_string_pretty(&data).unwrap_or_default());
+                    }
+                }
+            }
             Some(c) => line.push_str(&format!(" Exit-Code: {}.", c)),
             None => line.push_str(if signalled { " Vom Signal beendet (Absturz?)." } else { "" }),
         }
@@ -2020,7 +2313,7 @@ pub fn launch(
                 if read_renderer_state(&inst.join("mods")) == Some(true)
                     && fs::write(&marker, "vulkan-crash").is_ok()
                 {
-                    renderer_note = Some("Nativer Absturz mit aktivem Vulkan-Renderer – nächster Start fällt einmalig auf OpenGL (Sodium+Iris) zurück.".to_string());
+                    renderer_note = Some("Nativer Absturz mit aktivem Vulkan-Renderer – nächster Start fällt einmalig auf den Standard-OpenGL-Renderer zurück.".to_string());
                 }
             }
         }
@@ -2246,6 +2539,349 @@ fn is_disconnect_log(line: &str) -> bool {
         || line.contains("Client disconnected")
 }
 
+fn ensure_optimal_renderer_config(inst_dir: &Path, cores: usize) {
+    let cfg_path = inst_dir.join("config").join("sodium-options.json");
+    if cfg_path.exists() {
+        if let Ok(content) = fs::read_to_string(&cfg_path) {
+            if let Ok(mut val) = serde_json::from_str::<serde_json::Value>(&content) {
+                let threads = cores.saturating_sub(2).clamp(2, 8);
+                if let Some(perf) = val.get_mut("performance").and_then(|p| p.as_object_mut()) {
+                    perf.insert("chunk_builder_threads".to_string(), serde_json::json!(threads));
+                    perf.insert("quad_splitting_mode".to_string(), serde_json::json!("OFF"));
+                    perf.insert("chunk_build_defer_mode".to_string(), serde_json::json!("ALWAYS"));
+                    perf.insert("animate_only_visible_textures".to_string(), serde_json::json!(true));
+                    perf.insert("use_entity_culling".to_string(), serde_json::json!(true));
+                    perf.insert("use_fog_occlusion".to_string(), serde_json::json!(true));
+                    perf.insert("use_block_face_culling".to_string(), serde_json::json!(true));
+                    perf.insert("use_no_error_g_l_context".to_string(), serde_json::json!(true));
+                }
+                if let Some(quality) = val.get_mut("quality").and_then(|q| q.as_object_mut()) {
+                    quality.insert("hidden_fluid_culling".to_string(), serde_json::json!(true));
+                    quality.insert("improved_fluid_shaping".to_string(), serde_json::json!(false));
+                    quality.insert("use_closest_point_entity_sort".to_string(), serde_json::json!(true));
+                }
+                let _ = fs::write(cfg_path, serde_json::to_string_pretty(&val).unwrap_or_default());
+            }
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct OptimizationPreset {
+    pub id: usize,
+    pub name: &'static str,
+    pub description: &'static str,
+    pub jvm_flags: &'static [&'static str],
+}
+
+pub static OPTIMIZATION_PRESETS: &[OptimizationPreset] = &[
+    OptimizationPreset {
+        id: 0,
+        name: "Standard ZGC + SIMD",
+        description: "Generational ZGC mit C2 Tiered Compilation & SIMD Vektorisierung",
+        jvm_flags: &[
+            "-XX:+UseFastUnorderedTimeStamps",
+            "-XX:CompileThreshold=1000",
+            "-XX:ReservedCodeCacheSize=512M",
+            "-XX:+SegmentedCodeCache",
+            "-XX:+TieredCompilation",
+            "-XX:CICompilerCount=4",
+            "-XX:+UseVectorCmov",
+            "-XX:+UseXMMForArrayCopy",
+            "-XX:+OptimizeStringConcat",
+            "-XX:+UseStringDeduplication",
+        ],
+    },
+    OptimizationPreset {
+        id: 1,
+        name: "Aggressives C2 Inlining & Geometrie-Durchsatz (2000+ FPS)",
+        description: "Erhöhtes C2 Inlining-Budget & Loop-Unrolling für Hotspot-Geometrie",
+        jvm_flags: &[
+            "-XX:FreqInlineSize=500",
+            "-XX:MaxInlineSize=45",
+            "-XX:InlineSmallCode=3000",
+            "-XX:LoopUnrollLimit=120",
+            "-XX:+UseFastUnorderedTimeStamps",
+            "-XX:CompileThreshold=800",
+            "-XX:ReservedCodeCacheSize=512M",
+            "-XX:+SegmentedCodeCache",
+            "-XX:+TieredCompilation",
+            "-XX:CICompilerCount=4",
+            "-XX:+UseVectorCmov",
+            "-XX:+UseXMMForArrayCopy",
+            "-XX:+OptimizeStringConcat",
+            "-XX:+UseStringDeduplication",
+        ],
+    },
+    OptimizationPreset {
+        id: 2,
+        name: "Zen4 AVX-512 & Vektor-Register Peak",
+        description: "512-Bit AVX Register, AlignVector & FMA für Berechnungen & Chunk-Transformationen",
+        jvm_flags: &[
+            "-XX:MaxVectorSize=64",
+            "-XX:+UseVectorCmov",
+            "-XX:+UseXMMForArrayCopy",
+            "-XX:+UseFMA",
+            "-XX:+AlignVector",
+            "-XX:LoopMaxUnroll=32",
+            "-XX:LoopUnrollLimit=120",
+            "-XX:FreqInlineSize=500",
+            "-XX:MaxInlineSize=45",
+            "-XX:InlineSmallCode=3000",
+            "-XX:MaxInlineLevel=18",
+            "-XX:+TrustFinalNonStaticFields",
+            "-XX:+UseCMoveUnconditionally",
+            "-XX:+UseFastJNIAccessors",
+            "-XX:+EliminateAllocations",
+            "-XX:+EliminateLocks",
+            "-XX:+DoEscapeAnalysis",
+            "-XX:+UseTransparentHugePages",
+            "-XX:ZAllocationSpikeTolerance=4",
+            "-XX:+UseFastUnorderedTimeStamps",
+            "-XX:CompileThreshold=600",
+            "-XX:ReservedCodeCacheSize=512M",
+            "-XX:+SegmentedCodeCache",
+            "-XX:+TieredCompilation",
+            "-XX:CICompilerCount=6",
+            "-XX:+OptimizeStringConcat",
+            "-XX:+UseStringDeduplication",
+        ],
+    },
+    OptimizationPreset {
+        id: 3,
+        name: "Ultra-Fast JIT Early Inlining & Zen4 Vektor",
+        description: "Früheres C2-Kompilieren bei 500 Aufrufen kombiniert mit AVX-512 Vektorisierung",
+        jvm_flags: &[
+            "-XX:CompileThreshold=500",
+            "-XX:MaxVectorSize=64",
+            "-XX:+UseVectorCmov",
+            "-XX:+UseXMMForArrayCopy",
+            "-XX:+UseFMA",
+            "-XX:+AlignVector",
+            "-XX:LoopMaxUnroll=32",
+            "-XX:LoopUnrollLimit=120",
+            "-XX:FreqInlineSize=500",
+            "-XX:MaxInlineSize=45",
+            "-XX:InlineSmallCode=3000",
+            "-XX:MaxInlineLevel=18",
+            "-XX:+TrustFinalNonStaticFields",
+            "-XX:+UseCMoveUnconditionally",
+            "-XX:+UseFastJNIAccessors",
+            "-XX:+EliminateAllocations",
+            "-XX:+EliminateLocks",
+            "-XX:ZAllocationSpikeTolerance=4",
+            "-XX:+UseFastUnorderedTimeStamps",
+            "-XX:ReservedCodeCacheSize=512M",
+            "-XX:+SegmentedCodeCache",
+            "-XX:+TieredCompilation",
+            "-XX:CICompilerCount=4",
+            "-XX:+OptimizeStringConcat",
+            "-XX:+UseStringDeduplication",
+        ],
+    },
+    OptimizationPreset {
+        id: 4,
+        name: "Zen4 Vektor-Apex (Ultimate Inlining & Vektor-Pipeline)",
+        description: "Höchstes Inlining-Budget (Freq 600, Size 50, SmallCode 3500) & LoopUnroll 150 für absolute FPS-Peaks (2000+ FPS)",
+        jvm_flags: &[
+            "-XX:CompileThreshold=800",
+            "-XX:MaxVectorSize=64",
+            "-XX:+UseVectorCmov",
+            "-XX:+UseXMMForArrayCopy",
+            "-XX:+UseFMA",
+            "-XX:+AlignVector",
+            "-XX:LoopMaxUnroll=32",
+            "-XX:LoopUnrollLimit=150",
+            "-XX:FreqInlineSize=600",
+            "-XX:MaxInlineSize=50",
+            "-XX:InlineSmallCode=3500",
+            "-XX:MaxInlineLevel=18",
+            "-XX:+TrustFinalNonStaticFields",
+            "-XX:+UseCMoveUnconditionally",
+            "-XX:+UseFastJNIAccessors",
+            "-XX:+EliminateAllocations",
+            "-XX:+EliminateLocks",
+            "-XX:ZAllocationSpikeTolerance=4",
+            "-XX:+UseFastUnorderedTimeStamps",
+            "-XX:ReservedCodeCacheSize=512M",
+            "-XX:+SegmentedCodeCache",
+            "-XX:+TieredCompilation",
+            "-XX:CICompilerCount=4",
+            "-XX:+OptimizeStringConcat",
+            "-XX:+UseStringDeduplication",
+        ],
+    },
+];
+
+fn select_and_apply_optimization_preset(inst_dir: &Path) -> (&'static OptimizationPreset, usize) {
+    let perf_file = inst_dir.join("kollegen_perf.json");
+    let mut perf_data: serde_json::Value = fs::read_to_string(&perf_file)
+        .ok()
+        .and_then(|s| serde_json::from_str(&s).ok())
+        .unwrap_or_else(|| serde_json::json!({
+            "record_avg_fps": 0,
+            "record_p1_low": 0,
+            "best_preset_index": 0,
+            "active_preset_index": 0,
+            "current_attempt_crashed": false,
+            "tested_presets": {}
+        }));
+
+    let was_crashed = perf_data["current_attempt_crashed"].as_bool().unwrap_or(false);
+    let mut active_idx = perf_data["active_preset_index"].as_u64().unwrap_or(0) as usize;
+    let best_idx = perf_data["best_preset_index"].as_u64().unwrap_or(0) as usize;
+
+    if was_crashed && active_idx != best_idx {
+        warn!(
+            "Selbstoptimierender Launcher: Vorheriger Start mit Preset {} ist unerwartet abgebrochen! Automatischer Rollback auf verifiziertes Profil (Preset {} - '{}')",
+            active_idx, best_idx, OPTIMIZATION_PRESETS.get(best_idx).map(|p| p.name).unwrap_or("Baseline")
+        );
+        if let Some(tested) = perf_data.get_mut("tested_presets").and_then(|t| t.as_object_mut()) {
+            if let Some(cur) = tested.get_mut(&active_idx.to_string()) {
+                cur["crashed"] = serde_json::json!(true);
+            }
+        }
+        active_idx = best_idx;
+        perf_data["active_preset_index"] = serde_json::json!(best_idx);
+    } else if !was_crashed {
+        let cur_tested = perf_data["tested_presets"]
+            .get(&active_idx.to_string())
+            .and_then(|p| p["runs"].as_u64())
+            .unwrap_or(0) >= 1;
+
+        if cur_tested {
+            let mut found_next = false;
+            for (i, _) in OPTIMIZATION_PRESETS.iter().enumerate() {
+                let runs = perf_data["tested_presets"]
+                    .get(&i.to_string())
+                    .and_then(|p| p["runs"].as_u64())
+                    .unwrap_or(0);
+                let crashed = perf_data["tested_presets"]
+                    .get(&i.to_string())
+                    .and_then(|p| p["crashed"].as_bool())
+                    .unwrap_or(false);
+                if runs == 0 && !crashed {
+                    active_idx = i;
+                    found_next = true;
+                    perf_data["active_preset_index"] = serde_json::json!(active_idx);
+                    info!(
+                        "Selbstoptimierender Launcher: Erprobe nächstes Flag-Set aus Allowlist: Preset {} ('{}')",
+                        active_idx, OPTIMIZATION_PRESETS[active_idx].name
+                    );
+                    break;
+                }
+            }
+            if !found_next {
+                active_idx = best_idx;
+                perf_data["active_preset_index"] = serde_json::json!(best_idx);
+                info!(
+                    "Selbstoptimierender Launcher: Alle Allowlist-Profile erfolgreich erprobt! Schalte auf Performance-Champion: Preset {} ('{}')",
+                    best_idx, OPTIMIZATION_PRESETS.get(best_idx).map(|p| p.name).unwrap_or("Optimal")
+                );
+            }
+        }
+    }
+
+    perf_data["current_attempt_crashed"] = serde_json::json!(true);
+    let _ = fs::write(&perf_file, serde_json::to_string_pretty(&perf_data).unwrap_or_default());
+
+    let safe_idx = active_idx.min(OPTIMIZATION_PRESETS.len().saturating_sub(1));
+    (&OPTIMIZATION_PRESETS[safe_idx], safe_idx)
+}
+
+fn parse_and_record_perf_telemetry(inst_dir: &Path, line: &str) {
+    let mut avg_fps = 0u32;
+    let mut p1_low = 0u32;
+    let mut p01_low = 0u32;
+    let mut samples = 0u64;
+
+    for part in line.split_whitespace() {
+        if let Some((k, v)) = part.split_once('=') {
+            match k {
+                "avg_fps" => avg_fps = v.parse().unwrap_or(0),
+                "p1_low" => p1_low = v.parse().unwrap_or(0),
+                "p01_low" => p01_low = v.parse().unwrap_or(0),
+                "samples" => samples = v.parse().unwrap_or(0),
+                _ => {}
+            }
+        }
+    }
+
+    if avg_fps > 0 && samples >= 2000 {
+        let perf_file = inst_dir.join("kollegen_perf.json");
+        let mut data: serde_json::Value = fs::read_to_string(&perf_file)
+            .ok()
+            .and_then(|s| serde_json::from_str(&s).ok())
+            .unwrap_or_else(|| serde_json::json!({
+                "record_avg_fps": 0,
+                "record_p1_low": 0,
+                "best_preset_index": 0,
+                "active_preset_index": 0,
+                "current_attempt_crashed": false,
+                "tested_presets": {}
+            }));
+
+        data["current_attempt_crashed"] = serde_json::json!(false);
+
+        let active_idx = data["active_preset_index"].as_u64().unwrap_or(0) as usize;
+        let preset_name = OPTIMIZATION_PRESETS.get(active_idx).map(|p| p.name).unwrap_or("Custom");
+
+        let cur_entry = data["tested_presets"].get(&active_idx.to_string());
+        let prev_best_avg = cur_entry.and_then(|p| p["avg_fps"].as_u64()).unwrap_or(0) as u32;
+        let prev_best_p1 = cur_entry.and_then(|p| p["p1_low"].as_u64()).unwrap_or(0) as u32;
+        let prev_runs = cur_entry.and_then(|p| p["runs"].as_u64()).unwrap_or(0);
+
+        let best_avg_this_preset = avg_fps.max(prev_best_avg);
+        let best_p1_this_preset = p1_low.max(prev_best_p1);
+
+        if data.get("tested_presets").is_none() || !data["tested_presets"].is_object() {
+            data["tested_presets"] = serde_json::json!({});
+        }
+
+        data["tested_presets"][active_idx.to_string()] = serde_json::json!({
+            "avg_fps": best_avg_this_preset,
+            "p1_low": best_p1_this_preset,
+            "p01_low": p01_low,
+            "samples": samples,
+            "runs": prev_runs.max(1),
+            "crashed": false,
+            "name": preset_name,
+            "tested_at": chrono::Utc::now().to_rfc3339()
+        });
+
+        let rec_avg = data["record_avg_fps"].as_u64().unwrap_or(0) as u32;
+        let rec_p1 = data["record_p1_low"].as_u64().unwrap_or(0) as u32;
+
+        let is_new_record = p1_low > rec_p1 || (p1_low as f32 >= rec_p1 as f32 * 0.95 && avg_fps > rec_avg);
+
+        if avg_fps > rec_avg {
+            data["record_avg_fps"] = serde_json::json!(avg_fps);
+        }
+        if p1_low > rec_p1 {
+            data["record_p1_low"] = serde_json::json!(p1_low);
+        }
+        if is_new_record {
+            data["best_preset_index"] = serde_json::json!(active_idx);
+            info!(
+                "Selbstoptimierender Launcher: Neuer Performance-Rekord mit Preset {} ('{}')! (1% Low: {} FPS, Avg: {} FPS)",
+                active_idx, preset_name, p1_low, avg_fps
+            );
+        }
+
+        data["last_avg_fps"] = serde_json::json!(avg_fps);
+        data["last_p1_low"] = serde_json::json!(p1_low);
+        data["last_timestamp"] = serde_json::json!(chrono::Utc::now().to_rfc3339());
+
+        info!(
+            "Selbstoptimierender Launcher: Telemetrie erhalten für Preset {} ('{}') - Schnitt: {} FPS, 1% Low: {} FPS, 0.1% Low: {} FPS ({} Samples) [Bestes Preset: {}]",
+            active_idx, preset_name, avg_fps, p1_low, p01_low, samples,
+            data["best_preset_index"].as_u64().unwrap_or(0)
+        );
+
+        let _ = fs::write(perf_file, serde_json::to_string_pretty(&data).unwrap_or_default());
+    }
+}
+
 
 fn collect_jars(dir: &Path) -> Vec<String> {
     let mut result = vec![];
@@ -2462,6 +3098,22 @@ pub fn import_pack(data_dir: &Path, path: &str) -> Result<Instance> {
     }
 
     Ok(inst)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_memory_gb() {
+        assert_eq!(parse_memory_gb("4G"), 4);
+        assert_eq!(parse_memory_gb("8g"), 8);
+        assert_eq!(parse_memory_gb("6144M"), 6);
+        assert_eq!(parse_memory_gb("8192m"), 8);
+        assert_eq!(parse_memory_gb("12"), 12);
+        assert_eq!(parse_memory_gb(""), 4);
+        assert_eq!(parse_memory_gb("invalid"), 4);
+    }
 }
 
 

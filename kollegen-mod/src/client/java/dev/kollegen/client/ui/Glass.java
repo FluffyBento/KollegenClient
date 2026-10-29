@@ -18,6 +18,10 @@ public final class Glass {
     private Glass() {
     }
 
+    private static float cachedK = 1.0f;
+    private static final int[] FULL_BUF = new int[128];
+    private static final int[] IFULL_BUF = new int[128];
+
     public static void frame() {
         long now = System.nanoTime();
         if (lastNs != 0L) {
@@ -25,6 +29,22 @@ public final class Glass {
             dt = Math.max(0.0005f, Math.min(0.1f, d));
         }
         lastNs = now;
+        try {
+            net.minecraft.client.Minecraft mc = Minecraft.getInstance();
+            int gw = mc.getWindow().getGuiScaledWidth();
+            if (gw > 0) {
+                float v = (float) mc.getWindow().getScreenWidth() / (float) gw;
+                cachedK = Math.min(Math.max(1.0f, v), 2.0f);
+            } else {
+                cachedK = 1.0f;
+            }
+        } catch (Throwable t) {
+            cachedK = 1.0f;
+        }
+    }
+
+    public static float k() {
+        return cachedK;
     }
 
     public static float step(float cur, float target, float rate) {
@@ -39,25 +59,6 @@ public final class Glass {
     public static float ease(float t) {
         t = Math.max(0.0f, Math.min(1.0f, t));
         return 1.0f - (1.0f - t) * (1.0f - t) * (1.0f - t);
-    }
-
-    public static float k() {
-        try {
-            net.minecraft.client.Minecraft mc = Minecraft.getInstance();
-            int gw = mc.getWindow().getGuiScaledWidth();
-            if (gw <= 0) {
-                return 1.0f;
-            }
-            float v = (float) mc.getWindow().getScreenWidth() / (float) gw;
-            if (v < 1.0f) {
-                v = 1.0f;
-            }
-            // PERF: Über 2x-Supersampling steigt die Fill-Anzahl linear, der
-            // sichtbare Gewinn ist null (2x reicht für glatte 1px-Kanten).
-            return Math.min(v, 2.0f);
-        } catch (Throwable t) {
-            return 1.0f;
-        }
     }
 
     public static int tint(int argb, int alpha) {
@@ -118,6 +119,18 @@ public final class Glass {
         g.fill(x0, y0, x1, y1, c);
     }
 
+    private static void grad(GuiGraphicsExtractor g, int x0, int y0, int x1, int y1, int c1, int c2) {
+        if (x1 <= x0 || y1 <= y0 || ((c1 >>> 24) == 0 && (c2 >>> 24) == 0)) {
+            return;
+        }
+        fillCount++;
+        if (c1 == c2) {
+            g.fill(x0, y0, x1, y1, c1);
+        } else {
+            g.fillGradient(x0, y0, x1, y1, c1, c2);
+        }
+    }
+
     private static float inset(int R, int i) {
         float dy = R - (i + 0.5f);
         float dx = (float) Math.sqrt(Math.max(0.0f, (float) R * R - dy * dy));
@@ -143,49 +156,55 @@ public final class Glass {
         }
         R = Math.max(0, Math.min(R, Math.min(W, H) / 2));
         boolean grad = c1 != c2;
-        // PERF: Gradienten in max. ~24 Bändern statt ~40 — bei den flachen
-        // Glas-Verläufen unsichtbar, halbiert aber die Fill-Aufrufe.
-        int bandH = grad ? Math.max(1, H / 24) : H;
         if (R == 0) {
-            if (!grad) {
-                box(g, X0, Y0, X1, Y1, c1);
-                return;
-            }
-            for (int y = Y0; y < Y1; y += bandH) {
-                float t = (y + bandH / 2.0f - Y0) / H;
-                box(g, X0, y, X1, Math.min(Y1, y + bandH), mixA(c1, c2, t));
-            }
+            grad(g, X0, Y0, X1, Y1, c1, c2);
             return;
         }
+
+        int[] full = R <= FULL_BUF.length ? FULL_BUF : new int[R];
         for (int i = 0; i < R; i++) {
-            float ins = inset(R, i);
-            int full = (int) Math.ceil(ins);
-            float cov = full - ins;
-            int yt = Y0 + i;
-            int yb = Y1 - 1 - i;
-            int ct = grad ? mixA(c1, c2, (i + 0.5f) / H) : c1;
-            int cb = grad ? mixA(c1, c2, (H - i - 0.5f) / H) : c1;
-            box(g, X0 + full, yt, X1 - full, yt + 1, ct);
-            box(g, X0 + full, yb, X1 - full, yb + 1, cb);
-            // PERF: 1px-Saum nur bei niedriger Skalierung — ab 2x-SSAA ist die
-            // Geometrie allein schon glatt, der Saum kostet ~40% extra Fills.
-            if (aa && full > 0 && cov > 0.08f) {
-                int at = a(ct, cov);
-                int ab = a(cb, cov);
-                box(g, X0 + full - 1, yt, X0 + full, yt + 1, at);
-                box(g, X1 - full, yt, X1 - full + 1, yt + 1, at);
-                box(g, X0 + full - 1, yb, X0 + full, yb + 1, ab);
-                box(g, X1 - full, yb, X1 - full + 1, yb + 1, ab);
-            }
+            full[i] = Math.round(inset(R, i));
         }
-        int my0 = Y0 + R;
-        int my1 = Y1 - R;
-        if (!grad) {
-            box(g, X0, my0, X1, my1, c1);
+
+        int k = R;
+        while (k > 0 && full[k - 1] == 0) {
+            k--;
+        }
+
+        if (grad) {
+            for (int i = 0; i < k; i++) {
+                int yt = Y0 + i;
+                int ct = mixA(c1, c2, (i + 0.5f) / H);
+                box(g, X0 + full[i], yt, X1 - full[i], yt + 1, ct);
+            }
+            int my0 = Y0 + k;
+            int my1 = Y1 - k;
+            if (my1 > my0) {
+                int ct = mixA(c1, c2, (float) k / H);
+                int cb = mixA(c1, c2, (float) (H - k) / H);
+                grad(g, X0, my0, X1, my1, ct, cb);
+            }
+            for (int i = 0; i < k; i++) {
+                int yb = Y1 - 1 - i;
+                int cb = mixA(c1, c2, (H - i - 0.5f) / H);
+                box(g, X0 + full[i], yb, X1 - full[i], yb + 1, cb);
+            }
         } else {
-            for (int y = my0; y < my1; y += bandH) {
-                float t = (y + bandH / 2.0f - Y0) / H;
-                box(g, X0, y, X1, Math.min(my1, y + bandH), mixA(c1, c2, t));
+            for (int i = 0; i < k; ) {
+                int start = i;
+                int f = full[start];
+                while (i + 1 < k && full[i + 1] == f) {
+                    i++;
+                }
+                int count = i - start + 1;
+                box(g, X0 + f, Y0 + start, X1 - f, Y0 + start + count, c1);
+                box(g, X0 + f, Y1 - start - count, X1 - f, Y1 - start, c1);
+                i++;
+            }
+            int my0 = Y0 + k;
+            int my1 = Y1 - k;
+            if (my1 > my0) {
+                box(g, X0, my0, X1, my1, c1);
             }
         }
     }
@@ -197,7 +216,7 @@ public final class Glass {
             return;
         }
         R = Math.max(0, Math.min(R, Math.min(W, H) / 2));
-        T = Math.max(1, T);
+        T = Math.max(1, Math.min(T, Math.min(W, H) / 2));
         if (R == 0 || T >= Math.min(W, H) / 2) {
             box(g, X0, Y0, X1, Y0 + T, c);
             box(g, X0, Y1 - T, X1, Y1, c);
@@ -207,40 +226,58 @@ public final class Glass {
         }
         T = Math.min(T, R);
         int Ri = R - T;
+
+        int[] oFull = R <= FULL_BUF.length ? FULL_BUF : new int[R];
         for (int i = 0; i < R; i++) {
-            float ins = inset(R, i);
-            int full = (int) Math.ceil(ins);
-            float cov = full - ins;
-            int oL = X0 + full;
-            int oR = X1 - full;
-            int yt = Y0 + i;
-            int yb = Y1 - 1 - i;
-            if (i < T) {
-                box(g, oL, yt, oR, yt + 1, c);
-                box(g, oL, yb, oR, yb + 1, c);
-            } else {
-                int j = i - T;
-                int iFull = 0;
-                if (j < Ri) {
-                    iFull = (int) Math.ceil(inset(Ri, j));
-                }
-                int iL = X0 + T + iFull;
-                int iR = X1 - T - iFull;
-                box(g, oL, yt, iL, yt + 1, c);
-                box(g, iR, yt, oR, yt + 1, c);
-                box(g, oL, yb, iL, yb + 1, c);
-                box(g, iR, yb, oR, yb + 1, c);
-            }
-            if (aa && full > 0 && cov > 0.08f) {
-                int ac = a(c, cov);
-                box(g, oL - 1, yt, oL, yt + 1, ac);
-                box(g, oR, yt, oR + 1, yt + 1, ac);
-                box(g, oL - 1, yb, oL, yb + 1, ac);
-                box(g, oR, yb, oR + 1, yb + 1, ac);
-            }
+            oFull[i] = Math.round(inset(R, i));
         }
-        box(g, X0, Y0 + R, X0 + T, Y1 - R, c);
-        box(g, X1 - T, Y0 + R, X1, Y1 - R, c);
+        int[] iFull = R <= IFULL_BUF.length ? IFULL_BUF : new int[R];
+        for (int i = T; i < R; i++) {
+            int j = i - T;
+            iFull[i] = j < Ri ? Math.round(inset(Ri, j)) : 0;
+        }
+
+        int k = R;
+        while (k > T && oFull[k - 1] == 0 && (Ri <= 0 || (k - 1 - T < Ri && iFull[k - 1] == 0))) {
+            k--;
+        }
+
+        for (int i = 0; i < Math.min(T, k); i++) {
+            int oL = X0 + oFull[i];
+            int oR = X1 - oFull[i];
+            box(g, oL, Y0 + i, oR, Y0 + i + 1, c);
+            box(g, oL, Y1 - 1 - i, oR, Y1 - i, c);
+        }
+
+        for (int i = T; i < k; ) {
+            int start = i;
+            int oL = X0 + oFull[start];
+            int oR = X1 - oFull[start];
+            int iL = X0 + T + iFull[start];
+            int iR = X1 - T - iFull[start];
+            while (i + 1 < k && oFull[i + 1] == oFull[start] && iFull[i + 1] == iFull[start]) {
+                i++;
+            }
+            int count = i - start + 1;
+            int yt = Y0 + start;
+            int yb = Y1 - start - count;
+            if (iL > oL) {
+                box(g, oL, yt, iL, yt + count, c);
+                box(g, oL, yb, iL, yb + count, c);
+            }
+            if (oR > iR) {
+                box(g, iR, yt, oR, yt + count, c);
+                box(g, iR, yb, oR, yb + count, c);
+            }
+            i++;
+        }
+
+        int vy0 = Y0 + k;
+        int vy1 = Y1 - k;
+        if (vy1 > vy0) {
+            box(g, X0, vy0, X0 + T, vy1, c);
+            box(g, X1 - T, vy0, X1, vy1, c);
+        }
     }
 
     private static int P(float v, float k) {
@@ -262,8 +299,16 @@ public final class Glass {
         }
         primCount++;
         float k = k();
+        int X0 = P(x, k);
+        int Y0 = P(y, k);
+        int X1 = P(x + w, k);
+        int Y1 = P(y + h, k);
+        if (Math.abs(w - h) < 0.001f) {
+            int side = X1 - X0;
+            Y1 = Y0 + side;
+        }
         pBegin(g);
-        rrPhys(g, P(x, k), P(y, k), P(x + w, k), P(y + h, k), P(r, k), top, bottom, k < 1.5f);
+        rrPhys(g, X0, Y0, X1, Y1, P(r, k), top, bottom, false);
         pEnd(g);
     }
 
@@ -274,8 +319,16 @@ public final class Glass {
         }
         primCount++;
         float k = k();
+        int X0 = P(x, k);
+        int Y0 = P(y, k);
+        int X1 = P(x + w, k);
+        int Y1 = P(y + h, k);
+        if (Math.abs(w - h) < 0.001f) {
+            int side = X1 - X0;
+            Y1 = Y0 + side;
+        }
         pBegin(g);
-        ringPhys(g, P(x, k), P(y, k), P(x + w, k), P(y + h, k), P(r, k), Math.max(1, P(thick, k)), color, k < 1.5f);
+        ringPhys(g, X0, Y0, X1, Y1, P(r, k), Math.max(1, P(thick, k)), color, false);
         pEnd(g);
     }
 
@@ -285,8 +338,6 @@ public final class Glass {
             return;
         }
         float k = k();
-        // PERF: 4 statt 7 Schatten-Layer — optisch identisch weich (3px-Offset),
-        // kostet aber nur ~55% der Fill-Aufrufe.
         int T = Math.max(1, P(spread / 4.0f, k));
         int L = 4;
         pBegin(g);
@@ -299,7 +350,6 @@ public final class Glass {
             float f = 1.0f - (n - 1) / (float) L;
             int c = a(color, f * f * 0.9f);
             int e = (n - 1) * T;
-            // Weiche Schatten brauchen keinen 1px-Saum (aa=false).
             ringPhys(g, X0 - e - T, Y0 - e - T, X1 + e + T, Y1 + e + T, R + e + T, T, c, false);
         }
         pEnd(g);
@@ -318,7 +368,7 @@ public final class Glass {
         float bx = x1 * k;
         float by = y1 * k;
         int t = Math.max(1, Math.round(thick * k));
-        // PERF: Achsenparallele Linien (der Normalfall bei Icons/Rahmen) als
+        // Achsenparallele Linien (der Normalfall bei Icons/Rahmen) als
         // einzelnes Rechteck statt DDA-Pixel — identisches Bild, ~20x weniger Fills.
         if (Math.abs(by - ay) < 0.5f) {
             int y = Math.round(ay - t / 2.0f);
@@ -342,7 +392,6 @@ public final class Glass {
         }
         int px = Integer.MIN_VALUE;
         int py = Integer.MIN_VALUE;
-        int runStartX = 0;
         for (int i = 0; i <= steps; i++) {
             float f = i / (float) steps;
             int cx = Math.round(ax + (bx - ax) * f - t / 2.0f);
@@ -358,23 +407,18 @@ public final class Glass {
     }
 
     public static void disc(GuiGraphicsExtractor g, float cx, float cy, float rad, int color) {
-        // PERF: Winzige Punkte (Thumbs, Dots, Status) als einzelnes Rechteck.
-        float k = k();
-        if (rad * k <= 1.5f) {
-            int r = Math.max(1, Math.round(rad * k));
-            int x = Math.round(cx * k);
-            int y = Math.round(cy * k);
-            color = fa(color);
-            if ((color >>> 24) == 0) {
-                return;
-            }
-            pBegin(g);
-            box(g, x - r, y - r, x + r + 1, y + r + 1, color);
-            pEnd(g);
-            primCount++;
+        color = fa(color);
+        if ((color >>> 24) == 0 || rad <= 0.0f) {
             return;
         }
-        rr(g, cx - rad, cy - rad, rad * 2, rad * 2, rad, color);
+        primCount++;
+        float k = k();
+        int R = Math.max(1, Math.round(rad * k));
+        int Xc = Math.round(cx * k);
+        int Yc = Math.round(cy * k);
+        pBegin(g);
+        rrPhys(g, Xc - R, Yc - R, Xc + R, Yc + R, R, color, color, false);
+        pEnd(g);
     }
 
     public static void fillRound(GuiGraphicsExtractor g, int x, int y, int w, int h, int r, int color) {
@@ -386,15 +430,19 @@ public final class Glass {
     }
 
     public static void glassCard(GuiGraphicsExtractor g, float x, float y, float w, float h, float r, int tint, float op, float shadow) {
+        glassCard(g, x, y, w, h, r, tint, op, shadow, 0x38FFFFFF);
+    }
+
+    public static void glassCard(GuiGraphicsExtractor g, float x, float y, float w, float h, float r, int tint, float op, float shadow, int ringCol) {
         if (shadow > 0.0f) {
             shadowSoft(g, x, y, w, h, r, 10.0f, 3.0f, Palette.tint(0x000000, (int) (70 * shadow)));
         }
-        // PERF: Glanzlicht direkt in den Verlauf eingebacken (ein rrGrad statt zwei).
-        // Entspricht Body + Sheen-Overlay (13 % Weiß, obere Hälfte) bis auf Rundung.
         int top = Palette.mix(Palette.mix(tint, 0xFFFFFFFF, 0.07f), 0xFFFFFFFF, 0.10f);
         int bot = Palette.mix(Palette.mix(tint, 0xFF000000, 0.12f), 0xFF000000, 0.03f);
         rrGrad(g, x, y, w, h, r, tint(top, (int) (255 * Math.min(1.0f, op))), tint(bot, (int) (255 * Math.min(1.0f, op * 0.92f))));
-        ring(g, x, y, w, h, r, 0.5f, 0x38FFFFFF);
+        if ((ringCol >>> 24) != 0) {
+            ring(g, x, y, w, h, r, 0.5f, ringCol);
+        }
         float k = k();
         if (w > r * 2 + 4) {
             pBegin(g);
@@ -469,6 +517,7 @@ public final class Glass {
         if ((color >>> 24) < 10 || s == null || s.isEmpty()) {
             return;
         }
+        primCount++;
         Matrix3x2fStack p = g.pose();
         g.text(font, s, x, y, color, shadow);
         p.pushMatrix();
@@ -508,7 +557,7 @@ public final class Glass {
     }
 
     public static void pill(GuiGraphicsExtractor g, float x, float y, float w, float h, float hov, boolean primary, boolean disabled) {
-        float r = h / 2.0f;
+        float r = Math.min(w, h) / 2.0f;
         if (primary) {
             // PERF: Glanz in Verlauf eingebacken (ein rrGrad statt zwei).
             int c1 = Palette.ACCENT;
@@ -580,9 +629,13 @@ public final class Glass {
     }
 
     public static void separator(GuiGraphicsExtractor g, int x, int y, int w, int color) {
+        color = fa(color);
+        if ((color >>> 24) == 0 || w <= 0) {
+            return;
+        }
         float k = k();
         pBegin(g);
-        box(g, P(x, k), P(y, k), P(x + w, k), P(y, k) + 1, fa(color));
+        box(g, P(x, k), P(y, k), P(x + w, k), P(y, k) + 1, color);
         pEnd(g);
     }
 
@@ -644,7 +697,7 @@ public final class Glass {
     public static void badge(GuiGraphicsExtractor g, int x, int y, int w, int h, int r, int bgColor, int textColor, Font font, String text) {
         rr(g, x, y, w, h, h / 2.0f, a(bgColor, 0.28f));
         ring(g, x, y, w, h, h / 2.0f, 0.5f, a(bgColor, 0.8f));
-        textC(g, font, text, x + w / 2, y + (h - 8) / 2, bgColor, false);
+        textC(g, font, text, x + w / 2, y + (h - 8) / 2, textColor, false);
     }
 
     public static boolean in(double mx, double my, float x, float y, float w, float h) {

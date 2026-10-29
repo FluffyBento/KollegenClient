@@ -26,6 +26,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
+import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
@@ -94,6 +95,16 @@ public class KollegenMenuScreen extends Screen {
         float y;
         float w;
         float h;
+        float hoverAnim = 0.0f;
+        float extraAnim = 0.0f;
+        String truncTitle = null;
+        String truncDesc = null;
+        int rarity = 0;
+        boolean owned = false;
+        String itemId = "";
+        String itemCat = "";
+        boolean hasSettings = false;
+        int price = 0;
     }
 
     private final Screen parent;
@@ -105,6 +116,7 @@ public class KollegenMenuScreen extends Screen {
     private EditBox petNameBox;
     private String petNamePetId = "";
     private String petNameValue = "";
+    private boolean hasPetActive = false;
 
     private int px;
     private int py;
@@ -343,6 +355,7 @@ public class KollegenMenuScreen extends Screen {
             JsonObject cached = StoreClient.cachedCatalog();
             if (cached != null) {
                 this.storeCache = cached;
+                this.updateEquippedCache();
                 this.storeFromCache = true;
             }
         }
@@ -353,6 +366,7 @@ public class KollegenMenuScreen extends Screen {
                 JsonObject data = StoreClient.catalog();
                 if (data != null) {
                     this.storeCache = data;
+                    this.updateEquippedCache();
                     this.storeAt = System.currentTimeMillis();
                     this.storeFromCache = false;
                     this.storeFailUntil = 0L;
@@ -386,6 +400,7 @@ public class KollegenMenuScreen extends Screen {
                 JsonObject data = StoreClient.catalog();
                 if (data != null) {
                     this.storeCache = data;
+                    this.updateEquippedCache();
                     this.storeAt = System.currentTimeMillis();
                 }
             } catch (Throwable ignored) {
@@ -400,17 +415,25 @@ public class KollegenMenuScreen extends Screen {
         t.start();
     }
 
-    private String equippedId(String category) {
+    private final Map<String, String> equippedCache = new HashMap<String, String>();
+
+    private void updateEquippedCache() {
+        this.equippedCache.clear();
         try {
             if (this.storeCache != null && this.storeCache.has("equipped") && this.storeCache.get("equipped").isJsonObject()) {
                 JsonObject eq = this.storeCache.getAsJsonObject("equipped");
-                if (eq.has(category) && !eq.get(category).isJsonNull()) {
-                    return eq.get(category).getAsString();
+                for (Map.Entry<String, JsonElement> e : eq.entrySet()) {
+                    if (e.getValue() != null && !e.getValue().isJsonNull()) {
+                        this.equippedCache.put(e.getKey(), e.getValue().getAsString());
+                    }
                 }
             }
-        } catch (Throwable t) {
+        } catch (Throwable ignored) {
         }
-        return "";
+    }
+
+    private String equippedId(String category) {
+        return this.equippedCache.getOrDefault(category, "");
     }
 
     private JsonObject petCfg(String petId) {
@@ -623,6 +646,13 @@ public class KollegenMenuScreen extends Screen {
         this.maxScroll = Math.max(0.0f, this.contentH - this.ch + 2);
         this.scrollT = Math.max(0.0f, Math.min(this.scrollT, this.maxScroll));
         this.scrollV = Math.max(0.0f, Math.min(this.scrollV, this.maxScroll));
+        this.hasPetActive = false;
+        for (Cell c : this.cells) {
+            if (c.kind == K_PET_ACTIVE) {
+                this.hasPetActive = true;
+                break;
+            }
+        }
         this.buildWidgets();
     }
 
@@ -657,6 +687,7 @@ public class KollegenMenuScreen extends Screen {
         for (Module m : list) {
             Cell c = this.addGrid(K_MOD, cols, 42.0f);
             c.module = m;
+            c.hasSettings = !m.settings().isEmpty();
         }
     }
 
@@ -731,6 +762,11 @@ public class KollegenMenuScreen extends Screen {
                 }
                 Cell c = this.addGrid(K_STORE, cols, 54.0f);
                 c.data = it;
+                c.itemId = str(it, "id", "");
+                c.itemCat = str(it, "category", "");
+                c.owned = false;
+                c.rarity = rarityColor(str(it, "rarity", ""));
+                c.price = num(it, "price", 0);
             }
             return;
         }
@@ -756,6 +792,10 @@ public class KollegenMenuScreen extends Screen {
                 for (JsonObject it : active) {
                     Cell c = this.addGrid(K_COS, cols, 46.0f);
                     c.data = it;
+                    c.itemId = str(it, "id", "");
+                    c.itemCat = str(it, "category", "");
+                    c.owned = true;
+                    c.rarity = rarityColor(str(it, "rarity", ""));
                 }
             }
             String last = "";
@@ -767,6 +807,10 @@ public class KollegenMenuScreen extends Screen {
                 }
                 Cell c = this.addGrid(K_COS, cols, 46.0f);
                 c.data = it;
+                c.itemId = str(it, "id", "");
+                c.itemCat = slot;
+                c.owned = true;
+                c.rarity = rarityColor(str(it, "rarity", ""));
             }
             if (active.isEmpty() && rest.isEmpty() && this.storeCache != null) {
                 Cell e = this.addFull(K_TEXT, 30.0f);
@@ -983,7 +1027,7 @@ public class KollegenMenuScreen extends Screen {
     public boolean mouseClicked(MouseButtonEvent event, boolean bl) {
         double mx = event.x();
         double my = event.y();
-        if (event.button() == 0) {
+        if (event.button() == InputConstants.MOUSE_BUTTON_LEFT) {
             float by = this.py + 6;
             if (hit(mx, my, this.closeX(), by, 22, 22)) {
                 this.close();
@@ -1028,7 +1072,7 @@ public class KollegenMenuScreen extends Screen {
     }
 
     public boolean mouseDragged(MouseButtonEvent event, double dx, double dy) {
-        if (this.draggingBar && event.button() == 0) {
+        if (this.draggingBar && event.button() == InputConstants.MOUSE_BUTTON_LEFT) {
             this.dragTo(event.y());
             return true;
         }
@@ -1036,7 +1080,7 @@ public class KollegenMenuScreen extends Screen {
     }
 
     public boolean mouseReleased(MouseButtonEvent event) {
-        if (event.button() == 0) {
+        if (event.button() == InputConstants.MOUSE_BUTTON_LEFT) {
             this.draggingBar = false;
         }
         return super.mouseReleased(event);
@@ -1054,6 +1098,9 @@ public class KollegenMenuScreen extends Screen {
         for (Cell c : this.cells) {
             float X = this.cx + c.x;
             float Y = this.cellScreenY(c);
+            if (Y + c.h < this.cy || Y > this.cy + this.ch) {
+                continue;
+            }
             if (!hit(mx, my, X, Y, c.w, c.h)) {
                 continue;
             }
@@ -1170,7 +1217,7 @@ public class KollegenMenuScreen extends Screen {
 
     public boolean keyPressed(KeyEvent ki) {
         int key = ki.key();
-        if (this.petNameBox != null && this.petNameBox.isFocused() && (key == 257 || key == 335)) {
+        if (this.petNameBox != null && this.petNameBox.isFocused() && (key == InputConstants.KEY_RETURN || key == InputConstants.KEY_NUMPADENTER || ki.isConfirmation())) {
             if (!this.petNamePetId.isEmpty()) {
                 this.savePetName(this.petNamePetId);
             }
@@ -1178,12 +1225,12 @@ public class KollegenMenuScreen extends Screen {
         }
         if (KeybindSetting.capturing != null) {
             KeybindSetting cap = KeybindSetting.capturing;
-            cap.value = key == 256 ? -1 : key;
+            cap.value = (key == InputConstants.KEY_ESCAPE || ki.isEscape()) ? -1 : key;
             KeybindSetting.capturing = null;
             this.buildWidgets();
             return true;
         }
-        if (key == 256) {
+        if (key == InputConstants.KEY_ESCAPE || ki.isEscape()) {
             if (this.detail != null) {
                 this.closeDetail();
             } else if (!this.query.isEmpty()) {
@@ -1194,12 +1241,28 @@ public class KollegenMenuScreen extends Screen {
             return true;
         }
         boolean typing = this.search.isFocused() && !this.search.getValue().isEmpty();
-        if (!typing && this.detail == null && key == 263 && this.category > 0) {
+        if (!typing && this.detail == null && (key == InputConstants.KEY_LEFT || ki.isLeft()) && this.category > 0) {
             this.switchCategory(this.category - 1);
             return true;
         }
-        if (!typing && this.detail == null && key == 262 && this.category < this.cats.length - 1) {
+        if (!typing && this.detail == null && (key == InputConstants.KEY_RIGHT || ki.isRight()) && this.category < this.cats.length - 1) {
             this.switchCategory(this.category + 1);
+            return true;
+        }
+        if (!typing && (key == InputConstants.KEY_UP || ki.isUp() || key == InputConstants.KEY_PAGEUP) && this.maxScroll > 0) {
+            float delta = (key == InputConstants.KEY_PAGEUP) ? (this.ch * 0.8f) : 32.0f;
+            this.scrollT = Math.max(0.0f, Math.min(this.maxScroll, this.scrollT - delta));
+            return true;
+        }
+        if (!typing && (key == InputConstants.KEY_DOWN || ki.isDown() || key == InputConstants.KEY_PAGEDOWN) && this.maxScroll > 0) {
+            float delta = (key == InputConstants.KEY_PAGEDOWN) ? (this.ch * 0.8f) : 32.0f;
+            this.scrollT = Math.max(0.0f, Math.min(this.maxScroll, this.scrollT + delta));
+            return true;
+        }
+        if (!typing && this.detail == null && (key == InputConstants.KEY_TAB || ki.isCycleFocus())) {
+            boolean shift = ki.hasShiftDown();
+            int next = shift ? (this.category - 1 + this.cats.length) % this.cats.length : (this.category + 1) % this.cats.length;
+            this.switchCategory(next);
             return true;
         }
         return super.keyPressed(ki);
@@ -1217,7 +1280,7 @@ public class KollegenMenuScreen extends Screen {
         this.openAnim = Math.min(1.0f, this.openAnim + Glass.dt * 4.5f);
         this.pageAnim = Math.min(1.0f, this.pageAnim + Glass.dt * 6.0f);
         this.scrollV = Glass.step(this.scrollV, this.scrollT, 20.0f);
-        if (Math.round(this.scrollV) != this.builtScroll && (this.detail != null || this.cells.stream().anyMatch(c -> c.kind == K_PET_ACTIVE))) {
+        if (Math.round(this.scrollV) != this.builtScroll && (this.detail != null || this.hasPetActive)) {
             this.buildWidgets();
         }
         float open = Glass.ease(this.openAnim);
@@ -1322,20 +1385,26 @@ public class KollegenMenuScreen extends Screen {
 
     private void drawContent(GuiGraphicsExtractor g, int mx, int my) {
         g.enableScissor(this.cx - 2, this.cy, this.cx + this.cw + 2, this.cy + this.ch);
+        boolean inCont = this.inContent(mx, my);
         for (Cell c : this.cells) {
             float X = this.cx + c.x;
             float Y = this.cellScreenY(c);
             if (Y + c.h < this.cy - 2 || Y > this.cy + this.ch + 2) {
                 continue;
             }
-            boolean hov = this.inContent(mx, my) && hit(mx, my, X, Y, c.w, c.h);
+            boolean hov = inCont && hit(mx, my, X, Y, c.w, c.h);
             switch (c.kind) {
                 case K_TITLE:
                     this.drawTitle(g, c, X, Y);
                     break;
                 case K_HEAD:
+                    if (c.truncTitle == null) {
+                        c.truncTitle = c.text;
+                        c.extraAnim = this.font.width(c.text);
+                    }
                     Glass.text(g, this.font, c.text, Math.round(X + 2), Math.round(Y + 3), Palette.ACCENT, false);
-                    Glass.rr(g, X + 4 + this.font.width(c.text), Y + 7, Math.max(0, c.w - this.font.width(c.text) - 8), 0.6f, 0.3f, 0x22FFFFFF);
+                    float tw = c.extraAnim;
+                    Glass.rr(g, X + 4 + tw, Y + 7, Math.max(0, c.w - tw - 8), 0.6f, 0.3f, 0x22FFFFFF);
                     break;
                 case K_TEXT:
                     Glass.text(g, this.font, c.text, Math.round(X + 2), Math.round(Y + 8), Palette.MUTED, false);
@@ -1398,26 +1467,30 @@ public class KollegenMenuScreen extends Screen {
 
     private void drawModCard(GuiGraphicsExtractor g, Cell c, float X, float Y, boolean hov) {
         Module m = c.module;
-        float h = this.hv("m:" + m.id, hov, 14.0f);
-        float en = this.hv("e:" + m.id, m.enabled, 12.0f);
+        c.hoverAnim = Glass.step(c.hoverAnim, hov ? 1.0f : 0.0f, 14.0f);
+        c.extraAnim = Glass.step(c.extraAnim, m.enabled ? 1.0f : 0.0f, 12.0f);
+        float h = c.hoverAnim;
+        float en = c.extraAnim;
         int tint = Glass.mix(Palette.PANEL, Palette.ACCENT, 0.10f * en + 0.05f * h);
-        Glass.glassCard(g, X, Y, c.w, c.h, 9, tint, Glass.opacity * (0.85f + 0.3f * h), 0.0f);
+        int border = en > 0.01f ? Glass.a(Palette.ACCENT, 0.7f * en) : (h > 0.01f ? Glass.a(0xFFFFFFFF, 0.35f * h) : 0x38FFFFFF);
+        Glass.glassCard(g, X, Y, c.w, c.h, 9, tint, Glass.opacity * (0.85f + 0.3f * h), 0.0f, border);
         if (en > 0.01f) {
             Glass.rrGrad(g, X + 1, Y + 1, c.w - 2, c.h - 2, 8, Glass.a(Palette.ACCENT, 0.16f * en), 0x00000000);
-            Glass.ring(g, X, Y, c.w, c.h, 9, 0.5f, Glass.a(Palette.ACCENT, 0.7f * en));
-        } else if (h > 0.01f) {
-            Glass.ring(g, X, Y, c.w, c.h, 9, 0.5f, Glass.a(0xFFFFFFFF, 0.35f * h));
         }
         int tx = Math.round(X + 10);
-        int maxW = (int) (c.w - 20 - 34);
-        Glass.textBold(g, this.font, Glass.trunc(this.font, m.name, maxW), tx, Math.round(Y + 9), Palette.TEXT, true);
-        Glass.text(g, this.font, Glass.trunc(this.font, m.description, (int) (c.w - 38)), tx, Math.round(Y + 23), Palette.MUTED, false);
+        if (c.truncTitle == null) {
+            int maxW = (int) (c.w - 20 - 34);
+            c.truncTitle = Glass.trunc(this.font, m.name, maxW);
+            c.truncDesc = Glass.trunc(this.font, m.description, (int) (c.w - 38));
+        }
+        Glass.textBold(g, this.font, c.truncTitle, tx, Math.round(Y + 9), Palette.TEXT, true);
+        Glass.text(g, this.font, c.truncDesc, tx, Math.round(Y + 23), Palette.MUTED, false);
         if (m.locked) {
             Icons.draw(g, Icons.LOCK, X + c.w - 20, Y + 8, 11, Palette.MUTED);
         } else {
-            GlassToggle.drawSwitch(g, X + c.w - 10 - 24, Y + 8, 24, 13, en, h * 0.0f);
+            GlassToggle.drawSwitch(g, X + c.w - 10 - 24, Y + 8, 24, 13, en, 0.0f);
         }
-        if (!m.settings().isEmpty()) {
+        if (c.hasSettings) {
             Icons.draw(g, Icons.SLIDERS, X + c.w - 20, Y + c.h - 16, 10, Glass.a(Palette.MUTED, 0.5f + 0.5f * h));
         }
         if (m.risk != null) {
@@ -1456,39 +1529,43 @@ public class KollegenMenuScreen extends Screen {
     }
 
     private void drawPill(GuiGraphicsExtractor g, float x, float y, float w, float h, String label, boolean primary, boolean hov) {
-        float hh = this.hv("pill:" + (int) x + ":" + (int) y, hov, 14.0f);
-        Glass.pill(g, x, y, w, h, hh, primary, false);
+        Glass.pill(g, x, y, w, h, hov ? 1.0f : 0.0f, primary, false);
         Glass.textC(g, this.font, Glass.trunc(this.font, label, (int) w - 6), Math.round(x + w / 2), Math.round(y + (h - 8) / 2.0f), primary ? 0xFFFFFFFF : Palette.TEXT, false);
     }
 
+    private void drawPill(GuiGraphicsExtractor g, Cell c, float x, float y, float w, float h, String label, boolean primary, boolean hov) {
+        c.extraAnim = Glass.step(c.extraAnim, hov ? 1.0f : 0.0f, 14.0f);
+        Glass.pill(g, x, y, w, h, c.extraAnim, primary, false);
+        Glass.textC(g, this.font, label, Math.round(x + w / 2), Math.round(y + (h - 8) / 2.0f), primary ? 0xFFFFFFFF : Palette.TEXT, false);
+    }
+
     private void drawItemCard(GuiGraphicsExtractor g, Cell c, float X, float Y, boolean hov) {
-        JsonObject d = c.data;
-        String id = str(d, "id", "");
-        String cat = str(d, "category", "");
-        boolean owned = bool(d, "owned");
-        boolean eq = owned && id.equals(this.equippedId(cat));
-        int rar = rarityColor(str(d, "rarity", ""));
-        float h = this.hv("i:" + id, hov, 14.0f);
-        Glass.glassCard(g, X, Y, c.w, c.h, 9, Glass.mix(Palette.PANEL, rar, 0.08f + 0.06f * h), Glass.opacity * (0.85f + 0.3f * h), 0.0f);
+        String id = c.itemId;
+        String cat = c.itemCat;
+        boolean eq = c.owned && id.equals(this.equippedId(cat));
+        int rar = c.rarity;
+        c.hoverAnim = Glass.step(c.hoverAnim, hov ? 1.0f : 0.0f, 14.0f);
+        float h = c.hoverAnim;
+        int border = eq ? Glass.a(Palette.ACCENT, 0.9f) : (h > 0.01f ? Glass.a(0xFFFFFFFF, 0.35f * h) : 0x38FFFFFF);
+        Glass.glassCard(g, X, Y, c.w, c.h, 9, Glass.mix(Palette.PANEL, rar, 0.08f + 0.06f * h), Glass.opacity * (0.85f + 0.3f * h), 0.0f, border);
         Glass.rrGrad(g, X + 5, Y + 7, 2.5f, c.h - 14, 1.2f, rar, Glass.a(rar, 0.35f));
-        if (eq) {
-            Glass.ring(g, X, Y, c.w, c.h, 9, 0.5f, Glass.a(Palette.ACCENT, 0.9f));
-        } else if (h > 0.01f) {
-            Glass.ring(g, X, Y, c.w, c.h, 9, 0.5f, Glass.a(0xFFFFFFFF, 0.35f * h));
-        }
         int tx = Math.round(X + 14);
-        Glass.textBold(g, this.font, Glass.trunc(this.font, str(d, "name", id), (int) (c.w - 24)), tx, Math.round(Y + 8), Palette.TEXT, true);
-        Glass.text(g, this.font, SLOT_LABELS.getOrDefault(cat, cat), tx, Math.round(Y + 20), Palette.MUTED, false);
+        if (c.truncTitle == null) {
+            c.truncTitle = Glass.trunc(this.font, str(c.data, "name", id), (int) (c.w - 24));
+            c.truncDesc = cat == null || cat.isEmpty() ? "" : SLOT_LABELS.getOrDefault(cat, cat);
+        }
+        Glass.textBold(g, this.font, c.truncTitle, tx, Math.round(Y + 8), Palette.TEXT, true);
+        Glass.text(g, this.font, c.truncDesc, tx, Math.round(Y + 20), Palette.MUTED, false);
         float by = Y + c.h - 18;
         if (c.kind == K_STORE) {
-            int price = num(d, "price", 0);
+            int price = c.price;
             int pts = this.storeCache == null ? -1 : num(this.storeCache, "points", -1);
             boolean poor = pts >= 0 && price > pts;
             Icons.draw(g, Icons.COIN, X + 13, by + 3, 11, rar);
             Glass.text(g, this.font, String.valueOf(price), Math.round(X + 27), Math.round(by + 5), poor ? Palette.DANGER : rar, false);
-            this.drawPill(g, X + c.w - 8 - 46, by, 46, 15, "Kaufen", true, hov);
+            this.drawPill(g, c, X + c.w - 8 - 46, by, 46, 15, "Kaufen", true, hov);
         } else {
-            this.drawPill(g, X + c.w - 8 - 58, by, 58, 15, eq ? "Ablegen" : "Ausrüsten", !eq, hov);
+            this.drawPill(g, c, X + c.w - 8 - 58, by, 58, 15, eq ? "Ablegen" : "Ausrüsten", !eq, hov);
             if (eq) {
                 Glass.badge(g, Math.round(X + 14), Math.round(by), 36, 15, 7, Palette.GREEN, 0xFFFFFFFF, this.font, "Aktiv");
             }
@@ -1504,40 +1581,46 @@ public class KollegenMenuScreen extends Screen {
 
     private void drawGameCard(GuiGraphicsExtractor g, Cell c, float X, float Y, boolean hov) {
         String game = str(c.data, "game", "tetris");
-        String title;
-        String desc;
-        int icon;
-        if (dev.kollegen.client.game.Connect4Screen.ID.equals(game)) {
-            title = "Connect 4";
-            desc = "Vier gewinnt - KI oder gegen Kollegen";
-            icon = Icons.GRID;
-        } else if (dev.kollegen.client.game.ChessScreen.ID.equals(game)) {
-            title = "Schach";
-            desc = "Komplette Regeln - KI oder gegen Kollegen";
-            icon = Icons.SPARKLE;
-        } else if (dev.kollegen.client.game.MenschAergereDichNichtScreen.ID.equals(game)) {
-            title = "Mensch aergere dich nicht";
-            desc = "Wuerfeln und raus - KI oder gegen Kollegen";
-            icon = Icons.GRID;
-        } else if ("snake".equals(game)) {
-            title = "Snake";
-            desc = "Fressen und wachsen - nicht an die Wand laufen";
-            icon = Icons.SNAKE;
+        c.hoverAnim = Glass.step(c.hoverAnim, hov ? 1.0f : 0.0f, 14.0f);
+        float h = c.hoverAnim;
+        int border = h > 0.01f ? Glass.a(0xFFFFFFFF, 0.35f * h) : 0x38FFFFFF;
+        Glass.glassCard(g, X, Y, c.w, c.h, 9, Glass.mix(Palette.PANEL, Palette.ACCENT, 0.04f * h), Glass.opacity * (0.85f + 0.3f * h), 0.0f, border);
+        int icon = Icons.GRID;
+        if (c.truncTitle == null) {
+            String title;
+            String desc;
+            if (dev.kollegen.client.game.Connect4Screen.ID.equals(game)) {
+                title = "Connect 4";
+                desc = "Vier gewinnt - KI oder gegen Kollegen";
+                icon = Icons.GRID;
+            } else if (dev.kollegen.client.game.ChessScreen.ID.equals(game)) {
+                title = "Schach";
+                desc = "Komplette Regeln - KI oder gegen Kollegen";
+                icon = Icons.SPARKLE;
+            } else if (dev.kollegen.client.game.MenschAergereDichNichtScreen.ID.equals(game)) {
+                title = "Mensch aergere dich nicht";
+                desc = "Wuerfeln und raus - KI oder gegen Kollegen";
+                icon = Icons.GRID;
+            } else if ("snake".equals(game)) {
+                title = "Snake";
+                desc = "Fressen und wachsen - nicht an die Wand laufen";
+                icon = Icons.SNAKE;
+            } else {
+                title = "Tetris";
+                desc = "Spielen und Kollegen-Punkte verdienen (100:1)";
+                icon = Icons.SPARKLE;
+            }
+            c.truncTitle = Glass.trunc(this.font, title, (int) (c.w - 60));
+            c.truncDesc = Glass.trunc(this.font, desc, (int) (c.w - 48 - 130));
+            c.extraAnim = icon;
         } else {
-            title = "Tetris";
-            desc = "Spielen und Kollegen-Punkte verdienen (100:1)";
-            icon = Icons.SPARKLE;
-        }
-        float h = this.hv("g:" + game, hov, 14.0f);
-        Glass.glassCard(g, X, Y, c.w, c.h, 9, Glass.mix(Palette.PANEL, Palette.ACCENT, 0.04f * h), Glass.opacity * (0.85f + 0.3f * h), 0.0f);
-        if (h > 0.01f) {
-            Glass.ring(g, X, Y, c.w, c.h, 9, 0.5f, Glass.a(0xFFFFFFFF, 0.35f * h));
+            icon = (int) c.extraAnim;
         }
         Glass.rr(g, X + 7, Y + (c.h - 32) / 2.0f, 32, 32, 9, Glass.a(Palette.ACCENT, 0.18f));
         Icons.draw(g, icon, X + 7 + 32 * 0.22f, Y + (c.h - 32) / 2.0f + 32 * 0.22f, 32 * 0.56f, Palette.ACCENT);
-        Glass.textBold(g, this.font, Glass.trunc(this.font, title, (int) (c.w - 60)), Math.round(X + 48), Math.round(Y + 10), Palette.TEXT, true);
-        Glass.text(g, this.font, Glass.trunc(this.font, desc, (int) (c.w - 48 - 130)), Math.round(X + 48), Math.round(Y + 30), Palette.MUTED, false);
-        this.drawPill(g, X + c.w - 8 - 128, Y + (c.h - 28) / 2.0f, 128, 28, "Spielen", true, hov);
+        Glass.textBold(g, this.font, c.truncTitle, Math.round(X + 48), Math.round(Y + 10), Palette.TEXT, true);
+        Glass.text(g, this.font, c.truncDesc, Math.round(X + 48), Math.round(Y + 30), Palette.MUTED, false);
+        this.drawPill(g, c, X + c.w - 8 - 128, Y + (c.h - 28) / 2.0f, 128, 28, "Spielen", true, hov);
     }
 
     private void drawPetPreview(GuiGraphicsExtractor g, String id, float x, float y, int size) {
@@ -1562,21 +1645,22 @@ public class KollegenMenuScreen extends Screen {
     private void drawPetCard(GuiGraphicsExtractor g, Cell c, float X, float Y, boolean hov) {
         JsonObject d = c.data;
         String id = str(d, "id", "");
-        float h = this.hv("p:" + id, hov, 14.0f);
-        Glass.glassCard(g, X, Y, c.w, c.h, 9, Glass.mix(Palette.PANEL, Palette.ACCENT, 0.04f * h), Glass.opacity * (0.85f + 0.3f * h), 0.0f);
-        if (h > 0.01f) {
-            Glass.ring(g, X, Y, c.w, c.h, 9, 0.5f, Glass.a(0xFFFFFFFF, 0.35f * h));
-        }
+        c.hoverAnim = Glass.step(c.hoverAnim, hov ? 1.0f : 0.0f, 14.0f);
+        float h = c.hoverAnim;
+        int border = h > 0.01f ? Glass.a(0xFFFFFFFF, 0.35f * h) : 0x38FFFFFF;
+        Glass.glassCard(g, X, Y, c.w, c.h, 9, Glass.mix(Palette.PANEL, Palette.ACCENT, 0.04f * h), Glass.opacity * (0.85f + 0.3f * h), 0.0f, border);
         this.drawPetPreview(g, id, X + 7, Y + 7, 32);
-        Glass.textBold(g, this.font, Glass.trunc(this.font, str(d, "name", id), (int) (c.w - 56)), Math.round(X + 46), Math.round(Y + 9), Palette.TEXT, true);
-        this.drawPill(g, X + 46, Y + c.h - 19, 50, 15, "Rufen", true, hov);
+        if (c.truncTitle == null) {
+            c.truncTitle = Glass.trunc(this.font, str(d, "name", id), (int) (c.w - 56));
+        }
+        Glass.textBold(g, this.font, c.truncTitle, Math.round(X + 46), Math.round(Y + 9), Palette.TEXT, true);
+        this.drawPill(g, c, X + 46, Y + c.h - 19, 50, 15, "Rufen", true, hov);
     }
 
     private void drawActivePet(GuiGraphicsExtractor g, Cell c, float X, float Y, int mx, int my) {
         JsonObject d = c.data;
         String id = str(d, "id", "");
-        Glass.glassCard(g, X, Y, c.w, c.h, 10, Glass.mix(Palette.PANEL, Palette.ACCENT, 0.10f), Glass.opacity, 0.0f);
-        Glass.ring(g, X, Y, c.w, c.h, 10, 0.5f, Glass.a(Palette.ACCENT, 0.8f));
+        Glass.glassCard(g, X, Y, c.w, c.h, 10, Glass.mix(Palette.PANEL, Palette.ACCENT, 0.10f), Glass.opacity, 0.0f, Glass.a(Palette.ACCENT, 0.8f));
         this.drawPetPreview(g, id, X + 8, Y + 6, 28);
         Glass.textScaled(g, this.font, str(d, "name", id), X + 44, Y + 7, 1.2f, Palette.TEXT, true);
         String sub = "Modus: " + modeLabel(this.petModeOf(id)) + "  ·  Skin: " + this.petVariantLabel(id);

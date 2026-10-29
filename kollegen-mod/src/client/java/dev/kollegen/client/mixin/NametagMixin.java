@@ -47,7 +47,8 @@ public class NametagMixin {
             if (state == null || id == null) return;
             CosmeticData data = KollegenPresence.getCosmetics(id);
             if (data == null || data.capeTexture == null) return;
-            net.minecraft.resources.Identifier tex = net.minecraft.resources.Identifier.tryParse(data.capeTexture);
+            String capeStr = data.capeTexture.toLowerCase(java.util.Locale.ROOT);
+            net.minecraft.resources.Identifier tex = net.minecraft.resources.Identifier.tryParse(capeStr);
             if (tex == null) return;
             state.showCape = true;
             try {

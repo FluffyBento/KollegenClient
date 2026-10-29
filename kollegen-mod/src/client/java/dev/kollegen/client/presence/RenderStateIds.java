@@ -20,6 +20,20 @@ public final class RenderStateIds {
 
     public static UUID get(AvatarRenderState state) {
         if (state == null) return null;
-        return IDS.get(state);
+        UUID id = IDS.get(state);
+        if (id != null) return id;
+        try {
+            net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
+            if (mc != null && mc.level != null && state.id != 0) {
+                net.minecraft.world.entity.Entity e = mc.level.getEntity(state.id);
+                if (e instanceof net.minecraft.world.entity.player.Player p) {
+                    UUID u = p.getUUID();
+                    IDS.put(state, u);
+                    return u;
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+        return null;
     }
 }

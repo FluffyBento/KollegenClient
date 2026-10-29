@@ -1,5 +1,6 @@
 package dev.kollegen.client.mixin;
 
+import dev.kollegen.client.mods.modules.Performance;
 import dev.kollegen.client.mods.modules.WeatherState;
 import net.minecraft.client.Camera;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -13,6 +14,21 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(SkyRenderer.class)
 public class SkyRendererMixin {
+
+    @Inject(method = "extractRenderState(Lnet/minecraft/client/multiplayer/ClientLevel;FLnet/minecraft/client/Camera;Lnet/minecraft/client/renderer/state/level/SkyRenderState;)V",
+            at = @At("HEAD"))
+    private void kollegen$caveSky(ClientLevel level, float f, Camera camera, SkyRenderState state, CallbackInfo ci) {
+        if (!Performance.KollegenTricks.shouldCullCaveSky()) return;
+        try {
+            if (level != null && camera != null && state != null) {
+                if (camera.position().y < 55 && !level.canSeeSky(camera.blockPosition())) {
+                    state.starBrightness = 0.0f;
+                    state.sunriseAndSunsetColor = null;
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+    }
 
     @Inject(method = "extractRenderState(Lnet/minecraft/client/multiplayer/ClientLevel;FLnet/minecraft/client/Camera;Lnet/minecraft/client/renderer/state/level/SkyRenderState;)V",
             at = @At("RETURN"))
