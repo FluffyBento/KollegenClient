@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Kollegen Client - Freecam Server Restrictions",
+  "description": "Server-Betreiber können hier per Pull Request ihren Server eintragen, um Freecam auf ihrem Server clientseitig zu sperren.",
+  "instructions": "Füge die Domain deines Servers (z. B. 'deinserver.net') zur Liste 'disallowed_servers' hinzu und erstelle einen Pull Request auf GitHub (https://github.com/FluffyBento/KollegenClient). Groß-/Kleinschreibung und Subdomains (z. B. play.deinserver.net) werden automatisch abgedeckt.",
+  "disallowed_servers": [
+    "gommehd.net",
+    "cytooxien.net",
+    "melvin501.de",
+    "heldeninsel.net",
+    "xolia.net",
+    "mcpvp.club",
+    "castcrafter.de",
+    "survivalfreunde.de",
+    "veylor.net",
+    "planetsmp.com"
+  ]
+}

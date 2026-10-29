@@ -28,6 +28,7 @@ public final class Visual {
         ModuleManager.register(new Fullbright());
         ModuleManager.register(new ReducedParticles());
         ModuleManager.register(new Zoom());
+        ModuleManager.register(new Freecam());
     }
 
     

@@ -30,6 +30,7 @@ public class KollegenMod implements ClientModInitializer {
 
     @Override
     public void onInitializeClient() {
+        dev.kollegen.client.server.ServerRestrictions.init();
         dev.kollegen.client.mods.Palette.loadTheme(); 
         ModuleManager.registerAll();
         

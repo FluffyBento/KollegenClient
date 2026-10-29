@@ -961,7 +961,7 @@ public class KollegenMenuScreen extends Screen {
     }
 
     private void toggleModule(Module m) {
-        if (m.locked) {
+        if (m.isLocked()) {
             return;
         }
         m.enabled = !m.enabled;
@@ -1108,9 +1108,9 @@ public class KollegenMenuScreen extends Screen {
                 case K_MOD: {
                     Module m = c.module;
                     boolean onSwitch = hit(mx, my, X + c.w - 40, Y, 40, 24);
-                    if (onSwitch && !m.locked) {
+                    if (onSwitch && !m.isLocked()) {
                         this.toggleModule(m);
-                    } else if (m.settings().isEmpty() && !m.locked) {
+                    } else if (m.settings().isEmpty() && !m.isLocked()) {
                         this.toggleModule(m);
                     } else {
                         this.openDetail(m);
@@ -1485,8 +1485,8 @@ public class KollegenMenuScreen extends Screen {
         }
         Glass.textBold(g, this.font, c.truncTitle, tx, Math.round(Y + 9), Palette.TEXT, true);
         Glass.text(g, this.font, c.truncDesc, tx, Math.round(Y + 23), Palette.MUTED, false);
-        if (m.locked) {
-            Icons.draw(g, Icons.LOCK, X + c.w - 20, Y + 8, 11, Palette.MUTED);
+        if (m.isLocked()) {
+            Icons.draw(g, Icons.LOCK, X + c.w - 28, Y + 8, 12, Palette.MUTED);
         } else {
             GlassToggle.drawSwitch(g, X + c.w - 10 - 24, Y + 8, 24, 13, en, 0.0f);
         }
@@ -1511,8 +1511,8 @@ public class KollegenMenuScreen extends Screen {
             Glass.text(g, this.font, Glass.trunc(this.font, m.risk, (int) (c.w - 60)), Math.round(X + 43), Math.round(Y + 33), Palette.DANGER, false);
         }
         float en = this.hv("e:" + m.id, m.enabled, 12.0f);
-        if (m.locked) {
-            Icons.draw(g, Icons.LOCK, X + c.w - 18, Y + 6, 12, Palette.MUTED);
+        if (m.isLocked()) {
+            Icons.draw(g, Icons.LOCK, X + c.w - 26, Y + 6, 14, Palette.MUTED);
         } else {
             GlassToggle.drawSwitch(g, X + c.w - 34, Y + 5, 30, 16, en, 0.0f);
         }

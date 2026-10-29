@@ -22,6 +22,10 @@ public abstract class Module {
     
     public boolean locked = false;
 
+    public boolean isLocked() {
+        return locked;
+    }
+
     protected final List<Setting> settings = new ArrayList<>();
     protected final Minecraft mc = Minecraft.getInstance();
 

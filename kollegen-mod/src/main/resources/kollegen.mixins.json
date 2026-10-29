@@ -51,7 +51,8 @@
     "ClientLevelMixin",
     "FrustumAccessor",
     "DynamicGpuDataStorageMappedMixin",
-    "DynamicGpuDataStorageNonMappedMixin"
+    "DynamicGpuDataStorageNonMappedMixin",
+    "CameraMixin"
   ],
   "injectors": {
     "defaultRequire": 1
