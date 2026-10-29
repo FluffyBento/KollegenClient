@@ -24,21 +24,74 @@ import java.util.Locale;
 import java.util.Set;
 
 public final class ServerRestrictions {
-    private static final String REMOTE_URL = "https://raw.githubusercontent.com/FluffyBento/KollegenClient/main/freecam-restrictions.json";
+    private static final String REMOTE_URL = "https://raw.githubusercontent.com/FluffyBento/KollegenClient/main/server-restrictions/freecam.json";
+    private static final String FALLBACK_REMOTE_URL = "https://raw.githubusercontent.com/FluffyBento/KollegenClient/main/freecam-restrictions.json";
     private static final Set<String> DISALLOWED_SERVERS = Collections.synchronizedSet(new HashSet<>());
     private static volatile boolean initialized = false;
 
     private static final String[] DEFAULT_BLOCKED = {
-            "gommehd.net",
-            "cytooxien.net",
-            "melvin501.de",
-            "heldeninsel.net",
-            "xolia.net",
-            "mcpvp.club",
+            "abge.net",
+            "applecraft.org",
+            "badlion.net",
+            "bausucht.net",
+            "bavariamc.de",
+            "bedwars.games",
+            "blockminers.de",
+            "bloxland.com",
             "castcrafter.de",
+            "complex-gaming.com",
+            "craftstuebchen.de",
+            "cubecraft.net",
+            "cubeside.de",
+            "cultcraft.de",
+            "cytooxien.net",
+            "donpmc.com",
+            "dustmc.de",
+            "gommehd.net",
+            "griefergames.net",
+            "heldeninsel.net",
+            "herobrine.org",
+            "hivemc.com",
+            "hoplite.gg",
+            "hypixel.net",
+            "insanitycraft.net",
+            "invadedlands.net",
+            "jartexnetwork.com",
+            "kadcon.de",
+            "lemoncloud.org",
+            "lunar.gg",
+            "manacube.com",
+            "mcpvp.club",
+            "melvin501.de",
+            "minebench.de",
+            "minehut.com",
+            "minemen.club",
+            "mineplex.com",
+            "minesucht.net",
+            "mineville.net",
+            "neruxvace.net",
+            "opsucht.net",
+            "originrealms.com",
+            "pika-network.net",
+            "planetsmp.com",
+            "play-lemoncloud.com",
+            "playinteam.de",
+            "pvplegacy.net",
+            "pvptemple.com",
+            "randymc.de",
+            "rewinside.tv",
+            "snapcraft.net",
+            "spielersuchtes.de",
             "survivalfreunde.de",
+            "timolia.de",
+            "tubnet.net",
+            "twerion.net",
+            "universocraft.com",
+            "varomc.de",
             "veylor.net",
-            "planetsmp.com"
+            "vortexnetwork.net",
+            "wynncraft.com",
+            "xolia.net"
     };
 
     public static void init() {
@@ -55,11 +108,17 @@ public final class ServerRestrictions {
     }
 
     private static void loadBundled() {
-        try (InputStream in = ServerRestrictions.class.getResourceAsStream("/dev/kollegen/client/freecam-restrictions.json")) {
-            if (in != null) {
-                parseJson(new InputStreamReader(in, StandardCharsets.UTF_8));
+        for (String path : new String[]{
+                "/dev/kollegen/client/server-restrictions/freecam.json",
+                "/dev/kollegen/client/freecam-restrictions.json"
+        }) {
+            try (InputStream in = ServerRestrictions.class.getResourceAsStream(path)) {
+                if (in != null) {
+                    parseJson(new InputStreamReader(in, StandardCharsets.UTF_8));
+                    break;
+                }
+            } catch (Throwable ignored) {
             }
-        } catch (Throwable ignored) {
         }
     }
 
@@ -90,19 +149,26 @@ public final class ServerRestrictions {
                         .connectTimeout(Duration.ofSeconds(3))
                         .followRedirects(HttpClient.Redirect.NORMAL)
                         .build();
-                HttpRequest req = HttpRequest.newBuilder()
-                        .uri(URI.create(REMOTE_URL))
-                        .timeout(Duration.ofSeconds(4))
-                        .header("User-Agent", "KollegenClient")
-                        .GET()
-                        .build();
-                HttpResponse<String> resp = client.send(req, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
-                if (resp.statusCode() == 200 && resp.body() != null) {
-                    String json = resp.body();
-                    parseJsonString(json);
-                    Path cache = getCachePath();
-                    if (cache != null) {
-                        Files.writeString(cache, json, StandardCharsets.UTF_8);
+
+                for (String url : new String[]{REMOTE_URL, FALLBACK_REMOTE_URL}) {
+                    try {
+                        HttpRequest req = HttpRequest.newBuilder()
+                                .uri(URI.create(url))
+                                .timeout(Duration.ofSeconds(4))
+                                .header("User-Agent", "KollegenClient")
+                                .GET()
+                                .build();
+                        HttpResponse<String> resp = client.send(req, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+                        if (resp.statusCode() == 200 && resp.body() != null && !resp.body().isBlank()) {
+                            String json = resp.body();
+                            parseJsonString(json);
+                            Path cache = getCachePath();
+                            if (cache != null) {
+                                Files.writeString(cache, json, StandardCharsets.UTF_8);
+                            }
+                            break;
+                        }
+                    } catch (Throwable ignored) {
                     }
                 }
             } catch (Throwable ignored) {
