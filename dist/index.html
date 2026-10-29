@@ -212,7 +212,7 @@
               <button id="browseProfileBtn" class="btn-secondary sx-wide">Öffentliche durchsuchen</button>
             </div>
             <canvas id="viewProfileCanvas" width="220" height="440" class="view-profile-canvas"></canvas>
-            <div id="viewProfileResult" class="view-profile-result"></div>
+            <div id="vpResultSlot"><div id="viewProfileResult" class="view-profile-result"></div></div>
           </section>
         </aside>
       </div>
@@ -299,20 +299,25 @@
       </div>
     </section>
 
-    <section id="cosmeticsPanel" class="panel tab-panel" data-tab="cosmetics" aria-labelledby="cosmeticsTitle" hidden>
-      <header class="panel-header">
+    <section id="cosmeticsPanel" class="tab-panel sx-page" data-tab="cosmetics" aria-labelledby="cosmeticsTitle" hidden>
+      <div class="sx-head">
         <h2 id="cosmeticsTitle">Cosmetics</h2>
-      </header>
+        <span class="sx-head-sub">Rüste aus, was du dir im Store geholt hast</span>
+      </div>
       <div class="cosm-layout">
         <div class="cosm-list">
-          <h3>Ausgerüstet im Spiel</h3>
-          <div id="cosmEquipped" class="cosm-owned"><div class="store-msg">Lade …</div></div>
-          <h3>Deine Gegenstände</h3>
-          <div id="cosmOwned" class="cosm-owned"><div class="store-msg">Lade …</div></div>
-          <div id="cosmPetBox" class="cosm-petbox" style="display:none;">
-            <div class="pet-headrow"><h3>Haustiere</h3><button id="cosmPetNone" class="pet-nonebtn" title="Kein Haustier ausrüsten">Keins</button></div>
+          <section class="sx-card" aria-label="Ausgerüstet im Spiel">
+            <div class="sx-card-head"><h3 class="sx-title">Ausgerüstet im Spiel</h3></div>
+            <div id="cosmEquipped" class="cosm-owned"><div class="store-msg">Lade …</div></div>
+          </section>
+          <section class="sx-card" aria-label="Deine Gegenstände">
+            <div class="sx-card-head"><h3 class="sx-title">Deine Gegenstände</h3></div>
+            <div id="cosmOwned" class="cosm-owned"><div class="store-msg">Lade …</div></div>
+          </section>
+          <section id="cosmPetBox" class="cosm-petbox sx-card" style="display:none;" aria-label="Haustiere">
+            <div class="pet-headrow"><h3 class="sx-title">Haustiere</h3><button id="cosmPetNone" class="pet-nonebtn" title="Kein Haustier ausrüsten">Keins</button></div>
             <div id="cosmPetCards" class="cosm-petcards"></div>
-          </div>
+          </section>
         </div>
         <div class="cosm-preview">
           <canvas id="cosmSkinCanvas" width="280" height="560"></canvas>
@@ -560,61 +565,77 @@
     <div class="modal-content profile-modal">
       <button id="profileClose" class="icon-btn" aria-label="Schließen">✕</button>
       <div class="profile-skin" id="profileSkinCol">
-        <canvas id="skinCanvas" width="240" height="480"></canvas>
+        <div class="profile-skin-stage">
+          <canvas id="skinCanvas" width="240" height="480"></canvas>
+        </div>
       </div>
       <div class="profile-side">
-        <div id="pmOwnHead">
-          <h2 id="pmName">—</h2>
-          <div id="pmDiscord" class="profile-discord"></div>
-          <div class="profile-code">
-            <span>Freundes-Code:</span>
-            <code id="pmCode"></code>
-            <button id="pmCopy" class="btn-small">Kopieren</button>
+        <div id="pmForeign" class="pm-foreign"></div>
+        <div id="pmOwnHead" class="pm-head">
+          <div class="pm-head-top">
+            <div class="pm-head-main">
+              <h2 id="pmName">—</h2>
+              <div id="pmDiscord" class="profile-discord"></div>
+            </div>
+            <div class="profile-code">
+              <span class="pc-label">Freundes-Code</span>
+              <code id="pmCode"></code>
+              <button id="pmCopy" class="btn-small">Kopieren</button>
+            </div>
           </div>
-          <h4>Verbundene Accounts</h4>
           <div id="pmAccounts" class="profile-accounts"></div>
         </div>
 
-        <div class="profile-customize" id="profileCustomize">
-          <h4>Profil anpassen</h4>
-          <label for="profileBio">Bio</label>
-          <textarea id="profileBio" placeholder="Beschreibe dich in ein paar Worten..." rows="3"></textarea>
+        <div class="pm-tabs" id="pmTabs" role="tablist" aria-label="Profil-Bereiche">
+          <button class="tab active" data-pane="profile" role="tab" aria-selected="true">Profil</button>
+          <button class="tab" data-pane="kosmetik" role="tab" aria-selected="false">Kosmetik</button>
+          <button class="tab" data-pane="skin" role="tab" aria-selected="false">Skin &amp; Capes</button>
+        </div>
 
-          <label>Banner (optional)</label>
-          <div class="banner-picker">
-            <input id="profileBannerInput" type="file" accept="image/*" />
-            <div id="profileBannerPreviewWrap"><img id="profileBannerPreview" alt="Banner Vorschau" style="display:none; max-width:100%; border-radius:var(--radius-md);" /></div>
+        <div class="profile-customize pm-pane on" id="profileCustomize" data-pane="profile">
+          <div class="pm-field">
+            <label for="profileBio">Bio</label>
+            <textarea id="profileBio" placeholder="Beschreibe dich in ein paar Worten..." rows="3"></textarea>
           </div>
 
-          <label>Avatar</label>
-          <div class="avatar-options">
-            <select id="profileAvatarChoice">
-              <option value="discord">Discord-Avatar</option>
-              <option value="minecraft">Minecraft-Head (Aktueller Skin)</option>
-              <option value="upload">Hochladen</option>
-            </select>
-            <input id="profileAvatarUpload" type="file" accept="image/*" hidden />
-            <div id="profileAvatarPreviewWrap"><img id="profileAvatarPreview" alt="Avatar Vorschau" style="display:none; width:64px; height:64px; border-radius:var(--radius-md);" /></div>
+          <div class="pm-field">
+            <label>Banner (optional)</label>
+            <div class="banner-picker">
+              <input id="profileBannerInput" type="file" accept="image/*" />
+              <div id="profileBannerPreviewWrap"><img id="profileBannerPreview" alt="Banner Vorschau" style="display:none; max-width:100%; border-radius:var(--radius-md);" /></div>
+            </div>
           </div>
 
-          <div style="margin-top:0.5rem; display:flex; gap:0.5rem; align-items:center;">
+          <div class="pm-field">
+            <label>Avatar</label>
+            <div class="avatar-options">
+              <div id="profileAvatarPreviewWrap"><img id="profileAvatarPreview" alt="Avatar Vorschau" style="display:none; width:64px; height:64px; border-radius:var(--radius-md);" /></div>
+              <select id="profileAvatarChoice">
+                <option value="discord">Discord-Avatar</option>
+                <option value="minecraft">Minecraft-Head (Aktueller Skin)</option>
+                <option value="upload">Hochladen</option>
+              </select>
+              <input id="profileAvatarUpload" type="file" accept="image/*" hidden />
+            </div>
+          </div>
+
+          <div class="pm-actions">
             <button id="profileEditToggle" class="btn-secondary">Bearbeiten</button>
             <button id="profileSaveBtn" class="btn-primary" hidden>Speichern</button>
             <button id="profileCancelBtn" class="btn-secondary" hidden>Abbrechen</button>
-            <button id="profilePublishBtn" class="btn-primary" style="margin-left:auto;">Publizieren</button>
+            <button id="profilePublishBtn" class="btn-primary pm-publish">Publizieren</button>
           </div>
         </div>
 
-        <div style="margin-top:1rem;" class="kosmet-box" id="kosmetBox">
-          <h4>Kosmetik (Profil ausrüsten)</h4>
+        <div class="kosmet-box pm-pane" id="kosmetBox" data-pane="kosmetik">
           <div class="kosmet-preview" id="kosmetPreview"></div>
-          <div id="kosmetGroups"></div>
           <div class="kosmet-pts" id="kosmetPts"></div>
+          <div id="kosmetGroups"></div>
           <div class="kosmet-hint" id="kosmetHint"></div>
-          <button id="kosmetViewBtn" class="btn-secondary" style="margin-top:0.5rem;">So sehen dich andere</button>
+          <button id="kosmetViewBtn" class="btn-secondary pm-viewbtn">So sehen dich andere</button>
         </div>
 
-        <div class="skin-changer" id="skinChanger">
+        <div class="skin-changer pm-pane" id="skinChanger" data-pane="skin">
           <h4>Skin wechseln</h4>
           <div class="skin-actions">
             <button id="skinDownloadBtn" class="btn-secondary">Download</button>
@@ -624,7 +645,7 @@
           <div id="skinLibrary" class="skin-library" role="list"></div>
         </div>
 
-        <div class="cape-changer" id="capeChanger">
+        <div class="cape-changer pm-pane" id="capeChanger" data-pane="skin">
           <h4>Capes</h4>
           <div id="capeList" class="cape-list" role="list"></div>
         </div>

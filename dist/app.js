@@ -827,6 +827,39 @@ async function refreshLogs() {
     loadHomeSkin(false);
   }
 
+// Tabs im Profil-Fenster (Profil / Kosmetik / Skin & Capes)
+(function wirePmTabs() {
+  const tabs = document.getElementById("pmTabs");
+  if (!tabs) return;
+  const apply = (key) => {
+    tabs.querySelectorAll("button[data-pane]").forEach((b) => {
+      const on = b.dataset.pane === key;
+      b.classList.toggle("active", on);
+      b.setAttribute("aria-selected", on ? "true" : "false");
+    });
+    document.querySelectorAll("#profileModal .pm-pane").forEach((p) => {
+      p.classList.toggle("on", p.dataset.pane === key);
+    });
+  };
+  tabs.addEventListener("click", (e) => {
+    const b = e.target.closest("button[data-pane]");
+    if (b) apply(b.dataset.pane);
+  });
+  window.pmShowPane = apply;
+  // Beim Schließen das Ergebnis-Element wieder auf die Socials-Seite zurücksetzen
+  const pmEl = document.getElementById("profileModal");
+  if (pmEl) {
+    new MutationObserver(() => {
+      if (pmEl.style.display !== "none") return;
+      const wr = document.getElementById("viewProfileResult");
+      const back = document.getElementById("vpResultSlot");
+      if (wr && back && wr.parentElement !== back) back.append(wr);
+      const c = pmEl.querySelector(".profile-modal");
+      if (c) c.classList.remove("foreign");
+    }).observe(pmEl, { attributes: true, attributeFilter: ["style"] });
+  }
+})();
+
 // Wire profile UI controls (save/edit/view)
 (function wireProfileUI(){
   const editBtn = $("profileEditToggle");
@@ -849,7 +882,7 @@ async function refreshLogs() {
 
   if (avatarChoice) avatarChoice.onchange = () => {
     const v = avatarChoice.value;
-    if (v === 'upload') { avatarUpload.style.display = ''; } else { avatarUpload.style.display = 'none'; }
+    avatarUpload.hidden = v !== 'upload';
     const av = $("profileAvatarPreview");
     if (!av) return;
     if (v === 'minecraft') {
@@ -1069,6 +1102,7 @@ async function refreshLogs() {
        const content = m.querySelector(".profile-modal");
        if (content) content.classList.toggle("skin-only", skinOnly);
        if (!skinOnly) pmSetView(false);
+       if (window.pmShowPane) window.pmShowPane("profile");
        setTimeout(() => loadSkinChanger(false), 60);
 
     // Load profile customization from settings
@@ -1102,12 +1136,17 @@ async function refreshLogs() {
   // Profil-Modal: eigene Bearbeitung vs. Fremdansicht
   function pmSetView(foreign) {
     const mode = foreign ? "none" : "";
-    ["profileSkinCol", "pmOwnHead", "profileCustomize", "kosmetBox", "skinChanger", "capeChanger"].forEach((id) => {
+    ["profileSkinCol", "pmOwnHead", "pmTabs", "profileCustomize", "kosmetBox", "skinChanger", "capeChanger"].forEach((id) => {
       const el = document.getElementById(id);
       if (el) el.style.display = mode;
     });
     const wr = document.getElementById("viewProfileResult");
     if (wr) wr.style.display = foreign ? "block" : "";
+    // Fremdansicht: Ergebnis im Fenster anzeigen, sonst zurück auf die Socials-Seite
+    const pmc = document.querySelector("#profileModal .profile-modal");
+    if (pmc) pmc.classList.toggle("foreign", !!foreign);
+    const slot = document.getElementById(foreign ? "pmForeign" : "vpResultSlot");
+    if (wr && slot && wr.parentElement !== slot) slot.append(wr);
   }
 
   // Profile editing helpers
@@ -3856,8 +3895,9 @@ startBackgroundIntervals();
     let ph = "";
     if (bn && bn.data && bn.data.gradient) ph += `<div style="height:52px;border-radius:10px;margin-bottom:0.6rem;background:${esc(bn.data.gradient)};border:1px solid rgba(255,255,255,0.08);"></div>`;
     const nmStyle = `color:${esc(accent)};font-weight:800;${font ? `font-family:${esc(font)};` : ""}`;
-    save.innerHTML = ph + `<div style="display:flex;gap:0.7rem;align-items:center;"><div style="flex:1;min-width:0;"><div class="kp-name" style="${nmStyle}">${nameHtml}</div><div class="kp-sub">Level ${esc(st.level || 1)}</div></div></div>`;
-    save.append(av);
+    save.innerHTML = ph + `<div style="display:flex;gap:0.7rem;align-items:center;"><span class="kp-avslot"></span><div style="flex:1;min-width:0;"><div class="kp-name" style="${nmStyle}">${nameHtml}</div><div class="kp-sub">Level ${esc(st.level || 1)}</div></div></div>`;
+    const avSlot = save.querySelector(".kp-avslot");
+    if (avSlot) avSlot.replaceWith(av); else save.append(av);
     const PREQ = [["name_color", "Namensfarbe"], ["font", "Schriftart"], ["sticker", "Aufkleber"], ["profil_stil", "Profilstil"], ["banner", "Banner"], ["profile_bg", "Hintergrund"], ["profile_frame", "Profil-Rahmen"], ["avatar_frame", "Avatar-Rahmen"]];
     let rows = "";
     for (const c of PREQ) {
@@ -3901,7 +3941,7 @@ startBackgroundIntervals();
       anyGroup = true;
       const g = document.createElement("div");
       g.className = "kosmet-group" + (isCollapsed(cat) ? " collapsed" : "");
-      g.innerHTML = `<div class="kg-title" role="button" tabindex="0">${CATNAMES[cat] || cat}</div><div class="kosmet-chips"></div>`;
+      g.innerHTML = `<div class="kg-title" role="button" tabindex="0">${CATNAMES[cat] || cat}<span class="kg-count">${mine.length}</span></div><div class="kosmet-chips"></div>`;
       const title = g.querySelector(".kg-title");
       const toggle = () => {
         const c = g.classList.toggle("collapsed");
@@ -4685,6 +4725,10 @@ startBackgroundIntervals();
         const title = document.createElement("div");
         title.className = "kg-title";
         title.textContent = cosmCatLabel(cat) || "Sonstiges";
+        const cnt = document.createElement("span");
+        cnt.className = "kg-count";
+        cnt.textContent = String(mine.length);
+        title.append(cnt);
         title.setAttribute("role", "button");
         title.tabIndex = 0;
         const toggleGroup = () => {
@@ -4740,7 +4784,14 @@ startBackgroundIntervals();
           if (r.accent) dot.style.background = r.accent;
           const txt = document.createElement("span");
           txt.className = "cosm-eq-txt";
-          txt.textContent = r.label + ": " + r.name;
+          const lab = document.createElement("span");
+          lab.className = "cosm-eq-label";
+          lab.textContent = r.label;
+          const nm = document.createElement("span");
+          nm.className = "cosm-eq-name";
+          nm.textContent = r.name;
+          nm.title = r.name;
+          txt.append(lab, nm);
           row.append(dot, txt);
           eqBox.appendChild(row);
         }
@@ -4837,6 +4888,7 @@ startBackgroundIntervals();
           const card = document.createElement("div");
           card.className = "store-card pet-card" + (equipped === it.id ? " equipped" : "");
           card.dataset.petCard = it.id;
+          if (equipped === it.id) card.dataset.state = "equipped";
           card.dataset.petBase = it.name || it.id;
           const pv = document.createElement("div");
           pv.className = "store-pv pet-pv";
