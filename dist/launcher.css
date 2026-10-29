@@ -1132,6 +1132,7 @@ body > header .btn-secondary {
   border-radius: 0;
   background: transparent;
   border: none;
+  pointer-events: none;
 }
 
 #homeModels {

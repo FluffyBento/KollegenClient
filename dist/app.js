@@ -5132,7 +5132,7 @@ startBackgroundIntervals();
       canvas.style.display = "";
       const fb = wrap.querySelector("img.skin-fallback");
       if (fb) fb.remove();
-      cosmSkinViewer = new sv3d.SkinViewer({ canvas: canvas, width: 280, height: 560 });
+      cosmSkinViewer = new sv3d.SkinViewer({ canvas: canvas, width: 220, height: 440 });
       let skinUrl = norm(url);
       if (/^https?:\/\//i.test(url)) {
         try {

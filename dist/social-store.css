@@ -329,7 +329,9 @@
 .sx-rail .view-profile-canvas {
   display: block;
   width: 120px;
-  height: auto;
+  height: auto !important;
+  aspect-ratio: 1 / 2;
+  object-fit: contain;
   margin: 0.8rem auto 0;
 }
 
@@ -1169,14 +1171,20 @@ body:not(.console-mode) .store-cats .tab.active::before {
 }
 
 #cosmSkinCanvas {
-  width: 100%;
-  max-width: 220px;
-  height: auto;
+  display: block;
+  width: 220px;
+  max-width: 100%;
+  height: auto !important;
   aspect-ratio: 1 / 2;
+  object-fit: contain;
 }
 
 .cosm-preview .skin-fallback {
-  max-width: 220px;
+  width: 220px;
+  max-width: 100%;
+  height: auto;
+  aspect-ratio: 1 / 2;
+  object-fit: contain;
   border-radius: var(--radius-md);
   border: 0;
 }
