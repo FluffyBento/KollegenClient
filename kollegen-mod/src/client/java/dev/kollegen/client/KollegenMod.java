@@ -80,24 +80,28 @@ public class KollegenMod implements ClientModInitializer {
             }
         }
 
-        
-        for (Module m : ModuleManager.modules()) {
-            for (dev.kollegen.client.mods.Setting s : m.settings()) {
-                if (s instanceof KeybindSetting ks && ks.value >= 0) {
-                    boolean down = isKeyDown(ks.value);
-                    boolean was = pressedKeys.contains(ks.value);
+        // Module Hotkeys (nur ausführen wenn kein Screen geöffnet ist)
+        if (mc.gui != null && mc.gui.screen() == null) {
+            for (Module m : ModuleManager.modules()) {
+                for (dev.kollegen.client.mods.Setting s : m.settings()) {
+                    if (s instanceof KeybindSetting ks && ks.value >= 0) {
+                        boolean down = isKeyDown(ks.value);
+                        boolean was = pressedKeys.contains(ks.value);
+                        if (down && !was) m.onKey();
+                        if (down) pressedKeys.add(ks.value);
+                        else pressedKeys.remove(ks.value);
+                    }
+                }
+                if (m.key >= 0) {
+                    boolean down = isKeyDown(m.key);
+                    boolean was = pressedKeys.contains(m.key);
                     if (down && !was) m.onKey();
-                    if (down) pressedKeys.add(ks.value);
-                    else pressedKeys.remove(ks.value);
+                    if (down) pressedKeys.add(m.key);
+                    else pressedKeys.remove(m.key);
                 }
             }
-            if (m.key >= 0) {
-                boolean down = isKeyDown(m.key);
-                boolean was = pressedKeys.contains(m.key);
-                if (down && !was) m.onKey();
-                if (down) pressedKeys.add(m.key);
-                else pressedKeys.remove(m.key);
-            }
+        } else {
+            pressedKeys.clear();
         }
 
         

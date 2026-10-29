@@ -2,6 +2,7 @@ package dev.kollegen.client.mods.modules;
 
 import dev.kollegen.client.mods.BooleanSetting;
 import dev.kollegen.client.mods.Category;
+import dev.kollegen.client.mods.KeybindSetting;
 import dev.kollegen.client.mods.Module;
 import dev.kollegen.client.mods.SliderSetting;
 import dev.kollegen.client.server.ServerRestrictions;
@@ -15,6 +16,12 @@ public class Freecam extends Module {
     public static double prevX, prevY, prevZ;
     public static float yaw, pitch;
     public static float prevYaw, prevPitch;
+    public static boolean cameraActive = false;
+
+    public final KeybindSetting key = new KeybindSetting(
+            "Taste",
+            "Taste zum Ein- und Umschalten der freien Kamera."
+    );
 
     public final SliderSetting speed = new SliderSetting(
             "Geschwindigkeit",
@@ -39,6 +46,7 @@ public class Freecam extends Module {
     public Freecam() {
         super("freecam", "Freecam", "Erlaubt freies Bewegen der Kamera unabhängig vom Spieler.", Category.VISUAL);
         INSTANCE = this;
+        this.add(key);
         this.add(speed);
         this.add(sprintBoost);
         this.add(freezePlayer);
@@ -50,7 +58,7 @@ public class Freecam extends Module {
     }
 
     public static boolean isActive() {
-        return INSTANCE != null && INSTANCE.enabled && !INSTANCE.isLocked();
+        return INSTANCE != null && INSTANCE.enabled && !INSTANCE.isLocked() && cameraActive;
     }
 
     public static boolean isFreezePlayer() {
@@ -69,66 +77,112 @@ public class Freecam extends Module {
         }
     }
 
+    public static void setCameraActive(boolean active) {
+        if (active == cameraActive) return;
+
+        Minecraft mc = Minecraft.getInstance();
+        if (active) {
+            if (INSTANCE != null && INSTANCE.isLocked()) {
+                notifyLocked();
+                cameraActive = false;
+                return;
+            }
+            if (mc != null && mc.player != null) {
+                x = mc.player.getX();
+                y = mc.player.getEyeY();
+                z = mc.player.getZ();
+                prevX = x;
+                prevY = y;
+                prevZ = z;
+
+                yaw = mc.player.getYRot();
+                pitch = mc.player.getXRot();
+                prevYaw = yaw;
+                prevPitch = pitch;
+                cameraActive = true;
+                mc.player.sendOverlayMessage(Component.literal("§a[Freecam] Aktiviert"));
+            }
+        } else {
+            cameraActive = false;
+            if (mc != null && mc.player != null) {
+                mc.player.sendOverlayMessage(Component.literal("§c[Freecam] Deaktiviert"));
+            }
+        }
+    }
+
     @Override
     public void onEnable() {
         if (isLocked()) {
             this.enabled = false;
+            setCameraActive(false);
             notifyLocked();
             return;
         }
 
         Minecraft mc = Minecraft.getInstance();
         if (mc == null || mc.player == null) {
-            this.enabled = false;
+            cameraActive = false;
             return;
         }
 
-        x = mc.player.getX();
-        y = mc.player.getEyeY();
-        z = mc.player.getZ();
-        prevX = x;
-        prevY = y;
-        prevZ = z;
-
-        yaw = mc.player.getYRot();
-        pitch = mc.player.getXRot();
-        prevYaw = yaw;
-        prevPitch = pitch;
+        if (key.value > 0) {
+            cameraActive = false;
+            mc.player.sendOverlayMessage(
+                    Component.literal("§a[Freecam] Bereit (Taste: " + KeybindSetting.keyName(key.value) + ")")
+            );
+        } else {
+            setCameraActive(true);
+            mc.player.sendOverlayMessage(
+                    Component.literal("§e[Freecam] Aktiviert (Tipp: Belege eine Taste in den Einstellungen)")
+            );
+        }
     }
 
     @Override
     public void onDisable() {
+        setCameraActive(false);
     }
 
     @Override
     public void onKey() {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc == null || mc.player == null) return;
+        if (mc.gui != null && mc.gui.screen() != null) return;
+
         if (isLocked()) {
-            if (this.enabled) {
-                this.enabled = false;
-                onDisable();
-            }
+            this.enabled = false;
+            setCameraActive(false);
             notifyLocked();
             return;
         }
-        super.onKey();
+
+        if (!this.enabled) {
+            this.enabled = true;
+            setCameraActive(true);
+        } else {
+            setCameraActive(!cameraActive);
+        }
     }
 
     @Override
     public void onTick() {
         if (isLocked()) {
-            if (this.enabled) {
+            if (this.enabled || cameraActive) {
                 this.enabled = false;
-                onDisable();
+                setCameraActive(false);
                 notifyLocked();
             }
             return;
         }
 
+        if (!isActive()) {
+            return;
+        }
+
         Minecraft mc = Minecraft.getInstance();
         if (mc == null || mc.player == null || mc.level == null) {
-            if (this.enabled) {
-                this.enabled = false;
-                onDisable();
+            if (cameraActive) {
+                setCameraActive(false);
             }
             return;
         }
