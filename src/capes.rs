@@ -46,15 +46,18 @@ fn capes_json_file(data_dir: &Path) -> PathBuf {
 pub fn load_capes(data_dir: &Path) -> CapeStoreData {
     let p = capes_json_file(data_dir);
     if let Ok(s) = std::fs::read_to_string(&p) {
-        if let Ok(data) = serde_json::from_str::<CapeStoreData>(&s) {
+        if let Ok(mut data) = serde_json::from_str::<CapeStoreData>(&s) {
+            let before = data.capes.len();
+            data.capes.retain(|c| !c.id.starts_with("comm_"));
+            if data.capes.len() != before {
+                save_capes(data_dir, &data);
+            }
             return data;
         }
     }
-    // Initialize default catalog
-    let def = create_default_capes();
     let store = CapeStoreData {
         active_cape: None,
-        capes: def,
+        capes: Vec::new(),
     };
     save_capes(data_dir, &store);
     store
@@ -245,40 +248,8 @@ fn sync_active_cape_to_instances(data_dir: &Path, store: &CapeStoreData, active_
     }
 }
 
-/// Generates initial high quality default community capes as seen in Image 3
 fn create_default_capes() -> Vec<CapeEntry> {
-    let defs = vec![
-        ("DerKyzo", "DerKyzo", 75591, "#8a2be2", "#4a0072", "GHG MIR\nNICHT\nAUF DIE\nEIER!"),
-        ("1onur", "1onur", 44964, "#0d1b2a", "#1b263b", "MOON"),
-        ("Vreez_", "Vreez_", 34264, "#212529", "#343a40", "ANIME"),
-        ("WinnieFat", "WinnieFat", 28111, "#ffc300", "#ff5733", "SPEZI"),
-        ("ToyaQX", "ToyaQX", 26671, "#000814", "#001d3d", "人生\n逆転"),
-        ("Finanzamt", "Finanzamt", 21340, "#ffffff", "#e9ecef", "FINANZ\nAMT"),
-        ("Steuern", "Steuern", 19850, "#f8f9fa", "#dee2e6", "STEUERN\n👍"),
-        ("Hammer", "MaceKing", 17420, "#14213d", "#fca311", "HAMMER"),
-        ("AnimeJoy", "Sakura", 15910, "#ffcad4", "#b5e2fa", "ANIME"),
-        ("CherryBlossom", "Kyoto", 14200, "#ffb703", "#fb8500", "CHERRY"),
-        ("BloodMoon", "Eclipse", 12890, "#9d0208", "#370617", "BLOOD"),
-        ("KollegenClassic", "Kollegen Dev", 99999, "#00d4ff", "#005577", "KOLLEGEN"),
-    ];
-
-    defs.into_iter()
-        .map(|(name, creator, uses, color1, color2, label)| {
-            let png_data = make_procedural_cape(color1, color2, label);
-            CapeEntry {
-                id: format!("comm_{}", name.to_lowercase()),
-                name: name.to_string(),
-                creator: creator.to_string(),
-                category: "community".to_string(),
-                uses,
-                favorite: false,
-                animated: false,
-                fps: 10,
-                frames: vec![png_data.clone()],
-                preview: png_data,
-            }
-        })
-        .collect()
+    Vec::new()
 }
 
 /// Generates a valid 64x32 Minecraft cape PNG texture with top/bottom gradient and pixel banner

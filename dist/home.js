@@ -65,7 +65,9 @@ function homeOnlineCount() {
 }
 
 function homeStoreItems() {
-  const cat = homeState.store ? homeState.store.catalog : Array.isArray(window.kmCat) ? window.kmCat : [];
+  const cat = (homeState.store && Array.isArray(homeState.store.catalog))
+    ? homeState.store.catalog
+    : (Array.isArray(window.kmCat) ? window.kmCat : (Array.isArray(window.__cosmStore) ? window.__cosmStore : []));
   const rank = { common: 0, rare: 1, epic: 2, legendary: 3 };
   return cat
     .filter((i) => i && i.category !== "package" && !i.hidden && !i.owned)
@@ -224,7 +226,13 @@ function renderHomeStore() {
   box.append(homeCardHead("Store-Highlights", "", "Alle", () => switchTab("store")));
   if (!items.length) {
     const msg = homeEl("div", "rail-empty");
-    msg.append(homeEl("p", "", homeState.loadedAt ? "Der Store braucht eine Discord-Anmeldung." : "Store wird geladen …"));
+    const isAuthed = (typeof socialMe !== "undefined" && !!socialMe) ||
+                     (homeState.me && !homeState.me.error) ||
+                     (typeof window !== "undefined" && (window.__discordLoggedIn || window.__discordUser));
+    const msgText = isAuthed
+      ? "Momentan keine neuen Highlights verfügbar."
+      : (homeState.loadedAt ? "Verbinde dich mit Discord, um Store-Highlights zu sehen." : "Store wird geladen …");
+    msg.append(homeEl("p", "", msgText));
     box.append(msg);
     return;
   }

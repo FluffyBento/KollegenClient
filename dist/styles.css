@@ -2856,6 +2856,17 @@ button:disabled {
   max-width: 200px;
   border-radius: var(--radius-md);
   image-rendering: pixelated;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.home-skin .skin-fallback img {
+  width: 100%;
+  height: auto;
+  max-height: 320px;
+  object-fit: contain;
+  display: block;
 }
 
 .home-skin-name {

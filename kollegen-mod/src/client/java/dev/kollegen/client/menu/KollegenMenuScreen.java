@@ -2046,19 +2046,10 @@ public class KollegenMenuScreen extends Screen {
     private List<JsonObject> createDefaultCapesList() {
         List<JsonObject> defs = new ArrayList<JsonObject>();
         String[][] data = new String[][]{
-            {"DerKyzo", "DerKyzo", "75591", "community"},
-            {"1onur", "1onur", "44964", "community"},
-            {"Vreez_", "Vreez_", "34264", "community"},
-            {"WinnieFat", "WinnieFat", "28111", "community"},
-            {"ToyaQX", "ToyaQX", "26671", "community"},
-            {"finanzamt", "Gesucht vom Finanzamt", "24102", "community"},
-            {"steuern", "Ich Hinterziehe Steuern", "19842", "community"},
-            {"mace", "Crafter Mace Cape", "15309", "community"},
-            {"anime", "Anime Girl", "14820", "community"},
-            {"sakura", "Sakura Blossom", "13500", "community"},
             {"migrator", "Migrator Cape", "0", "vanilla"},
             {"vanilla", "Vanilla Cape", "0", "vanilla"},
             {"15th_anni", "15th Anniversary", "0", "vanilla"},
+            {"cherry", "Cherry Blossom Cape", "0", "vanilla"},
             {"tiktok", "TikTok Cape", "0", "vanilla"},
             {"twitch", "Twitch Cape", "0", "vanilla"}
         };

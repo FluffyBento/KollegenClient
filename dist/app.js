@@ -369,6 +369,8 @@ function bindHomeControls() {
   if (create) create.onclick = () => switchTab("create");
   const skinBtn = $("homeSkinOpen");
   if (skinBtn) skinBtn.onclick = () => switchTab("skins");
+  const capeBtn = $("homeCapeOpen");
+  if (capeBtn) capeBtn.onclick = () => switchTab("capes");
   const inviteBtn = $("homeInviteBtn");
   if (inviteBtn) {
     inviteBtn.onclick = async () => {
@@ -1496,8 +1498,11 @@ async function refreshLogs() {
     }
     const img = fb.querySelector("img") || document.createElement("img");
     img.alt = "";
-    const safeUrl = httpsify(url);
-    if (img.src !== safeUrl) img.src = safeUrl;
+    const nm = (socialMe && (socialMe.mc_name || socialMe.username)) || "";
+    const fallbackSrc = nm
+      ? `https://mc-heads.net/body/${encodeURIComponent(nm)}/320`
+      : httpsify(url);
+    if (img.src !== fallbackSrc) img.src = fallbackSrc;
     if (!img.parentElement) fb.append(img);
     canvas.style.display = "none";
   }
@@ -1875,6 +1880,8 @@ async function refreshLogs() {
     try {
       const s = await invoke("discord_oauth_status");
       const loggedIn = !!(s && s.logged_in && s.user);
+      window.__discordLoggedIn = loggedIn;
+      if (s && s.user) window.__discordUser = s.user;
       if (loggedIn) {
         renderDiscordLogin({ state: "done", user: s.user });
       } else if (discordLoginWaiting) {
@@ -3089,7 +3096,7 @@ async function loadSkinsLibrary() {
     const editBtn = document.createElement("button");
     editBtn.className = "skin-card-action-btn";
     editBtn.title = "Skin bearbeiten";
-    editBtn.innerHTML = `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>`;
+    editBtn.innerHTML = `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
     editBtn.onclick = (e) => {
       e.stopPropagation();
       openSkinEditModal(s);
@@ -3098,7 +3105,7 @@ async function loadSkinsLibrary() {
     const delBtn = document.createElement("button");
     delBtn.className = "skin-card-action-btn btn-del";
     delBtn.title = "Skin löschen";
-    delBtn.innerHTML = `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>`;
+    delBtn.innerHTML = `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>`;
     delBtn.onclick = async (e) => {
       e.stopPropagation();
       if (confirm(`Möchtest du den Skin "${s.name}" wirklich löschen?`)) {
@@ -3118,7 +3125,7 @@ async function loadSkinsLibrary() {
     const modelTag = document.createElement("div");
     modelTag.className = "skin-card-model-tag";
     const isSlim = (s.model || "").toLowerCase() === "slim";
-    modelTag.innerHTML = `<span>🎽</span> <span>${isSlim ? "Slim" : "Classic"}</span>`;
+    modelTag.innerHTML = `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg> <span>${isSlim ? "Slim" : "Classic"}</span>`;
 
     card.appendChild(actions);
     card.appendChild(stage);
@@ -3149,9 +3156,27 @@ async function loadSkinsLibrary() {
           model: isSlim ? "slim" : "default",
         });
         viewer.animation = new window.skinview3d.WalkingAnimation();
-        viewer.animation.speed = 0.4;
+        viewer.animation.speed = 0.45;
         viewer.autoRotate = false;
         skinViewers.push(viewer);
+
+        setTimeout(() => {
+          try {
+            viewer.renderPaused = true;
+            viewer.render();
+          } catch (_) {}
+        }, 200);
+
+        card.addEventListener("mouseenter", () => {
+          try {
+            viewer.renderPaused = false;
+          } catch (_) {}
+        });
+        card.addEventListener("mouseleave", () => {
+          try {
+            viewer.renderPaused = true;
+          } catch (_) {}
+        });
       } catch (_) {}
     }
   });
@@ -3267,24 +3292,73 @@ async function loadCapesView() {
 
   let storeCapes = [];
   try {
-    const store = window.__cosmStore || (await invoke("kollegen_store"));
-    if (store && store.catalog) {
-      storeCapes = store.catalog
-        .filter(it => it.category === "cape" && (it.owned || activeCapeCat === "gekauft"))
-        .map(it => ({
-          id: it.id,
-          name: it.title || it.name || "Store Cape",
-          creator: "Kollegen Store",
-          category: "gekauft",
-          uses: 9999,
-          favorite: false,
-          animated: false,
-          fps: 10,
-          frames: [it.data && it.data.texture ? "https://kollegen.me/" + it.data.texture.replace("kollegen:", "") : ""],
-          preview: it.data && it.data.texture ? "https://kollegen.me/" + it.data.texture.replace("kollegen:", "") : "",
-        }));
+    let catalog = [];
+    if (Array.isArray(window.__cosmStore)) {
+      catalog = window.__cosmStore;
+    } else if (window.__cosmStore && Array.isArray(window.__cosmStore.catalog)) {
+      catalog = window.__cosmStore.catalog;
+    } else if (Array.isArray(window.kmCat)) {
+      catalog = window.kmCat;
+    } else {
+      const storeRes = await invoke("kollegen_store");
+      if (storeRes && Array.isArray(storeRes.catalog)) {
+        catalog = storeRes.catalog;
+        window.__cosmStore = storeRes.catalog;
+      }
     }
-  } catch (_) {}
+
+    if (Array.isArray(catalog)) {
+      storeCapes = catalog
+        .filter(it => it && it.category === "cape" && (it.owned || it.is_owned))
+        .map(it => {
+          let tex = "";
+          if (it.data && it.data.texture) {
+            tex = it.data.texture.startsWith("http") ? it.data.texture : ("https://kollegen.me/" + it.data.texture.replace(/^kollegen:/, ""));
+          } else if (it.texture) {
+            tex = it.texture.startsWith("http") ? it.texture : ("https://kollegen.me/" + it.texture.replace(/^kollegen:/, ""));
+          }
+          return {
+            id: it.id,
+            name: it.title || it.name || "Store Cape",
+            creator: "Kollegen Store",
+            category: "gekauft",
+            uses: it.uses || 1,
+            favorite: false,
+            animated: false,
+            fps: 10,
+            frames: [tex],
+            preview: tex,
+            isStoreItem: true,
+          };
+        });
+    }
+  } catch (e) {
+    console.warn("Could not load store capes:", e);
+  }
+
+  let vanillaCapes = [];
+  try {
+    const prof = await invoke("skin_mc_profile");
+    if (prof && Array.isArray(prof.capes)) {
+      vanillaCapes = prof.capes.map(vc => ({
+        id: "vanilla_" + vc.id,
+        vanillaId: vc.id,
+        name: vc.alias || "Vanilla Cape",
+        creator: "Mojang",
+        category: "vanilla",
+        uses: 1,
+        favorite: false,
+        animated: false,
+        fps: 10,
+        frames: [httpsify(vc.url)],
+        preview: httpsify(vc.url),
+        isVanilla: true,
+        active: vc.state === "ACTIVE"
+      }));
+    }
+  } catch (e) {
+    console.warn("Could not load vanilla capes:", e);
+  }
 
   let allCapes = [...capeData.capes];
   storeCapes.forEach(sc => {
@@ -3292,12 +3366,22 @@ async function loadCapesView() {
       allCapes.push(sc);
     }
   });
+  vanillaCapes.forEach(vc => {
+    if (!allCapes.some(c => c.id === vc.id)) {
+      allCapes.push(vc);
+    }
+  });
 
   const searchVal = ($("capesSearchInput") ? $("capesSearchInput").value.trim().toLowerCase() : "");
 
   grid.innerHTML = "";
   const noneCard = document.createElement("div");
-  noneCard.className = "cape-card cape-card-none" + (!capeData.active_cape ? " active" : "");
+  const anyActive = !!(
+    capeData.active_cape ||
+    vanillaCapes.some(v => v.active) ||
+    storeCapes.some(s => (homeState.me && homeState.me.equipped && homeState.me.equipped.cape === s.id) || (typeof socialMe !== "undefined" && socialMe && socialMe.equipped && socialMe.equipped.cape === s.id))
+  );
+  noneCard.className = "cape-card cape-card-none" + (!anyActive ? " active" : "");
   noneCard.innerHTML = `
     <div class="cape-none-icon">✕</div>
     <div class="cape-card-name">No Cape</div>
@@ -3305,6 +3389,9 @@ async function loadCapesView() {
   noneCard.onclick = async () => {
     try {
       await invoke("capes_set_active", { capeId: null });
+      try { await invoke("kollegen_store_equip", { itemId: "", category: "cape" }); } catch (_) {}
+      try { await invoke("cape_equip", { capeId: "" }); } catch (_) {}
+      currentCapeUrl = null;
       toast("Cape abgelegt", "ok");
       loadCapesView();
       loadHomeSkin(true);
@@ -3316,17 +3403,20 @@ async function loadCapesView() {
 
   allCapes.forEach((c) => {
     if (activeCapeCat === "my_capes" && c.category !== "my_capes") return;
-    if (activeCapeCat === "favorites" && !c.favorite) return;
     if (activeCapeCat === "vanilla" && c.category !== "vanilla") return;
     if (activeCapeCat === "gekauft" && c.category !== "gekauft") return;
     if (capeFavOnly && !c.favorite) return;
 
-    if (searchVal && !c.name.toLowerCase().includes(searchVal) && !c.creator.toLowerCase().includes(searchVal)) {
+    if (searchVal && !c.name.toLowerCase().includes(searchVal) && !(c.creator || "").toLowerCase().includes(searchVal)) {
       return;
     }
 
     const card = document.createElement("div");
-    const isActive = capeData.active_cape === c.id;
+    const isStoreEquipped = c.isStoreItem && (
+      (homeState.me && homeState.me.equipped && homeState.me.equipped.cape === c.id) ||
+      (typeof socialMe !== "undefined" && socialMe && socialMe.equipped && socialMe.equipped.cape === c.id)
+    );
+    const isActive = (capeData.active_cape === c.id) || isStoreEquipped || (c.isVanilla && c.active);
     card.className = "cape-card" + (isActive ? " active" : "");
 
     const prevWrap = document.createElement("div");
@@ -3334,14 +3424,18 @@ async function loadCapesView() {
 
     const fav = document.createElement("div");
     fav.className = "cape-fav-icon" + (c.favorite ? " active" : "");
-    fav.innerHTML = `<svg viewBox="0 0 24 24" width="14" height="14" fill="${c.favorite ? "currentColor" : "none"}" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>`;
+    fav.innerHTML = `<svg viewBox="0 0 24 24" width="14" height="14" fill="${c.favorite ? "currentColor" : "none"}" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`;
     fav.onclick = async (e) => {
       e.stopPropagation();
       try {
         const newState = await invoke("capes_toggle_favorite", { capeId: c.id });
         c.favorite = newState;
         fav.className = "cape-fav-icon" + (newState ? " active" : "");
-        fav.querySelector("svg").setAttribute("fill", newState ? "currentColor" : "none");
+        const star = fav.querySelector("svg");
+        if (star) star.setAttribute("fill", newState ? "currentColor" : "none");
+        if (capeFavOnly && !newState) {
+          loadCapesView();
+        }
       } catch (_) {}
     };
     prevWrap.appendChild(fav);
@@ -3378,17 +3472,33 @@ async function loadCapesView() {
     card.appendChild(name);
     card.appendChild(uses);
 
-    if (c.category === "gekauft") {
+    if (c.category === "gekauft" || c.isStoreItem) {
       const badge = document.createElement("span");
       badge.className = "cape-badge-tag";
       badge.textContent = "Gekauft";
+      card.appendChild(badge);
+    } else if (c.category === "vanilla" || c.isVanilla) {
+      const badge = document.createElement("span");
+      badge.className = "cape-badge-tag";
+      badge.textContent = "Vanilla";
       card.appendChild(badge);
     }
 
     card.onclick = async () => {
       try {
-        await invoke("capes_set_active", { capeId: c.id });
-        toast(`Cape "${c.name}" ausgerüstet!`, "ok");
+        if (c.isStoreItem) {
+          await invoke("kollegen_store_equip", { itemId: c.id, category: "cape" });
+          currentCapeUrl = c.preview || (c.frames && c.frames[0]) || null;
+          toast(`Store-Cape "${c.name}" ausgerüstet!`, "ok");
+        } else if (c.isVanilla) {
+          await invoke("cape_equip", { capeId: c.vanillaId });
+          currentCapeUrl = c.preview || (c.frames && c.frames[0]) || null;
+          toast(`Vanilla-Cape "${c.name}" ausgerüstet!`, "ok");
+        } else {
+          await invoke("capes_set_active", { capeId: c.id });
+          currentCapeUrl = c.preview || (c.frames && c.frames[0]) || null;
+          toast(`Cape "${c.name}" ausgerüstet!`, "ok");
+        }
         loadCapesView();
         loadHomeSkin(true);
       } catch (err) {
@@ -3401,8 +3511,11 @@ async function loadCapesView() {
 }
 
 document.querySelectorAll(".cape-cat-tab").forEach(tab => {
+  if (tab.id === "capeFavToggleBtn") return;
   tab.onclick = () => {
-    document.querySelectorAll(".cape-cat-tab").forEach(t => t.classList.remove("active"));
+    document.querySelectorAll(".cape-cat-tab").forEach(t => {
+      if (t.id !== "capeFavToggleBtn") t.classList.remove("active");
+    });
     tab.classList.add("active");
     activeCapeCat = tab.dataset.cat || "all";
     loadCapesView();
@@ -3411,9 +3524,12 @@ document.querySelectorAll(".cape-cat-tab").forEach(tab => {
 
 if ($("capesSearchInput")) $("capesSearchInput").oninput = () => loadCapesView();
 if ($("capeFavToggleBtn")) {
-  $("capeFavToggleBtn").onclick = () => {
+  $("capeFavToggleBtn").onclick = (e) => {
+    e.stopPropagation();
     capeFavOnly = !capeFavOnly;
     $("capeFavToggleBtn").classList.toggle("active", capeFavOnly);
+    const starIco = $("capeFavStarIco");
+    if (starIco) starIco.setAttribute("fill", capeFavOnly ? "currentColor" : "none");
     loadCapesView();
   };
 }
@@ -5149,10 +5265,6 @@ startBackgroundIntervals();
       tabs.addEventListener("click", (e) => {
         const t = e.target.closest(".tab");
         if (!t) return;
-        if (t.getAttribute("data-f") === "community_capes") {
-          switchTab("capes");
-          return;
-        }
         storeFilter = t.getAttribute("data-f");
         storeSyncTabs();
         renderStore();
