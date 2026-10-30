@@ -33,6 +33,7 @@ public final class Visual {
         ModuleManager.register(new NoFog());
         ModuleManager.register(new ArmorTransparency.Own());
         ModuleManager.register(new ArmorTransparency.Others());
+        ModuleManager.register(new ShieldSettings());
         ModuleManager.register(new FovModifier());
         ModuleManager.register(new KollegenShader());
     }
@@ -108,13 +109,14 @@ public final class Visual {
 
     
     private static class Zoom extends Module {
-        private final SliderSetting zoom = new SliderSetting("Zoom", "Zoomstärke (1 = kein Zoom, höher = stärker heran). Wirkt sofort.", 4.0, 1.0, 16.0, 0.5);
+        private final SliderSetting zoom = new SliderSetting("Zoom", "Zoomstärke (1 = kein Zoom, höher = stärker heran).", 4.0, 1.0, 16.0, 0.5);
         private final KeybindSetting key = new KeybindSetting("Taste", "Schaltet den Zoom ein/aus.");
-        private boolean savedSmooth = false;
+        private final BooleanSetting smoothCamera = new BooleanSetting("Weiche Kamera", "Kamerabewegung verlangsamen / glätten (Cinematic).", false);
 
         Zoom() {
-            super("zoom", "Zoom", "Zoomt heran (mit weicher Kamera), ohne die eingestellte FOV zu verändern.", Category.VISUAL);
+            super("zoom", "Zoom", "Zoomt heran ohne Maus-Verzögerung.", Category.VISUAL);
             add(zoom);
+            add(smoothCamera);
             add(key);
         }
 
@@ -127,8 +129,7 @@ public final class Visual {
 
         @Override
         public void onEnable() {
-            if (mc.options != null) {
-                savedSmooth = mc.options.smoothCamera;
+            if (mc.options != null && smoothCamera.value) {
                 mc.options.smoothCamera = true;
             }
             applyZoom();
@@ -140,13 +141,13 @@ public final class Visual {
         }
 
         private void applyZoom() {
-            Visual.zoomFovDivisor = zoom.value > 1.001 ? (float) (1.0 / zoom.value) : 1.0f;
+            Visual.zoomFovDivisor = zoom.value > 1.001 ? (float) zoom.value : 1.0f;
         }
 
         @Override
         public void onDisable() {
             Visual.zoomFovDivisor = 1.0f;
-            if (mc.options != null) mc.options.smoothCamera = savedSmooth;
+            if (mc.options != null) mc.options.smoothCamera = false;
         }
     }
 

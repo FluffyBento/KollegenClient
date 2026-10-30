@@ -55,7 +55,8 @@
     "CameraMixin",
     "HumanoidArmorLayerMixin",
     "AbstractClientPlayerMixin",
-    "PostShaderMixin"
+    "PostShaderMixin",
+    "FirstPersonHandsAndItemsRendererMixin"
   ],
   "injectors": {
     "defaultRequire": 1

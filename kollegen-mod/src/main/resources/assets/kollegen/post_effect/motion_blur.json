@@ -1,6 +1,8 @@
 {
     "targets": {
-        "swap": {}
+        "previous": {
+            "persistent": true
+        }
     },
     "passes": [
         {
@@ -10,9 +12,13 @@
                 {
                     "sampler_name": "In",
                     "target": "minecraft:main"
+                },
+                {
+                    "sampler_name": "Previous",
+                    "target": "previous"
                 }
             ],
-            "output": "swap"
+            "output": "previous"
         },
         {
             "vertex_shader": "minecraft:core/screenquad",
@@ -20,9 +26,18 @@
             "inputs": [
                 {
                     "sampler_name": "In",
-                    "target": "swap"
+                    "target": "previous"
                 }
             ],
+            "uniforms": {
+                "BlitConfig": [
+                    {
+                        "name": "ColorModulate",
+                        "type": "vec4",
+                        "value": [ 1.0, 1.0, 1.0, 1.0 ]
+                    }
+                ]
+            },
             "output": "minecraft:main"
         }
     ]

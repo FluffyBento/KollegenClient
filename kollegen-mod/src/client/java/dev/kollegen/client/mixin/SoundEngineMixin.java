@@ -15,8 +15,14 @@ public class SoundEngineMixin {
 
     @Inject(method = "play", at = @At("HEAD"), cancellable = true)
     private void kollegen$cullInaudibleSounds(SoundInstance sound, CallbackInfoReturnable<SoundEngine.PlayResult> cir) {
-        if (!Performance.KollegenTricks.shouldCullSounds()) return;
         if (sound == null) return;
+        try {
+            if (sound.getIdentifier() != null && sound.getIdentifier().getPath().contains("shield.break")) {
+                dev.kollegen.client.mods.modules.ShieldCooldownTracker.onShieldBreak(sound.getX(), sound.getY(), sound.getZ());
+            }
+        } catch (Throwable ignored) {
+        }
+        if (!Performance.KollegenTricks.shouldCullSounds()) return;
 
         try {
             // Cull sounds with linear attenuation that are inaudible or out of range

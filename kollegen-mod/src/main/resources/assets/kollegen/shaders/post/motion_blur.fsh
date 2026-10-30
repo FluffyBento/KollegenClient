@@ -2,6 +2,7 @@
 #extension GL_ARB_separate_shader_objects : require
 
 uniform sampler2D InSampler;
+uniform sampler2D PreviousSampler;
 
 layout(location = 0) in vec2 texCoord;
 
@@ -13,11 +14,13 @@ layout(std140) uniform SamplerInfo {
 layout(location = 0) out vec4 fragColor;
 
 void main() {
-    vec2 oneTexel = 1.0 / InSize;
-    vec4 c = texture(InSampler, texCoord) * 0.44;
-    c += texture(InSampler, texCoord + oneTexel * vec2( 1.5,  0.75)) * 0.14;
-    c += texture(InSampler, texCoord - oneTexel * vec2( 1.5,  0.75)) * 0.14;
-    c += texture(InSampler, texCoord + oneTexel * vec2( 3.0,  1.5)) * 0.14;
-    c += texture(InSampler, texCoord - oneTexel * vec2( 3.0,  1.5)) * 0.14;
-    fragColor = c;
+    vec4 current = texture(InSampler, texCoord);
+    vec4 prev = texture(PreviousSampler, texCoord);
+
+    // Echte temporale Bewegungsunschärfe (Previous Frame Akkumulation)
+    if (prev.a < 0.1) {
+        fragColor = current;
+    } else {
+        fragColor = mix(current, prev, 0.40);
+    }
 }

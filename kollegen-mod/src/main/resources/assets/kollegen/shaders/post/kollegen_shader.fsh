@@ -12,24 +12,18 @@ layout(std140) uniform SamplerInfo {
 
 layout(location = 0) out vec4 fragColor;
 
-const vec3 Gray = vec3(0.299, 0.587, 0.114);
+const vec3 Gray = vec3(0.2126, 0.7152, 0.0722);
 
 void main() {
     vec4 inTexel = texture(InSampler, texCoord);
     vec3 c = inTexel.rgb;
 
-    // Saturation / Farbsättigung (lebendigere Farben)
+    // Sanfte Farbsättigung (Digital Vibrance)
     float luma = dot(c, Gray);
-    c = mix(vec3(luma), c, 1.35);
+    c = mix(vec3(luma), c, 1.25);
 
-    // Kontrast
-    c = (c - 0.5) * 1.08 + 0.5;
-
-    // Kino-Vignette
-    vec2 uv = texCoord * 2.0 - 1.0;
-    float dist = length(uv);
-    float vig = smoothstep(1.3, 0.65, dist);
-    c *= mix(1.0, vig, 0.20);
+    // Feiner Kontrast
+    c = (c - 0.5) * 1.04 + 0.5;
 
     fragColor = vec4(clamp(c, 0.0, 1.0), inTexel.a);
 }

@@ -28,8 +28,8 @@ public final class Appleskin extends Module {
             "Vorschau-Farbe", "", 0xFF_3EC46D);
 
     private Appleskin() {
-        super("appleskin", "AppleSkin",
-                "Sättigungsbalken, Essens-Vorschau und Nährwert-Tooltips (wie die Mod AppleSkin, frei einstellbar).",
+        super("appleskin", "Hunger-Indikator",
+                "Sättigungsbalken, Essens-Vorschau und Nährwert-Tooltips für Nahrungsmittel frei einstellbar.",
                 Category.HUD);
         add(showSaturation);
         add(showPreview);

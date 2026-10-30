@@ -693,7 +693,7 @@ public final class Hud {
 
     private static class ShieldStatus extends HudModule {
         ShieldStatus() {
-            super("shield", "Schild-Status", "Zeigt Status und Haltbarkeit des Schilds an.");
+            super("shield", "Schild-Status", "Zeigt an, ob das Schild einsatzbereit (grün) oder auf Cooldown (rot) ist.");
         }
 
         @Override
@@ -706,28 +706,28 @@ public final class Hud {
             }
 
             int icon = 16;
-            int maxDmg = shield.getMaxDamage();
-            int currentDmg = maxDmg - shield.getDamageValue();
             boolean onCooldown = mc.player.getCooldowns().isOnCooldown(shield);
 
-            String statusStr = onCooldown ? "§cGesperrt" : "§aBereit";
-            String durStr = currentDmg + "/" + maxDmg;
-            int textW = Math.max(mc.font.width(statusStr), mc.font.width(durStr));
+            String statusStr = onCooldown ? "§cDeaktiviert (Cooldown)" : "§aEinsatzbereit";
+            int textW = mc.font.width(statusStr);
 
-            int w = icon + 8 + textW + 6;
-            int h = 22;
+            int w = icon + 12 + textW + 6;
+            int h = 20;
             int[] a = anchor(mc.getWindow().getGuiScaledWidth(), mc.getWindow().getGuiScaledHeight(), w, h);
             int x = a[0];
             int y = a[1];
 
             if (background.value) {
                 Glass.fillRound(g, x - 3, y - 2, w + 6, h + 4, 6, backgroundColor.value);
+                int ringCol = onCooldown ? 0x66FF3333 : 0x6633FF33;
+                Glass.ring(g, x - 3, y - 2, w + 6, h + 4, 6, 0.8f, ringCol);
             }
             markBounds(x - 3, y - 2, w + 6, h + 4);
 
             g.item(shield, x, y + (h - icon) / 2);
-            g.text(mc.font, statusStr, x + icon + 6, y + 2, Palette.TEXT, true);
-            g.text(mc.font, durStr, x + icon + 6, y + 12, Palette.MUTED, true);
+            int dotCol = onCooldown ? 0xFFFF3333 : 0xFF33FF33;
+            g.fill(x + icon + 3, y + (h - 6) / 2, x + icon + 9, y + (h + 6) / 2, dotCol);
+            g.text(mc.font, statusStr, x + icon + 12, y + (h - 8) / 2, Palette.TEXT, true);
         }
     }
 
@@ -799,8 +799,11 @@ public final class Hud {
     }
 
     private static class InventoryHud extends HudModule {
+        public final SliderSetting scale = new SliderSetting("Skalierung", "Größe der Inventar-Vorschau anpassen.", 1.0, 0.4, 2.0, 0.05, v -> Math.round(v * 100.0) + "%", null);
+
         InventoryHud() {
             super("invhud", "Inventar-Vorschau", "Zeigt die 27 Slots des Inventars dauerhaft auf dem HUD an.");
+            add(scale);
         }
 
         @Override
@@ -810,24 +813,32 @@ public final class Hud {
             int cols = 9;
             int rows = 3;
             int slotSize = 18;
-            int w = cols * slotSize + 6;
-            int h = rows * slotSize + 6;
+            int baseW = cols * slotSize + 6;
+            int baseH = rows * slotSize + 6;
+            float sc = (float) scale.value;
+            int w = Math.round(baseW * sc);
+            int h = Math.round(baseH * sc);
 
             int[] a = anchor(mc.getWindow().getGuiScaledWidth(), mc.getWindow().getGuiScaledHeight(), w, h);
             int x = a[0];
             int y = a[1];
 
-            if (background.value) {
-                Glass.fillRound(g, x, y, w, h, 6, backgroundColor.value);
-                Glass.ring(g, x, y, w, h, 6, 0.5f, 0x22FFFFFF);
-            }
             markBounds(x, y, w, h);
+
+            g.pose().pushMatrix();
+            g.pose().translate(x, y);
+            g.pose().scale(sc, sc);
+
+            if (background.value) {
+                Glass.fillRound(g, 0, 0, baseW, baseH, 6, backgroundColor.value);
+                Glass.ring(g, 0, 0, baseW, baseH, 6, 0.5f, 0x22FFFFFF);
+            }
 
             for (int r = 0; r < rows; r++) {
                 for (int c = 0; c < cols; c++) {
                     int slotIndex = 9 + r * cols + c;
-                    int sx = x + 3 + c * slotSize;
-                    int sy = y + 3 + r * slotSize;
+                    int sx = 3 + c * slotSize;
+                    int sy = 3 + r * slotSize;
 
                     Glass.fillRound(g, sx + 1, sy + 1, slotSize - 2, slotSize - 2, 3, 0x18FFFFFF);
 
@@ -843,6 +854,8 @@ public final class Hud {
                     }
                 }
             }
+
+            g.pose().popMatrix();
         }
     }
 }

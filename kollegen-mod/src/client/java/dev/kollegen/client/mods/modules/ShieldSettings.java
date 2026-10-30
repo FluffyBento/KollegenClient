@@ -1,0 +1,111 @@
+package dev.kollegen.client.mods.modules;
+
+import com.mojang.blaze3d.vertex.PoseStack;
+import dev.kollegen.client.mods.BooleanSetting;
+import dev.kollegen.client.mods.Category;
+import dev.kollegen.client.mods.Module;
+import dev.kollegen.client.mods.SliderSetting;
+import dev.kollegen.client.presence.RenderStateIds;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.entity.state.AvatarRenderState;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+
+import java.util.UUID;
+
+public class ShieldSettings extends Module {
+    public static ShieldSettings INSTANCE;
+
+    public final BooleanSetting lowerShield = new BooleanSetting(
+            "PvP-Position (Tief & Seitlich)",
+            "Versetzt das gehaltene Schild tiefer und zur Seite für freies Sichtfeld (wie im Texture Pack).",
+            true
+    );
+
+    public final SliderSetting scale = new SliderSetting(
+            "Schild-Größe",
+            "Größe des Schilds in der eigenen Hand.",
+            0.75, 0.3, 1.2, 0.05,
+            v -> Math.round(v * 100.0) + "%", null
+    );
+
+    public final SliderSetting offsetX = new SliderSetting(
+            "Seitlicher Versatz (X)",
+            "Verschiebt das Schild nach außen zur Seite.",
+            0.15, -0.6, 0.6, 0.02,
+            v -> String.format("%.2f", v), null
+    );
+
+    public final SliderSetting offsetY = new SliderSetting(
+            "Höhen-Versatz (Y)",
+            "Senkt das Schild nach unten ab.",
+            -0.20, -0.8, 0.4, 0.02,
+            v -> String.format("%.2f", v), null
+    );
+
+    public final BooleanSetting statusOutline = new BooleanSetting(
+            "Status-Umrandung",
+            "Leuchtende Schild-Umrandung: Grün = nutzbar, Rot = auf Cooldown (auch bei anderen Spielern).",
+            true
+    );
+
+    public ShieldSettings() {
+        super("shieldsettings", "Schild-Einstellungen", "Schildgröße, Position für freies Sichtfeld (FOV) und Status-Umrandung (grün = nutzbar, rot = Cooldown).", Category.VISUAL);
+        INSTANCE = this;
+        add(lowerShield);
+        add(scale);
+        add(offsetX);
+        add(offsetY);
+        add(statusOutline);
+    }
+
+    public static boolean isCustomTransformEnabled() {
+        return INSTANCE != null && INSTANCE.enabled && INSTANCE.lowerShield.value;
+    }
+
+    public static void applyFirstPersonTransform(PoseStack poseStack, InteractionHand hand) {
+        if (INSTANCE == null) return;
+        float xOff = (float) INSTANCE.offsetX.value;
+        if (hand == InteractionHand.OFF_HAND) {
+            xOff = -xOff;
+        }
+        float yOff = (float) INSTANCE.offsetY.value;
+        float sc = (float) INSTANCE.scale.value;
+
+        poseStack.translate(xOff, yOff, 0.0f);
+        poseStack.scale(sc, sc, sc);
+    }
+
+    public static boolean isStatusOutlineEnabled() {
+        return INSTANCE != null && INSTANCE.enabled && INSTANCE.statusOutline.value;
+    }
+
+    public static int getSelfStatusColor() {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc == null || mc.player == null) return 0;
+        ItemStack shield = mc.player.getOffhandItem();
+        if (!shield.is(Items.SHIELD)) {
+            shield = mc.player.getMainHandItem();
+        }
+        if (!shield.is(Items.SHIELD)) {
+            shield = new ItemStack(Items.SHIELD);
+        }
+        boolean cd = mc.player.getCooldowns().isOnCooldown(shield);
+        return cd ? 0xFFFF2222 : 0xFF33FF44;
+    }
+
+    public static int getStatusColor(AvatarRenderState state) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc == null) return 0;
+        if (mc.player != null && state.id == mc.player.getId()) {
+            return getSelfStatusColor();
+        }
+        UUID id = RenderStateIds.get(state);
+        if (id != null && mc.player != null && id.equals(mc.player.getUUID())) {
+            return getSelfStatusColor();
+        }
+        boolean cd = id != null && ShieldCooldownTracker.isOnCooldown(id);
+        return cd ? 0xFFFF2222 : 0xFF33FF44;
+    }
+}
