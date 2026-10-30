@@ -880,6 +880,9 @@ public class KollegenMenuScreen extends Screen {
         Cell lu = this.addFull(K_GAME, 64.0f);
         lu.data = new JsonObject();
         lu.data.addProperty("game", dev.kollegen.client.game.MenschAergereDichNichtScreen.ID);
+        Cell tt = this.addFull(K_GAME, 64.0f);
+        tt.data = new JsonObject();
+        tt.data.addProperty("game", dev.kollegen.client.game.TicTacToeScreen.ID);
     }
 
     private void addHead(String text) {
@@ -1208,6 +1211,10 @@ public class KollegenMenuScreen extends Screen {
                         }
                         if (dev.kollegen.client.game.MenschAergereDichNichtScreen.ID.equals(game)) {
                             Minecraft.getInstance().setScreenAndShow(new dev.kollegen.client.game.MenschAergereDichNichtScreen(this));
+                            return true;
+                        }
+                        if (dev.kollegen.client.game.TicTacToeScreen.ID.equals(game)) {
+                            Minecraft.getInstance().setScreenAndShow(new dev.kollegen.client.game.TicTacToeScreen(this));
                             return true;
                         }
                     } catch (Throwable ignored) {
@@ -1606,6 +1613,10 @@ public class KollegenMenuScreen extends Screen {
             } else if (dev.kollegen.client.game.MenschAergereDichNichtScreen.ID.equals(game)) {
                 title = "Mensch aergere dich nicht";
                 desc = "Wuerfeln und raus - KI oder gegen Kollegen";
+                icon = Icons.GRID;
+            } else if (dev.kollegen.client.game.TicTacToeScreen.ID.equals(game)) {
+                title = "Tic-Tac-Toe";
+                desc = "3 in einer Reihe - gegen smarte KI oder zu zweit";
                 icon = Icons.GRID;
             } else if ("snake".equals(game)) {
                 title = "Snake";

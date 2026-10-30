@@ -7,7 +7,7 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import org.joml.Matrix3x2fStack;
 
 public abstract class HudModule extends Module {
-    protected final ModeSetting position = new ModeSetting("Position", "", new String[]{"Oben links", "Oben rechts", "Unten links", "Unten rechts"}, 0);
+    protected final ModeSetting position = new ModeSetting("Position", "", new String[]{"Oben links", "Oben rechts", "Unten links", "Unten rechts", "Oben mittig"}, 0);
     protected final ColorSetting color = new ColorSetting("Farbe", "", Palette.TEXT);
     protected final BooleanSetting background = new BooleanSetting("Hintergrund", "Zeichnet einen Glas-Hintergrund hinter dem Text.", true);
     protected final ColorSetting backgroundColor = new ColorSetting("Hintergrundfarbe", "", Palette.tint(Palette.PANEL, 204));
@@ -58,6 +58,10 @@ public abstract class HudModule extends Module {
             case 3:
                 ax = screenW - panelW - m;
                 ay = screenH - panelH - m - 48;
+                break;
+            case 4:
+                ax = (screenW - panelW) / 2;
+                ay = m;
                 break;
             default:
                 ax = m;

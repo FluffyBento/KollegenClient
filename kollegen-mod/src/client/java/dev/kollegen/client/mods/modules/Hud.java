@@ -60,6 +60,9 @@ public final class Hud {
         ModuleManager.register(new Saturation());
         ModuleManager.register(new ServerInfo());
         ModuleManager.register(new TargetInfo());
+        ModuleManager.register(new ShieldStatus());
+        ModuleManager.register(new ItemCounter());
+        ModuleManager.register(new InventoryHud());
     }
 
     private static class Coordinates extends HudModule {
@@ -147,6 +150,7 @@ public final class Hud {
 
         Direction() {
             super("direction", "Richtung", "Blickrichtung als moderne Kompass-Leiste oder Text.");
+            this.position.index = 4; // Standard: Oben mittig
             add(style);
             add(compassWidth);
             add(showDegrees);
@@ -684,6 +688,161 @@ public final class Hud {
                 lines.add("Kein Ziel");
             }
             renderLines(g, lines, 0, 0);
+        }
+    }
+
+    private static class ShieldStatus extends HudModule {
+        ShieldStatus() {
+            super("shield", "Schild-Status", "Zeigt Status und Haltbarkeit des Schilds an.");
+        }
+
+        @Override
+        public void onRenderHud(GuiGraphicsExtractor g, float td) {
+            if (mc.player == null) return;
+            ItemStack shield = mc.player.getOffhandItem();
+            if (!shield.is(net.minecraft.world.item.Items.SHIELD)) {
+                shield = mc.player.getMainHandItem();
+                if (!shield.is(net.minecraft.world.item.Items.SHIELD)) return;
+            }
+
+            int icon = 16;
+            int maxDmg = shield.getMaxDamage();
+            int currentDmg = maxDmg - shield.getDamageValue();
+            boolean onCooldown = mc.player.getCooldowns().isOnCooldown(shield);
+
+            String statusStr = onCooldown ? "§cGesperrt" : "§aBereit";
+            String durStr = currentDmg + "/" + maxDmg;
+            int textW = Math.max(mc.font.width(statusStr), mc.font.width(durStr));
+
+            int w = icon + 8 + textW + 6;
+            int h = 22;
+            int[] a = anchor(mc.getWindow().getGuiScaledWidth(), mc.getWindow().getGuiScaledHeight(), w, h);
+            int x = a[0];
+            int y = a[1];
+
+            if (background.value) {
+                Glass.fillRound(g, x - 3, y - 2, w + 6, h + 4, 6, backgroundColor.value);
+            }
+            markBounds(x - 3, y - 2, w + 6, h + 4);
+
+            g.item(shield, x, y + (h - icon) / 2);
+            g.text(mc.font, statusStr, x + icon + 6, y + 2, Palette.TEXT, true);
+            g.text(mc.font, durStr, x + icon + 6, y + 12, Palette.MUTED, true);
+        }
+    }
+
+    private static class ItemCounter extends HudModule {
+        public final BooleanSetting showTotem = new BooleanSetting("Totem", "Zählt Totems der Unsterblichkeit.", true);
+        public final BooleanSetting showGapple = new BooleanSetting("Goldäpfel", "Zählt normale Goldäpfel.", true);
+        public final BooleanSetting showNotch = new BooleanSetting("Verzauberte Äpfel", "Zählt verzauberte Goldäpfel.", true);
+        public final BooleanSetting showPearl = new BooleanSetting("Enderperlen", "Zählt Enderperlen.", true);
+        public final BooleanSetting showArrow = new BooleanSetting("Pfeile", "Zählt Pfeile im Inventar.", true);
+
+        ItemCounter() {
+            super("itemcounter", "Item-Zähler", "Zählt wichtige PvP-Items (Totems, Goldäpfel, Perlen, Pfeile) im Inventar.");
+            add(showTotem);
+            add(showGapple);
+            add(showNotch);
+            add(showPearl);
+            add(showArrow);
+        }
+
+        @Override
+        public void onRenderHud(GuiGraphicsExtractor g, float td) {
+            if (mc.player == null) return;
+
+            List<ItemStack> items = new ArrayList<>();
+            if (showTotem.value) checkAdd(items, net.minecraft.world.item.Items.TOTEM_OF_UNDYING);
+            if (showGapple.value) checkAdd(items, net.minecraft.world.item.Items.GOLDEN_APPLE);
+            if (showNotch.value) checkAdd(items, net.minecraft.world.item.Items.ENCHANTED_GOLDEN_APPLE);
+            if (showPearl.value) checkAdd(items, net.minecraft.world.item.Items.ENDER_PEARL);
+            if (showArrow.value) checkAdd(items, net.minecraft.world.item.Items.ARROW);
+
+            if (items.isEmpty()) return;
+
+            int count = items.size();
+            int cellW = 32;
+            int h = 24;
+            int w = count * cellW + 4;
+            int[] a = anchor(mc.getWindow().getGuiScaledWidth(), mc.getWindow().getGuiScaledHeight(), w, h);
+            int x = a[0];
+            int y = a[1];
+
+            if (background.value) {
+                Glass.fillRound(g, x, y, w, h, 6, backgroundColor.value);
+            }
+            markBounds(x, y, w, h);
+
+            for (int i = 0; i < count; i++) {
+                ItemStack stack = items.get(i);
+                int ix = x + 4 + i * cellW;
+                g.item(stack, ix, y + 4);
+                String cnt = String.valueOf(stack.getCount());
+                g.text(mc.font, cnt, ix + 18, y + 8, Palette.TEXT, true);
+            }
+        }
+
+        private void checkAdd(List<ItemStack> list, net.minecraft.world.item.Item item) {
+            int total = 0;
+            int size = mc.player.getInventory().getContainerSize();
+            for (int i = 0; i < size; i++) {
+                ItemStack s = mc.player.getInventory().getItem(i);
+                if (s.is(item)) total += s.getCount();
+            }
+            if (mc.player.getOffhandItem().is(item)) {
+                total += mc.player.getOffhandItem().getCount();
+            }
+            if (total > 0) {
+                list.add(new ItemStack(item, total));
+            }
+        }
+    }
+
+    private static class InventoryHud extends HudModule {
+        InventoryHud() {
+            super("invhud", "Inventar-Vorschau", "Zeigt die 27 Slots des Inventars dauerhaft auf dem HUD an.");
+        }
+
+        @Override
+        public void onRenderHud(GuiGraphicsExtractor g, float td) {
+            if (mc.player == null) return;
+
+            int cols = 9;
+            int rows = 3;
+            int slotSize = 18;
+            int w = cols * slotSize + 6;
+            int h = rows * slotSize + 6;
+
+            int[] a = anchor(mc.getWindow().getGuiScaledWidth(), mc.getWindow().getGuiScaledHeight(), w, h);
+            int x = a[0];
+            int y = a[1];
+
+            if (background.value) {
+                Glass.fillRound(g, x, y, w, h, 6, backgroundColor.value);
+                Glass.ring(g, x, y, w, h, 6, 0.5f, 0x22FFFFFF);
+            }
+            markBounds(x, y, w, h);
+
+            for (int r = 0; r < rows; r++) {
+                for (int c = 0; c < cols; c++) {
+                    int slotIndex = 9 + r * cols + c;
+                    int sx = x + 3 + c * slotSize;
+                    int sy = y + 3 + r * slotSize;
+
+                    Glass.fillRound(g, sx + 1, sy + 1, slotSize - 2, slotSize - 2, 3, 0x18FFFFFF);
+
+                    if (slotIndex < mc.player.getInventory().getContainerSize()) {
+                        ItemStack stack = mc.player.getInventory().getItem(slotIndex);
+                        if (!stack.isEmpty()) {
+                            g.item(stack, sx + 1, sy + 1);
+                            if (stack.getCount() > 1) {
+                                String cnt = String.valueOf(stack.getCount());
+                                g.text(mc.font, cnt, sx + slotSize - mc.font.width(cnt) - 1, sy + slotSize - 7, 0xFFFFFFFF, true);
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }

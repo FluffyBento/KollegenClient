@@ -52,7 +52,10 @@
     "FrustumAccessor",
     "DynamicGpuDataStorageMappedMixin",
     "DynamicGpuDataStorageNonMappedMixin",
-    "CameraMixin"
+    "CameraMixin",
+    "HumanoidArmorLayerMixin",
+    "AbstractClientPlayerMixin",
+    "PostShaderMixin"
   ],
   "injectors": {
     "defaultRequire": 1
