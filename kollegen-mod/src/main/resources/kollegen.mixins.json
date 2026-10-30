@@ -42,6 +42,7 @@
     "AxolotlAccessor",
     "PlayerCosmeticsMixin",
     "ShieldLayerMixin",
+    "ShieldSpecialRendererMixin",
     "CapeLayerMixin",
     "MaceLayerMixin",
     "WeatherEffectRendererMixin",

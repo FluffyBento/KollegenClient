@@ -3536,6 +3536,30 @@ async function ensureCapeTextureUrl(url, elytraMode = 'normal') {
   });
 }
 
+function resolveStoreCapeTexture(it) {
+  if (!it) return "";
+  const id = it.id || "";
+  const known = {
+    cape_phantomumhang: "cosmetics/store_phantomumhang.png",
+    cape_sternenhimmel: "cosmetics/store_sternenhimmel_umhang.png",
+    cape_fluffybento: "cosmetics/fluffybento_FluffyBento_cape.png",
+    cape_limitlos: "cosmetics/limit_los_Limit_Los_cape.png",
+    cape_zerocraft77: "cosmetics/zerocraft77_Zerocraft77_cape.png",
+    cape_irongirl: "cosmetics/irongirl_lp_Irongirl_lp_cape.png",
+    cape_tson: "cosmetics/t_son__T_son__cape.png",
+    cape_rixhii: "cosmetics/rixhii_Rixhii_cape.png",
+  };
+  if (known[id]) return known[id];
+  const rawTex = (it.data && it.data.texture) || it.texture || "";
+  if (rawTex.startsWith("http")) return rawTex;
+  const m = rawTex.match(/^kollegen:cosmetics\/([^/]+)\/(.+)\.png$/);
+  if (m) {
+    if (m[1] === "store") return "cosmetics/store_" + m[2] + ".png";
+    return "cosmetics/" + m[1] + "_" + m[2] + ".png";
+  }
+  return rawTex.replace(/^kollegen:/, "");
+}
+
 async function loadCapesView() {
   const grid = $("capesGrid");
   if (!grid) return;
@@ -3577,12 +3601,7 @@ async function loadCapesView() {
       storeCapes = catalog
         .filter(it => it && it.category === "cape" && (it.owned || it.is_owned || pkgOwned.has(it.id)))
         .map(it => {
-          let tex = "";
-          if (it.data && it.data.texture) {
-            tex = it.data.texture.startsWith("http") ? it.data.texture : ("https://kollegen.me/" + it.data.texture.replace(/^kollegen:/, ""));
-          } else if (it.texture) {
-            tex = it.texture.startsWith("http") ? it.texture : ("https://kollegen.me/" + it.texture.replace(/^kollegen:/, ""));
-          }
+          let tex = resolveStoreCapeTexture(it);
           return {
             id: it.id,
             name: it.title || it.name || "Store Cape",
@@ -3751,7 +3770,7 @@ async function loadCapesView() {
     const elytraBtn = document.createElement("button");
     elytraBtn.className = "cape-card-elytra-btn";
     elytraBtn.title = "Zwischen Cape und Elytra umschalten";
-    elytraBtn.innerHTML = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4C9 7 5 10 3 15c-1 3 1 6 4 6 3 0 4-3 5-7"/><path d="M9 11c-2 3-3 6-2 8"/><path d="M12 4c3 3 7 6 9 11 1 3-1 6-4 6-3 0-4-3-5-7"/><path d="M15 11c2 3 3 6 2 8"/></svg>`;
+    elytraBtn.innerHTML = `<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M11.5 3.5C8 5 4 8.5 3 13.5c-0.8 4 1 7.5 4.5 7.5c2.2 0 3.8-3 4-7V3.5zm1 0c3.5 1.5 7.5 5 8.5 10c0.8 4-1 7.5-4.5 7.5c-2.2 0-3.8-3-4-7V3.5z"/></svg>`;
     prevWrap.appendChild(elytraBtn);
 
     // 3D Rotating & Interactive Cape Canvas
@@ -3774,6 +3793,11 @@ async function loadCapesView() {
           });
           viewer.playerObject.skin.visible = false;
           viewer.playerObject.cape.visible = true;
+          viewer.playerObject.backEquipment = "cape";
+          if (viewer.playerObject.elytra) {
+            viewer.playerObject.elytra.visible = false;
+            viewer.playerObject.elytra.resetJoints();
+          }
           viewer.playerWrapper.rotation.y = Math.PI; // Face the back of cape towards user
           viewer.autoRotate = false;
           viewer.autoRotateSpeed = 2.2;
@@ -3784,15 +3808,20 @@ async function loadCapesView() {
             e.stopPropagation();
             isElytra = !isElytra;
             elytraBtn.classList.toggle("active", isElytra);
-            viewer.playerObject.backEquipment = isElytra ? "elytra" : "cape";
-            if (isElytra && viewer.playerObject.elytra) {
-              const el = viewer.playerObject.elytra;
-              el.leftWing.rotation.x = 0.55;
-              el.leftWing.rotation.y = 0.35;
-              el.leftWing.rotation.z = -0.85;
-              el.updateRightWing();
-            } else if (viewer.playerObject.elytra) {
-              viewer.playerObject.elytra.resetJoints();
+            if (isElytra) {
+              viewer.playerObject.backEquipment = "elytra";
+              if (viewer.playerObject.elytra) {
+                const el = viewer.playerObject.elytra;
+                el.leftWing.rotation.x = 0.55;
+                el.leftWing.rotation.y = 0.35;
+                el.leftWing.rotation.z = -0.85;
+                el.updateRightWing();
+              }
+            } else {
+              viewer.playerObject.backEquipment = "cape";
+              if (viewer.playerObject.elytra) {
+                viewer.playerObject.elytra.resetJoints();
+              }
             }
             if (viewer.renderPaused) {
               viewer.render();
@@ -3848,14 +3877,17 @@ async function loadCapesView() {
     name.className = "cape-card-name";
     name.textContent = c.name;
 
-    const uses = document.createElement("div");
-    uses.className = "cape-card-uses";
-    const usesStr = (c.uses || 0).toLocaleString("de-DE");
-    uses.innerHTML = `<span>⤓</span> <span>${usesStr} uses</span>`;
-
     card.appendChild(prevWrap);
     card.appendChild(name);
-    card.appendChild(uses);
+
+    // NUR Community-Capes sollen Download-Zahlen anzeigen (Points 1 & 7)
+    if (c.category === "community") {
+      const uses = document.createElement("div");
+      uses.className = "cape-card-uses";
+      const usesStr = (c.uses || 0).toLocaleString("de-DE");
+      uses.innerHTML = `<span>⤓</span> <span>${usesStr} Downloads</span>`;
+      card.appendChild(uses);
+    }
 
     if (c.category === "gekauft" || c.isStoreItem) {
       const badge = document.createElement("span");
@@ -3932,6 +3964,10 @@ function openCapeUploadModal() {
   const modal = $("capeUploadModal");
   if (!modal) return;
   uploadedCapeFrames = [];
+  rawUploadedCapeImages = [];
+  uploadIsElytra = false;
+  if ($("capeUploadElytraToggle")) $("capeUploadElytraToggle").classList.remove("active");
+  if ($("capeUploadElytraLabel")) $("capeUploadElytraLabel").textContent = "Elytra-Ansicht";
   if ($("capeNameField")) $("capeNameField").value = "";
   if ($("capeFilesPicker")) $("capeFilesPicker").value = "";
   if ($("capeFrameManager")) $("capeFrameManager").style.display = "none";
@@ -4064,6 +4100,11 @@ function renderFrameManager() {
         });
         uploadCapeViewer.playerObject.skin.visible = false;
         uploadCapeViewer.playerObject.cape.visible = true;
+        uploadCapeViewer.playerObject.backEquipment = "cape";
+        if (uploadCapeViewer.playerObject.elytra) {
+          uploadCapeViewer.playerObject.elytra.visible = false;
+          uploadCapeViewer.playerObject.elytra.resetJoints();
+        }
         uploadCapeViewer.playerWrapper.rotation.y = Math.PI; // Face the back of cape towards user
         uploadCapeViewer.autoRotate = true; // Auto rotates!
         uploadCapeViewer.autoRotateSpeed = 2.2;

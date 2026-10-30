@@ -821,7 +821,7 @@ public class KollegenMenuScreen extends Screen {
             this.addFull(K_COS_TAB, 22.0f);
 
             // Live Preview Card
-            this.addFull(K_COS_PREVIEW, "name".equalsIgnoreCase(this.cosSubTab) ? 68.0f : 108.0f);
+            this.addFull(K_COS_PREVIEW, "name".equalsIgnoreCase(this.cosSubTab) ? 68.0f : 138.0f);
 
             Set<String> pkgOwned = new HashSet<String>();
             for (JsonObject it : all) {
@@ -2153,41 +2153,56 @@ public class KollegenMenuScreen extends Screen {
             Minecraft mc = Minecraft.getInstance();
             if (mc.player != null) {
                 try {
-                    InventoryScreen.extractEntityInInventoryFollowsMouse(g, Math.round(X + 12), Math.round(Y + 14), Math.round(X + 80), Math.round(Y + 102), 28, 0.0f, (float) mx, (float) my, mc.player);
+                    InventoryScreen.extractEntityInInventoryFollowsMouse(g, Math.round(X + 10), Math.round(Y + 12), Math.round(X + 96), Math.round(Y + 132), 40, 0.0f, (float) mx, (float) my, mc.player);
                 } catch (Throwable ignored) {
                 }
             } else {
                 Identifier skinTex = SkinCapeTextureManager.getOrLoadSkin(mc.getUser() != null ? mc.getUser().getName() : "Player", null);
                 if (skinTex != null) {
                     try {
-                        PlayerFaceExtractor.extractRenderState(g, skinTex, Math.round(X + 20), Math.round(Y + 28), 48, true, false, -1);
+                        PlayerFaceExtractor.extractRenderState(g, skinTex, Math.round(X + 22), Math.round(Y + 30), 56, true, false, -1);
                     } catch (Throwable ignored) {
                     }
                 }
             }
 
-            float infoX = X + 90;
-            float infoY = Y + 18;
+            float infoX = X + 104;
+            float infoY = Y + 16;
             Glass.text(g, this.font, "Ausrüstung im Spiel:", Math.round(infoX), Math.round(infoY), Palette.TEXT, true);
-            infoY += 13;
 
-            String[] slots = new String[]{"head_accessory", "face_accessory", "back_accessory", "aura", "shield"};
-            String[] slotNames = new String[]{"Kopf", "Gesicht", "Rücken", "Aura", "Schild"};
-            for (int i = 0; i < slots.length; i++) {
-                String eqId = this.equippedId(slots[i]);
-                String eqName = "Keine";
-                if (!eqId.isEmpty() && this.storeCache != null && this.storeCache.has("catalog")) {
-                    for (JsonElement el : this.storeCache.getAsJsonArray("catalog")) {
-                        if (el.isJsonObject() && str(el.getAsJsonObject(), "id", "").equals(eqId)) {
-                            eqName = str(el.getAsJsonObject(), "name", eqId);
-                            break;
-                        }
-                    }
-                }
-                Glass.text(g, this.font, slotNames[i] + ": " + eqName, Math.round(infoX), Math.round(infoY), eqId.isEmpty() ? Palette.MUTED : Palette.ACCENT, false);
-                infoY += 11;
+            String[] slots1 = new String[]{"head_accessory", "face_accessory", "shoulder_accessory", "torso_accessory", "back_accessory"};
+            String[] slotNames1 = new String[]{"Kopf", "Gesicht", "Schulter", "Oberkörper", "Rücken"};
+            String[] slots2 = new String[]{"legs_accessory", "gloves", "shield", "mace", "aura"};
+            String[] slotNames2 = new String[]{"Unterkörper", "Handschuhe", "Schild", "Streitkolben", "Aura"};
+
+            float col2X = infoX + Math.max(100.0f, (c.w - 114.0f) / 2.0f);
+            float rowY = infoY + 14;
+            for (int i = 0; i < 5; i++) {
+                String eqId1 = this.equippedId(slots1[i]);
+                String eqName1 = this.resolveCosmeticName(eqId1);
+                String txt1 = Glass.trunc(this.font, slotNames1[i] + ": " + eqName1, (int) Math.max(70, col2X - infoX - 6));
+                Glass.text(g, this.font, txt1, Math.round(infoX), Math.round(rowY), eqId1.isEmpty() ? Palette.MUTED : Palette.ACCENT, false);
+
+                String eqId2 = this.equippedId(slots2[i]);
+                String eqName2 = this.resolveCosmeticName(eqId2);
+                String txt2 = Glass.trunc(this.font, slotNames2[i] + ": " + eqName2, (int) Math.max(70, X + c.w - col2X - 8));
+                Glass.text(g, this.font, txt2, Math.round(col2X), Math.round(rowY), eqId2.isEmpty() ? Palette.MUTED : Palette.ACCENT, false);
+
+                rowY += 12;
             }
         }
+    }
+
+    private String resolveCosmeticName(String eqId) {
+        if (eqId == null || eqId.isEmpty()) return "Keine";
+        if (this.storeCache != null && this.storeCache.has("catalog")) {
+            for (JsonElement el : this.storeCache.getAsJsonArray("catalog")) {
+                if (el.isJsonObject() && str(el.getAsJsonObject(), "id", "").equals(eqId)) {
+                    return str(el.getAsJsonObject(), "name", eqId);
+                }
+            }
+        }
+        return eqId;
     }
 
     private void drawSkinCard(GuiGraphicsExtractor g, Cell c, float X, float Y, boolean hov) {
@@ -2309,8 +2324,8 @@ public class KollegenMenuScreen extends Screen {
                 c.truncDesc = "Kein Umhang";
             } else if (isUpload) {
                 c.truncDesc = "Im Launcher hochladen";
-            } else if (uses > 0) {
-                c.truncDesc = author + " · " + uses + " uses";
+            } else if ("community".equalsIgnoreCase(cat) && uses > 0) {
+                c.truncDesc = author + " · " + uses + " Downloads";
             } else {
                 c.truncDesc = author;
             }

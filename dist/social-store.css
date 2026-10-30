@@ -2173,6 +2173,14 @@ body:not(.console-mode) .store-cats .tab.active::before {
   transition: all 0.15s ease;
 }
 
+.cape-elytra-toggle-btn svg {
+  width: 15px;
+  height: 15px;
+  display: block;
+  fill: currentColor;
+  flex-shrink: 0;
+}
+
 .cape-elytra-toggle-btn:hover {
   background: var(--bg-secondary);
   border-color: var(--accent);
@@ -2187,45 +2195,45 @@ body:not(.console-mode) .store-cats .tab.active::before {
 
 .cape-card-elytra-btn {
   position: absolute;
-  top: 10px;
-  left: 10px;
+  top: 8px;
+  left: 8px;
   z-index: 10;
-  width: 28px;
-  height: 28px;
+  width: 30px;
+  height: 30px;
   border-radius: 50%;
-  background: rgba(0, 0, 0, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(18, 20, 28, 0.85);
+  backdrop-filter: blur(4px);
+  border: 1px solid rgba(255, 255, 255, 0.25);
   display: flex;
   align-items: center;
   justify-content: center;
   color: #fff;
   cursor: pointer;
   transition: all 0.15s ease;
-  opacity: 0.7;
+  opacity: 0.85;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
 }
 
 .cape-card-elytra-btn:hover {
   opacity: 1;
-  background: rgba(0, 0, 0, 0.85);
+  background: rgba(28, 32, 44, 0.95);
   border-color: var(--accent);
   color: var(--accent);
-  transform: scale(1.1);
+  transform: scale(1.12);
 }
 
 .cape-card-elytra-btn.active {
   opacity: 1;
   background: var(--accent);
   border-color: var(--accent);
-  color: #000;
+  color: #0c0e14;
 }
 
 .cape-card-elytra-btn svg {
   width: 16px;
   height: 16px;
   display: block;
-  stroke: currentColor;
-  stroke-width: 2;
-  fill: none;
+  fill: currentColor;
   pointer-events: none;
 }
 .cape-card.active {

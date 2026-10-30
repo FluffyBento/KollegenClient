@@ -239,18 +239,37 @@ public final class CosmeticRenderLayer extends RenderLayer<AvatarRenderState, Pl
             RenderType type = getRenderType(tex);
             poseStack.pushPose();
             arm.translateAndRotate(poseStack);
-            float mountYaw = 0.0F;
-            try {
-                if (bb.bones != null && !bb.bones.isEmpty() && bb.bones.get(0) != null) {
-                    mountYaw = bb.bones.get(0).ry;
-                }
-            } catch (Throwable ignored) {
-            }
-            poseStack.translate(0.0F - bb.cx, 0.62F - bb.cy, -0.30F - bb.cz);
-            float yawDeg = (useLeft ? -90.0F : 90.0F) - mountYaw;
+
+            // Move to forearm holding position on arm:
+            float armSide = useLeft ? 1.0F : -1.0F;
+            poseStack.translate(armSide * 0.05F, 0.46F, -0.04F);
+
+            // Rotate around grip position so shield outer face is outward/forward:
+            float yawDeg = useLeft ? -90.0F : 90.0F;
             poseStack.rotate(ROT_SCRATCH.get().identity().rotateY((float) Math.toRadians(ywDegSafe(yawDeg))));
-            poseStack.rotate(ROT_SCRATCH.get().identity().rotateX((float) Math.toRadians(-58.0F)));
-            renderModelContents(poseStack, collector, type, bb, packedLight, timeSec, null, 0, 1.0F);
+            poseStack.rotate(ROT_SCRATCH.get().identity().rotateX((float) Math.toRadians(180.0F)));
+
+            // Find model grip point:
+            float gripX = bb.cx;
+            float gripY = bb.cy;
+            float gripZ = bb.cz;
+            for (BbModel.Bone bone : bb.bones) {
+                if (bone.name != null && (bone.name.equalsIgnoreCase("handle") || bone.name.equalsIgnoreCase("shield_mount") || bone.name.equalsIgnoreCase("grip"))) {
+                    gripX = BbModel.pivotX(bone.ox);
+                    gripY = BbModel.pivotY(bone.oy);
+                    gripZ = BbModel.pivotZ(bone.oz);
+                    break;
+                }
+            }
+            poseStack.translate(-gripX, -gripY, -gripZ);
+
+            int tintColor = -1;
+            if (dev.kollegen.client.mods.modules.ShieldSettings.isStatusOutlineEnabled()) {
+                int sc = dev.kollegen.client.mods.modules.ShieldSettings.getStatusColor(player);
+                if (sc != 0) tintColor = sc;
+            }
+
+            renderModelContents(poseStack, collector, type, bb, packedLight, timeSec, null, 0, 1.0F, tintColor);
             poseStack.popPose();
         } catch (Throwable ignored) {
         }
@@ -290,18 +309,37 @@ public final class CosmeticRenderLayer extends RenderLayer<AvatarRenderState, Pl
             RenderType type = getRenderType(tex);
             poseStack.pushPose();
             arm.translateAndRotate(poseStack);
-            float mountYaw = 0.0F;
-            try {
-                if (bb.bones != null && !bb.bones.isEmpty() && bb.bones.get(0) != null) {
-                    mountYaw = bb.bones.get(0).ry;
-                }
-            } catch (Throwable ignored) {
-            }
-            poseStack.translate(0.0F - bb.cx, 0.62F - bb.cy, -0.30F - bb.cz);
-            float yawDeg = (useLeft ? -90.0F : 90.0F) - mountYaw;
+
+            // Move to forearm holding position on arm:
+            float armSide = useLeft ? 1.0F : -1.0F;
+            poseStack.translate(armSide * 0.05F, 0.46F, -0.04F);
+
+            // Rotate around grip position so shield outer face is outward/forward:
+            float yawDeg = useLeft ? -90.0F : 90.0F;
             poseStack.rotate(ROT_SCRATCH.get().identity().rotateY((float) Math.toRadians(ywDegSafe(yawDeg))));
-            poseStack.rotate(ROT_SCRATCH.get().identity().rotateX((float) Math.toRadians(-58.0F)));
-            renderModelContents(poseStack, collector, type, bb, packedLight, timeSec, null, 0, 1.0F);
+            poseStack.rotate(ROT_SCRATCH.get().identity().rotateX((float) Math.toRadians(180.0F)));
+
+            // Find model grip point:
+            float gripX = bb.cx;
+            float gripY = bb.cy;
+            float gripZ = bb.cz;
+            for (BbModel.Bone bone : bb.bones) {
+                if (bone.name != null && (bone.name.equalsIgnoreCase("handle") || bone.name.equalsIgnoreCase("shield_mount") || bone.name.equalsIgnoreCase("grip"))) {
+                    gripX = BbModel.pivotX(bone.ox);
+                    gripY = BbModel.pivotY(bone.oy);
+                    gripZ = BbModel.pivotZ(bone.oz);
+                    break;
+                }
+            }
+            poseStack.translate(-gripX, -gripY, -gripZ);
+
+            int tintColor = -1;
+            if (dev.kollegen.client.mods.modules.ShieldSettings.isStatusOutlineEnabled()) {
+                int sc = dev.kollegen.client.mods.modules.ShieldSettings.getStatusColor(player);
+                if (sc != 0) tintColor = sc;
+            }
+
+            renderModelContents(poseStack, collector, type, bb, packedLight, timeSec, null, 0, 1.0F, tintColor);
             poseStack.popPose();
         } catch (Throwable ignored) {
         }
@@ -318,15 +356,19 @@ public final class CosmeticRenderLayer extends RenderLayer<AvatarRenderState, Pl
     }
 
     private static void renderModelContents(PoseStack poseStack, SubmitNodeCollector collector, RenderType type, BbModel model, int packedLight, double timeSec, Quaternionf rootSwing, int depth, float idleScale) {
+        renderModelContents(poseStack, collector, type, model, packedLight, timeSec, rootSwing, depth, idleScale, -1);
+    }
+
+    private static void renderModelContents(PoseStack poseStack, SubmitNodeCollector collector, RenderType type, BbModel model, int packedLight, double timeSec, Quaternionf rootSwing, int depth, float idleScale, int vertexColor) {
         for (BbModel.Bone bone : model.bones) {
-            renderBone(poseStack, collector, type, model, bone, packedLight, timeSec, depth == 0 ? rootSwing : null, depth, idleScale);
+            renderBone(poseStack, collector, type, model, bone, packedLight, timeSec, depth == 0 ? rootSwing : null, depth, idleScale, vertexColor);
         }
         for (BbModel.Cube cube : model.loose) {
-            submitSingleCube(poseStack, collector, type, model, cube, packedLight, timeSec);
+            submitSingleCube(poseStack, collector, type, model, cube, packedLight, timeSec, vertexColor);
         }
     }
 
-    private static void renderBone(PoseStack poseStack, SubmitNodeCollector collector, RenderType type, BbModel model, BbModel.Bone bone, int packedLight, double timeSec, Quaternionf rootSwing, int depth, float idleScale) {
+    private static void renderBone(PoseStack poseStack, SubmitNodeCollector collector, RenderType type, BbModel model, BbModel.Bone bone, int packedLight, double timeSec, Quaternionf rootSwing, int depth, float idleScale, int vertexColor) {
         poseStack.pushPose();
         try {
             float[] animR = null;
@@ -388,24 +430,24 @@ public final class CosmeticRenderLayer extends RenderLayer<AvatarRenderState, Pl
                     poseStack.pushPose();
                     try {
                         applyPivot(poseStack, BbModel.pivotX(cube.ox), BbModel.pivotY(cube.oy), BbModel.pivotZ(cube.oz), cube.rx, cube.ry, cube.rz);
-                        submitSingleCube(poseStack, collector, type, model, cube, packedLight, timeSec);
+                        submitSingleCube(poseStack, collector, type, model, cube, packedLight, timeSec, vertexColor);
                     } catch (Throwable ignored) {
                     }
                     poseStack.popPose();
                 } else {
-                    submitSingleCube(poseStack, collector, type, model, cube, packedLight, timeSec);
+                    submitSingleCube(poseStack, collector, type, model, cube, packedLight, timeSec, vertexColor);
                 }
             }
 
             for (BbModel.Bone child : bone.children) {
-                renderBone(poseStack, collector, type, model, child, packedLight, timeSec, null, depth + 1, idleScale);
+                renderBone(poseStack, collector, type, model, child, packedLight, timeSec, null, depth + 1, idleScale, vertexColor);
             }
         } catch (Throwable ignored) {
         }
         poseStack.popPose();
     }
 
-    private static void submitSingleCube(PoseStack poseStack, SubmitNodeCollector collector, RenderType type, BbModel model, BbModel.Cube cube, int packedLight, double timeSec) {
+    private static void submitSingleCube(PoseStack poseStack, SubmitNodeCollector collector, RenderType type, BbModel model, BbModel.Cube cube, int packedLight, double timeSec, int vertexColor) {
         try {
             collector.submitCustomGeometry(poseStack, type, (pose, vc) -> {
                 try {
@@ -423,7 +465,7 @@ public final class CosmeticRenderLayer extends RenderLayer<AvatarRenderState, Pl
                     }
 
                     for (BbModel.Face face : cube.faces) {
-                        emitFace(vc, mat, pose, cube, face, shift, packedLight, tmpPos, tmpN);
+                        emitFace(vc, mat, pose, cube, face, shift, packedLight, tmpPos, tmpN, vertexColor);
                     }
                 } catch (Throwable ignored) {
                 }
@@ -433,14 +475,14 @@ public final class CosmeticRenderLayer extends RenderLayer<AvatarRenderState, Pl
     }
 
     private static void emitVertex(VertexConsumer vc, Matrix4f mat, float x, float y, float z,
-                                   float u, float v, int packedLight, float nx, float ny, float nz, Vector3f tmpPos) {
+                                   float u, float v, int packedLight, float nx, float ny, float nz, Vector3f tmpPos, int vertexColor) {
         Vector3f p = mat.transformPosition(x, y, z, tmpPos);
-        vc.addVertex(p.x(), p.y(), p.z(), -1, u, v, OverlayTexture.NO_OVERLAY, packedLight, nx, ny, nz);
+        vc.addVertex(p.x(), p.y(), p.z(), vertexColor, u, v, OverlayTexture.NO_OVERLAY, packedLight, nx, ny, nz);
     }
 
     private static void emitFace(VertexConsumer vc, Matrix4f mat, PoseStack.Pose pose,
                                  BbModel.Cube cube, BbModel.Face face, float shift,
-                                 int packedLight, Vector3f tmpPos, Vector3f tmpN) {
+                                 int packedLight, Vector3f tmpPos, Vector3f tmpN, int vertexColor) {
         float[] n = BbModel.normalFor(face.dir);
         Vector3f nn = pose.transformNormal(n[0], n[1], n[2], tmpN);
         float nx = nn.x();
@@ -457,40 +499,40 @@ public final class CosmeticRenderLayer extends RenderLayer<AvatarRenderState, Pl
 
         switch (face.dir) {
             case BbModel.DOWN -> {
-                emitVertex(vc, mat, maxX, minY, maxZ, u2, v1, packedLight, nx, ny, nz, tmpPos);
-                emitVertex(vc, mat, minX, minY, maxZ, u1, v1, packedLight, nx, ny, nz, tmpPos);
-                emitVertex(vc, mat, minX, minY, minZ, u1, v2, packedLight, nx, ny, nz, tmpPos);
-                emitVertex(vc, mat, maxX, minY, minZ, u2, v2, packedLight, nx, ny, nz, tmpPos);
+                emitVertex(vc, mat, maxX, minY, maxZ, u2, v1, packedLight, nx, ny, nz, tmpPos, vertexColor);
+                emitVertex(vc, mat, minX, minY, maxZ, u1, v1, packedLight, nx, ny, nz, tmpPos, vertexColor);
+                emitVertex(vc, mat, minX, minY, minZ, u1, v2, packedLight, nx, ny, nz, tmpPos, vertexColor);
+                emitVertex(vc, mat, maxX, minY, minZ, u2, v2, packedLight, nx, ny, nz, tmpPos, vertexColor);
             }
             case BbModel.UP -> {
-                emitVertex(vc, mat, maxX, maxY, minZ, u2, v1, packedLight, nx, ny, nz, tmpPos);
-                emitVertex(vc, mat, minX, maxY, minZ, u1, v1, packedLight, nx, ny, nz, tmpPos);
-                emitVertex(vc, mat, minX, maxY, maxZ, u1, v2, packedLight, nx, ny, nz, tmpPos);
-                emitVertex(vc, mat, maxX, maxY, maxZ, u2, v2, packedLight, nx, ny, nz, tmpPos);
+                emitVertex(vc, mat, maxX, maxY, minZ, u2, v1, packedLight, nx, ny, nz, tmpPos, vertexColor);
+                emitVertex(vc, mat, minX, maxY, minZ, u1, v1, packedLight, nx, ny, nz, tmpPos, vertexColor);
+                emitVertex(vc, mat, minX, maxY, maxZ, u1, v2, packedLight, nx, ny, nz, tmpPos, vertexColor);
+                emitVertex(vc, mat, maxX, maxY, maxZ, u2, v2, packedLight, nx, ny, nz, tmpPos, vertexColor);
             }
             case BbModel.NORTH -> {
-                emitVertex(vc, mat, maxX, minY, minZ, u2, v1, packedLight, nx, ny, nz, tmpPos);
-                emitVertex(vc, mat, minX, minY, minZ, u1, v1, packedLight, nx, ny, nz, tmpPos);
-                emitVertex(vc, mat, minX, maxY, minZ, u1, v2, packedLight, nx, ny, nz, tmpPos);
-                emitVertex(vc, mat, maxX, maxY, minZ, u2, v2, packedLight, nx, ny, nz, tmpPos);
+                emitVertex(vc, mat, maxX, minY, minZ, u2, v1, packedLight, nx, ny, nz, tmpPos, vertexColor);
+                emitVertex(vc, mat, minX, minY, minZ, u1, v1, packedLight, nx, ny, nz, tmpPos, vertexColor);
+                emitVertex(vc, mat, minX, maxY, minZ, u1, v2, packedLight, nx, ny, nz, tmpPos, vertexColor);
+                emitVertex(vc, mat, maxX, maxY, minZ, u2, v2, packedLight, nx, ny, nz, tmpPos, vertexColor);
             }
             case BbModel.SOUTH -> {
-                emitVertex(vc, mat, minX, minY, maxZ, u2, v1, packedLight, nx, ny, nz, tmpPos);
-                emitVertex(vc, mat, maxX, minY, maxZ, u1, v1, packedLight, nx, ny, nz, tmpPos);
-                emitVertex(vc, mat, maxX, maxY, maxZ, u1, v2, packedLight, nx, ny, nz, tmpPos);
-                emitVertex(vc, mat, minX, maxY, maxZ, u2, v2, packedLight, nx, ny, nz, tmpPos);
+                emitVertex(vc, mat, minX, minY, maxZ, u2, v1, packedLight, nx, ny, nz, tmpPos, vertexColor);
+                emitVertex(vc, mat, maxX, minY, maxZ, u1, v1, packedLight, nx, ny, nz, tmpPos, vertexColor);
+                emitVertex(vc, mat, maxX, maxY, maxZ, u1, v2, packedLight, nx, ny, nz, tmpPos, vertexColor);
+                emitVertex(vc, mat, minX, maxY, maxZ, u2, v2, packedLight, nx, ny, nz, tmpPos, vertexColor);
             }
             case BbModel.WEST -> {
-                emitVertex(vc, mat, minX, minY, minZ, u2, v1, packedLight, nx, ny, nz, tmpPos);
-                emitVertex(vc, mat, minX, minY, maxZ, u1, v1, packedLight, nx, ny, nz, tmpPos);
-                emitVertex(vc, mat, minX, maxY, maxZ, u1, v2, packedLight, nx, ny, nz, tmpPos);
-                emitVertex(vc, mat, minX, maxY, minZ, u2, v2, packedLight, nx, ny, nz, tmpPos);
+                emitVertex(vc, mat, minX, minY, minZ, u2, v1, packedLight, nx, ny, nz, tmpPos, vertexColor);
+                emitVertex(vc, mat, minX, minY, maxZ, u1, v1, packedLight, nx, ny, nz, tmpPos, vertexColor);
+                emitVertex(vc, mat, minX, maxY, maxZ, u1, v2, packedLight, nx, ny, nz, tmpPos, vertexColor);
+                emitVertex(vc, mat, minX, maxY, minZ, u2, v2, packedLight, nx, ny, nz, tmpPos, vertexColor);
             }
             case BbModel.EAST -> {
-                emitVertex(vc, mat, maxX, minY, maxZ, u2, v1, packedLight, nx, ny, nz, tmpPos);
-                emitVertex(vc, mat, maxX, minY, minZ, u1, v1, packedLight, nx, ny, nz, tmpPos);
-                emitVertex(vc, mat, maxX, maxY, minZ, u1, v2, packedLight, nx, ny, nz, tmpPos);
-                emitVertex(vc, mat, maxX, maxY, maxZ, u2, v2, packedLight, nx, ny, nz, tmpPos);
+                emitVertex(vc, mat, maxX, minY, maxZ, u2, v1, packedLight, nx, ny, nz, tmpPos, vertexColor);
+                emitVertex(vc, mat, maxX, minY, minZ, u1, v1, packedLight, nx, ny, nz, tmpPos, vertexColor);
+                emitVertex(vc, mat, maxX, maxY, minZ, u1, v2, packedLight, nx, ny, nz, tmpPos, vertexColor);
+                emitVertex(vc, mat, maxX, maxY, maxZ, u2, v2, packedLight, nx, ny, nz, tmpPos, vertexColor);
             }
         }
     }
