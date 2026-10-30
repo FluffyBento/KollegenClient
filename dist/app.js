@@ -1568,6 +1568,7 @@ async function refreshLogs() {
       dropSkinFallback(wrap);
       homeSkinViewer = new sv3d.SkinViewer({ canvas: canvas, width: 160, height: 320 });
       homeSkinViewer.animation = new sv3d.IdleAnimation();
+      homeSkinViewer.animation.speed = 0.8;
       const p = homeSkinViewer.loadSkin(url);
       const ready = () => {
         if (!homeSkinViewer) return;
@@ -1578,25 +1579,21 @@ async function refreshLogs() {
           }
         } catch (_) {}
         try { homeSkinViewer.renderPaused = false; } catch (_) {}
-        clearTimeout(homeSkinPauseTimer);
-        homeSkinPauseTimer = setTimeout(() => {
-          if (!homeSkinViewer) return;
-          try {
-            homeSkinViewer.renderPaused = true;
-            homeSkinViewer.render();
-          } catch (_) {}
-        }, 450);
         let lost = false;
         try {
           lost = homeSkinViewer.renderer.getContext().isContextLost();
         } catch (_) {}
         setSkinState(lost ? "3D-Kontext verloren" : "");
       };
-      if (p && typeof p.then === "function") p.then(ready).catch(() => {
-        homeSkinFailed = true;
-        setSkinState("3D · Skin-Fehler");
-      });
-      else ready();
+      if (p && typeof p.then === "function") {
+        p.then(ready).catch(() => {
+          homeSkinFailed = true;
+          showSkinFallback(wrap, canvas, url);
+          setSkinState("");
+        });
+      } else {
+        ready();
+      }
     } catch (e) {
       disposeHomeSkinViewer();
       homeSkinFailed = true;
@@ -3278,7 +3275,7 @@ if ($("skinSaveBtn")) {
 }
 
 // ─── COMMUNITY CAPES & STORE CAPES (Image 3 & Image 4) ───
-let activeCapeCat = "all";
+let activeCapeCat = "community";
 let capeFavOnly = false;
 let capeAnimTimers = [];
 let capeViewers = [];
@@ -3570,31 +3567,66 @@ async function loadCapesView() {
   const searchVal = ($("capesSearchInput") ? $("capesSearchInput").value.trim().toLowerCase() : "");
 
   grid.innerHTML = "";
-  const noneCard = document.createElement("div");
-  const anyActive = !!(
-    capeData.active_cape ||
-    vanillaCapes.some(v => v.active) ||
-    storeCapes.some(s => (homeState.me && homeState.me.equipped && homeState.me.equipped.cape === s.id) || (typeof socialMe !== "undefined" && socialMe && socialMe.equipped && socialMe.equipped.cape === s.id))
-  );
-  noneCard.className = "cape-card cape-card-none" + (!anyActive ? " active" : "");
-  noneCard.innerHTML = `
-    <div class="cape-none-icon">✕</div>
-    <div class="cape-card-name">No Cape</div>
-  `;
-  noneCard.onclick = async () => {
-    try {
-      await invoke("capes_set_active", { capeId: null });
-      try { await invoke("kollegen_store_equip", { itemId: "", category: "cape" }); } catch (_) {}
-      try { await invoke("cape_equip", { capeId: "" }); } catch (_) {}
-      currentCapeUrl = null;
-      toast("Cape abgelegt", "ok");
-      loadCapesView();
-      loadHomeSkin(true);
-    } catch (e) {
-      toast("Fehler: " + e, "error");
+
+  // 1. In Community-Tab: Zeige das aktuell ausgerüstete Cape als erste Karte
+  if (activeCapeCat === "community") {
+    const activeCape = allCapes.find(c => 
+      c.id === capeData.active_cape ||
+      (c.isVanilla && c.active) ||
+      (c.isStoreItem && ((homeState.me && homeState.me.equipped && homeState.me.equipped.cape === c.id) || (typeof socialMe !== "undefined" && socialMe && socialMe.equipped && socialMe.equipped.cape === c.id)))
+    );
+
+    const eqCard = document.createElement("div");
+    eqCard.className = "cape-card" + (activeCape ? " active" : " cape-card-none");
+    if (!activeCape) {
+      eqCard.innerHTML = `
+        <div class="cape-none-icon">✕</div>
+        <div class="cape-card-name">Kein Cape</div>
+        <div class="cape-card-uses"><span>Aktuell ausgerüstet</span></div>
+      `;
+    } else {
+      eqCard.innerHTML = `
+        <div class="cape-card-preview-wrap">
+          <img src="${activeCape.preview || (activeCape.frames && activeCape.frames[0]) || ''}" alt="${activeCape.name}" style="max-height:100%; object-fit:contain;" />
+        </div>
+        <div class="cape-card-name">${activeCape.name}</div>
+        <div class="cape-card-uses"><span>✓ Ausgerüstet (Klicken zum Ablegen)</span></div>
+        <span class="cape-badge-tag" style="background:var(--accent); color:#000; font-weight:700;">Aktiv</span>
+      `;
+      eqCard.onclick = async () => {
+        try {
+          await invoke("capes_set_active", { capeId: null });
+          try { await invoke("kollegen_store_equip", { itemId: "", category: "cape" }); } catch (_) {}
+          try { await invoke("cape_equip", { capeId: "" }); } catch (_) {}
+          currentCapeUrl = null;
+          toast("Cape abgelegt", "ok");
+          loadCapesView();
+          loadHomeSkin(true);
+        } catch (e) {
+          toast("Fehler: " + e, "error");
+        }
+      };
     }
-  };
-  grid.appendChild(noneCard);
+    grid.appendChild(eqCard);
+  } else if (activeCapeCat === "my_capes") {
+    // 2. In My Capes: Ein 2ter Upload Button als erste Karte
+    const uploadCard = document.createElement("div");
+    uploadCard.className = "cape-card skin-card-add";
+    uploadCard.innerHTML = `
+      <div class="skin-card-silhouette">
+        <div class="skin-add-plus">
+          <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="3"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        </div>
+      </div>
+      <div class="skin-card-title">Cape hochladen</div>
+      <div class="skin-card-sub">
+        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        Eigenes Cape importieren
+      </div>
+    `;
+    uploadCard.onclick = () => openCapeUploadModal();
+    grid.appendChild(uploadCard);
+  }
 
   allCapes.forEach((c) => {
     if (activeCapeCat === "my_capes" && c.category !== "my_capes") return;
@@ -3640,7 +3672,7 @@ async function loadCapesView() {
     const elytraBtn = document.createElement("button");
     elytraBtn.className = "cape-card-elytra-btn";
     elytraBtn.title = "Zwischen Cape und Elytra umschalten";
-    elytraBtn.innerHTML = `<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M12 2C9.5 5 4 8 2 15c0 4 3 7 7 7 3 0 3-4 3-7 0 3 0 7 3 7 4 0 7-3 7-7-2-7-7.5-10-10-13zm-1 18c-3 0-5.5-2.2-5.5-5.5 0-3 3-6.5 5.5-9v14.5zm2 0V5.5c2.5 2.5 5.5 6 5.5 9 0 3.3-2.5 5.5-5.5 5.5z"/></svg>`;
+    elytraBtn.innerHTML = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4C9 7 5 10 3 15c-1 3 1 6 4 6 3 0 4-3 5-7"/><path d="M9 11c-2 3-3 6-2 8"/><path d="M12 4c3 3 7 6 9 11 1 3-1 6-4 6-3 0-4-3-5-7"/><path d="M15 11c2 3 3 6 2 8"/></svg>`;
     prevWrap.appendChild(elytraBtn);
 
     // 3D Rotating & Interactive Cape Canvas
@@ -3674,6 +3706,15 @@ async function loadCapesView() {
             isElytra = !isElytra;
             elytraBtn.classList.toggle("active", isElytra);
             viewer.playerObject.backEquipment = isElytra ? "elytra" : "cape";
+            if (isElytra && viewer.playerObject.elytra) {
+              const el = viewer.playerObject.elytra;
+              el.leftWing.rotation.x = 0.55;
+              el.leftWing.rotation.y = 0.35;
+              el.leftWing.rotation.z = -0.85;
+              el.updateRightWing();
+            } else if (viewer.playerObject.elytra) {
+              viewer.playerObject.elytra.resetJoints();
+            }
             if (viewer.renderPaused) {
               viewer.render();
             }
@@ -3753,13 +3794,19 @@ async function loadCapesView() {
       try {
         if (c.isStoreItem) {
           await invoke("kollegen_store_equip", { itemId: c.id, category: "cape" });
+          try { await invoke("capes_set_active", { capeId: null }); } catch (_) {}
+          try { await invoke("cape_equip", { capeId: "" }); } catch (_) {}
           currentCapeUrl = c.preview || (c.frames && c.frames[0]) || null;
           toast(`Store-Cape "${c.name}" ausgerüstet!`, "ok");
         } else if (c.isVanilla) {
+          try { await invoke("kollegen_store_equip", { itemId: "", category: "cape" }); } catch (_) {}
+          try { await invoke("capes_set_active", { capeId: null }); } catch (_) {}
           await invoke("cape_equip", { capeId: c.vanillaId });
           currentCapeUrl = c.preview || (c.frames && c.frames[0]) || null;
           toast(`Vanilla-Cape "${c.name}" ausgerüstet!`, "ok");
         } else {
+          try { await invoke("kollegen_store_equip", { itemId: "", category: "cape" }); } catch (_) {}
+          try { await invoke("cape_equip", { capeId: "" }); } catch (_) {}
           await invoke("capes_set_active", { capeId: c.id });
           currentCapeUrl = c.preview || (c.frames && c.frames[0]) || null;
           toast(`Cape "${c.name}" ausgerüstet!`, "ok");
@@ -3867,6 +3914,16 @@ if (uploadElytraToggle) {
     if (label) label.textContent = uploadIsElytra ? "Cape-Ansicht" : "Elytra-Ansicht";
     if (uploadCapeViewer && uploadCapeViewer.playerObject) {
       uploadCapeViewer.playerObject.backEquipment = uploadIsElytra ? "elytra" : "cape";
+      if (uploadIsElytra && uploadCapeViewer.playerObject.elytra) {
+        const el = uploadCapeViewer.playerObject.elytra;
+        el.leftWing.rotation.x = 0.55;
+        el.leftWing.rotation.y = 0.35;
+        el.leftWing.rotation.z = -0.85;
+        el.updateRightWing();
+      } else if (uploadCapeViewer.playerObject.elytra) {
+        uploadCapeViewer.playerObject.elytra.resetJoints();
+      }
+      if (uploadCapeViewer.renderPaused) uploadCapeViewer.render();
     }
   };
 }
@@ -5872,8 +5929,12 @@ startBackgroundIntervals();
         }
       }
      }
-     // Store-ausgerüsteten Cape auf die Skin-Viewer anwenden
-     (function () {
+     // Store-ausgerüsteten Cape auf die Skin-Viewer anwenden (nur wenn kein Custom- oder Vanilla-Cape aktiv)
+     (async function () {
+       try {
+         const capesData = await invoke("capes_list");
+         if (capesData && capesData.active_cape) return;
+       } catch (_) {}
        const eqCapeId = equipped && equipped.cape;
        const eqCapeItem = eqCapeId ? (store.catalog || []).find((it) => it.id === eqCapeId) : null;
        if (eqCapeItem && eqCapeItem.data && eqCapeItem.data.texture) {

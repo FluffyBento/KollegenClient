@@ -94,24 +94,28 @@ public final class KollegenPresence {
         String resolvedModel = model;
         if ((resolvedModel == null || resolvedModel.isEmpty()) && texture != null) {
             String lower = texture.toLowerCase(java.util.Locale.ROOT);
-            if (lower.contains("fluffybento")) {
-                resolvedModel = "kollegen:cosmetics/fluffybento/fluffybento_cape.bbmodel";
-            } else if (lower.contains("limitlos") || lower.contains("limit_los")) {
-                resolvedModel = "kollegen:cosmetics/limit_los/limit_los_cape.bbmodel";
-            } else if (lower.contains("zerocraft77")) {
-                resolvedModel = "kollegen:cosmetics/zerocraft77/zerocraft77_cape.bbmodel";
-            } else if (lower.contains("irongirl")) {
-                resolvedModel = "kollegen:cosmetics/irongirl_lp/irongirl_lp_cape.bbmodel";
-            } else if (lower.contains("tson") || lower.contains("t_son")) {
-                resolvedModel = "kollegen:cosmetics/t_son_/t_son__cape.bbmodel";
-            } else if (lower.contains("rixhii")) {
-                resolvedModel = "kollegen:cosmetics/rixhii/rixhii_cape.bbmodel";
-            } else if (lower.contains("phantom")) {
-                resolvedModel = "kollegen:cosmetics/store/phantomumhang.bbmodel";
-            } else if (lower.contains("sternen")) {
-                resolvedModel = "kollegen:cosmetics/store/sternenhimmel_umhang.bbmodel";
-            } else if (lower.endsWith(".png")) {
-                resolvedModel = texture.substring(0, texture.length() - 4) + ".bbmodel";
+            // 3D-BbModel nur inferieren wenn es sich tatsächlich um ein internes Mod-Kosmetik-Asset handelt,
+            // niemals bei beliebigen Custom-Cape-Daten oder Base64-URLs!
+            if (lower.startsWith("kollegen:cosmetics/") || lower.startsWith("cape_")) {
+                if (lower.contains("fluffybento")) {
+                    resolvedModel = "kollegen:cosmetics/fluffybento/fluffybento_cape.bbmodel";
+                } else if (lower.contains("limitlos") || lower.contains("limit_los")) {
+                    resolvedModel = "kollegen:cosmetics/limit_los/limit_los_cape.bbmodel";
+                } else if (lower.contains("zerocraft77")) {
+                    resolvedModel = "kollegen:cosmetics/zerocraft77/zerocraft77_cape.bbmodel";
+                } else if (lower.contains("irongirl")) {
+                    resolvedModel = "kollegen:cosmetics/irongirl_lp/irongirl_lp_cape.bbmodel";
+                } else if (lower.contains("tson") || lower.contains("t_son")) {
+                    resolvedModel = "kollegen:cosmetics/t_son_/t_son__cape.bbmodel";
+                } else if (lower.contains("rixhii")) {
+                    resolvedModel = "kollegen:cosmetics/rixhii/rixhii_cape.bbmodel";
+                } else if (lower.contains("phantom")) {
+                    resolvedModel = "kollegen:cosmetics/store/phantomumhang.bbmodel";
+                } else if (lower.contains("sternen")) {
+                    resolvedModel = "kollegen:cosmetics/store/sternenhimmel_umhang.bbmodel";
+                } else if (lower.endsWith(".png")) {
+                    resolvedModel = texture.substring(0, texture.length() - 4) + ".bbmodel";
+                }
             }
         }
         CosmeticData updated = new CosmeticData(
@@ -187,6 +191,7 @@ public final class KollegenPresence {
         selfId = id;
         selfName = name;
         registered = true;
+        loadLocalCapeConfig();
         String url = base() + "/presence/" + id;
         String mod = "unknown";
         try {
@@ -287,6 +292,43 @@ public final class KollegenPresence {
                             }
                         } catch (Throwable ignored) {
                         }
+                    }
+                }
+            }
+            loadLocalCapeConfig();
+        } catch (Throwable ignored) {
+        }
+    }
+
+    public static void loadLocalCapeConfig() {
+        try {
+            Minecraft mc = Minecraft.getInstance();
+            UUID id = selfId != null ? selfId : (mc.player != null ? mc.player.getUUID() : null);
+            if (id == null) return;
+            Path p = FabricLoader.getInstance().getConfigDir().resolve("kollegen-cape.json");
+            if (!Files.exists(p)) {
+                String home = System.getProperty("user.home", "");
+                Path lp = Path.of(home, ".local", "share", "kollegenclient", "capes", "kollegen-cape.json");
+                if (Files.exists(lp)) p = lp;
+            }
+            if (Files.exists(p)) {
+                JsonObject o = JsonParser.parseString(Files.readString(p)).getAsJsonObject();
+                if (o.has("active") && !o.get("active").isJsonNull()) {
+                    String activeId = o.get("active").getAsString();
+                    if ("none".equalsIgnoreCase(activeId) || activeId.isEmpty()) {
+                        setLocalCape(null, null);
+                    } else if (o.has("cape") && o.get("cape").isJsonObject()) {
+                        JsonObject c = o.getAsJsonObject("cape");
+                        String tex = "";
+                        if (c.has("texture") && !c.get("texture").isJsonNull()) tex = c.get("texture").getAsString();
+                        if (tex.isEmpty() && c.has("preview") && !c.get("preview").isJsonNull()) tex = c.get("preview").getAsString();
+                        if (tex.isEmpty() && c.has("frames") && c.get("frames").isJsonArray() && c.getAsJsonArray("frames").size() > 0) {
+                            tex = c.getAsJsonArray("frames").get(0).getAsString();
+                        }
+                        String model = c.has("model") && !c.get("model").isJsonNull() ? c.get("model").getAsString() : null;
+                        setLocalCape(tex.isEmpty() ? activeId : tex, model);
+                    } else {
+                        setLocalCape(activeId, null);
                     }
                 }
             }

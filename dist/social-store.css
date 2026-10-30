@@ -2097,6 +2097,17 @@ body:not(.console-mode) .store-cats .tab.active::before {
   border-color: var(--accent);
   color: #000;
 }
+
+.cape-card-elytra-btn svg {
+  width: 16px;
+  height: 16px;
+  display: block;
+  stroke: currentColor;
+  stroke-width: 2;
+  fill: none;
+  pointer-events: none;
+}
+.cape-card.active {
   border-color: var(--accent);
   box-shadow: 0 0 16px rgba(var(--accent-rgb), 0.35);
   background: var(--panel-elevated);

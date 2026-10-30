@@ -21,7 +21,13 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public final class SkinCapeTextureManager {
     private static final Map<String, Identifier> CACHE = new ConcurrentHashMap<>();
+    public static final Map<String, int[]> DIMS = new ConcurrentHashMap<>();
     private static final Set<String> PENDING = ConcurrentHashMap.newKeySet();
+
+    public static int[] getDimensions(String capeId) {
+        if (capeId == null) return null;
+        return DIMS.get("cape_" + capeId);
+    }
 
     private SkinCapeTextureManager() {
     }
@@ -85,53 +91,36 @@ public final class SkinCapeTextureManager {
             return hit;
         }
 
-        // Direct mod asset identifier?
-        if (rawData != null && rawData.toLowerCase().startsWith("kollegen:")) {
-            Identifier id = Identifier.tryParse(rawData.toLowerCase());
-            if (id != null) {
+        // 1. Data URLs (Base64) - Eigene Custom Capes immer zuerst prüfen, damit keine Namenskonflikte entstehen
+        try {
+            byte[] bytes = null;
+            if (rawData != null && rawData.startsWith("data:image/")) {
+                int comma = rawData.indexOf(',');
+                if (comma > 0) {
+                    bytes = Base64.getDecoder().decode(rawData.substring(comma + 1));
+                }
+            } else if (rawData != null && !rawData.isEmpty() && !rawData.startsWith("http") && !rawData.startsWith("kollegen:")) {
+                Path p = Path.of(rawData);
+                if (Files.exists(p)) {
+                    bytes = Files.readAllBytes(p);
+                }
+            }
+            if (bytes != null && bytes.length > 0) {
+                NativeImage img = NativeImage.read(bytes);
+                DIMS.put(key, new int[]{img.getWidth(), img.getHeight()});
+                String safeId = capeId.toLowerCase(java.util.Locale.ROOT).replaceAll("[^a-z0-9_.-]", "_");
+                Identifier id = Identifier.tryParse("kollegen:cape_" + safeId);
+                DynamicTexture tex = new DynamicTexture(() -> "cape_" + capeId, img);
+                Minecraft.getInstance().getTextureManager().register(id, tex);
                 CACHE.put(key, id);
                 return id;
             }
-        }
-        if (capeId.toLowerCase().startsWith("kollegen:")) {
-            Identifier id = Identifier.tryParse(capeId.toLowerCase());
-            if (id != null) {
-                CACHE.put(key, id);
-                return id;
-            }
+        } catch (Throwable ignored) {
         }
 
-        // Creator package cape shortcuts & store capes
-        String lowerId = capeId.toLowerCase();
-        if (lowerId.contains("fluffybento")) {
-            Identifier id = Identifier.tryParse("kollegen:cosmetics/fluffybento/fluffybento_cape.png");
-            if (id != null) { CACHE.put(key, id); return id; }
-        } else if (lowerId.contains("limitlos") || lowerId.contains("limit_los")) {
-            Identifier id = Identifier.tryParse("kollegen:cosmetics/limit_los/limit_los_cape.png");
-            if (id != null) { CACHE.put(key, id); return id; }
-        } else if (lowerId.contains("zerocraft77")) {
-            Identifier id = Identifier.tryParse("kollegen:cosmetics/zerocraft77/zerocraft77_cape.png");
-            if (id != null) { CACHE.put(key, id); return id; }
-        } else if (lowerId.contains("irongirl")) {
-            Identifier id = Identifier.tryParse("kollegen:cosmetics/irongirl_lp/irongirl_lp_cape.png");
-            if (id != null) { CACHE.put(key, id); return id; }
-        } else if (lowerId.contains("tson") || lowerId.contains("t_son")) {
-            Identifier id = Identifier.tryParse("kollegen:cosmetics/t_son_/t_son__cape.png");
-            if (id != null) { CACHE.put(key, id); return id; }
-        } else if (lowerId.contains("rixhii")) {
-            Identifier id = Identifier.tryParse("kollegen:cosmetics/rixhii/rixhii_cape.png");
-            if (id != null) { CACHE.put(key, id); return id; }
-        } else if (lowerId.contains("phantom")) {
-            Identifier id = Identifier.tryParse("kollegen:cosmetics/store/phantomumhang.png");
-            if (id != null) { CACHE.put(key, id); return id; }
-        } else if (lowerId.contains("sternen")) {
-            Identifier id = Identifier.tryParse("kollegen:cosmetics/store/sternenhimmel_umhang.png");
-            if (id != null) { CACHE.put(key, id); return id; }
-        }
-
-        // HTTP/HTTPS Mojang Vanilla or Community Cape URL
+        // 2. HTTP/HTTPS Mojang Vanilla or Community Cape URL
         if (rawData != null && (rawData.startsWith("http://") || rawData.startsWith("https://"))) {
-            String safeId = capeId.toLowerCase().replaceAll("[^a-z0-9_.-]", "_");
+            String safeId = capeId.toLowerCase(java.util.Locale.ROOT).replaceAll("[^a-z0-9_.-]", "_");
             String home = System.getProperty("user.home", "");
             Path cacheDir = Path.of(home, ".local", "share", "kollegenclient", "capes", "cache");
             Path cachedFile = cacheDir.resolve(safeId + ".png");
@@ -139,6 +128,7 @@ public final class SkinCapeTextureManager {
                 try {
                     byte[] bytes = Files.readAllBytes(cachedFile);
                     NativeImage img = NativeImage.read(bytes);
+                    DIMS.put(key, new int[]{img.getWidth(), img.getHeight()});
                     Identifier id = Identifier.tryParse("kollegen:cape_" + safeId);
                     DynamicTexture tex = new DynamicTexture(() -> "cape_" + capeId, img);
                     Minecraft.getInstance().getTextureManager().register(id, tex);
@@ -158,6 +148,7 @@ public final class SkinCapeTextureManager {
                             Minecraft.getInstance().execute(() -> {
                                 try {
                                     NativeImage img = NativeImage.read(res.body());
+                                    DIMS.put(key, new int[]{img.getWidth(), img.getHeight()});
                                     Identifier id = Identifier.tryParse("kollegen:cape_" + safeId);
                                     DynamicTexture tex = new DynamicTexture(() -> "cape_" + capeId, img);
                                     Minecraft.getInstance().getTextureManager().register(id, tex);
@@ -176,30 +167,69 @@ public final class SkinCapeTextureManager {
             return null;
         }
 
-        try {
-            byte[] bytes = null;
-            if (rawData != null && rawData.startsWith("data:image/")) {
-                int comma = rawData.indexOf(',');
-                if (comma > 0) {
-                    bytes = Base64.getDecoder().decode(rawData.substring(comma + 1));
-                }
-            } else if (rawData != null && !rawData.isEmpty() && !rawData.startsWith("http")) {
-                Path p = Path.of(rawData);
-                if (Files.exists(p)) {
-                    bytes = Files.readAllBytes(p);
-                }
+        // 3. Mod Asset Identifiers & Store Cape Shortcuts
+        String assetPath = null;
+        if (rawData != null && rawData.toLowerCase(java.util.Locale.ROOT).startsWith("kollegen:")) {
+            assetPath = rawData.toLowerCase(java.util.Locale.ROOT);
+        } else if (capeId.toLowerCase(java.util.Locale.ROOT).startsWith("kollegen:")) {
+            assetPath = capeId.toLowerCase(java.util.Locale.ROOT);
+        } else {
+            String lowerId = capeId.toLowerCase(java.util.Locale.ROOT);
+            if (lowerId.contains("phantom")) {
+                assetPath = "kollegen:cosmetics/store/phantomumhang.png";
+            } else if (lowerId.contains("sternen")) {
+                assetPath = "kollegen:cosmetics/store/sternenhimmel_umhang.png";
+            } else if (lowerId.contains("fluffybento")) {
+                assetPath = "kollegen:cosmetics/fluffybento/fluffybento_cape.png";
+            } else if (lowerId.contains("limitlos") || lowerId.contains("limit_los")) {
+                assetPath = "kollegen:cosmetics/limit_los/limit_los_cape.png";
+            } else if (lowerId.contains("zerocraft77")) {
+                assetPath = "kollegen:cosmetics/zerocraft77/zerocraft77_cape.png";
+            } else if (lowerId.contains("irongirl")) {
+                assetPath = "kollegen:cosmetics/irongirl_lp/irongirl_lp_cape.png";
+            } else if (lowerId.contains("tson") || lowerId.contains("t_son")) {
+                assetPath = "kollegen:cosmetics/t_son_/t_son__cape.png";
+            } else if (lowerId.contains("rixhii")) {
+                assetPath = "kollegen:cosmetics/rixhii/rixhii_cape.png";
             }
-            if (bytes != null && bytes.length > 0) {
-                NativeImage img = NativeImage.read(bytes);
-                String safeId = capeId.toLowerCase().replaceAll("[^a-z0-9_.-]", "_");
-                Identifier id = Identifier.tryParse("kollegen:cape_" + safeId);
-                DynamicTexture tex = new DynamicTexture(() -> "cape_" + capeId, img);
-                Minecraft.getInstance().getTextureManager().register(id, tex);
-                CACHE.put(key, id);
-                return id;
-            }
-        } catch (Throwable ignored) {
         }
+
+        if (assetPath != null) {
+            Identifier resId = Identifier.tryParse(assetPath);
+            if (resId != null) {
+                // In Minecraft TextureManager als DynamicTexture registrieren, damit GUI-Renderpipelines es sauber anzeigen
+                try {
+                    InputStream in = null;
+                    try {
+                        in = SkinCapeTextureManager.class.getResourceAsStream("/assets/" + resId.getNamespace() + "/" + resId.getPath());
+                    } catch (Throwable ignored) {}
+                    Minecraft mc = Minecraft.getInstance();
+                    if (in == null && mc != null && mc.getResourceManager() != null) {
+                        try {
+                            in = mc.getResourceManager().open(resId);
+                        } catch (Throwable ignored) {}
+                    }
+                    if (in != null) {
+                        try (InputStream is = in) {
+                            NativeImage img = NativeImage.read(is);
+                            DIMS.put(key, new int[]{img.getWidth(), img.getHeight()});
+                            String safeId = capeId.toLowerCase(java.util.Locale.ROOT).replaceAll("[^a-z0-9_.-]", "_");
+                            Identifier dynId = Identifier.tryParse("kollegen:cape_asset_" + safeId);
+                            DynamicTexture tex = new DynamicTexture(() -> "cape_asset_" + capeId, img);
+                            if (mc != null && mc.getTextureManager() != null) {
+                                mc.getTextureManager().register(dynId, tex);
+                            }
+                            CACHE.put(key, dynId);
+                            return dynId;
+                        }
+                    }
+                } catch (Throwable ignored) {
+                }
+                CACHE.put(key, resId);
+                return resId;
+            }
+        }
+
         return null;
     }
 }
