@@ -78,7 +78,7 @@ public final class CosmeticRenderLayer extends RenderLayer<AvatarRenderState, Pl
                 timeSec = Math.floor(timeSec * 20.0) / 20.0;
             }
 
-            if (data.capeTexture != null) {
+            if (data.capeTexture != null && !dev.kollegen.client.mods.modules.Visual.WaveyCapes.enabled) {
                 try {
                     Player player = resolvePlayer(mc, id);
                     ItemStack chest = player != null ? player.getItemBySlot(EquipmentSlot.CHEST) : null;

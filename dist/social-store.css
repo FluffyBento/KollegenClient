@@ -1609,3 +1609,497 @@ body:not(.console-mode) .store-cats .tab.active::before {
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
 }
+
+/* ==========================================================================
+   TWITCH LINKING (Image 1)
+   ========================================================================== */
+.twitch-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  border-radius: 6px;
+  background: linear-gradient(90deg, #050e1f 0%, #08162f 50%, #050d1d 100%);
+  border: 1px solid #143566;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
+  margin: 12px 0;
+}
+.twitch-card .connection-card-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.twitch-card .twitch-icon {
+  color: #9146ff;
+  flex-shrink: 0;
+}
+.twitch-card .connection-title {
+  font-family: 'Minecraft', monospace, sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: 0.5px;
+}
+.twitch-card .connection-desc {
+  font-size: 12px;
+  color: #7b99bf;
+  margin-top: 2px;
+}
+.twitch-link-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 24px;
+  background: rgba(10, 45, 95, 0.5);
+  border: 1px solid #1e5ebb;
+  border-radius: 3px;
+  color: #ffffff;
+  font-family: 'Minecraft', monospace, sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 0 12px rgba(30, 94, 187, 0.25);
+}
+.twitch-link-btn:hover {
+  background: #1e5ebb;
+  border-color: #3b88fd;
+  box-shadow: 0 0 18px rgba(59, 136, 253, 0.6);
+  transform: translateY(-1px);
+}
+.twitch-link-btn.linked {
+  background: rgba(20, 80, 45, 0.65);
+  border-color: #2da44e;
+  color: #7ee787;
+}
+.twitch-link-btn.linked:hover {
+  background: rgba(180, 30, 45, 0.85);
+  border-color: #ff4d5e;
+  color: #ffffff;
+}
+
+/* ==========================================================================
+   SKIN LIBRARY (Image 2)
+   ========================================================================== */
+.skins-header-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  gap: 16px;
+}
+.skins-search-wrap, .capes-search-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #050d1a;
+  border: 1px solid #142a4a;
+  border-radius: 4px;
+  padding: 6px 14px;
+  flex: 1;
+  max-width: 440px;
+}
+.skins-search-wrap svg, .capes-search-wrap svg {
+  color: #4b6a96;
+}
+.skins-search-wrap input, .capes-search-wrap input {
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #ffffff;
+  font-size: 13px;
+  width: 100%;
+}
+.add-skin-top-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 20px;
+  background: #081a36;
+  border: 1px solid #1f4a82;
+  border-radius: 4px;
+  color: #dbe8fc;
+  font-family: 'Minecraft', monospace, sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  letter-spacing: 0.5px;
+  transition: all 0.2s ease;
+}
+.add-skin-top-btn:hover {
+  background: #123366;
+  border-color: #3b88fd;
+  color: #ffffff;
+}
+
+.skins-grid-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 20px;
+}
+.skin-card {
+  position: relative;
+  background: #040c18;
+  border: 1px solid #11284a;
+  border-radius: 6px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 320px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+.skin-card:hover {
+  border-color: #235294;
+  background: #07152a;
+}
+.skin-card.active {
+  border-color: #2b7af0;
+  box-shadow: 0 0 16px rgba(43, 122, 240, 0.4), inset 0 0 12px rgba(43, 122, 240, 0.15);
+}
+.skin-card-add {
+  border: 1px dashed #1a3c6c;
+  justify-content: center;
+  gap: 12px;
+}
+.skin-card-silhouette {
+  width: 120px;
+  height: 200px;
+  background: radial-gradient(circle, rgba(16, 36, 68, 0.8) 0%, rgba(8, 18, 36, 0.9) 100%);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.skin-add-plus {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #0e274d;
+  border: 1px solid #235294;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #79a8e8;
+  transition: all 0.2s ease;
+}
+.skin-card-add:hover .skin-add-plus {
+  background: #1b4482;
+  color: #ffffff;
+  transform: scale(1.1);
+}
+.skin-card-title {
+  font-family: 'Minecraft', monospace, sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  color: #ffffff;
+  text-align: center;
+  margin-top: 8px;
+}
+.skin-card-sub {
+  font-size: 11px;
+  color: #6a8bb5;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.skin-card-stage {
+  width: 170px;
+  height: 230px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.skin-card-stage canvas {
+  width: 160px;
+  height: 220px;
+}
+.skin-card-model-tag {
+  font-size: 11px;
+  color: #7394bd;
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.skin-card-actions {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  opacity: 0.6;
+  transition: opacity 0.2s ease;
+}
+.skin-card:hover .skin-card-actions {
+  opacity: 1;
+}
+.skin-card-action-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  background: rgba(6, 17, 36, 0.85);
+  border: 1px solid #1a3c6c;
+  color: #dbe8fc;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.skin-card-action-btn:hover {
+  background: #1b4482;
+  border-color: #3b88fd;
+  color: #ffffff;
+}
+.skin-card-action-btn.btn-del:hover {
+  background: #a81c2c;
+  border-color: #ff4d5e;
+}
+
+/* ==========================================================================
+   COMMUNITY CAPES (Image 3 & Image 4)
+   ========================================================================== */
+.capes-category-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 18px;
+  border-bottom: 1px solid #11284a;
+  padding-bottom: 12px;
+}
+.cape-cat-tab {
+  padding: 8px 20px;
+  background: #040d1c;
+  border: 1px solid #122b52;
+  border-radius: 3px;
+  color: #8faecf;
+  font-family: 'Minecraft', monospace, sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.cape-cat-tab:hover {
+  background: #091a38;
+  color: #ffffff;
+  border-color: #215094;
+}
+.cape-cat-tab.active {
+  background: #0d2754;
+  color: #ffffff;
+  border-color: #3884ff;
+  box-shadow: 0 0 10px rgba(56, 132, 255, 0.4);
+}
+
+.capes-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+.cape-tool-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 4px;
+  background: #050d1a;
+  border: 1px solid #142a4a;
+  color: #6a8bb5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.cape-tool-btn:hover, .cape-tool-btn.active {
+  color: #ff4766;
+  border-color: #8c1d35;
+  background: #1a0810;
+}
+.capes-tool-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.cape-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: #07152b;
+  border: 1px solid #163663;
+  border-radius: 4px;
+  color: #dbe8fc;
+  font-family: 'Minecraft', monospace, sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.cape-action-btn:hover {
+  background: #0f2b57;
+  border-color: #2964b4;
+  color: #ffffff;
+}
+.cape-action-btn.cape-upload-highlight {
+  background: #0d2754;
+  border-color: #2f73dc;
+  color: #ffffff;
+}
+.cape-action-btn.cape-upload-highlight:hover {
+  background: #1a448a;
+  border-color: #4b8ff5;
+  box-shadow: 0 0 12px rgba(75, 143, 245, 0.4);
+}
+
+.capes-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 18px;
+}
+.cape-card {
+  position: relative;
+  background: #040c18;
+  border: 1px solid #11284a;
+  border-radius: 6px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 250px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+.cape-card:hover {
+  border-color: #235294;
+  background: #07162d;
+  transform: translateY(-2px);
+}
+.cape-card.active {
+  border-color: #2b7af0;
+  box-shadow: 0 0 16px rgba(43, 122, 240, 0.45);
+}
+.cape-card-none {
+  justify-content: center;
+  gap: 14px;
+}
+.cape-none-icon {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: #0c1a2e;
+  border: 1px solid #1a3c6c;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  color: #5579a8;
+}
+.cape-card-preview-wrap {
+  width: 100%;
+  height: 180px;
+  border-radius: 4px;
+  overflow: hidden;
+  background: #030810;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+.cape-card-preview-wrap img, .cape-card-preview-wrap canvas {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+.cape-fav-icon {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: rgba(3, 8, 16, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #728fae;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.cape-fav-icon:hover, .cape-fav-icon.active {
+  color: #ff3355;
+  transform: scale(1.15);
+}
+.cape-card-name {
+  font-family: 'Minecraft', monospace, sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  color: #ffffff;
+  text-align: center;
+  margin-top: 10px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 160px;
+}
+.cape-card-uses {
+  font-size: 11px;
+  color: #6a8bb5;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+}
+.cape-badge-tag {
+  display: inline-block;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 3px;
+  margin-top: 4px;
+  background: #113460;
+  color: #85c2ff;
+}
+
+/* Frame sequence manager in Cape Upload */
+.cape-frame-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  background: #050d1a;
+  border: 1px solid #142a4a;
+  border-radius: 4px;
+}
+.cape-frame-item img {
+  width: 48px;
+  height: 24px;
+  object-fit: contain;
+  image-rendering: pixelated;
+  background: #02060d;
+  border-radius: 2px;
+}
+.frame-btn {
+  background: #0d1e38;
+  border: 1px solid #1f4277;
+  color: #ffffff;
+  padding: 3px 8px;
+  border-radius: 3px;
+  font-size: 11px;
+  cursor: pointer;
+}
+.frame-btn:hover {
+  background: #1a4078;
+}
+

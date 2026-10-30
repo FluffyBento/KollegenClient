@@ -67,9 +67,21 @@ fn read_index(data_dir: &Path) -> Value {
     v
 }
 
+fn sync_skins_to_instances(data_dir: &Path, idx: &Value) {
+    let instances_file = crate::utils::instances_file(data_dir);
+    let instances = crate::utils::load_json::<Vec<crate::types::Instance>>(&instances_file, vec![]);
+    for inst in &instances {
+        let inst_dir = crate::utils::instance_dir(data_dir, &inst.name);
+        let cfg = inst_dir.join("config");
+        let _ = std::fs::create_dir_all(&cfg);
+        let _ = crate::utils::save_json(&cfg.join("kollegen-skins.json"), idx);
+    }
+}
+
 fn write_index(data_dir: &Path, idx: &Value) {
     let _ = std::fs::create_dir_all(skins_dir(data_dir));
     let _ = crate::utils::save_json(&index_path(data_dir), idx);
+    sync_skins_to_instances(data_dir, idx);
 }
 
 fn data_url_of(data_dir: &Path, file: &str) -> String {
@@ -83,7 +95,7 @@ fn data_url_of(data_dir: &Path, file: &str) -> String {
     }
 }
 
-fn b64_to_bytes(s: &str) -> Result<Vec<u8>, String> {
+pub fn b64_to_bytes(s: &str) -> Result<Vec<u8>, String> {
     let s = s.split(',').last().unwrap_or(s).to_string();
     base64::engine::general_purpose::STANDARD
         .decode(&s)
@@ -106,8 +118,18 @@ pub fn list_skins(data_dir: &Path) -> Value {
                 .and_then(|f| f.as_str())
                 .unwrap_or("")
                 .to_string();
+            let model = s
+                .get("model")
+                .and_then(|m| m.as_str())
+                .unwrap_or("classic")
+                .to_string();
             let url = data_url_of(data_dir, &file);
-            out.push(serde_json::json!({ "name": name, "url": url }));
+            out.push(serde_json::json!({
+                "name": name,
+                "url": url,
+                "model": model,
+                "file": file
+            }));
         }
     }
     serde_json::json!({
@@ -126,9 +148,11 @@ fn save_skin_bytes(data_dir: &Path, name: &str, bytes: &[u8]) -> Result<String, 
     Ok(file)
 }
 
-
-
 pub fn import_skin(data_dir: &Path, name: &str, bytes: &[u8]) -> Value {
+    import_skin_with_model(data_dir, name, bytes, "classic")
+}
+
+pub fn import_skin_with_model(data_dir: &Path, name: &str, bytes: &[u8], model: &str) -> Value {
     // Deduplizierung: wenn ein Skin mit identischem Inhalt bereits existiert, diesen wiederverwenden.
     let mut existing_name: Option<String> = None;
     let idx = read_index(data_dir);
@@ -158,11 +182,41 @@ pub fn import_skin(data_dir: &Path, name: &str, bytes: &[u8]) -> Value {
         .cloned()
         .unwrap_or_default();
     skins.retain(|s| s.get("name").and_then(|n| n.as_str()) != Some(name));
-    skins.push(serde_json::json!({ "name": name, "file": file }));
+    let model_str = if model.eq_ignore_ascii_case("slim") { "slim" } else { "classic" };
+    skins.push(serde_json::json!({ "name": name, "file": file, "model": model_str }));
     idx["skins"] = serde_json::Value::Array(skins);
     if idx.get("active").map(|v| v.is_null()).unwrap_or(true) {
         idx["active"] = serde_json::json!(name);
     }
+    write_index(data_dir, &idx);
+    list_skins(data_dir)
+}
+
+pub fn edit_skin(data_dir: &Path, old_name: &str, new_name: &str, model: &str) -> Value {
+    let mut idx = read_index(data_dir);
+    let mut skins: Vec<Value> = idx
+        .get("skins")
+        .and_then(|s| s.as_array())
+        .cloned()
+        .unwrap_or_default();
+
+    let new_name = new_name.trim();
+    let model_str = if model.eq_ignore_ascii_case("slim") { "slim" } else { "classic" };
+
+    for s in skins.iter_mut() {
+        if s.get("name").and_then(|n| n.as_str()) == Some(old_name) {
+            if !new_name.is_empty() {
+                s["name"] = serde_json::json!(new_name);
+            }
+            s["model"] = serde_json::json!(model_str);
+        }
+    }
+
+    if idx.get("active").and_then(|v| v.as_str()) == Some(old_name) && !new_name.is_empty() {
+        idx["active"] = serde_json::json!(new_name);
+    }
+
+    idx["skins"] = serde_json::Value::Array(skins);
     write_index(data_dir, &idx);
     list_skins(data_dir)
 }

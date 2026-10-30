@@ -368,7 +368,7 @@ function bindHomeControls() {
   const create = $("homeCreateBtn");
   if (create) create.onclick = () => switchTab("create");
   const skinBtn = $("homeSkinOpen");
-  if (skinBtn) skinBtn.onclick = () => openProfileModal(true);
+  if (skinBtn) skinBtn.onclick = () => switchTab("skins");
   const inviteBtn = $("homeInviteBtn");
   if (inviteBtn) {
     inviteBtn.onclick = async () => {
@@ -2824,6 +2824,18 @@ applySavedTheme()
       else p.setAttribute("hidden", "");
     });
     if (document.body.classList.contains("console-mode")) kcSyncTabs(name);
+    if (name === "skins") {
+      loadSkinsLibrary();
+    }
+    if (name === "capes") {
+      loadCapesView();
+    }
+    if (name !== "skins" && typeof disposeAllSkinViewers === "function") {
+      disposeAllSkinViewers();
+    }
+    if (name !== "capes" && typeof clearCapeAnimTimers === "function") {
+      clearCapeAnimTimers();
+    }
     if (name === "home") {
       // Der Skin-Viewer wird beim Start ggf. erzeugt, bevor das Panel sichtbar
       // ist. Beim Tabwechsel nachladen, damit WebGL-Kontext und Canvas stimmen.
@@ -2961,6 +2973,625 @@ function toast(msg, kind) {
   el.className = "toast show" + (kind ? " toast-" + kind : "");
   if (toastTimer) clearTimeout(toastTimer);
   toastTimer = setTimeout(() => { el.className = "toast"; }, 3200);
+}
+
+// ─── TWITCH LINKING (Image 1) ───
+async function initTwitch() {
+  const btn = $("twitchLinkBtn");
+  const txt = $("twitchLinkText");
+  const hint = $("twitchStatusHint");
+  if (!btn || !txt) return;
+
+  async function refreshTwitch() {
+    try {
+      const acct = await invoke("twitch_get_account");
+      if (acct && acct.connected) {
+        txt.textContent = "VERBUNDEN: " + (acct.display_name || acct.username || "Twitch");
+        btn.classList.add("linked");
+        btn.title = "Klicken zum Trennen";
+        if (hint) hint.textContent = "Twitch ist verknüpft – Alerts & Streams sind im Spiel aktiv.";
+      } else {
+        txt.textContent = "LINK";
+        btn.classList.remove("linked");
+        btn.title = "Mit Twitch verbinden";
+        if (hint) hint.textContent = "";
+      }
+    } catch (e) {
+      console.error("Twitch get account failed:", e);
+    }
+  }
+
+  btn.onclick = async () => {
+    try {
+      const acct = await invoke("twitch_get_account");
+      if (acct && acct.connected) {
+        if (confirm("Möchtest du die Twitch-Verknüpfung wirklich trennen?")) {
+          await invoke("twitch_unlink");
+          toast("Twitch-Verknüpfung getrennt", "ok");
+          refreshTwitch();
+        }
+      } else {
+        const user = prompt("Gib deinen Twitch-Benutzernamen ein:", "");
+        if (user && user.trim()) {
+          await invoke("twitch_link", { username: user.trim(), token: null });
+          toast("Twitch erfolgreich verbunden!", "ok");
+          refreshTwitch();
+        }
+      }
+    } catch (e) {
+      toast("Twitch-Fehler: " + e, "error");
+    }
+  };
+
+  refreshTwitch();
+}
+
+// ─── SKIN LIBRARY (Image 2) ───
+let skinViewers = [];
+function disposeAllSkinViewers() {
+  skinViewers.forEach(v => {
+    try { v.dispose && v.dispose(); } catch (_) {}
+  });
+  skinViewers = [];
+}
+
+async function loadSkinsLibrary() {
+  const grid = $("skinsGrid");
+  if (!grid) return;
+  disposeAllSkinViewers();
+
+  let list = { active: null, skins: [] };
+  try {
+    list = await invoke("skin_list");
+  } catch (e) {
+    console.error("Failed to list skins:", e);
+  }
+
+  const searchVal = ($("skinsSearchInput") ? $("skinsSearchInput").value.trim().toLowerCase() : "");
+
+  grid.innerHTML = "";
+  const addCard = document.createElement("div");
+  addCard.className = "skin-card skin-card-add";
+  addCard.id = "cardAddNewSkin";
+  addCard.innerHTML = `
+    <div class="skin-card-silhouette">
+      <div class="skin-add-plus">
+        <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="3"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      </div>
+    </div>
+    <div class="skin-card-title">Add New Skin</div>
+    <div class="skin-card-sub">
+      <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      Upload or import a skin
+    </div>
+  `;
+  addCard.onclick = () => openSkinEditModal(null);
+  grid.appendChild(addCard);
+
+  const skins = list.skins || [];
+  skins.forEach((s) => {
+    if (searchVal && !s.name.toLowerCase().includes(searchVal)) return;
+
+    const card = document.createElement("div");
+    const isActive = s.name === list.active;
+    card.className = "skin-card" + (isActive ? " active" : "");
+
+    const stage = document.createElement("div");
+    stage.className = "skin-card-stage";
+    const canvas = document.createElement("canvas");
+    canvas.width = 160;
+    canvas.height = 220;
+    stage.appendChild(canvas);
+
+    const actions = document.createElement("div");
+    actions.className = "skin-card-actions";
+
+    const editBtn = document.createElement("button");
+    editBtn.className = "skin-card-action-btn";
+    editBtn.title = "Skin bearbeiten";
+    editBtn.innerHTML = `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>`;
+    editBtn.onclick = (e) => {
+      e.stopPropagation();
+      openSkinEditModal(s);
+    };
+
+    const delBtn = document.createElement("button");
+    delBtn.className = "skin-card-action-btn btn-del";
+    delBtn.title = "Skin löschen";
+    delBtn.innerHTML = `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>`;
+    delBtn.onclick = async (e) => {
+      e.stopPropagation();
+      if (confirm(`Möchtest du den Skin "${s.name}" wirklich löschen?`)) {
+        await invoke("skin_delete", { name: s.name });
+        toast(`Skin "${s.name}" gelöscht`, "ok");
+        loadSkinsLibrary();
+      }
+    };
+
+    actions.appendChild(editBtn);
+    actions.appendChild(delBtn);
+
+    const title = document.createElement("div");
+    title.className = "skin-card-title";
+    title.textContent = s.name;
+
+    const modelTag = document.createElement("div");
+    modelTag.className = "skin-card-model-tag";
+    const isSlim = (s.model || "").toLowerCase() === "slim";
+    modelTag.innerHTML = `<span>🎽</span> <span>${isSlim ? "Slim" : "Classic"}</span>`;
+
+    card.appendChild(actions);
+    card.appendChild(stage);
+    card.appendChild(title);
+    card.appendChild(modelTag);
+
+    card.onclick = async () => {
+      try {
+        await invoke("skin_set_active", { name: s.name });
+        await invoke("skin_upload", { name: s.name, data: s.url, variant: isSlim ? "slim" : "classic" });
+        toast(`SKIN "${s.name}" ACTIVATED!`, "ok");
+        loadSkinsLibrary();
+        loadHomeSkin(true);
+      } catch (err) {
+        toast("Skin wechseln fehlgeschlagen: " + err, "error");
+      }
+    };
+
+    grid.appendChild(card);
+
+    if (window.skinview3d && window.skinview3d.SkinViewer) {
+      try {
+        const viewer = new window.skinview3d.SkinViewer({
+          canvas: canvas,
+          width: 160,
+          height: 220,
+          skin: s.url,
+          model: isSlim ? "slim" : "default",
+        });
+        viewer.animation = new window.skinview3d.WalkingAnimation();
+        viewer.animation.speed = 0.4;
+        viewer.autoRotate = false;
+        skinViewers.push(viewer);
+      } catch (_) {}
+    }
+  });
+}
+
+let editingSkinOriginalName = null;
+function openSkinEditModal(skin) {
+  const modal = $("skinEditModal");
+  if (!modal) return;
+  editingSkinOriginalName = skin ? skin.name : null;
+  const title = $("skinModalTitle");
+  const nameField = $("skinNameField");
+  const uploadGroup = $("skinUploadGroup");
+  const radios = document.querySelectorAll('input[name="skinModelRadio"]');
+
+  if (skin) {
+    if (title) title.textContent = "Skin bearbeiten";
+    if (nameField) nameField.value = skin.name;
+    if (uploadGroup) uploadGroup.style.display = "none";
+    const isSlim = (skin.model || "").toLowerCase() === "slim";
+    radios.forEach(r => { r.checked = (r.value === (isSlim ? "slim" : "classic")); });
+  } else {
+    if (title) title.textContent = "Skin hinzufügen";
+    if (nameField) nameField.value = "";
+    if (uploadGroup) uploadGroup.style.display = "block";
+    const picker = $("skinFilePicker");
+    if (picker) picker.value = "";
+    radios.forEach(r => { r.checked = (r.value === "classic"); });
+  }
+  modal.removeAttribute("hidden");
+  modal.style.display = "flex";
+}
+
+function closeSkinEditModal() {
+  const modal = $("skinEditModal");
+  if (modal) {
+    modal.setAttribute("hidden", "");
+    modal.style.display = "none";
+  }
+}
+
+if ($("skinEditClose")) $("skinEditClose").onclick = closeSkinEditModal;
+if ($("skinCancelBtn")) $("skinCancelBtn").onclick = closeSkinEditModal;
+if ($("addSkinTopBtn")) $("addSkinTopBtn").onclick = () => openSkinEditModal(null);
+if ($("skinsSearchInput")) $("skinsSearchInput").oninput = () => loadSkinsLibrary();
+
+if ($("skinSaveBtn")) {
+  $("skinSaveBtn").onclick = async () => {
+    const nameField = $("skinNameField");
+    const name = nameField ? nameField.value.trim() : "";
+    if (!name) {
+      toast("Bitte gib einen Namen für den Skin ein", "error");
+      return;
+    }
+    const modelRadio = document.querySelector('input[name="skinModelRadio"]:checked');
+    const model = modelRadio ? modelRadio.value : "classic";
+
+    if (editingSkinOriginalName) {
+      try {
+        await invoke("skin_edit", { oldName: editingSkinOriginalName, newName: name, model });
+        toast(`Skin "${name}" aktualisiert!`, "ok");
+        closeSkinEditModal();
+        loadSkinsLibrary();
+      } catch (e) {
+        toast("Fehler: " + e, "error");
+      }
+    } else {
+      const picker = $("skinFilePicker");
+      const file = picker && picker.files && picker.files[0];
+      if (!file) {
+        toast("Bitte wähle eine Skin-Bilddatei aus", "error");
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = async () => {
+        try {
+          const dataUrl = reader.result;
+          await invoke("skin_import_with_model", { name, data: dataUrl, model });
+          toast(`SKIN "${name}" ADDED SUCCESSFULLY!`, "ok");
+          closeSkinEditModal();
+          loadSkinsLibrary();
+          loadHomeSkin(true);
+        } catch (e) {
+          toast("Fehler beim Hinzufügen: " + e, "error");
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+}
+
+// ─── COMMUNITY CAPES & STORE CAPES (Image 3 & Image 4) ───
+let activeCapeCat = "all";
+let capeFavOnly = false;
+let capeAnimTimers = [];
+
+function clearCapeAnimTimers() {
+  capeAnimTimers.forEach(t => clearInterval(t));
+  capeAnimTimers = [];
+}
+
+async function loadCapesView() {
+  const grid = $("capesGrid");
+  if (!grid) return;
+  clearCapeAnimTimers();
+
+  let capeData = { active_cape: null, capes: [] };
+  try {
+    capeData = await invoke("capes_list");
+  } catch (e) {
+    console.error("Capes list failed:", e);
+  }
+
+  let storeCapes = [];
+  try {
+    const store = window.__cosmStore || (await invoke("kollegen_store"));
+    if (store && store.catalog) {
+      storeCapes = store.catalog
+        .filter(it => it.category === "cape" && (it.owned || activeCapeCat === "gekauft"))
+        .map(it => ({
+          id: it.id,
+          name: it.title || it.name || "Store Cape",
+          creator: "Kollegen Store",
+          category: "gekauft",
+          uses: 9999,
+          favorite: false,
+          animated: false,
+          fps: 10,
+          frames: [it.data && it.data.texture ? "https://kollegen.me/" + it.data.texture.replace("kollegen:", "") : ""],
+          preview: it.data && it.data.texture ? "https://kollegen.me/" + it.data.texture.replace("kollegen:", "") : "",
+        }));
+    }
+  } catch (_) {}
+
+  let allCapes = [...capeData.capes];
+  storeCapes.forEach(sc => {
+    if (!allCapes.some(c => c.id === sc.id)) {
+      allCapes.push(sc);
+    }
+  });
+
+  const searchVal = ($("capesSearchInput") ? $("capesSearchInput").value.trim().toLowerCase() : "");
+
+  grid.innerHTML = "";
+  const noneCard = document.createElement("div");
+  noneCard.className = "cape-card cape-card-none" + (!capeData.active_cape ? " active" : "");
+  noneCard.innerHTML = `
+    <div class="cape-none-icon">✕</div>
+    <div class="cape-card-name">No Cape</div>
+  `;
+  noneCard.onclick = async () => {
+    try {
+      await invoke("capes_set_active", { capeId: null });
+      toast("Cape abgelegt", "ok");
+      loadCapesView();
+      loadHomeSkin(true);
+    } catch (e) {
+      toast("Fehler: " + e, "error");
+    }
+  };
+  grid.appendChild(noneCard);
+
+  allCapes.forEach((c) => {
+    if (activeCapeCat === "my_capes" && c.category !== "my_capes") return;
+    if (activeCapeCat === "favorites" && !c.favorite) return;
+    if (activeCapeCat === "vanilla" && c.category !== "vanilla") return;
+    if (activeCapeCat === "gekauft" && c.category !== "gekauft") return;
+    if (capeFavOnly && !c.favorite) return;
+
+    if (searchVal && !c.name.toLowerCase().includes(searchVal) && !c.creator.toLowerCase().includes(searchVal)) {
+      return;
+    }
+
+    const card = document.createElement("div");
+    const isActive = capeData.active_cape === c.id;
+    card.className = "cape-card" + (isActive ? " active" : "");
+
+    const prevWrap = document.createElement("div");
+    prevWrap.className = "cape-card-preview-wrap";
+
+    const fav = document.createElement("div");
+    fav.className = "cape-fav-icon" + (c.favorite ? " active" : "");
+    fav.innerHTML = `<svg viewBox="0 0 24 24" width="14" height="14" fill="${c.favorite ? "currentColor" : "none"}" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>`;
+    fav.onclick = async (e) => {
+      e.stopPropagation();
+      try {
+        const newState = await invoke("capes_toggle_favorite", { capeId: c.id });
+        c.favorite = newState;
+        fav.className = "cape-fav-icon" + (newState ? " active" : "");
+        fav.querySelector("svg").setAttribute("fill", newState ? "currentColor" : "none");
+      } catch (_) {}
+    };
+    prevWrap.appendChild(fav);
+
+    if (c.animated && c.frames && c.frames.length > 1) {
+      const img = document.createElement("img");
+      img.src = c.frames[0];
+      img.alt = c.name;
+      prevWrap.appendChild(img);
+      let frameIdx = 0;
+      const interval = Math.max(33, Math.round(1000 / (c.fps || 10)));
+      const timer = setInterval(() => {
+        frameIdx = (frameIdx + 1) % c.frames.length;
+        img.src = c.frames[frameIdx];
+      }, interval);
+      capeAnimTimers.push(timer);
+    } else {
+      const img = document.createElement("img");
+      img.src = c.preview || (c.frames && c.frames[0]) || "";
+      img.alt = c.name;
+      prevWrap.appendChild(img);
+    }
+
+    const name = document.createElement("div");
+    name.className = "cape-card-name";
+    name.textContent = c.name;
+
+    const uses = document.createElement("div");
+    uses.className = "cape-card-uses";
+    const usesStr = (c.uses || 0).toLocaleString("de-DE");
+    uses.innerHTML = `<span>⤓</span> <span>${usesStr} uses</span>`;
+
+    card.appendChild(prevWrap);
+    card.appendChild(name);
+    card.appendChild(uses);
+
+    if (c.category === "gekauft") {
+      const badge = document.createElement("span");
+      badge.className = "cape-badge-tag";
+      badge.textContent = "Gekauft";
+      card.appendChild(badge);
+    }
+
+    card.onclick = async () => {
+      try {
+        await invoke("capes_set_active", { capeId: c.id });
+        toast(`Cape "${c.name}" ausgerüstet!`, "ok");
+        loadCapesView();
+        loadHomeSkin(true);
+      } catch (err) {
+        toast("Cape ausrüsten fehlgeschlagen: " + err, "error");
+      }
+    };
+
+    grid.appendChild(card);
+  });
+}
+
+document.querySelectorAll(".cape-cat-tab").forEach(tab => {
+  tab.onclick = () => {
+    document.querySelectorAll(".cape-cat-tab").forEach(t => t.classList.remove("active"));
+    tab.classList.add("active");
+    activeCapeCat = tab.dataset.cat || "all";
+    loadCapesView();
+  };
+});
+
+if ($("capesSearchInput")) $("capesSearchInput").oninput = () => loadCapesView();
+if ($("capeFavToggleBtn")) {
+  $("capeFavToggleBtn").onclick = () => {
+    capeFavOnly = !capeFavOnly;
+    $("capeFavToggleBtn").classList.toggle("active", capeFavOnly);
+    loadCapesView();
+  };
+}
+
+let uploadedCapeFrames = [];
+let animPreviewTimer = null;
+
+function openCapeUploadModal() {
+  const modal = $("capeUploadModal");
+  if (!modal) return;
+  uploadedCapeFrames = [];
+  if ($("capeNameField")) $("capeNameField").value = "";
+  if ($("capeFilesPicker")) $("capeFilesPicker").value = "";
+  if ($("capeFrameManager")) $("capeFrameManager").style.display = "none";
+  modal.removeAttribute("hidden");
+  modal.style.display = "flex";
+}
+
+function closeCapeUploadModal() {
+  const modal = $("capeUploadModal");
+  if (modal) {
+    modal.setAttribute("hidden", "");
+    modal.style.display = "none";
+  }
+  if (animPreviewTimer) clearInterval(animPreviewTimer);
+}
+
+if ($("capeUploadOpenBtn")) $("capeUploadOpenBtn").onclick = openCapeUploadModal;
+if ($("capeUploadClose")) $("capeUploadClose").onclick = closeCapeUploadModal;
+if ($("capeUploadCancelBtn")) $("capeUploadCancelBtn").onclick = closeCapeUploadModal;
+
+if ($("capeFpsSlider")) {
+  $("capeFpsSlider").oninput = (e) => {
+    const val = e.target.value;
+    if ($("capeFpsVal")) $("capeFpsVal").textContent = val + " FPS";
+    restartAnimPreview();
+  };
+}
+
+if ($("capeTemplateBtn")) {
+  $("capeTemplateBtn").onclick = () => {
+    const canvas = document.createElement("canvas");
+    canvas.width = 64;
+    canvas.height = 32;
+    const ctx = canvas.getContext("2d");
+    ctx.fillStyle = "#1e3a6a";
+    ctx.fillRect(0, 0, 64, 32);
+    ctx.fillStyle = "#00d4ff";
+    ctx.fillRect(1, 1, 10, 16);
+    const a = document.createElement("a");
+    a.href = canvas.toDataURL("image/png");
+    a.download = "kollegen-cape-template-64x32.png";
+    a.click();
+    toast("Cape-Template heruntergeladen!", "ok");
+  };
+}
+
+if ($("capeFilesPicker")) {
+  $("capeFilesPicker").onchange = async (e) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+    uploadedCapeFrames = [];
+
+    const readPromises = files.map(f => new Promise((resolve) => {
+      const r = new FileReader();
+      r.onload = () => resolve(r.result);
+      r.readAsDataURL(f);
+    }));
+
+    const results = await Promise.all(readPromises);
+    uploadedCapeFrames = results;
+    renderFrameManager();
+  };
+}
+
+function renderFrameManager() {
+  const mgr = $("capeFrameManager");
+  const list = $("capeFramesList");
+  const count = $("capeFrameCount");
+  if (!mgr || !list) return;
+
+  if (uploadedCapeFrames.length > 0) {
+    mgr.style.display = "block";
+    if (count) count.textContent = uploadedCapeFrames.length;
+    list.innerHTML = "";
+
+    uploadedCapeFrames.forEach((frame, idx) => {
+      const row = document.createElement("div");
+      row.className = "cape-frame-item";
+      row.innerHTML = `
+        <div style="display:flex; align-items:center; gap:10px;">
+          <img src="${frame}" alt="Frame ${idx + 1}" />
+          <span style="font-size:12px; font-weight:700;">Frame ${idx + 1}</span>
+        </div>
+        <div style="display:flex; gap:6px;">
+          <button class="frame-btn btn-up" ${idx === 0 ? "disabled" : ""}>↑</button>
+          <button class="frame-btn btn-down" ${idx === uploadedCapeFrames.length - 1 ? "disabled" : ""}>↓</button>
+          <button class="frame-btn btn-del" style="color:#ff5577;">✕</button>
+        </div>
+      `;
+
+      row.querySelector(".btn-up").onclick = () => {
+        if (idx > 0) {
+          const tmp = uploadedCapeFrames[idx];
+          uploadedCapeFrames[idx] = uploadedCapeFrames[idx - 1];
+          uploadedCapeFrames[idx - 1] = tmp;
+          renderFrameManager();
+        }
+      };
+
+      row.querySelector(".btn-down").onclick = () => {
+        if (idx < uploadedCapeFrames.length - 1) {
+          const tmp = uploadedCapeFrames[idx];
+          uploadedCapeFrames[idx] = uploadedCapeFrames[idx + 1];
+          uploadedCapeFrames[idx + 1] = tmp;
+          renderFrameManager();
+        }
+      };
+
+      row.querySelector(".btn-del").onclick = () => {
+        uploadedCapeFrames.splice(idx, 1);
+        renderFrameManager();
+      };
+
+      list.appendChild(row);
+    });
+
+    restartAnimPreview();
+  } else {
+    mgr.style.display = "none";
+  }
+}
+
+function restartAnimPreview() {
+  if (animPreviewTimer) clearInterval(animPreviewTimer);
+  const canvas = $("capeAnimPreviewCanvas");
+  if (!canvas || !uploadedCapeFrames.length) return;
+  const ctx = canvas.getContext("2d");
+  const fps = $("capeFpsSlider") ? parseInt($("capeFpsSlider").value, 10) || 10 : 10;
+  let idx = 0;
+
+  function drawCurrent() {
+    const img = new Image();
+    img.onload = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    };
+    img.src = uploadedCapeFrames[idx];
+  }
+
+  drawCurrent();
+  if (uploadedCapeFrames.length > 1) {
+    animPreviewTimer = setInterval(() => {
+      idx = (idx + 1) % uploadedCapeFrames.length;
+      drawCurrent();
+    }, Math.max(33, Math.round(1000 / fps)));
+  }
+}
+
+if ($("capeUploadSubmitBtn")) {
+  $("capeUploadSubmitBtn").onclick = async () => {
+    const name = ($("capeNameField") ? $("capeNameField").value.trim() : "") || "Mein Umhang";
+    if (!uploadedCapeFrames.length) {
+      toast("Bitte wähle mindestens ein Bild für dein Cape aus", "error");
+      return;
+    }
+    const fps = $("capeFpsSlider") ? parseInt($("capeFpsSlider").value, 10) || 10 : 10;
+    try {
+      await invoke("capes_upload", { name, images: uploadedCapeFrames, fps });
+      toast(`Cape "${name}" erfolgreich hochgeladen & ausgerüstet!`, "ok");
+      closeCapeUploadModal();
+      loadCapesView();
+      loadHomeSkin(true);
+    } catch (err) {
+      toast("Cape-Upload fehlgeschlagen: " + err, "error");
+    }
+  };
 }
   const _socialsClose = $("socialsClose");
   if (_socialsClose) _socialsClose.onclick = () => switchTab("home");
@@ -4518,6 +5149,10 @@ startBackgroundIntervals();
       tabs.addEventListener("click", (e) => {
         const t = e.target.closest(".tab");
         if (!t) return;
+        if (t.getAttribute("data-f") === "community_capes") {
+          switchTab("capes");
+          return;
+        }
         storeFilter = t.getAttribute("data-f");
         storeSyncTabs();
         renderStore();
@@ -4672,14 +5307,14 @@ startBackgroundIntervals();
     return;
     function renderCosmeticsFrom(me, store) {
     const equipped = me.equipped || {};
-    const owned = store.catalog.filter((it) => it.owned && ["pet", "pet_skin", "name_color", "badge", "sticker", "title", "profil_stil", "cape", "shield", "back_accessory", "head_accessory", "face_accessory", "aura", "shoulder_accessory", "torso_accessory", "legs_accessory", "gloves"].includes(it.category));
+    const owned = store.catalog.filter((it) => it.owned && it.category !== "cape" && ["pet", "pet_skin", "name_color", "badge", "sticker", "title", "profil_stil", "shield", "back_accessory", "head_accessory", "face_accessory", "aura", "shoulder_accessory", "torso_accessory", "legs_accessory", "gloves"].includes(it.category));
     const cosmCatLabel = (c) => {
       const known = { pet: "Haustier", title: "Titel", name_color: "Namensfarbe", badge: "Abzeichen", profile_frame: "Profil-Rahmen", profile_bg: "Profil-Hintergrund", banner: "Banner", profil_stil: "Profilstil", font: "Schriftart", sticker: "Aufkleber", avatar_theme: "Avatar-Hintergrund", cape: "Umhang", shield: "Schild", back_accessory: "Rücken", head_accessory: "Kopf", face_accessory: "Gesicht", aura: "Aura", shoulder_accessory: "Schulter", torso_accessory: "Oberkörper", legs_accessory: "Unterkörper", gloves: "Handschuhe" };
       if (c && known[c]) return known[c];
       const s = String(c || "").replace(/_/g, " ").trim();
       return s ? s.charAt(0).toUpperCase() + s.slice(1) : "";
     };
-    const cosmOrder = ["title", "badge", "sticker", "name_color", "profil_stil", "cape", "shield", "back_accessory", "head_accessory", "face_accessory", "aura", "shoulder_accessory", "torso_accessory", "legs_accessory", "gloves"];
+    const cosmOrder = ["title", "badge", "sticker", "name_color", "profil_stil", "shield", "back_accessory", "head_accessory", "face_accessory", "aura", "shoulder_accessory", "torso_accessory", "legs_accessory", "gloves"];
     let cosmCollapsed = {};
     try { cosmCollapsed = JSON.parse(localStorage.getItem("kosmetCollapsed") || "{}"); } catch (e) { cosmCollapsed = {}; }
     const cosmIsCollapsed = (cat) => cosmCollapsed[cat] !== false;
@@ -5828,6 +6463,7 @@ startBackgroundIntervals();
     }
     renderProfileSummary();
     renderGroups();
+    initTwitch();
     // Freundes-Zeilen aktualisieren, falls schon gerendert.
     if (window.refreshSocial) { try { window.refreshSocial(true); } catch (e) {} }
   })();

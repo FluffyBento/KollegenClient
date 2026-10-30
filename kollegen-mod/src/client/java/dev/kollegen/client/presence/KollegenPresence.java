@@ -81,6 +81,54 @@ public final class KollegenPresence {
         return id == null ? null : COSMETICS.get(id);
     }
 
+    public static void setLocalCape(String texture) {
+        Minecraft mc = Minecraft.getInstance();
+        UUID id = selfId != null ? selfId : (mc.player != null ? mc.player.getUUID() : null);
+        if (id == null) return;
+        selfId = id;
+        CosmeticData old = COSMETICS.get(id);
+        CosmeticData updated = new CosmeticData(
+            old != null ? old.level : 0,
+            old != null ? old.titleText : null,
+            old != null ? old.titleColor : null,
+            old != null ? old.nameColor : null,
+            old != null ? old.badgeIcon : null,
+            old != null ? old.badgeColor : null,
+            old != null ? old.stickerIcon : null,
+            old != null ? old.stickerColor : null,
+            old != null ? old.font : null,
+            old != null ? old.petKind : null,
+            old != null ? old.petScale : 0.2,
+            old != null ? old.petMode : null,
+            old != null ? old.petName : null,
+            old != null ? old.petNameColor : null,
+            old != null ? old.petVariant : null,
+            texture, null,
+            old != null ? old.backAccessoryTexture : null,
+            old != null ? old.backAccessoryModel : null,
+            old != null ? old.headAccessoryTexture : null,
+            old != null ? old.headAccessoryModel : null,
+            old != null ? old.shieldTexture : null,
+            old != null ? old.shieldModel : null,
+            old != null ? old.faceAccessoryTexture : null,
+            old != null ? old.faceAccessoryModel : null,
+            old != null ? old.auraTexture : null,
+            old != null ? old.auraModel : null,
+            old != null ? old.shoulderAccessoryTexture : null,
+            old != null ? old.shoulderAccessoryModel : null,
+            old != null ? old.torsoAccessoryTexture : null,
+            old != null ? old.torsoAccessoryModel : null,
+            old != null ? old.legsAccessoryTexture : null,
+            old != null ? old.legsAccessoryModel : null,
+            old != null ? old.glovesTexture : null,
+            old != null ? old.glovesModel : null,
+            old != null ? old.maceTexture : null,
+            old != null ? old.maceModel : null
+        );
+        COSMETICS.put(id, updated);
+        USERS.add(id);
+    }
+
     
     private static final Map<EntityRenderState, Boolean> STATE_KOLLEGEN = new WeakHashMap<>();
 

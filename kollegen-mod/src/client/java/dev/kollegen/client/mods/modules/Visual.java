@@ -46,6 +46,38 @@ public final class Visual {
         ModuleManager.register(new ShieldSettings());
         ModuleManager.register(new FovModifier());
         ModuleManager.register(new KollegenShader());
+        ModuleManager.register(new WaveyCapes());
+    }
+
+    public static class WaveyCapes extends Module {
+        public static boolean enabled = true;
+        public static float waveStrength = 1.0f;
+
+        private final BooleanSetting physics = new BooleanSetting("Wellen-Physik", "Aktiviert fließende Stoff-Simulation für Umhänge.", true);
+        private final SliderSetting strength = new SliderSetting("Wellenstärke", "Intensität der Umhang-Wellenbewegung.", 1.0, 0.2, 3.0, 0.1);
+
+        public WaveyCapes() {
+            super("waveycapes", "Wavey Capes", "Physikalische Wellen- und Stoffbewegung für Umhänge.", Category.VISUAL);
+            add(physics);
+            add(strength);
+        }
+
+        @Override
+        public void onEnable() {
+            enabled = physics.value;
+            waveStrength = (float) strength.value;
+        }
+
+        @Override
+        public void onTick() {
+            enabled = this.enabled && physics.value;
+            waveStrength = (float) strength.value;
+        }
+
+        @Override
+        public void onDisable() {
+            enabled = false;
+        }
     }
 
     private static class NoFog extends Module {

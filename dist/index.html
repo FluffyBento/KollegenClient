@@ -54,6 +54,14 @@
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
         <span class="side-label">Store</span>
       </button>
+      <button class="sidebar-link" data-tab="skins" title="Skins" id="skinsBtn">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/><path d="M12 16v1.5a1.5 1.5 0 0 0 3 0V16"/></svg>
+        <span class="side-label">Skins</span>
+      </button>
+      <button class="sidebar-link" data-tab="capes" title="Capes" id="capesBtn">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><path d="M3 6h18"/><path d="M12 9v9"/></svg>
+        <span class="side-label">Capes</span>
+      </button>
       <button class="sidebar-link" data-tab="cosmetics" title="Cosmetics">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 15l.9 2.1L22 18l-2.1.9L19 21l-.9-2.1L16 18l2.1-.9z"/></svg>
         <span class="side-label">Cosmetics</span>
@@ -282,7 +290,7 @@
           <button class="tab" data-f="name_color" role="tab" aria-selected="false">Namensfarbe</button>
           <button class="tab" data-f="sticker" role="tab" aria-selected="false">Aufkleber</button>
           <button class="tab" data-f="pet" role="tab" aria-selected="false">Pet</button>
-          <button class="tab" data-f="cape" role="tab" aria-selected="false">Cape</button>
+          <button class="tab" data-f="community_capes" role="tab" aria-selected="false">Community Capes</button>
           <button class="tab" data-f="shield" role="tab" aria-selected="false">Schild</button>
           <button class="tab" data-f="back_accessory" role="tab" aria-selected="false">Rücken</button>
           <button class="tab" data-f="head_accessory" role="tab" aria-selected="false">Kopf</button>
@@ -295,6 +303,74 @@
         </div>
         <div class="store-main">
           <div class="store-grid" id="storeGridMain" role="tabpanel"><div class="store-msg">Lade Store…</div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SKINS LIBRARY PANEL (Image 2) -->
+    <section id="skinsPanel" class="tab-panel sx-page" data-tab="skins" aria-labelledby="skinsTitle" hidden>
+      <div class="skins-header-bar">
+        <div class="skins-search-wrap">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" id="skinsSearchInput" placeholder="Search skins..." autocomplete="off" />
+        </div>
+        <button id="addSkinTopBtn" class="add-skin-top-btn">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+          <span>ADD SKIN</span>
+        </button>
+      </div>
+
+      <div class="skins-grid-container" id="skinsGrid">
+        <!-- Add New Skin Card -->
+        <div class="skin-card skin-card-add" id="cardAddNewSkin">
+          <div class="skin-card-silhouette">
+            <div class="skin-add-plus">
+              <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="3"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            </div>
+          </div>
+          <div class="skin-card-title">Add New Skin</div>
+          <div class="skin-card-sub">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            Upload or import a skin
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- COMMUNITY CAPES PANEL (Image 3 & Image 4) -->
+    <section id="capesPanel" class="tab-panel sx-page" data-tab="capes" aria-labelledby="capesTitle" hidden>
+      <div class="capes-category-tabs" role="tablist">
+        <button class="cape-cat-tab active" data-cat="all">ALL</button>
+        <button class="cape-cat-tab" data-cat="my_capes">MY CAPES</button>
+        <button class="cape-cat-tab" data-cat="favorites">FAVORITES</button>
+        <button class="cape-cat-tab" data-cat="vanilla">VANILLA</button>
+        <button class="cape-cat-tab" data-cat="gekauft">GEKAUFT</button>
+      </div>
+
+      <div class="capes-toolbar">
+        <div class="capes-search-wrap">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" id="capesSearchInput" placeholder="Search by player name..." autocomplete="off" />
+        </div>
+        <button id="capeFavToggleBtn" class="cape-tool-btn" title="Nur Favoriten anzeigen">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+        </button>
+        <div class="capes-tool-right">
+          <button id="capeTemplateBtn" class="cape-action-btn">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            <span>TEMPLATE ▾</span>
+          </button>
+          <button id="capeUploadOpenBtn" class="cape-action-btn cape-upload-highlight">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            <span>UPLOAD</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="capes-grid" id="capesGrid">
+        <div class="cape-card cape-card-none" id="capeCardNone">
+          <div class="cape-none-icon">✕</div>
+          <div class="cape-card-name">No Cape</div>
         </div>
       </div>
     </section>
@@ -436,6 +512,25 @@
           <h3>Discord</h3>
           <button id="discordLoginBtnSettings" class="btn-primary">Mit Discord verbinden</button>
           <button id="discordLogoutBtn" class="btn-danger">Discord abmelden</button>
+          <h3>Twitch</h3>
+          <div class="connection-card twitch-card">
+            <div class="connection-card-left">
+              <svg class="twitch-icon" viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
+                <path d="M11.571 4.714h1.715v5.143H11.57zm4.715 0H18v5.143h-1.714zM6 0L1.714 4.286v15.428h5.143V24l4.286-4.286h3.428L22.286 12V0zm14.571 11.143l-3.428 3.428h-3.429l-3 3v-3H6.857V1.714h13.714Z"/>
+              </svg>
+              <div class="connection-info">
+                <div class="connection-title">Twitch</div>
+                <div class="connection-desc">Twitch alerts, chat and streams right in the game.</div>
+              </div>
+            </div>
+            <div class="connection-card-right">
+              <button id="twitchLinkBtn" class="twitch-link-btn">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                <span id="twitchLinkText">LINK</span>
+              </button>
+            </div>
+          </div>
+          <div id="twitchStatusHint" class="socials-hint" style="margin-top:-6px; margin-bottom:12px;"></div>
           <h3>Begleit-Mod</h3>
           <label class="settings-check">
             <input type="checkbox" id="companionModToggle" />
@@ -682,6 +777,75 @@
 
   <script src="qrcode.js"></script>
   <script src="js/cosmetic3d.js"></script>
+  <!-- SKIN EDIT / ADD MODAL (Image 2) -->
+  <div id="skinEditModal" class="modal" hidden>
+    <div class="modal-content skin-edit-modal-content">
+      <button id="skinEditClose" class="icon-btn" aria-label="Schließen">✕</button>
+      <h3 id="skinModalTitle">Skin hinzufügen</h3>
+      <div class="form-group">
+        <label for="skinNameField">Skin-Name</label>
+        <input type="text" id="skinNameField" placeholder="z. B. Breadshop" />
+      </div>
+      <div class="form-group">
+        <label>Modell-Typ</label>
+        <div class="skin-model-selector">
+          <label class="model-radio"><input type="radio" name="skinModelRadio" value="classic" checked /> <span>Classic (4px)</span></label>
+          <label class="model-radio"><input type="radio" name="skinModelRadio" value="slim" /> <span>Slim / Alex (3px)</span></label>
+        </div>
+      </div>
+      <div class="form-group" id="skinUploadGroup">
+        <label>Skin-Datei (.png)</label>
+        <input type="file" id="skinFilePicker" accept="image/png,image/jpeg" />
+      </div>
+      <div class="modal-actions" style="margin-top:20px; display:flex; gap:10px; justify-content:flex-end;">
+        <button id="skinCancelBtn" class="btn-secondary">Abbrechen</button>
+        <button id="skinSaveBtn" class="btn-primary">Speichern</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CAPE UPLOAD MODAL (Image 3) -->
+  <div id="capeUploadModal" class="modal" hidden>
+    <div class="modal-content cape-upload-modal-content">
+      <button id="capeUploadClose" class="icon-btn" aria-label="Schließen">✕</button>
+      <h3>Cape hochladen (Community / Eigene)</h3>
+      <p class="socials-hint" style="margin-bottom:12px;">Unterstützt .png, .jpg, .jpeg, animierte .gif sowie mehrere Bilder für animierte Capes mit Reihenfolge &amp; FPS.</p>
+      
+      <div class="form-group">
+        <label for="capeNameField">Cape-Name</label>
+        <input type="text" id="capeNameField" placeholder="z. B. DerKyzo, MeinAnimiertesCape" />
+      </div>
+
+      <div class="form-group">
+        <label>Dateien auswählen (.png, .jpg, .gif - mehrere für Animation)</label>
+        <input type="file" id="capeFilesPicker" accept="image/png,image/jpeg,image/gif" multiple />
+      </div>
+
+      <div id="capeFrameManager" style="display:none; margin-top:14px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <label style="font-weight:700;">Animations-Frames (<span id="capeFrameCount">0</span>)</label>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <label style="font-size:12px; color:var(--text-secondary);">Geschwindigkeit:</label>
+            <input type="range" id="capeFpsSlider" min="1" max="30" value="10" style="width:90px;" />
+            <span id="capeFpsVal" style="font-size:12px; font-weight:700; width:45px;">10 FPS</span>
+          </div>
+        </div>
+
+        <div class="cape-frames-preview-wrap" style="display:flex; gap:14px; align-items:center; margin-bottom:12px;">
+          <canvas id="capeAnimPreviewCanvas" width="128" height="64" style="background:#070d18; border:1px solid #1e3a6a; border-radius:6px;"></canvas>
+          <span style="font-size:12px; color:var(--text-secondary);">Live-Vorschau der Animation</span>
+        </div>
+
+        <div class="cape-frames-list" id="capeFramesList" style="max-height:160px; overflow-y:auto; display:flex; flex-direction:column; gap:6px;"></div>
+      </div>
+
+      <div class="modal-actions" style="margin-top:20px; display:flex; gap:10px; justify-content:flex-end;">
+        <button id="capeUploadCancelBtn" class="btn-secondary">Abbrechen</button>
+        <button id="capeUploadSubmitBtn" class="btn-primary">Hochladen &amp; Ausrüsten</button>
+      </div>
+    </div>
+  </div>
+
   <script src="console.js"></script>
   <script src="home.js"></script>
   <script src="app.js"></script>
