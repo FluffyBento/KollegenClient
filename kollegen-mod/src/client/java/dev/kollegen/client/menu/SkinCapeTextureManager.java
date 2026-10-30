@@ -6,15 +6,22 @@ import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.resources.Identifier;
 
 import java.io.InputStream;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.Base64;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 public final class SkinCapeTextureManager {
     private static final Map<String, Identifier> CACHE = new ConcurrentHashMap<>();
+    private static final Set<String> PENDING = ConcurrentHashMap.newKeySet();
 
     private SkinCapeTextureManager() {
     }
@@ -86,8 +93,15 @@ public final class SkinCapeTextureManager {
                 return id;
             }
         }
+        if (capeId.toLowerCase().startsWith("kollegen:")) {
+            Identifier id = Identifier.tryParse(capeId.toLowerCase());
+            if (id != null) {
+                CACHE.put(key, id);
+                return id;
+            }
+        }
 
-        // Creator package cape shortcuts
+        // Creator package cape shortcuts & store capes
         String lowerId = capeId.toLowerCase();
         if (lowerId.contains("fluffybento")) {
             Identifier id = Identifier.tryParse("kollegen:cosmetics/fluffybento/fluffybento_cape.png");
@@ -107,6 +121,59 @@ public final class SkinCapeTextureManager {
         } else if (lowerId.contains("rixhii")) {
             Identifier id = Identifier.tryParse("kollegen:cosmetics/rixhii/rixhii_cape.png");
             if (id != null) { CACHE.put(key, id); return id; }
+        } else if (lowerId.contains("phantom")) {
+            Identifier id = Identifier.tryParse("kollegen:cosmetics/store/phantomumhang.png");
+            if (id != null) { CACHE.put(key, id); return id; }
+        } else if (lowerId.contains("sternen")) {
+            Identifier id = Identifier.tryParse("kollegen:cosmetics/store/sternenhimmel_umhang.png");
+            if (id != null) { CACHE.put(key, id); return id; }
+        }
+
+        // HTTP/HTTPS Mojang Vanilla or Community Cape URL
+        if (rawData != null && (rawData.startsWith("http://") || rawData.startsWith("https://"))) {
+            String safeId = capeId.toLowerCase().replaceAll("[^a-z0-9_.-]", "_");
+            String home = System.getProperty("user.home", "");
+            Path cacheDir = Path.of(home, ".local", "share", "kollegenclient", "capes", "cache");
+            Path cachedFile = cacheDir.resolve(safeId + ".png");
+            if (Files.exists(cachedFile)) {
+                try {
+                    byte[] bytes = Files.readAllBytes(cachedFile);
+                    NativeImage img = NativeImage.read(bytes);
+                    Identifier id = Identifier.tryParse("kollegen:cape_" + safeId);
+                    DynamicTexture tex = new DynamicTexture(() -> "cape_" + capeId, img);
+                    Minecraft.getInstance().getTextureManager().register(id, tex);
+                    CACHE.put(key, id);
+                    return id;
+                } catch (Throwable ignored) {
+                }
+            } else if (PENDING.add(key)) {
+                Thread t = new Thread(() -> {
+                    try {
+                        Files.createDirectories(cacheDir);
+                        HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(6)).build();
+                        HttpRequest req = HttpRequest.newBuilder(URI.create(rawData)).timeout(Duration.ofSeconds(10)).GET().build();
+                        HttpResponse<byte[]> res = client.send(req, HttpResponse.BodyHandlers.ofByteArray());
+                        if (res.statusCode() >= 200 && res.statusCode() < 300 && res.body() != null && res.body().length > 0) {
+                            Files.write(cachedFile, res.body());
+                            Minecraft.getInstance().execute(() -> {
+                                try {
+                                    NativeImage img = NativeImage.read(res.body());
+                                    Identifier id = Identifier.tryParse("kollegen:cape_" + safeId);
+                                    DynamicTexture tex = new DynamicTexture(() -> "cape_" + capeId, img);
+                                    Minecraft.getInstance().getTextureManager().register(id, tex);
+                                    CACHE.put(key, id);
+                                } catch (Throwable ignored) {}
+                            });
+                        }
+                    } catch (Throwable ignored) {
+                    } finally {
+                        PENDING.remove(key);
+                    }
+                }, "kollegen-cape-dl-" + safeId);
+                t.setDaemon(true);
+                t.start();
+            }
+            return null;
         }
 
         try {

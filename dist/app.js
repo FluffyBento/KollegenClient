@@ -3303,14 +3303,26 @@ function disposeUploadCapeViewer() {
   }
 }
 
-// Convert any standard image (wallpaper, photo, meme, etc.) to 128x64 Minecraft Cape UV layout
-function convertImageToMinecraftCape(source) {
+// Convert any standard image (wallpaper, photo, meme, etc.) to HD Minecraft Cape UV layout with Elytra mapping
+function convertImageToMinecraftCape(source, elytraMode = 'normal') {
   try {
     const sw = source.naturalWidth || source.videoWidth || source.width || 64;
     const sh = source.naturalHeight || source.videoHeight || source.height || 32;
 
-    // If it's already a standard Minecraft cape template (64x32, 22x17, or 2:1 aspect ratio)
-    if ((sw === 64 && sh === 32) || (sw === 22 && sh === 17) || (sw === 2 * sh && sw <= 1024)) {
+    // If it's already a standard 2:1 aspect ratio Minecraft cape template:
+    if (sw === 2 * sh && sw >= 64) {
+      // Preserve native resolution up to 2048x1024!
+      const targetW = Math.min(sw, 2048);
+      const targetH = targetW / 2;
+      const c = document.createElement("canvas");
+      c.width = targetW;
+      c.height = targetH;
+      const ctx = c.getContext("2d");
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(source, 0, 0, targetW, targetH);
+      return c.toDataURL("image/png");
+    }
+    if (sw === 22 && sh === 17) {
       const c = document.createElement("canvas");
       c.width = sw;
       c.height = sh;
@@ -3319,35 +3331,45 @@ function convertImageToMinecraftCape(source) {
       return c.toDataURL("image/png");
     }
 
-    // Convert normal picture to 128x64 Minecraft cape UV layout
-    const W = 128;
-    const H = 64;
+    // Determine crisp high-resolution cape dimensions based on input resolution
+    // so fine details, text, and photos are never blurred or pixelated
+    const W = (sw >= 1000 || sh >= 800) ? 2048 : ((sw >= 400 || sh >= 300) ? 1024 : 512);
+    const H = W / 2;
+    const scale = W / 64; // 32, 16, or 8
+
     const c = document.createElement("canvas");
     c.width = W;
     c.height = H;
     const ctx = c.getContext("2d");
+    ctx.imageSmoothingEnabled = true;
 
-    // Cape Back in 128x64: x: 2, y: 2, w: 20, h: 32
-    // Cape Front in 128x64: x: 24, y: 2, w: 20, h: 32
-    const bw = 20;
-    const bh = 32;
+    // Cape Back in Minecraft UV: x = 12 * scale, y = 1 * scale, w = 10 * scale, h = 16 * scale
+    // Cape Front in Minecraft UV: x = 1 * scale, y = 1 * scale, w = 10 * scale, h = 16 * scale
+    const bw = 10 * scale;
+    const bh = 16 * scale;
+    const backX = 12 * scale;
+    const backY = 1 * scale;
+    const frontX = 1 * scale;
+    const frontY = 1 * scale;
 
-    function drawCover(dx, dy, dw, dh, darken = 1.0) {
-      const imgRatio = sw / sh;
+    function drawCover(dx, dy, dw, dh, src, darken = 1.0) {
+      const srcW = src.naturalWidth || src.width || sw;
+      const srcH = src.naturalHeight || src.height || sh;
+      const imgRatio = srcW / srcH;
       const destRatio = dw / dh;
       let sx, sy, sWidth, sHeight;
       if (imgRatio > destRatio) {
-        sHeight = sh;
-        sWidth = sh * destRatio;
-        sx = (sw - sWidth) / 2;
+        sHeight = srcH;
+        sWidth = srcH * destRatio;
+        sx = (srcW - sWidth) / 2;
         sy = 0;
       } else {
-        sWidth = sw;
-        sHeight = sw / destRatio;
+        sWidth = srcW;
+        sHeight = srcW / destRatio;
         sx = 0;
-        sy = (sh - sHeight) / 2;
+        sy = (srcH - sHeight) / 2;
       }
-      ctx.drawImage(source, sx, sy, sWidth, sHeight, dx, dy, dw, dh);
+      ctx.drawImage(src, sx, sy, sWidth, sHeight, dx, dy, dw, dh);
       if (darken < 1.0) {
         ctx.fillStyle = `rgba(0,0,0,${1.0 - darken})`;
         ctx.fillRect(dx, dy, dw, dh);
@@ -3355,15 +3377,67 @@ function convertImageToMinecraftCape(source) {
     }
 
     // Back face (visible behind player)
-    drawCover(2, 2, bw, bh, 1.0);
+    drawCover(backX, backY, bw, bh, source, 1.0);
     // Front face (facing spine, slightly darker)
-    drawCover(24, 2, bw, bh, 0.75);
+    drawCover(frontX, frontY, bw, bh, source, 0.75);
 
     // Edges & borders (top, bottom, left, right)
-    ctx.drawImage(c, 2, 2, bw, 1, 2, 0, bw, 2); // Top
-    ctx.drawImage(c, 2, 2 + bh - 1, bw, 1, 22, 0, bw, 2); // Bottom
-    ctx.drawImage(c, 2, 2, 1, bh, 0, 2, 2, bh); // Left
-    ctx.drawImage(c, 2 + bw - 1, 2, 1, bh, 22, 2, 2, bh); // Right
+    ctx.drawImage(c, backX, backY, bw, scale, frontX, 0, bw, scale); // Top
+    ctx.drawImage(c, backX, backY + bh - scale, bw, scale, 11 * scale, 0, bw, scale); // Bottom
+    ctx.drawImage(c, backX, backY, scale, bh, 0, frontY, scale, bh); // Left
+    ctx.drawImage(c, backX + bw - scale, backY, scale, bh, 11 * scale, frontY, scale, bh); // Right
+
+    // Map Elytra wings:
+    // Left wing outside: x = 36 * scale, y = 2 * scale, w = 10 * scale, h = 20 * scale
+    // Left wing inside:  x = 24 * scale, y = 2 * scale, w = 10 * scale, h = 20 * scale
+    const elW = 10 * scale;
+    const elH = 20 * scale;
+    const elOutX = 36 * scale;
+    const elOutY = 2 * scale;
+    const elInX = 24 * scale;
+    const elInY = 2 * scale;
+
+    // Render Elytra texture with selected mapping mode
+    const elCanvas = document.createElement("canvas");
+    elCanvas.width = sw;
+    elCanvas.height = sh;
+    const elCtx = elCanvas.getContext("2d");
+    if (elytraMode === "mirrored") {
+      elCtx.translate(sw, 0);
+      elCtx.scale(-1, 1);
+      elCtx.drawImage(source, 0, 0);
+    } else if (elytraMode === "split") {
+      elCtx.drawImage(source, 0, 0, sw / 2, sh, 0, 0, sw, sh);
+    } else if (elytraMode === "rotate90") {
+      elCanvas.width = sh;
+      elCanvas.height = sw;
+      elCtx.translate(sh, 0);
+      elCtx.rotate(Math.PI / 2);
+      elCtx.drawImage(source, 0, 0);
+    } else if (elytraMode === "rotate180") {
+      elCtx.translate(sw, sh);
+      elCtx.rotate(Math.PI);
+      elCtx.drawImage(source, 0, 0);
+    } else if (elytraMode === "rotate270") {
+      elCanvas.width = sh;
+      elCanvas.height = sw;
+      elCtx.translate(0, sw);
+      elCtx.rotate((3 * Math.PI) / 2);
+      elCtx.drawImage(source, 0, 0);
+    } else {
+      elCtx.drawImage(source, 0, 0);
+    }
+
+    // Draw left wing outside
+    drawCover(elOutX, elOutY, elW, elH, elCanvas, 1.0);
+    // Draw left wing inside (slightly darker)
+    drawCover(elInX, elInY, elW, elH, elCanvas, 0.75);
+
+    // Elytra edges
+    ctx.drawImage(c, elOutX, elOutY, elW, 2 * scale, 24 * scale, 0, elW, 2 * scale); // Top
+    ctx.drawImage(c, elOutX, elOutY + elH - 2 * scale, elW, 2 * scale, 34 * scale, 0, elW, 2 * scale); // Bottom
+    ctx.drawImage(c, elOutX, elOutY, 2 * scale, elH, 22 * scale, 2 * scale, 2 * scale, elH); // Left
+    ctx.drawImage(c, elOutX + elW - 2 * scale, elOutY, 2 * scale, elH, 34 * scale, 2 * scale, 2 * scale, elH); // Right
 
     return c.toDataURL("image/png");
   } catch (err) {
@@ -3372,13 +3446,13 @@ function convertImageToMinecraftCape(source) {
   }
 }
 
-async function ensureCapeTextureUrl(url) {
+async function ensureCapeTextureUrl(url, elytraMode = 'normal') {
   if (!url) return null;
   return new Promise((resolve) => {
     const img = new Image();
     img.crossOrigin = "anonymous";
     img.onload = () => {
-      const capeUrl = convertImageToMinecraftCape(img);
+      const capeUrl = convertImageToMinecraftCape(img, elytraMode);
       resolve(capeUrl || url);
     };
     img.onerror = () => resolve(url);
@@ -3562,6 +3636,13 @@ async function loadCapesView() {
     };
     prevWrap.appendChild(fav);
 
+    // Elytra toggle button on 3D Card
+    const elytraBtn = document.createElement("button");
+    elytraBtn.className = "cape-card-elytra-btn";
+    elytraBtn.title = "Zwischen Cape und Elytra umschalten";
+    elytraBtn.innerHTML = `<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M12 2C9.5 5 4 8 2 15c0 4 3 7 7 7 3 0 3-4 3-7 0 3 0 7 3 7 4 0 7-3 7-7-2-7-7.5-10-10-13zm-1 18c-3 0-5.5-2.2-5.5-5.5 0-3 3-6.5 5.5-9v14.5zm2 0V5.5c2.5 2.5 5.5 6 5.5 9 0 3.3-2.5 5.5-5.5 5.5z"/></svg>`;
+    prevWrap.appendChild(elytraBtn);
+
     // 3D Rotating & Interactive Cape Canvas
     const canvas = document.createElement("canvas");
     canvas.width = 160;
@@ -3586,6 +3667,17 @@ async function loadCapesView() {
           viewer.autoRotate = false;
           viewer.autoRotateSpeed = 2.2;
           capeViewers.push(viewer);
+
+          let isElytra = false;
+          elytraBtn.onclick = (e) => {
+            e.stopPropagation();
+            isElytra = !isElytra;
+            elytraBtn.classList.toggle("active", isElytra);
+            viewer.playerObject.backEquipment = isElytra ? "elytra" : "cape";
+            if (viewer.renderPaused) {
+              viewer.render();
+            }
+          };
 
           setTimeout(() => {
             try {
@@ -3763,6 +3855,33 @@ if ($("capeTemplateBtn")) {
   };
 }
 
+let rawUploadedCapeImages = [];
+let uploadIsElytra = false;
+
+const uploadElytraToggle = $("capeUploadElytraToggle");
+if (uploadElytraToggle) {
+  uploadElytraToggle.onclick = () => {
+    uploadIsElytra = !uploadIsElytra;
+    uploadElytraToggle.classList.toggle("active", uploadIsElytra);
+    const label = $("capeUploadElytraLabel");
+    if (label) label.textContent = uploadIsElytra ? "Cape-Ansicht" : "Elytra-Ansicht";
+    if (uploadCapeViewer && uploadCapeViewer.playerObject) {
+      uploadCapeViewer.playerObject.backEquipment = uploadIsElytra ? "elytra" : "cape";
+    }
+  };
+}
+
+const elytraModeSelect = $("capeElytraModeSelect");
+if (elytraModeSelect) {
+  elytraModeSelect.onchange = async () => {
+    if (!rawUploadedCapeImages.length) return;
+    const mode = elytraModeSelect.value || "normal";
+    const formatted = await Promise.all(rawUploadedCapeImages.map(raw => ensureCapeTextureUrl(raw, mode)));
+    uploadedCapeFrames = formatted.filter(Boolean);
+    renderFrameManager();
+  };
+}
+
 if ($("capeFilesPicker")) {
   $("capeFilesPicker").onchange = async (e) => {
     const files = Array.from(e.target.files || []);
@@ -3776,8 +3895,10 @@ if ($("capeFilesPicker")) {
     }));
 
     const rawResults = await Promise.all(readPromises);
-    // Convert normal images or templates into proper Minecraft Cape UV layout
-    const formatted = await Promise.all(rawResults.map(raw => ensureCapeTextureUrl(raw)));
+    rawUploadedCapeImages = rawResults;
+    const mode = $("capeElytraModeSelect") ? $("capeElytraModeSelect").value : "normal";
+    // Convert normal images or templates into proper HD Minecraft Cape & Elytra UV layout
+    const formatted = await Promise.all(rawResults.map(raw => ensureCapeTextureUrl(raw, mode)));
     uploadedCapeFrames = formatted.filter(Boolean);
     renderFrameManager();
   };
@@ -3904,8 +4025,9 @@ if ($("capeUploadSubmitBtn")) {
       return;
     }
     const fps = $("capeFpsSlider") ? parseInt($("capeFpsSlider").value, 10) || 10 : 10;
+    const mode = $("capeElytraModeSelect") ? $("capeElytraModeSelect").value : "normal";
     try {
-      await invoke("capes_upload", { name, images: uploadedCapeFrames, fps });
+      await invoke("capes_upload", { name, images: uploadedCapeFrames, fps, elytra_mode: mode });
       toast(`Cape "${name}" erfolgreich hochgeladen & ausgerüstet!`, "ok");
       closeCapeUploadModal();
       loadCapesView();

@@ -344,8 +344,8 @@
     <section id="capesPanel" class="tab-panel sx-page" data-tab="capes" aria-labelledby="capesTitle" hidden>
       <div class="capes-category-tabs" role="tablist">
         <button class="cape-cat-tab active" data-cat="all">ALL</button>
-        <button class="cape-cat-tab" data-cat="my_capes">MY CAPES</button>
         <button class="cape-cat-tab" data-cat="community">COMMUNITY</button>
+        <button class="cape-cat-tab" data-cat="my_capes">MY CAPES</button>
         <button class="cape-cat-tab" data-cat="gekauft">GEKAUFT</button>
         <button class="cape-cat-tab" data-cat="vanilla">VANILLA</button>
         <button id="capeFavToggleBtn" class="cape-cat-tab cape-fav-star-tab" title="Nur Favoriten anzeigen" style="margin-left: auto;">
@@ -838,10 +838,31 @@
         <input type="file" id="capeFilesPicker" accept="image/png,image/jpeg,image/gif" multiple />
       </div>
 
-      <!-- 3D Cape Live-Vorschau (dreht sich automatisch, mit Maus frei drehbar) -->
+      <!-- 3D Cape Live-Vorschau (dreht sich automatisch, mit Maus frei drehbar, Elytra umschaltbar) -->
       <div id="capeUpload3dWrap" style="display:none; flex-direction:column; align-items:center; justify-content:center; margin:12px 0; padding:12px; background:rgba(0,0,0,0.3); border:1px solid var(--border-primary); border-radius:var(--radius-md);">
-        <div style="font-size:11px; font-weight:700; color:var(--text-secondary); margin-bottom:6px; text-transform:uppercase; letter-spacing:0.5px;">3D-Cape Vorschau (dreht sich · mit Maus frei drehbar)</div>
+        <div style="display:flex; justify-content:space-between; align-items:center; width:100%; margin-bottom:8px;">
+          <span style="font-size:11px; font-weight:700; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.5px;">3D-Vorschau (frei drehbar)</span>
+          <button type="button" id="capeUploadElytraToggle" class="cape-elytra-toggle-btn" title="Zwischen Cape und Elytra umschalten">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12 2C9.5 5 4 8 2 15c0 4 3 7 7 7 3 0 3-4 3-7 0 3 0 7 3 7 4 0 7-3 7-7-2-7-7.5-10-10-13zm-1 18c-3 0-5.5-2.2-5.5-5.5 0-3 3-6.5 5.5-9v14.5zm2 0V5.5c2.5 2.5 5.5 6 5.5 9 0 3.3-2.5 5.5-5.5 5.5z"/></svg>
+            <span id="capeUploadElytraLabel">Elytra-Ansicht</span>
+          </button>
+        </div>
         <canvas id="capeUpload3dCanvas" width="160" height="200" style="width:160px; height:200px; cursor:grab;"></canvas>
+      </div>
+
+      <div class="form-group" style="margin-top:10px;">
+        <label for="capeElytraModeSelect" style="display:flex; justify-content:space-between; align-items:center;">
+          <span>Elytra-Darstellung bei eigenem Cape</span>
+          <span style="font-size:11px; color:var(--text-secondary); font-weight:normal;">Ausrichtung auf Elytra-Flügeln</span>
+        </label>
+        <select id="capeElytraModeSelect" class="form-select" style="width:100%; padding:8px 10px; background:var(--bg-secondary); border:1px solid var(--border-primary); border-radius:var(--radius-sm); color:var(--text-primary); font-size:13px;">
+          <option value="normal" selected>Normal (Standard Minecraft Elytra)</option>
+          <option value="mirrored">Gespiegelt (Horizontale Spiegelung der Flügel)</option>
+          <option value="split">Geteilt (Linke Bildhälfte links, rechte Hälfte rechts)</option>
+          <option value="rotate90">Gedreht 90° (Im Uhrzeigersinn)</option>
+          <option value="rotate180">Gedreht 180° (Kopfstehend)</option>
+          <option value="rotate270">Gedreht 270° (Gegen den Uhrzeigersinn)</option>
+        </select>
       </div>
 
       <div id="capeFrameManager" style="display:none; margin-top:14px;">

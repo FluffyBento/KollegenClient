@@ -1371,10 +1371,7 @@ fn launch_game(
         let skins_idx = skins::list_skins(&state.data_dir);
         let _ = utils::save_json(&cfg.join("kollegen-skins.json"), &skins_idx);
         let capes_data = capes::load_capes(&state.data_dir);
-        let _ = utils::save_json(&cfg.join("kollegen-cape.json"), &serde_json::json!({
-            "active": capes_data.active_cape,
-            "all_capes": capes_data.capes,
-        }));
+        capes::sync_active_cape_to_instances(&state.data_dir, &capes_data, capes_data.active_cape.as_deref());
     }
 
     
@@ -2210,7 +2207,10 @@ fn skin_mc_profile(state: State<'_, AppState>) -> Value {
 }
 #[tauri::command]
 fn cape_equip(state: State<'_, AppState>, cape_id: String) -> Value {
-    crate::skins::equip_cape(&state.data_dir, &cape_id)
+    let res = crate::skins::equip_cape(&state.data_dir, &cape_id);
+    let capes_data = capes::load_capes(&state.data_dir);
+    capes::sync_active_cape_to_instances(&state.data_dir, &capes_data, Some(&cape_id));
+    res
 }
 
 #[tauri::command]
@@ -2277,8 +2277,9 @@ fn capes_upload(
     name: String,
     images: Vec<String>,
     fps: u32,
+    elytra_mode: Option<String>,
 ) -> Result<capes::CapeEntry, String> {
-    capes::upload_cape(&state.data_dir, &name, images, fps)
+    capes::upload_cape(&state.data_dir, &name, images, fps, elytra_mode.as_deref())
 }
 
 #[tauri::command]

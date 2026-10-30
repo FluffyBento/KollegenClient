@@ -82,11 +82,38 @@ public final class KollegenPresence {
     }
 
     public static void setLocalCape(String texture) {
+        setLocalCape(texture, null);
+    }
+
+    public static void setLocalCape(String texture, String model) {
         Minecraft mc = Minecraft.getInstance();
         UUID id = selfId != null ? selfId : (mc.player != null ? mc.player.getUUID() : null);
         if (id == null) return;
         selfId = id;
         CosmeticData old = COSMETICS.get(id);
+        String resolvedModel = model;
+        if ((resolvedModel == null || resolvedModel.isEmpty()) && texture != null) {
+            String lower = texture.toLowerCase(java.util.Locale.ROOT);
+            if (lower.contains("fluffybento")) {
+                resolvedModel = "kollegen:cosmetics/fluffybento/fluffybento_cape.bbmodel";
+            } else if (lower.contains("limitlos") || lower.contains("limit_los")) {
+                resolvedModel = "kollegen:cosmetics/limit_los/limit_los_cape.bbmodel";
+            } else if (lower.contains("zerocraft77")) {
+                resolvedModel = "kollegen:cosmetics/zerocraft77/zerocraft77_cape.bbmodel";
+            } else if (lower.contains("irongirl")) {
+                resolvedModel = "kollegen:cosmetics/irongirl_lp/irongirl_lp_cape.bbmodel";
+            } else if (lower.contains("tson") || lower.contains("t_son")) {
+                resolvedModel = "kollegen:cosmetics/t_son_/t_son__cape.bbmodel";
+            } else if (lower.contains("rixhii")) {
+                resolvedModel = "kollegen:cosmetics/rixhii/rixhii_cape.bbmodel";
+            } else if (lower.contains("phantom")) {
+                resolvedModel = "kollegen:cosmetics/store/phantomumhang.bbmodel";
+            } else if (lower.contains("sternen")) {
+                resolvedModel = "kollegen:cosmetics/store/sternenhimmel_umhang.bbmodel";
+            } else if (lower.endsWith(".png")) {
+                resolvedModel = texture.substring(0, texture.length() - 4) + ".bbmodel";
+            }
+        }
         CosmeticData updated = new CosmeticData(
             old != null ? old.level : 0,
             old != null ? old.titleText : null,
@@ -103,7 +130,7 @@ public final class KollegenPresence {
             old != null ? old.petName : null,
             old != null ? old.petNameColor : null,
             old != null ? old.petVariant : null,
-            texture, null,
+            texture, resolvedModel,
             old != null ? old.backAccessoryTexture : null,
             old != null ? old.backAccessoryModel : null,
             old != null ? old.headAccessoryTexture : null,

@@ -1284,9 +1284,9 @@ public class KollegenMenuScreen extends Screen {
                     return true;
                 }
                 case K_CAPE_ITEM: {
-                    String capeId = str(c.data, "id", "");
-                    String capeTex = str(c.data, "texture", "");
-                    this.equipCapeInGame(capeId, capeTex);
+                    if (c.data != null) {
+                        this.equipCapeInGame(c.data);
+                    }
                     return true;
                 }
                 case K_SKIN_CAPE_TOP_TAB: {
@@ -1303,7 +1303,7 @@ public class KollegenMenuScreen extends Screen {
                     return false;
                 }
                 case K_CAPE_TAB: {
-                    String[] tabs = new String[]{"all", "my_capes", "community", "gekauft", "vanilla", "favorites"};
+                    String[] tabs = new String[]{"all", "community", "my_capes", "gekauft", "vanilla", "favorites"};
                     float tw = c.w / tabs.length;
                     for (int i = 0; i < tabs.length; i++) {
                         if (hit(mx, my, X + i * tw, Y, tw, c.h)) {
@@ -1939,8 +1939,8 @@ public class KollegenMenuScreen extends Screen {
     }
 
     private void drawCapeTabs(GuiGraphicsExtractor g, Cell c, float X, float Y, int mx, int my) {
-        String[] tabs = new String[]{"all", "my_capes", "community", "gekauft", "vanilla", "favorites"};
-        String[] labels = new String[]{"Alle", "Meine", "Community", "Gekauft", "Vanilla", "Favoriten"};
+        String[] tabs = new String[]{"all", "community", "my_capes", "gekauft", "vanilla", "favorites"};
+        String[] labels = new String[]{"Alle", "Community", "Meine", "Gekauft", "Vanilla", "Favoriten"};
         float tw = c.w / tabs.length;
         for (int i = 0; i < tabs.length; i++) {
             float tx = X + i * tw;
@@ -2139,6 +2139,7 @@ public class KollegenMenuScreen extends Screen {
         String id = str(d, "id", "");
         String name = str(d, "name", id);
         String author = str(d, "author", "Community");
+        String cat = str(d, "category", "community");
         String texRaw = str(d, "texture", "");
         if (texRaw.isEmpty() && d.has("preview") && !d.get("preview").isJsonNull()) {
             texRaw = d.get("preview").getAsString();
@@ -2164,14 +2165,20 @@ public class KollegenMenuScreen extends Screen {
             Icons.draw(g, Icons.CLOSE, cx + 5, cy + 11, 14, Palette.MUTED);
         } else {
             Identifier capeTex = SkinCapeTextureManager.getOrLoadCape(id, texRaw);
+            boolean isStore = "gekauft".equalsIgnoreCase(cat) || "store".equalsIgnoreCase(cat) || (d.has("model") && !str(d, "model", "").isEmpty());
             if (capeTex != null) {
                 try {
-                    Matrix3x2fStack pose = g.pose();
-                    pose.pushMatrix();
-                    pose.translate(cx, cy);
-                    pose.scale(cw / 10.0f, ch / 16.0f);
-                    g.blit(RenderPipelines.GUI_TEXTURED, capeTex, 0, 0, 1.0f, 1.0f, 10, 16, 64, 32);
-                    pose.popMatrix();
+                    if (isStore) {
+                        g.blit(RenderPipelines.GUI_TEXTURED, capeTex, Math.round(cx), Math.round(cy), 0.0f, 0.0f, Math.round(cw), Math.round(ch), Math.round(cw), Math.round(ch));
+                    } else {
+                        Matrix3x2fStack pose = g.pose();
+                        pose.pushMatrix();
+                        pose.translate(cx, cy);
+                        pose.scale(cw / 10.0f, ch / 16.0f);
+                        // Standard Minecraft cape UV: back face is at (12, 1, 10, 16)
+                        g.blit(RenderPipelines.GUI_TEXTURED, capeTex, 0, 0, 12.0f, 1.0f, 10, 16, 64, 32);
+                        pose.popMatrix();
+                    }
                     Glass.ring(g, cx, cy, cw, ch, 4, 0.5f, 0x44FFFFFF);
                 } catch (Throwable t) {
                     Glass.rr(g, cx, cy, cw, ch, 4, Glass.a(Palette.ACCENT, 0.28f));
@@ -2217,23 +2224,39 @@ public class KollegenMenuScreen extends Screen {
         }
     }
 
-    private void equipCapeInGame(String capeId, String capeTex) {
+    private void equipCapeInGame(JsonObject d) {
+        String capeId = str(d, "id", "");
+        String capeTex = str(d, "texture", "");
+        String capeModel = str(d, "model", "");
+        String cat = str(d, "category", "community");
+        if (capeTex.isEmpty() && d.has("preview") && !d.get("preview").isJsonNull()) {
+            capeTex = d.get("preview").getAsString();
+        } else if (capeTex.isEmpty() && d.has("frames") && d.get("frames").isJsonArray() && d.getAsJsonArray("frames").size() > 0) {
+            capeTex = d.getAsJsonArray("frames").get(0).getAsString();
+        }
+
         if ("none".equalsIgnoreCase(capeId) || capeId.isEmpty()) {
             this.inGameActiveCape = null;
-            KollegenPresence.setLocalCape(null);
+            KollegenPresence.setLocalCape(null, null);
             this.runStoreAction("Cape abgelegt", () -> StoreClient.unequipCategory("cape"));
         } else {
             this.inGameActiveCape = capeId;
-            KollegenPresence.setLocalCape(capeTex != null && !capeTex.isEmpty() ? capeTex : capeId);
-            this.runStoreAction("Cape ausgewählt", () -> StoreClient.equipItem(capeId));
+            KollegenPresence.setLocalCape(capeTex != null && !capeTex.isEmpty() ? capeTex : capeId, capeModel);
+            if ("gekauft".equalsIgnoreCase(cat) || "store".equalsIgnoreCase(cat)) {
+                this.runStoreAction("Cape ausgewählt", () -> StoreClient.equipItem(capeId));
+            } else {
+                this.storeMsg = "Cape ausgewählt";
+            }
         }
         try {
             Path p = FabricLoader.getInstance().getConfigDir().resolve("kollegen-cape.json");
             JsonObject o = Files.exists(p) ? JsonParser.parseString(Files.readString(p)).getAsJsonObject() : new JsonObject();
             if (this.inGameActiveCape == null) {
                 o.add("active", com.google.gson.JsonNull.INSTANCE);
+                o.add("cape", com.google.gson.JsonNull.INSTANCE);
             } else {
                 o.addProperty("active", this.inGameActiveCape);
+                o.add("cape", d);
             }
             Files.writeString(p, o.toString());
         } catch (Throwable ignored) {
@@ -2282,7 +2305,13 @@ public class KollegenMenuScreen extends Screen {
             Path p = FabricLoader.getInstance().getConfigDir().resolve("kollegen-cape.json");
             if (!Files.exists(p)) {
                 String home = System.getProperty("user.home", "");
-                Path lp = Path.of(home, ".local", "share", "kollegenclient", "capes", "capes.json");
+                Path lp = Path.of(home, ".local", "share", "kollegenclient", "capes", "kollegen-cape.json");
+                if (!Files.exists(lp)) {
+                    lp = Path.of(home, ".local", "share", "kollegenclient", "capes", "capes.json");
+                }
+                if (!Files.exists(lp)) {
+                    lp = Path.of(home, ".local", "share", "kollegen-launcher", "capes", "kollegen-cape.json");
+                }
                 if (!Files.exists(lp)) {
                     lp = Path.of(home, ".local", "share", "kollegen-launcher", "capes", "capes.json");
                 }
@@ -2301,6 +2330,22 @@ public class KollegenMenuScreen extends Screen {
                 } else if (o.has("capes") && o.get("capes").isJsonArray()) {
                     for (JsonElement el : o.getAsJsonArray("capes")) {
                         if (el.isJsonObject()) list.add(el.getAsJsonObject());
+                    }
+                }
+                if (o.has("vanilla_capes") && o.get("vanilla_capes").isJsonArray()) {
+                    for (JsonElement el : o.getAsJsonArray("vanilla_capes")) {
+                        if (el.isJsonObject()) {
+                            JsonObject vc = el.getAsJsonObject();
+                            String vcId = str(vc, "id", "");
+                            boolean exists = false;
+                            for (JsonObject ex : list) {
+                                if (vcId.equals(str(ex, "id", ""))) {
+                                    exists = true;
+                                    break;
+                                }
+                            }
+                            if (!exists) list.add(vc);
+                        }
                     }
                 }
             }
@@ -2341,12 +2386,16 @@ public class KollegenMenuScreen extends Screen {
                         c.addProperty("author", "Kollegen Store");
                         c.addProperty("category", "gekauft");
                         String tex = "";
-                        if (it.has("data") && it.getAsJsonObject("data").has("texture")) {
-                            tex = str(it.getAsJsonObject("data"), "texture", "");
-                        } else {
-                            tex = str(it, "texture", "");
+                        String model = "";
+                        if (it.has("data") && it.getAsJsonObject("data").isJsonObject()) {
+                            JsonObject itData = it.getAsJsonObject("data");
+                            tex = str(itData, "texture", "");
+                            model = str(itData, "model", "");
                         }
+                        if (tex.isEmpty()) tex = str(it, "texture", "");
+                        if (model.isEmpty()) model = str(it, "model", "");
                         c.addProperty("texture", tex);
+                        c.addProperty("model", model);
                         list.add(c);
                     }
                 }
@@ -2361,20 +2410,22 @@ public class KollegenMenuScreen extends Screen {
     private List<JsonObject> createDefaultCapesList() {
         List<JsonObject> defs = new ArrayList<JsonObject>();
         String[][] data = new String[][]{
-            {"migrator", "Migrator Cape", "0", "vanilla"},
-            {"vanilla", "Vanilla Cape", "0", "vanilla"},
-            {"15th_anni", "15th Anniversary", "0", "vanilla"},
-            {"cherry", "Cherry Blossom Cape", "0", "vanilla"},
-            {"tiktok", "TikTok Cape", "0", "vanilla"},
-            {"twitch", "Twitch Cape", "0", "vanilla"}
+            {"migrator", "Migrator Cape", "Mojang Studios", "https://textures.minecraft.net/texture/2340c0e03dd66da11e164f6b042da7735e72dc8485f5841b7b0c840f6b9a8a71"},
+            {"vanilla", "Vanilla Cape", "Mojang Studios", "https://textures.minecraft.net/texture/1a84ec02161a00c6d71b846e4990c885542b262862d512a839e9f6888c75d4"},
+            {"15th_anni", "15th Anniversary", "Mojang Studios", "https://textures.minecraft.net/texture/a35f1377884ff10471b879ec3298ec697b0a7900b1a03058fc3ee422bfcc3e24"},
+            {"cherry", "Cherry Blossom Cape", "Mojang Studios", "https://textures.minecraft.net/texture/8f12031959797831345328e3009405a12ae1d1355f30b9614a09382f799969c4"},
+            {"tiktok", "TikTok Cape", "TikTok / Mojang", "https://textures.minecraft.net/texture/5e0030514194098eb330c6a5a73b22a0a2df3ba6fa7f0a82b937e2cbfe48e244"},
+            {"twitch", "Twitch Cape", "Twitch / Mojang", "https://textures.minecraft.net/texture/41434c441bbcb9472e39cd1332a76f28ac7eb6fc238c9c0250df5fd82cfcf6e6"}
         };
         for (String[] row : data) {
             JsonObject o = new JsonObject();
-            o.addProperty("id", row[0]);
+            o.addProperty("id", "vanilla_" + row[0]);
             o.addProperty("name", row[1]);
-            o.addProperty("uses", Integer.parseInt(row[2]));
-            o.addProperty("author", row[3].equals("vanilla") ? "Mojang Studios" : row[1]);
-            o.addProperty("category", row[3]);
+            o.addProperty("author", row[2]);
+            o.addProperty("category", "vanilla");
+            o.addProperty("texture", row[3]);
+            o.addProperty("preview", row[3]);
+            o.addProperty("uses", 1);
             o.addProperty("favorite", false);
             defs.add(o);
         }
