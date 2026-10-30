@@ -1611,18 +1611,21 @@ body:not(.console-mode) .store-cats .tab.active::before {
 }
 
 /* ==========================================================================
-   TWITCH LINKING (Image 1)
+   TWITCH LINKING (Integrated into Client Theme)
    ========================================================================== */
 .twitch-card {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 20px;
-  border-radius: 6px;
-  background: linear-gradient(90deg, #050e1f 0%, #08162f 50%, #050d1d 100%);
-  border: 1px solid #143566;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
+  padding: 16px 20px;
+  border-radius: var(--radius-lg);
+  background: var(--panel-elevated);
+  border: 1px solid var(--border-primary);
   margin: 12px 0;
+  transition: var(--transition-fast);
+}
+.twitch-card:hover {
+  border-color: var(--border-secondary);
 }
 .twitch-card .connection-card-left {
   display: flex;
@@ -1630,57 +1633,51 @@ body:not(.console-mode) .store-cats .tab.active::before {
   gap: 16px;
 }
 .twitch-card .twitch-icon {
-  color: #9146ff;
+  color: #a970ff;
   flex-shrink: 0;
 }
 .twitch-card .connection-title {
-  font-family: 'Minecraft', monospace, sans-serif;
-  font-size: 15px;
-  font-weight: 700;
-  color: #ffffff;
-  letter-spacing: 0.5px;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
 }
 .twitch-card .connection-desc {
-  font-size: 12px;
-  color: #7b99bf;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
   margin-top: 2px;
 }
 .twitch-link-btn {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 24px;
-  background: rgba(10, 45, 95, 0.5);
-  border: 1px solid #1e5ebb;
-  border-radius: 3px;
-  color: #ffffff;
-  font-family: 'Minecraft', monospace, sans-serif;
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 1px;
+  padding: 8px 18px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s ease;
-  box-shadow: 0 0 12px rgba(30, 94, 187, 0.25);
+  transition: var(--transition-fast);
 }
 .twitch-link-btn:hover {
-  background: #1e5ebb;
-  border-color: #3b88fd;
-  box-shadow: 0 0 18px rgba(59, 136, 253, 0.6);
-  transform: translateY(-1px);
+  background: rgba(var(--accent-rgb), 0.15);
+  border-color: var(--accent);
+  color: var(--accent);
 }
 .twitch-link-btn.linked {
-  background: rgba(20, 80, 45, 0.65);
-  border-color: #2da44e;
-  color: #7ee787;
+  background: rgba(0, 230, 118, 0.15);
+  border-color: var(--success);
+  color: var(--success);
 }
 .twitch-link-btn.linked:hover {
-  background: rgba(180, 30, 45, 0.85);
-  border-color: #ff4d5e;
-  color: #ffffff;
+  background: rgba(255, 91, 110, 0.15);
+  border-color: var(--danger);
+  color: var(--danger);
 }
 
 /* ==========================================================================
-   SKIN LIBRARY (Image 2)
+   SKIN LIBRARY (Theme Styled)
    ========================================================================== */
 .skins-header-bar {
   display: flex;
@@ -1693,44 +1690,46 @@ body:not(.console-mode) .store-cats .tab.active::before {
   display: flex;
   align-items: center;
   gap: 10px;
-  background: #050d1a;
-  border: 1px solid #142a4a;
-  border-radius: 4px;
-  padding: 6px 14px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+  padding: 8px 14px;
   flex: 1;
   max-width: 440px;
+  transition: var(--transition-fast);
+}
+.skins-search-wrap:focus-within, .capes-search-wrap:focus-within {
+  border-color: var(--accent);
 }
 .skins-search-wrap svg, .capes-search-wrap svg {
-  color: #4b6a96;
+  color: var(--text-secondary);
 }
 .skins-search-wrap input, .capes-search-wrap input {
   background: transparent;
   border: none;
   outline: none;
-  color: #ffffff;
-  font-size: 13px;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 0.9rem;
   width: 100%;
 }
 .add-skin-top-btn {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 20px;
-  background: #081a36;
-  border: 1px solid #1f4a82;
-  border-radius: 4px;
-  color: #dbe8fc;
-  font-family: 'Minecraft', monospace, sans-serif;
-  font-size: 12px;
+  padding: 8px 18px;
+  background: var(--accent);
+  border: none;
+  border-radius: var(--radius-md);
+  color: #000;
+  font-size: 0.85rem;
   font-weight: 700;
   cursor: pointer;
-  letter-spacing: 0.5px;
-  transition: all 0.2s ease;
+  transition: var(--transition-fast);
 }
 .add-skin-top-btn:hover {
-  background: #123366;
-  border-color: #3b88fd;
-  color: #ffffff;
+  opacity: 0.9;
+  transform: translateY(-1px);
 }
 
 .skins-grid-container {
@@ -1740,69 +1739,73 @@ body:not(.console-mode) .store-cats .tab.active::before {
 }
 .skin-card {
   position: relative;
-  background: #040c18;
-  border: 1px solid #11284a;
-  border-radius: 6px;
+  background: var(--panel);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-lg);
   padding: 16px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: space-between;
-  min-height: 320px;
+  min-height: 310px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: var(--transition-fast);
   user-select: none;
 }
 .skin-card:hover {
-  border-color: #235294;
-  background: #07152a;
+  border-color: var(--accent);
+  background: var(--panel-elevated);
+  transform: translateY(-2px);
 }
 .skin-card.active {
-  border-color: #2b7af0;
-  box-shadow: 0 0 16px rgba(43, 122, 240, 0.4), inset 0 0 12px rgba(43, 122, 240, 0.15);
+  border-color: var(--accent);
+  box-shadow: 0 0 16px rgba(var(--accent-rgb), 0.35);
+  background: var(--panel-elevated);
 }
 .skin-card-add {
-  border: 1px dashed #1a3c6c;
+  border: 1px dashed var(--border-primary);
   justify-content: center;
   gap: 12px;
 }
+.skin-card-add:hover {
+  border-color: var(--accent);
+}
 .skin-card-silhouette {
   width: 120px;
-  height: 200px;
-  background: radial-gradient(circle, rgba(16, 36, 68, 0.8) 0%, rgba(8, 18, 36, 0.9) 100%);
-  border-radius: 8px;
+  height: 190px;
+  background: var(--bg-elevated);
+  border-radius: var(--radius-md);
   display: flex;
   align-items: center;
   justify-content: center;
 }
 .skin-add-plus {
-  width: 48px;
-  height: 48px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
-  background: #0e274d;
-  border: 1px solid #235294;
+  background: var(--panel);
+  border: 1px solid var(--border-primary);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #79a8e8;
-  transition: all 0.2s ease;
+  color: var(--accent);
+  transition: var(--transition-fast);
 }
 .skin-card-add:hover .skin-add-plus {
-  background: #1b4482;
-  color: #ffffff;
-  transform: scale(1.1);
+  transform: scale(1.12);
+  background: rgba(var(--accent-rgb), 0.2);
+  border-color: var(--accent);
 }
 .skin-card-title {
-  font-family: 'Minecraft', monospace, sans-serif;
-  font-size: 14px;
-  font-weight: 700;
-  color: #ffffff;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-primary);
   text-align: center;
   margin-top: 8px;
 }
 .skin-card-sub {
-  font-size: 11px;
-  color: #6a8bb5;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
   display: flex;
   align-items: center;
   gap: 6px;
@@ -1819,12 +1822,16 @@ body:not(.console-mode) .store-cats .tab.active::before {
   height: 220px;
 }
 .skin-card-model-tag {
-  font-size: 11px;
-  color: #7394bd;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
   margin-top: 4px;
   display: flex;
   align-items: center;
   gap: 4px;
+  background: var(--bg-elevated);
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-primary);
 }
 .skin-card-actions {
   position: absolute;
@@ -1833,68 +1840,79 @@ body:not(.console-mode) .store-cats .tab.active::before {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  opacity: 0.6;
+  opacity: 0.7;
   transition: opacity 0.2s ease;
 }
 .skin-card:hover .skin-card-actions {
   opacity: 1;
 }
 .skin-card-action-btn {
-  width: 28px;
-  height: 28px;
-  border-radius: 4px;
-  background: rgba(6, 17, 36, 0.85);
-  border: 1px solid #1a3c6c;
-  color: #dbe8fc;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--panel-elevated);
+  border: 1px solid var(--border-primary);
+  color: var(--text-primary);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: var(--transition-fast);
 }
 .skin-card-action-btn:hover {
-  background: #1b4482;
-  border-color: #3b88fd;
-  color: #ffffff;
+  background: var(--bg-elevated);
+  border-color: var(--accent);
+  color: var(--accent);
+  transform: scale(1.08);
 }
 .skin-card-action-btn.btn-del:hover {
-  background: #a81c2c;
-  border-color: #ff4d5e;
+  border-color: var(--danger);
+  color: var(--danger);
+  background: rgba(255, 91, 110, 0.15);
 }
 
 /* ==========================================================================
-   COMMUNITY CAPES (Image 3 & Image 4)
+   CAPES (Theme Styled)
    ========================================================================== */
 .capes-category-tabs {
   display: flex;
+  align-items: center;
   gap: 8px;
   margin-bottom: 18px;
-  border-bottom: 1px solid #11284a;
+  border-bottom: 1px solid var(--border-primary);
   padding-bottom: 12px;
 }
 .cape-cat-tab {
-  padding: 8px 20px;
-  background: #040d1c;
-  border: 1px solid #122b52;
-  border-radius: 3px;
-  color: #8faecf;
-  font-family: 'Minecraft', monospace, sans-serif;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.8px;
+  padding: 8px 18px;
+  background: var(--panel-elevated);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.5px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: var(--transition-fast);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 .cape-cat-tab:hover {
-  background: #091a38;
-  color: #ffffff;
-  border-color: #215094;
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  border-color: var(--border-secondary);
 }
 .cape-cat-tab.active {
-  background: #0d2754;
-  color: #ffffff;
-  border-color: #3884ff;
-  box-shadow: 0 0 10px rgba(56, 132, 255, 0.4);
+  background: rgba(var(--accent-rgb), 0.18);
+  color: var(--text-primary);
+  border-color: var(--accent);
+}
+.cape-fav-star-tab {
+  margin-left: auto;
+}
+.cape-fav-star-tab.active svg {
+  color: var(--accent);
+  fill: currentColor;
 }
 
 .capes-toolbar {
@@ -1903,24 +1921,6 @@ body:not(.console-mode) .store-cats .tab.active::before {
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 24px;
-}
-.cape-tool-btn {
-  width: 36px;
-  height: 36px;
-  border-radius: 4px;
-  background: #050d1a;
-  border: 1px solid #142a4a;
-  color: #6a8bb5;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-.cape-tool-btn:hover, .cape-tool-btn.active {
-  color: #ff4766;
-  border-color: #8c1d35;
-  background: #1a0810;
 }
 .capes-tool-right {
   display: flex;
@@ -1932,31 +1932,30 @@ body:not(.console-mode) .store-cats .tab.active::before {
   align-items: center;
   gap: 6px;
   padding: 8px 16px;
-  background: #07152b;
-  border: 1px solid #163663;
-  border-radius: 4px;
-  color: #dbe8fc;
-  font-family: 'Minecraft', monospace, sans-serif;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.5px;
+  background: var(--panel-elevated);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: var(--transition-fast);
 }
 .cape-action-btn:hover {
-  background: #0f2b57;
-  border-color: #2964b4;
-  color: #ffffff;
+  background: var(--bg-elevated);
+  border-color: var(--accent);
+  color: var(--accent);
 }
 .cape-action-btn.cape-upload-highlight {
-  background: #0d2754;
-  border-color: #2f73dc;
-  color: #ffffff;
+  background: var(--accent);
+  border: none;
+  color: #000;
+  font-weight: 700;
 }
 .cape-action-btn.cape-upload-highlight:hover {
-  background: #1a448a;
-  border-color: #4b8ff5;
-  box-shadow: 0 0 12px rgba(75, 143, 245, 0.4);
+  opacity: 0.9;
+  transform: translateY(-1px);
+  box-shadow: 0 0 14px rgba(var(--accent-rgb), 0.4);
 }
 
 .capes-grid {
@@ -1966,49 +1965,50 @@ body:not(.console-mode) .store-cats .tab.active::before {
 }
 .cape-card {
   position: relative;
-  background: #040c18;
-  border: 1px solid #11284a;
-  border-radius: 6px;
+  background: var(--panel);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-lg);
   padding: 12px;
   display: flex;
   flex-direction: column;
   align-items: center;
   min-height: 250px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: var(--transition-fast);
   user-select: none;
 }
 .cape-card:hover {
-  border-color: #235294;
-  background: #07162d;
+  border-color: var(--accent);
+  background: var(--panel-elevated);
   transform: translateY(-2px);
 }
 .cape-card.active {
-  border-color: #2b7af0;
-  box-shadow: 0 0 16px rgba(43, 122, 240, 0.45);
+  border-color: var(--accent);
+  box-shadow: 0 0 16px rgba(var(--accent-rgb), 0.35);
+  background: var(--panel-elevated);
 }
 .cape-card-none {
   justify-content: center;
   gap: 14px;
 }
 .cape-none-icon {
-  width: 60px;
-  height: 60px;
+  width: 56px;
+  height: 56px;
   border-radius: 50%;
-  background: #0c1a2e;
-  border: 1px solid #1a3c6c;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-primary);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 24px;
-  color: #5579a8;
+  font-size: 20px;
+  color: var(--text-secondary);
 }
 .cape-card-preview-wrap {
   width: 100%;
   height: 180px;
-  border-radius: 4px;
+  border-radius: var(--radius-md);
   overflow: hidden;
-  background: #030810;
+  background: var(--bg-elevated);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2024,26 +2024,29 @@ body:not(.console-mode) .store-cats .tab.active::before {
   position: absolute;
   top: 8px;
   right: 8px;
-  width: 26px;
-  height: 26px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
-  background: rgba(3, 8, 16, 0.75);
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #728fae;
+  color: var(--text-secondary);
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: var(--transition-fast);
 }
 .cape-fav-icon:hover, .cape-fav-icon.active {
-  color: #ff3355;
+  color: var(--accent);
   transform: scale(1.15);
 }
+.cape-fav-icon.active svg {
+  fill: currentColor;
+}
 .cape-card-name {
-  font-family: 'Minecraft', monospace, sans-serif;
-  font-size: 13px;
-  font-weight: 700;
-  color: #ffffff;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-primary);
   text-align: center;
   margin-top: 10px;
   white-space: nowrap;
@@ -2052,8 +2055,8 @@ body:not(.console-mode) .store-cats .tab.active::before {
   max-width: 160px;
 }
 .cape-card-uses {
-  font-size: 11px;
-  color: #6a8bb5;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
   display: flex;
   align-items: center;
   gap: 4px;
@@ -2061,45 +2064,96 @@ body:not(.console-mode) .store-cats .tab.active::before {
 }
 .cape-badge-tag {
   display: inline-block;
-  font-size: 9px;
+  font-size: 0.7rem;
   font-weight: 700;
   letter-spacing: 0.5px;
   text-transform: uppercase;
-  padding: 2px 6px;
-  border-radius: 3px;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
   margin-top: 4px;
-  background: #113460;
-  color: #85c2ff;
+  background: rgba(var(--accent-rgb), 0.15);
+  color: var(--accent);
+  border: 1px solid var(--accent);
 }
 
-/* Frame sequence manager in Cape Upload */
+/* Modals & Upload Manager */
+.skin-modal-card {
+  background: var(--panel);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-xl);
+  padding: 24px;
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.65);
+}
+.skin-modal-title {
+  color: var(--text-primary);
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+.skin-modal-field label, .cape-modal-field label {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+.skin-modal-field input[type="text"], .cape-modal-field input[type="text"] {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  padding: 8px 12px;
+  font-family: inherit;
+  font-size: 0.9rem;
+}
+.skin-modal-field input[type="text"]:focus, .cape-modal-field input[type="text"]:focus {
+  border-color: var(--accent);
+  outline: none;
+}
+.skin-model-choice {
+  background: var(--panel-elevated);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  transition: var(--transition-fast);
+}
+.skin-model-choice:has(input:checked) {
+  border-color: var(--accent);
+  color: var(--text-primary);
+  background: rgba(var(--accent-rgb), 0.15);
+}
+.cape-anim-preview {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+}
 .cape-frame-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 6px 10px;
-  background: #050d1a;
-  border: 1px solid #142a4a;
-  border-radius: 4px;
+  background: var(--panel-elevated);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-sm);
 }
 .cape-frame-item img {
   width: 48px;
   height: 24px;
   object-fit: contain;
   image-rendering: pixelated;
-  background: #02060d;
+  background: var(--bg);
   border-radius: 2px;
 }
 .frame-btn {
-  background: #0d1e38;
-  border: 1px solid #1f4277;
-  color: #ffffff;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-primary);
+  color: var(--text-primary);
   padding: 3px 8px;
-  border-radius: 3px;
+  border-radius: var(--radius-sm);
   font-size: 11px;
   cursor: pointer;
+  transition: var(--transition-fast);
 }
 .frame-btn:hover {
-  background: #1a4078;
+  background: rgba(var(--accent-rgb), 0.15);
+  border-color: var(--accent);
+  color: var(--accent);
 }
 

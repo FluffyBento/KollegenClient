@@ -97,7 +97,10 @@
             <div id="homeSkinName" class="home-skin-name">—</div>
             <div id="homeLevel" class="home-level" hidden></div>
             <div id="homeSkinState" class="home-skin-state"></div>
-            <button id="homeSkinOpen" class="btn-secondary">Skin & Cape ändern</button>
+            <div class="home-skin-btns" style="display:flex;gap:8px;width:100%;margin-top:6px;">
+              <button id="homeSkinOpen" class="btn-secondary" style="flex:1;">Skin ändern</button>
+              <button id="homeCapeOpen" class="btn-secondary" style="flex:1;">Cape ändern</button>
+            </div>
           </section>
           <section id="homeFriends" class="rail-card" aria-label="Freunde"></section>
           <section id="homeStore" class="rail-card" aria-label="Store-Highlights"></section>
@@ -290,7 +293,7 @@
           <button class="tab" data-f="name_color" role="tab" aria-selected="false">Namensfarbe</button>
           <button class="tab" data-f="sticker" role="tab" aria-selected="false">Aufkleber</button>
           <button class="tab" data-f="pet" role="tab" aria-selected="false">Pet</button>
-          <button class="tab" data-f="community_capes" role="tab" aria-selected="false">Community Capes</button>
+          <button class="tab" data-f="cape" role="tab" aria-selected="false">Capes</button>
           <button class="tab" data-f="shield" role="tab" aria-selected="false">Schild</button>
           <button class="tab" data-f="back_accessory" role="tab" aria-selected="false">Rücken</button>
           <button class="tab" data-f="head_accessory" role="tab" aria-selected="false">Kopf</button>
@@ -342,19 +345,21 @@
       <div class="capes-category-tabs" role="tablist">
         <button class="cape-cat-tab active" data-cat="all">ALL</button>
         <button class="cape-cat-tab" data-cat="my_capes">MY CAPES</button>
-        <button class="cape-cat-tab" data-cat="favorites">FAVORITES</button>
-        <button class="cape-cat-tab" data-cat="vanilla">VANILLA</button>
         <button class="cape-cat-tab" data-cat="gekauft">GEKAUFT</button>
+        <button class="cape-cat-tab" data-cat="vanilla">VANILLA</button>
+        <button id="capeFavToggleBtn" class="cape-cat-tab cape-fav-star-tab" title="Nur Favoriten anzeigen" style="margin-left: auto;">
+          <svg id="capeFavStarIco" class="star-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+          </svg>
+          <span id="capeFavLabel">FAVORITEN</span>
+        </button>
       </div>
 
       <div class="capes-toolbar">
         <div class="capes-search-wrap">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <input type="text" id="capesSearchInput" placeholder="Search by player name..." autocomplete="off" />
+          <input type="text" id="capesSearchInput" placeholder="Search by name or creator..." autocomplete="off" />
         </div>
-        <button id="capeFavToggleBtn" class="cape-tool-btn" title="Nur Favoriten anzeigen">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
-        </button>
         <div class="capes-tool-right">
           <button id="capeTemplateBtn" class="cape-action-btn">
             <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
@@ -813,7 +818,7 @@
       
       <div class="form-group">
         <label for="capeNameField">Cape-Name</label>
-        <input type="text" id="capeNameField" placeholder="z. B. DerKyzo, MeinAnimiertesCape" />
+        <input type="text" id="capeNameField" placeholder="z. B. MeinCape, AnimiertesCape" />
       </div>
 
       <div class="form-group">
