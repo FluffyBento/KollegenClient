@@ -11,7 +11,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 @Mixin(AbstractClientPlayer.class)
 public class AbstractClientPlayerMixin {
 
-    @Inject(method = "getFieldOfViewModifier", at = @At("RETURN"), cancellable = true)
+    @Inject(method = "getFieldOfViewModifier", at = @At("RETURN"), cancellable = true, require = 0)
     private void kollegen$modifyFov(boolean isFirstPerson, float fovEffectScale, CallbackInfoReturnable<Float> cir) {
         AbstractClientPlayer player = (AbstractClientPlayer) (Object) this;
         float original = cir.getReturnValueF();

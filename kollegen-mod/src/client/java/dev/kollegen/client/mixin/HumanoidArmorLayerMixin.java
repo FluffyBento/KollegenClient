@@ -15,7 +15,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(HumanoidArmorLayer.class)
 public class HumanoidArmorLayerMixin {
 
-    @Inject(method = "renderArmorPiece", at = @At("HEAD"), cancellable = true)
+    @Inject(method = "renderArmorPiece", at = @At("HEAD"), cancellable = true, require = 0)
     private void kollegen$armorTransparency(PoseStack poseStack, SubmitNodeCollector submitNodeCollector, ItemStack itemStack, EquipmentSlot equipmentSlot, int lightCoords, HumanoidRenderState state, CallbackInfo ci) {
         if (ArmorTransparency.shouldHide(state, equipmentSlot)) {
             ci.cancel();

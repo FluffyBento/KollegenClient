@@ -18,7 +18,7 @@ public class PostShaderMixin {
 
     @Shadow @Final private List<Identifier> requestedPostEffects;
 
-    @Inject(method = "extractRenderState", at = @At(value = "INVOKE", target = "Ljava/util/List;iterator()Ljava/util/Iterator;"))
+    @Inject(method = "update", at = @At("TAIL"), require = 0)
     private void kollegen$injectCustomShaders(DeltaTracker deltaTracker, CallbackInfo ci) {
         try {
             if (KollegenShader.isShaderActive()) {
