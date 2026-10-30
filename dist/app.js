@@ -3614,6 +3614,7 @@ async function loadCapesView() {
             frames: [tex],
             preview: tex,
             isStoreItem: true,
+            data: it.data,
           };
         });
     }
@@ -3766,22 +3767,29 @@ async function loadCapesView() {
     };
     prevWrap.appendChild(fav);
 
-    // Elytra toggle button on 3D Card
-    const elytraBtn = document.createElement("button");
-    elytraBtn.className = "cape-card-elytra-btn";
-    elytraBtn.title = "Zwischen Cape und Elytra umschalten";
-    elytraBtn.innerHTML = `<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M11.5 3.5C8 5 4 8.5 3 13.5c-0.8 4 1 7.5 4.5 7.5c2.2 0 3.8-3 4-7V3.5zm1 0c3.5 1.5 7.5 5 8.5 10c0.8 4-1 7.5-4.5 7.5c-2.2 0-3.8-3-4-7V3.5z"/></svg>`;
-    prevWrap.appendChild(elytraBtn);
-
-    // 3D Rotating & Interactive Cape Canvas
-    const canvas = document.createElement("canvas");
-    canvas.width = 160;
-    canvas.height = 180;
-    canvas.className = "cape-card-canvas";
-    prevWrap.appendChild(canvas);
 
     const initialCapeSrc = (c.frames && c.frames[0]) || c.preview || "";
-    if (window.skinview3d && window.skinview3d.SkinViewer && initialCapeSrc) {
+    const isStore3d = c.isStoreItem && window.Cosmetic3D && (window.Cosmetic3D.keyFor(c) || window.Cosmetic3D.keyFor({ ...c, category: "cape" }));
+
+    if (isStore3d) {
+      const img = document.createElement("img");
+      img.className = "cape-card-thumb";
+      img.alt = c.name;
+      if (initialCapeSrc) img.src = initialCapeSrc;
+      prevWrap.appendChild(img);
+      const capeItem = { ...c, category: "cape" };
+      window.Cosmetic3D.thumb(capeItem, 320, 360).then((url) => {
+        if (url) img.src = url;
+      }).catch((e) => {
+        console.warn("Store Cape 3D thumb failed:", e);
+      });
+    } else if (window.skinview3d && window.skinview3d.SkinViewer && initialCapeSrc) {
+      const canvas = document.createElement("canvas");
+      canvas.width = 160;
+      canvas.height = 180;
+      canvas.className = "cape-card-canvas";
+      prevWrap.appendChild(canvas);
+
       ensureCapeTextureUrl(initialCapeSrc).then((validUrl) => {
         if (!validUrl) return;
         try {
@@ -3789,51 +3797,30 @@ async function loadCapesView() {
             canvas: canvas,
             width: 160,
             height: 180,
-            cape: validUrl,
           });
           viewer.playerObject.skin.visible = false;
           viewer.playerObject.cape.visible = true;
           viewer.playerObject.backEquipment = "cape";
           if (viewer.playerObject.elytra) {
             viewer.playerObject.elytra.visible = false;
-            viewer.playerObject.elytra.resetJoints();
           }
           viewer.playerWrapper.rotation.y = Math.PI; // Face the back of cape towards user
           viewer.autoRotate = false;
           viewer.autoRotateSpeed = 2.2;
           capeViewers.push(viewer);
 
-          let isElytra = false;
-          elytraBtn.onclick = (e) => {
-            e.stopPropagation();
-            isElytra = !isElytra;
-            elytraBtn.classList.toggle("active", isElytra);
-            if (isElytra) {
-              viewer.playerObject.backEquipment = "elytra";
-              if (viewer.playerObject.elytra) {
-                const el = viewer.playerObject.elytra;
-                el.leftWing.rotation.x = 0.55;
-                el.leftWing.rotation.y = 0.35;
-                el.leftWing.rotation.z = -0.85;
-                el.updateRightWing();
-              }
-            } else {
-              viewer.playerObject.backEquipment = "cape";
-              if (viewer.playerObject.elytra) {
-                viewer.playerObject.elytra.resetJoints();
-              }
-            }
-            if (viewer.renderPaused) {
-              viewer.render();
-            }
-          };
-
-          setTimeout(() => {
-            try {
-              viewer.renderPaused = true;
-              viewer.render();
-            } catch (_) {}
-          }, 180);
+          viewer.loadCape(validUrl).then(() => {
+            viewer.render();
+            setTimeout(() => {
+              try {
+                if (!card.matches(":hover")) {
+                  viewer.renderPaused = true;
+                }
+              } catch (_) {}
+            }, 120);
+          }).catch((err) => {
+            console.warn("SkinViewer loadCape error:", err);
+          });
 
           card.addEventListener("mouseenter", () => {
             try {
@@ -3965,9 +3952,6 @@ function openCapeUploadModal() {
   if (!modal) return;
   uploadedCapeFrames = [];
   rawUploadedCapeImages = [];
-  uploadIsElytra = false;
-  if ($("capeUploadElytraToggle")) $("capeUploadElytraToggle").classList.remove("active");
-  if ($("capeUploadElytraLabel")) $("capeUploadElytraLabel").textContent = "Elytra-Ansicht";
   if ($("capeNameField")) $("capeNameField").value = "";
   if ($("capeFilesPicker")) $("capeFilesPicker").value = "";
   if ($("capeFrameManager")) $("capeFrameManager").style.display = "none";
@@ -4018,30 +4002,6 @@ if ($("capeTemplateBtn")) {
 }
 
 let rawUploadedCapeImages = [];
-let uploadIsElytra = false;
-
-const uploadElytraToggle = $("capeUploadElytraToggle");
-if (uploadElytraToggle) {
-  uploadElytraToggle.onclick = () => {
-    uploadIsElytra = !uploadIsElytra;
-    uploadElytraToggle.classList.toggle("active", uploadIsElytra);
-    const label = $("capeUploadElytraLabel");
-    if (label) label.textContent = uploadIsElytra ? "Cape-Ansicht" : "Elytra-Ansicht";
-    if (uploadCapeViewer && uploadCapeViewer.playerObject) {
-      uploadCapeViewer.playerObject.backEquipment = uploadIsElytra ? "elytra" : "cape";
-      if (uploadIsElytra && uploadCapeViewer.playerObject.elytra) {
-        const el = uploadCapeViewer.playerObject.elytra;
-        el.leftWing.rotation.x = 0.55;
-        el.leftWing.rotation.y = 0.35;
-        el.leftWing.rotation.z = -0.85;
-        el.updateRightWing();
-      } else if (uploadCapeViewer.playerObject.elytra) {
-        uploadCapeViewer.playerObject.elytra.resetJoints();
-      }
-      if (uploadCapeViewer.renderPaused) uploadCapeViewer.render();
-    }
-  };
-}
 
 const elytraModeSelect = $("capeElytraModeSelect");
 if (elytraModeSelect) {

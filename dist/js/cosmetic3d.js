@@ -67,7 +67,7 @@
   }
 
   /* ---------- Item -> Modell-Schluessel ---------- */
-  var MODEL_CATS = ['cape', 'shield', 'back_accessory', 'head_accessory', 'face_accessory', 'aura', 'shoulder_accessory', 'torso_accessory', 'legs_accessory', 'gloves'];
+  var MODEL_CATS = ['cape', 'shield', 'back_accessory', 'head_accessory', 'face_accessory', 'aura', 'shoulder_accessory', 'torso_accessory', 'legs_accessory', 'gloves', 'gekauft'];
 
   function keyFor(item) {
     try {
@@ -537,7 +537,7 @@
       stage.add(mesh);
       var cb = m.box.clone().translate(off);
       var cz = (cb.min.z + cb.max.z) / 2;
-      var back = cz > 1.0 || item.category === 'cape' || item.category === 'back_accessory';
+      var back = cz > 1.0 || item.category === 'cape' || item.category === 'gekauft' || item.category === 'back_accessory';
       var headCat = item.category === 'head_accessory' || item.category === 'face_accessory';
       var target;
       if (headCat) {

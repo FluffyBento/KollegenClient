@@ -45,6 +45,32 @@ public final class BbModel {
     public float animLength;
     public final Map<String, AnimBone> anims = new HashMap<>();
 
+    public float[] findGrip() {
+        float gx = this.cx;
+        float gy = this.cy;
+        float gz = this.cz;
+        List<Cube> all = new ArrayList<>();
+        for (Bone b : this.bones) collectCubes(b, all);
+        all.addAll(this.loose);
+        for (Cube c : all) {
+            if (c.name != null) {
+                String nl = c.name.toLowerCase(java.util.Locale.ROOT);
+                if (nl.contains("griff") || nl.contains("handle") || nl.contains("grip")) {
+                    return new float[]{(c.minX + c.maxX) / 2.0F, (c.minY + c.maxY) / 2.0F, (c.minZ + c.maxZ) / 2.0F};
+                }
+            }
+        }
+        for (Bone bone : this.bones) {
+            if (bone.name != null) {
+                String bl = bone.name.toLowerCase(java.util.Locale.ROOT);
+                if (bl.contains("handle") || bl.contains("griff") || bl.contains("shield_mount") || bl.contains("grip")) {
+                    return new float[]{pivotX(bone.ox), pivotY(bone.oy), pivotZ(bone.oz)};
+                }
+            }
+        }
+        return new float[]{gx, gy, gz};
+    }
+
     public static final class AnimBone {
         public float[] rTimes = new float[0];
         public float[][] rVals = new float[0][];
@@ -80,6 +106,7 @@ public final class BbModel {
     }
 
     public static final class Cube {
+        public String name = "";
         public float ox;
         public float oy;
         public float oz;
@@ -515,6 +542,7 @@ public final class BbModel {
         Cube cube = new Cube();
         try {
             String cubeName = o.has("name") ? o.get("name").getAsString() : "";
+            cube.name = cubeName;
             if ("visor_lens".equals(cubeName) && Boolean.getBoolean("kollegen.lensAnim")) {
                 cube.frameW = 128.0F;
                 cube.frameN = 4;

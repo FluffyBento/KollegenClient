@@ -839,14 +839,8 @@
 
       <!-- 3D Cape Live-Vorschau (dreht sich automatisch, mit Maus frei drehbar, Elytra umschaltbar) -->
       <div id="capeUpload3dWrap" style="display:none; flex-direction:column; align-items:center; justify-content:center; margin:12px 0; padding:12px; background:rgba(0,0,0,0.3); border:1px solid var(--border-primary); border-radius:var(--radius-md);">
-        <div style="display:flex; justify-content:space-between; align-items:center; width:100%; margin-bottom:8px;">
-          <span style="font-size:11px; font-weight:700; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.5px;">3D-Vorschau (frei drehbar)</span>
-          <button type="button" id="capeUploadElytraToggle" class="cape-elytra-toggle-btn" title="Zwischen Cape und Elytra umschalten">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-              <path d="M11.5 3.5C8 5 4 8.5 3 13.5c-0.8 4 1 7.5 4.5 7.5c2.2 0 3.8-3 4-7V3.5zm1 0c3.5 1.5 7.5 5 8.5 10c0.8 4-1 7.5-4.5 7.5c-2.2 0-3.8-3-4-7V3.5z"/>
-            </svg>
-            <span id="capeUploadElytraLabel">Elytra-Ansicht</span>
-          </button>
+        <div style="display:flex; justify-content:center; align-items:center; width:100%; margin-bottom:8px;">
+          <span style="font-size:11px; font-weight:700; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.5px;">3D-Cape-Vorschau</span>
         </div>
         <canvas id="capeUpload3dCanvas" width="160" height="200" style="width:160px; height:200px; cursor:grab;"></canvas>
       </div>

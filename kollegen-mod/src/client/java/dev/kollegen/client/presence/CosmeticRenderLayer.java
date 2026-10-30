@@ -240,31 +240,20 @@ public final class CosmeticRenderLayer extends RenderLayer<AvatarRenderState, Pl
             poseStack.pushPose();
             arm.translateAndRotate(poseStack);
 
-            // Move to forearm holding position on arm:
+            // Move to forearm holding position on outside of arm:
             float armSide = useLeft ? 1.0F : -1.0F;
-            poseStack.translate(armSide * 0.05F, 0.46F, -0.04F);
+            poseStack.translate(armSide * 0.16F, 0.40F, -0.04F);
 
-            // Rotate around grip position so shield outer face is outward/forward:
+            // Rotate around grip position so shield outer face is outward/forward and top points upward:
             float yawDeg = useLeft ? -90.0F : 90.0F;
             poseStack.rotate(ROT_SCRATCH.get().identity().rotateY((float) Math.toRadians(ywDegSafe(yawDeg))));
-            poseStack.rotate(ROT_SCRATCH.get().identity().rotateX((float) Math.toRadians(180.0F)));
 
             // Find model grip point:
-            float gripX = bb.cx;
-            float gripY = bb.cy;
-            float gripZ = bb.cz;
-            for (BbModel.Bone bone : bb.bones) {
-                if (bone.name != null && (bone.name.equalsIgnoreCase("handle") || bone.name.equalsIgnoreCase("shield_mount") || bone.name.equalsIgnoreCase("grip"))) {
-                    gripX = BbModel.pivotX(bone.ox);
-                    gripY = BbModel.pivotY(bone.oy);
-                    gripZ = BbModel.pivotZ(bone.oz);
-                    break;
-                }
-            }
-            poseStack.translate(-gripX, -gripY, -gripZ);
+            float[] grip = bb.findGrip();
+            poseStack.translate(-grip[0], -grip[1], -grip[2]);
 
             int tintColor = -1;
-            if (dev.kollegen.client.mods.modules.ShieldSettings.isStatusOutlineEnabled()) {
+            if (dev.kollegen.client.mods.modules.ShieldSettings.isStatusTintEnabled()) {
                 int sc = dev.kollegen.client.mods.modules.ShieldSettings.getStatusColor(player);
                 if (sc != 0) tintColor = sc;
             }
@@ -310,31 +299,20 @@ public final class CosmeticRenderLayer extends RenderLayer<AvatarRenderState, Pl
             poseStack.pushPose();
             arm.translateAndRotate(poseStack);
 
-            // Move to forearm holding position on arm:
+            // Move to forearm holding position on outside of arm:
             float armSide = useLeft ? 1.0F : -1.0F;
-            poseStack.translate(armSide * 0.05F, 0.46F, -0.04F);
+            poseStack.translate(armSide * 0.16F, 0.40F, -0.04F);
 
-            // Rotate around grip position so shield outer face is outward/forward:
+            // Rotate around grip position so shield outer face is outward/forward and top points upward:
             float yawDeg = useLeft ? -90.0F : 90.0F;
             poseStack.rotate(ROT_SCRATCH.get().identity().rotateY((float) Math.toRadians(ywDegSafe(yawDeg))));
-            poseStack.rotate(ROT_SCRATCH.get().identity().rotateX((float) Math.toRadians(180.0F)));
 
             // Find model grip point:
-            float gripX = bb.cx;
-            float gripY = bb.cy;
-            float gripZ = bb.cz;
-            for (BbModel.Bone bone : bb.bones) {
-                if (bone.name != null && (bone.name.equalsIgnoreCase("handle") || bone.name.equalsIgnoreCase("shield_mount") || bone.name.equalsIgnoreCase("grip"))) {
-                    gripX = BbModel.pivotX(bone.ox);
-                    gripY = BbModel.pivotY(bone.oy);
-                    gripZ = BbModel.pivotZ(bone.oz);
-                    break;
-                }
-            }
-            poseStack.translate(-gripX, -gripY, -gripZ);
+            float[] grip = bb.findGrip();
+            poseStack.translate(-grip[0], -grip[1], -grip[2]);
 
             int tintColor = -1;
-            if (dev.kollegen.client.mods.modules.ShieldSettings.isStatusOutlineEnabled()) {
+            if (dev.kollegen.client.mods.modules.ShieldSettings.isStatusTintEnabled()) {
                 int sc = dev.kollegen.client.mods.modules.ShieldSettings.getStatusColor(player);
                 if (sc != 0) tintColor = sc;
             }

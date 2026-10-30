@@ -1968,14 +1968,6 @@ public class KollegenMenuScreen extends Screen {
                     eqObj.addProperty("category", "community");
                 }
                 eqCell.data = eqObj;
-            } else if ("my_capes".equalsIgnoreCase(this.capeCatFilter)) {
-                Cell upCell = this.addGrid(K_CAPE_ITEM, cols, 50.0f);
-                JsonObject upObj = new JsonObject();
-                upObj.addProperty("id", "upload_action");
-                upObj.addProperty("name", "+ Cape hochladen");
-                upObj.addProperty("author", "Im Launcher hinzufügen");
-                upObj.addProperty("category", "my_capes");
-                upCell.data = upObj;
             }
 
             List<JsonObject> capes = this.loadCapesFromConfig();
@@ -2172,8 +2164,8 @@ public class KollegenMenuScreen extends Screen {
 
             String[] slots1 = new String[]{"head_accessory", "face_accessory", "shoulder_accessory", "torso_accessory", "back_accessory"};
             String[] slotNames1 = new String[]{"Kopf", "Gesicht", "Schulter", "Oberkörper", "Rücken"};
-            String[] slots2 = new String[]{"legs_accessory", "gloves", "shield", "mace", "aura"};
-            String[] slotNames2 = new String[]{"Unterkörper", "Handschuhe", "Schild", "Streitkolben", "Aura"};
+            String[] slots2 = new String[]{"legs_accessory", "gloves", "shield", "aura"};
+            String[] slotNames2 = new String[]{"Unterkörper", "Handschuhe", "Schild", "Aura"};
 
             float col2X = infoX + Math.max(100.0f, (c.w - 114.0f) / 2.0f);
             float rowY = infoY + 14;
@@ -2183,10 +2175,12 @@ public class KollegenMenuScreen extends Screen {
                 String txt1 = Glass.trunc(this.font, slotNames1[i] + ": " + eqName1, (int) Math.max(70, col2X - infoX - 6));
                 Glass.text(g, this.font, txt1, Math.round(infoX), Math.round(rowY), eqId1.isEmpty() ? Palette.MUTED : Palette.ACCENT, false);
 
-                String eqId2 = this.equippedId(slots2[i]);
-                String eqName2 = this.resolveCosmeticName(eqId2);
-                String txt2 = Glass.trunc(this.font, slotNames2[i] + ": " + eqName2, (int) Math.max(70, X + c.w - col2X - 8));
-                Glass.text(g, this.font, txt2, Math.round(col2X), Math.round(rowY), eqId2.isEmpty() ? Palette.MUTED : Palette.ACCENT, false);
+                if (i < slots2.length) {
+                    String eqId2 = this.equippedId(slots2[i]);
+                    String eqName2 = this.resolveCosmeticName(eqId2);
+                    String txt2 = Glass.trunc(this.font, slotNames2[i] + ": " + eqName2, (int) Math.max(70, X + c.w - col2X - 8));
+                    Glass.text(g, this.font, txt2, Math.round(col2X), Math.round(rowY), eqId2.isEmpty() ? Palette.MUTED : Palette.ACCENT, false);
+                }
 
                 rowY += 12;
             }
@@ -2299,6 +2293,8 @@ public class KollegenMenuScreen extends Screen {
                         float uw = 10.0f * ((float) tw / 64.0f);
                         float vh = 16.0f * ((float) th / 32.0f);
                         pose.scale(cw / uw, ch / vh);
+                        pose.translate(uw, 0.0f);
+                        pose.scale(-1.0f, 1.0f);
                         g.blit(RenderPipelines.GUI_TEXTURED, capeTex, 0, 0, u, v, Math.round(uw), Math.round(vh), tw, th);
                     } else {
                         pose.scale(cw / (float) tw, ch / (float) th);

@@ -20,7 +20,7 @@ public class ShieldSpecialRendererMixin {
             require = 0
     )
     private int kollegen$tintShield(int originalTint) {
-        if (ShieldSettings.isStatusOutlineEnabled()) {
+        if (ShieldSettings.isStatusTintEnabled()) {
             int c = ShieldStatusContext.getCurrentColor();
             if (c != 0) return c;
         }
@@ -48,7 +48,7 @@ public class ShieldSpecialRendererMixin {
             require = 0
     )
     private int kollegen$tintShieldGlint(int originalTint) {
-        if (ShieldSettings.isStatusOutlineEnabled()) {
+        if (ShieldSettings.isStatusTintEnabled()) {
             int c = ShieldStatusContext.getCurrentColor();
             if (c != 0) return c;
         }

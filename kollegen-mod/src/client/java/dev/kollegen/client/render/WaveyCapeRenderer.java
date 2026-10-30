@@ -111,10 +111,10 @@ public final class WaveyCapeRenderer {
 
                 // Back face (facing outwards, normal (0, 0, 1))
                 emitQuad(vc, mat,
-                        -halfW, y0, z0 + halfT, uBackMin, v0,
-                        halfW, y0, z0 + halfT, uBackMax, v0,
-                        halfW, y1, z1 + halfT, uBackMax, v1,
-                        -halfW, y1, z1 + halfT, uBackMin, v1,
+                        -halfW, y0, z0 + halfT, uBackMax, v0,
+                        halfW, y0, z0 + halfT, uBackMin, v0,
+                        halfW, y1, z1 + halfT, uBackMin, v1,
+                        -halfW, y1, z1 + halfT, uBackMax, v1,
                         packedLight, 0.0F, 0.0F, 1.0F, tmpPos);
 
                 // Front face (facing player, normal (0, 0, -1))
