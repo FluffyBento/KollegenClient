@@ -1,59 +1,81 @@
 package dev.kollegen.client.mods.modules;
 
-import dev.kollegen.client.mods.BooleanSetting;
 import dev.kollegen.client.mods.Category;
 import dev.kollegen.client.mods.Module;
 import dev.kollegen.client.mods.SliderSetting;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.entity.state.AvatarRenderState;
 import net.minecraft.client.renderer.entity.state.HumanoidRenderState;
 import net.minecraft.world.entity.EquipmentSlot;
 
-public class ArmorTransparency extends Module {
-    public static ArmorTransparency INSTANCE;
+public final class ArmorTransparency {
+    public static Own OWN;
+    public static Others OTHERS;
 
-    // Eigene Rüstung
-    public final BooleanSetting ownEnabled = new BooleanSetting("Eigene Rüstung anpassen", "Aktiviert die Transparenz für die eigene Rüstung.", true);
-    public final SliderSetting ownOpacity = new SliderSetting("Eigene Deckkraft", "Deckkraft der eigenen Rüstung (0% = unsichtbar).", 0.0, 0.0, 1.0, 0.05, v -> Math.round(v * 100.0) + "%", null);
-    public final BooleanSetting ownHelmet = new BooleanSetting("Eigener Helm", "Transparenz auf den Helm anwenden.", true);
-    public final BooleanSetting ownChest = new BooleanSetting("Eigene Brustplatte", "Transparenz auf die Brustplatte anwenden.", true);
-    public final BooleanSetting ownLegs = new BooleanSetting("Eigene Hose", "Transparenz auf die Hose anwenden.", true);
-    public final BooleanSetting ownBoots = new BooleanSetting("Eigene Schuhe", "Transparenz auf die Schuhe anwenden.", true);
+    private ArmorTransparency() {
+    }
 
-    // Andere Spieler
-    public final BooleanSetting othersEnabled = new BooleanSetting("Andere Spieler anpassen", "Aktiviert die Transparenz für Rüstung anderer Spieler.", false);
-    public final SliderSetting othersOpacity = new SliderSetting("Deckkraft anderer", "Deckkraft der Rüstung anderer Spieler (0% = unsichtbar).", 0.0, 0.0, 1.0, 0.05, v -> Math.round(v * 100.0) + "%", null);
-    public final BooleanSetting othersHelmet = new BooleanSetting("Helm anderer", "Transparenz auf Helme anderer Spieler anwenden.", true);
-    public final BooleanSetting othersChest = new BooleanSetting("Brustplatte anderer", "Transparenz auf Brustplatten anderer Spieler anwenden.", true);
-    public final BooleanSetting othersLegs = new BooleanSetting("Hose anderer", "Transparenz auf Hosen anderer Spieler anwenden.", true);
-    public final BooleanSetting othersBoots = new BooleanSetting("Schuhe anderer", "Transparenz auf Schuhe anderer Spieler anwenden.", true);
+    public static class Own extends Module {
+        public final SliderSetting helmet = new SliderSetting("Helm", "Deckkraft des eigenen Helms (0% = unsichtbar).", 0.0, 0.0, 1.0, 0.05, v -> v <= 0.05 ? "0% (Unsichtbar)" : Math.round(v * 100.0) + "%", null);
+        public final SliderSetting chest = new SliderSetting("Brustplatte", "Deckkraft der eigenen Brustplatte (0% = unsichtbar).", 0.0, 0.0, 1.0, 0.05, v -> v <= 0.05 ? "0% (Unsichtbar)" : Math.round(v * 100.0) + "%", null);
+        public final SliderSetting legs = new SliderSetting("Hose", "Deckkraft der eigenen Hose (0% = unsichtbar).", 0.0, 0.0, 1.0, 0.05, v -> v <= 0.05 ? "0% (Unsichtbar)" : Math.round(v * 100.0) + "%", null);
+        public final SliderSetting boots = new SliderSetting("Schuhe", "Deckkraft der eigenen Schuhe (0% = unsichtbar).", 0.0, 0.0, 1.0, 0.05, v -> v <= 0.05 ? "0% (Unsichtbar)" : Math.round(v * 100.0) + "%", null);
 
-    public ArmorTransparency() {
-        super("armortransparency", "Transparente Rüstung", "Rüstungsteile von sich und anderen Spielern einzeln transparent machen oder ausblenden.", Category.VISUAL);
-        INSTANCE = this;
-        add(ownEnabled);
-        add(ownOpacity);
-        add(ownHelmet);
-        add(ownChest);
-        add(ownLegs);
-        add(ownBoots);
+        public Own() {
+            super("armortransparency", "Transparente Rüstung (Eigen)", "Deckkraft der eigenen Rüstungsteile einzeln einstellen (0% = unsichtbar).", Category.VISUAL);
+            OWN = this;
+            add(helmet);
+            add(chest);
+            add(legs);
+            add(boots);
+        }
 
-        add(othersEnabled);
-        add(othersOpacity);
-        add(othersHelmet);
-        add(othersChest);
-        add(othersLegs);
-        add(othersBoots);
+        public double getOpacity(EquipmentSlot slot) {
+            return switch (slot) {
+                case HEAD -> helmet.value;
+                case CHEST -> chest.value;
+                case LEGS -> legs.value;
+                case FEET -> boots.value;
+                default -> 1.0;
+            };
+        }
+    }
+
+    public static class Others extends Module {
+        public final SliderSetting helmet = new SliderSetting("Helm", "Deckkraft von Helmen anderer Spieler (0% = unsichtbar).", 0.0, 0.0, 1.0, 0.05, v -> v <= 0.05 ? "0% (Unsichtbar)" : Math.round(v * 100.0) + "%", null);
+        public final SliderSetting chest = new SliderSetting("Brustplatte", "Deckkraft von Brustplatten anderer Spieler (0% = unsichtbar).", 0.0, 0.0, 1.0, 0.05, v -> v <= 0.05 ? "0% (Unsichtbar)" : Math.round(v * 100.0) + "%", null);
+        public final SliderSetting legs = new SliderSetting("Hose", "Deckkraft von Hosen anderer Spieler (0% = unsichtbar).", 0.0, 0.0, 1.0, 0.05, v -> v <= 0.05 ? "0% (Unsichtbar)" : Math.round(v * 100.0) + "%", null);
+        public final SliderSetting boots = new SliderSetting("Schuhe", "Deckkraft von Schuhen anderer Spieler (0% = unsichtbar).", 0.0, 0.0, 1.0, 0.05, v -> v <= 0.05 ? "0% (Unsichtbar)" : Math.round(v * 100.0) + "%", null);
+
+        public Others() {
+            super("armortransparency_others", "Transparente Rüstung (Andere)", "Deckkraft der Rüstungsteile anderer Spieler einzeln einstellen (0% = unsichtbar).", Category.VISUAL);
+            OTHERS = this;
+            add(helmet);
+            add(chest);
+            add(legs);
+            add(boots);
+        }
+
+        public double getOpacity(EquipmentSlot slot) {
+            return switch (slot) {
+                case HEAD -> helmet.value;
+                case CHEST -> chest.value;
+                case LEGS -> legs.value;
+                case FEET -> boots.value;
+                default -> 1.0;
+            };
+        }
     }
 
     public static boolean shouldHide(HumanoidRenderState state, EquipmentSlot slot) {
-        if (INSTANCE == null || !INSTANCE.enabled) return false;
         Minecraft mc = Minecraft.getInstance();
         if (mc == null) return false;
 
-        boolean isSelf = false;
-        if (!(state instanceof net.minecraft.client.renderer.entity.state.AvatarRenderState ars)) {
+        if (!(state instanceof AvatarRenderState ars)) {
             return false;
         }
+
+        boolean isSelf = false;
         if (mc.player != null) {
             if (ars.id == mc.player.getId()) {
                 isSelf = true;
@@ -66,23 +88,11 @@ public class ArmorTransparency extends Module {
         }
 
         if (isSelf) {
-            if (!INSTANCE.ownEnabled.value) return false;
-            if (!isSlotActive(slot, INSTANCE.ownHelmet.value, INSTANCE.ownChest.value, INSTANCE.ownLegs.value, INSTANCE.ownBoots.value)) return false;
-            return INSTANCE.ownOpacity.value <= 0.05;
+            if (OWN == null || !OWN.enabled) return false;
+            return OWN.getOpacity(slot) <= 0.05;
         } else {
-            if (!INSTANCE.othersEnabled.value) return false;
-            if (!isSlotActive(slot, INSTANCE.othersHelmet.value, INSTANCE.othersChest.value, INSTANCE.othersLegs.value, INSTANCE.othersBoots.value)) return false;
-            return INSTANCE.othersOpacity.value <= 0.05;
+            if (OTHERS == null || !OTHERS.enabled) return false;
+            return OTHERS.getOpacity(slot) <= 0.05;
         }
-    }
-
-    private static boolean isSlotActive(EquipmentSlot slot, boolean helm, boolean chest, boolean legs, boolean boots) {
-        return switch (slot) {
-            case HEAD -> helm;
-            case CHEST -> chest;
-            case LEGS -> legs;
-            case FEET -> boots;
-            default -> false;
-        };
     }
 }
