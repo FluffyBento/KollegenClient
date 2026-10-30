@@ -35,7 +35,9 @@ public class NametagMixin {
         try {
             if (entity instanceof net.minecraft.world.entity.player.Player p) {
                 state.id = p.getId();
-                if (dev.kollegen.client.mods.modules.Player.hideOwnNametag && Minecraft.getInstance().player != null && p.getUUID().equals(Minecraft.getInstance().player.getUUID())) {
+                Minecraft mc = Minecraft.getInstance();
+                boolean isSelf = mc.player != null && (p.getUUID().equals(mc.player.getUUID()) || p.getId() == mc.player.getId());
+                if (dev.kollegen.client.mods.modules.Player.shouldHideNametag(isSelf)) {
                     state.nameTag = null;
                     state.scoreText = null;
                 }
@@ -69,7 +71,8 @@ public class NametagMixin {
     }
 
     @Inject(method = "submitNameDisplay(Lnet/minecraft/client/renderer/entity/state/AvatarRenderState;Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/SubmitNodeCollector;Lnet/minecraft/client/renderer/state/level/CameraRenderState;)V",
-            at = @At("HEAD"))
+            at = @At("HEAD"),
+            cancellable = true)
     private void kollegen$extras(AvatarRenderState state, PoseStack poseStack, SubmitNodeCollector collector,
                                  CameraRenderState camera, CallbackInfo ci) {
         try {
@@ -79,6 +82,15 @@ public class NametagMixin {
             }
             java.util.UUID id = dev.kollegen.client.presence.RenderStateIds.get(state);
             if (id == null) id = kollegen$resolve(state);
+
+            Minecraft mc = Minecraft.getInstance();
+            boolean isSelf = mc.player != null && ((id != null && id.equals(mc.player.getUUID())) || (state.id != 0 && state.id == mc.player.getId()));
+
+            if (dev.kollegen.client.mods.modules.Player.shouldHideNametag(isSelf)) {
+                ci.cancel();
+                return;
+            }
+
             if (id == null) {
                 kollegen$dbg("skip-no-id");
                 return;
@@ -114,13 +126,13 @@ public class NametagMixin {
             Vec3 anchor = state.nameTagAttachment;
             if (anchor == null) return;
             double nameY = anchor.y + (useW ? 0.259 : 0.0);
-            Component title = hasData ? CosmeticText.titleComponent(id) : null;
+            Component title = (hasData && !dev.kollegen.client.mods.modules.Player.shouldHideTitle(isSelf)) ? CosmeticText.titleComponent(id) : null;
             if (title != null) {
                 collector.submitNameTag(poseStack,
                         new Vec3(anchor.x, anchor.y + 0.50, anchor.z),
                         0, title, !state.isDiscrete, state.lightCoords, camera);
             }
-            Component level = hasData ? CosmeticText.levelComponent(id) : null;
+            Component level = (hasData && !dev.kollegen.client.mods.modules.Player.shouldHideLevel(isSelf)) ? CosmeticText.levelComponent(id) : null;
             if (level != null) {
                 collector.submitNameTag(poseStack,
                         new Vec3(anchor.x, anchor.y - 0.26, anchor.z),
