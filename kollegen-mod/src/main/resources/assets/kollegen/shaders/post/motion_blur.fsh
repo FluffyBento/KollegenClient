@@ -11,16 +11,19 @@ layout(std140) uniform SamplerInfo {
     vec2 InSize;
 };
 
+layout(std140) uniform BlurConfig {
+    float BlurStrength;
+};
+
 layout(location = 0) out vec4 fragColor;
 
 void main() {
     vec4 current = texture(InSampler, texCoord);
     vec4 prev = texture(PreviousSampler, texCoord);
 
-    // Echte temporale Bewegungsunschärfe (Previous Frame Akkumulation)
     if (prev.a < 0.1) {
         fragColor = current;
     } else {
-        fragColor = mix(current, prev, 0.40);
+        fragColor = mix(current, prev, clamp(BlurStrength, 0.05, 0.95));
     }
 }

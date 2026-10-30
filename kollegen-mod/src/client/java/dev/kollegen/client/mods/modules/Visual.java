@@ -21,6 +21,16 @@ public final class Visual {
     
     public static float zoomFovDivisor = 1.0f;
     public static boolean noFogEnabled = false;
+    public static boolean zoomActive = false;
+    public static boolean zoomSmoothCamera = false;
+
+    public static boolean isZoomActive() {
+        return zoomActive;
+    }
+
+    public static boolean isZoomSmoothCamera() {
+        return zoomActive && zoomSmoothCamera;
+    }
 
     private Visual() {
     }
@@ -129,14 +139,15 @@ public final class Visual {
 
         @Override
         public void onEnable() {
-            if (mc.options != null && smoothCamera.value) {
-                mc.options.smoothCamera = true;
-            }
+            Visual.zoomActive = true;
+            Visual.zoomSmoothCamera = smoothCamera.value;
             applyZoom();
         }
 
         @Override
         public void onTick() {
+            Visual.zoomActive = enabled;
+            Visual.zoomSmoothCamera = smoothCamera.value;
             applyZoom();
         }
 
@@ -146,8 +157,9 @@ public final class Visual {
 
         @Override
         public void onDisable() {
+            Visual.zoomActive = false;
+            Visual.zoomSmoothCamera = false;
             Visual.zoomFovDivisor = 1.0f;
-            if (mc.options != null) mc.options.smoothCamera = false;
         }
     }
 

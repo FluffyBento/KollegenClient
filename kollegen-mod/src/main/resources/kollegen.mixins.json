@@ -56,6 +56,8 @@
     "EquipmentLayerRendererMixin",
     "AbstractClientPlayerMixin",
     "PostShaderMixin",
+    "PostChainAccessor",
+    "PostPassAccessor",
     "FirstPersonHandsAndItemsRendererMixin",
     "HumanoidArmorLayerMixin",
     "LivingEntityMixin"

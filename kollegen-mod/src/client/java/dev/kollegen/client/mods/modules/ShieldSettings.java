@@ -44,6 +44,34 @@ public class ShieldSettings extends Module {
             v -> String.format("%.2f", v), null
     );
 
+    public final SliderSetting offsetZ = new SliderSetting(
+            "Tiefen-Versatz (Z)",
+            "Verschiebt das Schild nach vorne oder hinten.",
+            0.0, -0.6, 0.6, 0.02,
+            v -> String.format("%.2f", v), null
+    );
+
+    public final SliderSetting rotX = new SliderSetting(
+            "Neigung (X-Achse)",
+            "Kippt das Schild nach vorne oder hinten für freie Sicht.",
+            0.0, -180.0, 180.0, 5.0,
+            v -> Math.round(v) + "°", null
+    );
+
+    public final SliderSetting rotY = new SliderSetting(
+            "Drehung (Y-Achse)",
+            "Dreht das Schild seitlich weg (wie im Texture Pack für FOV).",
+            0.0, -180.0, 180.0, 5.0,
+            v -> Math.round(v) + "°", null
+    );
+
+    public final SliderSetting rotZ = new SliderSetting(
+            "Kippung (Z-Achse)",
+            "Neigt das Schild seitlich.",
+            0.0, -180.0, 180.0, 5.0,
+            v -> Math.round(v) + "°", null
+    );
+
     public final BooleanSetting statusOutline = new BooleanSetting(
             "Status-Umrandung",
             "Leuchtende Schild-Umrandung: Grün = nutzbar, Rot = auf Cooldown (auch bei anderen Spielern).",
@@ -51,12 +79,16 @@ public class ShieldSettings extends Module {
     );
 
     public ShieldSettings() {
-        super("shieldsettings", "Schild-Einstellungen", "Schildgröße, Position für freies Sichtfeld (FOV) und Status-Umrandung (grün = nutzbar, rot = Cooldown).", Category.VISUAL);
+        super("shieldsettings", "Schild-Einstellungen", "Schildgröße, Position und Drehung für freies Sichtfeld (FOV) und Status-Umrandung (grün = nutzbar, rot = Cooldown).", Category.VISUAL);
         INSTANCE = this;
         add(lowerShield);
         add(scale);
         add(offsetX);
         add(offsetY);
+        add(offsetZ);
+        add(rotX);
+        add(rotY);
+        add(rotZ);
         add(statusOutline);
     }
 
@@ -67,13 +99,23 @@ public class ShieldSettings extends Module {
     public static void applyFirstPersonTransform(PoseStack poseStack, InteractionHand hand) {
         if (INSTANCE == null) return;
         float xOff = (float) INSTANCE.offsetX.value;
+        float yOff = (float) INSTANCE.offsetY.value;
+        float zOff = (float) INSTANCE.offsetZ.value;
+        float rx = (float) INSTANCE.rotX.value;
+        float ry = (float) INSTANCE.rotY.value;
+        float rz = (float) INSTANCE.rotZ.value;
+
         if (hand == InteractionHand.OFF_HAND) {
             xOff = -xOff;
+            ry = -ry;
+            rz = -rz;
         }
-        float yOff = (float) INSTANCE.offsetY.value;
-        float sc = (float) INSTANCE.scale.value;
 
-        poseStack.translate(xOff, yOff, 0.0f);
+        poseStack.translate(xOff, yOff, zOff);
+        if (rx != 0.0f) poseStack.rotateDegrees(com.mojang.math.Axis.XP, rx);
+        if (ry != 0.0f) poseStack.rotateDegrees(com.mojang.math.Axis.YP, ry);
+        if (rz != 0.0f) poseStack.rotateDegrees(com.mojang.math.Axis.ZP, rz);
+        float sc = (float) INSTANCE.scale.value;
         poseStack.scale(sc, sc, sc);
     }
 
