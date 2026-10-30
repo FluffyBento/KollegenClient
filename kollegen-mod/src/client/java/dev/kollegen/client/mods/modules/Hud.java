@@ -151,7 +151,7 @@ public final class Hud {
         Direction() {
             super("direction", "Richtung", "Blickrichtung als moderne Kompass-Leiste oder Text.");
             this.position.index = 4; // Standard: Oben mittig
-            this.settings.remove(accentBar);
+            this.accentBar.value = false;
             add(style);
             add(compassWidth);
             add(showDegrees);
@@ -191,6 +191,9 @@ public final class Hud {
             if (background.value) {
                 Glass.fillRound(g, x, y, w, h, 6, backgroundColor.value);
                 Glass.ring(g, x, y, w, h, 6, 0.5f, 0x22FFFFFF);
+                if (accentBar.value) {
+                    Glass.rrGrad(g, x + 2, y + 2, 2.5f, h - 4, 1.2f, Palette.ACCENT, Glass.a(Palette.ACCENT, 0.35f));
+                }
             }
 
             markBounds(x, deg ? y - 16 : y, w, totalH);
@@ -760,24 +763,34 @@ public final class Hud {
 
             int count = items.size();
             int cellW = 32;
-            int h = 24;
-            int w = count * cellW + 4;
+            int baseH = 24;
+            int baseW = count * cellW + 4;
+            float sc = (float) scale.value;
+            int w = Math.round(baseW * sc);
+            int h = Math.round(baseH * sc);
             int[] a = anchor(mc.getWindow().getGuiScaledWidth(), mc.getWindow().getGuiScaledHeight(), w, h);
             int x = a[0];
             int y = a[1];
 
-            if (background.value) {
-                Glass.fillRound(g, x, y, w, h, 6, backgroundColor.value);
-            }
             markBounds(x, y, w, h);
+
+            g.pose().pushMatrix();
+            g.pose().translate(x, y);
+            g.pose().scale(sc, sc);
+
+            if (background.value) {
+                Glass.fillRound(g, 0, 0, baseW, baseH, 6, backgroundColor.value);
+            }
 
             for (int i = 0; i < count; i++) {
                 ItemStack stack = items.get(i);
-                int ix = x + 4 + i * cellW;
-                g.item(stack, ix, y + 4);
+                int ix = 4 + i * cellW;
+                g.item(stack, ix, 4);
                 String cnt = String.valueOf(stack.getCount());
-                g.text(mc.font, cnt, ix + 18, y + 8, Palette.TEXT, true);
+                g.text(mc.font, cnt, ix + 18, 8, Palette.TEXT, true);
             }
+
+            g.pose().popMatrix();
         }
 
         private void checkAdd(List<ItemStack> list, net.minecraft.world.item.Item item) {
@@ -797,11 +810,8 @@ public final class Hud {
     }
 
     private static class InventoryHud extends HudModule {
-        public final SliderSetting scale = new SliderSetting("Skalierung", "Größe der Inventar-Vorschau anpassen.", 1.0, 0.4, 2.0, 0.05, v -> Math.round(v * 100.0) + "%", null);
-
         InventoryHud() {
             super("invhud", "Inventar-Vorschau", "Zeigt die 27 Slots des Inventars dauerhaft auf dem HUD an.");
-            add(scale);
         }
 
         @Override

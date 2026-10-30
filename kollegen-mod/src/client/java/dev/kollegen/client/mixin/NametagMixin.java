@@ -34,6 +34,7 @@ public class NametagMixin {
     private void kollegen$track(net.minecraft.world.entity.Avatar entity, AvatarRenderState state, float f, CallbackInfo ci) {
         try {
             if (entity instanceof net.minecraft.world.entity.player.Player p) {
+                state.id = p.getId();
                 if (dev.kollegen.client.mods.modules.Player.hideOwnNametag && Minecraft.getInstance().player != null && p.getUUID().equals(Minecraft.getInstance().player.getUUID())) {
                     state.nameTag = null;
                     state.scoreText = null;

@@ -56,7 +56,9 @@
     "EquipmentLayerRendererMixin",
     "AbstractClientPlayerMixin",
     "PostShaderMixin",
-    "FirstPersonHandsAndItemsRendererMixin"
+    "FirstPersonHandsAndItemsRendererMixin",
+    "HumanoidArmorLayerMixin",
+    "LivingEntityMixin"
   ],
   "injectors": {
     "defaultRequire": 1

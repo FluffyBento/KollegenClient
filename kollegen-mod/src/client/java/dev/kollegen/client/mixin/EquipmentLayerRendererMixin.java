@@ -27,6 +27,29 @@ public class EquipmentLayerRendererMixin {
     private static final ThreadLocal<Float> kollegen$curOpacity = new ThreadLocal<>();
 
     @Inject(
+        method = "renderLayers(Lnet/minecraft/client/resources/model/EquipmentClientInfo$LayerType;Lnet/minecraft/resources/ResourceKey;Lnet/minecraft/client/model/Model;Ljava/lang/Object;Lnet/minecraft/world/item/ItemStack;Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/SubmitNodeCollector;II)V",
+        at = @At("HEAD"),
+        cancellable = true
+    )
+    private <S> void kollegen$onRenderLayers9Head(
+        EquipmentClientInfo.LayerType layerType,
+        ResourceKey<EquipmentAsset> assetKey,
+        Model<? super S> model,
+        S state,
+        ItemStack stack,
+        PoseStack poseStack,
+        SubmitNodeCollector submitNodeCollector,
+        int packedLight,
+        int outlineColor,
+        CallbackInfo ci
+    ) {
+        float opacity = ArmorTransparency.getOpacity(state, stack);
+        if (opacity <= 0.05f) {
+            ci.cancel();
+        }
+    }
+
+    @Inject(
         method = "renderLayers(Lnet/minecraft/client/resources/model/EquipmentClientInfo$LayerType;Lnet/minecraft/resources/ResourceKey;Lnet/minecraft/client/model/Model;Ljava/lang/Object;Lnet/minecraft/world/item/ItemStack;Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/SubmitNodeCollector;ILnet/minecraft/resources/Identifier;II)V",
         at = @At("HEAD"),
         cancellable = true
