@@ -12,7 +12,31 @@
                     "target": "minecraft:main"
                 }
             ],
-            "output": "swap"
+            "output": "swap",
+            "uniforms": {
+                "ShaderConfig": [
+                    {
+                        "name": "Saturation",
+                        "type": "float",
+                        "value": 1.35
+                    },
+                    {
+                        "name": "Contrast",
+                        "type": "float",
+                        "value": 1.08
+                    },
+                    {
+                        "name": "Brightness",
+                        "type": "float",
+                        "value": 1.05
+                    },
+                    {
+                        "name": "Vignette",
+                        "type": "float",
+                        "value": 0.0
+                    }
+                ]
+            }
         },
         {
             "vertex_shader": "minecraft:core/screenquad",

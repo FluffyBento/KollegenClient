@@ -12,6 +12,7 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 
@@ -20,8 +21,27 @@ public class MouseHandlerMixin {
 
     @Shadow private double accumulatedDX;
     @Shadow private double accumulatedDY;
+    @Shadow private net.minecraft.util.SmoothDouble smoothTurnX;
+    @Shadow private net.minecraft.util.SmoothDouble smoothTurnY;
 
+    private boolean kollegen$lastSmoothState = false;
     private static double kollegen$cursorRawX = 0, kollegen$cursorRawY = 0;
+
+    @Redirect(
+            method = "turnPlayer",
+            at = @At(value = "FIELD", target = "Lnet/minecraft/client/Options;smoothCamera:Z")
+    )
+    private boolean kollegen$redirectSmoothCamera(net.minecraft.client.Options options) {
+        boolean smooth = dev.kollegen.client.mods.modules.Visual.isZoomActive()
+                ? dev.kollegen.client.mods.modules.Visual.isZoomSmoothCamera()
+                : options.smoothCamera;
+        if (smooth != this.kollegen$lastSmoothState) {
+            this.kollegen$lastSmoothState = smooth;
+            if (this.smoothTurnX != null) this.smoothTurnX.reset();
+            if (this.smoothTurnY != null) this.smoothTurnY.reset();
+        }
+        return smooth;
+    }
 
     @Inject(method = "turnPlayer", at = @At("HEAD"), cancellable = true)
     private void kollegen_client$freecamTurn(double timeDelta, CallbackInfo ci) {

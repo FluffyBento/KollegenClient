@@ -18,7 +18,16 @@
                     "target": "previous"
                 }
             ],
-            "output": "previous"
+            "output": "previous",
+            "uniforms": {
+                "BlurConfig": [
+                    {
+                        "name": "BlurStrength",
+                        "type": "float",
+                        "value": 0.40
+                    }
+                ]
+            }
         },
         {
             "vertex_shader": "minecraft:core/screenquad",

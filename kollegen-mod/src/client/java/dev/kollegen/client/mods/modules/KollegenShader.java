@@ -1,11 +1,23 @@
 package dev.kollegen.client.mods.modules;
 
+import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.renderpearl.api.buffers.GpuBuffer;
+import com.mojang.renderpearl.api.buffers.GpuBufferSlice;
+import com.mojang.renderpearl.api.commands.CommandEncoder;
+import dev.kollegen.client.mixin.PostChainAccessor;
+import dev.kollegen.client.mixin.PostPassAccessor;
 import dev.kollegen.client.mods.BooleanSetting;
 import dev.kollegen.client.mods.Category;
 import dev.kollegen.client.mods.ModeSetting;
 import dev.kollegen.client.mods.Module;
 import dev.kollegen.client.mods.SliderSetting;
+import net.minecraft.client.renderer.PostChain;
+import net.minecraft.client.renderer.PostPass;
 import net.minecraft.resources.Identifier;
+
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.util.Map;
 
 public class KollegenShader extends Module {
     public static KollegenShader INSTANCE;
@@ -17,7 +29,8 @@ public class KollegenShader extends Module {
             "Shader-Profil",
             "Vorgefertigte Farbanpassungen oder eigener Shader.",
             new String[]{"Benutzerdefiniert", "Vibrant (Lebendig)", "Cinematic", "Klar & Kontrast", "Warm"},
-            0
+            0,
+            this::applyPreset
     );
 
     public final BooleanSetting saturationEnabled = new BooleanSetting(
@@ -42,7 +55,7 @@ public class KollegenShader extends Module {
     public final SliderSetting motionBlurStrength = new SliderSetting(
             "Motion-Blur-Stärke",
             "Stärke des Unschärfe-Nachzieheffekts.",
-            0.4, 0.1, 1.0, 0.05,
+            0.4, 0.05, 0.95, 0.05,
             v -> Math.round(v * 100.0) + "%", null
     );
 
@@ -56,7 +69,7 @@ public class KollegenShader extends Module {
             "Kontrast-Stärke",
             "Intensität des Kontrasts.",
             1.08, 0.5, 2.0, 0.02,
-            v -> Math.round(v * 100.0) + "%", null
+            v -> String.format("%.2f", v), null
     );
 
     public final BooleanSetting brightnessEnabled = new BooleanSetting(
@@ -69,7 +82,7 @@ public class KollegenShader extends Module {
             "Helligkeits-Stärke",
             "Multiplikator der Bildhelligkeit.",
             1.05, 0.5, 2.0, 0.05,
-            v -> Math.round(v * 100.0) + "%", null
+            v -> String.format("%.2f", v), null
     );
 
     public final BooleanSetting vignetteEnabled = new BooleanSetting(
@@ -101,6 +114,51 @@ public class KollegenShader extends Module {
         add(vignetteStrength);
     }
 
+    private void applyPreset(int index) {
+        switch (index) {
+            case 1 -> { // Vibrant
+                saturationEnabled.value = true;
+                saturation.value = 1.45;
+                contrastEnabled.value = true;
+                contrast.value = 1.08;
+                brightnessEnabled.value = false;
+                brightness.value = 1.05;
+                vignetteEnabled.value = false;
+                vignetteStrength.value = 0.20;
+            }
+            case 2 -> { // Cinematic
+                saturationEnabled.value = true;
+                saturation.value = 1.15;
+                contrastEnabled.value = true;
+                contrast.value = 1.18;
+                brightnessEnabled.value = true;
+                brightness.value = 0.98;
+                vignetteEnabled.value = true;
+                vignetteStrength.value = 0.35;
+            }
+            case 3 -> { // Klar & Kontrast
+                saturationEnabled.value = true;
+                saturation.value = 1.10;
+                contrastEnabled.value = true;
+                contrast.value = 1.25;
+                brightnessEnabled.value = true;
+                brightness.value = 1.02;
+                vignetteEnabled.value = false;
+                vignetteStrength.value = 0.15;
+            }
+            case 4 -> { // Warm
+                saturationEnabled.value = true;
+                saturation.value = 1.30;
+                contrastEnabled.value = true;
+                contrast.value = 1.05;
+                brightnessEnabled.value = true;
+                brightness.value = 1.10;
+                vignetteEnabled.value = true;
+                vignetteStrength.value = 0.20;
+            }
+        }
+    }
+
     public static boolean isShaderActive() {
         return INSTANCE != null && INSTANCE.enabled;
     }
@@ -127,5 +185,95 @@ public class KollegenShader extends Module {
     public static float getEffectiveVignette() {
         if (!isShaderActive() || !INSTANCE.vignetteEnabled.value) return 0.0f;
         return (float) INSTANCE.vignetteStrength.value;
+    }
+
+    public static float getEffectiveMotionBlur() {
+        if (!isMotionBlurActive()) return 0.0f;
+        return (float) Math.max(0.05, Math.min(0.95, INSTANCE.motionBlurStrength.value));
+    }
+
+    public static void updateShaderUniforms(PostChain chain) {
+        if (chain == null) return;
+        try {
+            float sat = getEffectiveSaturation();
+            float cont = getEffectiveContrast();
+            float bright = getEffectiveBrightness();
+            float vig = getEffectiveVignette();
+
+            for (PostPass pass : ((PostChainAccessor) chain).kollegen$getPasses()) {
+                Map<String, GpuBuffer> uniforms = ((PostPassAccessor) pass).kollegen$getCustomUniforms();
+                if (uniforms == null) continue;
+                GpuBuffer buf = uniforms.get("ShaderConfig");
+                if (buf == null || buf.isClosed()) continue;
+
+                uploadShaderConfig(buf, sat, cont, bright, vig);
+            }
+        } catch (Throwable ignored) {
+        }
+    }
+
+    private static void uploadShaderConfig(GpuBuffer buf, float sat, float cont, float bright, float vig) {
+        ByteBuffer bb = ByteBuffer.allocateDirect(16).order(ByteOrder.nativeOrder());
+        bb.putFloat(sat);
+        bb.putFloat(cont);
+        bb.putFloat(bright);
+        bb.putFloat(vig);
+        bb.flip();
+
+        try {
+            CommandEncoder encoder = RenderSystem.getDevice().createCommandEncoder();
+            encoder.writeToBuffer(buf.slice(), bb);
+            encoder.submit();
+            return;
+        } catch (Throwable ignored) {
+        }
+
+        try (GpuBufferSlice.MappedView view = buf.map(false, true)) {
+            ByteBuffer vbb = view.data();
+            vbb.order(ByteOrder.nativeOrder());
+            vbb.putFloat(0, sat);
+            vbb.putFloat(4, cont);
+            vbb.putFloat(8, bright);
+            vbb.putFloat(12, vig);
+        } catch (Throwable ignored) {
+        }
+    }
+
+    public static void updateBlurUniforms(PostChain chain) {
+        if (chain == null) return;
+        try {
+            float blur = getEffectiveMotionBlur();
+
+            for (PostPass pass : ((PostChainAccessor) chain).kollegen$getPasses()) {
+                Map<String, GpuBuffer> uniforms = ((PostPassAccessor) pass).kollegen$getCustomUniforms();
+                if (uniforms == null) continue;
+                GpuBuffer buf = uniforms.get("BlurConfig");
+                if (buf == null || buf.isClosed()) continue;
+
+                uploadBlurConfig(buf, blur);
+            }
+        } catch (Throwable ignored) {
+        }
+    }
+
+    private static void uploadBlurConfig(GpuBuffer buf, float blur) {
+        ByteBuffer bb = ByteBuffer.allocateDirect(4).order(ByteOrder.nativeOrder());
+        bb.putFloat(blur);
+        bb.flip();
+
+        try {
+            CommandEncoder encoder = RenderSystem.getDevice().createCommandEncoder();
+            encoder.writeToBuffer(buf.slice(), bb);
+            encoder.submit();
+            return;
+        } catch (Throwable ignored) {
+        }
+
+        try (GpuBufferSlice.MappedView view = buf.map(false, true)) {
+            ByteBuffer vbb = view.data();
+            vbb.order(ByteOrder.nativeOrder());
+            vbb.putFloat(0, blur);
+        } catch (Throwable ignored) {
+        }
     }
 }
