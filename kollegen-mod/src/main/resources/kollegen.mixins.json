@@ -53,7 +53,7 @@
     "DynamicGpuDataStorageMappedMixin",
     "DynamicGpuDataStorageNonMappedMixin",
     "CameraMixin",
-    "HumanoidArmorLayerMixin",
+    "EquipmentLayerRendererMixin",
     "AbstractClientPlayerMixin",
     "PostShaderMixin",
     "FirstPersonHandsAndItemsRendererMixin"

@@ -151,6 +151,7 @@ public final class Hud {
         Direction() {
             super("direction", "Richtung", "Blickrichtung als moderne Kompass-Leiste oder Text.");
             this.position.index = 4; // Standard: Oben mittig
+            this.settings.remove(accentBar);
             add(style);
             add(compassWidth);
             add(showDegrees);
@@ -190,9 +191,6 @@ public final class Hud {
             if (background.value) {
                 Glass.fillRound(g, x, y, w, h, 6, backgroundColor.value);
                 Glass.ring(g, x, y, w, h, 6, 0.5f, 0x22FFFFFF);
-            }
-            if (accentBar.value) {
-                Glass.rrGrad(g, x + 2, y + 2, 2.5f, h - 4, 1.2f, Palette.ACCENT, Glass.a(Palette.ACCENT, 0.35f));
             }
 
             markBounds(x, deg ? y - 16 : y, w, totalH);
