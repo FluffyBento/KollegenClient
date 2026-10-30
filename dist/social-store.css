@@ -1847,28 +1847,78 @@ body:not(.console-mode) .store-cats .tab.active::before {
   opacity: 1;
 }
 .skin-card-action-btn {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: var(--panel-elevated);
-  border: 1px solid var(--border-primary);
-  color: var(--text-primary);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  width: 32px !important;
+  height: 32px !important;
+  min-width: 32px !important;
+  min-height: 32px !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border-radius: var(--radius-md);
+  background: var(--panel-elevated) !important;
+  border: 1px solid var(--border-primary) !important;
+  color: var(--text-primary) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
   cursor: pointer;
   transition: var(--transition-fast);
+  box-sizing: border-box !important;
+  outline: none;
+}
+.skin-card-action-btn svg {
+  width: 16px !important;
+  height: 16px !important;
+  display: block !important;
+  stroke: currentColor !important;
+  stroke-width: 2.2 !important;
+  flex-shrink: 0 !important;
+  pointer-events: none;
 }
 .skin-card-action-btn:hover {
-  background: var(--bg-elevated);
-  border-color: var(--accent);
-  color: var(--accent);
+  background: var(--bg-elevated) !important;
+  border-color: var(--accent) !important;
+  color: var(--accent) !important;
   transform: scale(1.08);
 }
 .skin-card-action-btn.btn-del:hover {
-  border-color: var(--danger);
-  color: var(--danger);
-  background: rgba(255, 91, 110, 0.15);
+  border-color: var(--danger) !important;
+  color: var(--danger) !important;
+  background: rgba(255, 91, 110, 0.18) !important;
+}
+
+/* Connection & Account action buttons matching Twitch style */
+.acc-actions button,
+#msAddBtn,
+#discordLoginBtnSettings,
+#discordLogoutBtn {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  padding: 8px 18px !important;
+  background: var(--bg-elevated) !important;
+  border: 1px solid var(--border-primary) !important;
+  border-radius: var(--radius-md) !important;
+  color: var(--text-primary) !important;
+  font-size: 0.85rem !important;
+  font-weight: 600 !important;
+  cursor: pointer;
+  transition: var(--transition-fast);
+  box-sizing: border-box !important;
+}
+.acc-actions button:hover,
+#msAddBtn:hover,
+#discordLoginBtnSettings:hover {
+  background: rgba(var(--accent-rgb), 0.15) !important;
+  border-color: var(--accent) !important;
+  color: var(--accent) !important;
+}
+#discordLogoutBtn:hover,
+.acc-actions button.btn-danger:hover,
+.acc-actions button:last-child:hover {
+  background: rgba(255, 91, 110, 0.15) !important;
+  border-color: var(--danger) !important;
+  color: var(--danger) !important;
 }
 
 /* ==========================================================================

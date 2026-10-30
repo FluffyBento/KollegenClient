@@ -2555,7 +2555,8 @@ async function refreshSettingsAccounts() {
     actions.className = "acc-actions";
     if (i !== 0) {
       const sw = document.createElement("button");
-      sw.textContent = "Wechseln";
+      sw.className = "connection-btn";
+      sw.innerHTML = `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg><span>Wechseln</span>`;
       sw.onclick = async () => {
         try {
           await invoke("ms_switch_account", { uuid: acc.uuid });
@@ -2568,7 +2569,8 @@ async function refreshSettingsAccounts() {
       actions.append(sw);
     }
     const rm = document.createElement("button");
-    rm.textContent = "Entfernen";
+    rm.className = "connection-btn btn-danger";
+    rm.innerHTML = `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg><span>Entfernen</span>`;
     rm.onclick = async () => {
       if (!confirm(`Account '${acc.username || acc.uuid}' wirklich entfernen?`)) return;
       try {
@@ -2842,6 +2844,9 @@ applySavedTheme()
     }
     if (name !== "capes" && typeof clearCapeAnimTimers === "function") {
       clearCapeAnimTimers();
+    }
+    if (name !== "capes" && typeof disposeAllCapeViewers === "function") {
+      disposeAllCapeViewers();
     }
     if (name === "home") {
       // Der Skin-Viewer wird beim Start ggf. erzeugt, bevor das Panel sichtbar
@@ -3133,12 +3138,16 @@ async function loadSkinsLibrary() {
     card.appendChild(modelTag);
 
     card.onclick = async () => {
+      document.querySelectorAll(".skin-card").forEach(c => c.classList.remove("active"));
+      card.classList.add("active");
+      toast(`Skin "${s.name}" aktiviert!`, "ok");
+
       try {
         await invoke("skin_set_active", { name: s.name });
-        await invoke("skin_upload", { name: s.name, data: s.url, variant: isSlim ? "slim" : "classic" });
-        toast(`SKIN "${s.name}" ACTIVATED!`, "ok");
-        loadSkinsLibrary();
         loadHomeSkin(true);
+        invoke("skin_upload", { name: s.name, data: s.url, variant: isSlim ? "slim" : "classic" }).catch(e => {
+          console.warn("Background Mojang skin sync:", e);
+        });
       } catch (err) {
         toast("Skin wechseln fehlgeschlagen: " + err, "error");
       }
@@ -3272,16 +3281,116 @@ if ($("skinSaveBtn")) {
 let activeCapeCat = "all";
 let capeFavOnly = false;
 let capeAnimTimers = [];
+let capeViewers = [];
+let uploadCapeViewer = null;
 
 function clearCapeAnimTimers() {
   capeAnimTimers.forEach(t => clearInterval(t));
   capeAnimTimers = [];
 }
 
+function disposeAllCapeViewers() {
+  capeViewers.forEach(v => {
+    try { v.dispose && v.dispose(); } catch (_) {}
+  });
+  capeViewers = [];
+}
+
+function disposeUploadCapeViewer() {
+  if (uploadCapeViewer) {
+    try { uploadCapeViewer.dispose && uploadCapeViewer.dispose(); } catch (_) {}
+    uploadCapeViewer = null;
+  }
+}
+
+// Convert any standard image (wallpaper, photo, meme, etc.) to 128x64 Minecraft Cape UV layout
+function convertImageToMinecraftCape(source) {
+  try {
+    const sw = source.naturalWidth || source.videoWidth || source.width || 64;
+    const sh = source.naturalHeight || source.videoHeight || source.height || 32;
+
+    // If it's already a standard Minecraft cape template (64x32, 22x17, or 2:1 aspect ratio)
+    if ((sw === 64 && sh === 32) || (sw === 22 && sh === 17) || (sw === 2 * sh && sw <= 1024)) {
+      const c = document.createElement("canvas");
+      c.width = sw;
+      c.height = sh;
+      const ctx = c.getContext("2d");
+      ctx.drawImage(source, 0, 0);
+      return c.toDataURL("image/png");
+    }
+
+    // Convert normal picture to 128x64 Minecraft cape UV layout
+    const W = 128;
+    const H = 64;
+    const c = document.createElement("canvas");
+    c.width = W;
+    c.height = H;
+    const ctx = c.getContext("2d");
+
+    // Cape Back in 128x64: x: 2, y: 2, w: 20, h: 32
+    // Cape Front in 128x64: x: 24, y: 2, w: 20, h: 32
+    const bw = 20;
+    const bh = 32;
+
+    function drawCover(dx, dy, dw, dh, darken = 1.0) {
+      const imgRatio = sw / sh;
+      const destRatio = dw / dh;
+      let sx, sy, sWidth, sHeight;
+      if (imgRatio > destRatio) {
+        sHeight = sh;
+        sWidth = sh * destRatio;
+        sx = (sw - sWidth) / 2;
+        sy = 0;
+      } else {
+        sWidth = sw;
+        sHeight = sw / destRatio;
+        sx = 0;
+        sy = (sh - sHeight) / 2;
+      }
+      ctx.drawImage(source, sx, sy, sWidth, sHeight, dx, dy, dw, dh);
+      if (darken < 1.0) {
+        ctx.fillStyle = `rgba(0,0,0,${1.0 - darken})`;
+        ctx.fillRect(dx, dy, dw, dh);
+      }
+    }
+
+    // Back face (visible behind player)
+    drawCover(2, 2, bw, bh, 1.0);
+    // Front face (facing spine, slightly darker)
+    drawCover(24, 2, bw, bh, 0.75);
+
+    // Edges & borders (top, bottom, left, right)
+    ctx.drawImage(c, 2, 2, bw, 1, 2, 0, bw, 2); // Top
+    ctx.drawImage(c, 2, 2 + bh - 1, bw, 1, 22, 0, bw, 2); // Bottom
+    ctx.drawImage(c, 2, 2, 1, bh, 0, 2, 2, bh); // Left
+    ctx.drawImage(c, 2 + bw - 1, 2, 1, bh, 22, 2, 2, bh); // Right
+
+    return c.toDataURL("image/png");
+  } catch (err) {
+    console.error("Cape conversion failed:", err);
+    return null;
+  }
+}
+
+async function ensureCapeTextureUrl(url) {
+  if (!url) return null;
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      const capeUrl = convertImageToMinecraftCape(img);
+      resolve(capeUrl || url);
+    };
+    img.onerror = () => resolve(url);
+    img.src = url;
+  });
+}
+
 async function loadCapesView() {
   const grid = $("capesGrid");
   if (!grid) return;
   clearCapeAnimTimers();
+  disposeAllCapeViewers();
 
   let capeData = { active_cape: null, capes: [] };
   try {
@@ -3308,8 +3417,15 @@ async function loadCapesView() {
     }
 
     if (Array.isArray(catalog)) {
+      const pkgOwned = new Set();
+      catalog.forEach(it => {
+        if (it && it.category === "package" && (it.owned || it.is_owned) && it.data && Array.isArray(it.data.items)) {
+          it.data.items.forEach(id => pkgOwned.add(id));
+        }
+      });
+
       storeCapes = catalog
-        .filter(it => it && it.category === "cape" && (it.owned || it.is_owned))
+        .filter(it => it && it.category === "cape" && (it.owned || it.is_owned || pkgOwned.has(it.id)))
         .map(it => {
           let tex = "";
           if (it.data && it.data.texture) {
@@ -3372,6 +3488,11 @@ async function loadCapesView() {
     }
   });
 
+  const favList = Array.isArray(capeData.favorites) ? capeData.favorites : [];
+  allCapes.forEach(c => {
+    if (favList.includes(c.id)) c.favorite = true;
+  });
+
   const searchVal = ($("capesSearchInput") ? $("capesSearchInput").value.trim().toLowerCase() : "");
 
   grid.innerHTML = "";
@@ -3403,6 +3524,7 @@ async function loadCapesView() {
 
   allCapes.forEach((c) => {
     if (activeCapeCat === "my_capes" && c.category !== "my_capes") return;
+    if (activeCapeCat === "community" && c.category !== "community") return;
     if (activeCapeCat === "vanilla" && c.category !== "vanilla") return;
     if (activeCapeCat === "gekauft" && c.category !== "gekauft") return;
     if (capeFavOnly && !c.favorite) return;
@@ -3440,21 +3562,72 @@ async function loadCapesView() {
     };
     prevWrap.appendChild(fav);
 
-    if (c.animated && c.frames && c.frames.length > 1) {
-      const img = document.createElement("img");
-      img.src = c.frames[0];
-      img.alt = c.name;
-      prevWrap.appendChild(img);
-      let frameIdx = 0;
-      const interval = Math.max(33, Math.round(1000 / (c.fps || 10)));
-      const timer = setInterval(() => {
-        frameIdx = (frameIdx + 1) % c.frames.length;
-        img.src = c.frames[frameIdx];
-      }, interval);
-      capeAnimTimers.push(timer);
+    // 3D Rotating & Interactive Cape Canvas
+    const canvas = document.createElement("canvas");
+    canvas.width = 160;
+    canvas.height = 180;
+    canvas.className = "cape-card-canvas";
+    prevWrap.appendChild(canvas);
+
+    const initialCapeSrc = (c.frames && c.frames[0]) || c.preview || "";
+    if (window.skinview3d && window.skinview3d.SkinViewer && initialCapeSrc) {
+      ensureCapeTextureUrl(initialCapeSrc).then((validUrl) => {
+        if (!validUrl) return;
+        try {
+          const viewer = new window.skinview3d.SkinViewer({
+            canvas: canvas,
+            width: 160,
+            height: 180,
+            cape: validUrl,
+          });
+          viewer.playerObject.skin.visible = false;
+          viewer.playerObject.cape.visible = true;
+          viewer.playerWrapper.rotation.y = Math.PI; // Face the back of cape towards user
+          viewer.autoRotate = false;
+          viewer.autoRotateSpeed = 2.2;
+          capeViewers.push(viewer);
+
+          setTimeout(() => {
+            try {
+              viewer.renderPaused = true;
+              viewer.render();
+            } catch (_) {}
+          }, 180);
+
+          card.addEventListener("mouseenter", () => {
+            try {
+              viewer.autoRotate = true;
+              viewer.renderPaused = false;
+            } catch (_) {}
+          });
+          card.addEventListener("mouseleave", () => {
+            try {
+              viewer.autoRotate = false;
+              viewer.renderPaused = true;
+            } catch (_) {}
+          });
+
+          // Animation support in 3D
+          if (c.animated && c.frames && c.frames.length > 1) {
+            let fIdx = 0;
+            const interval = Math.max(33, Math.round(1000 / (c.fps || 10)));
+            const timer = setInterval(async () => {
+              if (viewer.renderPaused) return;
+              fIdx = (fIdx + 1) % c.frames.length;
+              const nextUrl = await ensureCapeTextureUrl(c.frames[fIdx]);
+              if (nextUrl) {
+                try { viewer.loadCape(nextUrl); } catch (_) {}
+              }
+            }, interval);
+            capeAnimTimers.push(timer);
+          }
+        } catch (e) {
+          console.warn("Cape 3D viewer failed:", e);
+        }
+      });
     } else {
       const img = document.createElement("img");
-      img.src = c.preview || (c.frames && c.frames[0]) || "";
+      img.src = initialCapeSrc;
       img.alt = c.name;
       prevWrap.appendChild(img);
     }
@@ -3544,6 +3717,8 @@ function openCapeUploadModal() {
   if ($("capeNameField")) $("capeNameField").value = "";
   if ($("capeFilesPicker")) $("capeFilesPicker").value = "";
   if ($("capeFrameManager")) $("capeFrameManager").style.display = "none";
+  if ($("capeUpload3dWrap")) $("capeUpload3dWrap").style.display = "none";
+  disposeUploadCapeViewer();
   modal.removeAttribute("hidden");
   modal.style.display = "flex";
 }
@@ -3555,6 +3730,7 @@ function closeCapeUploadModal() {
     modal.style.display = "none";
   }
   if (animPreviewTimer) clearInterval(animPreviewTimer);
+  disposeUploadCapeViewer();
 }
 
 if ($("capeUploadOpenBtn")) $("capeUploadOpenBtn").onclick = openCapeUploadModal;
@@ -3599,8 +3775,10 @@ if ($("capeFilesPicker")) {
       r.readAsDataURL(f);
     }));
 
-    const results = await Promise.all(readPromises);
-    uploadedCapeFrames = results;
+    const rawResults = await Promise.all(readPromises);
+    // Convert normal images or templates into proper Minecraft Cape UV layout
+    const formatted = await Promise.all(rawResults.map(raw => ensureCapeTextureUrl(raw)));
+    uploadedCapeFrames = formatted.filter(Boolean);
     renderFrameManager();
   };
 }
@@ -3609,12 +3787,34 @@ function renderFrameManager() {
   const mgr = $("capeFrameManager");
   const list = $("capeFramesList");
   const count = $("capeFrameCount");
+  const wrap3d = $("capeUpload3dWrap");
+  const canvas3d = $("capeUpload3dCanvas");
   if (!mgr || !list) return;
 
   if (uploadedCapeFrames.length > 0) {
     mgr.style.display = "block";
+    if (wrap3d) wrap3d.style.display = "flex";
     if (count) count.textContent = uploadedCapeFrames.length;
     list.innerHTML = "";
+
+    // 3D Rotating Preview in Upload Modal
+    if (canvas3d && window.skinview3d && window.skinview3d.SkinViewer) {
+      if (!uploadCapeViewer || uploadCapeViewer.disposed) {
+        uploadCapeViewer = new window.skinview3d.SkinViewer({
+          canvas: canvas3d,
+          width: 160,
+          height: 200,
+        });
+        uploadCapeViewer.playerObject.skin.visible = false;
+        uploadCapeViewer.playerObject.cape.visible = true;
+        uploadCapeViewer.playerWrapper.rotation.y = Math.PI; // Face the back of cape towards user
+        uploadCapeViewer.autoRotate = true; // Auto rotates!
+        uploadCapeViewer.autoRotateSpeed = 2.2;
+      }
+      uploadCapeViewer.loadCape(uploadedCapeFrames[0]);
+      uploadCapeViewer.autoRotate = true;
+      uploadCapeViewer.renderPaused = false;
+    }
 
     uploadedCapeFrames.forEach((frame, idx) => {
       const row = document.createElement("div");
@@ -3660,6 +3860,8 @@ function renderFrameManager() {
     restartAnimPreview();
   } else {
     mgr.style.display = "none";
+    if (wrap3d) wrap3d.style.display = "none";
+    disposeUploadCapeViewer();
   }
 }
 
@@ -3672,13 +3874,17 @@ function restartAnimPreview() {
   let idx = 0;
 
   function drawCurrent() {
+    const frame = uploadedCapeFrames[idx];
+    if (uploadCapeViewer && !uploadCapeViewer.disposed) {
+      try { uploadCapeViewer.loadCape(frame); } catch (_) {}
+    }
     const img = new Image();
     img.onload = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.imageSmoothingEnabled = false;
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
     };
-    img.src = uploadedCapeFrames[idx];
+    img.src = frame;
   }
 
   drawCurrent();
