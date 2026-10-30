@@ -210,6 +210,8 @@ public final class Icons {
                 return BAG;
             case "COSMETICS":
                 return SPARKLE;
+            case "SKIN_CAPE":
+                return USER;
             case "PETS":
                 return PAW;
             default:

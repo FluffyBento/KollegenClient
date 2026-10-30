@@ -46,6 +46,34 @@ pub fn find_java(data_dir: &Path, required_version: u32) -> Result<String> {
     }
     exact.push(data_dir.join("jre").join("bin").join(exe));
 
+    #[cfg(unix)]
+    {
+        for jvm_root in ["/usr/lib/jvm", "/usr/lib64/jvm"] {
+            if let Ok(entries) = std::fs::read_dir(jvm_root) {
+                for e in entries.flatten() {
+                    let p = e.path().join("bin").join(exe);
+                    if p.exists() {
+                        exact.push(p);
+                    }
+                }
+            }
+        }
+    }
+
+    #[cfg(windows)]
+    {
+        for prog in ["C:\\Program Files\\Java", "C:\\Program Files\\Eclipse Adoptium", "C:\\Program Files\\Microsoft"] {
+            if let Ok(entries) = std::fs::read_dir(prog) {
+                for e in entries.flatten() {
+                    let p = e.path().join("bin").join(exe);
+                    if p.exists() {
+                        exact.push(p);
+                    }
+                }
+            }
+        }
+    }
+
     for p in &exact {
         if p.exists() && java_major(p) == Some(required_version) {
             return Ok(p.to_string_lossy().into_owned());

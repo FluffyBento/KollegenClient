@@ -7,6 +7,8 @@
 mod app_updates;
 mod auth;
 mod skins;
+mod capes;
+mod twitch_auth;
 mod companion;
 mod import;
 mod presence;
@@ -1366,6 +1368,13 @@ fn launch_game(
             cfg.join("kollegen-server.txt"),
             format!("{}\n", crate::presence::mod_backend_url(&state.data_dir)),
         );
+        let skins_idx = skins::list_skins(&state.data_dir);
+        let _ = utils::save_json(&cfg.join("kollegen-skins.json"), &skins_idx);
+        let capes_data = capes::load_capes(&state.data_dir);
+        let _ = utils::save_json(&cfg.join("kollegen-cape.json"), &serde_json::json!({
+            "active": capes_data.active_cape,
+            "all_capes": capes_data.capes,
+        }));
     }
 
     
@@ -1397,6 +1406,15 @@ fn launch_game(
         }
         from_json.unwrap_or(fallback)
     };
+
+    // Java 25 / OpenJDK 25 direkt installieren, falls noch nicht installiert
+    if java::find_java(&state.data_dir, 25).is_err() {
+        utils::append_log(&state, "Java 25 / OpenJDK 25 nicht gefunden – lade OpenJDK 25 automatisch herunter...");
+        match java::download_jre_internal(25) {
+            Ok(p) => utils::append_log(&state, &format!("Java 25 erfolgreich installiert: {}", p)),
+            Err(e) => utils::append_log(&state, &format!("Hinweis: Java 25 Auto-Installation: {}", e)),
+        }
+    }
 
     let java_path = match java::find_java(&state.data_dir, required_java) {
         Ok(p) => p,
@@ -2191,6 +2209,87 @@ fn cape_equip(state: State<'_, AppState>, cape_id: String) -> Value {
 }
 
 #[tauri::command]
+fn twitch_get_account(state: State<'_, AppState>) -> twitch_auth::TwitchAccount {
+    twitch_auth::load(&state.data_dir)
+}
+
+#[tauri::command]
+fn twitch_link(
+    state: State<'_, AppState>,
+    username: String,
+    token: Option<String>,
+) -> twitch_auth::TwitchAccount {
+    twitch_auth::link(&state.data_dir, &username, token)
+}
+
+#[tauri::command]
+fn twitch_unlink(state: State<'_, AppState>) -> Result<(), String> {
+    twitch_auth::unlink(&state.data_dir);
+    Ok(())
+}
+
+#[tauri::command]
+fn skin_edit(
+    state: State<'_, AppState>,
+    old_name: String,
+    new_name: String,
+    model: String,
+) -> Value {
+    crate::skins::edit_skin(&state.data_dir, &old_name, &new_name, &model)
+}
+
+#[tauri::command]
+fn skin_import_with_model(
+    state: State<'_, AppState>,
+    name: String,
+    data: String,
+    model: String,
+) -> Value {
+    match crate::skins::b64_to_bytes(&data) {
+        Ok(bytes) => crate::skins::import_skin_with_model(&state.data_dir, &name, &bytes, &model),
+        Err(e) => serde_json::json!({ "error": e }),
+    }
+}
+
+#[tauri::command]
+fn capes_list(state: State<'_, AppState>) -> capes::CapeStoreData {
+    capes::load_capes(&state.data_dir)
+}
+
+#[tauri::command]
+fn capes_set_active(state: State<'_, AppState>, cape_id: Option<String>) -> Result<(), String> {
+    capes::set_active_cape(&state.data_dir, cape_id)
+}
+
+#[tauri::command]
+fn capes_toggle_favorite(state: State<'_, AppState>, cape_id: String) -> bool {
+    capes::toggle_favorite(&state.data_dir, &cape_id)
+}
+
+#[tauri::command]
+fn capes_upload(
+    state: State<'_, AppState>,
+    name: String,
+    images: Vec<String>,
+    fps: u32,
+) -> Result<capes::CapeEntry, String> {
+    capes::upload_cape(&state.data_dir, &name, images, fps)
+}
+
+#[tauri::command]
+fn capes_delete(state: State<'_, AppState>, cape_id: String) -> Result<(), String> {
+    capes::delete_custom_cape(&state.data_dir, &cape_id)
+}
+
+#[tauri::command]
+fn ensure_java_25(state: State<'_, AppState>) -> Result<String, String> {
+    if let Ok(p) = java::find_java(&state.data_dir, 25) {
+        return Ok(p);
+    }
+    java::download_jre_internal(25).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 fn kollegen_mod_asset(state: State<'_, AppState>, file: String) -> Value {
     crate::skins::read_mod_asset(&state.data_dir, &file)
 }
@@ -2898,6 +2997,17 @@ fn main() {
             skin_upload,
             skin_mc_profile,
             cape_equip,
+            twitch_get_account,
+            twitch_link,
+            twitch_unlink,
+            skin_edit,
+            skin_import_with_model,
+            capes_list,
+            capes_set_active,
+            capes_toggle_favorite,
+            capes_upload,
+            capes_delete,
+            ensure_java_25,
             get_minecraft_profile_by_name,
             open_logs_folder,
             open_instance_folder,
