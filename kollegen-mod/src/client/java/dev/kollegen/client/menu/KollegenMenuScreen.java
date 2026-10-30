@@ -27,8 +27,10 @@ import dev.kollegen.client.ui.Icons;
 import dev.kollegen.client.ui.LogoDraw;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Supplier;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.Minecraft;
@@ -36,11 +38,15 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.events.GuiEventListener;
+import net.minecraft.client.gui.components.PlayerFaceExtractor;
+import net.minecraft.client.gui.screens.inventory.InventoryScreen;
+import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
+import org.joml.Matrix3x2fStack;
 
 public class KollegenMenuScreen extends Screen {
     private static final int K_MOD = 0;
@@ -59,6 +65,9 @@ public class KollegenMenuScreen extends Screen {
     private static final int K_SKIN_ITEM = 14;
     private static final int K_CAPE_ITEM = 15;
     private static final int K_CAPE_TAB = 16;
+    private static final int K_COS_TAB = 17;
+    private static final int K_COS_PREVIEW = 18;
+    private static final int K_SKIN_CAPE_TOP_TAB = 19;
     private static final int GAP = 6;
     private static final int PET_ACTIVE_H = 92;
 
@@ -124,7 +133,9 @@ public class KollegenMenuScreen extends Screen {
     private String petNamePetId = "";
     private String petNameValue = "";
     private boolean hasPetActive = false;
-    private String capeCatFilter = "skins";
+    private String skinCapeMode = "skins";
+    private String capeCatFilter = "all";
+    private String cosSubTab = "name";
     private String inGameActiveCape = null;
     private String inGameActiveSkin = null;
 
@@ -573,10 +584,11 @@ public class KollegenMenuScreen extends Screen {
         return 99;
     }
 
+    private static boolean isNameCosmetic(String c) {
+        return "name_color".equalsIgnoreCase(c) || "title".equalsIgnoreCase(c) || "badge".equalsIgnoreCase(c) || "font".equalsIgnoreCase(c) || "sticker".equalsIgnoreCase(c);
+    }
+
     private static boolean isCosmeticCat(String c) {
-        if ("cape".equals(c)) {
-            return false;
-        }
         for (String s : SLOT_ORDER) {
             if (s.equals(c)) {
                 return true;
@@ -786,13 +798,41 @@ public class KollegenMenuScreen extends Screen {
             return;
         }
         if (cat == Category.COSMETICS) {
+            // Tabs: Name Cosmetics vs Skin Cosmetics
+            this.addFull(K_COS_TAB, 22.0f);
+
+            // Live Preview Card
+            this.addFull(K_COS_PREVIEW, "name".equalsIgnoreCase(this.cosSubTab) ? 52.0f : 108.0f);
+
+            Set<String> pkgOwned = new HashSet<String>();
+            for (JsonObject it : all) {
+                if ("package".equals(str(it, "category", "")) && (bool(it, "owned") || bool(it, "is_owned")) && it.has("data") && it.getAsJsonObject("data").has("items")) {
+                    for (JsonElement itemEl : it.getAsJsonObject("data").getAsJsonArray("items")) {
+                        pkgOwned.add(itemEl.getAsString());
+                    }
+                }
+            }
+
             List<JsonObject> active = new ArrayList<JsonObject>();
             List<JsonObject> rest = new ArrayList<JsonObject>();
             for (JsonObject it : all) {
-                if (!bool(it, "owned") || !isCosmeticCat(str(it, "category", "")) || !matchQuery(it, q)) {
+                String icat = str(it, "category", "");
+                if ("cape".equalsIgnoreCase(icat) || "pet".equalsIgnoreCase(icat) || "package".equalsIgnoreCase(icat)) {
                     continue;
                 }
-                if (str(it, "id", "").equals(this.equippedId(str(it, "category", "")))) {
+                boolean owned = bool(it, "owned") || bool(it, "is_owned") || pkgOwned.contains(str(it, "id", ""));
+                if (!owned || !isCosmeticCat(icat) || !matchQuery(it, q)) {
+                    continue;
+                }
+                boolean isName = isNameCosmetic(icat);
+                if ("name".equalsIgnoreCase(this.cosSubTab) && !isName) {
+                    continue;
+                }
+                if ("skin".equalsIgnoreCase(this.cosSubTab) && isName) {
+                    continue;
+                }
+
+                if (str(it, "id", "").equals(this.equippedId(icat))) {
                     active.add(it);
                 } else {
                     rest.add(it);
@@ -829,7 +869,7 @@ public class KollegenMenuScreen extends Screen {
             }
             if (active.isEmpty() && rest.isEmpty() && this.storeCache != null) {
                 Cell e = this.addFull(K_TEXT, 30.0f);
-                e.text = "Noch keine Cosmetics im Besitz.";
+                e.text = "name".equalsIgnoreCase(this.cosSubTab) ? "Noch keine Name-Cosmetics im Besitz." : "Noch keine Skin-Cosmetics im Besitz.";
             }
             return;
         }
@@ -1249,8 +1289,21 @@ public class KollegenMenuScreen extends Screen {
                     this.equipCapeInGame(capeId, capeTex);
                     return true;
                 }
+                case K_SKIN_CAPE_TOP_TAB: {
+                    float tw = c.w / 2.0f;
+                    if (hit(mx, my, X, Y, tw, c.h)) {
+                        this.skinCapeMode = "skins";
+                        this.relayout();
+                        return true;
+                    } else if (hit(mx, my, X + tw, Y, tw, c.h)) {
+                        this.skinCapeMode = "capes";
+                        this.relayout();
+                        return true;
+                    }
+                    return false;
+                }
                 case K_CAPE_TAB: {
-                    String[] tabs = new String[]{"skins", "all", "my_capes", "favorites", "vanilla", "gekauft"};
+                    String[] tabs = new String[]{"all", "my_capes", "community", "gekauft", "vanilla", "favorites"};
                     float tw = c.w / tabs.length;
                     for (int i = 0; i < tabs.length; i++) {
                         if (hit(mx, my, X + i * tw, Y, tw, c.h)) {
@@ -1258,6 +1311,19 @@ public class KollegenMenuScreen extends Screen {
                             this.relayout();
                             return true;
                         }
+                    }
+                    return false;
+                }
+                case K_COS_TAB: {
+                    float tw = c.w / 2.0f;
+                    if (hit(mx, my, X, Y, tw, c.h)) {
+                        this.cosSubTab = "name";
+                        this.relayout();
+                        return true;
+                    } else if (hit(mx, my, X + tw, Y, tw, c.h)) {
+                        this.cosSubTab = "skin";
+                        this.relayout();
+                        return true;
                     }
                     return false;
                 }
@@ -1498,6 +1564,15 @@ public class KollegenMenuScreen extends Screen {
                     break;
                 case K_CAPE_TAB:
                     this.drawCapeTabs(g, c, X, Y, (int) mx, (int) my);
+                    break;
+                case K_SKIN_CAPE_TOP_TAB:
+                    this.drawSkinCapeTopTabs(g, c, X, Y, (int) mx, (int) my);
+                    break;
+                case K_COS_TAB:
+                    this.drawCosTabs(g, c, X, Y, (int) mx, (int) my);
+                    break;
+                case K_COS_PREVIEW:
+                    this.drawCosPreview(g, c, X, Y, (int) mx, (int) my);
                     break;
                 default:
                     break;
@@ -1759,15 +1834,17 @@ public class KollegenMenuScreen extends Screen {
     }
 
     private void layoutSkinAndCape(String q) {
+        this.ensureStore();
         Cell t = this.addFull(K_TITLE, 20.0f);
         t.text = "Skin & Cape wechseln";
         t.data = new JsonObject();
         t.data.addProperty("sub", "Skins & Capes direkt im Spiel auswählen");
 
-        Cell tabCell = this.addFull(K_CAPE_TAB, 22.0f);
+        // Top Tabs: Skins vs Capes
+        this.addFull(K_SKIN_CAPE_TOP_TAB, 24.0f);
         int cols = this.compact ? 1 : 2;
 
-        if ("skins".equalsIgnoreCase(this.capeCatFilter)) {
+        if ("skins".equalsIgnoreCase(this.skinCapeMode)) {
             Cell inf = this.addFull(K_INFO, 18.0f);
             inf.text = "Skin-Bibliothek";
 
@@ -1781,9 +1858,13 @@ public class KollegenMenuScreen extends Screen {
                 sc.data = skin;
             }
         } else {
+            // Capes subtabs
+            this.addFull(K_CAPE_TAB, 22.0f);
             Cell inf = this.addFull(K_INFO, 18.0f);
             if ("my_capes".equalsIgnoreCase(this.capeCatFilter)) {
                 inf.text = "Meine Capes";
+            } else if ("community".equalsIgnoreCase(this.capeCatFilter)) {
+                inf.text = "Community Capes";
             } else if ("favorites".equalsIgnoreCase(this.capeCatFilter)) {
                 inf.text = "Favoriten";
             } else if ("vanilla".equalsIgnoreCase(this.capeCatFilter)) {
@@ -1791,7 +1872,7 @@ public class KollegenMenuScreen extends Screen {
             } else if ("gekauft".equalsIgnoreCase(this.capeCatFilter)) {
                 inf.text = "Gekaufte Store Capes";
             } else {
-                inf.text = "Alle Capes (Community & Minecraft)";
+                inf.text = "Alle Capes";
             }
 
             if (q.isEmpty() || "kein".contains(q.toLowerCase()) || "none".contains(q.toLowerCase())) {
@@ -1811,7 +1892,10 @@ public class KollegenMenuScreen extends Screen {
                 String cat = str(cape, "category", "community");
                 boolean fav = cape.has("favorite") && cape.get("favorite").getAsBoolean();
 
-                if ("my_capes".equalsIgnoreCase(this.capeCatFilter) && !"custom".equalsIgnoreCase(cat) && !"my".equalsIgnoreCase(cat)) {
+                if ("my_capes".equalsIgnoreCase(this.capeCatFilter) && !"my_capes".equalsIgnoreCase(cat) && !"custom".equalsIgnoreCase(cat) && !"my".equalsIgnoreCase(cat)) {
+                    continue;
+                }
+                if ("community".equalsIgnoreCase(this.capeCatFilter) && !"community".equalsIgnoreCase(cat)) {
                     continue;
                 }
                 if ("favorites".equalsIgnoreCase(this.capeCatFilter) && !fav) {
@@ -1837,9 +1921,26 @@ public class KollegenMenuScreen extends Screen {
         }
     }
 
+    private void drawSkinCapeTopTabs(GuiGraphicsExtractor g, Cell c, float X, float Y, int mx, int my) {
+        String[] tabs = new String[]{"skins", "capes"};
+        String[] labels = new String[]{"Skins", "Capes"};
+        float tw = c.w / tabs.length;
+        for (int i = 0; i < tabs.length; i++) {
+            float tx = X + i * tw;
+            boolean active = tabs[i].equalsIgnoreCase(this.skinCapeMode);
+            boolean hov = hit(mx, my, tx, Y, tw - 2, c.h);
+            int bg = active ? Glass.a(Palette.ACCENT, 0.50f) : (hov ? Glass.a(0xFFFFFF, 0.12f) : Glass.a(0x000000, 0.30f));
+            int border = active ? Glass.a(Palette.ACCENT, 0.9f) : (hov ? 0x66FFFFFF : 0x22FFFFFF);
+            Glass.rr(g, tx, Y, tw - 2, c.h, 6, bg);
+            Glass.ring(g, tx, Y, tw - 2, c.h, 6, 0.5f, border);
+            int textColor = active ? 0xFFFFFFFF : (hov ? Palette.TEXT : Palette.MUTED);
+            Glass.textC(g, this.font, labels[i], Math.round(tx + (tw - 2) / 2.0f), Math.round(Y + (c.h - 8) / 2.0f), textColor, active);
+        }
+    }
+
     private void drawCapeTabs(GuiGraphicsExtractor g, Cell c, float X, float Y, int mx, int my) {
-        String[] tabs = new String[]{"skins", "all", "my_capes", "favorites", "vanilla", "gekauft"};
-        String[] labels = new String[]{"Skins", "Alle", "Meine", "Favoriten", "Vanilla", "Gekauft"};
+        String[] tabs = new String[]{"all", "my_capes", "community", "gekauft", "vanilla", "favorites"};
+        String[] labels = new String[]{"Alle", "Meine", "Community", "Gekauft", "Vanilla", "Favoriten"};
         float tw = c.w / tabs.length;
         for (int i = 0; i < tabs.length; i++) {
             float tx = X + i * tw;
@@ -1854,6 +1955,146 @@ public class KollegenMenuScreen extends Screen {
         }
     }
 
+    private void drawCosTabs(GuiGraphicsExtractor g, Cell c, float X, float Y, int mx, int my) {
+        String[] tabs = new String[]{"name", "skin"};
+        String[] labels = new String[]{"Name Cosmetics", "Skin Cosmetics"};
+        float tw = c.w / tabs.length;
+        for (int i = 0; i < tabs.length; i++) {
+            float tx = X + i * tw;
+            boolean active = tabs[i].equalsIgnoreCase(this.cosSubTab);
+            boolean hov = hit(mx, my, tx, Y, tw - 2, c.h);
+            int bg = active ? Glass.a(Palette.ACCENT, 0.45f) : (hov ? Glass.a(0xFFFFFF, 0.12f) : Glass.a(0x000000, 0.25f));
+            int border = active ? Glass.a(Palette.ACCENT, 0.9f) : (hov ? 0x66FFFFFF : 0x22FFFFFF);
+            Glass.rr(g, tx, Y, tw - 2, c.h, 6, bg);
+            Glass.ring(g, tx, Y, tw - 2, c.h, 6, 0.5f, border);
+            int textColor = active ? 0xFFFFFFFF : (hov ? Palette.TEXT : Palette.MUTED);
+            Glass.textC(g, this.font, labels[i], Math.round(tx + (tw - 2) / 2.0f), Math.round(Y + (c.h - 8) / 2.0f), textColor, active);
+        }
+    }
+
+    private void drawCosPreview(GuiGraphicsExtractor g, Cell c, float X, float Y, int mx, int my) {
+        Glass.glassCard(g, X, Y, c.w, c.h, 8, Glass.a(0x000000, 0.35f), Glass.opacity * 0.9f, 0.0f, 0x33FFFFFF);
+        if ("name".equalsIgnoreCase(this.cosSubTab)) {
+            Glass.text(g, this.font, "VORSCHAU · NAMETAG", Math.round(X + 10), Math.round(Y + 6), Palette.MUTED, false);
+
+            Minecraft mc = Minecraft.getInstance();
+            String pName = mc.getUser() != null ? mc.getUser().getName() : "Spieler";
+            String title = "";
+            int titleColor = Palette.TEXT;
+            int nameColor = Palette.TEXT;
+            String badge = "";
+            int badgeColor = Palette.ACCENT;
+            String sticker = "";
+
+            if (this.storeCache != null && this.storeCache.has("catalog")) {
+                String eqTitle = this.equippedId("title");
+                String eqColor = this.equippedId("name_color");
+                String eqBadge = this.equippedId("badge");
+                String eqSticker = this.equippedId("sticker");
+
+                for (JsonElement el : this.storeCache.getAsJsonArray("catalog")) {
+                    if (!el.isJsonObject()) continue;
+                    JsonObject it = el.getAsJsonObject();
+                    String id = str(it, "id", "");
+                    if (id.equals(eqTitle)) {
+                        title = str(it, "name", "");
+                        if (it.has("data") && it.getAsJsonObject("data").has("color")) {
+                            titleColor = parseHex(str(it.getAsJsonObject("data"), "color", "#ffffff"), Palette.TEXT);
+                        }
+                    } else if (id.equals(eqColor)) {
+                        if (it.has("data") && it.getAsJsonObject("data").has("color")) {
+                            nameColor = parseHex(str(it.getAsJsonObject("data"), "color", "#ffffff"), Palette.TEXT);
+                        }
+                    } else if (id.equals(eqBadge)) {
+                        if (it.has("data") && it.getAsJsonObject("data").has("icon")) {
+                            badge = str(it.getAsJsonObject("data"), "icon", "");
+                        }
+                        if (it.has("data") && it.getAsJsonObject("data").has("color")) {
+                            badgeColor = parseHex(str(it.getAsJsonObject("data"), "color", "#ffc400"), Palette.ACCENT);
+                        }
+                    } else if (id.equals(eqSticker)) {
+                        if (it.has("data") && it.getAsJsonObject("data").has("icon")) {
+                            sticker = str(it.getAsJsonObject("data"), "icon", "");
+                        }
+                    }
+                }
+            }
+
+            int lvl = this.storeCache != null ? num(this.storeCache, "level", 1) : 1;
+            String lvlText = "[LVL " + lvl + "] ";
+            String tag = (title.isEmpty() ? "" : "[" + title + "] ") + pName + (sticker.isEmpty() ? "" : " " + sticker);
+
+            int lvlW = this.font.width(lvlText);
+            int tagW = this.font.width(tag);
+            int totalW = lvlW + tagW + (badge.isEmpty() ? 0 : 14);
+
+            float px = X + (c.w - totalW) / 2.0f;
+            float py = Y + 24.0f;
+
+            Glass.rr(g, px - 6, py - 3, totalW + 12, 16, 4, Glass.a(0x000000, 0.55f));
+
+            float curX = px;
+            if (!badge.isEmpty()) {
+                Glass.text(g, this.font, badge + " ", Math.round(curX), Math.round(py), badgeColor, false);
+                curX += this.font.width(badge + " ");
+            }
+            Glass.textBold(g, this.font, lvlText, Math.round(curX), Math.round(py), Palette.ACCENT2, false);
+            curX += lvlW;
+
+            if (!title.isEmpty()) {
+                String tStr = "[" + title + "] ";
+                Glass.textBold(g, this.font, tStr, Math.round(curX), Math.round(py), titleColor, false);
+                curX += this.font.width(tStr);
+            }
+            Glass.textBold(g, this.font, pName, Math.round(curX), Math.round(py), nameColor, false);
+            curX += this.font.width(pName);
+
+            if (!sticker.isEmpty()) {
+                Glass.text(g, this.font, " " + sticker, Math.round(curX), Math.round(py), Palette.TEXT, false);
+            }
+        } else {
+            Glass.text(g, this.font, "VORSCHAU · SKIN COSMETICS", Math.round(X + 10), Math.round(Y + 6), Palette.MUTED, false);
+
+            Minecraft mc = Minecraft.getInstance();
+            if (mc.player != null) {
+                try {
+                    InventoryScreen.extractEntityInInventoryFollowsMouse(g, Math.round(X + 14), Math.round(Y + 14), Math.round(X + 74), Math.round(Y + 100), 40, 0.0f, (float) mx, (float) my, mc.player);
+                } catch (Throwable ignored) {
+                }
+            } else {
+                Identifier skinTex = SkinCapeTextureManager.getOrLoadSkin(mc.getUser() != null ? mc.getUser().getName() : "Player", null);
+                if (skinTex != null) {
+                    try {
+                        PlayerFaceExtractor.extractRenderState(g, skinTex, Math.round(X + 22), Math.round(Y + 28), 50, true, false, -1);
+                    } catch (Throwable ignored) {
+                    }
+                }
+            }
+
+            float infoX = X + 86;
+            float infoY = Y + 22;
+            Glass.text(g, this.font, "Ausrüstung im Spiel:", Math.round(infoX), Math.round(infoY), Palette.TEXT, true);
+            infoY += 14;
+
+            String[] slots = new String[]{"head_accessory", "face_accessory", "back_accessory", "aura"};
+            String[] slotNames = new String[]{"Kopf", "Gesicht", "Rücken", "Aura"};
+            for (int i = 0; i < slots.length; i++) {
+                String eqId = this.equippedId(slots[i]);
+                String eqName = "Keine";
+                if (!eqId.isEmpty() && this.storeCache != null && this.storeCache.has("catalog")) {
+                    for (JsonElement el : this.storeCache.getAsJsonArray("catalog")) {
+                        if (el.isJsonObject() && str(el.getAsJsonObject(), "id", "").equals(eqId)) {
+                            eqName = str(el.getAsJsonObject(), "name", eqId);
+                            break;
+                        }
+                    }
+                }
+                Glass.text(g, this.font, slotNames[i] + ": " + eqName, Math.round(infoX), Math.round(infoY), eqId.isEmpty() ? Palette.MUTED : Palette.ACCENT, false);
+                infoY += 12;
+            }
+        }
+    }
+
     private void drawSkinCard(GuiGraphicsExtractor g, Cell c, float X, float Y, boolean hov) {
         JsonObject d = c.data;
         String name = str(d, "name", "Skin");
@@ -1865,8 +2106,19 @@ public class KollegenMenuScreen extends Screen {
         int border = eq ? Glass.a(Palette.ACCENT, 0.9f) : (h > 0.01f ? Glass.a(0xFFFFFFFF, 0.35f * h) : 0x38FFFFFF);
         Glass.glassCard(g, X, Y, c.w, c.h, 9, Glass.mix(Palette.PANEL, Palette.ACCENT, 0.05f * h), Glass.opacity * (0.85f + 0.3f * h), 0.0f, border);
 
-        Glass.rr(g, X + 7, Y + 6, 36, 36, 8, Glass.a(Palette.ACCENT, 0.18f));
-        Icons.draw(g, Icons.USER, X + 7 + 36 * 0.22f, Y + 6 + 36 * 0.22f, 36 * 0.56f, Palette.ACCENT);
+        Identifier skinTex = SkinCapeTextureManager.getOrLoadSkin(name, str(d, "file", null));
+        if (skinTex != null) {
+            try {
+                PlayerFaceExtractor.extractRenderState(g, skinTex, Math.round(X + 7), Math.round(Y + 6), 36, true, false, -1);
+                Glass.ring(g, X + 7, Y + 6, 36, 36, 4, 0.5f, 0x33FFFFFF);
+            } catch (Throwable t) {
+                Glass.rr(g, X + 7, Y + 6, 36, 36, 8, Glass.a(Palette.ACCENT, 0.18f));
+                Icons.draw(g, Icons.USER, X + 7 + 36 * 0.22f, Y + 6 + 36 * 0.22f, 36 * 0.56f, Palette.ACCENT);
+            }
+        } else {
+            Glass.rr(g, X + 7, Y + 6, 36, 36, 8, Glass.a(Palette.ACCENT, 0.18f));
+            Icons.draw(g, Icons.USER, X + 7 + 36 * 0.22f, Y + 6 + 36 * 0.22f, 36 * 0.56f, Palette.ACCENT);
+        }
 
         if (c.truncTitle == null) {
             c.truncTitle = Glass.trunc(this.font, name, (int) (c.w - 120));
@@ -1887,6 +2139,13 @@ public class KollegenMenuScreen extends Screen {
         String id = str(d, "id", "");
         String name = str(d, "name", id);
         String author = str(d, "author", "Community");
+        String texRaw = str(d, "texture", "");
+        if (texRaw.isEmpty() && d.has("preview") && !d.get("preview").isJsonNull()) {
+            texRaw = d.get("preview").getAsString();
+        } else if (texRaw.isEmpty() && d.has("frames") && d.get("frames").isJsonArray() && d.getAsJsonArray("frames").size() > 0) {
+            texRaw = d.getAsJsonArray("frames").get(0).getAsString();
+        }
+
         int uses = num(d, "uses", 0);
         boolean isNone = "none".equalsIgnoreCase(id);
         boolean eq = isNone ? (this.inGameActiveCape == null || this.inGameActiveCape.isEmpty()) : id.equalsIgnoreCase(this.inGameActiveCape);
@@ -1904,9 +2163,26 @@ public class KollegenMenuScreen extends Screen {
             Glass.ring(g, cx, cy, cw, ch, 4, 0.5f, 0x44FFFFFF);
             Icons.draw(g, Icons.CLOSE, cx + 5, cy + 11, 14, Palette.MUTED);
         } else {
-            Glass.rr(g, cx, cy, cw, ch, 4, Glass.a(Palette.ACCENT, 0.28f));
-            Glass.ring(g, cx, cy, cw, ch, 4, 0.5f, Glass.a(Palette.ACCENT, 0.75f));
-            Icons.draw(g, Icons.SPARKLE, cx + 5, cy + 11, 14, Palette.ACCENT);
+            Identifier capeTex = SkinCapeTextureManager.getOrLoadCape(id, texRaw);
+            if (capeTex != null) {
+                try {
+                    Matrix3x2fStack pose = g.pose();
+                    pose.pushMatrix();
+                    pose.translate(cx, cy);
+                    pose.scale(cw / 10.0f, ch / 16.0f);
+                    g.blit(RenderPipelines.GUI_TEXTURED, capeTex, 0, 0, 1.0f, 1.0f, 10, 16, 64, 32);
+                    pose.popMatrix();
+                    Glass.ring(g, cx, cy, cw, ch, 4, 0.5f, 0x44FFFFFF);
+                } catch (Throwable t) {
+                    Glass.rr(g, cx, cy, cw, ch, 4, Glass.a(Palette.ACCENT, 0.28f));
+                    Glass.ring(g, cx, cy, cw, ch, 4, 0.5f, Glass.a(Palette.ACCENT, 0.75f));
+                    Icons.draw(g, Icons.SPARKLE, cx + 5, cy + 11, 14, Palette.ACCENT);
+                }
+            } else {
+                Glass.rr(g, cx, cy, cw, ch, 4, Glass.a(Palette.ACCENT, 0.28f));
+                Glass.ring(g, cx, cy, cw, ch, 4, 0.5f, Glass.a(Palette.ACCENT, 0.75f));
+                Icons.draw(g, Icons.SPARKLE, cx + 5, cy + 11, 14, Palette.ACCENT);
+            }
         }
 
         if (c.truncTitle == null) {
@@ -1945,9 +2221,11 @@ public class KollegenMenuScreen extends Screen {
         if ("none".equalsIgnoreCase(capeId) || capeId.isEmpty()) {
             this.inGameActiveCape = null;
             KollegenPresence.setLocalCape(null);
+            this.runStoreAction("Cape abgelegt", () -> StoreClient.unequipCategory("cape"));
         } else {
             this.inGameActiveCape = capeId;
             KollegenPresence.setLocalCape(capeTex != null && !capeTex.isEmpty() ? capeTex : capeId);
+            this.runStoreAction("Cape ausgewählt", () -> StoreClient.equipItem(capeId));
         }
         try {
             Path p = FabricLoader.getInstance().getConfigDir().resolve("kollegen-cape.json");
@@ -1968,7 +2246,10 @@ public class KollegenMenuScreen extends Screen {
             Path p = FabricLoader.getInstance().getConfigDir().resolve("kollegen-skins.json");
             if (!Files.exists(p)) {
                 String home = System.getProperty("user.home", "");
-                Path lp = Path.of(home, ".local", "share", "kollegen-launcher", "skins", "index.json");
+                Path lp = Path.of(home, ".local", "share", "kollegenclient", "skins", "index.json");
+                if (!Files.exists(lp)) {
+                    lp = Path.of(home, ".local", "share", "kollegen-launcher", "skins", "index.json");
+                }
                 if (Files.exists(lp)) p = lp;
             }
             if (Files.exists(p)) {
@@ -2001,7 +2282,10 @@ public class KollegenMenuScreen extends Screen {
             Path p = FabricLoader.getInstance().getConfigDir().resolve("kollegen-cape.json");
             if (!Files.exists(p)) {
                 String home = System.getProperty("user.home", "");
-                Path lp = Path.of(home, ".local", "share", "kollegen-launcher", "capes", "capes.json");
+                Path lp = Path.of(home, ".local", "share", "kollegenclient", "capes", "capes.json");
+                if (!Files.exists(lp)) {
+                    lp = Path.of(home, ".local", "share", "kollegen-launcher", "capes", "capes.json");
+                }
                 if (Files.exists(lp)) p = lp;
             }
             if (Files.exists(p)) {
@@ -2022,18 +2306,49 @@ public class KollegenMenuScreen extends Screen {
             }
         } catch (Throwable ignored) {
         }
-        if (this.storeCache != null && this.storeCache.has("catalog") && this.storeCache.get("catalog").isJsonArray()) {
-            for (JsonElement el : this.storeCache.getAsJsonArray("catalog")) {
+
+        // Store capes including package items
+        JsonObject sc = this.storeCache != null ? this.storeCache : StoreClient.cachedCatalog();
+        if (sc != null && sc.has("catalog") && sc.get("catalog").isJsonArray()) {
+            Set<String> pkgOwned = new HashSet<String>();
+            for (JsonElement el : sc.getAsJsonArray("catalog")) {
                 if (!el.isJsonObject()) continue;
                 JsonObject it = el.getAsJsonObject();
-                if ("cape".equals(str(it, "category", "")) && it.has("owned") && it.get("owned").getAsBoolean()) {
-                    JsonObject c = new JsonObject();
-                    c.addProperty("id", "store_" + str(it, "id", ""));
-                    c.addProperty("name", str(it, "name", "Store Cape"));
-                    c.addProperty("author", "Kollegen Store");
-                    c.addProperty("category", "gekauft");
-                    c.addProperty("texture", str(it, "texture", ""));
-                    list.add(c);
+                if ("package".equals(str(it, "category", "")) && (bool(it, "owned") || bool(it, "is_owned")) && it.has("data") && it.getAsJsonObject("data").has("items")) {
+                    for (JsonElement itemEl : it.getAsJsonObject("data").getAsJsonArray("items")) {
+                        pkgOwned.add(itemEl.getAsString());
+                    }
+                }
+            }
+
+            for (JsonElement el : sc.getAsJsonArray("catalog")) {
+                if (!el.isJsonObject()) continue;
+                JsonObject it = el.getAsJsonObject();
+                String id = str(it, "id", "");
+                boolean owned = bool(it, "owned") || bool(it, "is_owned") || pkgOwned.contains(id);
+                if ("cape".equals(str(it, "category", "")) && owned) {
+                    boolean exists = false;
+                    for (JsonObject ex : list) {
+                        if (id.equals(str(ex, "id", ""))) {
+                            exists = true;
+                            break;
+                        }
+                    }
+                    if (!exists) {
+                        JsonObject c = new JsonObject();
+                        c.addProperty("id", id);
+                        c.addProperty("name", str(it, "name", "Store Cape"));
+                        c.addProperty("author", "Kollegen Store");
+                        c.addProperty("category", "gekauft");
+                        String tex = "";
+                        if (it.has("data") && it.getAsJsonObject("data").has("texture")) {
+                            tex = str(it.getAsJsonObject("data"), "texture", "");
+                        } else {
+                            tex = str(it, "texture", "");
+                        }
+                        c.addProperty("texture", tex);
+                        list.add(c);
+                    }
                 }
             }
         }

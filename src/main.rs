@@ -2191,13 +2191,18 @@ fn skin_download_current(state: State<'_, AppState>) -> Value {
     crate::skins::download_current_skin(&state.data_dir)
 }
 #[tauri::command]
-fn skin_upload(
+async fn skin_upload(
     state: State<'_, AppState>,
     name: String,
     data: String,
     variant: String,
-) -> Value {
-    crate::skins::upload_skin(&state.data_dir, &name, &data, &variant)
+) -> Result<Value, String> {
+    let data_dir = state.data_dir.clone();
+    tokio::task::spawn_blocking(move || {
+        crate::skins::upload_skin(&data_dir, &name, &data, &variant)
+    })
+    .await
+    .map_err(|e| e.to_string())
 }
 #[tauri::command]
 fn skin_mc_profile(state: State<'_, AppState>) -> Value {

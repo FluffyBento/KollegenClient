@@ -33,6 +33,8 @@ fn default_fps() -> u32 {
 pub struct CapeStoreData {
     pub active_cape: Option<String>,
     pub capes: Vec<CapeEntry>,
+    #[serde(default)]
+    pub favorites: Vec<String>,
 }
 
 fn capes_dir(data_dir: &Path) -> PathBuf {
@@ -49,6 +51,11 @@ pub fn load_capes(data_dir: &Path) -> CapeStoreData {
         if let Ok(mut data) = serde_json::from_str::<CapeStoreData>(&s) {
             let before = data.capes.len();
             data.capes.retain(|c| !c.id.starts_with("comm_"));
+            for c in &mut data.capes {
+                if data.favorites.contains(&c.id) {
+                    c.favorite = true;
+                }
+            }
             if data.capes.len() != before {
                 save_capes(data_dir, &data);
             }
@@ -58,6 +65,7 @@ pub fn load_capes(data_dir: &Path) -> CapeStoreData {
     let store = CapeStoreData {
         active_cape: None,
         capes: Vec::new(),
+        favorites: Vec::new(),
     };
     save_capes(data_dir, &store);
     store
@@ -91,9 +99,15 @@ pub fn set_active_cape(data_dir: &Path, cape_id: Option<String>) -> Result<(), S
 pub fn toggle_favorite(data_dir: &Path, cape_id: &str) -> bool {
     let mut data = load_capes(data_dir);
     let mut new_state = false;
+    if let Some(pos) = data.favorites.iter().position(|f| f == cape_id) {
+        data.favorites.remove(pos);
+        new_state = false;
+    } else {
+        data.favorites.push(cape_id.to_string());
+        new_state = true;
+    }
     if let Some(c) = data.capes.iter_mut().find(|c| c.id == cape_id) {
-        c.favorite = !c.favorite;
-        new_state = c.favorite;
+        c.favorite = new_state;
     }
     save_capes(data_dir, &data);
     new_state
@@ -107,6 +121,61 @@ pub fn delete_custom_cape(data_dir: &Path, cape_id: &str) -> Result<(), String> 
     }
     save_capes(data_dir, &data);
     Ok(())
+}
+
+fn ensure_minecraft_cape_format(dyn_img: &image::DynamicImage) -> image::RgbaImage {
+    let (w, h) = (dyn_img.width(), dyn_img.height());
+    // If already 2:1 aspect ratio (standard cape dimensions 64x32, 128x64, 256x128, etc.)
+    if w == h * 2 && w >= 64 {
+        return dyn_img.to_rgba8();
+    }
+    if w == 22 && h == 17 {
+        return dyn_img.to_rgba8();
+    }
+
+    // Convert arbitrary picture to 128x64 Minecraft cape UV layout
+    let cape_w = 128u32;
+    let cape_h = 64u32;
+    let mut out = image::RgbaImage::new(cape_w, cape_h);
+
+    let back_w = 20u32;
+    let back_h = 32u32;
+
+    let resized_back = dyn_img
+        .resize_to_fill(back_w, back_h, image::imageops::FilterType::Lanczos3)
+        .to_rgba8();
+
+    // Cape Back in 128x64 (x: 2..22, y: 2..34)
+    image::imageops::overlay(&mut out, &resized_back, 2, 2);
+
+    // Cape Front in 128x64 (x: 24..44, y: 2..34), darkened
+    let mut front = resized_back.clone();
+    for p in front.pixels_mut() {
+        p.0[0] = (p.0[0] as f32 * 0.75) as u8;
+        p.0[1] = (p.0[1] as f32 * 0.75) as u8;
+        p.0[2] = (p.0[2] as f32 * 0.75) as u8;
+    }
+    image::imageops::overlay(&mut out, &front, 24, 2);
+
+    // Fill borders/edges
+    for x in 0..back_w {
+        let top_col = *resized_back.get_pixel(x, 0);
+        let bot_col = *resized_back.get_pixel(x, back_h - 1);
+        out.put_pixel(2 + x, 0, top_col);
+        out.put_pixel(2 + x, 1, top_col);
+        out.put_pixel(22 + x, 0, bot_col);
+        out.put_pixel(22 + x, 1, bot_col);
+    }
+    for y in 0..back_h {
+        let left_col = *resized_back.get_pixel(0, y);
+        let right_col = *resized_back.get_pixel(back_w - 1, y);
+        out.put_pixel(0, 2 + y, left_col);
+        out.put_pixel(1, 2 + y, left_col);
+        out.put_pixel(22, 2 + y, right_col);
+        out.put_pixel(23, 2 + y, right_col);
+    }
+
+    out
 }
 
 pub fn upload_cape(
@@ -137,13 +206,15 @@ pub fn upload_cape(
 
         for f in collected_frames {
             let buffer = f.into_buffer();
+            let dyn_img = image::DynamicImage::ImageRgba8(buffer);
+            let cape_img = ensure_minecraft_cape_format(&dyn_img);
             let mut out = Vec::new();
             let encoder = PngEncoder::new(&mut out);
             image::ImageEncoder::write_image(
                 encoder,
-                buffer.as_raw(),
-                buffer.width(),
-                buffer.height(),
+                cape_img.as_raw(),
+                cape_img.width(),
+                cape_img.height(),
                 image::ExtendedColorType::Rgba8,
             )
             .map_err(|e| format!("Frame-Konvertierung: {}", e))?;
@@ -156,13 +227,14 @@ pub fn upload_cape(
             let b = decode_b64(img)?;
             let dyn_img = image::load_from_memory(&b)
                 .map_err(|e| format!("Bildformat konnte nicht erkannt werden: {}", e))?;
+            let cape_img = ensure_minecraft_cape_format(&dyn_img);
             let mut out = Vec::new();
             let encoder = PngEncoder::new(&mut out);
             image::ImageEncoder::write_image(
                 encoder,
-                dyn_img.as_bytes(),
-                dyn_img.width(),
-                dyn_img.height(),
+                cape_img.as_raw(),
+                cape_img.width(),
+                cape_img.height(),
                 image::ExtendedColorType::Rgba8,
             )
             .map_err(|e| format!("PNG-Kodierung: {}", e))?;
