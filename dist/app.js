@@ -1467,6 +1467,56 @@ async function refreshLogs() {
   let homeSkinKey = "";
   let homeSkinFailed = false;
   let homeSkinPauseTimer = null;
+  let homeWorn = null;      // Cosmetic3D-Spieler (Home)
+  let homeLegacy = false;   // true = skinview3d verwenden
+  let cosmWorn = null;      // Cosmetic3D-Spieler (Cosmetics-Tab)
+  let cosmLegacy = false;
+  let wornFetchP = null;
+
+  // Ausgeruestete Items (Katalog + equipped) -> Liste fuer den 3D-Spieler
+  function wornItemsFrom(equipped, catalog) {
+    const out = [];
+    const by = {};
+    (catalog || []).forEach((it) => { if (it && it.id) by[it.id] = it; });
+    const eq = equipped || {};
+    for (const cat of Object.keys(eq)) {
+      const v = eq[cat];
+      const id = typeof v === "string" ? v : (v && v.id) || "";
+      const it = id ? by[id] : null;
+      if (!it) continue;
+      if (it.category === "pet" || (window.Cosmetic3D && window.Cosmetic3D.keyFor(it))) out.push(it);
+    }
+    return out;
+  }
+
+  async function currentWornItems(force) {
+    let cat = window.kmCat || window.__cosmStore;
+    let eq = (window.kmState && window.kmState.equipped) || (window.__cosmMe && window.__cosmMe.equipped);
+    if (force || !cat || !cat.length || !eq) {
+      if (!wornFetchP) {
+        wornFetchP = (async () => {
+          try {
+            const st = await invoke("kollegen_store");
+            if (st && st.catalog) window.__cosmStore = st.catalog;
+            return st;
+          } catch (e) { return null; }
+          finally { setTimeout(() => { wornFetchP = null; }, 1500); }
+        })();
+      }
+      const st = await wornFetchP;
+      if (st) { cat = st.catalog || cat; eq = st.equipped || eq; }
+    }
+    return wornItemsFrom(eq || {}, cat || []);
+  }
+
+  // Nach Ausruesten/Laden: Home- und Cosmetics-Spieler aktualisieren
+  window.refreshWornViewers = async function (force) {
+    try {
+      const items = await currentWornItems(!!force);
+      if (homeWorn && !homeWorn.isDisposed()) homeWorn.setItems(items);
+      if (cosmWorn && !cosmWorn.isDisposed()) cosmWorn.setItems(items);
+    } catch (e) {}
+  };
 
   function disposeHomeSkinViewer() {
     clearTimeout(homeSkinPauseTimer);
@@ -1539,9 +1589,38 @@ async function refreshLogs() {
       return;
     }
     const key = url + "|" + (currentCapeUrl || "");
-    if (!force && key === homeSkinKey && (homeSkinViewer || homeSkinFailed)) return;
+    if (!force && key === homeSkinKey && (homeSkinViewer || homeWorn || homeSkinFailed)) return;
     homeSkinKey = key;
      homeSkinFailed = false;
+    // Neuer 3D-Spieler: echter Skin + ausgeruestete Cosmetics
+    if (!homeLegacy && window.Cosmetic3D && window.Cosmetic3D.ready()) {
+      try {
+        disposeHomeSkinViewer();
+        if (homeWorn) { try { homeWorn.dispose(); } catch (_) {} homeWorn = null; }
+        const wrap0 = canvas.parentElement;
+        canvas.style.display = "";
+        dropSkinFallback(wrap0);
+        homeWorn = window.Cosmetic3D.mountPlayer(canvas, {
+          skin: url,
+          cape: currentCapeUrl || null,
+          items: [],
+          animate: true,
+          onSkinError: () => {
+            homeLegacy = true;
+            try { homeWorn && homeWorn.dispose(); } catch (_) {}
+            homeWorn = null;
+            loadHomeSkin(true);
+          },
+        });
+        setSkinState("");
+        window.refreshWornViewers();
+        return;
+      } catch (e) {
+        console.error("Home-3D fehlgeschlagen:", e);
+        try { homeWorn && homeWorn.dispose(); } catch (_) {}
+        homeWorn = null;
+      }
+    }
      const sv3d = window.skinview3d;
     let webglInfo = "kein WebGL";
     let webglOk = false;
@@ -5138,6 +5217,34 @@ startBackgroundIntervals();
   let storeShown = 0;
   let storeMoreObs = null;
 
+  const STORE_PET_EMOJI = { pet_allay: "🧚", pet_blub: "🫧", pet_cat: "🐱", pet_dog: "🐶", pet_chicken: "🐔", pet_rabbit: "🐰", pet_axolotl: "🦎", pet_bat: "🦇", pet_fox: "🦊", pet_parrot: "🦜", pet_bee: "🐝", pet_squid: "🦑", pet_nautilus: "🐚", pet_copper_golem: "🤖" };
+  const STORE_CAT_GLYPH = { pet: "🐾", clothing: "👕", effect: "✨", cape: "🧣", shield: "🛡️", back_accessory: "🎒", head_accessory: "👑", face_accessory: "🥽", aura: "🌀", shoulder_accessory: "🦜", torso_accessory: "🧥", legs_accessory: "👢", gloves: "🧤", pet_skin: "🎨" };
+
+  // Ingame-Items: 3D-Vorschau (kommt per Thumbnail), sonst Bild/Textur, sonst Symbol – nie der eigene Avatar.
+  function storeIngamePreview(item) {
+    const glyph = item.category === "pet" ? (STORE_PET_EMOJI[item.id] || "🐾") : (STORE_CAT_GLYPH[item.category] || "✨");
+    const swap = `onerror="this.outerHTML='<span class=&quot;pv-glyph&quot;>${glyph}</span>'"`;
+    if (item.category === "pet") {
+      const kind = (window.Cosmetic3D && window.Cosmetic3D.petKind) ? window.Cosmetic3D.petKind(item) : String(item.id || "").replace(/^pet_/, "");
+      return `<img class="pv-art pv-pet" alt="" src="pets/${esc(kind)}.png" ${swap}/>`;
+    }
+    const has3d = window.Cosmetic3D && window.Cosmetic3D.ready() && window.Cosmetic3D.keyFor(item);
+    if (!has3d && item.data && item.data.texture) {
+      return `<img class="pv-art pv-tex" alt="" src="https://kollegen.me/${esc(String(item.data.texture).replace("kollegen:", ""))}" ${swap}/>`;
+    }
+    return `<span class="pv-glyph${has3d ? " pv-wait" : ""}">${glyph}</span>`;
+  }
+
+  // Pet-Bild auf den sichtbaren Bereich zuschneiden (grosse Vorschau statt viel Rand)
+  function storeCropPet(pv, item) {
+    if (item.category !== "pet" || !window.Cosmetic3D || !window.Cosmetic3D.petCropped) return;
+    const kind = window.Cosmetic3D.petKind(item);
+    window.Cosmetic3D.petCropped(kind).then((r) => {
+      const im = pv.querySelector("img.pv-pet");
+      if (r && r.url && im) im.src = r.url;
+    });
+  }
+
   function storePreview(item) {
     const av = previewAvatar() || "https://mc-heads.net/avatar/MHF_Steve/64";
     if (item.category === "title") return `<span style="font-weight:800;font-size:1rem;">${esc(item.data.text)}</span>`;
@@ -5150,12 +5257,7 @@ startBackgroundIntervals();
     if (item.category === "font") return `<div style="width:78%;height:64px;border-radius:10px;display:flex;align-items:center;justify-content:center;color:#c9d4e3;font-weight:700;font-size:15px;font-family:${esc(item.data.font)};">Aa</div>`;
     if (item.category === "name_color") return `<div style="width:78%;height:64px;border-radius:10px;display:flex;align-items:center;justify-content:center;color:${esc(item.data.accent)};font-weight:800;font-size:22px;">Aa</div>`;
     if (item.category === "sticker") return `<div style="width:78%;height:64px;border-radius:10px;display:flex;align-items:center;justify-content:center;color:${esc(item.data.color)};font-size:34px;">${esc(item.data.icon)}</div>`;
-    if (item.category === "cape" && item.data && item.data.texture) return `<div style="width:78%;height:64px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:#0d1420;background-image:url('https://kollegen.me/${item.data.texture.replace("kollegen:", "")}');background-size:cover;background-position:center;">Cape</div>`;
-    if (item.category === "shield" && item.data && item.data.texture) return `<div style="width:78%;height:64px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:#0d1420;background-image:url('https://kollegen.me/${item.data.texture.replace("kollegen:", "")}');background-size:cover;background-position:center;">Schild</div>`;
-    if (item.category === "back_accessory" && item.data && item.data.texture) return `<div style="width:78%;height:64px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:#0d1420;background-image:url('https://kollegen.me/${item.data.texture.replace("kollegen:", "")}');background-size:cover;background-position:center;">Rücken</div>`;
-    if (item.category === "head_accessory" && item.data && item.data.texture) return `<div style="width:78%;height:64px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:#0d1420;background-image:url('https://kollegen.me/${item.data.texture.replace("kollegen:", "")}');background-size:cover;background-position:center;">Kopf</div>`;
-    if (["face_accessory", "aura", "shoulder_accessory", "torso_accessory", "legs_accessory", "gloves"].includes(item.category) && item.data && item.data.texture) { const lbl = { face_accessory: "Gesicht", aura: "Aura", shoulder_accessory: "Schulter", torso_accessory: "Oberkörper", legs_accessory: "Unterkörper", gloves: "Handschuhe" }[item.category] || "Item"; return `<div style="width:78%;height:64px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:#0d1420;background-image:url('https://kollegen.me/${item.data.texture.replace("kollegen:", "")}');background-size:cover;background-position:center;">${lbl}</div>`; }
-    if (item.category === "pet" && item.data && item.data.kind) { const mk = { ember_drake: 1, void_wyrm: 1, shadow_reaper: 1, rune_sentinel: 1, flame_skull: 1, storm_cloud: 1, crystal_golem: 1, spectre: 1, lantern_spirit: 1, bolt_bot: 1, mini_ufo: 1, grimoire: 1, mooncap: 1, jelly_cube: 1 }[item.data.kind]; if (mk) return `<img style="width:64px;height:64px;border-radius:14px;object-fit:cover;" src="pets/${item.data.kind}.png" onerror="this.style.display='none'"/>`; }
+    if (STORE_INGAME_CATS.includes(item.category)) return storeIngamePreview(item);
     let border = "", shadow = "";
     if (item.category === "avatar_frame" && item.data.color1) border = `border:${(item.data.width || 3)}px solid ${esc(item.data.color1)};`;
     return `<img style="width:64px;height:64px;border-radius:14px;object-fit:cover;${border}${shadow}" src="${av}"/>`;
@@ -5249,7 +5351,8 @@ startBackgroundIntervals();
     foot.innerHTML = "";
     const price = document.createElement("div");
     price.className = "store-price";
-    price.innerHTML = esc(String(item.price)) + " <small>Punkte</small>";
+    price.title = "Punkte";
+    price.innerHTML = `<span class="coin" aria-hidden="true"></span>${esc(String(item.price))}`;
     const btn = document.createElement("button");
     btn.className = "cardBtn " + b.cls;
     btn.tabIndex = -1;
@@ -5261,7 +5364,8 @@ startBackgroundIntervals();
 
   function storeCard(item) {
     const card = document.createElement("div");
-    card.className = "store-card rar-" + (item.rarity || "common");
+    card.className = "store-card rar-" + (item.rarity || "common") + (STORE_INGAME_CATS.includes(item.category) ? " tall" : "");
+    if (item.desc) card.title = item.desc;
     card.tabIndex = 0;
     card.setAttribute("role", "button");
     card.dataset.id = item.id;
@@ -5270,6 +5374,7 @@ startBackgroundIntervals();
     const pv = document.createElement("div");
     pv.className = "store-pv";
     pv.innerHTML = storePreview(item);
+    storeCropPet(pv, item);
     card.append(pv);
     try { c3dObserve(pv, item); } catch (e) {}
     const rar = document.createElement("span");
@@ -5284,7 +5389,7 @@ startBackgroundIntervals();
     t.title = item.name || "";
     const d = document.createElement("div");
     d.className = "store-card-desc";
-    d.textContent = item.desc || "";
+    d.textContent = storeCatLabel(item.category);
     body.append(t, d);
     card.append(body);
     storeApplyState(card, item);
@@ -5456,6 +5561,7 @@ startBackgroundIntervals();
         }
         renderKosmet();
         renderStore();
+        try { window.refreshWornViewers && window.refreshWornViewers(); } catch (e) {}
       } else alert("Ausrüsten fehlgeschlagen: " + ((r && r.error) || "unbekannt"));
     } catch (e) { alert("Fehler: " + e); }
   }
@@ -5469,10 +5575,12 @@ startBackgroundIntervals();
     pv.className = "store-pv store-pv-lg";
     pv.style.setProperty("--rar-rgb", "var(--r-" + (item.rarity || "common") + "-rgb)");
     pv.innerHTML = storePreview(item);
+    storeCropPet(pv, item);
     try {
       if (window.Cosmetic3D && window.Cosmetic3D.ready() && window.Cosmetic3D.keyFor(item)) {
         pv.innerHTML = "";
-        pv.style.minHeight = "300px";
+        pv.style.aspectRatio = "auto";
+        pv.style.height = "340px";
         window.Cosmetic3D.mount(pv, item);
       }
     } catch (e) {}
@@ -5828,6 +5936,7 @@ startBackgroundIntervals();
       } catch (e) {}
       renderCosmetics(true);
       if (window.renderKollegenStore) { try { window.renderKollegenStore(); } catch (e) {} }
+      try { window.refreshWornViewers && window.refreshWornViewers(true); } catch (e) {}
     };
     const cosmSwatch = (ch, it) => {
       const sw = document.createElement("span");
@@ -6034,6 +6143,9 @@ startBackgroundIntervals();
             img.className = "pet-preview";
             img.alt = "";
             img.src = "pets/" + mythicKinds[it.id] + ".png";
+            if (window.Cosmetic3D && window.Cosmetic3D.petCropped) {
+              window.Cosmetic3D.petCropped(mythicKinds[it.id]).then((r) => { if (r && r.url) img.src = r.url; });
+            }
             img.onerror = () => { img.remove(); pv.textContent = PET_ICON[it.id] || "🐾"; };
             pv.append(img);
           } else {
@@ -6194,6 +6306,7 @@ startBackgroundIntervals();
   }
 
   function disposeCosmSkinViewer() {
+    if (cosmWorn) { try { cosmWorn.dispose(); } catch (_) {} cosmWorn = null; }
     if (!cosmSkinViewer) return;
     try { cosmSkinViewer.dispose && cosmSkinViewer.dispose(); } catch (_) {}
     cosmSkinViewer = null;
@@ -6237,6 +6350,38 @@ startBackgroundIntervals();
     const nm = (me && (me.name || me.mc_name)) || "";
     if (!url && nm) url = `https://mc-heads.net/skin/${encodeURIComponent(nm)}`;
     if (!url) return;
+    // Neuer 3D-Spieler: echter Skin + ausgeruestete Cosmetics
+    if (!cosmLegacy && window.Cosmetic3D && window.Cosmetic3D.ready()) {
+      const items3 = wornItemsFrom(me && me.equipped, window.__cosmStore);
+      const key3 = url + "|" + (currentCapeUrl || "");
+      if (cosmWorn && !cosmWorn.isDisposed() && cosmSkinKey === key3) { cosmWorn.setItems(items3); return; }
+      try {
+        disposeCosmSkinViewer();
+        cosmSkinKey = key3;
+        const wrap3 = canvas.parentElement;
+        const fb3 = wrap3.querySelector("img.skin-fallback");
+        if (fb3) fb3.remove();
+        canvas.style.display = "";
+        cosmWorn = window.Cosmetic3D.mountPlayer(canvas, {
+          skin: url,
+          cape: currentCapeUrl || null,
+          items: items3,
+          animate: true,
+          onSkinError: () => {
+            cosmLegacy = true;
+            try { cosmWorn && cosmWorn.dispose(); } catch (_) {}
+            cosmWorn = null;
+            cosmSkinKey = "";
+            renderCosmSkin(me);
+          },
+        });
+        return;
+      } catch (e) {
+        console.error("Cosmetics-3D fehlgeschlagen:", e);
+        try { cosmWorn && cosmWorn.dispose(); } catch (_) {}
+        cosmWorn = null;
+      }
+    }
     const key = url + "|" + (currentCapeUrl || "");
     if (key === cosmSkinKey && cosmSkinViewer) return;
     cosmSkinKey = key;
