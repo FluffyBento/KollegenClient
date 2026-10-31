@@ -13,6 +13,8 @@ public final class Gameplay {
     }
 
     public static void register() {
+        ModuleManager.register(new AutoReconnect());
+        ModuleManager.register(new InventoryEnhancements());
         ModuleManager.register(new AutoSprint());
         ModuleManager.register(new AutoJump());
         ModuleManager.register(new ToggleSprint());

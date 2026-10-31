@@ -120,6 +120,7 @@ public final class SkinCapeTextureManager {
 
         // 2. HTTP/HTTPS Mojang Vanilla or Community Cape URL
         if (rawData != null && (rawData.startsWith("http://") || rawData.startsWith("https://"))) {
+            String url = rawData.startsWith("http://") ? "https://" + rawData.substring(7) : rawData;
             String safeId = capeId.toLowerCase(java.util.Locale.ROOT).replaceAll("[^a-z0-9_.-]", "_");
             String home = System.getProperty("user.home", "");
             Path cacheDir = Path.of(home, ".local", "share", "kollegenclient", "capes", "cache");
@@ -140,8 +141,11 @@ public final class SkinCapeTextureManager {
                 Thread t = new Thread(() -> {
                     try {
                         Files.createDirectories(cacheDir);
-                        HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(6)).build();
-                        HttpRequest req = HttpRequest.newBuilder(URI.create(rawData)).timeout(Duration.ofSeconds(10)).GET().build();
+                        HttpClient client = HttpClient.newBuilder()
+                                .followRedirects(HttpClient.Redirect.NORMAL)
+                                .connectTimeout(Duration.ofSeconds(6))
+                                .build();
+                        HttpRequest req = HttpRequest.newBuilder(URI.create(url)).timeout(Duration.ofSeconds(10)).GET().build();
                         HttpResponse<byte[]> res = client.send(req, HttpResponse.BodyHandlers.ofByteArray());
                         if (res.statusCode() >= 200 && res.statusCode() < 300 && res.body() != null && res.body().length > 0) {
                             Files.write(cachedFile, res.body());

@@ -62,6 +62,9 @@ public abstract class Module {
     public void onKey() {
     }
 
+    public void onKeyRelease() {
+    }
+
     public void save(JsonObject o) {
         o.addProperty("enabled", enabled);
         if (key != -1) o.addProperty("key", key);

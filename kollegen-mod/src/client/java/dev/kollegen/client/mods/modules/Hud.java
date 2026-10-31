@@ -150,7 +150,7 @@ public final class Hud {
 
         Direction() {
             super("direction", "Richtung", "Blickrichtung als moderne Kompass-Leiste oder Text.");
-            this.position.index = 4; // Standard: Oben mittig
+            this.position.index = 4;
             this.accentBar.value = false;
             add(style);
             add(compassWidth);
@@ -178,37 +178,45 @@ public final class Hud {
                 return;
             }
 
-            // Kompass-Leiste (inspiriert vom Norisk Client)
-            int w = (int) compassWidth.value;
+            int baseW = (int) compassWidth.value;
             int h = 18;
             boolean deg = showDegrees.value;
-            int totalH = deg ? h + 16 : h;
+            int baseTotalH = deg ? h + 16 : h;
 
-            int[] a = anchor(mc.getWindow().getGuiScaledWidth(), mc.getWindow().getGuiScaledHeight(), w, totalH);
+            float sc = (float) this.scale.value;
+            int sw = Math.round(baseW * sc);
+            int sh = Math.round(baseTotalH * sc);
+
+            int[] a = anchor(mc.getWindow().getGuiScaledWidth(), mc.getWindow().getGuiScaledHeight(), sw, sh);
             int x = a[0];
-            int y = a[1] + (deg ? 16 : 0);
+            int y = a[1];
 
+            markBounds(x, y, sw, sh);
+
+            g.pose().pushMatrix();
+            g.pose().translate(x, y);
+            g.pose().scale(sc, sc);
+
+            int drawY = deg ? 16 : 0;
             if (background.value) {
-                Glass.fillRound(g, x, y, w, h, 6, backgroundColor.value);
-                Glass.ring(g, x, y, w, h, 6, 0.5f, 0x22FFFFFF);
+                Glass.fillRound(g, 0, drawY, baseW, h, 6, backgroundColor.value);
+                Glass.ring(g, 0, drawY, baseW, h, 6, 0.5f, 0x22FFFFFF);
                 if (accentBar.value) {
-                    Glass.rrGrad(g, x + 2, y + 2, 2.5f, h - 4, 1.2f, Palette.ACCENT, Glass.a(Palette.ACCENT, 0.35f));
+                    Glass.rrGrad(g, 2, drawY + 2, 2.5f, h - 4, 1.2f, Palette.ACCENT, Glass.a(Palette.ACCENT, 0.35f));
                 }
             }
 
-            markBounds(x, deg ? y - 16 : y, w, totalH);
-
-            float centerX = x + w / 2.0f;
-            float pixelsPerDegree = w / 100.0f;
+            float centerX = baseW / 2.0f;
+            float pixelsPerDegree = baseW / 100.0f;
 
             for (int degMark = 0; degMark < 360; degMark += 15) {
                 float diff = (degMark - heading + 540f) % 360f - 180f;
                 float mx = centerX + diff * pixelsPerDegree;
 
-                if (mx < x + 6 || mx > x + w - 6) continue;
+                if (mx < 6 || mx > baseW - 6) continue;
 
                 float dist = Math.abs(mx - centerX);
-                float maxDist = (w / 2.0f) - 6;
+                float maxDist = (baseW / 2.0f) - 6;
                 float fade = Math.max(0.18f, 1.0f - (dist / maxDist) * 0.82f);
                 int aVal = (int) (fade * 255);
                 int markColor = (aVal << 24) | (color.value & 0x00FFFFFF);
@@ -226,10 +234,10 @@ public final class Hud {
                         default -> "";
                     };
                     int tw = mc.font.width(label);
-                    g.text(mc.font, label, Math.round(mx - tw / 2.0f), Math.round(y + (h - 8) / 2.0f), markColor, true);
+                    g.text(mc.font, label, Math.round(mx - tw / 2.0f), Math.round(drawY + (h - 8) / 2.0f), markColor, true);
                 } else {
                     int tw = mc.font.width("|");
-                    g.text(mc.font, "|", Math.round(mx - tw / 2.0f), Math.round(y + (h - 8) / 2.0f), markColor, true);
+                    g.text(mc.font, "|", Math.round(mx - tw / 2.0f), Math.round(drawY + (h - 8) / 2.0f), markColor, true);
                 }
             }
 
@@ -237,15 +245,17 @@ public final class Hud {
                 int headingInt = Math.round(heading) % 360;
                 String degStr = String.valueOf(headingInt);
                 int dw = mc.font.width(degStr);
-                g.text(mc.font, degStr, Math.round(centerX - dw / 2.0f), Math.round(y - 14), 0xFFFFFFFF, true);
+                g.text(mc.font, degStr, Math.round(centerX - dw / 2.0f), 2, 0xFFFFFFFF, true);
 
                 int rx = Math.round(centerX);
-                int ry = y - 3;
+                int ry = drawY - 3;
                 g.fill(rx - 3, ry - 2, rx + 4, ry - 1, 0xFFE05252);
                 g.fill(rx - 2, ry - 1, rx + 3, ry,     0xFFE05252);
                 g.fill(rx - 1, ry,     rx + 2, ry + 1, 0xFFE05252);
                 g.fill(rx,     ry + 1, rx + 1, ry + 2, 0xFFE05252);
             }
+
+            g.pose().popMatrix();
         }
     }
 
@@ -288,28 +298,53 @@ public final class Hud {
 
         @Override
         public void onRenderHud(GuiGraphicsExtractor g, float td) {
-            int cx = mc.getWindow().getGuiScaledWidth() / 2 + (int) offsetX.value;
-            int by = mc.getWindow().getGuiScaledHeight() - 70 + (int) offsetY.value;
             int s = 18, gap = 2;
-            int baseX = cx - s - gap / 2;
+            int baseW = s * 3 + gap * 2;
+            int baseH = s * 3 + gap * 2;
+
+            float sc = (float) this.scale.value;
+            int sw = Math.round(baseW * sc);
+            int sh = Math.round(baseH * sc);
+
+            int cx = mc.getWindow().getGuiScaledWidth() / 2;
+            int cy = mc.getWindow().getGuiScaledHeight() - 70;
+            int baseX = cx - sw / 2 + (int) offsetX.value;
+            int baseY = cy - sh / 2 + (int) offsetY.value;
+
+            markBounds(baseX, baseY, sw, sh);
+
+            g.pose().pushMatrix();
+            g.pose().translate(baseX, baseY);
+            g.pose().scale(sc, sc);
+
+            int midX = s + gap;
+            int midY = s + gap;
             boolean w = mc.options.keyUp.isDown();
             boolean a = mc.options.keyLeft.isDown();
             boolean sD = mc.options.keyDown.isDown();
             boolean d = mc.options.keyRight.isDown();
-            drawKey(g, "W", baseX, by - s - gap, w);
-            drawKey(g, "A", baseX - s - gap, by, a);
-            drawKey(g, "S", baseX, by, sD);
-            drawKey(g, "D", baseX + s + gap, by, d);
+            drawKey(g, "W", midX, 0, w);
+            drawKey(g, "A", 0, midY, a);
+            drawKey(g, "S", midX, midY, sD);
+            drawKey(g, "D", midX + s + gap, midY, d);
             boolean ml = ClickTracker.leftDown, mr = ClickTracker.rightDown;
-            drawKey(g, "L", baseX - s - gap, by + s + gap, ml);
-            drawKey(g, "R", baseX, by + s + gap, mr);
-            markBounds(baseX - s - gap, by - s - gap, s * 3 + gap * 2, s * 3 + gap * 2);
+            int mouseW = (baseW - gap) / 2;
+            drawKeyCustomW(g, "L", 0, midY + s + gap, mouseW, ml);
+            drawKeyCustomW(g, "R", mouseW + gap, midY + s + gap, mouseW, mr);
+
+            g.pose().popMatrix();
         }
 
         private void drawKey(GuiGraphicsExtractor g, String label, int x, int y, boolean pressed) {
             int s = 18;
             Glass.fillRound(g, x, y, s, s, 4, pressed ? Palette.tint(Palette.ACCENT, 0xD8) : Palette.tint(Palette.PANEL2, 0xCC));
             g.text(mc.font, label, x + (s - mc.font.width(label)) / 2, y + (s - mc.font.lineHeight) / 2, pressed ? 0xffffffff : Palette.TEXT, true);
+        }
+
+        private void drawKeyCustomW(GuiGraphicsExtractor g, String label, int x, int y, int kw, boolean pressed) {
+            int s = 18;
+            Glass.fillRound(g, x, y, kw, s, 4, pressed ? Palette.tint(Palette.ACCENT, 0xD8) : Palette.tint(Palette.PANEL2, 0xCC));
+            g.text(mc.font, label, x + (kw - mc.font.width(label)) / 2, y + (s - mc.font.lineHeight) / 2, pressed ? 0xffffffff : Palette.TEXT, true);
         }
     }
 
@@ -328,56 +363,185 @@ public final class Hud {
     }
 
     private static class ArmorHud extends HudModule {
+        private final SliderSetting layout = new SliderSetting(
+                "Ausrichtung",
+                "Layout der Rüstungsanzeige: Vertikal oder Horizontal.",
+                0.0, 0.0, 1.0, 1.0,
+                v -> ((int) Math.round(v) == 1) ? "Horizontal" : "Vertikal", null
+        );
+        private final BooleanSetting showHands = new BooleanSetting(
+                "Hände anzeigen",
+                "Zeigt zusätzlich Haupthand- und Nebenhand-Items an.",
+                true
+        );
+        private final SliderSetting durabilityMode = new SliderSetting(
+                "Haltbarkeit-Modus",
+                "Format der Haltbarkeitsanzeige.",
+                0.0, 0.0, 3.0, 1.0,
+                v -> switch ((int) Math.round(v)) {
+                    case 1 -> "Nur Restwert (420)";
+                    case 2 -> "Prozent (85%)";
+                    case 3 -> "Ausblenden";
+                    default -> "Rest / Max (420/528)";
+                }, null
+        );
+        private final BooleanSetting showDamageBar = new BooleanSetting(
+                "Haltbarkeits-Balken",
+                "Zeigt einen farbigen Mini-Balken unter jedem Item an.",
+                true
+        );
+
         ArmorHud() {
-            super("armor", "Rüstung", "Zeigt die getragene Rüstung + Haltbarkeit untereinander.");
+            super("armor", "Rüstung", "Zeigt die getragene Rüstung + Haltbarkeit vertikal oder horizontal.");
+            add(layout);
+            add(showHands);
+            add(durabilityMode);
+            add(showDamageBar);
         }
 
         @Override
         public void onRenderHud(GuiGraphicsExtractor g, float td) {
             if (mc.player == null) return;
-            var armor = java.util.List.of(
-                    mc.player.getItemBySlot(net.minecraft.world.entity.EquipmentSlot.HEAD),
-                    mc.player.getItemBySlot(net.minecraft.world.entity.EquipmentSlot.CHEST),
-                    mc.player.getItemBySlot(net.minecraft.world.entity.EquipmentSlot.LEGS),
-                    mc.player.getItemBySlot(net.minecraft.world.entity.EquipmentSlot.FEET));
-            int n = armor.size();
-            int rowH = 20;
-            int icon = 16;
-            int textGap = 6;
+            List<ItemStack> items = new ArrayList<>();
+            items.add(mc.player.getItemBySlot(net.minecraft.world.entity.EquipmentSlot.HEAD));
+            items.add(mc.player.getItemBySlot(net.minecraft.world.entity.EquipmentSlot.CHEST));
+            items.add(mc.player.getItemBySlot(net.minecraft.world.entity.EquipmentSlot.LEGS));
+            items.add(mc.player.getItemBySlot(net.minecraft.world.entity.EquipmentSlot.FEET));
+            if (showHands.value) {
+                items.add(mc.player.getMainHandItem());
+                items.add(mc.player.getOffhandItem());
+            }
 
-            int textW = 0;
-            for (ItemStack s : armor) {
-                String t = durabilityText(s);
-                if (!t.isEmpty()) textW = Math.max(textW, mc.font.width(t));
-            }
-            int w = (textW > 0 ? icon + textGap + textW : icon) + 6;
-            int h = n * rowH;
-            int[] a = anchor(mc.getWindow().getGuiScaledWidth(), mc.getWindow().getGuiScaledHeight(), w, h);
-            int x = a[0];
-            int y = a[1];
-            if (background.value) {
-                Glass.fillRound(g, x - 4, y - 4, w + 8, h + 8, 6, backgroundColor.value);
-            }
-            markBounds(x - 4, y - 4, w + 8, h + 8);
-            for (int i = 0; i < n; i++) {
-                ItemStack stack = armor.get(i);
-                int ry = y + i * rowH;
-                g.item(stack, x, ry + (rowH - icon) / 2);
-                String t = durabilityText(stack);
-                if (!t.isEmpty()) {
-                    int dmg = stack.getDamageValue();
-                    int max = Math.max(1, stack.getMaxDamage());
-                    float f = 1f - (float) dmg / max;
-                    int col = f > 0.5 ? Palette.GREEN : (f > 0.25 ? Palette.ACCENT : Palette.DANGER);
-                    g.text(mc.font, t, x + icon + textGap, ry + (rowH - mc.font.lineHeight) / 2, col, true);
+            boolean isHoriz = (int) Math.round(layout.value) == 1;
+            int n = items.size();
+            int icon = 16;
+            int dMode = (int) Math.round(durabilityMode.value);
+
+            if (isHoriz) {
+                int colW = 22;
+                int textH = (dMode != 3) ? 10 : 0;
+                int baseH = icon + (showDamageBar.value ? 4 : 0) + textH + 4;
+                int baseW = n * colW + 4;
+
+                float sc = (float) this.scale.value;
+                int sw = Math.round((baseW + 8) * sc);
+                int sh = Math.round((baseH + 8) * sc);
+                int[] a = anchor(mc.getWindow().getGuiScaledWidth(), mc.getWindow().getGuiScaledHeight(), sw, sh);
+                int x = a[0];
+                int y = a[1];
+
+                markBounds(x, y, sw, sh);
+
+                g.pose().pushMatrix();
+                g.pose().translate(x, y);
+                g.pose().scale(sc, sc);
+
+                if (background.value) {
+                    Glass.fillRound(g, 0, 0, baseW + 8, baseH + 8, 6, backgroundColor.value);
+                    Glass.ring(g, 0, 0, baseW + 8, baseH + 8, 6, 0.5f, 0x22FFFFFF);
                 }
+
+                for (int i = 0; i < n; i++) {
+                    ItemStack stack = items.get(i);
+                    int rx = 4 + i * colW + 3;
+                    if (!stack.isEmpty()) {
+                        g.item(stack, rx, 4);
+                        if (showDamageBar.value && stack.isDamageableItem()) {
+                            renderMiniBar(g, rx, 4 + 17, 16, stack);
+                        }
+                        if (dMode != 3) {
+                            String t = durabilityText(stack, dMode);
+                            if (!t.isEmpty()) {
+                                int col = durabilityColor(stack);
+                                int tw = mc.font.width(t);
+                                g.text(mc.font, t, rx + (16 - tw) / 2, 4 + icon + (showDamageBar.value ? 4 : 2), col, true);
+                            }
+                        }
+                    }
+                }
+                g.pose().popMatrix();
+            } else {
+                int rowH = (showDamageBar.value ? 22 : 20);
+                int textGap = 6;
+                int textW = 0;
+                if (dMode != 3) {
+                    for (ItemStack s : items) {
+                        String t = durabilityText(s, dMode);
+                        if (!t.isEmpty()) textW = Math.max(textW, mc.font.width(t));
+                    }
+                }
+                int baseW = (textW > 0 ? icon + textGap + textW : icon) + 6;
+                int baseH = n * rowH;
+
+                float sc = (float) this.scale.value;
+                int sw = Math.round((baseW + 8) * sc);
+                int sh = Math.round((baseH + 8) * sc);
+                int[] a = anchor(mc.getWindow().getGuiScaledWidth(), mc.getWindow().getGuiScaledHeight(), sw, sh);
+                int x = a[0];
+                int y = a[1];
+
+                markBounds(x, y, sw, sh);
+
+                g.pose().pushMatrix();
+                g.pose().translate(x, y);
+                g.pose().scale(sc, sc);
+
+                if (background.value) {
+                    Glass.fillRound(g, 0, 0, baseW + 8, baseH + 8, 6, backgroundColor.value);
+                    Glass.ring(g, 0, 0, baseW + 8, baseH + 8, 6, 0.5f, 0x22FFFFFF);
+                }
+
+                for (int i = 0; i < n; i++) {
+                    ItemStack stack = items.get(i);
+                    int ry = 4 + i * rowH;
+                    if (!stack.isEmpty()) {
+                        g.item(stack, 4, ry + 1);
+                        if (showDamageBar.value && stack.isDamageableItem()) {
+                            renderMiniBar(g, 4, ry + 18, 16, stack);
+                        }
+                        if (dMode != 3) {
+                            String t = durabilityText(stack, dMode);
+                            if (!t.isEmpty()) {
+                                int col = durabilityColor(stack);
+                                g.text(mc.font, t, 4 + icon + textGap, ry + (rowH - mc.font.lineHeight) / 2, col, true);
+                            }
+                        }
+                    }
+                }
+                g.pose().popMatrix();
             }
         }
 
-        private static String durabilityText(ItemStack s) {
+        private static void renderMiniBar(GuiGraphicsExtractor g, int bx, int by, int bw, ItemStack stack) {
+            int dmg = stack.getDamageValue();
+            int max = Math.max(1, stack.getMaxDamage());
+            float f = Math.max(0.0f, Math.min(1.0f, 1.0f - (float) dmg / max));
+            int fillW = Math.round(f * bw);
+            int col = f > 0.5f ? Palette.GREEN : (f > 0.25f ? Palette.ACCENT : Palette.DANGER);
+            g.fill(bx, by, bx + bw, by + 2, 0xAA000000);
+            if (fillW > 0) {
+                g.fill(bx, by, bx + fillW, by + 2, col);
+            }
+        }
+
+        private static int durabilityColor(ItemStack stack) {
+            if (!stack.isDamageableItem()) return Palette.TEXT;
+            int dmg = stack.getDamageValue();
+            int max = Math.max(1, stack.getMaxDamage());
+            float f = 1f - (float) dmg / max;
+            return f > 0.5f ? Palette.GREEN : (f > 0.25f ? Palette.ACCENT : Palette.DANGER);
+        }
+
+        private static String durabilityText(ItemStack s, int mode) {
             if (s.isEmpty() || !s.isDamageableItem()) return "";
             int left = s.getMaxDamage() - s.getDamageValue();
-            return left + "/" + s.getMaxDamage();
+            int max = s.getMaxDamage();
+            return switch (mode) {
+                case 1 -> String.valueOf(left);
+                case 2 -> Math.round((left * 100.0f) / max) + "%";
+                case 3 -> "";
+                default -> left + "/" + max;
+            };
         }
     }
 
@@ -463,19 +627,24 @@ public final class Hud {
         public void onRenderHud(GuiGraphicsExtractor g, float td) {
             int cx = mc.getWindow().getGuiScaledWidth() / 2;
             int cy = mc.getWindow().getGuiScaledHeight() / 2;
+            float sc = (float) scale.value;
             int s = (int) size.value;
             int gp = (int) gap.value;
             int c = (canHitEnabled.value && canHit()) ? canHitColor.value : color.value;
+            g.pose().pushMatrix();
+            g.pose().translate(cx, cy);
+            g.pose().scale(sc, sc);
             if (type.index == 1) {
-                g.fill(cx - s / 2, cy - s / 2, cx + s / 2, cy + s / 2, c);
+                g.fill(-s / 2, -s / 2, s / 2, s / 2, c);
             } else if (type.index == 2) {
-                Glass.fillRound(g, cx - s, cy - s, s * 2, s * 2, s, c);
+                Glass.fillRound(g, -s, -s, s * 2, s * 2, s, c);
             } else {
-                g.fill(cx - s, cy - gp - s, cx + s, cy - gp, c);
-                g.fill(cx - s, cy + gp, cx + s, cy + gp + s, c);
-                g.fill(cx - gp - s, cy - s, cx - gp, cy + s, c);
-                g.fill(cx + gp, cy - s, cx + gp + s, cy + s, c);
+                g.fill(-s, -gp - s, s, -gp, c);
+                g.fill(-s, gp, s, gp + s, c);
+                g.fill(-gp - s, -s, -gp, s, c);
+                g.fill(gp, -s, gp + s, s, c);
             }
+            g.pose().popMatrix();
         }
     }
 
@@ -712,23 +881,33 @@ public final class Hud {
             String statusStr = onCooldown ? "§cDeaktiviert (Cooldown)" : "§aEinsatzbereit";
             int textW = mc.font.width(statusStr);
 
-            int w = icon + 12 + textW + 6;
-            int h = 20;
+            int baseW = icon + 12 + textW + 6;
+            int baseH = 20;
+            float sc = (float) scale.value;
+            int w = Math.round(baseW * sc);
+            int h = Math.round(baseH * sc);
             int[] a = anchor(mc.getWindow().getGuiScaledWidth(), mc.getWindow().getGuiScaledHeight(), w, h);
             int x = a[0];
             int y = a[1];
 
-            if (background.value) {
-                Glass.fillRound(g, x - 3, y - 2, w + 6, h + 4, 6, backgroundColor.value);
-                int ringCol = onCooldown ? 0x66FF3333 : 0x6633FF33;
-                Glass.ring(g, x - 3, y - 2, w + 6, h + 4, 6, 0.8f, ringCol);
-            }
-            markBounds(x - 3, y - 2, w + 6, h + 4);
+            markBounds(x - Math.round(3 * sc), y - Math.round(2 * sc), Math.round((baseW + 6) * sc), Math.round((baseH + 4) * sc));
 
-            g.item(shield, x, y + (h - icon) / 2);
+            g.pose().pushMatrix();
+            g.pose().translate(x, y);
+            g.pose().scale(sc, sc);
+
+            if (background.value) {
+                Glass.fillRound(g, -3, -2, baseW + 6, baseH + 4, 6, backgroundColor.value);
+                int ringCol = onCooldown ? 0x66FF3333 : 0x6633FF33;
+                Glass.ring(g, -3, -2, baseW + 6, baseH + 4, 6, 0.8f, ringCol);
+            }
+
+            g.item(shield, 0, (baseH - icon) / 2);
             int dotCol = onCooldown ? 0xFFFF3333 : 0xFF33FF33;
-            g.fill(x + icon + 3, y + (h - 6) / 2, x + icon + 9, y + (h + 6) / 2, dotCol);
-            g.text(mc.font, statusStr, x + icon + 12, y + (h - 8) / 2, Palette.TEXT, true);
+            g.fill(icon + 3, (baseH - 6) / 2, icon + 9, (baseH + 6) / 2, dotCol);
+            g.text(mc.font, statusStr, icon + 12, (baseH - 8) / 2, Palette.TEXT, true);
+
+            g.pose().popMatrix();
         }
     }
 

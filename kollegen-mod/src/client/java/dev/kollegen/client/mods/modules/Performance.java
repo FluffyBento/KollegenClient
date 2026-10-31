@@ -4,6 +4,7 @@ import dev.kollegen.client.mods.BooleanSetting;
 import dev.kollegen.client.mods.Category;
 import dev.kollegen.client.mods.Module;
 import dev.kollegen.client.mods.ModuleManager;
+import dev.kollegen.client.mods.NumberSetting;
 import dev.kollegen.client.mods.SliderSetting;
 import net.minecraft.client.CloudStatus;
 import net.minecraft.client.GraphicsPreset;
@@ -237,18 +238,23 @@ public final class Performance {
     public static class KollegenDistance extends Module {
         public static volatile KollegenDistance instance;
 
-        public static final SliderSetting maxChunks = new SliderSetting(
+        public static final BooleanSetting unlimited = new BooleanSetting(
+                "Unlimited",
+                "Hält alle besuchten Chunks unbegrenzt im Speicher (keine Distanzbegrenzung).",
+                false
+        );
+
+        public static final NumberSetting maxChunks = new NumberSetting(
                 "Max. Sichtweite",
-                "Maximale Chunk-Distanz, die im Client-Speicher gehalten und gerendert wird.",
-                32.0, 12.0, 64.0, 2.0,
-                v -> (int) Math.round(v) + " Chunks",
-                null
+                "Maximale Chunk-Distanz (bis zu 256 Chunks).",
+                32, 8, 256, " Chunks"
         );
 
         public KollegenDistance() {
-            super("kollegendistance", "Kollegen Distance", "Erweiterte Sichtweite: Hält bereits besuchte Chunks im Client-Speicher über das Server-Limit hinaus sichtbar (bis zu 64 Chunks Sichtweite auf jedem Server).", Category.PERFORMANCE);
+            super("kollegendistance", "Kollegen Distance", "Erweiterte Sichtweite: Hält bereits besuchte Chunks im Client-Speicher über das Server-Limit hinaus sichtbar (bis zu 256 Chunks oder unbegrenzt).", Category.PERFORMANCE);
             this.enabled = true;
             instance = this;
+            add(unlimited);
             add(maxChunks);
         }
 
@@ -256,8 +262,13 @@ public final class Performance {
             return instance != null && instance.enabled;
         }
 
+        public static boolean isUnlimited() {
+            return instance != null && instance.enabled && unlimited.value;
+        }
+
         public static int getMaxChunkDistance() {
-            return instance != null ? (int) Math.round(maxChunks.value) : 32;
+            if (isUnlimited()) return 256;
+            return instance != null ? Math.max(8, Math.min(256, maxChunks.value)) : 32;
         }
     }
 

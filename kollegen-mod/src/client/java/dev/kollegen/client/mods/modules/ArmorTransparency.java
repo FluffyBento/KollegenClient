@@ -1,7 +1,9 @@
 package dev.kollegen.client.mods.modules;
 
+import com.google.gson.JsonObject;
 import dev.kollegen.client.mods.Category;
 import dev.kollegen.client.mods.Module;
+import dev.kollegen.client.mods.Setting;
 import dev.kollegen.client.mods.SliderSetting;
 import dev.kollegen.client.presence.RenderStateIds;
 import net.minecraft.client.Minecraft;
@@ -12,65 +14,101 @@ import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.equipment.Equippable;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
-public final class ArmorTransparency {
-    public static Own OWN;
-    public static Others OTHERS;
+public class ArmorTransparency extends Module {
+    public static ArmorTransparency INSTANCE;
+    public static int activeSubTab = 0;
 
-    private ArmorTransparency() {
+    public final SliderSetting ownHelmet = new SliderSetting("Helm", "Deckkraft des eigenen Helms (0% = unsichtbar).", 0.0, 0.0, 1.0, 0.05, v -> v <= 0.05 ? "0% (Unsichtbar)" : (v >= 0.98 ? "100% (Voll)" : Math.round(v * 100.0) + "%"), null);
+    public final SliderSetting ownChest = new SliderSetting("Brustplatte", "Deckkraft der eigenen Brustplatte (0% = unsichtbar).", 0.0, 0.0, 1.0, 0.05, v -> v <= 0.05 ? "0% (Unsichtbar)" : (v >= 0.98 ? "100% (Voll)" : Math.round(v * 100.0) + "%"), null);
+    public final SliderSetting ownLegs = new SliderSetting("Hose", "Deckkraft der eigenen Hose (0% = unsichtbar).", 0.0, 0.0, 1.0, 0.05, v -> v <= 0.05 ? "0% (Unsichtbar)" : (v >= 0.98 ? "100% (Voll)" : Math.round(v * 100.0) + "%"), null);
+    public final SliderSetting ownBoots = new SliderSetting("Schuhe", "Deckkraft der eigenen Schuhe (0% = unsichtbar).", 0.0, 0.0, 1.0, 0.05, v -> v <= 0.05 ? "0% (Unsichtbar)" : (v >= 0.98 ? "100% (Voll)" : Math.round(v * 100.0) + "%"), null);
+
+    public final SliderSetting othersHelmet = new SliderSetting("Helm", "Deckkraft von Helmen anderer Spieler (0% = unsichtbar).", 0.0, 0.0, 1.0, 0.05, v -> v <= 0.05 ? "0% (Unsichtbar)" : (v >= 0.98 ? "100% (Voll)" : Math.round(v * 100.0) + "%"), null);
+    public final SliderSetting othersChest = new SliderSetting("Brustplatte", "Deckkraft von Brustplatten anderer Spieler (0% = unsichtbar).", 0.0, 0.0, 1.0, 0.05, v -> v <= 0.05 ? "0% (Unsichtbar)" : (v >= 0.98 ? "100% (Voll)" : Math.round(v * 100.0) + "%"), null);
+    public final SliderSetting othersLegs = new SliderSetting("Hose", "Deckkraft von Hosen anderer Spieler (0% = unsichtbar).", 0.0, 0.0, 1.0, 0.05, v -> v <= 0.05 ? "0% (Unsichtbar)" : (v >= 0.98 ? "100% (Voll)" : Math.round(v * 100.0) + "%"), null);
+    public final SliderSetting othersBoots = new SliderSetting("Schuhe", "Deckkraft von Schuhen anderer Spieler (0% = unsichtbar).", 0.0, 0.0, 1.0, 0.05, v -> v <= 0.05 ? "0% (Unsichtbar)" : (v >= 0.98 ? "100% (Voll)" : Math.round(v * 100.0) + "%"), null);
+
+    private final List<Setting> ownSettingsList = new ArrayList<>();
+    private final List<Setting> othersSettingsList = new ArrayList<>();
+
+    public ArmorTransparency() {
+        super("armortransparency", "Transparente Rüstung", "Deckkraft von eigener Rüstung und Rüstung anderer Spieler anpassen.", Category.VISUAL);
+        INSTANCE = this;
+        ownSettingsList.add(ownHelmet);
+        ownSettingsList.add(ownChest);
+        ownSettingsList.add(ownLegs);
+        ownSettingsList.add(ownBoots);
+        othersSettingsList.add(othersHelmet);
+        othersSettingsList.add(othersChest);
+        othersSettingsList.add(othersLegs);
+        othersSettingsList.add(othersBoots);
+        settings.addAll(ownSettingsList);
+        settings.addAll(othersSettingsList);
     }
 
-    public static class Own extends Module {
-        public final SliderSetting helmet = new SliderSetting("Helm", "Deckkraft des eigenen Helms (0% = unsichtbar).", 0.0, 0.0, 1.0, 0.05, v -> v <= 0.05 ? "0% (Unsichtbar)" : (v >= 0.98 ? "100% (Voll)" : Math.round(v * 100.0) + "%"), null);
-        public final SliderSetting chest = new SliderSetting("Brustplatte", "Deckkraft der eigenen Brustplatte (0% = unsichtbar).", 0.0, 0.0, 1.0, 0.05, v -> v <= 0.05 ? "0% (Unsichtbar)" : (v >= 0.98 ? "100% (Voll)" : Math.round(v * 100.0) + "%"), null);
-        public final SliderSetting legs = new SliderSetting("Hose", "Deckkraft der eigenen Hose (0% = unsichtbar).", 0.0, 0.0, 1.0, 0.05, v -> v <= 0.05 ? "0% (Unsichtbar)" : (v >= 0.98 ? "100% (Voll)" : Math.round(v * 100.0) + "%"), null);
-        public final SliderSetting boots = new SliderSetting("Schuhe", "Deckkraft der eigenen Schuhe (0% = unsichtbar).", 0.0, 0.0, 1.0, 0.05, v -> v <= 0.05 ? "0% (Unsichtbar)" : (v >= 0.98 ? "100% (Voll)" : Math.round(v * 100.0) + "%"), null);
+    public List<Setting> getActiveSettings() {
+        return activeSubTab == 0 ? ownSettingsList : othersSettingsList;
+    }
 
-        public Own() {
-            super("armortransparency", "Transparente Rüstung (Eigen)", "Deckkraft der eigenen Rüstungsteile einzeln einstellen (0% = unsichtbar).", Category.VISUAL);
-            OWN = this;
-            add(helmet);
-            add(chest);
-            add(legs);
-            add(boots);
+    @Override
+    public void save(JsonObject o) {
+        super.save(o);
+        JsonObject own = new JsonObject();
+        ownHelmet.save(own);
+        ownChest.save(own);
+        ownLegs.save(own);
+        ownBoots.save(own);
+        o.add("own", own);
+
+        JsonObject others = new JsonObject();
+        othersHelmet.save(others);
+        othersChest.save(others);
+        othersLegs.save(others);
+        othersBoots.save(others);
+        o.add("others", others);
+    }
+
+    @Override
+    public void load(JsonObject o) {
+        super.load(o);
+        if (o.has("own") && o.get("own").isJsonObject()) {
+            JsonObject own = o.getAsJsonObject("own");
+            if (own.has("Helm")) ownHelmet.load(own.getAsJsonObject("Helm"));
+            if (own.has("Brustplatte")) ownChest.load(own.getAsJsonObject("Brustplatte"));
+            if (own.has("Hose")) ownLegs.load(own.getAsJsonObject("Hose"));
+            if (own.has("Schuhe")) ownBoots.load(own.getAsJsonObject("Schuhe"));
         }
-
-        public double getOpacity(EquipmentSlot slot) {
-            return switch (slot) {
-                case HEAD -> helmet.value;
-                case CHEST -> chest.value;
-                case LEGS -> legs.value;
-                case FEET -> boots.value;
-                default -> 1.0;
-            };
+        if (o.has("others") && o.get("others").isJsonObject()) {
+            JsonObject others = o.getAsJsonObject("others");
+            if (others.has("Helm")) othersHelmet.load(others.getAsJsonObject("Helm"));
+            if (others.has("Brustplatte")) othersChest.load(others.getAsJsonObject("Brustplatte"));
+            if (others.has("Hose")) othersLegs.load(others.getAsJsonObject("Hose"));
+            if (others.has("Schuhe")) othersBoots.load(others.getAsJsonObject("Schuhe"));
         }
     }
 
-    public static class Others extends Module {
-        public final SliderSetting helmet = new SliderSetting("Helm", "Deckkraft von Helmen anderer Spieler (0% = unsichtbar).", 0.0, 0.0, 1.0, 0.05, v -> v <= 0.05 ? "0% (Unsichtbar)" : (v >= 0.98 ? "100% (Voll)" : Math.round(v * 100.0) + "%"), null);
-        public final SliderSetting chest = new SliderSetting("Brustplatte", "Deckkraft von Brustplatten anderer Spieler (0% = unsichtbar).", 0.0, 0.0, 1.0, 0.05, v -> v <= 0.05 ? "0% (Unsichtbar)" : (v >= 0.98 ? "100% (Voll)" : Math.round(v * 100.0) + "%"), null);
-        public final SliderSetting legs = new SliderSetting("Hose", "Deckkraft von Hosen anderer Spieler (0% = unsichtbar).", 0.0, 0.0, 1.0, 0.05, v -> v <= 0.05 ? "0% (Unsichtbar)" : (v >= 0.98 ? "100% (Voll)" : Math.round(v * 100.0) + "%"), null);
-        public final SliderSetting boots = new SliderSetting("Schuhe", "Deckkraft von Schuhen anderer Spieler (0% = unsichtbar).", 0.0, 0.0, 1.0, 0.05, v -> v <= 0.05 ? "0% (Unsichtbar)" : (v >= 0.98 ? "100% (Voll)" : Math.round(v * 100.0) + "%"), null);
+    public double getOwnOpacity(EquipmentSlot slot) {
+        return switch (slot) {
+            case HEAD -> ownHelmet.value;
+            case CHEST -> ownChest.value;
+            case LEGS -> ownLegs.value;
+            case FEET -> ownBoots.value;
+            default -> 1.0;
+        };
+    }
 
-        public Others() {
-            super("armortransparency_others", "Transparente Rüstung (Andere)", "Deckkraft der Rüstungsteile anderer Spieler einzeln einstellen (0% = unsichtbar).", Category.VISUAL);
-            OTHERS = this;
-            add(helmet);
-            add(chest);
-            add(legs);
-            add(boots);
-        }
-
-        public double getOpacity(EquipmentSlot slot) {
-            return switch (slot) {
-                case HEAD -> helmet.value;
-                case CHEST -> chest.value;
-                case LEGS -> legs.value;
-                case FEET -> boots.value;
-                default -> 1.0;
-            };
-        }
+    public double getOthersOpacity(EquipmentSlot slot) {
+        return switch (slot) {
+            case HEAD -> othersHelmet.value;
+            case CHEST -> othersChest.value;
+            case LEGS -> othersLegs.value;
+            case FEET -> othersBoots.value;
+            default -> 1.0;
+        };
     }
 
     public static boolean isSelf(AvatarRenderState ars) {
@@ -90,23 +128,13 @@ public final class ArmorTransparency {
     }
 
     public static boolean shouldHideSlot(boolean isSelf, EquipmentSlot slot) {
-        if (isSelf) {
-            if (OWN == null || !OWN.enabled) return false;
-            return OWN.getOpacity(slot) <= 0.05;
-        } else {
-            if (OTHERS == null || !OTHERS.enabled) return false;
-            return OTHERS.getOpacity(slot) <= 0.05;
-        }
+        if (INSTANCE == null || !INSTANCE.enabled) return false;
+        return (isSelf ? INSTANCE.getOwnOpacity(slot) : INSTANCE.getOthersOpacity(slot)) <= 0.05;
     }
 
     public static float getOpacityForSlot(boolean isSelf, EquipmentSlot slot) {
-        if (isSelf) {
-            if (OWN == null || !OWN.enabled) return 1.0f;
-            return (float) OWN.getOpacity(slot);
-        } else {
-            if (OTHERS == null || !OTHERS.enabled) return 1.0f;
-            return (float) OTHERS.getOpacity(slot);
-        }
+        if (INSTANCE == null || !INSTANCE.enabled) return 1.0f;
+        return (float) (isSelf ? INSTANCE.getOwnOpacity(slot) : INSTANCE.getOthersOpacity(slot));
     }
 
     public static float getOpacity(Object state, ItemStack stack) {

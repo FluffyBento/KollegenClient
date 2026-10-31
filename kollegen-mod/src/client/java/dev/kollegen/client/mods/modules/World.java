@@ -18,6 +18,7 @@ public final class World {
     }
 
     public static void register() {
+        ModuleManager.register(new LightLevelOverlay());
         ModuleManager.register(new TimeChanger());
         ModuleManager.register(new WeatherChanger());
         ModuleManager.register(new CelestialBodies());

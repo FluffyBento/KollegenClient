@@ -17,6 +17,11 @@ public class KeybindSetting extends Setting {
         super(name, description);
     }
 
+    public KeybindSetting(String name, String description, int def) {
+        super(name, description);
+        this.value = def;
+    }
+
     @Override
     public void save(JsonObject o) {
         o.addProperty("key", value);
@@ -29,6 +34,13 @@ public class KeybindSetting extends Setting {
 
     public static String keyName(int key) {
         if (key <= 0) return "Keine";
+        try {
+            String name = InputConstants.Type.KEYBOARD.getOrCreate(key).getDisplayName().getString();
+            if (name != null && !name.isEmpty() && !name.startsWith("key.keyboard.")) {
+                return name;
+            }
+        } catch (Throwable ignored) {
+        }
         if (key == GLFW.GLFW_KEY_LEFT_SHIFT || key == InputConstants.KEY_LSHIFT) return "Links-Shift";
         if (key == GLFW.GLFW_KEY_RIGHT_SHIFT || key == InputConstants.KEY_RSHIFT) return "Rechts-Shift";
         if (key == GLFW.GLFW_KEY_LEFT_CONTROL || key == InputConstants.KEY_LCONTROL) return "Links-Strg";

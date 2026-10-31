@@ -28,15 +28,20 @@ public class FogRendererMixin {
             }
 
             if (Performance.KollegenDistance.isDistanceEnabled()) {
-                net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
-                int renderDist = Performance.KollegenDistance.getMaxChunkDistance();
-                if (mc != null && mc.options != null) {
-                    renderDist = Math.max(renderDist, mc.options.renderDistance().get());
-                }
-                float extendedDistance = Math.max(renderDist, 16) * 16.0f;
-                if (data.renderDistanceEnd < extendedDistance) {
-                    data.renderDistanceEnd = extendedDistance;
-                    data.renderDistanceStart = extendedDistance * 0.75f;
+                if (Performance.KollegenDistance.isUnlimited()) {
+                    data.renderDistanceStart = 100000.0f;
+                    data.renderDistanceEnd = 100000.0f;
+                } else {
+                    net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
+                    int renderDist = Performance.KollegenDistance.getMaxChunkDistance();
+                    if (mc != null && mc.options != null) {
+                        renderDist = Math.max(renderDist, mc.options.renderDistance().get());
+                    }
+                    float extendedDistance = Math.max(renderDist, 16) * 16.0f;
+                    if (data.renderDistanceEnd < extendedDistance) {
+                        data.renderDistanceEnd = extendedDistance;
+                        data.renderDistanceStart = extendedDistance * 0.75f;
+                    }
                 }
             }
 

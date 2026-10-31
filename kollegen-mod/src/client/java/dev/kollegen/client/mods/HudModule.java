@@ -28,8 +28,8 @@ public abstract class HudModule extends Module {
     public static double cursorY = 0.0;
     public static boolean editMode = false;
 
-    protected HudModule(String id, String name, String description) {
-        super(id, name, description, Category.HUD);
+    protected HudModule(String id, String name, String description, Category category) {
+        super(id, name, description, category);
         this.add(this.position);
         this.add(this.color);
         this.add(this.background);
@@ -40,6 +40,10 @@ public abstract class HudModule extends Module {
         this.add(this.offsetX);
         this.add(this.offsetY);
         this.add(this.move);
+    }
+
+    protected HudModule(String id, String name, String description) {
+        this(id, name, description, Category.HUD);
     }
 
     protected int[] anchor(int screenW, int screenH, int panelW, int panelH) {

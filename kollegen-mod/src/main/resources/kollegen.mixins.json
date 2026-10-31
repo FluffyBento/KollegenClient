@@ -13,6 +13,7 @@
     "NametagMixin",
     "TablistMixin",
     "ChatMixin",
+    "GuiMessageLineMixin",
     "BiomeMixin",
     "LogoRendererMixin",
     "FogRendererMixin",
@@ -31,6 +32,7 @@
     "MinecraftAccessor",
     "ServerDataAccessor",
     "SlotAccessor",
+    "SlotMixin",
     "GameRendererMixin",
     "ScreenTooltipMixin",
     "XaeroWorldMapMixin",
@@ -42,6 +44,7 @@
     "AxolotlAccessor",
     "PlayerCosmeticsMixin",
     "ShieldLayerMixin",
+    "ShieldSpecialRendererMixin",
     "CapeLayerMixin",
     "MaceLayerMixin",
     "WeatherEffectRendererMixin",
@@ -60,7 +63,16 @@
     "PostPassAccessor",
     "FirstPersonHandsAndItemsRendererMixin",
     "HumanoidArmorLayerMixin",
-    "LivingEntityMixin"
+    "LivingEntityMixin",
+    "ScreenEffectRendererMixin",
+    "ItemEntityRendererMixin",
+    "ItemEntityRenderStateMixin",
+    "OverlayTextureMixin",
+    "ConnectScreenMixin",
+    "DisconnectedScreenMixin",
+    "EntityHitboxDebugRendererMixin",
+    "DebugRendererMixin",
+    "MultiPlayerGameModeMixin"
   ],
   "injectors": {
     "defaultRequire": 1

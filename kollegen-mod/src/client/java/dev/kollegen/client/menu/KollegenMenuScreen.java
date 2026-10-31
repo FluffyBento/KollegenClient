@@ -18,6 +18,7 @@ import dev.kollegen.client.mods.Palette;
 import dev.kollegen.client.mods.Setting;
 import dev.kollegen.client.mods.SliderSetting;
 import dev.kollegen.client.mods.StringSetting;
+import dev.kollegen.client.mods.NumberSetting;
 import dev.kollegen.client.presence.KollegenPresence;
 import dev.kollegen.client.presence.MythicPets;
 import dev.kollegen.client.presence.StoreClient;
@@ -68,6 +69,7 @@ public class KollegenMenuScreen extends Screen {
     private static final int K_COS_TAB = 17;
     private static final int K_COS_PREVIEW = 18;
     private static final int K_SKIN_CAPE_TOP_TAB = 19;
+    private static final int K_ARMOR_TAB = 20;
     private static final int GAP = 6;
     private static final int PET_ACTIVE_H = 92;
 
@@ -162,7 +164,6 @@ public class KollegenMenuScreen extends Screen {
     private boolean draggingBar = false;
     private float openAnim = 0.0f;
     private float pageAnim = 1.0f;
-    // PERF-DEBUG: Frame-Zeitmessung (avg/max über je 300 Frames im MC-Log).
     private long perfAcc = 0L;
     private int perfN = 0;
     private long perfMax = 0L;
@@ -178,7 +179,6 @@ public class KollegenMenuScreen extends Screen {
     private volatile boolean storeLoading;
     private volatile String storeMsg = "";
     private volatile boolean pendingRebuild;
-    // Ausfallsicherung: Cache anzeigen, Fehlertext, Retry-Backoff
     private boolean storeFromCache = false;
     private volatile long storeFailUntil = 0L;
     private volatile int storeFailCount = 0;
@@ -225,7 +225,7 @@ public class KollegenMenuScreen extends Screen {
     private void createSearch() {
         int sx = this.searchX();
         int sw = Math.max(50, this.rightButtonsX() - 8 - sx);
-        this.search = new EditBox(this.font, sx + 20, this.py + 13, sw - 26, 14, (Component) Component.literal(""));
+        this.search = new EditBox(this.font, sx + 22, this.py + 13, sw - 28, 12, (Component) Component.literal(""));
         this.search.setBordered(false);
         this.search.setMaxLength(40);
         this.search.setHint((Component) Component.literal("Modul suchen"));
@@ -365,14 +365,10 @@ public class KollegenMenuScreen extends Screen {
         if (this.storeLoading) {
             return;
         }
-        // Backoff nach Fehlschlag: nicht alle 20s erneut versuchen (Server evtl.
-        // länger offline). Nach Erfolg wieder normales Intervall.
         if (this.storeFailUntil > now) {
             return;
         }
         if (this.storeCache == null) {
-            // Letzte bekannte Daten von Platte laden, damit bei Backend-Ausfall
-            // die Cosmetics trotzdem sichtbar bleiben.
             JsonObject cached = StoreClient.cachedCatalog();
             if (cached != null) {
                 this.storeCache = cached;
@@ -397,7 +393,6 @@ public class KollegenMenuScreen extends Screen {
             }
             if (!ok) {
                 this.storeMsg = StoreClient.lastError() == null ? "Store nicht erreichbar" : StoreClient.lastError();
-                // 30s / 60s / 120s (max. 5 min) ausgesetztes Wiederholen
                 this.storeFailCount = Math.min(this.storeFailCount + 1, 5);
                 this.storeFailUntil = now + (30L << (this.storeFailCount - 1));
             }
@@ -606,9 +601,6 @@ public class KollegenMenuScreen extends Screen {
                 return true;
             }
         }
-        // Sicherheitsnetz: Kategorien, die der Server neu hinzugefügt hat und die
-        // noch nicht in SLOT_ORDER stehen, dürfen NICHT stillschweigend aus dem
-        // Cosmetics-Tab verschwinden. Nur Pet-Zubehör (eigener Tab) aussortieren.
         return c != null && !c.isEmpty() && !c.startsWith("pet");
     }
 
@@ -688,7 +680,7 @@ public class KollegenMenuScreen extends Screen {
             float viewH = Math.max(1.0f, this.ch - stickyH);
             this.maxScroll = Math.max(0.0f, scrollableListH - viewH + 20.0f);
         } else {
-            this.maxScroll = Math.max(0.0f, this.contentH - this.ch + 2);
+            this.maxScroll = Math.max(0.0f, this.contentH - this.ch + 16.0f);
         }
         this.scrollT = Math.max(0.0f, Math.min(this.scrollT, this.maxScroll));
         this.scrollV = Math.max(0.0f, Math.min(this.scrollV, this.maxScroll));
@@ -741,6 +733,15 @@ public class KollegenMenuScreen extends Screen {
         Module m = this.detail;
         Cell h = this.addFull(K_DETAIL, m.risk != null ? 54.0f : 42.0f);
         h.module = m;
+        if (m instanceof dev.kollegen.client.mods.modules.ArmorTransparency at) {
+            this.addFull(K_ARMOR_TAB, 24.0f);
+            for (Setting s : at.getActiveSettings()) {
+                Cell c = this.addFull(K_SETTING, 30.0f);
+                c.setting = s;
+                c.module = m;
+            }
+            return;
+        }
         List<Setting> sorted = new ArrayList<Setting>(m.settings());
         sorted.sort((a, b) -> a.name.compareToIgnoreCase(b.name));
         if (sorted.isEmpty()) {
@@ -760,7 +761,6 @@ public class KollegenMenuScreen extends Screen {
         boolean failed = this.storeMsg != null && !this.storeMsg.isEmpty();
         String info;
         if (failed) {
-            // Bei Ausfall: Grund nennen und kennzeichnen, dass evtl. alte Daten shown.
             info = this.storeFromCache
                     ? this.storeMsg + " - zeige letzte bekannte Daten"
                     : this.storeMsg;
@@ -778,7 +778,6 @@ public class KollegenMenuScreen extends Screen {
         i.data = new JsonObject();
         i.data.addProperty("points", failed ? -1 : num(this.storeCache, "points", -1));
         if (failed) {
-            // Deutlich sichtbarer Hinweis statt eines scheinbar leeren Tabs.
             Cell w = this.addFull(K_WARN, 34.0f);
             w.text = (this.storeMsg == null ? "Store nicht erreichbar" : this.storeMsg)
                     + (this.storeFromCache ? " - zeige letzte bekannte Daten" : "")
@@ -817,11 +816,9 @@ public class KollegenMenuScreen extends Screen {
             return;
         }
         if (cat == Category.COSMETICS) {
-            // Tabs: Name Cosmetics vs Skin Cosmetics
             this.addFull(K_COS_TAB, 22.0f);
 
-            // Live Preview Card
-            this.addFull(K_COS_PREVIEW, "name".equalsIgnoreCase(this.cosSubTab) ? 68.0f : 108.0f);
+            this.addFull(K_COS_PREVIEW, "name".equalsIgnoreCase(this.cosSubTab) ? 68.0f : 138.0f);
 
             Set<String> pkgOwned = new HashSet<String>();
             for (JsonObject it : all) {
@@ -999,7 +996,7 @@ public class KollegenMenuScreen extends Screen {
 
     private int[] widgetRect(Cell c) {
         int lw = (int) (c.w * 0.36f);
-        if (c.setting instanceof SliderSetting || c.setting instanceof StringSetting) {
+        if (c.setting instanceof SliderSetting || c.setting instanceof StringSetting || c.setting instanceof NumberSetting) {
             return new int[]{this.cx + lw, (int) c.w - lw - 2};
         }
         if (c.setting instanceof BooleanSetting) {
@@ -1182,8 +1179,8 @@ public class KollegenMenuScreen extends Screen {
     }
 
     public boolean mouseScrolled(double mx, double my, double horizontal, double vertical) {
-        if (this.inContent(mx, my) && this.maxScroll > 0) {
-            this.scrollT = Math.max(0.0f, Math.min(this.maxScroll, this.scrollT - (float) (vertical * 28.0)));
+        if (this.maxScroll > 0) {
+            this.scrollT = Math.max(0.0f, Math.min(this.maxScroll, this.scrollT - (float) (vertical * 32.0)));
             return true;
         }
         return super.mouseScrolled(mx, my, horizontal, vertical);
@@ -1360,6 +1357,19 @@ public class KollegenMenuScreen extends Screen {
                         return true;
                     } else if (hit(mx, my, X + tw, Y, tw, c.h)) {
                         this.cosSubTab = "skin";
+                        this.relayout();
+                        return true;
+                    }
+                    return false;
+                }
+                case K_ARMOR_TAB: {
+                    float tw = c.w / 2.0f;
+                    if (hit(mx, my, X, Y, tw, c.h)) {
+                        dev.kollegen.client.mods.modules.ArmorTransparency.activeSubTab = 0;
+                        this.relayout();
+                        return true;
+                    } else if (hit(mx, my, X + tw, Y, tw, c.h)) {
+                        dev.kollegen.client.mods.modules.ArmorTransparency.activeSubTab = 1;
                         this.relayout();
                         return true;
                     }
@@ -1546,7 +1556,6 @@ public class KollegenMenuScreen extends Screen {
         float stickyH = (cat == Category.COSMETICS) ? (("name".equalsIgnoreCase(this.cosSubTab) ? 68.0f : 108.0f) + 22.0f + GAP) : 0.0f;
 
         if (cat == Category.COSMETICS) {
-            // 1. Draw scrollable cells strictly clipped below sticky preview
             g.enableScissor(this.cx - 2, Math.round(this.cy + stickyH), this.cx + this.cw + 2, this.cy + this.ch);
             for (Cell c : this.cells) {
                 if (c.kind == K_COS_TAB || c.kind == K_COS_PREVIEW) {
@@ -1562,7 +1571,6 @@ public class KollegenMenuScreen extends Screen {
             }
             g.disableScissor();
 
-            // 2. Draw sticky tabs and preview pinned at top
             for (Cell c : this.cells) {
                 if (c.kind == K_COS_TAB || c.kind == K_COS_PREVIEW) {
                     float X = this.cx + c.x;
@@ -1656,6 +1664,9 @@ public class KollegenMenuScreen extends Screen {
                 break;
             case K_COS_PREVIEW:
                 this.drawCosPreview(g, c, X, Y, mx, my);
+                break;
+            case K_ARMOR_TAB:
+                this.drawArmorTabs(g, c, X, Y, mx, my);
                 break;
             default:
                 break;
@@ -1918,7 +1929,6 @@ public class KollegenMenuScreen extends Screen {
         t.data = new JsonObject();
         t.data.addProperty("sub", "Skins & Capes direkt im Spiel auswählen");
 
-        // Top Tabs: Skins vs Capes
         this.addFull(K_SKIN_CAPE_TOP_TAB, 24.0f);
         int cols = this.compact ? 1 : 2;
 
@@ -1936,7 +1946,6 @@ public class KollegenMenuScreen extends Screen {
                 sc.data = skin;
             }
         } else {
-            // Capes subtabs
             this.addFull(K_CAPE_TAB, 22.0f);
             Cell inf = this.addFull(K_INFO, 18.0f);
             if ("my_capes".equalsIgnoreCase(this.capeCatFilter)) {
@@ -1968,14 +1977,6 @@ public class KollegenMenuScreen extends Screen {
                     eqObj.addProperty("category", "community");
                 }
                 eqCell.data = eqObj;
-            } else if ("my_capes".equalsIgnoreCase(this.capeCatFilter)) {
-                Cell upCell = this.addGrid(K_CAPE_ITEM, cols, 50.0f);
-                JsonObject upObj = new JsonObject();
-                upObj.addProperty("id", "upload_action");
-                upObj.addProperty("name", "+ Cape hochladen");
-                upObj.addProperty("author", "Im Launcher hinzufügen");
-                upObj.addProperty("category", "my_capes");
-                upCell.data = upObj;
             }
 
             List<JsonObject> capes = this.loadCapesFromConfig();
@@ -2022,6 +2023,22 @@ public class KollegenMenuScreen extends Screen {
         for (int i = 0; i < tabs.length; i++) {
             float tx = X + i * tw;
             boolean active = tabs[i].equalsIgnoreCase(this.skinCapeMode);
+            boolean hov = hit(mx, my, tx, Y, tw - 2, c.h);
+            int bg = active ? Glass.a(Palette.ACCENT, 0.50f) : (hov ? Glass.a(0xFFFFFF, 0.12f) : Glass.a(0x000000, 0.30f));
+            int border = active ? Glass.a(Palette.ACCENT, 0.9f) : (hov ? 0x66FFFFFF : 0x22FFFFFF);
+            Glass.rr(g, tx, Y, tw - 2, c.h, 6, bg);
+            Glass.ring(g, tx, Y, tw - 2, c.h, 6, 0.5f, border);
+            int textColor = active ? 0xFFFFFFFF : (hov ? Palette.TEXT : Palette.MUTED);
+            Glass.textC(g, this.font, labels[i], Math.round(tx + (tw - 2) / 2.0f), Math.round(Y + (c.h - 8) / 2.0f), textColor, active);
+        }
+    }
+
+    private void drawArmorTabs(GuiGraphicsExtractor g, Cell c, float X, float Y, int mx, int my) {
+        String[] labels = new String[]{"Eigene", "Andere"};
+        float tw = c.w / 2.0f;
+        for (int i = 0; i < 2; i++) {
+            float tx = X + i * tw;
+            boolean active = i == dev.kollegen.client.mods.modules.ArmorTransparency.activeSubTab;
             boolean hov = hit(mx, my, tx, Y, tw - 2, c.h);
             int bg = active ? Glass.a(Palette.ACCENT, 0.50f) : (hov ? Glass.a(0xFFFFFF, 0.12f) : Glass.a(0x000000, 0.30f));
             int border = active ? Glass.a(Palette.ACCENT, 0.9f) : (hov ? 0x66FFFFFF : 0x22FFFFFF);
@@ -2114,17 +2131,15 @@ public class KollegenMenuScreen extends Screen {
                 }
             }
 
-            // Line 1: Title (centered, bold)
             if (!title.isEmpty()) {
                 int tw = this.font.width(title);
                 Glass.textBold(g, this.font, title, Math.round(X + (c.w - tw) / 2.0f), Math.round(Y + 17), titleColor, false);
             }
 
-            // Line 2: Dark pill with Logo + Badge + Name + Sticker (centered)
             int nw = this.font.width(pName);
             int badgeW = badge.isEmpty() ? 0 : this.font.width(badge + " ");
             int stickerW = sticker.isEmpty() ? 0 : this.font.width(" " + sticker);
-            int midContentW = 12 + badgeW + nw + stickerW; // 12 for sparkle logo
+            int midContentW = 12 + badgeW + nw + stickerW;
             float midX = X + (c.w - midContentW) / 2.0f;
             float midY = Y + (title.isEmpty() ? 24.0f : 31.0f);
             Glass.rr(g, midX - 6, midY - 2, midContentW + 12, 16, 4, Glass.a(0x000000, 0.55f));
@@ -2141,7 +2156,6 @@ public class KollegenMenuScreen extends Screen {
                 Glass.text(g, this.font, " " + sticker, Math.round(curX), Math.round(midY + 2), Palette.TEXT, false);
             }
 
-            // Line 3: Level [lv X] (centered)
             int lvl = this.storeCache != null ? num(this.storeCache, "level", 1) : 1;
             String lvlText = "[lv " + lvl + "]";
             int lw = this.font.width(lvlText);
@@ -2153,41 +2167,58 @@ public class KollegenMenuScreen extends Screen {
             Minecraft mc = Minecraft.getInstance();
             if (mc.player != null) {
                 try {
-                    InventoryScreen.extractEntityInInventoryFollowsMouse(g, Math.round(X + 12), Math.round(Y + 14), Math.round(X + 80), Math.round(Y + 102), 28, 0.0f, (float) mx, (float) my, mc.player);
+                    InventoryScreen.extractEntityInInventoryFollowsMouse(g, Math.round(X + 10), Math.round(Y + 12), Math.round(X + 96), Math.round(Y + 132), 40, 0.0f, (float) mx, (float) my, mc.player);
                 } catch (Throwable ignored) {
                 }
             } else {
                 Identifier skinTex = SkinCapeTextureManager.getOrLoadSkin(mc.getUser() != null ? mc.getUser().getName() : "Player", null);
                 if (skinTex != null) {
                     try {
-                        PlayerFaceExtractor.extractRenderState(g, skinTex, Math.round(X + 20), Math.round(Y + 28), 48, true, false, -1);
+                        PlayerFaceExtractor.extractRenderState(g, skinTex, Math.round(X + 22), Math.round(Y + 30), 56, true, false, -1);
                     } catch (Throwable ignored) {
                     }
                 }
             }
 
-            float infoX = X + 90;
-            float infoY = Y + 18;
+            float infoX = X + 104;
+            float infoY = Y + 16;
             Glass.text(g, this.font, "Ausrüstung im Spiel:", Math.round(infoX), Math.round(infoY), Palette.TEXT, true);
-            infoY += 13;
 
-            String[] slots = new String[]{"head_accessory", "face_accessory", "back_accessory", "aura", "shield"};
-            String[] slotNames = new String[]{"Kopf", "Gesicht", "Rücken", "Aura", "Schild"};
-            for (int i = 0; i < slots.length; i++) {
-                String eqId = this.equippedId(slots[i]);
-                String eqName = "Keine";
-                if (!eqId.isEmpty() && this.storeCache != null && this.storeCache.has("catalog")) {
-                    for (JsonElement el : this.storeCache.getAsJsonArray("catalog")) {
-                        if (el.isJsonObject() && str(el.getAsJsonObject(), "id", "").equals(eqId)) {
-                            eqName = str(el.getAsJsonObject(), "name", eqId);
-                            break;
-                        }
-                    }
+            String[] slots1 = new String[]{"head_accessory", "face_accessory", "shoulder_accessory", "torso_accessory", "back_accessory"};
+            String[] slotNames1 = new String[]{"Kopf", "Gesicht", "Schulter", "Oberkörper", "Rücken"};
+            String[] slots2 = new String[]{"legs_accessory", "gloves", "shield", "aura"};
+            String[] slotNames2 = new String[]{"Unterkörper", "Handschuhe", "Schild", "Aura"};
+
+            float col2X = infoX + Math.max(100.0f, (c.w - 114.0f) / 2.0f);
+            float rowY = infoY + 14;
+            for (int i = 0; i < 5; i++) {
+                String eqId1 = this.equippedId(slots1[i]);
+                String eqName1 = this.resolveCosmeticName(eqId1);
+                String txt1 = Glass.trunc(this.font, slotNames1[i] + ": " + eqName1, (int) Math.max(70, col2X - infoX - 6));
+                Glass.text(g, this.font, txt1, Math.round(infoX), Math.round(rowY), eqId1.isEmpty() ? Palette.MUTED : Palette.ACCENT, false);
+
+                if (i < slots2.length) {
+                    String eqId2 = this.equippedId(slots2[i]);
+                    String eqName2 = this.resolveCosmeticName(eqId2);
+                    String txt2 = Glass.trunc(this.font, slotNames2[i] + ": " + eqName2, (int) Math.max(70, X + c.w - col2X - 8));
+                    Glass.text(g, this.font, txt2, Math.round(col2X), Math.round(rowY), eqId2.isEmpty() ? Palette.MUTED : Palette.ACCENT, false);
                 }
-                Glass.text(g, this.font, slotNames[i] + ": " + eqName, Math.round(infoX), Math.round(infoY), eqId.isEmpty() ? Palette.MUTED : Palette.ACCENT, false);
-                infoY += 11;
+
+                rowY += 12;
             }
         }
+    }
+
+    private String resolveCosmeticName(String eqId) {
+        if (eqId == null || eqId.isEmpty()) return "Keine";
+        if (this.storeCache != null && this.storeCache.has("catalog")) {
+            for (JsonElement el : this.storeCache.getAsJsonArray("catalog")) {
+                if (el.isJsonObject() && str(el.getAsJsonObject(), "id", "").equals(eqId)) {
+                    return str(el.getAsJsonObject(), "name", eqId);
+                }
+            }
+        }
+        return eqId;
     }
 
     private void drawSkinCard(GuiGraphicsExtractor g, Cell c, float X, float Y, boolean hov) {
@@ -2279,7 +2310,7 @@ public class KollegenMenuScreen extends Screen {
                     boolean isVanillaLayout = !isStore && Math.abs(aspect - 2.0f) < 0.25f;
 
                     if (isVanillaLayout) {
-                        float u = 12.0f * ((float) tw / 64.0f);
+                        float u = 1.0f * ((float) tw / 64.0f);
                         float v = 1.0f * ((float) th / 32.0f);
                         float uw = 10.0f * ((float) tw / 64.0f);
                         float vh = 16.0f * ((float) th / 32.0f);
@@ -2309,8 +2340,8 @@ public class KollegenMenuScreen extends Screen {
                 c.truncDesc = "Kein Umhang";
             } else if (isUpload) {
                 c.truncDesc = "Im Launcher hochladen";
-            } else if (uses > 0) {
-                c.truncDesc = author + " · " + uses + " uses";
+            } else if ("community".equalsIgnoreCase(cat) && uses > 0) {
+                c.truncDesc = author + " · " + uses + " Downloads";
             } else {
                 c.truncDesc = author;
             }
@@ -2472,7 +2503,6 @@ public class KollegenMenuScreen extends Screen {
         } catch (Throwable ignored) {
         }
 
-        // Store capes including package items
         JsonObject sc = this.storeCache != null ? this.storeCache : StoreClient.cachedCatalog();
         if (sc != null && sc.has("catalog") && sc.get("catalog").isJsonArray()) {
             Set<String> pkgOwned = new HashSet<String>();

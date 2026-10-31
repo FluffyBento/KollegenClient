@@ -47,7 +47,7 @@ public final class KollegenDistanceManager {
 
         ChunkPos pos = chunk.getPos();
         Minecraft mc = Minecraft.getInstance();
-        if (mc != null && mc.player != null) {
+        if (mc != null && mc.player != null && !Performance.KollegenDistance.isUnlimited()) {
             int renderDist = Performance.KollegenDistance.getMaxChunkDistance();
             if (mc.options != null) {
                 renderDist = Math.max(renderDist, mc.options.renderDistance().get());
@@ -62,7 +62,8 @@ public final class KollegenDistanceManager {
             }
         }
 
-        if (FAKE_CHUNKS.size() >= MAX_CACHE_SIZE) {
+        int maxCache = Performance.KollegenDistance.isUnlimited() ? 131072 : MAX_CACHE_SIZE;
+        if (FAKE_CHUNKS.size() >= maxCache) {
             purgeFurthest(mc);
         }
 
@@ -102,20 +103,22 @@ public final class KollegenDistanceManager {
         }
         int maxDistSq = renderDist * renderDist;
 
-        synchronized (FAKE_CHUNKS) {
-            Iterator<Long2ObjectMap.Entry<LevelChunk>> it = FAKE_CHUNKS.long2ObjectEntrySet().iterator();
-            while (it.hasNext()) {
-                Long2ObjectMap.Entry<LevelChunk> entry = it.next();
-                LevelChunk chunk = entry.getValue();
-                ChunkPos pos = chunk.getPos();
-                int dx = pos.x() - px;
-                int dz = pos.z() - pz;
-                if (dx * dx + dz * dz > maxDistSq + 64) {
-                    it.remove();
-                    notifySodiumChunkRemoved(level, pos.x(), pos.z());
-                    try {
-                        chunk.clearAllBlockEntities();
-                    } catch (Throwable ignored) {}
+        if (!Performance.KollegenDistance.isUnlimited()) {
+            synchronized (FAKE_CHUNKS) {
+                Iterator<Long2ObjectMap.Entry<LevelChunk>> it = FAKE_CHUNKS.long2ObjectEntrySet().iterator();
+                while (it.hasNext()) {
+                    Long2ObjectMap.Entry<LevelChunk> entry = it.next();
+                    LevelChunk chunk = entry.getValue();
+                    ChunkPos pos = chunk.getPos();
+                    int dx = pos.x() - px;
+                    int dz = pos.z() - pz;
+                    if (dx * dx + dz * dz > maxDistSq + 64) {
+                        it.remove();
+                        notifySodiumChunkRemoved(level, pos.x(), pos.z());
+                        try {
+                            chunk.clearAllBlockEntities();
+                        } catch (Throwable ignored) {}
+                    }
                 }
             }
         }

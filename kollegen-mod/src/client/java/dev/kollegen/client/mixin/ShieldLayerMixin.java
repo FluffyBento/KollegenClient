@@ -2,6 +2,7 @@ package dev.kollegen.client.mixin;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import dev.kollegen.client.mods.modules.ShieldSettings;
+import dev.kollegen.client.mods.modules.ShieldStatusContext;
 import dev.kollegen.client.presence.CosmeticData;
 import dev.kollegen.client.presence.KollegenPresence;
 import dev.kollegen.client.presence.RenderStateIds;
@@ -34,16 +35,10 @@ public class ShieldLayerMixin {
     private void kollegen$hideVanillaShield(AvatarRenderState state, ItemStackRenderState renderState, ItemStack stack, HumanoidArm arm,
                                             PoseStack poseStack, SubmitNodeCollector collector, int packedLight, CallbackInfo ci) {
         kollegen$curState.set(state);
-        kollegen$curIsShield.set(stack != null && stack.getItem() == Items.SHIELD);
-        try {
-            if (stack == null || stack.getItem() != Items.SHIELD) return;
-            UUID id = RenderStateIds.get(state);
-            if (id == null) return;
-            CosmeticData data = KollegenPresence.getCosmetics(id);
-            if (data != null && data.shieldTexture != null) {
-                ci.cancel();
-            }
-        } catch (Throwable ignored) {
+        boolean isSh = stack != null && stack.getItem() == Items.SHIELD;
+        kollegen$curIsShield.set(isSh);
+        if (isSh) {
+            ShieldStatusContext.setThirdPerson(state);
         }
     }
 
@@ -52,19 +47,6 @@ public class ShieldLayerMixin {
     private void kollegen$cleanState(CallbackInfo ci) {
         kollegen$curState.remove();
         kollegen$curIsShield.remove();
-    }
-
-    @ModifyArg(method = "submitArmWithItem(Lnet/minecraft/client/renderer/entity/state/AvatarRenderState;Lnet/minecraft/client/renderer/item/ItemStackRenderState;Lnet/minecraft/world/item/ItemStack;Lnet/minecraft/world/entity/HumanoidArm;Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/SubmitNodeCollector;I)V",
-            at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/item/ItemStackRenderState;submit(Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/SubmitNodeCollector;III)V"),
-            index = 4, require = 0)
-    private int kollegen$shieldOutlineThirdPerson(int originalOutline) {
-        if (Boolean.TRUE.equals(kollegen$curIsShield.get()) && ShieldSettings.isStatusOutlineEnabled()) {
-            AvatarRenderState state = kollegen$curState.get();
-            if (state != null) {
-                int c = ShieldSettings.getStatusColor(state);
-                if (c != 0) return c;
-            }
-        }
-        return originalOutline;
+        ShieldStatusContext.clear();
     }
 }

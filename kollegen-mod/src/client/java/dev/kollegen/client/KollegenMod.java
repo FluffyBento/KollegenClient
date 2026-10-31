@@ -1,5 +1,6 @@
 package dev.kollegen.client;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import dev.kollegen.client.mods.KeybindSetting;
 import dev.kollegen.client.mods.Module;
 import dev.kollegen.client.mods.ModuleManager;
@@ -15,7 +16,6 @@ import org.slf4j.LoggerFactory;
 
 import java.util.HashSet;
 import java.util.Set;
-
 
 @Environment(EnvType.CLIENT)
 public class KollegenMod implements ClientModInitializer {
@@ -34,8 +34,7 @@ public class KollegenMod implements ClientModInitializer {
         dev.kollegen.client.mods.Palette.loadTheme(); 
         ModuleManager.registerAll();
         
-        
-        dev.kollegen.client.mods.modules.        RendererManager.apply();
+        dev.kollegen.client.mods.modules.RendererManager.apply();
         dev.kollegen.client.input.ControllerMode.init(); 
         KollegenRPC.start(); 
         
@@ -46,17 +45,12 @@ public class KollegenMod implements ClientModInitializer {
         Minecraft mc = Minecraft.getInstance();
         if (mc == null) return;
 
-        
         dev.kollegen.client.input.GamepadDetect.ensureMappings();
-        
         dev.kollegen.client.input.ControllerMode.tick(mc);
-        
         dev.kollegen.client.input.GamepadInput.tick(mc);
-        
         dev.kollegen.client.presence.PetRenderer.onTick(mc);
         dev.kollegen.client.presence.KollegenPresence.checkRefreshSignal();
 
-        
         boolean shiftDown = dev.kollegen.client.input.KollegenKeybind.isRightShiftHeld();
         if (shiftDown && !shiftWasDown) {
             if (!(mc.gui.screen() instanceof KollegenMenuScreen)) {
@@ -65,10 +59,8 @@ public class KollegenMod implements ClientModInitializer {
         }
         shiftWasDown = shiftDown;
 
-        
         ModuleManager.tick();
 
-        
         if (dev.kollegen.client.mods.HudModule.dragging != null) {
             try {
                 dev.kollegen.client.mods.HudModule d = dev.kollegen.client.mods.HudModule.dragging;
@@ -80,7 +72,6 @@ public class KollegenMod implements ClientModInitializer {
             }
         }
 
-        // Module Hotkeys (nur ausführen wenn kein Screen geöffnet ist)
         if (mc.gui != null && mc.gui.screen() == null) {
             for (Module m : ModuleManager.modules()) {
                 for (dev.kollegen.client.mods.Setting s : m.settings()) {
@@ -88,6 +79,7 @@ public class KollegenMod implements ClientModInitializer {
                         boolean down = isKeyDown(ks.value);
                         boolean was = pressedKeys.contains(ks.value);
                         if (down && !was) m.onKey();
+                        else if (!down && was) m.onKeyRelease();
                         if (down) pressedKeys.add(ks.value);
                         else pressedKeys.remove(ks.value);
                     }
@@ -96,6 +88,7 @@ public class KollegenMod implements ClientModInitializer {
                     boolean down = isKeyDown(m.key);
                     boolean was = pressedKeys.contains(m.key);
                     if (down && !was) m.onKey();
+                    else if (!down && was) m.onKeyRelease();
                     if (down) pressedKeys.add(m.key);
                     else pressedKeys.remove(m.key);
                 }
@@ -104,17 +97,24 @@ public class KollegenMod implements ClientModInitializer {
             pressedKeys.clear();
         }
 
-        
+        if (mc.gui != null && mc.gui.screen() instanceof net.minecraft.client.gui.screens.DisconnectedScreen ds) {
+            dev.kollegen.client.mods.modules.AutoReconnect.onScreenTick(mc, ds);
+        } else if (dev.kollegen.client.mods.modules.AutoReconnect.isActive()) {
+            dev.kollegen.client.mods.modules.AutoReconnect.cancel();
+        }
+
         KollegenRPC.tick(mc);
 
-        
         boolean connected = mc.getConnection() != null;
-        if (connected && !wasConnected) dev.kollegen.client.presence.KollegenPresence.join(mc);
-        else if (!connected && wasConnected) dev.kollegen.client.presence.KollegenPresence.leave();
+        if (connected && !wasConnected) {
+            dev.kollegen.client.mods.modules.AutoReconnect.resetAttempts();
+            dev.kollegen.client.presence.KollegenPresence.join(mc);
+        } else if (!connected && wasConnected) {
+            dev.kollegen.client.presence.KollegenPresence.leave();
+        }
         wasConnected = connected;
     }
 
-    
     public static void onFrame() {
         Minecraft mc = Minecraft.getInstance();
         if (mc == null || mc.player == null || mc.level == null) return;
@@ -122,6 +122,10 @@ public class KollegenMod implements ClientModInitializer {
     }
 
     private static boolean isKeyDown(int key) {
+        try {
+            if (InputConstants.isKeyDown(key)) return true;
+        } catch (Throwable ignored) {
+        }
         try {
             Minecraft mc = Minecraft.getInstance();
             if (mc == null || mc.getWindow() == null) return false;

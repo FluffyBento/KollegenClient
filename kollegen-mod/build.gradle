@@ -126,6 +126,7 @@ if (is121) {
                     .replace('net.minecraft.client.multiplayer.chat.GuiMessageTag', 'net.minecraft.client.GuiMessageTag')
                     .replace('client/multiplayer/chat/GuiMessageTag', 'client/GuiMessageTag')
                     .replace('addPlayerMessage(', 'addMessage(')
+                    .replace('addClientSystemMessage(', 'addMessage(')
                     .replace('.gui.hud.isHidden()', '.options.hideGui')
                     .replace('.gui.hud.getChat()', '.gui.getChat()')
                     .replace('0, title, !state.isDiscrete, state.lightCoords, camera);', '0, title, !state.isDiscrete, state.lightCoords, state.distanceToCameraSq, camera);')

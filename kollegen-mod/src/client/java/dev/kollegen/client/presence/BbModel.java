@@ -39,11 +39,43 @@ public final class BbModel {
     public final float texHeight;
     public final List<Bone> bones = new ArrayList<>();
     public final List<Cube> loose = new ArrayList<>();
+    public float minX;
+    public float minY;
+    public float minZ;
+    public float maxX;
+    public float maxY;
+    public float maxZ;
     public float cx;
     public float cy;
     public float cz;
     public float animLength;
     public final Map<String, AnimBone> anims = new HashMap<>();
+
+    public float[] findGrip() {
+        float gx = this.cx;
+        float gy = this.cy;
+        float gz = this.cz;
+        List<Cube> all = new ArrayList<>();
+        for (Bone b : this.bones) collectCubes(b, all);
+        all.addAll(this.loose);
+        for (Cube c : all) {
+            if (c.name != null) {
+                String nl = c.name.toLowerCase(java.util.Locale.ROOT);
+                if (nl.contains("griff") || nl.contains("handle") || nl.contains("grip")) {
+                    return new float[]{(c.minX + c.maxX) / 2.0F, (c.minY + c.maxY) / 2.0F, (c.minZ + c.maxZ) / 2.0F};
+                }
+            }
+        }
+        for (Bone bone : this.bones) {
+            if (bone.name != null) {
+                String bl = bone.name.toLowerCase(java.util.Locale.ROOT);
+                if (bl.contains("handle") || bl.contains("griff") || bl.contains("shield_mount") || bl.contains("grip")) {
+                    return new float[]{pivotX(bone.ox), pivotY(bone.oy), pivotZ(bone.oz)};
+                }
+            }
+        }
+        return new float[]{gx, gy, gz};
+    }
 
     public static final class AnimBone {
         public float[] rTimes = new float[0];
@@ -80,6 +112,7 @@ public final class BbModel {
     }
 
     public static final class Cube {
+        public String name = "";
         public float ox;
         public float oy;
         public float oz;
@@ -182,8 +215,14 @@ public final class BbModel {
         }
         Map<String, Boolean> claimed = new HashMap<>();
         try {
+            JsonArray outliner = null;
             if (root.has("outliner") && root.get("outliner").isJsonArray()) {
-                for (JsonElement el : root.getAsJsonArray("outliner")) {
+                outliner = root.getAsJsonArray("outliner");
+            } else if (root.has("groups") && root.get("groups").isJsonArray()) {
+                outliner = root.getAsJsonArray("groups");
+            }
+            if (outliner != null) {
+                for (JsonElement el : outliner) {
                     Bone bone = readOutlinerEntry(el, byUuid, claimed);
                     if (bone != null) model.bones.add(bone);
                 }
@@ -211,6 +250,12 @@ public final class BbModel {
             if (c.maxZ > maxZ) maxZ = c.maxZ;
         }
         if (!all.isEmpty()) {
+            model.minX = minX;
+            model.maxX = maxX;
+            model.minY = minY;
+            model.maxY = maxY;
+            model.minZ = minZ;
+            model.maxZ = maxZ;
             model.cx = (minX + maxX) / 2.0F;
             model.cy = (minY + maxY) / 2.0F;
             model.cz = (minZ + maxZ) / 2.0F;
@@ -489,6 +534,11 @@ public final class BbModel {
                         String uuid = child.getAsString();
                         Cube cube = byUuid.get(uuid);
                         if (cube != null) {
+                            if (cube.ox == 0.0F && cube.oy == 0.0F && cube.oz == 0.0F) {
+                                cube.ox = bone.ox;
+                                cube.oy = bone.oy;
+                                cube.oz = bone.oz;
+                            }
                             bone.cubes.add(cube);
                             claimed.put(uuid, Boolean.TRUE);
                         }
@@ -515,6 +565,7 @@ public final class BbModel {
         Cube cube = new Cube();
         try {
             String cubeName = o.has("name") ? o.get("name").getAsString() : "";
+            cube.name = cubeName;
             if ("visor_lens".equals(cubeName) && Boolean.getBoolean("kollegen.lensAnim")) {
                 cube.frameW = 128.0F;
                 cube.frameN = 4;
@@ -584,8 +635,10 @@ public final class BbModel {
     private static float[] readFloat3(JsonObject o, String key) {
         float[] out = new float[]{0.0F, 0.0F, 0.0F};
         try {
-            if (o.has(key) && o.get(key).isJsonArray()) {
-                JsonArray a = o.getAsJsonArray(key);
+            String altKey = "rotation".equals(key) ? "rot" : ("rot".equals(key) ? "rotation" : null);
+            String useKey = o.has(key) ? key : (altKey != null && o.has(altKey) ? altKey : null);
+            if (useKey != null && o.get(useKey).isJsonArray()) {
+                JsonArray a = o.getAsJsonArray(useKey);
                 for (int i = 0; i < 3 && i < a.size(); i++) {
                     out[i] = a.get(i).getAsFloat();
                 }

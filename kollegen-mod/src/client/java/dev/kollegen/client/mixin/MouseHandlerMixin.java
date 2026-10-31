@@ -67,6 +67,16 @@ public class MouseHandlerMixin {
         }
     }
 
+    @Inject(method = "onScroll", at = @At("HEAD"), cancellable = true)
+    private void kollegen$zoomScroll(long window, double horizontal, double vertical, CallbackInfo ci) {
+        if (dev.kollegen.client.mods.modules.Visual.isZoomScrollEnabled()) {
+            if (vertical != 0.0) {
+                dev.kollegen.client.mods.modules.Visual.onZoomScroll(vertical);
+                ci.cancel();
+            }
+        }
+    }
+
     @Inject(method = "onButton(JLnet/minecraft/client/input/MouseButtonInfo;I)V", at = @At("HEAD"))
     private void kollegen_client$cps(long window, MouseButtonInfo info, int action, CallbackInfo ci) {
         int button = info.button();

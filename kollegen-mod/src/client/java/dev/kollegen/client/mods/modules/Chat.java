@@ -21,6 +21,7 @@ public final class Chat {
     public static void register() {
         ModuleManager.register(new ClearChat());
         ModuleManager.register(new AutoText());
+        ModuleManager.register(new TwitchChat());
     }
 
     
