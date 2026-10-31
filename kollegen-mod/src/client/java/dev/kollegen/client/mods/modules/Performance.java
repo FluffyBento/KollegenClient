@@ -31,13 +31,13 @@ public final class Performance {
         public static final BooleanSetting cullBlockEntities = new BooleanSetting(
                 "Sichtfeld- & Wand-Culling (Blöcke)",
                 "Berechnet und rendert Kisten, Schilder, Banner etc. nur im Kamerasichtfeld und blendet sie hinter Mauern aus.",
-                true
+                false
         );
 
         public static final BooleanSetting cullOccludedEntities = new BooleanSetting(
                 "Wand-Culling (Entities)",
                 "Blendet Mobs, Tiere und Spieler aus, die vollständig hinter Wänden, Decken oder Höhlen verborgen sind.",
-                true
+                false
         );
 
         public static final BooleanSetting cullParticles = new BooleanSetting(
