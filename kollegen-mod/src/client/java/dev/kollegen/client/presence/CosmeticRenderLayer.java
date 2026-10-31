@@ -37,7 +37,7 @@ public final class CosmeticRenderLayer extends RenderLayer<AvatarRenderState, Pl
     private static final ThreadLocal<Quaternionf> ROT_SCRATCH = ThreadLocal.withInitial(Quaternionf::new);
     private static final ThreadLocal<Quaternionf> CAPE_SWING = ThreadLocal.withInitial(Quaternionf::new);
 
-    private static Identifier getId(String path) {
+    public static Identifier getId(String path) {
         if (path == null) return null;
         return ID_CACHE.computeIfAbsent(path, p -> Identifier.tryParse(p.toLowerCase(java.util.Locale.ROOT)));
     }
@@ -72,15 +72,16 @@ public final class CosmeticRenderLayer extends RenderLayer<AvatarRenderState, Pl
             if (model == null) return;
 
             double distSq = state.distanceToCameraSq;
-            if (distSq > 6400.0) return; // > 80 Blöcke: Sub-Pixel-Objekte nicht mehr rendern
+            if (distSq > 2304.0) return; // > 48 Blöcke: 3D-Cosmetics nicht mehr rendern (Performance)
             double timeSec = animTime();
             if (distSq > 1024.0) { // > 32 Blöcke: 20-Hz Animation quantization für maximale Performance
                 timeSec = Math.floor(timeSec * 20.0) / 20.0;
             }
 
+            Player cachedPlayer = (data.capeTexture != null && data.capeModel != null && !data.capeModel.isEmpty()) ? resolvePlayer(mc, id) : null;
             if (data.capeTexture != null && data.capeModel != null && !data.capeModel.isEmpty()) {
                 try {
-                    Player player = resolvePlayer(mc, id);
+                    Player player = cachedPlayer;
                     ItemStack chest = player != null ? player.getItemBySlot(EquipmentSlot.CHEST) : null;
                     boolean elytra = chest != null && chest.getItem() == net.minecraft.world.item.Items.ELYTRA;
                     if (!elytra) {
@@ -118,18 +119,9 @@ public final class CosmeticRenderLayer extends RenderLayer<AvatarRenderState, Pl
             if (data.glovesTexture != null) {
                 renderSlot(poseStack, collector, model.body, data.glovesTexture, data.glovesModel, packedLight, null, 1.0F, timeSec);
             }
-            if (data.shieldTexture != null) {
-                try {
-                    Player player = resolvePlayer(mc, id);
-                    if (player != null) {
-                        renderShield(poseStack, collector, model, player, data.shieldTexture, data.shieldModel, packedLight, timeSec);
-                    }
-                } catch (Throwable ignored) {
-                }
-            }
             if (data.maceTexture != null) {
                 try {
-                    Player player = resolvePlayer(mc, id);
+                    Player player = cachedPlayer != null ? cachedPlayer : resolvePlayer(mc, id);
                     if (player != null) {
                         renderMace(poseStack, collector, model, player, data.maceTexture, data.maceModel, packedLight, timeSec);
                     }
@@ -207,63 +199,6 @@ public final class CosmeticRenderLayer extends RenderLayer<AvatarRenderState, Pl
         }
     }
 
-    private static void renderShield(PoseStack poseStack, SubmitNodeCollector collector, PlayerModel parent, Player player, String texture, String modelPath, int packedLight, double timeSec) {
-        try {
-            if (player == null || texture == null) return;
-            ItemStack off = player.getItemBySlot(EquipmentSlot.OFFHAND);
-            ItemStack main = player.getItemBySlot(EquipmentSlot.MAINHAND);
-            boolean offShield = off != null && off.getItem() == net.minecraft.world.item.Items.SHIELD;
-            boolean mainShield = main != null && main.getItem() == net.minecraft.world.item.Items.SHIELD;
-            if (!offShield && !mainShield) return;
-            boolean useLeft = offShield;
-            try {
-                useLeft = offShield
-                        ? player.getMainArm() == net.minecraft.world.entity.HumanoidArm.RIGHT
-                        : player.getMainArm() == net.minecraft.world.entity.HumanoidArm.LEFT;
-            } catch (Throwable ignored) {
-            }
-            ModelPart arm = useLeft ? parent.leftArm : parent.rightArm;
-            if (arm == null) return;
-            Identifier tex = getId(texture);
-            if (tex == null) return;
-            BbModel bb = null;
-            if (modelPath != null) {
-                Identifier modelId = getId(modelPath);
-                if (modelId != null) {
-                    Minecraft mc = Minecraft.getInstance();
-                    if (mc != null) bb = BbModel.load(mc.getResourceManager(), modelId);
-                }
-            }
-            if (bb == null) return;
-
-            RenderType type = getRenderType(tex);
-            poseStack.pushPose();
-            arm.translateAndRotate(poseStack);
-
-            // Move to forearm holding position on outside of arm:
-            float armSide = useLeft ? 1.0F : -1.0F;
-            poseStack.translate(armSide * 0.16F, 0.40F, -0.04F);
-
-            // Rotate around grip position so shield outer face is outward/forward and top points upward:
-            float yawDeg = useLeft ? -90.0F : 90.0F;
-            poseStack.rotate(ROT_SCRATCH.get().identity().rotateY((float) Math.toRadians(ywDegSafe(yawDeg))));
-
-            // Find model grip point:
-            float[] grip = bb.findGrip();
-            poseStack.translate(-grip[0], -grip[1], -grip[2]);
-
-            int tintColor = -1;
-            if (dev.kollegen.client.mods.modules.ShieldSettings.isStatusTintEnabled()) {
-                int sc = dev.kollegen.client.mods.modules.ShieldSettings.getStatusColor(player);
-                if (sc != 0) tintColor = sc;
-            }
-
-            renderModelContents(poseStack, collector, type, bb, packedLight, timeSec, null, 0, 1.0F, tintColor);
-            poseStack.popPose();
-        } catch (Throwable ignored) {
-        }
-    }
-
     private static void renderMace(PoseStack poseStack, SubmitNodeCollector collector, PlayerModel parent, Player player, String texture, String modelPath, int packedLight, double timeSec) {
         try {
             if (player == null || texture == null) return;
@@ -331,6 +266,14 @@ public final class CosmeticRenderLayer extends RenderLayer<AvatarRenderState, Pl
 
     private static double animTime() {
         return System.currentTimeMillis() * 0.001;
+    }
+
+    public static void renderModelDirect(PoseStack poseStack, SubmitNodeCollector collector, RenderType type, BbModel model, int packedLight, double timeSec, int vertexColor) {
+        renderModelContents(poseStack, collector, type, model, packedLight, timeSec, null, 0, 1.0F, vertexColor);
+    }
+
+    public static RenderType getCustomRenderType(Identifier tex) {
+        return getRenderType(tex);
     }
 
     private static void renderModelContents(PoseStack poseStack, SubmitNodeCollector collector, RenderType type, BbModel model, int packedLight, double timeSec, Quaternionf rootSwing, int depth, float idleScale) {
