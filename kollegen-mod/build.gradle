@@ -348,6 +348,32 @@ if (is262) {
                          .replace('com.mojang.renderpearl.api.commands.CommandEncoder', 'com.mojang.blaze3d.systems.CommandEncoder')
                          .replace('com.mojang.renderpearl.api.pipeline.RenderPipeline', 'com.mojang.blaze3d.pipeline.RenderPipeline')
                          .replace('com.mojang.renderpearl.api.textures.GpuTextureView', 'com.mojang.blaze3d.textures.GpuTextureView')
+                         .replace('poseStack.rotate(', 'poseStack.mulPose(')
+                         .replace('poseStack.rotateDegrees(com.mojang.math.Axis.XP, rx);', 'poseStack.mulPose(com.mojang.math.Axis.XP.rotationDegrees(rx));')
+                         .replace('poseStack.rotateDegrees(com.mojang.math.Axis.YP, ry);', 'poseStack.mulPose(com.mojang.math.Axis.YP.rotationDegrees(ry));')
+                         .replace('poseStack.rotateDegrees(com.mojang.math.Axis.ZP, rz);', 'poseStack.mulPose(com.mojang.math.Axis.ZP.rotationDegrees(rz));')
+                         .replace('state.isFirstPerson = false;', '')
+                         .replace('state.smartCull = false;', '')
+                    if (rel.endsWith('presence/CosmeticRenderLayer.java')) {
+                        t = t.replace('private static final net.minecraft.client.renderer.texture.UvMapping IDENTITY_UV = new net.minecraft.client.renderer.texture.UvMapping() {', 'private static final net.minecraft.client.renderer.texture.SpriteContents.UvTransform IDENTITY_UV = new net.minecraft.client.renderer.texture.SpriteContents.UvTransform();')
+                        t = t.replace('@Override public float getU(float u) { return u; }', '')
+                        t = t.replace('@Override public float getV(float v) { return v; }', '')
+                        t = t.replace('};', '')
+                    }
+                    if (rel.endsWith('mixin/EquipmentLayerRendererMixin.java')) {
+                        t = t.replace('return RenderTypes.armorCutoutNoCullGlint(id);', 'return RenderTypes.armorCutoutNoCull(id);')
+                        t = t.replace('return RenderTypes.armorTrim(id, decal);', 'return RenderTypes.armorCutoutNoCull(id);')
+                    }
+                    if (rel.endsWith('mixin/CapeLayerMixin.java')) {
+                        t = t.replace('collector.submitModel(this.model, state, poseStack,', 'collector.submitModel(this.model, state, poseStack,')
+                    }
+                    if (rel.endsWith('mixin/PostShaderMixin.java')) {
+                        t = t.replace('this.gameRenderState.requestedPostEffects', 'this.gameRenderState.postShaderEnabled')
+                        t = t.replace('chain.id()', 'chain.getName()')
+                    }
+                    if (rel.endsWith('mixin/SkyRendererMixin.java')) {
+                        t = t.replace('state.sunriseAndSunsetColor = null;', 'state.sunriseAndSunsetColor = 0;')
+                    }
                 }
                 if (project.minecraft_version.startsWith('26.3')) {
                     t = t.replace('import org.lwjgl.glfw.GLFW;', 'import dev.kollegen.client.input.sdl.GLFW;')
@@ -384,6 +410,10 @@ if (is262) {
                     exclude '**/DynamicGpuDataStorageMappedMixin.java'
                     exclude '**/DynamicGpuDataStorageNonMappedMixin.java'
                     exclude '**/FirstPersonHandsAndItemsRendererMixin.java'
+                    exclude '**/PostShaderMixin.java'
+                    exclude '**/CapeLayerMixin.java'
+                    exclude '**/presence/CosmeticRenderLayer.java'
+                    exclude '**/mixin/PlayerCosmeticsMixin.java'
                 }
             }
         }
