@@ -67,7 +67,7 @@ jobs:
         run: |
           cd kollegen-mod
           chmod +x ./gradlew
-          ./gradlew build --no-daemon --stacktrace -Pminecraft_version=1.21.11 -Pfabric_version=0.110.0+1.21.11 -Ploader_version=0.16.9 -Pmod_version=1.24.0 -Parchives_base_name=kollegen-client-mod-1.21.11
+          ./gradlew build --no-daemon --stacktrace -Pminecraft_version=1.21.11 -Pfabric_version=0.141.2+1.21.11 -Ploader_version=0.16.9 -Pmod_version=1.24.0 -Parchives_base_name=kollegen-client-mod-1.21.11 -Pyarn_mappings=1.21.11+build.1
 
       - name: Publish 1.21.11 mod jar
         if: steps.check_pub.outputs.skip != 'true'
@@ -115,7 +115,7 @@ jobs:
         run: |
           cd kollegen-mod
           chmod +x ./gradlew
-          ./gradlew build --no-daemon --stacktrace -Pminecraft_version=26.2 -Pfabric_version=0.164.0+26.2 -Ploader_version=0.20.1 -Pmod_version=1.24.0 -Parchives_base_name=kollegen-client-mod-26.2
+          ./gradlew build --no-daemon --stacktrace -Pminecraft_version=26.2 -Pfabric_version=0.161.0+26.2 -Ploader_version=0.20.1 -Pmod_version=1.24.0 -Parchives_base_name=kollegen-client-mod-26.2
 
       - name: Publish 26.2 mod jar
         if: steps.check_pub.outputs.skip != 'true'
@@ -163,7 +163,7 @@ jobs:
         run: |
           cd kollegen-mod
           chmod +x ./gradlew
-          ./gradlew build --no-daemon --stacktrace -Pminecraft_version=26.3 -Pfabric_version=0.165.0+26.3 -Ploader_version=0.20.1 -Pmod_version=1.24.0 -Parchives_base_name=kollegen-client-mod-26.3
+          ./gradlew build --no-daemon --stacktrace -Pminecraft_version=26.3 -Pfabric_version=0.161.0+26.3 -Ploader_version=0.20.1 -Pmod_version=1.24.0 -Parchives_base_name=kollegen-client-mod-26.3
 
       - name: Publish 26.3 mod jar
         if: steps.check_pub.outputs.skip != 'true'
