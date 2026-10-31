@@ -513,7 +513,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           mkdir -p sigs
-          for sig in KollegenClient.AppImage.sig KollegenClient.exe.sig KollegenClient.msi.zip.sig \
+          for sig in KollegenClient.AppImage.sig KollegenClient.exe.sig \
                      KollegenClient-aarch64.app.tar.gz.sig KollegenClient-x86_64.app.tar.gz.sig; do
             for attempt in 1 2 3 4 5; do
               if gh release download "${{ github.ref_name }}" --repo "${{ github.repository }}" \
@@ -569,7 +569,6 @@ jobs:
           WIN_SIG=$(cat sigs/KollegenClient.exe.sig 2>/dev/null || echo "")
           MAC_SIG_A=$(cat sigs/KollegenClient-aarch64.app.tar.gz.sig 2>/dev/null || echo "")
           MAC_SIG_I=$(cat sigs/KollegenClient-x86_64.app.tar.gz.sig 2>/dev/null || echo "")
-          MSI_SIG=$(cat sigs/KollegenClient.msi.zip.sig 2>/dev/null || echo "")
           cat > latest.json <<EOF
           {
             "version": "${VERSION}",
