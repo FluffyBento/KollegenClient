@@ -15,6 +15,7 @@ public class KeybindSetting extends Setting {
 
     public KeybindSetting(String name, String description) {
         super(name, description);
+        this.value = -1;
     }
 
     @Override

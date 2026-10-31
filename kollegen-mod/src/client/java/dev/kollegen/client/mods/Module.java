@@ -36,6 +36,10 @@ public abstract class Module {
         this.category = category;
     }
 
+    protected Module(String id, String name, String description) {
+        this(id, name, description, Category.HUD);
+    }
+
     public void add(Setting s) {
         settings.add(s);
     }

@@ -29,7 +29,7 @@ public abstract class HudModule extends Module {
     public static boolean editMode = false;
 
     protected HudModule(String id, String name, String description) {
-        super(id, name, description, Category.HUD);
+        super(id, name, description);
         this.add(this.position);
         this.add(this.color);
         this.add(this.background);
