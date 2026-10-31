@@ -64,6 +64,7 @@
     "FirstPersonHandsAndItemsRendererMixin",
     "HumanoidArmorLayerMixin",
     "LivingEntityMixin",
+    "ScreenEffectRendererMixin",
     "ItemEntityRendererMixin",
     "ItemEntityRenderStateMixin",
     "OverlayTextureMixin",

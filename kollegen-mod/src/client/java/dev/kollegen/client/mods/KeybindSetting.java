@@ -14,12 +14,7 @@ public class KeybindSetting extends Setting {
     public static KeybindSetting capturing = null;
 
     public KeybindSetting(String name, String description) {
-        this(name, description, -1);
-    }
-
-    public KeybindSetting(String name, String description, int def) {
         super(name, description);
-        this.value = def;
     }
 
     @Override

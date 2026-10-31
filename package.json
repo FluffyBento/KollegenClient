@@ -4,7 +4,10 @@
   "private": true,
   "packageManager": "yarn@1.22.22",
   "scripts": {
-    "dev": "echo \"frontend is prebuilt in ./dist\"",
-    "build": "echo \"frontend is prebuilt in ./dist\""
+    "dev": "npx serve dist -p 1430",
+    "build": "echo \"Frontend is prebuilt in ./dist - ensuring directory exists\" && test -d dist || exit 1"
+  },
+  "devDependencies": {
+    "serve": "^14.2.0"
   }
 }

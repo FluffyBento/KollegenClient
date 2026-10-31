@@ -32,18 +32,6 @@ public class KollegenMod implements ClientModInitializer {
     public void onInitializeClient() {
         dev.kollegen.client.server.ServerRestrictions.init();
         dev.kollegen.client.mods.Palette.loadTheme(); 
-        try {
-            Minecraft mc = Minecraft.getInstance();
-            if (mc != null && mc.options != null) {
-                mc.options.enableVsync().set(false);
-                mc.options.framerateLimit().set(10000);
-                try {
-                    mc.getFramerateLimitTracker().setFramerateLimit(10000);
-                } catch (Throwable ignored2) {
-                }
-            }
-        } catch (Throwable ignored) {
-        }
         ModuleManager.registerAll();
         
         

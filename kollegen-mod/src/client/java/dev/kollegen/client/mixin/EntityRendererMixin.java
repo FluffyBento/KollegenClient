@@ -128,7 +128,7 @@ public abstract class EntityRendererMixin<T extends Entity, S extends EntityRend
             int id = entity.getId();
             int idx = (id ^ (id >>> 6)) & KOLLEGEN$ENTITY_MASK;
 
-            if (KOLLEGEN$CACHED_IDS[idx] == id && (now - KOLLEGEN$CACHED_TIMES[idx]) < (KOLLEGEN$CACHED_OCCLUDED[idx] ? 2000L : 1000L)) {
+            if (KOLLEGEN$CACHED_IDS[idx] == id && (now - KOLLEGEN$CACHED_TIMES[idx]) < (KOLLEGEN$CACHED_OCCLUDED[idx] ? 350L : 180L)) {
                 if (KOLLEGEN$CACHED_OCCLUDED[idx]) {
                     cir.setReturnValue(false);
                 }

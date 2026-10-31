@@ -31,13 +31,13 @@ public final class Performance {
         public static final BooleanSetting cullBlockEntities = new BooleanSetting(
                 "Sichtfeld- & Wand-Culling (Blöcke)",
                 "Berechnet und rendert Kisten, Schilder, Banner etc. nur im Kamerasichtfeld und blendet sie hinter Mauern aus.",
-                false
+                true
         );
 
         public static final BooleanSetting cullOccludedEntities = new BooleanSetting(
                 "Wand-Culling (Entities)",
                 "Blendet Mobs, Tiere und Spieler aus, die vollständig hinter Wänden, Decken oder Höhlen verborgen sind.",
-                false
+                true
         );
 
         public static final BooleanSetting cullParticles = new BooleanSetting(
@@ -327,7 +327,6 @@ public final class Performance {
     
     private static class CpuOffload extends Module {
         private Boolean savedVsync = Boolean.TRUE;
-        private Integer savedFramerateLimit = 120;
         private Integer savedMipmap = 4;
         private Integer savedBiomeBlend = 4;
         private PrioritizeChunkUpdates savedChunk = PrioritizeChunkUpdates.PLAYER_AFFECTED;
@@ -341,12 +340,10 @@ public final class Performance {
             var o = mc.options;
             if (o == null) return;
             savedVsync = o.enableVsync().get();
-            savedFramerateLimit = o.framerateLimit().get();
             savedMipmap = o.mipmapLevels().get();
             savedBiomeBlend = o.biomeBlendRadius().get();
             savedChunk = o.prioritizeChunkUpdates().get();
             o.enableVsync().set(false);
-            o.framerateLimit().set(10000);
             o.mipmapLevels().set(0);
             o.biomeBlendRadius().set(0);
             o.prioritizeChunkUpdates().set(PrioritizeChunkUpdates.NEARBY);
@@ -357,7 +354,6 @@ public final class Performance {
             var o = mc.options;
             if (o == null) return;
             o.enableVsync().set(savedVsync);
-            o.framerateLimit().set(savedFramerateLimit);
             o.mipmapLevels().set(savedMipmap);
             o.biomeBlendRadius().set(savedBiomeBlend);
             o.prioritizeChunkUpdates().set(savedChunk);
