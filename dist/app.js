@@ -3542,12 +3542,12 @@ function resolveStoreCapeTexture(it) {
   const known = {
     cape_phantomumhang: "cosmetics/store_phantomumhang.png",
     cape_sternenhimmel: "cosmetics/store_sternenhimmel_umhang.png",
-    cape_fluffybento: "cosmetics/fluffybento_FluffyBento_cape.png",
-    cape_limitlos: "cosmetics/limit_los_Limit_Los_cape.png",
+    cape_fluffybento: "cosmetics/fluffybento_fluffybento_cape.png",
+    cape_limitlos: "cosmetics/limit_los_limit_los_cape.png",
     cape_zerocraft77: "cosmetics/zerocraft77_Zerocraft77_cape.png",
     cape_irongirl: "cosmetics/irongirl_lp_Irongirl_lp_cape.png",
     cape_tson: "cosmetics/t_son__T_son__cape.png",
-    cape_rixhii: "cosmetics/rixhii_Rixhii_cape.png",
+    cape_rixhii: "cosmetics/rixhii_rixhii_cape.png",
   };
   if (known[id]) return known[id];
   const rawTex = (it.data && it.data.texture) || it.texture || "";
