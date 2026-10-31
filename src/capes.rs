@@ -49,15 +49,10 @@ pub fn load_capes(data_dir: &Path) -> CapeStoreData {
     let p = capes_json_file(data_dir);
     if let Ok(s) = std::fs::read_to_string(&p) {
         if let Ok(mut data) = serde_json::from_str::<CapeStoreData>(&s) {
-            let before = data.capes.len();
-            data.capes.retain(|c| !c.id.starts_with("comm_"));
             for c in &mut data.capes {
                 if data.favorites.contains(&c.id) {
                     c.favorite = true;
                 }
-            }
-            if data.capes.len() != before {
-                save_capes(data_dir, &data);
             }
             return data;
         }
