@@ -1,79 +1,77 @@
-<!DOCTYPE html>
-<html lang="de">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<!DOCTYPE html><html lang="de"><head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Kollegen Client</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css" />
-  <link rel="stylesheet" href="launcher.css" />
-  <link rel="stylesheet" href="home.css" />
-  <link rel="stylesheet" href="social-store.css" />
-  <link rel="stylesheet" href="console.css" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="launcher.css">
+  <link rel="stylesheet" href="home.css">
+  <link rel="stylesheet" href="social-store.css">
+  <link rel="stylesheet" href="console.css">
 </head>
   <body>
   <header>
     <div class="header-actions">
       <div id="profileWidget" class="hud-widget hud-profile" title="Profil öffnen" role="button" tabindex="0" aria-label="Profil öffnen">
-        <img id="pwAvatar" class="hud-avatar" alt="" />
+        <img id="pwAvatar" class="hud-avatar" alt="">
         <div class="hud-meta">
           <div id="pwName" class="hud-name">nicht verbunden</div>
           <div id="pwDiscord" class="hud-sub"></div>
         </div>
       </div>
       <button id="authBtn" class="btn-secondary">Mit Microsoft anmelden</button>
-      <img id="accountHead" class="account-head" alt="" hidden />
+      <img id="accountHead" class="account-head" alt="" hidden="">
       <span id="authStatus" class="auth-status">nicht angemeldet</span>
-      <button id="settingsBtn" class="icon-btn" title="Einstellungen" aria-label="Einstellungen"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/></svg></button>
+      <button id="settingsBtn" class="icon-btn" title="Einstellungen" aria-label="Einstellungen"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"></path><circle cx="15" cy="6" r="2"></circle><circle cx="9" cy="12" r="2"></circle><circle cx="17" cy="18" r="2"></circle></svg></button>
     </div>
   </header>
 
   <nav class="sidebar" aria-label="Hauptnavigation">
     <div class="sidebar-brand">
-      <img src="Kollegen.png" alt="Kollegen Client" class="sidebar-brand-img" />
+      <img src="Kollegen.png" alt="Kollegen Client" class="sidebar-brand-img">
       <span class="sidebar-brand-text">Kollegen Client</span>
     </div>
     <div class="sidebar-nav">
       <div class="sidebar-group">Spielen</div>
       <button class="sidebar-link active" data-tab="home" title="Home">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V9.5"/></svg>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5"></path><path d="M5 9.5V20a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V9.5"></path></svg>
         <span class="side-label">Home</span>
       </button>
       <button class="sidebar-link" data-tab="create" title="Erstellen">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 8v8M8 12h8"></path></svg>
         <span class="side-label">Erstellen</span>
       </button>
       <div class="sidebar-group">Community</div>
       <button class="sidebar-link" data-tab="socials" title="Soziales" id="socialsBtn">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
         <span class="side-label">Soziales</span>
       </button>
       <button class="sidebar-link" data-tab="store" title="Store">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path><path d="M3 6h18"></path><path d="M16 10a4 4 0 0 1-8 0"></path></svg>
         <span class="side-label">Store</span>
       </button>
       <button class="sidebar-link" data-tab="skins" title="Skins" id="skinsBtn">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/><path d="M12 16v1.5a1.5 1.5 0 0 0 3 0V16"/></svg>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="M8 14s1.5 2 4 2 4-2 4-2"></path><line x1="9" y1="9" x2="9.01" y2="9"></line><line x1="15" y1="9" x2="15.01" y2="9"></line><path d="M12 16v1.5a1.5 1.5 0 0 0 3 0V16"></path></svg>
         <span class="side-label">Skins</span>
       </button>
       <button class="sidebar-link" data-tab="capes" title="Capes" id="capesBtn">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><path d="M3 6h18"/><path d="M12 9v9"/></svg>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path><path d="M3 6h18"></path><path d="M12 9v9"></path></svg>
         <span class="side-label">Capes</span>
       </button>
       <button class="sidebar-link" data-tab="cosmetics" title="Cosmetics">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 15l.9 2.1L22 18l-2.1.9L19 21l-.9-2.1L16 18l2.1-.9z"/></svg>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"></path><path d="M19 15l.9 2.1L22 18l-2.1.9L19 21l-.9-2.1L16 18l2.1-.9z"></path></svg>
         <span class="side-label">Cosmetics</span>
       </button>
       <button class="sidebar-link" data-tab="logs" title="Logs" id="logsBtn">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"></path></svg>
         <span class="side-label">Logs</span>
       </button>
     </div>
     <div class="sidebar-footer">
       <div id="discordAccount" class="discord-account">
-        <img id="discordAvatar" class="discord-avatar" alt="" style="display:none;" />
+        <img id="discordAvatar" class="discord-avatar" alt="" style="display:none;">
         <span id="discordAccountName">Discord: nicht verbunden</span>
       </div>
     </div>
@@ -95,7 +93,7 @@
           <section class="home-skin rail-card" aria-label="Dein Skin">
             <canvas id="homeSkinCanvas" width="220" height="440"></canvas>
             <div id="homeSkinName" class="home-skin-name">—</div>
-            <div id="homeLevel" class="home-level" hidden></div>
+            <div id="homeLevel" class="home-level" hidden=""></div>
             <div id="homeSkinState" class="home-skin-state"></div>
             <div class="home-skin-btns" style="display:flex;gap:8px;width:100%;margin-top:6px;">
               <button id="homeSkinOpen" class="btn-secondary" style="flex:1;">Skin ändern</button>
@@ -111,22 +109,22 @@
       </div>
     </section>
 
-    <section id="createPanel" class="panel tab-panel" data-tab="create" aria-labelledby="createTitle" hidden>
+    <section id="createPanel" class="panel tab-panel" data-tab="create" aria-labelledby="createTitle" hidden="">
       <header class="panel-header">
         <h2 id="createTitle">Instanz erstellen</h2>
       </header>
       <form id="createForm" class="form-stack">
         <div class="form-group">
           <label for="iName">Name</label>
-          <input id="iName" placeholder="Instanz Name" required />
+          <input id="iName" placeholder="Instanz Name" required="">
         </div>
         <div class="form-group">
           <label for="iVersion">Minecraft Version</label>
-          <select id="iVersion" aria-label="Minecraft Version" required></select>
+          <select id="iVersion" aria-label="Minecraft Version" required=""></select>
         </div>
         <div class="form-group">
           <label for="iLoader">Mod Loader</label>
-          <select id="iLoader" aria-label="Mod Loader" required>
+          <select id="iLoader" aria-label="Mod Loader" required="">
             <option value="vanilla">Vanilla</option>
             <option value="fabric">Fabric</option>
             <option value="forge">Forge</option>
@@ -145,7 +143,7 @@
       </form>
     </section>
 
-    <section id="socialsPanel" class="tab-panel sx-page" data-tab="socials" aria-labelledby="socialsTitle" hidden>
+    <section id="socialsPanel" class="tab-panel sx-page" data-tab="socials" aria-labelledby="socialsTitle" hidden="">
       <div class="sx-head">
         <h2 id="socialsTitle">Soziales</h2>
         <span class="sx-head-sub">Freunde, Gruppen und Profile</span>
@@ -157,7 +155,7 @@
               <h3 class="sx-title">Freunde</h3>
             </div>
             <div class="add-friend">
-              <input id="friendCodeInput" placeholder="Freundes-Code eingeben" autocomplete="off" />
+              <input id="friendCodeInput" placeholder="Freundes-Code eingeben" autocomplete="off">
               <button id="friendCodeAdd" class="btn-primary">Hinzufügen</button>
             </div>
             <div id="kollegenRequestsWrap" class="sx-requests" style="display:none;">
@@ -174,7 +172,7 @@
             </div>
             <p class="socials-hint">Erstelle eine Gruppe, um zusammen zu chatten oder anzurufen.</p>
             <div class="add-friend">
-              <input id="groupNameInput" placeholder="Gruppenname" autocomplete="off" maxlength="60" />
+              <input id="groupNameInput" placeholder="Gruppenname" autocomplete="off" maxlength="60">
               <button id="groupCreateBtn" class="btn-primary">Erstellen</button>
             </div>
             <ul id="kollegenGroups" class="friend-list" role="list"><li class="list-empty">Lade Gruppen…</li></ul>
@@ -184,7 +182,7 @@
         <aside class="sx-rail" aria-label="Dein Profil">
           <section class="rail-card socials-profile" aria-label="Profil">
             <div class="socials-profile-top">
-              <img id="spAvatar" class="socials-profile-avatar" alt="" style="display:none;" />
+              <img id="spAvatar" class="socials-profile-avatar" alt="" style="display:none;">
               <div class="socials-profile-meta">
                 <div id="spName" class="socials-profile-name">nicht verbunden</div>
                 <div id="spDiscord" class="socials-profile-sub"></div>
@@ -215,11 +213,11 @@
           <section class="rail-card" aria-label="Person suchen">
             <div class="rail-head"><div class="rail-title"><h3>Person / Skin suchen</h3></div></div>
             <div class="view-profile">
-              <input id="viewProfileName" placeholder="Minecraft-Name" autocomplete="off" />
+              <input id="viewProfileName" placeholder="Minecraft-Name" autocomplete="off">
               <button id="viewProfileBtn" class="btn-primary sx-wide">Anzeigen</button>
             </div>
             <div class="sx-browse">
-              <input id="browseProfileSearch" placeholder="Code oder Name" />
+              <input id="browseProfileSearch" placeholder="Code oder Name">
               <button id="browseProfileBtn" class="btn-secondary sx-wide">Öffentliche durchsuchen</button>
             </div>
             <canvas id="viewProfileCanvas" width="220" height="440" class="view-profile-canvas"></canvas>
@@ -229,7 +227,7 @@
       </div>
     </section>
 
-    <section id="storePanel" class="tab-panel sx-page" data-tab="store" aria-labelledby="storeTitle" hidden>
+    <section id="storePanel" class="tab-panel sx-page" data-tab="store" aria-labelledby="storeTitle" hidden="">
       <div class="sx-head">
         <h2 id="storeTitle">Store</h2>
         <span class="sx-head-sub" id="storeCount"></span>
@@ -242,7 +240,7 @@
       <div class="store-show" id="storeShow" style="display:none;">
         <div class="store-show-banner" id="storeShowBanner"></div>
         <div class="store-show-row">
-          <img id="storeShowAv" class="store-show-av" alt="" />
+          <img id="storeShowAv" class="store-show-av" alt="">
           <div class="store-show-meta">
             <div id="storeShowName" class="store-show-name">Dein Profil</div>
             <div id="storeShowSub" class="store-show-sub"></div>
@@ -261,7 +259,7 @@
           <button class="tab active" data-g="profil" role="tab" aria-selected="true">Profil</button>
           <button class="tab" data-g="ingame" role="tab" aria-selected="false">Ingame</button>
         </div>
-        <input id="storeSearch" class="search-input store-search" type="search" placeholder="Items suchen" autocomplete="off" />
+        <input id="storeSearch" class="search-input store-search" type="search" placeholder="Items suchen" autocomplete="off">
         <div class="store-rar" id="storeRarChipsMain">
           <button class="chip active" data-r="alle">Alle</button>
           <button class="chip" data-r="common">Gewöhnlich</button>
@@ -311,14 +309,14 @@
     </section>
 
     <!-- SKINS LIBRARY PANEL (Image 2) -->
-    <section id="skinsPanel" class="tab-panel sx-page" data-tab="skins" aria-labelledby="skinsTitle" hidden>
+    <section id="skinsPanel" class="tab-panel sx-page" data-tab="skins" aria-labelledby="skinsTitle" hidden="">
       <div class="skins-header-bar">
         <div class="skins-search-wrap">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <input type="text" id="skinsSearchInput" placeholder="Search skins..." autocomplete="off" />
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+          <input type="text" id="skinsSearchInput" placeholder="Search skins..." autocomplete="off">
         </div>
         <button id="addSkinTopBtn" class="add-skin-top-btn">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="9"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>
           <span>ADD SKIN</span>
         </button>
       </div>
@@ -328,12 +326,12 @@
         <div class="skin-card skin-card-add" id="cardAddNewSkin">
           <div class="skin-card-silhouette">
             <div class="skin-add-plus">
-              <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="3"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="3"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
             </div>
           </div>
           <div class="skin-card-title">Add New Skin</div>
           <div class="skin-card-sub">
-            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
             Upload or import a skin
           </div>
         </div>
@@ -341,7 +339,7 @@
     </section>
 
     <!-- COMMUNITY CAPES PANEL (Image 3 & Image 4) -->
-    <section id="capesPanel" class="tab-panel sx-page" data-tab="capes" aria-labelledby="capesTitle" hidden>
+    <section id="capesPanel" class="tab-panel sx-page" data-tab="capes" aria-labelledby="capesTitle" hidden="">
       <div class="capes-category-tabs" role="tablist">
         <button class="cape-cat-tab active" data-cat="community">COMMUNITY</button>
         <button class="cape-cat-tab" data-cat="all">ALL</button>
@@ -350,7 +348,7 @@
         <button class="cape-cat-tab" data-cat="vanilla">VANILLA</button>
         <button id="capeFavToggleBtn" class="cape-cat-tab cape-fav-star-tab" title="Nur Favoriten anzeigen" style="margin-left: auto;">
           <svg id="capeFavStarIco" class="star-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
           </svg>
           <span id="capeFavLabel">FAVORITEN</span>
         </button>
@@ -358,16 +356,16 @@
 
       <div class="capes-toolbar">
         <div class="capes-search-wrap">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <input type="text" id="capesSearchInput" placeholder="Search by name or creator..." autocomplete="off" />
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+          <input type="text" id="capesSearchInput" placeholder="Search by name or creator..." autocomplete="off">
         </div>
         <div class="capes-tool-right">
           <button id="capeTemplateBtn" class="cape-action-btn">
-            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
             <span>TEMPLATE ▾</span>
           </button>
           <button id="capeUploadOpenBtn" class="cape-action-btn cape-upload-highlight">
-            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
             <span>UPLOAD</span>
           </button>
         </div>
@@ -381,7 +379,7 @@
       </div>
     </section>
 
-    <section id="cosmeticsPanel" class="tab-panel sx-page" data-tab="cosmetics" aria-labelledby="cosmeticsTitle" hidden>
+    <section id="cosmeticsPanel" class="tab-panel sx-page" data-tab="cosmetics" aria-labelledby="cosmeticsTitle" hidden="">
       <div class="sx-head">
         <h2 id="cosmeticsTitle">Cosmetics</h2>
         <span class="sx-head-sub">Rüste aus, was du dir im Store geholt hast</span>
@@ -408,26 +406,26 @@
       </div>
     </section>
 
-    <section id="profilePanel" class="panel tab-panel" data-tab="profile" aria-labelledby="profileTitle" hidden>
+    <section id="profilePanel" class="panel tab-panel" data-tab="profile" aria-labelledby="profileTitle" hidden="">
       <header class="panel-header">
         <h2 id="profileTitle">Profil</h2>
       </header>
-      <button id="openProfileModalBtn" class="btn-primary" style="width:100%; max-width:300px;">Profil öffnen & bearbeiten</button>
+      <button id="openProfileModalBtn" class="btn-primary" style="width:100%; max-width:300px;">Profil öffnen &amp; bearbeiten</button>
     </section>
 
-    <section id="supportPanel" class="panel tab-panel" data-tab="support" aria-labelledby="supportTitle" hidden>
+    <section id="supportPanel" class="panel tab-panel" data-tab="support" aria-labelledby="supportTitle" hidden="">
       <header class="panel-header">
         <h2 id="supportTitle">Support</h2>
       </header>
     </section>
 
-    <section id="logsPanel" class="panel tab-panel" data-tab="logs" aria-labelledby="logsTitle" hidden>
+    <section id="logsPanel" class="panel tab-panel" data-tab="logs" aria-labelledby="logsTitle" hidden="">
       <header class="panel-header">
-        <h2 id="logsTitle">Logs & Updates</h2>
+        <h2 id="logsTitle">Logs &amp; Updates</h2>
         <div class="logs-actions">
           <button id="refreshLogsBtn" class="icon-btn" title="Aktualisieren" aria-label="Aktualisieren">↻</button>
           <button id="copyLogsBtn" class="icon-btn" title="Kopieren" aria-label="Kopieren">⧉</button>
-          <button id="openLogFolderBtn" class="icon-btn" title="Ordner öffnen" aria-label="Ordner öffnen"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></button>
+          <button id="openLogFolderBtn" class="icon-btn" title="Ordner öffnen" aria-label="Ordner öffnen"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg></button>
         </div>
       </header>
       <div class="update-status">
@@ -437,7 +435,7 @@
         </div>
         <div class="update-row">
           <span class="update-label">Mod-Update:</span>
-          <span class="update-value">wird bei jedem Start automatisch geprüft & installiert</span>
+          <span class="update-value">wird bei jedem Start automatisch geprüft &amp; installiert</span>
         </div>
         <div class="update-row update-actions">
           <button id="checkUpdateBtn" class="btn-small">Launcher-Update prüfen</button>
@@ -448,7 +446,7 @@
     </section>
   </main>
 
-  <div id="manageModal" class="modal" hidden>
+  <div id="manageModal" class="modal" hidden="">
     <div class="modal-content manage-content">
       <div id="manageOverview">
         <header class="modal-header">
@@ -471,21 +469,21 @@
         <h3 class="installed-heading">Installiert</h3>
         <ul id="manageInstalled" role="list"></ul>
       </div>
-      <div id="manageBrowse" hidden>
+      <div id="manageBrowse" hidden="">
         <div class="browse-topbar">
           <button id="browseBack" class="btn-icon" title="Zurück" aria-label="Zurück">←</button>
           <div class="manage-search">
-            <input id="manageQuery" placeholder="Suchen..." />
+            <input id="manageQuery" placeholder="Suchen...">
             <button id="manageSearchBtn" class="btn-primary">Suchen</button>
           </div>
         </div>
         <div id="manageResults" class="cards" role="list"></div>
       </div>
-      <div id="manageDetail" class="detail" hidden></div>
+      <div id="manageDetail" class="detail" hidden=""></div>
     </div>
   </div>
 
-  <div id="joinFriendModal" class="modal" hidden>
+  <div id="joinFriendModal" class="modal" hidden="">
     <div class="modal-content">
       <header class="modal-header">
         <h2 id="joinFriendTitle">Freund beitreten</h2>
@@ -496,7 +494,7 @@
     </div>
   </div>
 
-  <div id="settingsModal" class="modal" hidden>
+  <div id="settingsModal" class="modal" hidden="">
     <div class="modal-content settings-content">
       <header class="modal-header">
         <h2>Einstellungen</h2>
@@ -505,6 +503,7 @@
       <div class="settings-tabs" role="tablist">
         <button class="settings-tab active" data-tab="connections" role="tab" aria-selected="true">Verbindungen</button>
         <button class="settings-tab" data-tab="themes" role="tab" aria-selected="false">Themes</button>
+        <button class="settings-tab" data-tab="servers" role="tab" aria-selected="false">Server</button>
         <button class="settings-tab" data-tab="import" role="tab" aria-selected="false">Importieren</button>
         <button class="settings-tab" data-tab="updates" role="tab" aria-selected="false">Updates</button>
         <button class="settings-tab" data-tab="steamdeck" role="tab" aria-selected="false">SteamDeck</button>
@@ -513,18 +512,18 @@
         <section id="settingsConnections" class="settings-section" role="tabpanel">
           <h3>Microsoft-Accounts</h3>
           <button id="msAddBtn" class="connection-btn">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 5v14M5 12h14"/></svg>
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 5v14M5 12h14"></path></svg>
             <span>Microsoft-Account hinzufügen</span>
           </button>
           <ul id="msAccountList" class="account-list" role="list"></ul>
           <h3>Discord</h3>
           <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:12px;">
             <button id="discordLoginBtnSettings" class="connection-btn">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994.021-.041.001-.09-.041-.106a13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.929 1.793 8.18 1.793 12.061 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.894.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.028zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/></svg>
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994.021-.041.001-.09-.041-.106a13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.929 1.793 8.18 1.793 12.061 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.894.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.028zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"></path></svg>
               <span>Mit Discord verbinden</span>
             </button>
             <button id="discordLogoutBtn" class="connection-btn btn-danger">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
               <span>Discord abmelden</span>
             </button>
           </div>
@@ -532,7 +531,7 @@
           <div class="connection-card twitch-card">
             <div class="connection-card-left">
               <svg class="twitch-icon" viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
-                <path d="M11.571 4.714h1.715v5.143H11.57zm4.715 0H18v5.143h-1.714zM6 0L1.714 4.286v15.428h5.143V24l4.286-4.286h3.428L22.286 12V0zm14.571 11.143l-3.428 3.428h-3.429l-3 3v-3H6.857V1.714h13.714Z"/>
+                <path d="M11.571 4.714h1.715v5.143H11.57zm4.715 0H18v5.143h-1.714zM6 0L1.714 4.286v15.428h5.143V24l4.286-4.286h3.428L22.286 12V0zm14.571 11.143l-3.428 3.428h-3.429l-3 3v-3H6.857V1.714h13.714Z"></path>
               </svg>
               <div class="connection-info">
                 <div class="connection-title">Twitch</div>
@@ -541,7 +540,7 @@
             </div>
             <div class="connection-card-right">
               <button id="twitchLinkBtn" class="twitch-link-btn">
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
                 <span id="twitchLinkText">LINK</span>
               </button>
             </div>
@@ -549,43 +548,64 @@
           <div id="twitchStatusHint" class="socials-hint" style="margin-top:-6px; margin-bottom:12px;"></div>
           <h3>Begleit-Mod</h3>
           <label class="settings-check">
-            <input type="checkbox" id="companionModToggle" />
+            <input type="checkbox" id="companionModToggle">
             <span>Kollegen-Begleit-Mod automatisch installieren</span>
           </label>
           <p class="socials-hint">Ausschalten, falls ein Server (z.&nbsp;B. GommeHD) modifizierte Clients mit „invalid packet" kickt – ohne Mod ist der Client unverändert.</p>
           <h3>Performance-Optimierungen</h3>
           <label class="settings-check">
-            <input type="checkbox" id="perfModsToggle" />
+            <input type="checkbox" id="perfModsToggle">
             <span>Kollegen Performance-Optimierungen automatisch installieren</span>
           </label>
           <p class="socials-hint">Bei Fabric-/Quilt-Instanzen werden die stärksten Performance-Optimierungen vorinstalliert. Bestehende Instanzen lassen sich über den „Optimize"-Knopf nachrüsten.</p>
         </section>
-        <section id="settingsThemes" class="settings-section" role="tabpanel" hidden>
+        <section id="settingsThemes" class="settings-section" role="tabpanel" hidden="">
           <h3>Theme (Farbschema)</h3>
           <div id="themeList" class="theme-list" role="list"></div>
           <h3>Darstellung</h3>
           <div id="layoutOptions" class="layout-options"></div>
         </section>
-        <section id="settingsImport" class="settings-section" role="tabpanel" hidden>
+        <section id="settingsServers" class="settings-section" role="tabpanel" hidden="">
+          <h3>Server &amp; Tastenbelegungen</h3>
+          <p class="socials-hint">
+            Alle Server und Standard-Tastenbelegungen (übernommen von Instanz "3") sind über alle Instanzen hinweg synchronisiert und beim Start direkt im Spiel verfügbar.
+          </p>
+          <div style="display:flex;gap:10px;align-items:center;margin-bottom:15px;">
+            <button id="syncGlobalNowBtn" class="btn-secondary">Jetzt überall synchronisieren</button>
+            <span id="syncGlobalStatus" class="socials-hint" style="margin:0;"></span>
+          </div>
+          <h3 style="margin-top:20px;">Server-IPs ausblenden</h3>
+          <p class="socials-hint">
+            Blende sensible oder private Server-IPs im Launcher aus (z. B. für Streams oder Screenshots). Bei den hier eingetragenen Servern wird die IP-Adresse im Startbildschirm und Menü unkenntlich gemacht (••••••••).
+          </p>
+          <div class="hidden-servers-input-row">
+            <input type="text" id="hiddenServerInput" placeholder="Server-Adresse (z. B. srv.kollegen.me)" class="input-text">
+            <button id="addHiddenServerBtn" class="btn-primary">Hinzufügen</button>
+          </div>
+          <div id="hiddenServersList" class="hidden-servers-list"></div>
+          <h3 style="margin-top:20px;">Alle erkannten Server (überall synchronisiert)</h3>
+          <div id="detectedServersList" class="detected-servers-list"></div>
+        </section>
+        <section id="settingsImport" class="settings-section" role="tabpanel" hidden="">
           <button id="importScanBtn" class="btn-secondary">Instance von anderem Launcher importieren</button>
           <button id="importPackBtn" class="btn-secondary">Modpack importieren (.mrpack / .zip)</button>
           <div id="importLauncherList" class="import-list"></div>
           <div id="importInstanceList" class="import-list"></div>
           <div id="importStatus" class="socials-hint"></div>
         </section>
-        <section id="settingsUpdates" class="settings-section" role="tabpanel" hidden>
+        <section id="settingsUpdates" class="settings-section" role="tabpanel" hidden="">
           <h3>Updates</h3>
           <button id="updateCheckBtn" class="btn-secondary">Jetzt auf Updates prüfen</button>
           <div id="updateStatus" class="socials-hint"></div>
           <button id="updateInstallBtn" class="btn-primary" style="display:none;">Update installieren</button>
-          <h3>Cache & Daten</h3>
+          <h3>Cache &amp; Daten</h3>
           <button id="clearCacheBtn" class="btn-danger">Companion-Cache leeren (Mod-Updates erzwingen)</button>
           <div id="clearCacheStatus" class="socials-hint"></div>
         </section>
-        <section id="settingsSteamDeck" class="settings-section" role="tabpanel" hidden>
+        <section id="settingsSteamDeck" class="settings-section" role="tabpanel" hidden="">
           <h3>SteamDeck / Konsolen-Modus</h3>
           <label class="settings-check">
-            <input type="checkbox" id="steamdeckToggle" />
+            <input type="checkbox" id="steamdeckToggle">
             <span>SteamDeck-Kompatibilität aktivieren</span>
           </label>
           <p class="socials-hint">Optimiert den Launcher für das Zocken am Fernseher/Konsole: Konsolen-Startmenü, große Schaltflächen und ein komplett an Konsole angepasstes Layout. Der Controller-Modus im Kollegen-Begleit-Mod wird dabei automatisch aktiviert.</p>
@@ -606,12 +626,12 @@
   <script src="kollegen3d.js"></script>
   <script src="skinview3d.bundle.js"></script>
 
-  <div id="friendsWidget" class="hud-widget hud-friends" hidden>
+  <div id="friendsWidget" class="hud-widget hud-friends" hidden="">
     <div class="hud-friends-head">Freunde</div>
     <ul id="fwList" class="friend-list" role="list"></ul>
   </div>
 
-  <div id="dmModal" class="modal" hidden>
+  <div id="dmModal" class="modal" hidden="">
     <div class="modal-content dm-modal">
       <button id="dmClose" class="icon-btn" aria-label="Schließen">✕</button>
       <h2 style="margin-top:0;">Nachrichten</h2>
@@ -619,11 +639,11 @@
         <div class="dm-convs">
           <div class="dm-convs-head">Chats</div>
           <div id="dmConvList" class="dm-conv-list" role="list"><div class="dm-empty">Keine Chats.</div></div>
-          <input id="dmConvCode" placeholder="Freundes-Code öffnen" autocomplete="off" />
+          <input id="dmConvCode" placeholder="Freundes-Code öffnen" autocomplete="off">
         </div>
         <div class="dm-thread">
           <header class="dm-thread-head" id="dmThreadHead">
-            <img id="dmThAv" alt="" style="display:none;" />
+            <img id="dmThAv" alt="" style="display:none;">
             <span id="dmThName">Konversation wählen</span>
             <button id="dmCallBtn" class="btn-small" title="Anrufen" style="display:none;">Anrufen</button>
             <a id="dmThProf" href="#" style="display:none;">Profil</a>
@@ -634,7 +654,7 @@
           </div>
           <div id="dmMsgList" class="dm-msgs" role="log"><div class="dm-empty">Wähle links einen Chat oder öffne einen Freundes-Code.</div></div>
           <div class="dm-input" id="dmInputBox" style="display:none;">
-            <input id="dmText" placeholder="Nachricht …" maxlength="2000" autocomplete="off" />
+            <input id="dmText" placeholder="Nachricht …" maxlength="2000" autocomplete="off">
             <button id="dmSend" class="btn-primary">Senden</button>
           </div>
         </div>
@@ -642,14 +662,14 @@
     </div>
   </div>
 
-  <div id="groupModal" class="modal" hidden>
+  <div id="groupModal" class="modal" hidden="">
     <div class="modal-content dm-modal">
       <button id="groupClose" class="icon-btn" aria-label="Schließen">✕</button>
       <h2 id="groupTitle" style="margin-top:0;">Gruppe</h2>
       <div id="groupMembers" class="group-members" role="list"></div>
       <div id="groupMsgList" class="dm-msgs" role="log"><div class="dm-empty">Noch keine Nachrichten.</div></div>
       <div class="dm-input" id="groupInputBox" style="display:none;">
-        <input id="groupText" placeholder="Nachricht …" maxlength="2000" autocomplete="off" />
+        <input id="groupText" placeholder="Nachricht …" maxlength="2000" autocomplete="off">
         <button id="groupSend" class="btn-primary">Senden</button>
       </div>
       <div id="groupCallBar" class="dm-callbar" style="display:none;">
@@ -657,7 +677,7 @@
         <button id="groupCallEnd" class="btn-small">Auflegen</button>
       </div>
       <div class="group-actions">
-        <input id="groupAddCode" placeholder="Freundes-Code hinzufügen" autocomplete="off" maxlength="10" />
+        <input id="groupAddCode" placeholder="Freundes-Code hinzufügen" autocomplete="off" maxlength="10">
         <button id="groupAddBtn" class="btn-secondary">Hinzufügen</button>
         <button id="groupCallBtn" class="btn-primary">Anrufen</button>
         <button id="groupLeaveBtn" class="btn-danger">Verlassen</button>
@@ -665,14 +685,14 @@
     </div>
   </div>
 
-  <div id="storeItemModal" class="modal" hidden>
+  <div id="storeItemModal" class="modal" hidden="">
     <div class="modal-content store-item-content">
       <button id="storeItemClose" class="icon-btn" aria-label="Schließen">✕</button>
       <div id="storeItemBody"></div>
     </div>
   </div>
 
-  <div id="profileModal" class="modal" hidden>
+  <div id="profileModal" class="modal" hidden="">
     <div class="modal-content profile-modal">
       <button id="profileClose" class="icon-btn" aria-label="Schließen">✕</button>
       <div class="profile-skin" id="profileSkinCol">
@@ -712,28 +732,28 @@
           <div class="pm-field">
             <label>Banner (optional)</label>
             <div class="banner-picker">
-              <input id="profileBannerInput" type="file" accept="image/*" />
-              <div id="profileBannerPreviewWrap"><img id="profileBannerPreview" alt="Banner Vorschau" style="display:none; max-width:100%; border-radius:var(--radius-md);" /></div>
+              <input id="profileBannerInput" type="file" accept="image/*">
+              <div id="profileBannerPreviewWrap"><img id="profileBannerPreview" alt="Banner Vorschau" style="display:none; max-width:100%; border-radius:var(--radius-md);"></div>
             </div>
           </div>
 
           <div class="pm-field">
             <label>Avatar</label>
             <div class="avatar-options">
-              <div id="profileAvatarPreviewWrap"><img id="profileAvatarPreview" alt="Avatar Vorschau" style="display:none; width:64px; height:64px; border-radius:var(--radius-md);" /></div>
+              <div id="profileAvatarPreviewWrap"><img id="profileAvatarPreview" alt="Avatar Vorschau" style="display:none; width:64px; height:64px; border-radius:var(--radius-md);"></div>
               <select id="profileAvatarChoice">
                 <option value="discord">Discord-Avatar</option>
                 <option value="minecraft">Minecraft-Head (Aktueller Skin)</option>
                 <option value="upload">Hochladen</option>
               </select>
-              <input id="profileAvatarUpload" type="file" accept="image/*" hidden />
+              <input id="profileAvatarUpload" type="file" accept="image/*" hidden="">
             </div>
           </div>
 
           <div class="pm-actions">
             <button id="profileEditToggle" class="btn-secondary">Bearbeiten</button>
-            <button id="profileSaveBtn" class="btn-primary" hidden>Speichern</button>
-            <button id="profileCancelBtn" class="btn-secondary" hidden>Abbrechen</button>
+            <button id="profileSaveBtn" class="btn-primary" hidden="">Speichern</button>
+            <button id="profileCancelBtn" class="btn-secondary" hidden="">Abbrechen</button>
             <button id="profilePublishBtn" class="btn-primary pm-publish">Publizieren</button>
           </div>
         </div>
@@ -751,7 +771,7 @@
           <div class="skin-actions">
             <button id="skinDownloadBtn" class="btn-secondary">Download</button>
             <button id="skinUploadBtn" class="btn-secondary">Upload</button>
-            <input id="skinFileInput" type="file" accept="image/png" hidden />
+            <input id="skinFileInput" type="file" accept="image/png" hidden="">
           </div>
           <div id="skinLibrary" class="skin-library" role="list"></div>
         </div>
@@ -766,13 +786,13 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <div id="loginQrModal" class="modal" hidden>
+  <div id="loginQrModal" class="modal" hidden="">
     <div class="modal-content login-qr-content">
       <header class="modal-header">
         <h2>Mit dem Handy anmelden</h2>
         <button id="loginQrClose" class="icon-btn" aria-label="Schließen">✕</button>
       </header>
-      <img id="loginQrModalImg" class="qr-img" alt="QR-Code zum Scannen" />
+      <img id="loginQrModalImg" class="qr-img" alt="QR-Code zum Scannen">
       <div class="login-qr-code">
         <span>Code:</span>
         <code id="loginQrCode"></code>
@@ -781,7 +801,7 @@
     </div>
   </div>
 
-  <div id="pickModal" class="modal" hidden>
+  <div id="pickModal" class="modal" hidden="">
     <div class="modal-content picker-content">
       <header class="modal-header">
         <h2 id="pickTitle">Auswahl</h2>
@@ -794,24 +814,24 @@
   <script src="qrcode.js"></script>
   <script src="js/cosmetic3d.js"></script>
   <!-- SKIN EDIT / ADD MODAL (Image 2) -->
-  <div id="skinEditModal" class="modal" hidden>
+  <div id="skinEditModal" class="modal" hidden="">
     <div class="modal-content skin-edit-modal-content">
       <button id="skinEditClose" class="icon-btn" aria-label="Schließen">✕</button>
       <h3 id="skinModalTitle">Skin hinzufügen</h3>
       <div class="form-group">
         <label for="skinNameField">Skin-Name</label>
-        <input type="text" id="skinNameField" placeholder="z. B. Breadshop" />
+        <input type="text" id="skinNameField" placeholder="z. B. Breadshop">
       </div>
       <div class="form-group">
         <label>Modell-Typ</label>
         <div class="skin-model-selector">
-          <label class="model-radio"><input type="radio" name="skinModelRadio" value="classic" checked /> <span>Classic (4px)</span></label>
-          <label class="model-radio"><input type="radio" name="skinModelRadio" value="slim" /> <span>Slim / Alex (3px)</span></label>
+          <label class="model-radio"><input type="radio" name="skinModelRadio" value="classic" checked=""> <span>Classic (4px)</span></label>
+          <label class="model-radio"><input type="radio" name="skinModelRadio" value="slim"> <span>Slim / Alex (3px)</span></label>
         </div>
       </div>
       <div class="form-group" id="skinUploadGroup">
         <label>Skin-Datei (.png)</label>
-        <input type="file" id="skinFilePicker" accept="image/png,image/jpeg" />
+        <input type="file" id="skinFilePicker" accept="image/png,image/jpeg">
       </div>
       <div class="modal-actions" style="margin-top:20px; display:flex; gap:10px; justify-content:flex-end;">
         <button id="skinCancelBtn" class="btn-secondary">Abbrechen</button>
@@ -821,7 +841,7 @@
   </div>
 
   <!-- CAPE UPLOAD MODAL (Image 3) -->
-  <div id="capeUploadModal" class="modal" hidden>
+  <div id="capeUploadModal" class="modal" hidden="">
     <div class="modal-content cape-upload-modal-content">
       <button id="capeUploadClose" class="icon-btn" aria-label="Schließen">✕</button>
       <h3>Cape hochladen (Community / Eigene)</h3>
@@ -829,12 +849,12 @@
       
       <div class="form-group">
         <label for="capeNameField">Cape-Name</label>
-        <input type="text" id="capeNameField" placeholder="z. B. MeinCape, AnimiertesCape" />
+        <input type="text" id="capeNameField" placeholder="z. B. MeinCape, AnimiertesCape">
       </div>
 
       <div class="form-group">
         <label>Dateien auswählen (.png, .jpg, .gif - mehrere für Animation)</label>
-        <input type="file" id="capeFilesPicker" accept="image/png,image/jpeg,image/gif" multiple />
+        <input type="file" id="capeFilesPicker" accept="image/png,image/jpeg,image/gif" multiple="">
       </div>
 
       <!-- 3D Cape Live-Vorschau (dreht sich automatisch, mit Maus frei drehbar, Elytra umschaltbar) -->
@@ -851,7 +871,7 @@
           <span style="font-size:11px; color:var(--text-secondary); font-weight:normal;">Ausrichtung auf Elytra-Flügeln</span>
         </label>
         <select id="capeElytraModeSelect" class="form-select" style="width:100%; padding:8px 10px; background:var(--bg-secondary); border:1px solid var(--border-primary); border-radius:var(--radius-sm); color:var(--text-primary); font-size:13px;">
-          <option value="normal" selected>Normal (Standard Minecraft Elytra)</option>
+          <option value="normal" selected="">Normal (Standard Minecraft Elytra)</option>
           <option value="mirrored">Gespiegelt (Horizontale Spiegelung der Flügel)</option>
           <option value="split">Geteilt (Linke Bildhälfte links, rechte Hälfte rechts)</option>
           <option value="rotate90">Gedreht 90° (Im Uhrzeigersinn)</option>
@@ -865,7 +885,7 @@
           <label style="font-weight:700;">Animations-Frames (<span id="capeFrameCount">0</span>)</label>
           <div style="display:flex; align-items:center; gap:8px;">
             <label style="font-size:12px; color:var(--text-secondary);">Geschwindigkeit:</label>
-            <input type="range" id="capeFpsSlider" min="1" max="30" value="10" style="width:90px;" />
+            <input type="range" id="capeFpsSlider" min="1" max="30" value="10" style="width:90px;">
             <span id="capeFpsVal" style="font-size:12px; font-weight:700; width:45px;">10 FPS</span>
           </div>
         </div>
@@ -906,5 +926,5 @@
       }
     })();
   </script>
-</body>
-</html>
+
+</body></html>
