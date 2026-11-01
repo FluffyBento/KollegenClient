@@ -83,11 +83,21 @@ pub fn get_active_cape(data_dir: &Path) -> Option<CapeEntry> {
 
 pub fn set_active_cape(data_dir: &Path, cape_id: Option<String>) -> Result<(), String> {
     let mut data = load_capes(data_dir);
+    let is_community = cape_id
+        .as_ref()
+        .and_then(|id| data.capes.iter().find(|c| &c.id == id))
+        .map(|c| c.category == "community")
+        .unwrap_or(false);
     data.active_cape = cape_id.clone();
     save_capes(data_dir, &data);
 
     // Sync active cape to instance config so in-game mod reads it immediately
     sync_active_cape_to_instances(data_dir, &data, cape_id.as_deref());
+    if is_community {
+        if let Some(id) = cape_id.as_deref() {
+            increment_community_use(data_dir, id);
+        }
+    }
     Ok(())
 }
 
@@ -341,7 +351,87 @@ pub fn upload_cape(
     save_capes(data_dir, &data);
 
     sync_active_cape_to_instances(data_dir, &data, data.active_cape.as_deref());
+    let _ = share_cape(data_dir, &entry);
     Ok(entry)
+}
+
+fn community_client() -> reqwest::blocking::Client {
+    reqwest::blocking::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .connect_timeout(std::time::Duration::from_secs(5))
+        .user_agent(crate::USER_AGENT)
+        .build()
+        .unwrap_or_else(|_| reqwest::blocking::Client::new())
+}
+
+fn community_backend(data_dir: &Path) -> Option<String> {
+    crate::presence::backend_url(&data_dir.to_path_buf())
+}
+
+pub fn fetch_community_capes(data_dir: &Path) -> Result<usize, String> {
+    let backend = community_backend(data_dir)
+        .ok_or_else(|| "Kein Backend konfiguriert".to_string())?;
+    let url = format!("{}/community-capes", backend);
+    let resp = community_client()
+        .get(&url)
+        .send()
+        .map_err(|e| format!("Community-Capes konnten nicht geladen werden: {}", e))?;
+    if !resp.status().is_success() {
+        return Err(format!("Serverantwort {}", resp.status()));
+    }
+    let list: Vec<serde_json::Value> = resp
+        .json()
+        .map_err(|e| format!("Ungültige Serverantwort: {}", e))?;
+    let mut data = load_capes(data_dir);
+    data.capes.retain(|c| c.category != "community");
+    let mut count = 0usize;
+    for v in list {
+        if let Ok(mut entry) = serde_json::from_value::<CapeEntry>(v) {
+            entry.category = "community".to_string();
+            entry.favorite = false;
+            data.capes.push(entry);
+            count += 1;
+        }
+    }
+    save_capes(data_dir, &data);
+    Ok(count)
+}
+
+fn share_cape(data_dir: &Path, entry: &CapeEntry) -> Result<(), String> {
+    let dd = data_dir.to_path_buf();
+    let (_client, backend, session) = crate::presence::authed_request(&dd)
+        .ok_or_else(|| "Nicht angemeldet".to_string())?;
+    let url = format!("{}/community-capes", backend);
+    let body = serde_json::json!({
+        "name": entry.name,
+        "frames": entry.frames,
+        "preview": entry.preview,
+        "animated": entry.animated,
+        "fps": entry.fps,
+    });
+    let resp = community_client()
+        .post(&url)
+        .header("Authorization", format!("Bearer {}", session))
+        .json(&body)
+        .send()
+        .map_err(|e| e.to_string())?;
+    if !resp.status().is_success() {
+        return Err(format!("Serverantwort {}", resp.status()));
+    }
+    Ok(())
+}
+
+pub fn increment_community_use(data_dir: &Path, cape_id: &str) {
+    let dd = data_dir.to_path_buf();
+    let (_client, backend, session) = match crate::presence::authed_request(&dd) {
+        Some(x) => x,
+        None => return,
+    };
+    let url = format!("{}/community-capes/{}", backend, cape_id);
+    let _ = community_client()
+        .post(&url)
+        .header("Authorization", format!("Bearer {}", session))
+        .send();
 }
 
 fn decode_b64(input: &str) -> Result<Vec<u8>, String> {

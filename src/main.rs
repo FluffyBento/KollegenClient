@@ -2283,6 +2283,11 @@ fn capes_upload(
 }
 
 #[tauri::command]
+fn capes_sync_community(state: State<'_, AppState>) -> Result<usize, String> {
+    capes::fetch_community_capes(&state.data_dir)
+}
+
+#[tauri::command]
 fn capes_delete(state: State<'_, AppState>, cape_id: String) -> Result<(), String> {
     capes::delete_custom_cape(&state.data_dir, &cape_id)
 }
@@ -3012,6 +3017,7 @@ fn main() {
             capes_set_active,
             capes_toggle_favorite,
             capes_upload,
+            capes_sync_community,
             capes_delete,
             ensure_java_25,
             get_minecraft_profile_by_name,

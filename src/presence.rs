@@ -154,7 +154,7 @@ fn refresh_discord_token(refresh: &str, data_dir: &PathBuf) -> Option<String> {
 const DEFAULT_PRESENCE_BACKEND: &str = "https://kollegen.me";
 
 
-fn backend_url(data_dir: &PathBuf) -> Option<String> {
+pub(crate) fn backend_url(data_dir: &PathBuf) -> Option<String> {
     let env = std::env::var("KOLLEGEN_PRESENCE_BACKEND").ok();
     if let Some(b) = env.filter(|s| !s.trim().is_empty()) {
         return Some(b.trim().trim_end_matches('/').to_string());
@@ -242,7 +242,7 @@ fn persist_session_token(data_dir: &PathBuf, tok: Option<&str>) {
 
 
 
-fn authed_request(
+pub(crate) fn authed_request(
     data_dir: &PathBuf,
 ) -> Option<(reqwest::blocking::Client, String, String)> {
     let backend = backend_url(data_dir)?;

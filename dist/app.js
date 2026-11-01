@@ -4038,11 +4038,17 @@ function resolveStoreCapeTexture(it) {
   return rawTex.replace(/^kollegen:/, "");
 }
 
+let __capeSyncAt = 0;
 async function loadCapesView() {
   const grid = $("capesGrid");
   if (!grid) return;
   clearCapeAnimTimers();
   disposeAllCapeViewers();
+
+  if (activeCapeCat === "community" && Date.now() - __capeSyncAt > 60000) {
+    __capeSyncAt = Date.now();
+    try { await invoke("capes_sync_community"); } catch (_) {}
+  }
 
   let capeData = { active_cape: null, capes: [] };
   try {
