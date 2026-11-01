@@ -1467,6 +1467,56 @@ async function refreshLogs() {
   let homeSkinKey = "";
   let homeSkinFailed = false;
   let homeSkinPauseTimer = null;
+  let homeWorn = null;      // Cosmetic3D-Spieler (Home)
+  let homeLegacy = false;   // true = skinview3d verwenden
+  let cosmWorn = null;      // Cosmetic3D-Spieler (Cosmetics-Tab)
+  let cosmLegacy = false;
+  let wornFetchP = null;
+
+  // Ausgeruestete Items (Katalog + equipped) -> Liste fuer den 3D-Spieler
+  function wornItemsFrom(equipped, catalog) {
+    const out = [];
+    const by = {};
+    (catalog || []).forEach((it) => { if (it && it.id) by[it.id] = it; });
+    const eq = equipped || {};
+    for (const cat of Object.keys(eq)) {
+      const v = eq[cat];
+      const id = typeof v === "string" ? v : (v && v.id) || "";
+      const it = id ? by[id] : null;
+      if (!it) continue;
+      if (it.category === "pet" || (window.Cosmetic3D && window.Cosmetic3D.keyFor(it))) out.push(it);
+    }
+    return out;
+  }
+
+  async function currentWornItems(force) {
+    let cat = window.kmCat || window.__cosmStore;
+    let eq = (window.kmState && window.kmState.equipped) || (window.__cosmMe && window.__cosmMe.equipped);
+    if (force || !cat || !cat.length || !eq) {
+      if (!wornFetchP) {
+        wornFetchP = (async () => {
+          try {
+            const st = await invoke("kollegen_store");
+            if (st && st.catalog) window.__cosmStore = st.catalog;
+            return st;
+          } catch (e) { return null; }
+          finally { setTimeout(() => { wornFetchP = null; }, 1500); }
+        })();
+      }
+      const st = await wornFetchP;
+      if (st) { cat = st.catalog || cat; eq = st.equipped || eq; }
+    }
+    return wornItemsFrom(eq || {}, cat || []);
+  }
+
+  // Nach Ausruesten/Laden: Home- und Cosmetics-Spieler aktualisieren
+  window.refreshWornViewers = async function (force) {
+    try {
+      const items = await currentWornItems(!!force);
+      if (homeWorn && !homeWorn.isDisposed()) homeWorn.setItems(items);
+      if (cosmWorn && !cosmWorn.isDisposed()) cosmWorn.setItems(items);
+    } catch (e) {}
+  };
 
   function disposeHomeSkinViewer() {
     clearTimeout(homeSkinPauseTimer);
@@ -1539,9 +1589,38 @@ async function refreshLogs() {
       return;
     }
     const key = url + "|" + (currentCapeUrl || "");
-    if (!force && key === homeSkinKey && (homeSkinViewer || homeSkinFailed)) return;
+    if (!force && key === homeSkinKey && (homeSkinViewer || homeWorn || homeSkinFailed)) return;
     homeSkinKey = key;
      homeSkinFailed = false;
+    // Neuer 3D-Spieler: echter Skin + ausgeruestete Cosmetics
+    if (!homeLegacy && window.Cosmetic3D && window.Cosmetic3D.ready()) {
+      try {
+        disposeHomeSkinViewer();
+        if (homeWorn) { try { homeWorn.dispose(); } catch (_) {} homeWorn = null; }
+        const wrap0 = canvas.parentElement;
+        canvas.style.display = "";
+        dropSkinFallback(wrap0);
+        homeWorn = window.Cosmetic3D.mountPlayer(canvas, {
+          skin: url,
+          cape: currentCapeUrl || null,
+          items: [],
+          animate: true,
+          onSkinError: () => {
+            homeLegacy = true;
+            try { homeWorn && homeWorn.dispose(); } catch (_) {}
+            homeWorn = null;
+            loadHomeSkin(true);
+          },
+        });
+        setSkinState("");
+        window.refreshWornViewers();
+        return;
+      } catch (e) {
+        console.error("Home-3D fehlgeschlagen:", e);
+        try { homeWorn && homeWorn.dispose(); } catch (_) {}
+        homeWorn = null;
+      }
+    }
      const sv3d = window.skinview3d;
     let webglInfo = "kein WebGL";
     let webglOk = false;
@@ -1568,6 +1647,7 @@ async function refreshLogs() {
       dropSkinFallback(wrap);
       homeSkinViewer = new sv3d.SkinViewer({ canvas: canvas, width: 160, height: 320 });
       homeSkinViewer.animation = new sv3d.IdleAnimation();
+      homeSkinViewer.animation.speed = 0.8;
       const p = homeSkinViewer.loadSkin(url);
       const ready = () => {
         if (!homeSkinViewer) return;
@@ -1578,25 +1658,21 @@ async function refreshLogs() {
           }
         } catch (_) {}
         try { homeSkinViewer.renderPaused = false; } catch (_) {}
-        clearTimeout(homeSkinPauseTimer);
-        homeSkinPauseTimer = setTimeout(() => {
-          if (!homeSkinViewer) return;
-          try {
-            homeSkinViewer.renderPaused = true;
-            homeSkinViewer.render();
-          } catch (_) {}
-        }, 450);
         let lost = false;
         try {
           lost = homeSkinViewer.renderer.getContext().isContextLost();
         } catch (_) {}
         setSkinState(lost ? "3D-Kontext verloren" : "");
       };
-      if (p && typeof p.then === "function") p.then(ready).catch(() => {
-        homeSkinFailed = true;
-        setSkinState("3D · Skin-Fehler");
-      });
-      else ready();
+      if (p && typeof p.then === "function") {
+        p.then(ready).catch(() => {
+          homeSkinFailed = true;
+          showSkinFallback(wrap, canvas, url);
+          setSkinState("");
+        });
+      } else {
+        ready();
+      }
     } catch (e) {
       disposeHomeSkinViewer();
       homeSkinFailed = true;
@@ -3278,7 +3354,7 @@ if ($("skinSaveBtn")) {
 }
 
 // ─── COMMUNITY CAPES & STORE CAPES (Image 3 & Image 4) ───
-let activeCapeCat = "all";
+let activeCapeCat = "community";
 let capeFavOnly = false;
 let capeAnimTimers = [];
 let capeViewers = [];
@@ -3303,14 +3379,26 @@ function disposeUploadCapeViewer() {
   }
 }
 
-// Convert any standard image (wallpaper, photo, meme, etc.) to 128x64 Minecraft Cape UV layout
-function convertImageToMinecraftCape(source) {
+// Convert any standard image (wallpaper, photo, meme, etc.) to HD Minecraft Cape UV layout with Elytra mapping
+function convertImageToMinecraftCape(source, elytraMode = 'normal') {
   try {
     const sw = source.naturalWidth || source.videoWidth || source.width || 64;
     const sh = source.naturalHeight || source.videoHeight || source.height || 32;
 
-    // If it's already a standard Minecraft cape template (64x32, 22x17, or 2:1 aspect ratio)
-    if ((sw === 64 && sh === 32) || (sw === 22 && sh === 17) || (sw === 2 * sh && sw <= 1024)) {
+    // If it's already a standard 2:1 aspect ratio Minecraft cape template:
+    if (sw === 2 * sh && sw >= 64) {
+      // Preserve native resolution up to 2048x1024!
+      const targetW = Math.min(sw, 2048);
+      const targetH = targetW / 2;
+      const c = document.createElement("canvas");
+      c.width = targetW;
+      c.height = targetH;
+      const ctx = c.getContext("2d");
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(source, 0, 0, targetW, targetH);
+      return c.toDataURL("image/png");
+    }
+    if (sw === 22 && sh === 17) {
       const c = document.createElement("canvas");
       c.width = sw;
       c.height = sh;
@@ -3319,35 +3407,45 @@ function convertImageToMinecraftCape(source) {
       return c.toDataURL("image/png");
     }
 
-    // Convert normal picture to 128x64 Minecraft cape UV layout
-    const W = 128;
-    const H = 64;
+    // Determine crisp high-resolution cape dimensions based on input resolution
+    // so fine details, text, and photos are never blurred or pixelated
+    const W = (sw >= 1000 || sh >= 800) ? 2048 : ((sw >= 400 || sh >= 300) ? 1024 : 512);
+    const H = W / 2;
+    const scale = W / 64; // 32, 16, or 8
+
     const c = document.createElement("canvas");
     c.width = W;
     c.height = H;
     const ctx = c.getContext("2d");
+    ctx.imageSmoothingEnabled = true;
 
-    // Cape Back in 128x64: x: 2, y: 2, w: 20, h: 32
-    // Cape Front in 128x64: x: 24, y: 2, w: 20, h: 32
-    const bw = 20;
-    const bh = 32;
+    // Cape Back in Minecraft UV: x = 12 * scale, y = 1 * scale, w = 10 * scale, h = 16 * scale
+    // Cape Front in Minecraft UV: x = 1 * scale, y = 1 * scale, w = 10 * scale, h = 16 * scale
+    const bw = 10 * scale;
+    const bh = 16 * scale;
+    const backX = 12 * scale;
+    const backY = 1 * scale;
+    const frontX = 1 * scale;
+    const frontY = 1 * scale;
 
-    function drawCover(dx, dy, dw, dh, darken = 1.0) {
-      const imgRatio = sw / sh;
+    function drawCover(dx, dy, dw, dh, src, darken = 1.0) {
+      const srcW = src.naturalWidth || src.width || sw;
+      const srcH = src.naturalHeight || src.height || sh;
+      const imgRatio = srcW / srcH;
       const destRatio = dw / dh;
       let sx, sy, sWidth, sHeight;
       if (imgRatio > destRatio) {
-        sHeight = sh;
-        sWidth = sh * destRatio;
-        sx = (sw - sWidth) / 2;
+        sHeight = srcH;
+        sWidth = srcH * destRatio;
+        sx = (srcW - sWidth) / 2;
         sy = 0;
       } else {
-        sWidth = sw;
-        sHeight = sw / destRatio;
+        sWidth = srcW;
+        sHeight = srcW / destRatio;
         sx = 0;
-        sy = (sh - sHeight) / 2;
+        sy = (srcH - sHeight) / 2;
       }
-      ctx.drawImage(source, sx, sy, sWidth, sHeight, dx, dy, dw, dh);
+      ctx.drawImage(src, sx, sy, sWidth, sHeight, dx, dy, dw, dh);
       if (darken < 1.0) {
         ctx.fillStyle = `rgba(0,0,0,${1.0 - darken})`;
         ctx.fillRect(dx, dy, dw, dh);
@@ -3355,15 +3453,67 @@ function convertImageToMinecraftCape(source) {
     }
 
     // Back face (visible behind player)
-    drawCover(2, 2, bw, bh, 1.0);
+    drawCover(backX, backY, bw, bh, source, 1.0);
     // Front face (facing spine, slightly darker)
-    drawCover(24, 2, bw, bh, 0.75);
+    drawCover(frontX, frontY, bw, bh, source, 0.75);
 
     // Edges & borders (top, bottom, left, right)
-    ctx.drawImage(c, 2, 2, bw, 1, 2, 0, bw, 2); // Top
-    ctx.drawImage(c, 2, 2 + bh - 1, bw, 1, 22, 0, bw, 2); // Bottom
-    ctx.drawImage(c, 2, 2, 1, bh, 0, 2, 2, bh); // Left
-    ctx.drawImage(c, 2 + bw - 1, 2, 1, bh, 22, 2, 2, bh); // Right
+    ctx.drawImage(c, backX, backY, bw, scale, frontX, 0, bw, scale); // Top
+    ctx.drawImage(c, backX, backY + bh - scale, bw, scale, 11 * scale, 0, bw, scale); // Bottom
+    ctx.drawImage(c, backX, backY, scale, bh, 0, frontY, scale, bh); // Left
+    ctx.drawImage(c, backX + bw - scale, backY, scale, bh, 11 * scale, frontY, scale, bh); // Right
+
+    // Map Elytra wings:
+    // Left wing outside: x = 36 * scale, y = 2 * scale, w = 10 * scale, h = 20 * scale
+    // Left wing inside:  x = 24 * scale, y = 2 * scale, w = 10 * scale, h = 20 * scale
+    const elW = 10 * scale;
+    const elH = 20 * scale;
+    const elOutX = 36 * scale;
+    const elOutY = 2 * scale;
+    const elInX = 24 * scale;
+    const elInY = 2 * scale;
+
+    // Render Elytra texture with selected mapping mode
+    const elCanvas = document.createElement("canvas");
+    elCanvas.width = sw;
+    elCanvas.height = sh;
+    const elCtx = elCanvas.getContext("2d");
+    if (elytraMode === "mirrored") {
+      elCtx.translate(sw, 0);
+      elCtx.scale(-1, 1);
+      elCtx.drawImage(source, 0, 0);
+    } else if (elytraMode === "split") {
+      elCtx.drawImage(source, 0, 0, sw / 2, sh, 0, 0, sw, sh);
+    } else if (elytraMode === "rotate90") {
+      elCanvas.width = sh;
+      elCanvas.height = sw;
+      elCtx.translate(sh, 0);
+      elCtx.rotate(Math.PI / 2);
+      elCtx.drawImage(source, 0, 0);
+    } else if (elytraMode === "rotate180") {
+      elCtx.translate(sw, sh);
+      elCtx.rotate(Math.PI);
+      elCtx.drawImage(source, 0, 0);
+    } else if (elytraMode === "rotate270") {
+      elCanvas.width = sh;
+      elCanvas.height = sw;
+      elCtx.translate(0, sw);
+      elCtx.rotate((3 * Math.PI) / 2);
+      elCtx.drawImage(source, 0, 0);
+    } else {
+      elCtx.drawImage(source, 0, 0);
+    }
+
+    // Draw left wing outside
+    drawCover(elOutX, elOutY, elW, elH, elCanvas, 1.0);
+    // Draw left wing inside (slightly darker)
+    drawCover(elInX, elInY, elW, elH, elCanvas, 0.75);
+
+    // Elytra edges
+    ctx.drawImage(c, elOutX, elOutY, elW, 2 * scale, 24 * scale, 0, elW, 2 * scale); // Top
+    ctx.drawImage(c, elOutX, elOutY + elH - 2 * scale, elW, 2 * scale, 34 * scale, 0, elW, 2 * scale); // Bottom
+    ctx.drawImage(c, elOutX, elOutY, 2 * scale, elH, 22 * scale, 2 * scale, 2 * scale, elH); // Left
+    ctx.drawImage(c, elOutX + elW - 2 * scale, elOutY, 2 * scale, elH, 34 * scale, 2 * scale, 2 * scale, elH); // Right
 
     return c.toDataURL("image/png");
   } catch (err) {
@@ -3372,18 +3522,42 @@ function convertImageToMinecraftCape(source) {
   }
 }
 
-async function ensureCapeTextureUrl(url) {
+async function ensureCapeTextureUrl(url, elytraMode = 'normal') {
   if (!url) return null;
   return new Promise((resolve) => {
     const img = new Image();
     img.crossOrigin = "anonymous";
     img.onload = () => {
-      const capeUrl = convertImageToMinecraftCape(img);
+      const capeUrl = convertImageToMinecraftCape(img, elytraMode);
       resolve(capeUrl || url);
     };
     img.onerror = () => resolve(url);
     img.src = url;
   });
+}
+
+function resolveStoreCapeTexture(it) {
+  if (!it) return "";
+  const id = it.id || "";
+  const known = {
+    cape_phantomumhang: "cosmetics/store_phantomumhang.png",
+    cape_sternenhimmel: "cosmetics/store_sternenhimmel_umhang.png",
+    cape_fluffybento: "cosmetics/fluffybento_fluffybento_cape.png",
+    cape_limitlos: "cosmetics/limit_los_limit_los_cape.png",
+    cape_zerocraft77: "cosmetics/zerocraft77_Zerocraft77_cape.png",
+    cape_irongirl: "cosmetics/irongirl_lp_Irongirl_lp_cape.png",
+    cape_tson: "cosmetics/t_son__T_son__cape.png",
+    cape_rixhii: "cosmetics/rixhii_rixhii_cape.png",
+  };
+  if (known[id]) return known[id];
+  const rawTex = (it.data && it.data.texture) || it.texture || "";
+  if (rawTex.startsWith("http")) return rawTex;
+  const m = rawTex.match(/^kollegen:cosmetics\/([^/]+)\/(.+)\.png$/);
+  if (m) {
+    if (m[1] === "store") return "cosmetics/store_" + m[2] + ".png";
+    return "cosmetics/" + m[1] + "_" + m[2] + ".png";
+  }
+  return rawTex.replace(/^kollegen:/, "");
 }
 
 async function loadCapesView() {
@@ -3427,12 +3601,7 @@ async function loadCapesView() {
       storeCapes = catalog
         .filter(it => it && it.category === "cape" && (it.owned || it.is_owned || pkgOwned.has(it.id)))
         .map(it => {
-          let tex = "";
-          if (it.data && it.data.texture) {
-            tex = it.data.texture.startsWith("http") ? it.data.texture : ("https://kollegen.me/" + it.data.texture.replace(/^kollegen:/, ""));
-          } else if (it.texture) {
-            tex = it.texture.startsWith("http") ? it.texture : ("https://kollegen.me/" + it.texture.replace(/^kollegen:/, ""));
-          }
+          let tex = resolveStoreCapeTexture(it);
           return {
             id: it.id,
             name: it.title || it.name || "Store Cape",
@@ -3445,6 +3614,7 @@ async function loadCapesView() {
             frames: [tex],
             preview: tex,
             isStoreItem: true,
+            data: it.data,
           };
         });
     }
@@ -3496,31 +3666,66 @@ async function loadCapesView() {
   const searchVal = ($("capesSearchInput") ? $("capesSearchInput").value.trim().toLowerCase() : "");
 
   grid.innerHTML = "";
-  const noneCard = document.createElement("div");
-  const anyActive = !!(
-    capeData.active_cape ||
-    vanillaCapes.some(v => v.active) ||
-    storeCapes.some(s => (homeState.me && homeState.me.equipped && homeState.me.equipped.cape === s.id) || (typeof socialMe !== "undefined" && socialMe && socialMe.equipped && socialMe.equipped.cape === s.id))
-  );
-  noneCard.className = "cape-card cape-card-none" + (!anyActive ? " active" : "");
-  noneCard.innerHTML = `
-    <div class="cape-none-icon">✕</div>
-    <div class="cape-card-name">No Cape</div>
-  `;
-  noneCard.onclick = async () => {
-    try {
-      await invoke("capes_set_active", { capeId: null });
-      try { await invoke("kollegen_store_equip", { itemId: "", category: "cape" }); } catch (_) {}
-      try { await invoke("cape_equip", { capeId: "" }); } catch (_) {}
-      currentCapeUrl = null;
-      toast("Cape abgelegt", "ok");
-      loadCapesView();
-      loadHomeSkin(true);
-    } catch (e) {
-      toast("Fehler: " + e, "error");
+
+  // 1. In Community-Tab: Zeige das aktuell ausgerüstete Cape als erste Karte
+  if (activeCapeCat === "community") {
+    const activeCape = allCapes.find(c => 
+      c.id === capeData.active_cape ||
+      (c.isVanilla && c.active) ||
+      (c.isStoreItem && ((homeState.me && homeState.me.equipped && homeState.me.equipped.cape === c.id) || (typeof socialMe !== "undefined" && socialMe && socialMe.equipped && socialMe.equipped.cape === c.id)))
+    );
+
+    const eqCard = document.createElement("div");
+    eqCard.className = "cape-card" + (activeCape ? " active" : " cape-card-none");
+    if (!activeCape) {
+      eqCard.innerHTML = `
+        <div class="cape-none-icon">✕</div>
+        <div class="cape-card-name">Kein Cape</div>
+        <div class="cape-card-uses"><span>Aktuell ausgerüstet</span></div>
+      `;
+    } else {
+      eqCard.innerHTML = `
+        <div class="cape-card-preview-wrap">
+          <img src="${activeCape.preview || (activeCape.frames && activeCape.frames[0]) || ''}" alt="${activeCape.name}" style="max-height:100%; object-fit:contain;" />
+        </div>
+        <div class="cape-card-name">${activeCape.name}</div>
+        <div class="cape-card-uses"><span>✓ Ausgerüstet (Klicken zum Ablegen)</span></div>
+        <span class="cape-badge-tag" style="background:var(--accent); color:#000; font-weight:700;">Aktiv</span>
+      `;
+      eqCard.onclick = async () => {
+        try {
+          await invoke("capes_set_active", { capeId: null });
+          try { await invoke("kollegen_store_equip", { itemId: "", category: "cape" }); } catch (_) {}
+          try { await invoke("cape_equip", { capeId: "" }); } catch (_) {}
+          currentCapeUrl = null;
+          toast("Cape abgelegt", "ok");
+          loadCapesView();
+          loadHomeSkin(true);
+        } catch (e) {
+          toast("Fehler: " + e, "error");
+        }
+      };
     }
-  };
-  grid.appendChild(noneCard);
+    grid.appendChild(eqCard);
+  } else if (activeCapeCat === "my_capes") {
+    // 2. In My Capes: Ein 2ter Upload Button als erste Karte
+    const uploadCard = document.createElement("div");
+    uploadCard.className = "cape-card skin-card-add";
+    uploadCard.innerHTML = `
+      <div class="skin-card-silhouette">
+        <div class="skin-add-plus">
+          <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="3"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        </div>
+      </div>
+      <div class="skin-card-title">Cape hochladen</div>
+      <div class="skin-card-sub">
+        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        Eigenes Cape importieren
+      </div>
+    `;
+    uploadCard.onclick = () => openCapeUploadModal();
+    grid.appendChild(uploadCard);
+  }
 
   allCapes.forEach((c) => {
     if (activeCapeCat === "my_capes" && c.category !== "my_capes") return;
@@ -3562,15 +3767,29 @@ async function loadCapesView() {
     };
     prevWrap.appendChild(fav);
 
-    // 3D Rotating & Interactive Cape Canvas
-    const canvas = document.createElement("canvas");
-    canvas.width = 160;
-    canvas.height = 180;
-    canvas.className = "cape-card-canvas";
-    prevWrap.appendChild(canvas);
 
     const initialCapeSrc = (c.frames && c.frames[0]) || c.preview || "";
-    if (window.skinview3d && window.skinview3d.SkinViewer && initialCapeSrc) {
+    const isStore3d = c.isStoreItem && window.Cosmetic3D && (window.Cosmetic3D.keyFor(c) || window.Cosmetic3D.keyFor({ ...c, category: "cape" }));
+
+    if (isStore3d) {
+      const img = document.createElement("img");
+      img.className = "cape-card-thumb";
+      img.alt = c.name;
+      if (initialCapeSrc) img.src = initialCapeSrc;
+      prevWrap.appendChild(img);
+      const capeItem = { ...c, category: "cape" };
+      window.Cosmetic3D.thumb(capeItem, 320, 360).then((url) => {
+        if (url) img.src = url;
+      }).catch((e) => {
+        console.warn("Store Cape 3D thumb failed:", e);
+      });
+    } else if (window.skinview3d && window.skinview3d.SkinViewer && initialCapeSrc) {
+      const canvas = document.createElement("canvas");
+      canvas.width = 160;
+      canvas.height = 180;
+      canvas.className = "cape-card-canvas";
+      prevWrap.appendChild(canvas);
+
       ensureCapeTextureUrl(initialCapeSrc).then((validUrl) => {
         if (!validUrl) return;
         try {
@@ -3578,21 +3797,30 @@ async function loadCapesView() {
             canvas: canvas,
             width: 160,
             height: 180,
-            cape: validUrl,
           });
           viewer.playerObject.skin.visible = false;
           viewer.playerObject.cape.visible = true;
+          viewer.playerObject.backEquipment = "cape";
+          if (viewer.playerObject.elytra) {
+            viewer.playerObject.elytra.visible = false;
+          }
           viewer.playerWrapper.rotation.y = Math.PI; // Face the back of cape towards user
           viewer.autoRotate = false;
           viewer.autoRotateSpeed = 2.2;
           capeViewers.push(viewer);
 
-          setTimeout(() => {
-            try {
-              viewer.renderPaused = true;
-              viewer.render();
-            } catch (_) {}
-          }, 180);
+          viewer.loadCape(validUrl).then(() => {
+            viewer.render();
+            setTimeout(() => {
+              try {
+                if (!card.matches(":hover")) {
+                  viewer.renderPaused = true;
+                }
+              } catch (_) {}
+            }, 120);
+          }).catch((err) => {
+            console.warn("SkinViewer loadCape error:", err);
+          });
 
           card.addEventListener("mouseenter", () => {
             try {
@@ -3636,14 +3864,17 @@ async function loadCapesView() {
     name.className = "cape-card-name";
     name.textContent = c.name;
 
-    const uses = document.createElement("div");
-    uses.className = "cape-card-uses";
-    const usesStr = (c.uses || 0).toLocaleString("de-DE");
-    uses.innerHTML = `<span>⤓</span> <span>${usesStr} uses</span>`;
-
     card.appendChild(prevWrap);
     card.appendChild(name);
-    card.appendChild(uses);
+
+    // NUR Community-Capes sollen Download-Zahlen anzeigen (Points 1 & 7)
+    if (c.category === "community") {
+      const uses = document.createElement("div");
+      uses.className = "cape-card-uses";
+      const usesStr = (c.uses || 0).toLocaleString("de-DE");
+      uses.innerHTML = `<span>⤓</span> <span>${usesStr} Downloads</span>`;
+      card.appendChild(uses);
+    }
 
     if (c.category === "gekauft" || c.isStoreItem) {
       const badge = document.createElement("span");
@@ -3661,13 +3892,19 @@ async function loadCapesView() {
       try {
         if (c.isStoreItem) {
           await invoke("kollegen_store_equip", { itemId: c.id, category: "cape" });
+          try { await invoke("capes_set_active", { capeId: null }); } catch (_) {}
+          try { await invoke("cape_equip", { capeId: "" }); } catch (_) {}
           currentCapeUrl = c.preview || (c.frames && c.frames[0]) || null;
           toast(`Store-Cape "${c.name}" ausgerüstet!`, "ok");
         } else if (c.isVanilla) {
+          try { await invoke("kollegen_store_equip", { itemId: "", category: "cape" }); } catch (_) {}
+          try { await invoke("capes_set_active", { capeId: null }); } catch (_) {}
           await invoke("cape_equip", { capeId: c.vanillaId });
           currentCapeUrl = c.preview || (c.frames && c.frames[0]) || null;
           toast(`Vanilla-Cape "${c.name}" ausgerüstet!`, "ok");
         } else {
+          try { await invoke("kollegen_store_equip", { itemId: "", category: "cape" }); } catch (_) {}
+          try { await invoke("cape_equip", { capeId: "" }); } catch (_) {}
           await invoke("capes_set_active", { capeId: c.id });
           currentCapeUrl = c.preview || (c.frames && c.frames[0]) || null;
           toast(`Cape "${c.name}" ausgerüstet!`, "ok");
@@ -3714,6 +3951,7 @@ function openCapeUploadModal() {
   const modal = $("capeUploadModal");
   if (!modal) return;
   uploadedCapeFrames = [];
+  rawUploadedCapeImages = [];
   if ($("capeNameField")) $("capeNameField").value = "";
   if ($("capeFilesPicker")) $("capeFilesPicker").value = "";
   if ($("capeFrameManager")) $("capeFrameManager").style.display = "none";
@@ -3763,6 +4001,19 @@ if ($("capeTemplateBtn")) {
   };
 }
 
+let rawUploadedCapeImages = [];
+
+const elytraModeSelect = $("capeElytraModeSelect");
+if (elytraModeSelect) {
+  elytraModeSelect.onchange = async () => {
+    if (!rawUploadedCapeImages.length) return;
+    const mode = elytraModeSelect.value || "normal";
+    const formatted = await Promise.all(rawUploadedCapeImages.map(raw => ensureCapeTextureUrl(raw, mode)));
+    uploadedCapeFrames = formatted.filter(Boolean);
+    renderFrameManager();
+  };
+}
+
 if ($("capeFilesPicker")) {
   $("capeFilesPicker").onchange = async (e) => {
     const files = Array.from(e.target.files || []);
@@ -3776,8 +4027,10 @@ if ($("capeFilesPicker")) {
     }));
 
     const rawResults = await Promise.all(readPromises);
-    // Convert normal images or templates into proper Minecraft Cape UV layout
-    const formatted = await Promise.all(rawResults.map(raw => ensureCapeTextureUrl(raw)));
+    rawUploadedCapeImages = rawResults;
+    const mode = $("capeElytraModeSelect") ? $("capeElytraModeSelect").value : "normal";
+    // Convert normal images or templates into proper HD Minecraft Cape & Elytra UV layout
+    const formatted = await Promise.all(rawResults.map(raw => ensureCapeTextureUrl(raw, mode)));
     uploadedCapeFrames = formatted.filter(Boolean);
     renderFrameManager();
   };
@@ -3807,6 +4060,11 @@ function renderFrameManager() {
         });
         uploadCapeViewer.playerObject.skin.visible = false;
         uploadCapeViewer.playerObject.cape.visible = true;
+        uploadCapeViewer.playerObject.backEquipment = "cape";
+        if (uploadCapeViewer.playerObject.elytra) {
+          uploadCapeViewer.playerObject.elytra.visible = false;
+          uploadCapeViewer.playerObject.elytra.resetJoints();
+        }
         uploadCapeViewer.playerWrapper.rotation.y = Math.PI; // Face the back of cape towards user
         uploadCapeViewer.autoRotate = true; // Auto rotates!
         uploadCapeViewer.autoRotateSpeed = 2.2;
@@ -3904,8 +4162,9 @@ if ($("capeUploadSubmitBtn")) {
       return;
     }
     const fps = $("capeFpsSlider") ? parseInt($("capeFpsSlider").value, 10) || 10 : 10;
+    const mode = $("capeElytraModeSelect") ? $("capeElytraModeSelect").value : "normal";
     try {
-      await invoke("capes_upload", { name, images: uploadedCapeFrames, fps });
+      await invoke("capes_upload", { name, images: uploadedCapeFrames, fps, elytra_mode: mode });
       toast(`Cape "${name}" erfolgreich hochgeladen & ausgerüstet!`, "ok");
       closeCapeUploadModal();
       loadCapesView();
@@ -4959,6 +5218,34 @@ startBackgroundIntervals();
   let storeShown = 0;
   let storeMoreObs = null;
 
+  const STORE_PET_EMOJI = { pet_allay: "🧚", pet_blub: "🫧", pet_cat: "🐱", pet_dog: "🐶", pet_chicken: "🐔", pet_rabbit: "🐰", pet_axolotl: "🦎", pet_bat: "🦇", pet_fox: "🦊", pet_parrot: "🦜", pet_bee: "🐝", pet_squid: "🦑", pet_nautilus: "🐚", pet_copper_golem: "🤖" };
+  const STORE_CAT_GLYPH = { pet: "🐾", clothing: "👕", effect: "✨", cape: "🧣", shield: "🛡️", back_accessory: "🎒", head_accessory: "👑", face_accessory: "🥽", aura: "🌀", shoulder_accessory: "🦜", torso_accessory: "🧥", legs_accessory: "👢", gloves: "🧤", pet_skin: "🎨" };
+
+  // Ingame-Items: 3D-Vorschau (kommt per Thumbnail), sonst Bild/Textur, sonst Symbol – nie der eigene Avatar.
+  function storeIngamePreview(item) {
+    const glyph = item.category === "pet" ? (STORE_PET_EMOJI[item.id] || "🐾") : (STORE_CAT_GLYPH[item.category] || "✨");
+    const swap = `onerror="this.outerHTML='<span class=&quot;pv-glyph&quot;>${glyph}</span>'"`;
+    if (item.category === "pet") {
+      const kind = (window.Cosmetic3D && window.Cosmetic3D.petKind) ? window.Cosmetic3D.petKind(item) : String(item.id || "").replace(/^pet_/, "");
+      return `<img class="pv-art pv-pet" alt="" src="pets/${esc(kind)}.png" ${swap}/>`;
+    }
+    const has3d = window.Cosmetic3D && window.Cosmetic3D.ready() && window.Cosmetic3D.keyFor(item);
+    if (!has3d && item.data && item.data.texture) {
+      return `<img class="pv-art pv-tex" alt="" src="https://kollegen.me/${esc(String(item.data.texture).replace("kollegen:", ""))}" ${swap}/>`;
+    }
+    return `<span class="pv-glyph${has3d ? " pv-wait" : ""}">${glyph}</span>`;
+  }
+
+  // Pet-Bild auf den sichtbaren Bereich zuschneiden (grosse Vorschau statt viel Rand)
+  function storeCropPet(pv, item) {
+    if (item.category !== "pet" || !window.Cosmetic3D || !window.Cosmetic3D.petCropped) return;
+    const kind = window.Cosmetic3D.petKind(item);
+    window.Cosmetic3D.petCropped(kind).then((r) => {
+      const im = pv.querySelector("img.pv-pet");
+      if (r && r.url && im) im.src = r.url;
+    });
+  }
+
   function storePreview(item) {
     const av = previewAvatar() || "https://mc-heads.net/avatar/MHF_Steve/64";
     if (item.category === "title") return `<span style="font-weight:800;font-size:1rem;">${esc(item.data.text)}</span>`;
@@ -4971,12 +5258,7 @@ startBackgroundIntervals();
     if (item.category === "font") return `<div style="width:78%;height:64px;border-radius:10px;display:flex;align-items:center;justify-content:center;color:#c9d4e3;font-weight:700;font-size:15px;font-family:${esc(item.data.font)};">Aa</div>`;
     if (item.category === "name_color") return `<div style="width:78%;height:64px;border-radius:10px;display:flex;align-items:center;justify-content:center;color:${esc(item.data.accent)};font-weight:800;font-size:22px;">Aa</div>`;
     if (item.category === "sticker") return `<div style="width:78%;height:64px;border-radius:10px;display:flex;align-items:center;justify-content:center;color:${esc(item.data.color)};font-size:34px;">${esc(item.data.icon)}</div>`;
-    if (item.category === "cape" && item.data && item.data.texture) return `<div style="width:78%;height:64px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:#0d1420;background-image:url('https://kollegen.me/${item.data.texture.replace("kollegen:", "")}');background-size:cover;background-position:center;">Cape</div>`;
-    if (item.category === "shield" && item.data && item.data.texture) return `<div style="width:78%;height:64px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:#0d1420;background-image:url('https://kollegen.me/${item.data.texture.replace("kollegen:", "")}');background-size:cover;background-position:center;">Schild</div>`;
-    if (item.category === "back_accessory" && item.data && item.data.texture) return `<div style="width:78%;height:64px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:#0d1420;background-image:url('https://kollegen.me/${item.data.texture.replace("kollegen:", "")}');background-size:cover;background-position:center;">Rücken</div>`;
-    if (item.category === "head_accessory" && item.data && item.data.texture) return `<div style="width:78%;height:64px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:#0d1420;background-image:url('https://kollegen.me/${item.data.texture.replace("kollegen:", "")}');background-size:cover;background-position:center;">Kopf</div>`;
-    if (["face_accessory", "aura", "shoulder_accessory", "torso_accessory", "legs_accessory", "gloves"].includes(item.category) && item.data && item.data.texture) { const lbl = { face_accessory: "Gesicht", aura: "Aura", shoulder_accessory: "Schulter", torso_accessory: "Oberkörper", legs_accessory: "Unterkörper", gloves: "Handschuhe" }[item.category] || "Item"; return `<div style="width:78%;height:64px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:#0d1420;background-image:url('https://kollegen.me/${item.data.texture.replace("kollegen:", "")}');background-size:cover;background-position:center;">${lbl}</div>`; }
-    if (item.category === "pet" && item.data && item.data.kind) { const mk = { ember_drake: 1, void_wyrm: 1, shadow_reaper: 1, rune_sentinel: 1, flame_skull: 1, storm_cloud: 1, crystal_golem: 1, spectre: 1, lantern_spirit: 1, bolt_bot: 1, mini_ufo: 1, grimoire: 1, mooncap: 1, jelly_cube: 1 }[item.data.kind]; if (mk) return `<img style="width:64px;height:64px;border-radius:14px;object-fit:cover;" src="pets/${item.data.kind}.png" onerror="this.style.display='none'"/>`; }
+    if (STORE_INGAME_CATS.includes(item.category)) return storeIngamePreview(item);
     let border = "", shadow = "";
     if (item.category === "avatar_frame" && item.data.color1) border = `border:${(item.data.width || 3)}px solid ${esc(item.data.color1)};`;
     return `<img style="width:64px;height:64px;border-radius:14px;object-fit:cover;${border}${shadow}" src="${av}"/>`;
@@ -5070,7 +5352,8 @@ startBackgroundIntervals();
     foot.innerHTML = "";
     const price = document.createElement("div");
     price.className = "store-price";
-    price.innerHTML = esc(String(item.price)) + " <small>Punkte</small>";
+    price.title = "Punkte";
+    price.innerHTML = `<span class="coin" aria-hidden="true"></span>${esc(String(item.price))}`;
     const btn = document.createElement("button");
     btn.className = "cardBtn " + b.cls;
     btn.tabIndex = -1;
@@ -5082,7 +5365,8 @@ startBackgroundIntervals();
 
   function storeCard(item) {
     const card = document.createElement("div");
-    card.className = "store-card rar-" + (item.rarity || "common");
+    card.className = "store-card rar-" + (item.rarity || "common") + (STORE_INGAME_CATS.includes(item.category) ? " tall" : "");
+    if (item.desc) card.title = item.desc;
     card.tabIndex = 0;
     card.setAttribute("role", "button");
     card.dataset.id = item.id;
@@ -5091,6 +5375,7 @@ startBackgroundIntervals();
     const pv = document.createElement("div");
     pv.className = "store-pv";
     pv.innerHTML = storePreview(item);
+    storeCropPet(pv, item);
     card.append(pv);
     try { c3dObserve(pv, item); } catch (e) {}
     const rar = document.createElement("span");
@@ -5105,7 +5390,7 @@ startBackgroundIntervals();
     t.title = item.name || "";
     const d = document.createElement("div");
     d.className = "store-card-desc";
-    d.textContent = item.desc || "";
+    d.textContent = storeCatLabel(item.category);
     body.append(t, d);
     card.append(body);
     storeApplyState(card, item);
@@ -5277,6 +5562,7 @@ startBackgroundIntervals();
         }
         renderKosmet();
         renderStore();
+        try { window.refreshWornViewers && window.refreshWornViewers(); } catch (e) {}
       } else alert("Ausrüsten fehlgeschlagen: " + ((r && r.error) || "unbekannt"));
     } catch (e) { alert("Fehler: " + e); }
   }
@@ -5290,10 +5576,12 @@ startBackgroundIntervals();
     pv.className = "store-pv store-pv-lg";
     pv.style.setProperty("--rar-rgb", "var(--r-" + (item.rarity || "common") + "-rgb)");
     pv.innerHTML = storePreview(item);
+    storeCropPet(pv, item);
     try {
       if (window.Cosmetic3D && window.Cosmetic3D.ready() && window.Cosmetic3D.keyFor(item)) {
         pv.innerHTML = "";
-        pv.style.minHeight = "300px";
+        pv.style.aspectRatio = "auto";
+        pv.style.height = "340px";
         window.Cosmetic3D.mount(pv, item);
       }
     } catch (e) {}
@@ -5649,6 +5937,7 @@ startBackgroundIntervals();
       } catch (e) {}
       renderCosmetics(true);
       if (window.renderKollegenStore) { try { window.renderKollegenStore(); } catch (e) {} }
+      try { window.refreshWornViewers && window.refreshWornViewers(true); } catch (e) {}
     };
     const cosmSwatch = (ch, it) => {
       const sw = document.createElement("span");
@@ -5750,8 +6039,12 @@ startBackgroundIntervals();
         }
       }
      }
-     // Store-ausgerüsteten Cape auf die Skin-Viewer anwenden
-     (function () {
+     // Store-ausgerüsteten Cape auf die Skin-Viewer anwenden (nur wenn kein Custom- oder Vanilla-Cape aktiv)
+     (async function () {
+       try {
+         const capesData = await invoke("capes_list");
+         if (capesData && capesData.active_cape) return;
+       } catch (_) {}
        const eqCapeId = equipped && equipped.cape;
        const eqCapeItem = eqCapeId ? (store.catalog || []).find((it) => it.id === eqCapeId) : null;
        if (eqCapeItem && eqCapeItem.data && eqCapeItem.data.texture) {
@@ -5851,6 +6144,9 @@ startBackgroundIntervals();
             img.className = "pet-preview";
             img.alt = "";
             img.src = "pets/" + mythicKinds[it.id] + ".png";
+            if (window.Cosmetic3D && window.Cosmetic3D.petCropped) {
+              window.Cosmetic3D.petCropped(mythicKinds[it.id]).then((r) => { if (r && r.url) img.src = r.url; });
+            }
             img.onerror = () => { img.remove(); pv.textContent = PET_ICON[it.id] || "🐾"; };
             pv.append(img);
           } else {
@@ -6011,6 +6307,7 @@ startBackgroundIntervals();
   }
 
   function disposeCosmSkinViewer() {
+    if (cosmWorn) { try { cosmWorn.dispose(); } catch (_) {} cosmWorn = null; }
     if (!cosmSkinViewer) return;
     try { cosmSkinViewer.dispose && cosmSkinViewer.dispose(); } catch (_) {}
     cosmSkinViewer = null;
@@ -6054,6 +6351,38 @@ startBackgroundIntervals();
     const nm = (me && (me.name || me.mc_name)) || "";
     if (!url && nm) url = `https://mc-heads.net/skin/${encodeURIComponent(nm)}`;
     if (!url) return;
+    // Neuer 3D-Spieler: echter Skin + ausgeruestete Cosmetics
+    if (!cosmLegacy && window.Cosmetic3D && window.Cosmetic3D.ready()) {
+      const items3 = wornItemsFrom(me && me.equipped, window.__cosmStore);
+      const key3 = url + "|" + (currentCapeUrl || "");
+      if (cosmWorn && !cosmWorn.isDisposed() && cosmSkinKey === key3) { cosmWorn.setItems(items3); return; }
+      try {
+        disposeCosmSkinViewer();
+        cosmSkinKey = key3;
+        const wrap3 = canvas.parentElement;
+        const fb3 = wrap3.querySelector("img.skin-fallback");
+        if (fb3) fb3.remove();
+        canvas.style.display = "";
+        cosmWorn = window.Cosmetic3D.mountPlayer(canvas, {
+          skin: url,
+          cape: currentCapeUrl || null,
+          items: items3,
+          animate: true,
+          onSkinError: () => {
+            cosmLegacy = true;
+            try { cosmWorn && cosmWorn.dispose(); } catch (_) {}
+            cosmWorn = null;
+            cosmSkinKey = "";
+            renderCosmSkin(me);
+          },
+        });
+        return;
+      } catch (e) {
+        console.error("Cosmetics-3D fehlgeschlagen:", e);
+        try { cosmWorn && cosmWorn.dispose(); } catch (_) {}
+        cosmWorn = null;
+      }
+    }
     const key = url + "|" + (currentCapeUrl || "");
     if (key === cosmSkinKey && cosmSkinViewer) return;
     cosmSkinKey = key;

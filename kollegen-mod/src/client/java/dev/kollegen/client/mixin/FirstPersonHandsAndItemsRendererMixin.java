@@ -2,6 +2,7 @@ package dev.kollegen.client.mixin;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import dev.kollegen.client.mods.modules.ShieldSettings;
+import dev.kollegen.client.mods.modules.ShieldStatusContext;
 import net.minecraft.client.renderer.FirstPersonHandsAndItemsRenderer;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.state.level.FirstPersonHandsAndItemsRenderState;
@@ -29,17 +30,20 @@ public class FirstPersonHandsAndItemsRendererMixin {
                                             SubmitNodeCollector submitNodeCollector, int light, CallbackInfo ci) {
         if (stack != null && stack.is(Items.SHIELD)) {
             kollegen$isShield = true;
+            ShieldStatusContext.setFirstPerson(true);
             if (ShieldSettings.isCustomTransformEnabled()) {
                 ShieldSettings.applyFirstPersonTransform(poseStack, hand);
             }
         } else {
             kollegen$isShield = false;
+            ShieldStatusContext.setFirstPerson(false);
         }
     }
 
     @Inject(method = "submitArmWithItem", at = @At("RETURN"), require = 0)
     private void kollegen$onArmWithItemReturn(CallbackInfo ci) {
         kollegen$isShield = false;
+        ShieldStatusContext.clear();
     }
 
     @ModifyArg(method = "submitArmWithItem",

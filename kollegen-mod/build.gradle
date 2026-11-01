@@ -342,6 +342,13 @@ if (is262) {
                 if (rel.endsWith('mixin/PetLevelExtractorMixin.java')) {
                     t = 'package dev.kollegen.client.mixin;\n\nimport dev.kollegen.client.presence.PetRenderer;\nimport net.minecraft.client.Camera;\nimport net.minecraft.client.DeltaTracker;\nimport net.minecraft.client.Minecraft;\nimport net.minecraft.client.renderer.culling.Frustum;\nimport net.minecraft.client.renderer.extract.LevelExtractor;\nimport net.minecraft.client.renderer.state.level.LevelRenderState;\nimport org.spongepowered.asm.mixin.Mixin;\nimport org.spongepowered.asm.mixin.injection.At;\nimport org.spongepowered.asm.mixin.injection.Inject;\nimport org.spongepowered.asm.mixin.injection.callback.CallbackInfo;\n\n@Mixin(LevelExtractor.class)\npublic class PetLevelExtractorMixin {\n\n    @Inject(method = "extractVisibleEntities(Lnet/minecraft/client/Camera;Lnet/minecraft/client/renderer/culling/Frustum;Lnet/minecraft/client/DeltaTracker;Lnet/minecraft/client/renderer/state/level/LevelRenderState;)V", at = @At("TAIL"))\n    private void kollegen$addPets(Camera camera, Frustum frustum, DeltaTracker tracker, LevelRenderState state, CallbackInfo ci) {\n        try {\n            Minecraft mc = Minecraft.getInstance();\n            if (mc == null || mc.level == null) return;\n            PetRenderer.extractPets(mc, tracker, state, frustum);\n        } catch (Throwable ignored) {\n        }\n    }\n}\n'
                 }
+                if (project.minecraft_version.startsWith('26.2')) {
+                    t = t.replace('com.mojang.renderpearl.api.buffers.GpuBuffer', 'com.mojang.blaze3d.buffers.GpuBuffer')
+                         .replace('com.mojang.renderpearl.api.buffers.GpuBufferSlice', 'com.mojang.blaze3d.buffers.GpuBufferSlice')
+                         .replace('com.mojang.renderpearl.api.commands.CommandEncoder', 'com.mojang.blaze3d.systems.CommandEncoder')
+                         .replace('com.mojang.renderpearl.api.pipeline.RenderPipeline', 'com.mojang.blaze3d.pipeline.RenderPipeline')
+                         .replace('com.mojang.renderpearl.api.textures.GpuTextureView', 'com.mojang.blaze3d.textures.GpuTextureView')
+                }
                 if (project.minecraft_version.startsWith('26.3')) {
                     t = t.replace('import org.lwjgl.glfw.GLFW;', 'import dev.kollegen.client.input.sdl.GLFW;')
                          .replace('import org.lwjgl.glfw.GLFWGamepadState;', 'import dev.kollegen.client.input.sdl.GLFW.GLFWGamepadState;')
@@ -374,6 +381,9 @@ if (is262) {
         client {
             java {
                     srcDirs = ["${portDir}/client/java"]
+                    exclude '**/DynamicGpuDataStorageMappedMixin.java'
+                    exclude '**/DynamicGpuDataStorageNonMappedMixin.java'
+                    exclude '**/FirstPersonHandsAndItemsRendererMixin.java'
                 }
             }
         }

@@ -9,6 +9,7 @@ import dev.kollegen.client.presence.RenderStateIds;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.entity.state.AvatarRenderState;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 
@@ -73,9 +74,30 @@ public class ShieldSettings extends Module {
     );
 
     public final BooleanSetting statusOutline = new BooleanSetting(
-            "Status-Umrandung",
-            "Leuchtende Schild-Umrandung: Grün = nutzbar, Rot = auf Cooldown (auch bei anderen Spielern).",
+            "Status-Indikator am Schild",
+            "Schild selbst leuchtet: Grün = nutzbar, Rot = auf Cooldown (im First-Person-Sichtfeld & bei anderen Spielern).",
             true
+    );
+
+    public final BooleanSetting tintShield = new BooleanSetting(
+            "Schild komplett einfärben",
+            "Färbt das Schild-Material komplett in der Statusfarbe ein.",
+            true
+    );
+
+    public final SliderSetting colorPreset = new SliderSetting(
+            "Farb-Schema",
+            "Wähle deine Statusfarben: 0 = Grün/Rot, 1 = Cyan/Orange, 2 = Gold/Lila, 3 = Weiß/Rot.",
+            0.0, 0.0, 3.0, 1.0,
+            v -> {
+                int i = (int) Math.round(v);
+                return switch (i) {
+                    case 1 -> "Cyan / Orange";
+                    case 2 -> "Gold / Lila";
+                    case 3 -> "Weiß / Rot";
+                    default -> "Klassisch (Grün / Rot)";
+                };
+            }, null
     );
 
     public ShieldSettings() {
@@ -90,6 +112,8 @@ public class ShieldSettings extends Module {
         add(rotY);
         add(rotZ);
         add(statusOutline);
+        add(tintShield);
+        add(colorPreset);
     }
 
     public static boolean isCustomTransformEnabled() {
@@ -120,7 +144,32 @@ public class ShieldSettings extends Module {
     }
 
     public static boolean isStatusOutlineEnabled() {
-        return INSTANCE != null && INSTANCE.enabled && INSTANCE.statusOutline.value;
+        return INSTANCE != null && INSTANCE.enabled && (INSTANCE.statusOutline.value || INSTANCE.tintShield.value);
+    }
+
+    public static boolean isStatusTintEnabled() {
+        return INSTANCE != null && INSTANCE.enabled && INSTANCE.tintShield.value;
+    }
+
+    public static int getReadyColor() {
+        if (INSTANCE == null) return 0xFF33FF44;
+        int p = (int) Math.round(INSTANCE.colorPreset.value);
+        return switch (p) {
+            case 1 -> 0xFF22E5FF;
+            case 2 -> 0xFFFFD700;
+            case 3 -> 0xFFFFFFFF;
+            default -> 0xFF33FF44;
+        };
+    }
+
+    public static int getCooldownColor() {
+        if (INSTANCE == null) return 0xFFFF2222;
+        int p = (int) Math.round(INSTANCE.colorPreset.value);
+        return switch (p) {
+            case 1 -> 0xFFFF7700;
+            case 2 -> 0xFFD022FF;
+            default -> 0xFFFF2222;
+        };
     }
 
     public static int getSelfStatusColor() {
@@ -134,7 +183,17 @@ public class ShieldSettings extends Module {
             shield = new ItemStack(Items.SHIELD);
         }
         boolean cd = mc.player.getCooldowns().isOnCooldown(shield);
-        return cd ? 0xFFFF2222 : 0xFF33FF44;
+        return cd ? getCooldownColor() : getReadyColor();
+    }
+
+    public static int getStatusColor(Player player) {
+        if (player == null) return 0;
+        Minecraft mc = Minecraft.getInstance();
+        if (mc != null && mc.player != null && player.getUUID().equals(mc.player.getUUID())) {
+            return getSelfStatusColor();
+        }
+        boolean cd = ShieldCooldownTracker.isOnCooldown(player.getUUID());
+        return cd ? getCooldownColor() : getReadyColor();
     }
 
     public static int getStatusColor(AvatarRenderState state) {
@@ -148,6 +207,6 @@ public class ShieldSettings extends Module {
             return getSelfStatusColor();
         }
         boolean cd = id != null && ShieldCooldownTracker.isOnCooldown(id);
-        return cd ? 0xFFFF2222 : 0xFF33FF44;
+        return cd ? getCooldownColor() : getReadyColor();
     }
 }

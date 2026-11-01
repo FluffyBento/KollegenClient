@@ -27,6 +27,7 @@ public final class Icons {
     public static final int HOME = 21;
     public static final int WARN = 22;
     public static final int CHEVRON_DOWN = 23;
+    public static final int PLUS = 24;
     public static final int SNAKE = 30;
 
     private Icons() {
@@ -177,6 +178,10 @@ public final class Icons {
                 Glass.line(g, x + 2 * u, y + 20.5f * u, x + 22 * u, y + 20.5f * u, t * 1.2f, c);
                 Glass.rr(g, x + 11 * u, y + 9 * u, 2 * u, 6 * u, 1 * u, c);
                 Glass.disc(g, x + 12 * u, y + 17.5f * u, 1.2f * u, c);
+                break;
+            case PLUS:
+                Glass.line(g, x + 12 * u, y + 4 * u, x + 12 * u, y + 20 * u, t * 1.5f, c);
+                Glass.line(g, x + 4 * u, y + 12 * u, x + 20 * u, y + 12 * u, t * 1.5f, c);
                 break;
             case SNAKE:
                 Glass.line(g, x + 5 * u, y + 14 * u, x + 11 * u, y + 8 * u, t * 1.2f, c);
