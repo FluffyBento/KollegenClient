@@ -135,7 +135,12 @@ pub struct AppState {
 
 #[tauri::command]
 fn get_version() -> String {
-    "Test".to_string()
+    let base = env!("CARGO_PKG_VERSION");
+    if VERSION_HOTFIX.is_empty() {
+        base.to_string()
+    } else {
+        format!("{}{}", base, VERSION_HOTFIX)
+    }
 }
 
 #[tauri::command]
