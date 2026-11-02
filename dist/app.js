@@ -589,22 +589,6 @@ function renderHomeHero(instances) {
   mountMinecraftServerCard(inst, srvSlot);
 
   art.innerHTML = instIconSVG(inst.name, inst.loader);
-    const b = document.createElement("button");
-    b.className = "btn-glass";
-    b.innerHTML = uiIcon("manage");
-    b.append(document.createTextNode("Verwalten"));
-    b.onclick = () => openManage(inst);
-    return b;
-  })());
-  actions.append(...heroActions);
-  copy.append(eyebrow, title, meta, actions);
-
-  const srvSlot = document.createElement("div");
-  srvSlot.className = "hero-server-slot";
-  copy.append(srvSlot);
-  mountMinecraftServerCard(inst, srvSlot);
-
-  art.innerHTML = instIconSVG(inst.name, inst.loader);
   hero.append(copy, art);
 }
 
