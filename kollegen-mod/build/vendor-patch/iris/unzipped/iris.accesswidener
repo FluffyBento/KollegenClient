@@ -1,34 +1,31 @@
-accessWidener	v1	official
-
-accessible  class   com/mojang/blaze3d/opengl/GlStateManager$BlendState
-accessible  class   com/mojang/blaze3d/opengl/GlStateManager$BooleanState
-accessible  class   com/mojang/blaze3d/opengl/GlStateManager$TextureState
-accessible  class   com/mojang/blaze3d/opengl/GlStateManager$DepthState
-accessible  class   net/minecraft/client/renderer/texture/Stitcher$Holder
-accessible  class   net/minecraft/world/level/biome/Biome$ClimateSettings
-accessible  class   net/minecraft/client/Options$FieldAccess
-accessible field com/mojang/blaze3d/opengl/GlRenderPass pipeline Lcom/mojang/blaze3d/opengl/GlRenderPipeline;
-accessible field com/mojang/blaze3d/opengl/GlRenderPass samplers Ljava/util/HashMap;
-accessible class net/minecraft/client/renderer/texture/SpriteContents$AnimatedTexture
-accessible class net/minecraft/client/renderer/texture/SpriteContents$FrameInfo
-accessible  class   net/minecraft/client/OptionInstance$ValueSet
-extendable  class   net/minecraft/client/OptionInstance
-accessible method com/mojang/blaze3d/opengl/GlProgram <init> (ILjava/lang/String;)V
-accessible field com/mojang/blaze3d/opengl/GlProgram uniformsByName Ljava/util/Map;
-extendable  class   net/minecraft/core/RegistryAccess$RegistryEntry
-accessible field com/mojang/blaze3d/platform/NativeImage pixels J
-mutable field net/minecraft/client/renderer/LevelRenderer renderBuffers Lnet/minecraft/client/renderer/RenderBuffers;
-accessible class net/minecraft/client/gui/components/AbstractSelectionList$Entry
-accessible field com/mojang/blaze3d/opengl/GlStateManager$BooleanState enabled Z
-accessible field com/mojang/blaze3d/vertex/PoseStack$Pose trustedNormals Z
-accessible class net/minecraft/client/particle/ItemPickupParticleGroup$State
-accessible class com/mojang/blaze3d/opengl/GlRenderPass$TextureViewAndSampler
-accessible field net/minecraft/client/renderer/rendertype/RenderSetup outputTarget Lnet/minecraft/client/renderer/rendertype/OutputTarget;
-accessible field net/minecraft/client/renderer/rendertype/RenderSetup pipeline Lcom/mojang/blaze3d/pipeline/RenderPipeline;
-accessible method net/minecraft/client/renderer/rendertype/RenderType create (Ljava/lang/String;Lnet/minecraft/client/renderer/rendertype/RenderSetup;)Lnet/minecraft/client/renderer/rendertype/RenderType;
-accessible method net/minecraft/client/renderer/rendertype/RenderType <init> (Ljava/lang/String;Lnet/minecraft/client/renderer/rendertype/RenderSetup;)V
-accessible method net/minecraft/client/renderer/texture/TextureAtlasSprite isAnimated ()Z
-accessible class com/mojang/blaze3d/opengl/GlDevice
-accessible class com/mojang/blaze3d/opengl/GlCommandEncoder
-accessible field com/mojang/blaze3d/opengl/GlBuffer handle I
-accessible field net/minecraft/client/renderer/blockentity/state/BlockEntityRenderState blockState Lnet/minecraft/world/level/block/state/BlockState;
+accessWidener	v1	intermediary
+accessible	class	com/mojang/blaze3d/opengl/GlStateManager$class_1017
+accessible	class	com/mojang/blaze3d/opengl/GlStateManager$class_1018
+accessible	class	com/mojang/blaze3d/opengl/GlStateManager$class_1039
+accessible	class	com/mojang/blaze3d/opengl/GlStateManager$class_1022
+accessible	class	com/mojang/blaze3d/opengl/GlStateManager$class_1026
+accessible	class	net/minecraft/class_1055$class_1056
+accessible	class	net/minecraft/class_1959$class_5482
+accessible	class	net/minecraft/class_315$class_5823
+accessible	field	net/minecraft/class_10866	field_57868	Lnet/minecraft/class_10867;
+accessible	field	net/minecraft/class_10866	field_57874	Ljava/util/HashMap;
+accessible	class	net/minecraft/class_7764$class_5790
+accessible	class	net/minecraft/class_7764$class_5791
+accessible	class	net/minecraft/class_7172$class_7178
+extendable	class	net/minecraft/class_7172
+accessible	method	net/minecraft/class_5944	<init>	(ILjava/lang/String;)V
+accessible	field	net/minecraft/class_5944	field_53841	Ljava/util/Map;
+accessible	class	net/minecraft/class_846$class_851$class_4578
+extendable	class	net/minecraft/class_5455$class_6892
+accessible	field	net/minecraft/class_1011	field_4988	J
+mutable	field	net/minecraft/class_761	field_20951	Lnet/minecraft/class_4599;
+accessible	class	net/minecraft/class_350$class_351
+accessible	field	com/mojang/blaze3d/opengl/GlStateManager$class_1018	field_5051	Z
+accessible	field	net/minecraft/class_4587$class_4665	field_48930	Z
+accessible	class	net/minecraft/class_11934$class_11936
+accessible	class	net/minecraft/class_10866$class_12133
+accessible	field	net/minecraft/class_12247	field_63989	Lnet/minecraft/class_12246;
+accessible	field	net/minecraft/class_12247	field_63986	Lcom/mojang/blaze3d/pipeline/RenderPipeline;
+accessible	method	net/minecraft/class_1921	method_75940	(Ljava/lang/String;Lnet/minecraft/class_12247;)Lnet/minecraft/class_1921;
+accessible	method	net/minecraft/class_1921	<init>	(Ljava/lang/String;Lnet/minecraft/class_12247;)V
+accessible	method	net/minecraft/class_1058	method_76321	()Z

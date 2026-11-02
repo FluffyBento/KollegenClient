@@ -2,7 +2,7 @@
     "schemaVersion": 1,
     "id": "modmenu",
     "name": "Mod Menu",
-    "version": "20.0.3",
+    "version": "17.0.1",
     "environment": "client",
     "license": "MIT",
     "icon": "assets/modmenu/icon.png",
@@ -22,15 +22,14 @@
     "depends": {
         "fabric-resource-loader-v1": "*",
         "fabric-screen-api-v1": "*",
-        "fabric-key-mapping-api-v1": "*",
+        "fabric-key-binding-api-v1": "*",
         "fabric-lifecycle-events-v1": "*",
-        "fabricloader": ">=0.19.2",
-        "minecraft": ">=26.2 <26.3-alpha.3"
+        "fabricloader": ">=0.17.2",
+        "minecraft": ">=1.21.11 <26"
     },
     "authors": [
         "Prospector",
         "haykam821",
-        "gniftygnome",
         "TerraformersMC"
     ],
     "contributors": [
@@ -99,11 +98,10 @@
         "triphora",
         "Pyrrha",
         "sakura-ryoko",
+        "gniftygnome",
         "lowercasebtw",
         "tnoctua",
-        "litetex",
-        "Starmoe(Celestia)",
-        "Coredex"
+        "litetex"
     ],
     "description": "Adds a mod menu to view the list of mods you have installed.",
     "mixins": [
@@ -116,19 +114,22 @@
     },
     "jars": [
         {
-            "file": "META-INF/jars/fabric-api-base-2.0.4+ece063239e.jar"
+            "file": "META-INF/jars/fabric-api-base-1.0.5+4ebb5c083e.jar"
         },
         {
-            "file": "META-INF/jars/fabric-key-mapping-api-v1-2.0.5+e2bdee789e.jar"
+            "file": "META-INF/jars/fabric-key-binding-api-v1-1.1.7+4fc5413f3e.jar"
         },
         {
-            "file": "META-INF/jars/fabric-lifecycle-events-v1-4.1.3+4575b05f9e.jar"
+            "file": "META-INF/jars/fabric-lifecycle-events-v1-2.6.15+4ebb5c083e.jar"
         },
         {
-            "file": "META-INF/jars/fabric-resource-loader-v1-2.0.13+9edec1269e.jar"
+            "file": "META-INF/jars/fabric-resource-loader-v1-1.0.10+78c8b4663e.jar"
         },
         {
-            "file": "META-INF/jars/fabric-screen-api-v1-5.0.3+086d547a9e.jar"
+            "file": "META-INF/jars/fabric-screen-api-v1-3.1.7+4ebb5c083e.jar"
+        },
+        {
+            "file": "META-INF/jars/placeholder-api-2.8.2+1.21.10.jar"
         }
     ]
 }

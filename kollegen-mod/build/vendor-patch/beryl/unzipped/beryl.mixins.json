@@ -13,9 +13,8 @@
     "shader.KeyboardHandlerM",
     "shader.LevelRendererM",
     "shader.MinecraftM",
-    "shader.CardinalLightingMixin",
+    "shader.ClientLevelM",
     "shader.RenderPipelineM",
-    "shader.RenderSystemMixin",
     "shader.SkyRendererM",
 
     "shader.vertex.BufferBuilderM",

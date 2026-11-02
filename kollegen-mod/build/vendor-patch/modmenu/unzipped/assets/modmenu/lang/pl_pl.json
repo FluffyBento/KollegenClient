@@ -9,8 +9,8 @@
   "modmenu.loaded.short": "(%s)",
   "modmenu.loaded.69.secret": "(%s załadowanych... nieźle)",
   "modmenu.loaded.420.secret": "(%s załadowanych... jedziesz na zielonym?)",
-  "modmenu.mods.n": " (%s modów)",
-  "modmenu.mods.1": " (%s mod)",
+  "modmenu.mods.n": " (%s Modów)",
+  "modmenu.mods.1": " (%s Mod)",
   "modmenu.mods.69.secret": " (%s modów...nieźle)",
   "modmenu.mods.420.secret": " (%s modów... jedziesz na zielonym?)",
   
@@ -39,9 +39,6 @@
   "modmenu.badge.forge": "Forge",
   "modmenu.badge.modpack": "Paczka modów",
   "modmenu.badge.minecraft": "Minecraft",
-
-  "modmenu.modrinth.v2_removed.title": "Sprawdzanie aktualizacji nie powiodło się",
-  "modmenu.modrinth.v2_removed.description": "Sprawdzanie aktualizacji nie powiodło się, ponieważ wersja v2 API Modrinth nie jest już dostępna.",
   
   "modmenu.dropInfo.line1": "Przeciągnij i upuść mody",
   "modmenu.dropInfo.line2": "w to okno, aby je dodać",
@@ -69,8 +66,7 @@
   "modmenu.updateText.nonNumerical": "%s na %s",
   "modmenu.install_version": "Zainstaluj wersję %s",
   "modmenu.downloadLink": "Pobierz",
-
-  "modmenu.bluesky": "Bluesky",
+  
   "modmenu.buymeacoffee": "Kup autorowi kawę",
   "modmenu.coindrop": "Coindrop",
   "modmenu.crowdin": "Crowdin",
@@ -118,7 +114,6 @@
   "option.modmenu.show_libraries": "Biblioteki",
   "option.modmenu.show_libraries.true": "Pokazuj",
   "option.modmenu.show_libraries.false": "Ukrywaj",
-  "option.modmenu.show_libraries.with_config": "Z konfiguracją",
   "option.modmenu.hide_config_buttons": "Przyciski konfiguracji",
   "option.modmenu.hide_config_buttons.true": "Ukrywaj",
   "option.modmenu.hide_config_buttons.false": "Pokazuj",
@@ -161,6 +156,7 @@
   "option.modmenu.mods_button_style.icon": "Ikonka",
   "option.modmenu.game_menu_button_style": "W menu gry",
   "option.modmenu.game_menu_button_style.insert": "Wstaw",
+  "option.modmenu.game_menu_button_style.replace": "Zastąp",
   "option.modmenu.game_menu_button_style.icon": "Ikonka",
   "option.modmenu.random_java_colors": "Kolor Javy",
   "option.modmenu.random_java_colors.true": "Dostawca",

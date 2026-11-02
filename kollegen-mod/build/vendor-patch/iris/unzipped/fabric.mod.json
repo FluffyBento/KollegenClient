@@ -1,7 +1,7 @@
 {
     "schemaVersion": 1,
     "id": "iris",
-    "version": "1.11.4+mc26.2",
+    "version": "1.10.8+mc1.21.11",
     "name": "Iris",
     "description": "A modern shaders mod for Minecraft intended to be compatible with existing OptiFine shader packs",
     "authors": [
@@ -29,6 +29,7 @@
     "mixins": [
         "mixins.iris.json",
         "mixins.iris.fabric.json",
+        "mixins.iris.fantastic.json",
         "mixins.iris.vertexformat.json",
         "mixins.iris.bettermipmaps.json",
         "mixins.iris.compat.sodium.json",
@@ -39,7 +40,7 @@
     "depends": {
         "fabricloader": ">=0.12.3",
         "sodium": [
-            "0.9.x"
+            "0.8.x"
         ]
     },
     "breaks": {
@@ -67,22 +68,19 @@
             ]
         },
         "loom:injected_interfaces": {
-            "com/mojang/blaze3d/pipeline/RenderTarget": [
+            "net/minecraft/class_276": [
                 "net/irisshaders/iris/mixinterface/RenderTargetInterface"
             ],
             "com/mojang/blaze3d/textures/GpuTexture": [
                 "net/irisshaders/iris/mixinterface/GpuTextureInterface"
             ],
-            "com/mojang/blaze3d/systems/RenderPassBackend": [
-                "net/irisshaders/iris/mixinterface/RenderPassInterface"
-            ],
             "com/mojang/blaze3d/systems/RenderPass": [
                 "net/irisshaders/iris/mixinterface/RenderPassInterface"
             ],
-            "net/minecraft/client/renderer/rendertype/RenderType": [
+            "net/minecraft/class_1921": [
                 "net/irisshaders/iris/mixinterface/RenderTypeInterface"
             ],
-            "net/minecraft/client/renderer/ItemInHandRenderer": [
+            "net/minecraft/class_759": [
                 "net/irisshaders/iris/mixinterface/ItemInHandInterface"
             ]
         },
@@ -95,10 +93,10 @@
             "file": "META-INF/jars/antlr4-runtime-4.13.1.jar"
         },
         {
-            "file": "META-INF/jars/fabric-api-base-2.0.4+ece063239c.jar"
+            "file": "META-INF/jars/fabric-api-base-1.0.5+4ebb5c083e.jar"
         },
         {
-            "file": "META-INF/jars/fabric-key-mapping-api-v1-2.0.5+e2bdee789c.jar"
+            "file": "META-INF/jars/fabric-key-binding-api-v1-1.1.7+4fc5413f3e.jar"
         },
         {
             "file": "META-INF/jars/glsl-transformer-3.0.0-pre3.jar"

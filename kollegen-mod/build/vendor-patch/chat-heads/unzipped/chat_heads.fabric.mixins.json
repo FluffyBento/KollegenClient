@@ -1,0 +1,12 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "dzwdz.chat_heads.fabric.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "client": [
+    "ChatListenerMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

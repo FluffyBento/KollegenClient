@@ -1,28 +1,18 @@
-accessWidener v2 official
-
-accessible method net/minecraft/client/gui/screens/Screen addRenderableWidget (Lnet/minecraft/client/gui/components/events/GuiEventListener;)Lnet/minecraft/client/gui/components/events/GuiEventListener;
-
-extendable method net/minecraft/world/item/CreativeModeTab <init> (Lnet/minecraft/world/item/CreativeModeTab$Row;ILnet/minecraft/world/item/CreativeModeTab$Type;Lnet/minecraft/network/chat/Component;Ljava/util/function/Supplier;Lnet/minecraft/world/item/CreativeModeTab$DisplayItemsGenerator;)V
-transitive-accessible class net/minecraft/world/item/CreativeModeTab$Output
-transitive-accessible class net/minecraft/world/item/CreativeModeTab$ItemDisplayBuilder
-
-transitive-accessible class net/minecraft/client/gui/GuiGraphicsExtractor$ScissorStack
-extendable method net/minecraft/client/gui/GuiGraphicsExtractor setTooltipForNextFrameInternal (Lnet/minecraft/client/gui/Font;Ljava/util/List;IILnet/minecraft/client/gui/screens/inventory/tooltip/ClientTooltipPositioner;Lnet/minecraft/resources/Identifier;Z)V
-accessible method net/minecraft/client/gui/GuiGraphicsExtractor componentHoverEffect (Lnet/minecraft/client/gui/Font;Lnet/minecraft/network/chat/Style;II)V
-transitive-extendable method net/minecraft/client/gui/components/Checkbox <init> (IIILnet/minecraft/network/chat/Component;Lnet/minecraft/client/gui/Font;ZLnet/minecraft/client/gui/components/Checkbox$OnValueChange;)V
-
-accessible class net/minecraft/client/gui/render/GuiRenderer$Draw
-
-accessible class net/minecraft/client/gui/components/toasts/ToastManager$ToastInstance
-
-accessible class net/minecraft/resources/RegistryOps$HolderLookupAdapter
-accessible method net/minecraft/client/gui/components/MultiLineEditBox <init> (Lnet/minecraft/client/gui/Font;IIIILnet/minecraft/network/chat/Component;Lnet/minecraft/network/chat/Component;IZIZZ)V
-
-extendable method net/minecraft/client/gui/screens/inventory/AbstractContainerScreen extractSlotHighlightBack (Lnet/minecraft/client/gui/GuiGraphicsExtractor;)V
-extendable method net/minecraft/client/gui/screens/inventory/AbstractContainerScreen extractSlotHighlightFront (Lnet/minecraft/client/gui/GuiGraphicsExtractor;)V
-extendable method net/minecraft/client/gui/screens/inventory/AbstractContainerScreen extractFloatingItem (Lnet/minecraft/client/gui/GuiGraphicsExtractor;Lnet/minecraft/world/item/ItemStack;IILjava/lang/String;)V
-
-accessible class net/minecraft/core/component/DataComponentMap$Builder$SimpleMap
-
-accessible class net/minecraft/server/packs/resources/FallbackResourceManager$PackEntry
-accessible field net/minecraft/server/packs/resources/FallbackResourceManager$PackEntry resources Lnet/minecraft/server/packs/PackResources;
+accessWidener	v2	intermediary
+accessible	method	net/minecraft/class_437	method_37063	(Lnet/minecraft/class_364;)Lnet/minecraft/class_364;
+extendable	method	net/minecraft/class_1761	<init>	(Lnet/minecraft/class_1761$class_7915;ILnet/minecraft/class_1761$class_7916;Lnet/minecraft/class_2561;Ljava/util/function/Supplier;Lnet/minecraft/class_1761$class_7914;)V
+transitive-accessible	class	net/minecraft/class_1761$class_7704
+transitive-accessible	class	net/minecraft/class_1761$class_7703
+transitive-accessible	class	net/minecraft/class_332$class_8214
+extendable	method	net/minecraft/class_332	method_71273	(Lnet/minecraft/class_327;Ljava/util/List;IILnet/minecraft/class_8000;Lnet/minecraft/class_2960;Z)V
+transitive-extendable	method	net/minecraft/class_4286	<init>	(IIILnet/minecraft/class_2561;Lnet/minecraft/class_327;ZLnet/minecraft/class_4286$class_8930;)V
+accessible	class	net/minecraft/class_11228$class_11230
+accessible	class	net/minecraft/class_374$class_375
+accessible	class	net/minecraft/class_6903$class_9683
+accessible	method	net/minecraft/class_7529	<init>	(Lnet/minecraft/class_327;IIIILnet/minecraft/class_2561;Lnet/minecraft/class_2561;IZIZZ)V
+extendable	method	net/minecraft/class_465	method_64241	(Lnet/minecraft/class_332;)V
+extendable	method	net/minecraft/class_465	method_64242	(Lnet/minecraft/class_332;)V
+extendable	method	net/minecraft/class_465	method_2382	(Lnet/minecraft/class_332;Lnet/minecraft/class_1799;IILjava/lang/String;)V
+accessible	class	net/minecraft/class_9323$class_9324$class_9325
+accessible	class	net/minecraft/class_3294$class_7082
+accessible	field	net/minecraft/class_3294$class_7082	comp_530	Lnet/minecraft/class_3262;

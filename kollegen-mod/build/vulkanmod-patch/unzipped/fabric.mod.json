@@ -1,0 +1,103 @@
+{
+    "schemaVersion": 1,
+    "id": "vulkanmod",
+    "version": "0.6.8+1.21.11",
+    "name": "Kollegen Client Vulkan+1.25.5",
+    "description": "Vulkan-Renderer (VulkanMod), integriert in den Kollegen Client. Von Kollegen Client verwaltet.",
+    "authors": [
+        "Collateral"
+    ],
+    "contact": {
+        "homepage": "",
+        "sources": "https://github.com/xCollateral/VulkanMod"
+    },
+    "icon": "assets/vulkanmod/vlogo.png",
+    "environment": "client",
+    "entrypoints": {
+        "client": [
+            "net.vulkanmod.Initializer"
+        ]
+    },
+    "mixins": [
+        "vulkanmod.mixins.json"
+    ],
+    "accessWidener": "vulkanmod.accesswidener",
+    "depends": {
+        "fabricloader": ">=0.14.14",
+        "minecraft": "1.21.11"
+    },
+    "custom": {
+        "fabric-renderer-api-v1:contains_renderer": true,
+        "modmenu": {
+            "parent": "kollegen-client"
+        }
+    },
+    "jars": [
+        {
+            "file": "META-INF/jars/fabric-api-base-1.0.5+4ebb5c083e.jar"
+        },
+        {
+            "file": "META-INF/jars/fabric-block-view-api-v2-1.0.39+4ebb5c083e.jar"
+        },
+        {
+            "file": "META-INF/jars/fabric-lifecycle-events-v1-2.6.15+4ebb5c083e.jar"
+        },
+        {
+            "file": "META-INF/jars/fabric-renderer-api-v1-8.0.0+f4ffd2e53e.jar"
+        },
+        {
+            "file": "META-INF/jars/fabric-rendering-fluids-v1-3.1.43+4ebb5c083e.jar"
+        },
+        {
+            "file": "META-INF/jars/fabric-rendering-v1-16.2.7+f4ffd2e53e.jar"
+        },
+        {
+            "file": "META-INF/jars/fabric-resource-loader-v0-3.3.4+4fc5413f3e.jar"
+        },
+        {
+            "file": "META-INF/jars/fabric-resource-loader-v1-1.0.10+78c8b4663e.jar"
+        },
+        {
+            "file": "META-INF/jars/fabric-transitive-access-wideners-v1-7.0.8+0107c3da3e.jar"
+        },
+        {
+            "file": "META-INF/jars/lwjgl-shaderc-3.3.3-natives-linux.jar"
+        },
+        {
+            "file": "META-INF/jars/lwjgl-shaderc-3.3.3-natives-macos-arm64.jar"
+        },
+        {
+            "file": "META-INF/jars/lwjgl-shaderc-3.3.3-natives-macos.jar"
+        },
+        {
+            "file": "META-INF/jars/lwjgl-shaderc-3.3.3-natives-windows.jar"
+        },
+        {
+            "file": "META-INF/jars/lwjgl-shaderc-3.3.3.jar"
+        },
+        {
+            "file": "META-INF/jars/lwjgl-vma-3.3.3-natives-linux.jar"
+        },
+        {
+            "file": "META-INF/jars/lwjgl-vma-3.3.3-natives-macos-arm64.jar"
+        },
+        {
+            "file": "META-INF/jars/lwjgl-vma-3.3.3-natives-macos.jar"
+        },
+        {
+            "file": "META-INF/jars/lwjgl-vma-3.3.3-natives-windows.jar"
+        },
+        {
+            "file": "META-INF/jars/lwjgl-vma-3.3.3.jar"
+        },
+        {
+            "file": "META-INF/jars/lwjgl-vulkan-3.3.3-natives-macos-arm64.jar"
+        },
+        {
+            "file": "META-INF/jars/lwjgl-vulkan-3.3.3-natives-macos.jar"
+        },
+        {
+            "file": "META-INF/jars/lwjgl-vulkan-3.3.3.jar"
+        }
+    ]
+}

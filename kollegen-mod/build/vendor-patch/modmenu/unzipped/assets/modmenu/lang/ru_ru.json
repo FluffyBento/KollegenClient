@@ -54,7 +54,7 @@
   "modmenu.website": "Сайт",
   "modmenu.issues": "Проблемы",
   
-  "modmenu.credits": "Создатели:",
+  "modmenu.credits": "Авторы:",
   "modmenu.viewCredits": "Показать авторов",
   "modmenu.license": "Лицензия:",
   "modmenu.links": "Ссылки:",
@@ -155,6 +155,7 @@
   "option.modmenu.mods_button_style.icon": "Отдельный значок",
   "option.modmenu.game_menu_button_style": "В игре",
   "option.modmenu.game_menu_button_style.insert": "Посередине",
+  "option.modmenu.game_menu_button_style.replace": "Под «Статистикой»",
   "option.modmenu.game_menu_button_style.icon": "Отдельный значок",
   "option.modmenu.random_java_colors": "Цвет Java",
   "option.modmenu.random_java_colors.true": "От поставщика",

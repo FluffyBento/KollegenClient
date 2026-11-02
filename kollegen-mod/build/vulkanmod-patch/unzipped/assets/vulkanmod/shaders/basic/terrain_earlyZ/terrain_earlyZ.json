@@ -1,0 +1,30 @@
+{
+    "vertex": "terrain/terrain",
+    "fragment": "terrain_earlyZ/terrain_earlyZ",
+    "samplers": [
+        { "name": "Sampler0" },
+        { "name": "Sampler2" }
+    ],
+    "UBOs": [
+        { "type":  "vertex", "binding": 0, "fields": [
+            { "name": "MVP", "type": "matrix4x4", "count": 16, "values": [ 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0 ] },
+            { "name": "CurrentTime", "type": "int", "count": 1 }
+        ] },
+        { "type":  "all", "binding": 1, "fields": [
+            { "name": "FogColor", "type": "float", "count": 4, "values": [ 0.0, 0.0, 0.0, 0.0 ] },
+            { "name": "FogEnvironmentalStart", "type": "float", "count": 1, "values": [ 0.0 ] },
+            { "name": "FogEnvironmentalEnd", "type": "float", "count": 1, "values": [ 1.0 ] },
+            { "name": "FogRenderDistanceStart", "type": "float", "count": 1, "values": [ 1.0 ] },
+            { "name": "FogRenderDistanceEnd", "type": "float", "count": 1, "values": [ 1.0 ] },
+            { "name": "FogSkyEnd", "type": "float", "count": 1, "values": [ 1.0 ] },
+            { "name": "FogCloudsEnd", "type": "float", "count": 1, "values": [ 1.0 ] },
+            { "name": "TextureSize", "type": "int", "count": 2 },
+            { "name": "TexelSize", "type": "float", "count": 2 },
+            { "name": "UseRgss", "type": "int", "count": 1 }
+        ] },
+        { "type": "vertex", "binding": 2, "size": 4096 }
+    ],
+    "PushConstants": [
+        { "name": "ModelOffset", "type": "float", "count": 3, "values": [ 0.0, 0.0, 0.0 ] }
+    ]
+}

@@ -1,7 +1,7 @@
 {
     "schemaVersion": 1,
     "id": "owo",
-    "version": "0.13.1+26.2",
+    "version": "0.13.0+1.21.11",
     "name": "o\u03c9o",
     "description": "yes its bad i know thanks",
     "authors": [
@@ -47,44 +47,44 @@
     "depends": {
         "fabricloader": ">=0.15.0",
         "fabric-api": ">=0.100",
-        "minecraft": ">=26.1"
+        "minecraft": ">=1.21.6"
     },
     "custom": {
         "modmenu": {
             "parent": "kollegen-client"
         },
         "loom:injected_interfaces": {
-            "net/minecraft/nbt/CompoundTag": [
+            "net/minecraft/class_2487": [
                 "io/wispforest/endec/util/MapCarrier"
             ],
-            "net/minecraft/world/level/storage/ValueInput": [
+            "net/minecraft/class_11368": [
                 "io/wispforest/endec/util/MapCarrierDecodable"
             ],
-            "net/minecraft/world/level/storage/ValueOutput": [
+            "net/minecraft/class_11372": [
                 "io/wispforest/endec/util/MapCarrierEncodable"
             ],
-            "net/minecraft/network/FriendlyByteBuf": [
+            "net/minecraft/class_2540": [
                 "io/wispforest/endec/util/EndecBuffer"
             ],
-            "net/minecraft/client/gui/components/AbstractWidget": [
+            "net/minecraft/class_339": [
                 "io/wispforest/owo/ui/inject/UIComponentStub"
             ],
-            "net/minecraft/client/gui/components/EditBox": [
+            "net/minecraft/class_342": [
                 "io/wispforest/owo/ui/inject/GreedyInputUIComponent"
             ],
-            "net/minecraft/world/inventory/AbstractContainerMenu": [
+            "net/minecraft/class_1703": [
                 "io/wispforest/owo/client/screens/OwoAbstractContainerMenu"
             ],
-            "net/minecraft/client/gui/GuiGraphicsExtractor": [
+            "net/minecraft/class_332": [
                 "io/wispforest/owo/ui/util/MatrixStackTransformer"
             ],
-            "net/minecraft/core/component/DataComponentType$Builder": [
+            "net/minecraft/class_9331$class_9332": [
                 "io/wispforest/owo/serialization/OwoDataComponentTypeBuilder<TT;>"
             ],
-            "net/minecraft/world/item/Item$Properties": [
+            "net/minecraft/class_1792$class_1793": [
                 "io/wispforest/owo/itemgroup/OwoItemSettingsExtension"
             ],
-            "net/minecraft/world/item/Item": [
+            "net/minecraft/class_1792": [
                 "io/wispforest/owo/ext/OwoItem"
             ]
         }
