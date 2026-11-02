@@ -1,0 +1,16 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "net.irisshaders.iris.mixin.fabric",
+  "refmap": "iris-fabric.refmap.json",
+  "compatibilityLevel": "JAVA_8",
+  "client": [
+    "MixinExtendedBlockModelFeatureRenderer",
+    "MixinExtendedBlockModelSubmit",
+    "MixinFluidRendererImpl",
+    "MixinRenderTypes"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

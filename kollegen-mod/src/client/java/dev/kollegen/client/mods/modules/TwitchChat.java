@@ -82,7 +82,7 @@ public class TwitchChat extends HudModule {
     private final Set<String> loadedChannelEmotes = ConcurrentHashMap.newKeySet();
 
     public TwitchChat() {
-        super("twitchchat", "Twitch Chat", "Zeigt Live-Twitch-Chat mit 7TV-Unterstützung im Spielchat oder HUD an.", Category.CHAT);
+        super("twitchchat", "Twitch Chat", "Zeigt Live-Twitch-Chat mit 7TV-Unterstützung im Spielchat oder HUD an.");
         INSTANCE = this;
         add(channel);
         add(showHud);

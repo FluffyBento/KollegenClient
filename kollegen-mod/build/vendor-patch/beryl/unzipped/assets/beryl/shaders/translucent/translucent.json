@@ -1,0 +1,47 @@
+{
+  "vertex": "translucent",
+  "fragment": "translucent",
+  "samplers": [
+    { "name": "Sampler0" },
+    { "name": "Sampler2" },
+    { "name": "Sampler3" },
+    { "name": "Sampler4" },
+    { "name": "Sampler5" }
+  ],
+  "UBOs": [
+    { "type":  "all", "binding": 0, "fields": [
+      { "name": "MVP", "type": "matrix4x4", "count": 16, "values": [ 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0 ] },
+      { "name": "ProjMat", "type": "matrix4x4", "count": 16, "values": [ 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0 ] },
+      { "name": "ModelViewMat", "type": "matrix4x4", "count": 16, "values": [ 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0 ] },
+      { "name": "LightSpaceMat", "type": "matrix4x4", "count": 16, "values": [ 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0 ] },
+      { "name": "LightSpaceOffset", "type": "float", "count": 3, "values": [0.0, 0.0, 0.0] }
+    ] },
+    { "type":  "all", "binding": 1, "fields": [
+      { "name": "ColorModulator", "type": "float", "count": 4, "values": [ 1.0, 1.0, 1.0, 1.0 ] },
+      { "name": "SkyColor", "type": "float", "count": 4, "values": [ 1.0, 1.0, 1.0, 1.0 ] },
+      { "name": "FogColor", "type": "float", "count": 4, "values": [ 0.0, 0.0, 0.0, 0.0 ] },
+      { "name": "UpVector", "type": "float", "count": 3, "values": [ 0.0, 0.0, 0.0, 0.0 ] },
+      { "name": "FogStart", "type": "float", "count": 1, "values": [ 0.0 ] },
+      { "name": "FogEnd", "type": "float", "count": 1, "values": [ 1.0 ] },
+      { "name": "FogEnvironmentalStart", "type": "float", "count": 1, "values": [ 0.0 ] },
+      { "name": "FogEnvironmentalEnd", "type": "float", "count": 1, "values": [ 1.0 ] },
+      { "name": "LightDir", "type": "float", "count": 3 },
+      { "name": "LightColor", "type": "float", "count": 3 },
+      { "name": "CameraPos", "type": "float", "count": 3, "values": [ 1.0, 0.0, 0.0, 0.0 ] },
+      { "name": "GameTime", "type": "float", "count": 1, "values": [ 1.0 ] },
+      { "name": "LightIntensity", "type": "float", "count": 1, "values": [ 1.0 ] },
+      { "name": "LightVisibility", "type": "float", "count": 1, "values": [ 1.0 ] },
+      { "name": "NightMultiplier", "type": "float", "count": 1, "values": [ 1.0 ] },
+      { "name": "AmbientLightFactor", "type": "float", "count": 1, "values": [ 1.0 ] },
+      { "name": "MinAmbientLight", "type": "float", "count": 1, "values": [ 1.0 ] },
+      { "name": "FogFactor", "type": "float", "count": 1, "values": [ 1.0 ] },
+      { "name": "ShadowTexelSize", "type": "float", "count": 1, "values": [ 1.0 ] },
+      { "name": "ShadowBias", "type": "float", "count": 1, "values": [ 1.0 ] },
+      { "name": "ShadowDistortion", "type": "float", "count": 1, "values": [ 1.0 ] }
+    ] },
+    { "type": "vertex", "binding": 2, "size": 4096 }
+  ],
+  "PushConstants": [
+    { "name": "ModelOffset", "type": "float", "count": 3, "values": [0.0, 0.0, 0.0] }
+  ]
+}

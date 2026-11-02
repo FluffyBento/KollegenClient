@@ -1,0 +1,10 @@
+{
+  "vertex": "blitTri",
+  "fragment": "blit_depth_tri",
+  "attributes": [],
+  "samplers": [
+    { "name": "Sampler0"},
+    { "name": "Sampler3"}
+  ],
+  "UBOs": []
+}

@@ -752,3 +752,4 @@ if (project.minecraft_version.startsWith('26.')) {
     }
     tasks.named('build') { dependsOn('remapJar262') }
 }
+tasks.withType(org.gradle.api.tasks.bundling.Zip).configureEach { duplicatesStrategy = DuplicatesStrategy.EXCLUDE }

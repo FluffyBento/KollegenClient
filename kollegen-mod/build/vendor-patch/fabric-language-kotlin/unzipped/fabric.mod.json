@@ -1,0 +1,70 @@
+{
+    "schemaVersion": 1,
+    "id": "fabric-language-kotlin",
+    "version": "1.14.2+kotlin.2.4.21",
+    "name": "Fabric Language Kotlin",
+    "description": "Fabric language module for Kotlin.",
+    "authors": [
+        "FabricMC"
+    ],
+    "contact": {
+        "homepage": "https://minecraft.curseforge.com/projects/fabric-language-kotlin",
+        "irc": "irc://irc.esper.net:6667/fabric",
+        "issues": "https://github.com/FabricMC/fabric-language-kotlin/issues",
+        "sources": "https://github.com/FabricMC/fabric-language-kotlin"
+    },
+    "languageAdapters": {
+        "kotlin": "net.fabricmc.language.kotlin.KotlinAdapter"
+    },
+    "license": "Apache-2.0",
+    "icon": "assets/fabric-language-kotlin/icon500.png",
+    "depends": {
+        "fabricloader": ">=0.19.5"
+    },
+    "jars": [
+        {
+            "file": "META-INF/jars/atomicfu-jvm-0.33.0.jar"
+        },
+        {
+            "file": "META-INF/jars/kotlin-reflect-2.4.21.jar"
+        },
+        {
+            "file": "META-INF/jars/kotlin-stdlib-2.4.21.jar"
+        },
+        {
+            "file": "META-INF/jars/kotlin-stdlib-jdk7-2.4.21.jar"
+        },
+        {
+            "file": "META-INF/jars/kotlin-stdlib-jdk8-2.4.21.jar"
+        },
+        {
+            "file": "META-INF/jars/kotlinx-coroutines-core-jvm-1.11.0.jar"
+        },
+        {
+            "file": "META-INF/jars/kotlinx-coroutines-jdk8-1.11.0.jar"
+        },
+        {
+            "file": "META-INF/jars/kotlinx-datetime-jvm-0.8.0.jar"
+        },
+        {
+            "file": "META-INF/jars/kotlinx-io-bytestring-jvm-0.9.1.jar"
+        },
+        {
+            "file": "META-INF/jars/kotlinx-io-core-jvm-0.9.1.jar"
+        },
+        {
+            "file": "META-INF/jars/kotlinx-serialization-cbor-jvm-1.11.0.jar"
+        },
+        {
+            "file": "META-INF/jars/kotlinx-serialization-core-jvm-1.11.0.jar"
+        },
+        {
+            "file": "META-INF/jars/kotlinx-serialization-json-jvm-1.11.0.jar"
+        }
+    ],
+    "custom": {
+        "modmenu": {
+            "parent": "kollegen-client"
+        }
+    }
+}

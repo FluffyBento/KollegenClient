@@ -1,0 +1,26 @@
+{
+    "schemaVersion": 1,
+    "id": "placeholder-api",
+    "version": "3.2.0+26.3",
+    "name": "Placeholder API",
+    "description": "Simple api for mods allowing for user friendly formatting and universal placeholders!",
+    "authors": [
+        "Patbox"
+    ],
+    "contact": {
+        "homepage": "https://pb4.eu",
+        "sources": "https://github.com/Patbox/TextPlaceholderAPI"
+    },
+    "license": "LGPLv3",
+    "icon": "assets/icon.png",
+    "environment": "*",
+    "depends": {
+        "fabricloader": ">=0.18.4",
+        "minecraft": ">=26.2-"
+    },
+    "custom": {
+        "modmenu": {
+            "parent": "kollegen-client"
+        }
+    }
+}

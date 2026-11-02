@@ -1,0 +1,34 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "dzwdz.chat_heads.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "client": [
+    "AbstractConfigScreenQuitSaveConsumerMixin",
+    "ChatComponentInnerMixin",
+    "ChatComponentMixin",
+    "ChatComponentMixin2",
+    "ChatComponentRenderMixin",
+    "ChatListenerMixin",
+    "ClientPacketListenerMixin",
+    "CommandSuggestionSuggestionsListMixin",
+    "ConnectionMixin",
+    "DownloadedPackSourceMixin",
+    "GuiMessageLineMixin",
+    "GuiMessageMixin",
+    "PlainTextRenderableMixin",
+    "PlayerChatMessageMixin",
+    "PlayerGlyphProviderInstanceMixin",
+    "PlayerGlyphProviderMixin",
+    "PlayerSpriteMixin",
+    "SkinTextureDownloaderMixin",
+    "compat.chatpatches.ChatUtilMixin",
+    "render_targets.BookViewScreenMixin",
+    "render_targets.ClothConfigScreenMixin",
+    "render_targets.GuiRendererMixin"
+  ],
+  "plugin": "dzwdz.chat_heads.MixinPlugin",
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

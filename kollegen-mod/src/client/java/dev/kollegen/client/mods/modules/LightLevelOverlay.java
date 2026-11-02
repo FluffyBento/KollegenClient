@@ -62,8 +62,7 @@ public class LightLevelOverlay extends Module implements DebugRenderer.SimpleDeb
 
     public final KeybindSetting hotkey = new KeybindSetting(
             "Hotkey",
-            "Taste zum Umschalten des Lichtlevel-Overlays.",
-            -1
+            "Taste zum Umschalten des Lichtlevel-Overlays."
     );
 
     public LightLevelOverlay() {

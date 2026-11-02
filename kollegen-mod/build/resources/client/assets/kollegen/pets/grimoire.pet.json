@@ -1,0 +1,438 @@
+{
+ "format": "mythic-cosmetic-pet/1",
+ "id": "grimoire",
+ "name": "Zauberbuch",
+ "space": {
+  "description": "Minecraft-Java-Entity-Modellraum: 1 Einheit = 1/16 Block, Y zeigt nach UNTEN, Bodenhöhe y=24, Vorderseite = -Z, +X = linke Körperseite.",
+  "pivots": "'pivot' ist relativ zum Eltern-Knochen. Würfel: 'origin' relativ zum eigenen Pivot, 'size' = [Breite,Höhe,Tiefe], 'uv' = Box-UV-Ursprung [u,v] (Layout wie Minecraft-Skins).",
+  "rotation": "Grad [pitch(x), yaw(y), roll(z)], Reihenfolge Z·Y·X; positive Pitch = Vorderseite nach unten.",
+  "animation": "Animationswerte sind Deltas auf die Ruhepose. r=Rotation(Grad), p=Position(px, Y nach unten), s=Skalierung (absolut, 1=normal). Wert = Zahl oder [offset, amplitude, zyklen, phase, 'sin'|'saw']  ->  offset + amplitude * wave(zyklen*φ + phase), φ = (Zeit % length)/length."
+ },
+ "texture": {
+  "file": "grimoire.png",
+  "glow": "grimoire_glow.png",
+  "width": 64,
+  "height": 32,
+  "notes": "Glow-Textur additiv/unbeleuchtet über das Modell zeichnen (wie Spinnenaugen)."
+ },
+ "bones": [
+  {
+   "name": "spine",
+   "parent": null,
+   "pivot": [
+    0,
+    14,
+    0
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "cubes": [
+    {
+     "uv": [
+      0,
+      0
+     ],
+     "origin": [
+      -1,
+      -5,
+      -3
+     ],
+     "size": [
+      2,
+      10,
+      6
+     ]
+    }
+   ]
+  },
+  {
+   "name": "coverL",
+   "parent": "spine",
+   "pivot": [
+    1,
+    0,
+    0
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "cubes": [
+    {
+     "uv": [
+      16,
+      0
+     ],
+     "origin": [
+      0,
+      -5,
+      -0.5
+     ],
+     "size": [
+      7,
+      10,
+      1
+     ]
+    }
+   ]
+  },
+  {
+   "name": "pagesL",
+   "parent": "coverL",
+   "pivot": [
+    0,
+    0,
+    0
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "cubes": [
+    {
+     "uv": [
+      32,
+      0
+     ],
+     "origin": [
+      0.5,
+      -4.5,
+      -1.5
+     ],
+     "size": [
+      6,
+      9,
+      1
+     ]
+    }
+   ]
+  },
+  {
+   "name": "coverR",
+   "parent": "spine",
+   "pivot": [
+    -1,
+    0,
+    0
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "cubes": [
+    {
+     "uv": [
+      0,
+      16
+     ],
+     "origin": [
+      -7,
+      -5,
+      -0.5
+     ],
+     "size": [
+      7,
+      10,
+      1
+     ]
+    }
+   ]
+  },
+  {
+   "name": "pagesR",
+   "parent": "coverR",
+   "pivot": [
+    0,
+    0,
+    0
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "cubes": [
+    {
+     "uv": [
+      16,
+      16
+     ],
+     "origin": [
+      -6.5,
+      -4.5,
+      -1.5
+     ],
+     "size": [
+      6,
+      9,
+      1
+     ]
+    }
+   ]
+  },
+  {
+   "name": "ribbon",
+   "parent": "spine",
+   "pivot": [
+    0,
+    5,
+    0
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "cubes": [
+    {
+     "uv": [
+      46,
+      0
+     ],
+     "origin": [
+      -0.5,
+      0,
+      -0.5
+     ],
+     "size": [
+      1,
+      6,
+      1
+     ]
+    }
+   ]
+  }
+ ],
+ "animations": {
+  "idle": {
+   "length": 2,
+   "bones": {
+    "spine": {
+     "p": [
+      0,
+      [
+       0,
+       2,
+       1,
+       0,
+       "s"
+      ],
+      0
+     ],
+     "r": [
+      [
+       0,
+       4,
+       1,
+       0.25,
+       "s"
+      ],
+      0,
+      [
+       0,
+       3,
+       1,
+       0.5,
+       "s"
+      ]
+     ]
+    },
+    "coverL": {
+     "r": [
+      0,
+      [
+       -20,
+       25,
+       2,
+       0,
+       "s"
+      ],
+      0
+     ]
+    },
+    "coverR": {
+     "r": [
+      0,
+      [
+       20,
+       -25,
+       2,
+       0,
+       "s"
+      ],
+      0
+     ]
+    },
+    "ribbon": {
+     "r": [
+      [
+       0,
+       10,
+       1,
+       0.4,
+       "s"
+      ],
+      0,
+      [
+       0,
+       15,
+       1,
+       0.2,
+       "s"
+      ]
+     ]
+    }
+   }
+  },
+  "move": {
+   "length": 1,
+   "bones": {
+    "spine": {
+     "p": [
+      0,
+      [
+       0,
+       2,
+       1,
+       0,
+       "s"
+      ],
+      0
+     ],
+     "r": [
+      15,
+      0,
+      0
+     ]
+    },
+    "coverL": {
+     "r": [
+      0,
+      [
+       -20,
+       30,
+       2,
+       0,
+       "s"
+      ],
+      0
+     ]
+    },
+    "coverR": {
+     "r": [
+      0,
+      [
+       20,
+       -30,
+       2,
+       0,
+       "s"
+      ],
+      0
+     ]
+    },
+    "ribbon": {
+     "r": [
+      -30,
+      0,
+      [
+       0,
+       15,
+       2,
+       0,
+       "s"
+      ]
+     ]
+    }
+   }
+  },
+  "sit": {
+   "length": 2,
+   "bones": {
+    "spine": {
+     "p": [
+      0,
+      [
+       3,
+       1,
+       1,
+       0,
+       "s"
+      ],
+      0
+     ]
+    },
+    "coverL": {
+     "r": [
+      0,
+      70,
+      0
+     ]
+    },
+    "coverR": {
+     "r": [
+      0,
+      -70,
+      0
+     ]
+    },
+    "ribbon": {
+     "r": [
+      0,
+      0,
+      [
+       0,
+       6,
+       1,
+       0,
+       "s"
+      ]
+     ]
+    }
+   }
+  }
+ },
+ "behavior": {
+  "mode": "hover",
+  "side": "behind-right",
+  "look_at_player": true,
+  "follow": {
+   "start_distance": 2.2,
+   "stop_distance": 1.4,
+   "speed": 5.0,
+   "teleport_distance": 16
+  },
+  "states": {
+   "idle": "idle",
+   "moving": "move",
+   "sit": "sit",
+   "sit_after_idle_seconds": 6
+  },
+  "reactions": {
+   "player_sprint": {
+    "speed_multiplier": 1.5
+   },
+   "player_sneak": {
+    "state": "sit"
+   }
+  },
+  "particles": [
+   {
+    "type": "enchant",
+    "rate_per_second": 5,
+    "bone": "spine"
+   }
+  ],
+  "hover": {
+   "height": 1.7,
+   "bob_amplitude": 0.06,
+   "bob_speed": 1.2
+  }
+ }
+}

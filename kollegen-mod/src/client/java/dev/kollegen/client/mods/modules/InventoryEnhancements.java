@@ -40,8 +40,7 @@ public class InventoryEnhancements extends Module {
 
     public final KeybindSetting lockKey = new KeybindSetting(
             "Sperr-Taste",
-            "Taste über einem Item drücken, um es zu sperren/entsperren.",
-            InputConstants.KEY_L
+            "Taste über einem Item drücken, um es zu sperren/entsperren."
     );
 
     private static final Map<String, Map<String, Item>> serverLocks = new ConcurrentHashMap<>();

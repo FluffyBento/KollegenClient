@@ -1,0 +1,51 @@
+{
+    "schemaVersion": 1,
+    "id": "silk-all",
+    "version": "1.12.1",
+    "name": "Silk (All modules)",
+    "description": "Silk is a Minecraft API for Kotlin",
+    "authors": [
+        "jakobkmar",
+        "_F0X"
+    ],
+    "depends": {
+        "fabric-language-kotlin": ">=1.9.0+kotlin.1.8.0",
+        "minecraft": "26.3.x"
+    },
+    "contact": {
+        "homepage": "https://github.com/SilkMC/silk",
+        "issues": "https://github.com/SilkMC/silk/issues",
+        "sources": "https://github.com/SilkMC/silk",
+        "discord": "https://discord.gg/CJDUVuJ"
+    },
+    "license": "GPL-3.0-or-later",
+    "icon": "assets/silk-all/icon.png",
+    "jars": [
+        {
+            "file": "META-INF/jars/silk-commands-1.12.1.jar"
+        },
+        {
+            "file": "META-INF/jars/silk-core-1.12.1.jar"
+        },
+        {
+            "file": "META-INF/jars/silk-game-1.12.1.jar"
+        },
+        {
+            "file": "META-INF/jars/silk-igui-1.12.1.jar"
+        },
+        {
+            "file": "META-INF/jars/silk-nbt-1.12.1.jar"
+        },
+        {
+            "file": "META-INF/jars/silk-network-1.12.1.jar"
+        },
+        {
+            "file": "META-INF/jars/silk-persistence-1.12.1.jar"
+        }
+    ],
+    "custom": {
+        "modmenu": {
+            "parent": "kollegen-client"
+        }
+    }
+}

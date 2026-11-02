@@ -1,0 +1,13 @@
+{
+  "vertex": "finalBlend",
+  "fragment": "finalBlend",
+  "samplers": [
+    { "name": "Sampler0" },
+    { "name": "Sampler3" }
+  ],
+  "UBOs": [
+    { "type":  "fragment", "binding": 0, "fields": [
+      { "name": "BloomStrength", "type": "float", "count": 1 }
+    ] }
+  ]
+}

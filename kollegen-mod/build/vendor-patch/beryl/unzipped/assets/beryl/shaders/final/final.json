@@ -1,0 +1,8 @@
+{
+  "vertex": "final",
+  "fragment": "final",
+  "samplers": [
+    { "name": "Sampler0" }
+  ],
+  "UBOs": []
+}
