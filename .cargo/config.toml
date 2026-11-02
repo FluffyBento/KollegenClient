@@ -1,0 +1,2 @@
+[target.x86_64-unknown-linux-gnu]
+rustflags = ["-C", "link-args=-Wl,--disable-new-dtags,--rpath,/usr/lib64:/usr/lib/x86_64-linux-gnu:/usr/lib"]
