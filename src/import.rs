@@ -744,3 +744,71 @@ fn parse_technic_instance(dir: &Path) -> (String, String, String) {
     }
     (name, version, loader)
 }
+
+// ── Microsoft-Account-Import aus anderen Launchern ──
+pub fn detect_login_sources() -> Vec<Value> {
+    let mut out = Vec::new();
+    for (id, name, _kind, roots) in launcher_defs() {
+        if let Some(root) = roots.iter().find(|p| p.is_dir()) {
+            out.push(serde_json::json!({
+                "id": id,
+                "name": name,
+                "path": root.to_string_lossy().to_string(),
+            }));
+        }
+    }
+    out
+}
+
+pub fn import_login_source(source_id: &str) -> Result<i32> {
+    let mut count = 0i32;
+    let h = home();
+    let data_local = dirs::data_local_dir().unwrap_or_else(|| h.clone());
+    let config = dirs::config_dir().unwrap_or_else(|| h.clone());
+
+    // Suche nach Microsoft-Account-Dateien in den bekannten Launcher-Verzeichnissen
+    let search_roots: Vec<PathBuf> = match source_id {
+        "prism" => vec![
+            data_local.join("PrismLauncher").join("accounts.json"),
+            config.join("PrismLauncher").join("accounts.json"),
+        ],
+        "multimc" => vec![
+            data_local.join("MultiMC").join("accounts.json"),
+            config.join("MultiMC").join("accounts.json"),
+        ],
+        "modrinth" => vec![
+            data_local.join("modrinth").join("accounts.json"),
+            h.join("Modrinth").join("accounts.json"),
+        ],
+        "gdlauncher" => vec![
+            data_local.join("gdlauncher_next").join("accounts.json"),
+            data_local.join("gdlauncher").join("accounts.json"),
+        ],
+        _ => vec![],
+    };
+
+    for root in &search_roots {
+        if let Some(txt) = read_text(root) {
+            if let Ok(arr) = serde_json::from_str::<Vec<Value>>(&txt) {
+                for acc in arr {
+                    let username = acc
+                        .get("username")
+                        .or_else(|| acc.get("name"))
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("");
+                    let uuid = acc
+                        .get("uuid")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("");
+                    if !username.is_empty() && !uuid.is_empty() {
+                        // Speichere den Account im Kollegen-Accounts-File
+                        let _ = crate::auth::add_ms_account(&uuid, username, source_id);
+                        count += 1;
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(count)
+}

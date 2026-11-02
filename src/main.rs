@@ -1893,6 +1893,44 @@ fn ms_remove_account(state: State<'_, AppState>, uuid: String) -> Result<(), Str
     auth::remove_account(&state.data_dir, &uuid).map_err(|e| e.to_string())
 }
 
+#[tauri::command]
+fn detect_login_sources() -> Result<Vec<Value>, String> {
+    Ok(crate::import::detect_login_sources())
+}
+
+#[tauri::command]
+fn import_login_source(source_id: String) -> Result<i32, String> {
+    crate::import::import_login_source(&source_id).map_err(|e| e.to_string())
+}
+
+
+#[tauri::command]
+fn sync_global_settings() -> Result<(), String> {
+    let data_dir = match crate::utils::get_project_dirs() {
+        Ok(d) => d,
+        Err(e) => return Err(e.to_string()),
+    };
+    let instances = crate::utils::load_json::<Vec<crate::types::Instance>>(
+        &crate::utils::instances_file(&data_dir),
+        vec![],
+    );
+    let mut servers: Vec<String> = Vec::new();
+    for inst in &instances {
+        if let Some(srv) = &inst.server {
+            if !srv.to_lowercase().contains("voice") && !servers.iter().any(|s| s == srv) {
+                servers.push(srv.clone());
+            }
+        }
+    }
+    let settings_path = crate::utils::settings_file(&data_dir);
+    let mut settings: crate::types::Settings = crate::utils::load_json(&settings_path, crate::types::Settings::default());
+    settings.hidden_server_ips = servers;
+    match crate::utils::save_json(&settings_path, &settings) {
+        Ok(()) => Ok(()),
+        Err(e) => Err(e.to_string()),
+    }
+}
+
 
 
 #[tauri::command]
@@ -2961,6 +2999,9 @@ fn main() {
             discord_oauth_logout,
             ms_switch_account,
             ms_remove_account,
+            detect_login_sources,
+            import_login_source,
+            sync_global_settings,
             detect_launchers,
             list_launcher_instances,
             import_instance,

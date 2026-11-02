@@ -550,6 +550,31 @@ fn mc_login(xsts_token: &str, uhs: &str) -> Result<Value> {
 }
 
 
+pub fn add_ms_account(uuid: &str, username: &str, source: &str) -> Result<()> {
+    let data_dir = crate::utils::get_project_dirs()?;
+    let path = crate::utils::accounts_file(&data_dir);
+    let mut accts = crate::utils::load_json::<Vec<Account>>(&path, vec![]);
+    if accts.iter().any(|a| a.uuid == uuid) {
+        return Ok(());
+    }
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
+    let acc = Account {
+        username: username.to_string(),
+        uuid: uuid.to_string(),
+        access_token: String::new(),
+        refresh_token: None,
+        expires_at: Some(now + 24 * 3600),
+        avatar_id: None,
+        xuid: None,
+        client_id: Some(source.to_string()),
+    };
+    accts.push(acc);
+    crate::utils::save_json(&path, &accts)?;
+    Ok(())
+}
 
 
 fn mc_profile(mc_token: &str) -> Result<Value> {
@@ -583,6 +608,4 @@ fn mc_profile(mc_token: &str) -> Result<Value> {
 
     Ok(data)
 }
-
-
 

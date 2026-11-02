@@ -87,6 +87,9 @@ pub struct Settings {
     
     #[serde(default)]
     pub profile: Option<ProfileSettings>,
+
+    #[serde(default)]
+    pub hidden_server_ips: Vec<String>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -109,6 +112,10 @@ pub struct ProfileSettings {
 
 fn default_density() -> String {
     "comfortable".to_string()
+}
+
+fn default_empty_vec() -> Vec<String> {
+    vec![]
 }
 
 fn default_true() -> bool {
@@ -141,6 +148,7 @@ impl Default for Settings {
             perf_mods: true,
             steamdeck_mode: false,
             profile: None,
+            hidden_server_ips: vec![],
         }
     }
 }
