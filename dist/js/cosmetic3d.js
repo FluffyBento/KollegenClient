@@ -145,6 +145,18 @@
   }
 
   var mannequinInfo = null;
+  var defaultSkinUrl = null;
+
+  function setDefaultSkin(url) {
+    if (defaultSkinUrl === url) return;
+    defaultSkinUrl = url || null;
+    delete skinCache[null];
+  }
+
+  function getDefaultSkin() {
+    return defaultSkinUrl;
+  }
+
   function getMannequin() {
     if (!mannequinInfo) mannequinInfo = skinInfo(paintMannequin());
     return mannequinInfo;
@@ -172,17 +184,18 @@
 
   var skinCache = {};
   function loadSkin(url) {
-    if (!url) return Promise.resolve(getMannequin());
-    if (skinCache[url]) return skinCache[url];
-    var p = fetchImage(url).catch(function () { return loadImage(url, true); })
+    var targetUrl = url || defaultSkinUrl;
+    if (!targetUrl) return Promise.resolve(getMannequin());
+    if (skinCache[targetUrl]) return skinCache[targetUrl];
+    var p = fetchImage(targetUrl).catch(function () { return loadImage(targetUrl, true); })
       .then(function (im) { return skinInfo(im); })
       .catch(function () { return null; })
       .then(function (info) {
         if (info) return info;
-        delete skinCache[url];
+        delete skinCache[targetUrl];
         return Object.assign({}, getMannequin(), { failed: true });
       });
-    skinCache[url] = p;
+    skinCache[targetUrl] = p;
     return p;
   }
 
@@ -255,39 +268,82 @@
     var s = info.s, W = info.W, H = info.H, aw = info.slim ? 3 : 4, legacy = info.legacy;
     var base = new THREE.MeshStandardMaterial({ map: info.tex, roughness: 0.92, metalness: 0 });
     var over = new THREE.MeshStandardMaterial({ map: info.tex, roughness: 0.92, metalness: 0, transparent: true, alphaTest: 0.02, side: THREE.DoubleSide });
-    // x,y,z, w,h,d, u,v, mirror, inflate, overlay
-    var parts = [
-      [-4, 24, -4, 8, 8, 8, 0, 0, false, 0, false],
-      [-4, 24, -4, 8, 8, 8, 32, 0, false, 0.5, true],
-      [-4, 12, -2, 8, 12, 4, 16, 16, false, 0, false],
-      [4, 12, -2, aw, 12, 4, 40, 16, false, 0, false],
-      [-4 - aw, 12, -2, aw, 12, 4, legacy ? 40 : 32, legacy ? 16 : 48, legacy, 0, false],
-      [0, 0, -2, 4, 12, 4, 0, 16, false, 0, false],
-      [-4, 0, -2, 4, 12, 4, legacy ? 0 : 16, legacy ? 16 : 48, legacy, 0, false]
-    ];
-    if (!legacy) {
-      parts.push([-4, 12, -2, 8, 12, 4, 16, 32, false, 0.25, true]);
-      parts.push([4, 12, -2, aw, 12, 4, 40, 32, false, 0.25, true]);
-      parts.push([-4 - aw, 12, -2, aw, 12, 4, 48, 48, false, 0.25, true]);
-      parts.push([0, 0, -2, 4, 12, 4, 0, 32, false, 0.25, true]);
-      parts.push([-4, 0, -2, 4, 12, 4, 0, 48, false, 0.25, true]);
+
+    function makePart(w, h, d, u, v, mirror, inf, isOver, ox, oy, oz) {
+      var geo = new THREE.BoxGeometry(w + inf * 2, h + inf * 2, d + inf * 2);
+      setUV(geo, boxUV(u, v, w, h, d, s, mirror), W, H);
+      var m = new THREE.Mesh(geo, isOver ? over : base);
+      m.position.set(ox, oy, oz);
+      return m;
     }
-    parts.forEach(function (p) {
-      var inf = p[9];
-      var geo = new THREE.BoxGeometry(p[3] + inf * 2, p[4] + inf * 2, p[5] + inf * 2);
-      setUV(geo, boxUV(p[6], p[7], p[3], p[4], p[5], s, p[8]), W, H);
-      var m = new THREE.Mesh(geo, p[10] ? over : base);
-      m.position.set(p[0] + p[3] / 2, p[1] + p[4] / 2, p[2] + p[5] / 2);
-      g.add(m);
-    });
-    return { group: g, dispose: function () { g.traverse(function (o) { if (o.geometry) o.geometry.dispose(); }); base.dispose(); over.dispose(); } };
+
+    // Kopf Pivot bei (0, 24, 0)
+    var head = new THREE.Group();
+    head.position.set(0, 24, 0);
+    head.add(makePart(8, 8, 8, 0, 0, false, 0, false, 0, 4, 0));
+    head.add(makePart(8, 8, 8, 32, 0, false, 0.5, true, 0, 4, 0));
+    head.userData.itemGroup = new THREE.Group();
+    head.add(head.userData.itemGroup);
+    g.add(head);
+
+    // Torso Pivot bei (0, 12, 0)
+    var torso = new THREE.Group();
+    torso.position.set(0, 12, 0);
+    torso.add(makePart(8, 12, 4, 16, 16, false, 0, false, 0, 6, 0));
+    if (!legacy) torso.add(makePart(8, 12, 4, 16, 32, false, 0.25, true, 0, 6, 0));
+    g.add(torso);
+
+    // Linker Arm (Spieler-Links = +X) Pivot bei (4 + aw/2, 22, 0)
+    var leftArm = new THREE.Group();
+    leftArm.position.set(4 + aw / 2, 22, 0);
+    leftArm.add(makePart(aw, 12, 4, 40, 16, false, 0, false, 0, -4, 0));
+    if (!legacy) leftArm.add(makePart(aw, 12, 4, 40, 32, false, 0.25, true, 0, -4, 0));
+    leftArm.userData.itemGroup = new THREE.Group();
+    leftArm.add(leftArm.userData.itemGroup);
+    g.add(leftArm);
+
+    // Rechter Arm (Spieler-Rechts = -X) Pivot bei (-4 - aw/2, 22, 0)
+    var rightArm = new THREE.Group();
+    rightArm.position.set(-4 - aw / 2, 22, 0);
+    rightArm.add(makePart(aw, 12, 4, legacy ? 40 : 32, legacy ? 16 : 48, legacy, 0, false, 0, -4, 0));
+    if (!legacy) rightArm.add(makePart(aw, 12, 4, 48, 48, false, 0.25, true, 0, -4, 0));
+    g.add(rightArm);
+
+    // Linkes Bein Pivot bei (2, 12, 0)
+    var leftLeg = new THREE.Group();
+    leftLeg.position.set(2, 12, 0);
+    leftLeg.add(makePart(4, 12, 4, 0, 16, false, 0, false, 0, -6, 0));
+    if (!legacy) leftLeg.add(makePart(4, 12, 4, 0, 32, false, 0.25, true, 0, -6, 0));
+    g.add(leftLeg);
+
+    // Rechtes Bein Pivot bei (-2, 12, 0)
+    var rightLeg = new THREE.Group();
+    rightLeg.position.set(-2, 12, 0);
+    rightLeg.add(makePart(4, 12, 4, legacy ? 0 : 16, legacy ? 16 : 48, legacy, 0, false, 0, -6, 0));
+    if (!legacy) rightLeg.add(makePart(4, 12, 4, 0, 48, false, 0.25, true, 0, -6, 0));
+    g.add(rightLeg);
+
+    return {
+      group: g,
+      head: head,
+      torso: torso,
+      leftArm: leftArm,
+      rightArm: rightArm,
+      leftLeg: leftLeg,
+      rightLeg: rightLeg,
+      dispose: function () {
+        g.traverse(function (o) { if (o.geometry) o.geometry.dispose(); });
+        base.dispose();
+        over.dispose();
+      }
+    };
   }
 
   function buildVanillaCape(c) {
     var geo = new THREE.BoxGeometry(10, 16, 1);
     var s = c.s;
     var r = {
-      south: [1, 1, 11, 17], north: [12, 1, 22, 17],
+      south: [12, 1, 22, 17], north: [1, 1, 11, 17],
       east: [0, 1, 1, 17], west: [11, 1, 12, 17],
       up: [1, 0, 11, 1], down: [11, 0, 21, 1]
     };
@@ -317,7 +373,57 @@
     return p;
   }
 
-  function buildCosmeticGroup(mod, mat) {
+  function catmullRom(p0, p1, p2, p3, t) {
+    var v0 = (p2 - p0) * 0.5;
+    var v1 = (p3 - p1) * 0.5;
+    var t2 = t * t;
+    var t3 = t * t2;
+    return (2 * p1 - 2 * p2 + v0 + v1) * t3 + (-3 * p1 + 3 * p2 - 2 * v0 - v1) * t2 + v0 * t + p1;
+  }
+
+  function sampleTrack(times, vals, interp, timeSec, length, out) {
+    if (!times || !vals || !times.length) return false;
+    var n = times.length;
+    if (n === 1 || length <= 0) {
+      var v = vals[0];
+      out[0] = v[0]; out[1] = v[1]; out[2] = v[2];
+      return true;
+    }
+    var rel = (timeSec - times[0]) % length;
+    if (rel < 0) rel += length;
+    var tt = times[0] + rel;
+    var seg = n - 1;
+    for (var k = 0; k < n; k++) {
+      var end = (k + 1 < n) ? times[k + 1] : (times[0] + length);
+      if (tt >= times[k] && tt <= end) { seg = k; break; }
+    }
+    var t0 = times[seg];
+    var t1 = (seg + 1 < n) ? times[seg + 1] : (times[0] + length);
+    var span = t1 - t0;
+    var u = span > 0 ? (tt - t0) / span : 0;
+    u = Math.max(0, Math.min(1, u));
+    var mode = (interp && seg < interp.length) ? interp[seg] : 0;
+    var a = vals[seg];
+    var b = vals[(seg + 1) % n];
+    if (mode === 2) {
+      out[0] = a[0]; out[1] = a[1]; out[2] = a[2];
+      return true;
+    }
+    if (mode === 1) {
+      var p0 = vals[(seg - 1 + n) % n];
+      var p3 = vals[(seg + 2) % n];
+      out[0] = catmullRom(p0[0], a[0], b[0], p3[0], u);
+      out[1] = catmullRom(p0[1], a[1], b[1], p3[1], u);
+      out[2] = catmullRom(p0[2], a[2], b[2], p3[2], u);
+      return true;
+    }
+    out[0] = a[0] + (b[0] - a[0]) * u;
+    out[1] = a[1] + (b[1] - a[1]) * u;
+    out[2] = a[2] + (b[2] - a[2]) * u;
+    return true;
+  }
+
+  function buildCosmeticGroup(mod, mat, boneMap) {
     var W = (mod.res && mod.res[0]) || 64, H = (mod.res && mod.res[1]) || 64;
     var byUuid = {};
     (mod.elements || []).forEach(function (e) { if (e.uuid) byUuid[e.uuid] = e; });
@@ -331,7 +437,8 @@
       setUV(geo, e.faces, W, H);
       var piv = new THREE.Group();
       piv.rotation.order = 'ZYX';
-      var o = e.origin || [0, 0, 0], r = e.rot || [0, 0, 0];
+      var o = (e.origin && (e.origin[0] !== 0 || e.origin[1] !== 0 || e.origin[2] !== 0)) ? e.origin : lastGroupOrigin;
+      var r = e.rot || [0, 0, 0];
       var go = lastGroupOrigin;
       piv.position.set(o[0] - go[0], o[1] - go[1], o[2] - go[2]);
       piv.rotation.set(r[0] * DEG, r[1] * DEG, r[2] * DEG);
@@ -348,11 +455,16 @@
       }
       var go = new THREE.Group();
       go.rotation.order = 'ZYX';
+      if (g.name) go.name = g.name;
       var o = g.origin || [0, 0, 0], r = g.rot || [0, 0, 0];
       var par = parent === root ? [0, 0, 0] : (parent.userData.origin || [0, 0, 0]);
-      go.position.set(o[0] - par[0], o[1] - par[1], o[2] - par[2]);
+      var bx = o[0] - par[0], by = o[1] - par[1], bz = o[2] - par[2];
+      go.position.set(bx, by, bz);
       go.rotation.set(r[0] * DEG, r[1] * DEG, r[2] * DEG);
       go.userData.origin = o;
+      go.userData.basePos = [bx, by, bz];
+      go.userData.baseRot = [r[0], r[1], r[2]];
+      if (boneMap && g.name) boneMap[g.name] = go;
       parent.add(go);
       var prev = lastGroupOrigin;
       lastGroupOrigin = o;
@@ -361,6 +473,24 @@
     }
     (mod.groups || []).forEach(function (g) { buildGroup(g, root); });
     return root;
+  }
+
+  function buildLiveCosmetic(entry) {
+    var tex = makeTex(entry.img);
+    var mat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.55, metalness: 0.08, transparent: true, alphaTest: 0.4, side: THREE.DoubleSide });
+    var boneMap = {};
+    var root = buildCosmeticGroup(entry.mod, mat, boneMap);
+    var box = new THREE.Box3().setFromObject(root);
+    return {
+      root: root,
+      anim: entry.mod.anim || null,
+      bones: boneMap,
+      box: box,
+      dispose: function () {
+        root.traverse(function (o) { if (o.geometry) o.geometry.dispose(); });
+        mat.dispose();
+      }
+    };
   }
 
   var mergedCache = {};
@@ -402,12 +532,14 @@
     return p;
   }
 
-  // Alte Schild-Modelle sind um den Ursprung zentriert -> an den Arm schieben.
+  // Schilde und Zubehör platzieren
   function placeOffset(item, box) {
     var off = new THREE.Vector3(0, 0, 0);
     if (item && item.category === 'shield') {
       var cx = (box.min.x + box.max.x) / 2;
-      if (Math.abs(cx) < 2) { off.x = 9.6; off.z = -1.5; }
+      var cy = (box.min.y + box.max.y) / 2;
+      if (Math.abs(cx) < 3) { off.x = 8.0; off.z = -1.2; }
+      if (cy < 12) { off.y = 15.0 - cy; }
     }
     return off;
   }
@@ -523,7 +655,7 @@
   function renderThumb(item, W, H) {
     var key = keyFor(item);
     if (!key) return Promise.resolve(null);
-    return Promise.all([getMerged(key), loadSkin(null)]).then(function (arr) {
+    return Promise.all([getMerged(key), loadSkin(defaultSkinUrl)]).then(function (arr) {
       var m = arr[0], skin = arr[1];
       var r = ensureRenderer(W, H);
       var scene = baseScene();
@@ -533,12 +665,21 @@
       stage.add(pl.group);
       var mesh = new THREE.Mesh(m.geo, m.mat);
       var off = placeOffset(item, m.box);
-      mesh.position.copy(off);
-      stage.add(mesh);
+      var headCat = item.category === 'head_accessory' || item.category === 'face_accessory';
+      if (headCat && pl && pl.head) {
+        mesh.position.set(off.x, off.y - 24, off.z);
+        mesh.scale.set(1.05, 1.05, 1.05);
+        pl.head.add(mesh);
+      } else if (item.category === 'shield' && pl && pl.leftArm) {
+        mesh.position.set(0, -6, -2);
+        pl.leftArm.add(mesh);
+      } else {
+        mesh.position.copy(off);
+        stage.add(mesh);
+      }
       var cb = m.box.clone().translate(off);
       var cz = (cb.min.z + cb.max.z) / 2;
       var back = cz > 1.0 || item.category === 'cape' || item.category === 'gekauft' || item.category === 'back_accessory';
-      var headCat = item.category === 'head_accessory' || item.category === 'face_accessory';
       var target;
       if (headCat) {
         target = new THREE.Box3(new THREE.Vector3(-5, 22, -5), new THREE.Vector3(5, 34, 5));
@@ -556,6 +697,25 @@
     });
   }
 
+  /* ---------- 2D Canvas Safe Context Helper ---------- */
+  function ensure2dCanvas(canvas) {
+    if (!canvas) return null;
+    var ctx = null;
+    try { ctx = canvas.getContext('2d'); } catch (e) {}
+    if (ctx) return canvas;
+    // Context is already locked into webgl or failed -> replace with fresh canvas
+    var clean = document.createElement('canvas');
+    if (canvas.id) clean.id = canvas.id;
+    if (canvas.className) clean.className = canvas.className;
+    clean.style.cssText = canvas.style.cssText;
+    if (canvas.width) clean.width = canvas.width;
+    if (canvas.height) clean.height = canvas.height;
+    if (canvas.parentNode) {
+      canvas.parentNode.replaceChild(clean, canvas);
+    }
+    return clean;
+  }
+
   /* ---------- Spieler-Ansicht (Cosmetics-Tab, Home, Modal) ---------- */
   var mounts = [];
   var rafOn = false;
@@ -568,7 +728,7 @@
   }
 
   function needsFrame(h) {
-    if (h.done || !h.visible || h.hidden) return false;
+    if (h.done || !h.visible) return false;
     return h.animate || h.dirty;
   }
 
@@ -589,7 +749,8 @@
         if (!needsFrame(h)) return;
         drawMount(h, dt, now);
       } catch (e) {
-        disposeMount(h);
+        // Log error but don't silently kill mount unless disconnected
+        console.warn('drawMount error:', e);
       }
     });
   }
@@ -599,13 +760,55 @@
   function drawMount(h, dt, now) {
     var cv = h.canvas;
     var rc = cv.getBoundingClientRect();
-    if (rc.width < 4 || rc.height < 4) { h.hidden = true; return; }
+    if (rc.width < 4 || rc.height < 4) { return; }
     var dpr = Math.min(window.devicePixelRatio || 1, 2);
     var W = Math.round(rc.width * dpr), H = Math.round(rc.height * dpr);
     if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; h.dirty = true; }
     if (h.animate && h.autoRotate && (now - h.lastInteract) > 2500) h.rot += dt * 0.7;
     h.stage.rotation.y = h.rot;
-    if (h.pet) h.pet.position.y = h.petY + Math.sin(now / 520) * 0.9;
+
+    // Lebendige Idle-Animationen (Sanfter Umhang, Schwingen der Flügel, schwebende Cosmetics)
+    if (h.animate) {
+      var timeSec = now * 0.001;
+      var t = now * 0.002;
+      if (h.capeG) {
+        h.capeG.rotation.x = (-8 + Math.sin(t * 1.4) * 4.0) * DEG;
+        h.capeG.rotation.z = (Math.sin(t * 0.9) * 1.5) * DEG;
+      }
+      if (h.liveCosmetics && h.liveCosmetics.length) {
+        h.liveCosmetics.forEach(function (cosm) {
+          if (cosm.anim && cosm.anim.bones && cosm.anim.length > 0) {
+            for (var bName in cosm.anim.bones) {
+              var track = cosm.anim.bones[bName];
+              var boneGroup = cosm.bones[bName];
+              if (!boneGroup) continue;
+              if (track.rTimes) {
+                var r = [0, 0, 0];
+                sampleTrack(track.rTimes, track.rVals, track.rInterp, timeSec, cosm.anim.length, r);
+                var br = boneGroup.userData.baseRot || [0, 0, 0];
+                boneGroup.rotation.set((br[0] + r[0]) * DEG, (br[1] + r[1]) * DEG, (br[2] + r[2]) * DEG);
+              }
+              if (track.pTimes) {
+                var p = [0, 0, 0];
+                sampleTrack(track.pTimes, track.pVals, track.pInterp, timeSec, cosm.anim.length, p);
+                var bp = boneGroup.userData.basePos || [0, 0, 0];
+                boneGroup.position.set(bp[0] + p[0], bp[1] + p[1], bp[2] + p[2]);
+              }
+              if (track.sTimes) {
+                var s = [1, 1, 1];
+                sampleTrack(track.sTimes, track.sVals, track.sInterp, timeSec, cosm.anim.length, s);
+                boneGroup.scale.set(s[0], s[1], s[2]);
+              }
+            }
+          }
+        });
+      }
+    }
+
+    if (h.pet) {
+      h.pet.position.y = h.petY + Math.sin(now / 380) * 1.4;
+      h.pet.position.x = -13 + Math.cos(now / 520) * 0.8;
+    }
     if (h.refit || h.camAspect !== W / H) {
       fitCamera(h.camera, h.box, W / H, true);
       h.camAspect = W / H;
@@ -614,6 +817,12 @@
     var r = ensureRenderer(W, H);
     r.render(h.scene, h.camera);
     var ctx = cv.getContext('2d');
+    if (!ctx) {
+      cv = ensure2dCanvas(cv);
+      h.canvas = cv;
+      ctx = cv ? cv.getContext('2d') : null;
+      if (!ctx) return;
+    }
     ctx.clearRect(0, 0, W, H);
     ctx.drawImage(r.domElement, 0, 0, W, H);
     h.dirty = false;
@@ -625,23 +834,30 @@
     var i = mounts.indexOf(h);
     if (i >= 0) mounts.splice(i, 1);
     try { if (h.io) h.io.disconnect(); } catch (e) {}
+    try { if (h.ro) h.ro.disconnect(); } catch (e) {}
     try { if (h.player) h.player.dispose(); } catch (e) {}
     try { if (h.cape) h.cape.dispose(); } catch (e) {}
     try { if (h.pet && h.pet.material) h.pet.material.dispose(); } catch (e) {}
+    if (h.liveCosmetics) {
+      h.liveCosmetics.forEach(function (c) { try { c.dispose(); } catch (e) {} });
+      h.liveCosmetics = [];
+    }
     if (h.onPointerDown) h.canvas.removeEventListener('pointerdown', h.onPointerDown);
   }
 
   function mountPlayer(canvas, opts) {
     opts = opts || {};
     if (!bind()) throw new Error('THREE fehlt');
+    canvas = ensure2dCanvas(canvas);
     var h = {
-      canvas: canvas, done: false, visible: true, hidden: false, dirty: true, refit: true,
+      canvas: canvas, done: false, visible: true, dirty: true, refit: true,
       animate: opts.animate !== false, autoRotate: opts.autoRotate !== false,
       rot: opts.rot != null ? opts.rot : 0.55, lastInteract: -1e9, camAspect: 0,
       scene: baseScene(), stage: new THREE.Group(), itemsG: new THREE.Group(),
       camera: new THREE.PerspectiveCamera(30, 1, 0.1, 600),
       player: null, cape: null, pet: null, petY: 21, capeG: null,
-      box: unionBox([]), skinUrl: null, capeUrl: null, itemKeys: '', gen: 0, items: []
+      box: unionBox([]), skinUrl: null, capeUrl: null, itemKeys: '', gen: 0, items: [],
+      liveCosmetics: []
     };
     h.scene.add(h.stage);
     h.stage.add(h.itemsG);
@@ -679,9 +895,23 @@
       h.io = new IntersectionObserver(function (ents) {
         var vis = ents.some(function (en) { return en.isIntersecting; });
         h.visible = vis;
-        if (vis) { h.hidden = false; h.dirty = true; kick(); }
+        if (vis) { h.dirty = true; kick(); }
       });
       h.io.observe(canvas);
+    }
+    if (typeof ResizeObserver !== 'undefined') {
+      try {
+        h.ro = new ResizeObserver(function (entries) {
+          for (var i = 0; i < entries.length; i++) {
+            var cr = entries[i].contentRect;
+            if (cr.width >= 4 && cr.height >= 4) {
+              h.dirty = true;
+              kick();
+            }
+          }
+        });
+        h.ro.observe(canvas);
+      } catch (e) {}
     }
     mounts.push(h);
 
@@ -714,20 +944,51 @@
 
     function applyItems() {
       var gen = ++h.gen;
-      // alte Meshes entfernen (Geometrie ist geteilt -> nicht disposen)
+      // alte Meshes & Live Cosmetics entfernen
       while (h.itemsG.children.length) h.itemsG.remove(h.itemsG.children[0]);
+      if (h.liveCosmetics) {
+        h.liveCosmetics.forEach(function (c) { try { c.dispose(); } catch (e) {} });
+        h.liveCosmetics = [];
+      }
+      if (h.player) {
+        if (h.player.head && h.player.head.userData.itemGroup) {
+          while (h.player.head.userData.itemGroup.children.length) {
+            h.player.head.userData.itemGroup.remove(h.player.head.userData.itemGroup.children[0]);
+          }
+        }
+        if (h.player.leftArm && h.player.leftArm.userData.itemGroup) {
+          while (h.player.leftArm.userData.itemGroup.children.length) {
+            h.player.leftArm.userData.itemGroup.remove(h.player.leftArm.userData.itemGroup.children[0]);
+          }
+        }
+      }
       if (h.pet) { h.stage.remove(h.pet); try { h.pet.material.dispose(); } catch (e) {} h.pet = null; }
       var list = h.items || [];
       var pending = [];
       list.forEach(function (it) {
         var key = keyFor(it);
         if (key) {
-          pending.push(getMerged(key).then(function (m) {
+          pending.push(loadModel(key).then(function (entry) {
             if (h.done || gen !== h.gen) return;
-            var mesh = new THREE.Mesh(m.geo, m.mat);
-            mesh.position.copy(placeOffset(it, m.box));
-            mesh.userData.box = m.box;
-            h.itemsG.add(mesh);
+            var live = buildLiveCosmetic(entry);
+            var root = live.root;
+            var off = placeOffset(it, live.box);
+            h.liveCosmetics.push(live);
+
+            var isHead = it && (it.category === 'head_accessory' || it.category === 'face_accessory');
+            var isShield = it && it.category === 'shield';
+
+            if (isHead && h.player && h.player.head && h.player.head.userData.itemGroup) {
+              root.position.set(off.x, off.y - 24, off.z);
+              root.scale.set(1.05, 1.05, 1.05);
+              h.player.head.userData.itemGroup.add(root);
+            } else if (isShield && h.player && h.player.leftArm && h.player.leftArm.userData.itemGroup) {
+              root.position.set(0, -6, -2);
+              h.player.leftArm.userData.itemGroup.add(root);
+            } else {
+              root.position.copy(off);
+              h.itemsG.add(root);
+            }
           }, function () {}));
         } else if (it && it.category === 'pet') {
           pending.push(loadPetTex(petKind(it)).then(function (t) {
@@ -754,9 +1015,9 @@
         if (h.player) { h.stage.remove(h.player.group); h.player.dispose(); }
         h.player = buildPlayer(info);
         h.stage.add(h.player.group);
+        applyItems();
         h.dirty = true;
         kick();
-        if (info.failed && opts.onSkinError) { try { opts.onSkinError(url); } catch (e) {} }
       });
     }
 
@@ -793,7 +1054,8 @@
     cv.style.height = '100%';
     cv.style.display = 'block';
     el.appendChild(cv);
-    var ctrl = mountPlayer(cv, { skin: null, items: [item], animate: true });
+    var skin = defaultSkinUrl || (window.Cosmetic3D && window.Cosmetic3D.getDefaultSkin && window.Cosmetic3D.getDefaultSkin()) || null;
+    var ctrl = mountPlayer(cv, { skin: skin, items: [item], animate: true });
     modalMounts.push(ctrl);
     return function () { ctrl.dispose(); };
   }
@@ -807,6 +1069,8 @@
     keyFor: keyFor,
     petKind: petKind,
     petCropped: petCropped,
+    setDefaultSkin: setDefaultSkin,
+    getDefaultSkin: getDefaultSkin,
     thumb: thumb,
     mount: mount,
     mountPlayer: mountPlayer,

@@ -16,7 +16,9 @@ mod discord;
 mod discord_auth;
 mod instance;
 mod java;
+mod login_import;
 mod modrinth;
+mod servers;
 mod types;
 mod utils;
 
@@ -146,8 +148,82 @@ fn get_version() -> String {
 #[tauri::command]
 fn get_instances(state: State<'_, AppState>) -> Result<Vec<types::Instance>, String> {
     let path = utils::instances_file(&state.data_dir);
-    let instances = utils::load_json::<Vec<types::Instance>>(&path, vec![]);
+    let mut instances = utils::load_json::<Vec<types::Instance>>(&path, vec![]);
+    for inst in &mut instances {
+        let mods_dir = utils::instance_dir(&state.data_dir, &inst.name).join("mods");
+        if let Ok(entries) = std::fs::read_dir(&mods_dir) {
+            let mut jars = Vec::new();
+            for entry in entries.flatten() {
+                let p = entry.path();
+                if p.is_file() {
+                    let name = entry.file_name().to_string_lossy().to_lowercase();
+                    if name.ends_with(".jar") {
+                        jars.push(entry.file_name().to_string_lossy().into_owned());
+                    }
+                }
+            }
+            if !jars.is_empty() {
+                inst.mods = jars;
+            }
+        }
+    }
     Ok(instances)
+}
+
+#[tauri::command]
+fn get_saved_servers(
+    state: State<'_, AppState>,
+    instance_name: Option<String>,
+) -> Vec<types::SavedServer> {
+    let _ = instance_name;
+    servers::merged_servers(&state.data_dir)
+}
+
+#[tauri::command]
+fn get_all_servers(state: State<'_, AppState>) -> Vec<types::SavedServer> {
+    servers::merged_servers(&state.data_dir)
+}
+
+#[tauri::command]
+fn set_instance_server(
+    state: State<'_, AppState>,
+    instance_name: String,
+    server: String,
+) -> Result<(), String> {
+    let path = utils::instances_file(&state.data_dir);
+    let mut instances = utils::load_json::<Vec<types::Instance>>(&path, vec![]);
+    let inst = instances
+        .iter_mut()
+        .find(|i| i.name == instance_name)
+        .ok_or_else(|| "Instanz nicht gefunden".to_string())?;
+    let srv = server.trim().to_string();
+    inst.server = if srv.is_empty() { None } else { Some(srv) };
+    utils::save_json(&path, &instances).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn get_server_status(
+    state: State<'_, AppState>,
+    instance_name: Option<String>,
+    server_ip: Option<String>,
+) -> Result<Value, String> {
+    let data_dir = state.data_dir.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        servers::get_server_status(
+            &data_dir,
+            instance_name.as_deref(),
+            server_ip.as_deref(),
+        )
+    })
+    .await
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn sync_global_settings(state: State<'_, AppState>) -> Result<Value, String> {
+    let servers = servers::sync_all_servers(&state.data_dir)?;
+    let keybinds = servers::sync_keybinds(&state.data_dir).unwrap_or(0);
+    Ok(serde_json::json!({ "servers": servers, "keybind_instances": keybinds }))
 }
 
 fn instance_image_file(data_dir: &Path, name: &str, kind: &str) -> Option<PathBuf> {
@@ -1763,14 +1839,7 @@ fn discord_social(state: State<'_, AppState>) -> Result<Value, String> {
             "avatar_url": avatar_url,
         }))
     } else {
-        s.user.as_ref().map(|u| {
-            serde_json::json!({
-                "id": u.id,
-                "username": u.username,
-                "global_name": u.global_name,
-                "avatar_url": u.avatar_url,
-            })
-        })
+        None
     };
 
     
@@ -1898,6 +1967,16 @@ fn ms_remove_account(state: State<'_, AppState>, uuid: String) -> Result<(), Str
 #[tauri::command]
 fn detect_launchers() -> Result<Vec<Value>, String> {
     Ok(crate::import::detect_launchers())
+}
+
+#[tauri::command]
+fn detect_login_sources() -> Vec<Value> {
+    login_import::detect_login_sources()
+}
+
+#[tauri::command]
+fn import_login_source(state: State<'_, AppState>, source_id: String) -> Result<usize, String> {
+    login_import::import_login_source(&state.data_dir, &source_id)
 }
 
 #[tauri::command]
@@ -2280,6 +2359,11 @@ fn capes_upload(
     elytra_mode: Option<String>,
 ) -> Result<capes::CapeEntry, String> {
     capes::upload_cape(&state.data_dir, &name, images, fps, elytra_mode.as_deref())
+}
+
+#[tauri::command]
+fn capes_sync_community(state: State<'_, AppState>) -> Result<usize, String> {
+    capes::fetch_community_capes(&state.data_dir)
 }
 
 #[tauri::command]
@@ -2913,6 +2997,11 @@ fn main() {
         })
         .invoke_handler(tauri::generate_handler![
             get_instances,
+            get_saved_servers,
+            get_all_servers,
+            set_instance_server,
+            get_server_status,
+            sync_global_settings,
             get_version,
             get_accounts,
             get_settings,
@@ -2957,6 +3046,8 @@ fn main() {
             ms_switch_account,
             ms_remove_account,
             detect_launchers,
+            detect_login_sources,
+            import_login_source,
             list_launcher_instances,
             import_instance,
             import_pack,
@@ -3012,6 +3103,7 @@ fn main() {
             capes_set_active,
             capes_toggle_favorite,
             capes_upload,
+            capes_sync_community,
             capes_delete,
             ensure_java_25,
             get_minecraft_profile_by_name,

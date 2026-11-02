@@ -14,6 +14,9 @@ plugins {
     id 'maven-publish'
 }
 
+tasks.withType(org.gradle.api.tasks.bundling.Jar).configureEach { duplicatesStrategy = DuplicatesStrategy.EXCLUDE }
+tasks.withType(Copy).configureEach { duplicatesStrategy = DuplicatesStrategy.EXCLUDE }
+
 if (project.minecraft_version.startsWith('1.21')) {
     apply plugin: 'net.fabricmc.fabric-loom-remap'
 } else {

@@ -341,13 +341,20 @@ fn complete_auth(username: &str, uuid: &str, mc_token: &str, prof: &Value, msa: 
 
 
 pub fn refresh_stored_account() -> Result<()> {
+    refresh_account(None)
+}
+
+pub fn refresh_account(uuid: Option<&str>) -> Result<()> {
     let data_dir = crate::utils::get_project_dirs()?;
     let path = crate::utils::accounts_file(&data_dir);
     let mut accts = crate::utils::load_json::<Vec<Account>>(&path, vec![]);
-    let idx = accts
-        .iter()
-        .position(|a| a.refresh_token.is_some())
-        .ok_or_else(|| anyhow!("Kein gespeichertes Konto zum Erneuern gefunden"))?;
+    let idx = match uuid {
+        Some(u) => accts.iter().position(|a| a.uuid == u).ok_or_else(|| anyhow!("Konto nicht gefunden"))?,
+        None => accts.iter().position(|a| a.refresh_token.is_some()).ok_or_else(|| anyhow!("Kein gespeichertes Konto zum Erneuern gefunden"))?,
+    };
+    if accts[idx].refresh_token.is_none() {
+        return Err(anyhow!("Kein Refresh-Token für dieses Konto"));
+    }
     let refresh_token = accts[idx].refresh_token.clone().unwrap();
     let cid = accts[idx]
         .client_id
@@ -357,13 +364,27 @@ pub fn refresh_stored_account() -> Result<()> {
     let client = reqwest::blocking::Client::builder()
         .timeout(Duration::from_secs(30))
         .build()?;
-    let body = format!(
-        "client_id={}&grant_type=refresh_token&refresh_token={}",
-        cid,
-        urlencoding::encode(&refresh_token)
-    );
+    let (token_url, body) = if cid == "00000000402b5328" {
+        (
+            "https://login.live.com/oauth20_token.srf",
+            format!(
+                "client_id={}&grant_type=refresh_token&refresh_token={}&scope=service::user.auth.xboxlive.com::MBI_SSL&redirect_uri=https://login.live.com/oauth20_desktop.srf",
+                cid,
+                urlencoding::encode(&refresh_token)
+            )
+        )
+    } else {
+        (
+            "https://login.microsoftonline.com/consumers/oauth2/v2.0/token",
+            format!(
+                "client_id={}&grant_type=refresh_token&refresh_token={}",
+                cid,
+                urlencoding::encode(&refresh_token)
+            )
+        )
+    };
     let resp = client
-        .post("https://login.microsoftonline.com/consumers/oauth2/v2.0/token")
+        .post(token_url)
         .header("Content-Type", "application/x-www-form-urlencoded")
         .header("Accept", "application/json")
         .body(body)

@@ -932,8 +932,8 @@ body:not(.console-mode) .store-cats .tab.active::before {
    ========================================================================== */
 .cosm-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 300px;
-  gap: 1rem;
+  grid-template-columns: minmax(0, 1fr) 380px;
+  gap: 1.25rem;
   align-items: start;
 }
 
@@ -1163,19 +1163,34 @@ body:not(.console-mode) .store-cats .tab.active::before {
   width: auto;
   padding: 1rem;
   gap: 0.75rem;
-  background-color: var(--panel);
-  background-image: radial-gradient(rgba(var(--accent-rgb), 0.16) 1px, transparent 1.4px);
-  background-size: 14px 14px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
+  background: transparent !important;
+  background-image: none !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius-lg) !important;
+  box-shadow: none !important;
 }
 
 #cosmSkinCanvas {
   display: block;
   width: 100%;
   max-width: none;
-  height: auto !important;
-  aspect-ratio: 4 / 5;
+  height: 580px !important;
+  aspect-ratio: 1 / 2;
+}
+
+@keyframes petHoverBob {
+  0% { transform: translateY(0px) scale(1); }
+  50% { transform: translateY(-5px) scale(1.06) rotate(2deg); }
+  100% { transform: translateY(2px) scale(1.03) rotate(-2deg); }
+}
+
+.store-card:hover .pv-pet img,
+.store-card:hover .pet-preview,
+.pet-card:hover .pet-preview,
+.cosm-item:hover .cosm-thumb img,
+.cosm-pet-card:hover .pet-preview {
+  animation: petHoverBob 1.1s ease-in-out infinite alternate !important;
+  filter: drop-shadow(0 6px 12px rgba(var(--accent-rgb), 0.35));
 }
 
 .cosm-preview .skin-fallback {
@@ -1618,11 +1633,10 @@ body:not(.console-mode) .store-cats .tab.active::before {
   max-width: none;
   height: auto;
   aspect-ratio: 4 / 5;
-  background-color: var(--bg);
-  background-image: radial-gradient(rgba(var(--accent-rgb), 0.14) 1px, transparent 1.4px);
-  background-size: 14px 14px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+  background: transparent !important;
+  background-image: none !important;
+  border: none !important;
+  box-shadow: none !important;
 }
 
 .home-skin .skin-fallback {
@@ -1656,6 +1670,30 @@ body:not(.console-mode) .store-cats .tab.active::before {
   width: 100%;
   height: 100%;
   object-fit: contain;
+}
+
+.store-pv.c3d-hovering > img,
+.store-pv.c3d-hovering > svg,
+.store-pv.c3d-hovering > .thumb3d,
+.store-pv.c3d-hovering > .pet-preview,
+.store-pv.c3d-hovering > .pv-art,
+.store-pv.c3d-hovering > .pv-glyph,
+.store-card:has(.thumb3d-hover) .store-pv > img,
+.store-card:has(.thumb3d-hover) .store-pv > svg,
+.store-card:has(.thumb3d-hover) .store-pv > .thumb3d,
+.store-card:has(.thumb3d-hover) .store-pv > .pet-preview,
+.store-card:hover .store-pv > img:not(.thumb3d-hover),
+.store-card:hover .store-pv > .thumb3d:not(.thumb3d-hover),
+.cosm-item:hover .cosm-thumb > img:not(.thumb3d-hover) {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  display: none !important;
+}
+
+.store-pv > canvas.thumb3d-hover {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
 }
 
 .pv-glyph {

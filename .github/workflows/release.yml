@@ -67,7 +67,7 @@ jobs:
         run: |
           cd kollegen-mod
           chmod +x ./gradlew
-          ./gradlew build --no-daemon --stacktrace -Pminecraft_version=26.3 -Pfabric_version=0.165.0+26.3 -Ploader_version=0.20.1 -Pmod_version=1.24.0 -Parchives_base_name=kollegen-client-mod-26.3
+          ./gradlew build --no-daemon --stacktrace -Pminecraft_version=26.3 -Pfabric_version=0.165.0+26.3 -Ploader_version=0.20.1 -Pmod_version=1.25.5 -Parchives_base_name=kollegen-client-mod-26.3
 
       - name: Publish 26.3 mod jar
         if: steps.check_pub.outputs.skip != 'true'

@@ -24,20 +24,27 @@ fn mc_token(data_dir: &Path) -> Option<String> {
     let path = crate::utils::accounts_file(data_dir);
     let mut accts =
         crate::utils::load_json::<Vec<crate::types::Account>>(&path, Vec::new());
-    let expired = accts
-        .first()
-        .and_then(|a| a.expires_at)
-        .map(|e| now_secs() >= e)
-        .unwrap_or(true);
-    if expired {
-        if let Some(acc) = accts.first() {
-            if acc.refresh_token.is_some() {
-                let _ = crate::auth::refresh_stored_account();
+    // Bevorzuge ein Konto mit vorhandenem, nicht abgelaufenem Access-Token
+    for acc in &accts {
+        if !acc.access_token.is_empty() {
+            let expired = acc.expires_at.map(|e| now_secs() >= e).unwrap_or(false);
+            if !expired {
+                return Some(acc.access_token.clone());
             }
         }
-        accts = crate::utils::load_json::<Vec<crate::types::Account>>(&path, Vec::new());
     }
-    accts.first().map(|a| a.access_token.clone())
+    // Sonst: erstes Konto mit Refresh-Token aktualisieren
+    if let Some(acc) = accts.iter().find(|a| a.refresh_token.is_some() && (a.access_token.is_empty() || a.expires_at.map(|e| now_secs() >= e).unwrap_or(true))) {
+        let uuid = acc.uuid.clone();
+        let _ = crate::auth::refresh_account(Some(&uuid));
+        accts = crate::utils::load_json::<Vec<crate::types::Account>>(&path, Vec::new());
+        if let Some(acc) = accts.iter().find(|a| a.uuid == uuid) {
+            if !acc.access_token.is_empty() {
+                return Some(acc.access_token.clone());
+            }
+        }
+    }
+    accts.iter().find(|a| !a.access_token.is_empty()).map(|a| a.access_token.clone())
 }
 
 fn skins_dir(data_dir: &Path) -> std::path::PathBuf {

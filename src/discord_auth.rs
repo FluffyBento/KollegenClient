@@ -110,6 +110,11 @@ pub fn status(data_dir: &Path) -> serde_json::Value {
 
 pub fn logout(data_dir: &Path) {
     delete_token(data_dir);
+    {
+        let mut cache = OAUTH_FRIENDS_CACHE.lock().unwrap();
+        cache.1.clear();
+        cache.0 = std::time::Instant::now() - std::time::Duration::from_secs(120);
+    }
     let instances = data_dir.join("instances");
     if let Ok(entries) = std::fs::read_dir(&instances) {
         for entry in entries.flatten() {

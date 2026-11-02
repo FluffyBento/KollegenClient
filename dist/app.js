@@ -198,6 +198,25 @@ async function resetInstanceImage(inst, kind) {
   }
 }
 
+function isServerIpHidden(ip) {
+  if (!ip || !currentSettings || !Array.isArray(currentSettings.hidden_server_ips)) return false;
+  const target = String(ip).trim().toLowerCase();
+  if (!target) return false;
+  const targetHost = target.split(":")[0];
+  return currentSettings.hidden_server_ips.some((hidden) => {
+    const h = String(hidden).trim().toLowerCase();
+    if (!h) return false;
+    const hHost = h.split(":")[0];
+    return target === h || targetHost === h || target === hHost || targetHost === hHost;
+  });
+}
+
+function maskServerIp(ip) {
+  if (!ip) return "";
+  if (!isServerIpHidden(ip)) return ip;
+  return "••••••••";
+}
+
 function buildInstanceCard(inst, index) {
   const card = document.createElement("div");
   card.className = "instance-card";
@@ -212,9 +231,10 @@ function buildInstanceCard(inst, index) {
   played.textContent = relativeTime(inst.last_played);
   const tools = document.createElement("div");
   tools.className = "instance-card-tools";
+  const editBtn = makeIconButton("manage", "Instanz bearbeiten", "", () => openManage(inst));
   const iconBtn = makeIconButton("image", "Icon ändern", "", () => changeInstanceImage(inst, "icon"));
   const bannerBtn = makeIconButton("imageWide", "Banner ändern", "", () => changeInstanceImage(inst, "banner"));
-  tools.append(iconBtn, bannerBtn);
+  tools.append(editBtn, iconBtn, bannerBtn);
   if (inst.loader === "fabric" || inst.loader === "quilt") {
     const opt = makeIconButton("bolt", "Performance-Modpack installieren", "", () => optimizeInstance(inst, opt));
     tools.append(opt);
@@ -228,6 +248,12 @@ function buildInstanceCard(inst, index) {
 
   const top = document.createElement("div");
   top.className = "instance-card-top";
+  top.style.cursor = "pointer";
+  top.title = "Klicken, um Instanz zu bearbeiten";
+  top.onclick = (e) => {
+    if (e.target.closest("button")) return;
+    openManage(inst);
+  };
   const icon = document.createElement("div");
   icon.className = "inst-icon";
   icon.innerHTML = instIconSVG(inst.name, inst.loader);
@@ -260,12 +286,11 @@ function buildInstanceCard(inst, index) {
   const modCount = Array.isArray(inst.mods) ? inst.mods.length : 0;
   if (modCount > 0) chips.append(makeChip(`${modCount} Mods`));
   if (inst.memory_max) chips.append(makeChip(`RAM ${inst.memory_max}`));
-  if (inst.server) chips.append(makeChip(inst.server, "server"));
 
   const actions = document.createElement("div");
   actions.className = "instance-card-actions";
   const launch = makePlayButton("Starten", "primary", () => launchGame(inst.name));
-  const manage = makeIconButton("manage", "Verwalten", "", () => openManage(inst));
+  const manage = makeIconButton("manage", "Instanz bearbeiten / verwalten", "", () => openManage(inst));
   const folder = makeIconButton("folder", "Instanz-Ordner öffnen", "", () => openInstanceFolder(inst));
   actions.append(launch, manage, folder);
 
@@ -277,6 +302,232 @@ function buildInstanceCard(inst, index) {
 
   card.append(banner, body);
   return card;
+}
+
+const DEFAULT_MC_SERVER_ICON = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%2312151b' rx='8'/%3E%3Cpath d='M16 48h32M20 48V20l12-8 12 8v28' fill='none' stroke='%234a5068' stroke-width='4' stroke-linejoin='round'/%3E%3Ccircle cx='32' cy='28' r='5' fill='%2355ff55'/%3E%3C/svg%3E";
+
+function mountMinecraftServerCard(inst, container) {
+  if (!inst) return;
+  const rawServer = inst.server && !inst.server.toLowerCase().includes("voice") ? inst.server : null;
+  invoke("get_server_status", { instanceName: inst.name, serverIp: rawServer })
+    .then(async (status) => {
+      if (!status || !status.ip || status.ip.toLowerCase().includes("voice chat") || status.ip.toLowerCase().includes("voicechat")) return;
+      container.innerHTML = "";
+
+      let currentIp = status.ip;
+      let currentName = (status.name && !status.name.toLowerCase().includes("voice")) ? status.name : status.ip;
+      const isHidden = isServerIpHidden(currentIp);
+
+      const card = document.createElement("div");
+      card.className = "mc-server-card";
+      card.title = isHidden ? "Klicken, um direkt auf den Server zu verbinden" : `Klicken, um direkt auf ${currentName} (${currentIp}) zu verbinden`;
+
+      const iconWrap = document.createElement("div");
+      iconWrap.className = "mc-server-icon-wrap";
+      const iconImg = document.createElement("img");
+      iconImg.className = "mc-server-icon";
+      iconImg.alt = "Server Icon";
+      iconImg.src = status.icon || DEFAULT_MC_SERVER_ICON;
+      const playOverlay = document.createElement("div");
+      playOverlay.className = "mc-server-play-overlay";
+      playOverlay.innerHTML = `<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>`;
+      iconWrap.append(iconImg, playOverlay);
+
+      const details = document.createElement("div");
+      details.className = "mc-server-details";
+
+      const titleRow = document.createElement("div");
+      titleRow.className = "mc-server-title-row";
+
+      const nameEl = document.createElement("span");
+      nameEl.className = "mc-server-name";
+      nameEl.textContent = (isHidden && currentName === currentIp) ? "Minecraft Server" : currentName;
+
+      const ipBadge = document.createElement("span");
+      ipBadge.className = "mc-server-ip-badge" + (isHidden ? " ip-masked" : "");
+      ipBadge.textContent = maskServerIp(currentIp);
+
+      titleRow.append(nameEl, ipBadge);
+
+      try {
+        const savedServers = await invoke("get_saved_servers", { instanceName: inst.name });
+        if (Array.isArray(savedServers) && savedServers.length > 1) {
+          const switchBtn = document.createElement("button");
+          switchBtn.type = "button";
+          switchBtn.className = "mc-server-switch-btn";
+          switchBtn.innerHTML = `▾ (${savedServers.length})`;
+          switchBtn.title = "Anderen Server aus servers.dat wählen";
+
+          let menuOpen = false;
+          let pickerMenu = null;
+
+          const closePicker = () => {
+            if (pickerMenu) {
+              pickerMenu.remove();
+              pickerMenu = null;
+            }
+            menuOpen = false;
+            switchBtn.classList.remove("open");
+            switchBtn.innerHTML = `▾ (${savedServers.length})`;
+            document.removeEventListener("click", closeListener);
+          };
+
+          const closeListener = (ev) => {
+            if (pickerMenu && !card.contains(ev.target)) {
+              closePicker();
+            }
+          };
+
+          switchBtn.onclick = (e) => {
+            e.stopPropagation();
+            if (menuOpen) {
+              closePicker();
+              return;
+            }
+            menuOpen = true;
+            switchBtn.classList.add("open");
+            switchBtn.innerHTML = `▴ (${savedServers.length})`;
+
+            pickerMenu = document.createElement("div");
+            pickerMenu.className = "mc-server-picker-menu";
+
+            const cardRect = card.getBoundingClientRect();
+            if (cardRect.top < 230) {
+              pickerMenu.classList.add("open-down");
+            } else {
+              pickerMenu.classList.add("open-up");
+            }
+
+            const pHeader = document.createElement("div");
+            pHeader.className = "mc-server-picker-header";
+            pHeader.textContent = "Server wechseln";
+            pickerMenu.appendChild(pHeader);
+
+            savedServers.forEach((srv) => {
+              const item = document.createElement("div");
+              item.className = "mc-server-picker-item" + (srv.ip === currentIp ? " active" : "");
+              const pIcon = document.createElement("img");
+              pIcon.className = "mc-server-picker-icon";
+              pIcon.src = srv.icon || DEFAULT_MC_SERVER_ICON;
+              const pInfo = document.createElement("div");
+              pInfo.className = "mc-server-picker-info";
+              const pName = document.createElement("span");
+              pName.className = "mc-server-picker-name";
+              pName.textContent = srv.name;
+              const pIp = document.createElement("span");
+              pIp.className = "mc-server-picker-ip";
+              pIp.textContent = maskServerIp(srv.ip);
+              const pMotd = document.createElement("span");
+              pMotd.className = "mc-server-picker-motd";
+              pMotd.style.cssText = "font-size:0.75rem; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:200px;";
+              pInfo.append(pName, pIp, pMotd);
+              item.append(pIcon, pInfo);
+              item.onclick = async (ev) => {
+                ev.stopPropagation();
+                closePicker();
+                inst.server = srv.ip;
+                try {
+                  await invoke("set_instance_server", { instanceName: inst.name, server: srv.ip });
+                } catch (_) {}
+                mountMinecraftServerCard(inst, container);
+              };
+              pickerMenu.append(item);
+
+              // Lazy: lade Status (Icon + MOTD) fuer diesen Server (sequentiell, nicht parallel)
+              (async () => {
+                // Kleine Verzoegerung basierend auf Index, um API-Last zu verteilen
+                await new Promise(r => setTimeout(r, savedServers.indexOf(srv) * 120));
+                try {
+                  const st = await invoke("get_server_status", { instanceName: inst.name, serverIp: srv.ip });
+                  if (st && st.ip === null) return;
+                  if (st && st.icon) pIcon.src = st.icon;
+                  if (st && st.online === true && (st.motd_clean || st.motd_html)) {
+                    pMotd.textContent = (st.motd_clean || "").slice(0, 60);
+                    pMotd.style.color = "";
+                  } else if (st && st.online === false) {
+                    pMotd.textContent = "Offline";
+                    pMotd.style.color = "var(--danger, #ff4d4d)";
+                  }
+                } catch (_) {}
+              })();
+            });
+            card.appendChild(pickerMenu);
+
+            setTimeout(() => document.addEventListener("click", closeListener), 10);
+          };
+
+          titleRow.append(switchBtn);
+        }
+      } catch (_) {}
+
+      const motdEl = document.createElement("div");
+      motdEl.className = "mc-server-motd";
+      if (status.motd_html) {
+        motdEl.innerHTML = status.motd_html.replace(/\n/g, "<br>");
+      } else if (status.motd_clean) {
+        motdEl.textContent = status.motd_clean;
+      } else {
+        motdEl.textContent = status.online ? "Minecraft Server Online" : "Server offline oder nicht erreichbar";
+      }
+
+      details.append(titleRow, motdEl);
+
+      const rightEl = document.createElement("div");
+      rightEl.className = "mc-server-right";
+
+      const pingRow = document.createElement("div");
+      pingRow.className = "mc-server-ping-row";
+
+      const playersEl = document.createElement("span");
+      playersEl.className = "mc-server-players";
+      if (status.online) {
+        if (typeof status.players_online === "number" && typeof status.players_max === "number") {
+          playersEl.textContent = `${status.players_online.toLocaleString("de-DE")} / ${status.players_max.toLocaleString("de-DE")}`;
+        } else {
+          playersEl.textContent = "Online";
+        }
+      } else {
+        playersEl.textContent = "Offline";
+      }
+
+      const pingBars = document.createElement("div");
+      if (status.online) {
+        const ms = status.ping_ms || 45;
+        pingBars.className = ms < 150 ? "mc-server-ping-bars ping-5" : (ms < 300 ? "mc-server-ping-bars ping-4" : "mc-server-ping-bars ping-3");
+        pingBars.title = `Ping: ${ms} ms`;
+      } else {
+        pingBars.className = "mc-server-ping-bars offline";
+        pingBars.title = "Server nicht erreichbar";
+      }
+
+      for (let i = 0; i < 5; i++) {
+        const b = document.createElement("span");
+        b.className = "mc-ping-bar";
+        pingBars.append(b);
+      }
+      pingRow.append(playersEl, pingBars);
+
+      const joinBtn = document.createElement("button");
+      joinBtn.type = "button";
+      joinBtn.className = "mc-server-join-btn";
+      joinBtn.innerHTML = `<span>⚡</span> Direkt beitreten`;
+      joinBtn.onclick = (e) => {
+        e.stopPropagation();
+        launchGame(inst.name, currentIp);
+      };
+
+      rightEl.append(pingRow, joinBtn);
+      card.append(iconWrap, details, rightEl);
+
+      card.onclick = () => {
+        launchGame(inst.name, currentIp);
+      };
+
+      container.append(card);
+    })
+    .catch((err) => {
+      console.debug("mountMinecraftServerCard:", err);
+    });
 }
 
 function renderHomeHero(instances) {
@@ -318,19 +569,25 @@ function renderHomeHero(instances) {
   const meta = document.createElement("div");
   meta.className = "hero-meta";
   meta.append(makeChip(inst.version || "?"), makeChip(inst.loader || "?", "loader"), makeChip(relativeTime(inst.last_played)));
-  if (inst.server) meta.append(makeChip(inst.server, "server"));
-  actions.append(
-    makePlayButton("Spielen", "btn-play", () => launchGame(inst.name)),
-    (() => {
-      const b = document.createElement("button");
-      b.className = "btn-glass";
-      b.innerHTML = uiIcon("manage");
-      b.append(document.createTextNode("Verwalten"));
-      b.onclick = () => openManage(inst);
-      return b;
-    })()
-  );
+  const heroActions = [
+    makePlayButton("Spielen", "btn-play", () => launchGame(inst.name))
+  ];
+  heroActions.push((() => {
+    const b = document.createElement("button");
+    b.className = "btn-glass";
+    b.innerHTML = uiIcon("manage");
+    b.append(document.createTextNode("Verwalten"));
+    b.onclick = () => openManage(inst);
+    return b;
+  })());
+  actions.append(...heroActions);
   copy.append(eyebrow, title, meta, actions);
+
+  const srvSlot = document.createElement("div");
+  srvSlot.className = "hero-server-slot";
+  copy.append(srvSlot);
+  mountMinecraftServerCard(inst, srvSlot);
+
   art.innerHTML = instIconSVG(inst.name, inst.loader);
   hero.append(copy, art);
 }
@@ -520,7 +777,7 @@ async function refreshLogs() {
       const statusEl = $("discordStatus");
       const serverEl = $("discordCurrentServer");
 
-      const connected = s.oauth_logged_in || s.rpc_connected;
+      const connected = !!s.oauth_logged_in;
       const u = s.user;
       if (u && u.avatar_url) discordAvatarFallback = u.avatar_url;
       if (connected && u) {
@@ -541,15 +798,13 @@ async function refreshLogs() {
         statusEl.style.color = "var(--danger)";
       }
 
-      // Current server (auto-detected from the game log). Shown as a button
-      // that copies the IP so it can be shared with friends.
       serverEl.textContent = "";
       if (s.current_server) {
         const btn = document.createElement("button");
         btn.className = "server-btn";
-        btn.textContent = `Aktueller Server: ${s.current_server}`;
-        btn.title = "Server-IP kopieren";
-        btn.onclick = () => copyText(s.current_server);
+        btn.textContent = isServerIpHidden(s.current_server) ? "Aktueller Server: [Ausgeblendet]" : `Aktueller Server: ${s.current_server}`;
+        btn.title = isServerIpHidden(s.current_server) ? "Server aktiv" : "Server-IP kopieren";
+        btn.onclick = () => { if (!isServerIpHidden(s.current_server)) copyText(s.current_server); };
         serverEl.append(btn);
       }
 
@@ -1563,9 +1818,15 @@ async function refreshLogs() {
   }
 
   async function loadHomeSkin(force) {
-    const canvas = $("homeSkinCanvas");
+    let canvas = $("homeSkinCanvas");
     if (!canvas) return;
-    const nm = (socialMe && (socialMe.mc_name || socialMe.username)) || "";
+    let nm = (socialMe && (socialMe.mc_name || socialMe.username)) || "";
+    if (!nm) {
+      try {
+        const accs = await invoke("get_accounts");
+        if (accs && accs.length > 0 && accs[0].username) nm = accs[0].username;
+      } catch (_) {}
+    }
     const nameEl = $("homeSkinName");
     if (nameEl) nameEl.textContent = nm || "—";
     let url = null;
@@ -1585,35 +1846,95 @@ async function refreshLogs() {
     }
     if (!url && nm) url = `https://mc-heads.net/skin/${encodeURIComponent(nm)}`;
     if (!url) {
-      setSkinState("kein Skin gefunden");
-      return;
+      url = "https://textures.minecraft.net/texture/292009a4925b58f02c77ada79265e8c4c4400256d87cbd710c23f6392a8fa8";
+    }
+    if (window.Cosmetic3D && window.Cosmetic3D.setDefaultSkin) {
+      window.Cosmetic3D.setDefaultSkin(url);
     }
     const key = url + "|" + (currentCapeUrl || "");
-    if (!force && key === homeSkinKey && (homeSkinViewer || homeWorn || homeSkinFailed)) return;
+    if (!force && key === homeSkinKey && homeSkinViewer && !homeSkinViewer.disposed) return;
+    if (key !== homeSkinKey) {
+      for (const k in c3dThumbCache) delete c3dThumbCache[k];
+    }
     homeSkinKey = key;
-     homeSkinFailed = false;
-    // Neuer 3D-Spieler: echter Skin + ausgeruestete Cosmetics
+    homeSkinFailed = false;
+
+    let skinUrl = url;
+    if (/^https?:\/\//i.test(url)) {
+      try {
+        const ctrl = new AbortController();
+        const to = setTimeout(() => ctrl.abort(), 10000);
+        const resp = await fetch(url, { signal: ctrl.signal });
+        clearTimeout(to);
+        if (resp.ok) skinUrl = URL.createObjectURL(await resp.blob());
+      } catch (_) {}
+    }
+
+    let capeUrl = currentCapeUrl;
+    if (capeUrl && /^https?:\/\//i.test(capeUrl)) {
+      try {
+        const ctrl = new AbortController();
+        const to = setTimeout(() => ctrl.abort(), 10000);
+        const resp = await fetch(capeUrl, { signal: ctrl.signal });
+        clearTimeout(to);
+        if (resp.ok) capeUrl = URL.createObjectURL(await resp.blob());
+      } catch (_) {}
+    }
+
+    const sv3d = window.skinview3d;
+    const wrap = canvas.parentElement;
+    dropSkinFallback(wrap);
+
+    if (homeWorn && !homeWorn.isDisposed()) {
+      try {
+        const itemsH = await currentWornItems(false);
+        homeWorn.setItems(itemsH);
+        canvas.style.display = "";
+        return;
+      } catch (_) {
+        try { homeWorn.dispose(); } catch (_) {}
+        homeWorn = null;
+      }
+    }
+    if (homeSkinViewer && !homeSkinViewer.disposed) {
+      try {
+        const p = homeSkinViewer.loadSkin(skinUrl);
+        if (capeUrl) homeSkinViewer.loadCape(capeUrl);
+        canvas.style.display = "";
+        return;
+      } catch (_) {
+        disposeHomeSkinViewer();
+      }
+    }
+
+    if (homeWorn) { try { homeWorn.dispose(); } catch (_) {} homeWorn = null; }
+    disposeHomeSkinViewer();
+
+    // 3D-Render (Cosmetic3D) wie im Cosmetics-Tab, mit Skin + Cape + Items
     if (!homeLegacy && window.Cosmetic3D && window.Cosmetic3D.ready()) {
       try {
-        disposeHomeSkinViewer();
-        if (homeWorn) { try { homeWorn.dispose(); } catch (_) {} homeWorn = null; }
-        const wrap0 = canvas.parentElement;
+        const itemsH = await currentWornItems(false);
+        const keyH = url + "|" + (currentCapeUrl || "");
+        if (homeWorn && !homeWorn.isDisposed() && homeSkinKey === keyH) { try { homeWorn.setItems(itemsH); } catch (_) {} return; }
+        homeSkinKey = keyH;
+        const wrapH = canvas.parentElement;
+        const fbH = wrapH.querySelector("img.skin-fallback, .skin-fallback");
+        if (fbH) fbH.remove();
         canvas.style.display = "";
-        dropSkinFallback(wrap0);
         homeWorn = window.Cosmetic3D.mountPlayer(canvas, {
           skin: url,
           cape: currentCapeUrl || null,
-          items: [],
+          items: itemsH,
           animate: true,
           onSkinError: () => {
             homeLegacy = true;
             try { homeWorn && homeWorn.dispose(); } catch (_) {}
             homeWorn = null;
+            homeSkinKey = "";
             loadHomeSkin(true);
           },
         });
         setSkinState("");
-        window.refreshWornViewers();
         return;
       } catch (e) {
         console.error("Home-3D fehlgeschlagen:", e);
@@ -1621,48 +1942,41 @@ async function refreshLogs() {
         homeWorn = null;
       }
     }
-     const sv3d = window.skinview3d;
-    let webglInfo = "kein WebGL";
-    let webglOk = false;
-    try {
-      const probe = document.createElement("canvas");
-      const g = probe.getContext("webgl2") || probe.getContext("webgl");
-      webglOk = !!(g && g.getParameter);
-      if (webglOk) {
-        const dbg = g.getExtension("WEBGL_debug_renderer_info");
-        const name = dbg ? g.getParameter(dbg.UNMASKED_RENDERER_WEBGL) : g.getParameter(g.RENDERER);
-        webglInfo = String(name || "WebGL").slice(0, 42);
-      }
-    } catch (_) {}
-    const wrap = canvas.parentElement;
-    if (!(sv3d && sv3d.SkinViewer && sv3d.IdleAnimation && webglOk)) {
+
+    if (!sv3d || !sv3d.SkinViewer) {
       showSkinFallback(wrap, canvas, url);
       homeSkinFailed = true;
       setSkinState("");
       return;
     }
+
+    const freshCanvas = document.createElement("canvas");
+    freshCanvas.id = "homeSkinCanvas";
+    canvas.replaceWith(freshCanvas);
+    canvas = freshCanvas;
+    canvas.style.display = "";
+
     try {
-      disposeHomeSkinViewer();
-      canvas.style.display = "";
-      dropSkinFallback(wrap);
-      homeSkinViewer = new sv3d.SkinViewer({ canvas: canvas, width: 160, height: 320 });
-      homeSkinViewer.animation = new sv3d.IdleAnimation();
-      homeSkinViewer.animation.speed = 0.8;
-      const p = homeSkinViewer.loadSkin(url);
+      homeSkinViewer = new sv3d.SkinViewer({
+        canvas: canvas,
+        width: 220,
+        height: 440
+      });
+      if (sv3d.IdleAnimation) {
+        homeSkinViewer.animation = new sv3d.IdleAnimation();
+        homeSkinViewer.animation.speed = 0.8;
+      }
+      const p = homeSkinViewer.loadSkin(skinUrl);
       const ready = () => {
         if (!homeSkinViewer) return;
         try {
-          if (currentCapeUrl) {
-            const c = homeSkinViewer.loadCape(currentCapeUrl);
+          if (capeUrl) {
+            const c = homeSkinViewer.loadCape(capeUrl);
             if (c && typeof c.catch === "function") c.catch(() => {});
           }
         } catch (_) {}
         try { homeSkinViewer.renderPaused = false; } catch (_) {}
-        let lost = false;
-        try {
-          lost = homeSkinViewer.renderer.getContext().isContextLost();
-        } catch (_) {}
-        setSkinState(lost ? "3D-Kontext verloren" : "");
+        setSkinState("");
       };
       if (p && typeof p.then === "function") {
         p.then(ready).catch(() => {
@@ -1674,6 +1988,7 @@ async function refreshLogs() {
         ready();
       }
     } catch (e) {
+      console.warn("Home SkinViewer Fehler:", e);
       disposeHomeSkinViewer();
       homeSkinFailed = true;
       showSkinFallback(wrap, canvas, url);
@@ -2055,30 +2370,32 @@ async function createInstance() {
   }
 }
 
-async function launchGame(name, isAuto) {
+async function launchGame(name, targetServer, isAuto) {
+  if (typeof targetServer === "boolean") {
+    isAuto = targetServer;
+    targetServer = null;
+  }
   if (!isAuto) conflictHandled = false;
   activeInstance = name;
 
   const inst = instancesCache.find((i) => i.name === name);
-    if (inst) {
-      try {
-        // The actual server is detected later from the game log (see
-        // backend). We only publish the version/loader here; the server
-        // field is filled in automatically once you join a server.
-        await invoke("set_discord_presence", {
-          details: "Spielt Minecraft",
-          stateStr: `${inst.version} · ${inst.loader}`,
-          largeText: inst.name,
-          server: null,
-          players: null,
-        });
-      } catch (e) {
-        console.error("Discord RPC fehlgeschlagen:", e);
-      }
+  const srv = typeof targetServer === "string" && targetServer.trim() ? targetServer.trim() : null;
+  if (inst) {
+    try {
+      await invoke("set_discord_presence", {
+        details: srv ? `Verbindet zu ${srv}` : "Spielt Minecraft",
+        stateStr: `${inst.version} · ${inst.loader}`,
+        largeText: inst.name,
+        server: srv,
+        players: null,
+      });
+    } catch (e) {
+      console.error("Discord RPC fehlgeschlagen:", e);
     }
+  }
 
   try {
-    const result = await invoke("launch_game", { instanceName: name, server: null });
+    const result = await invoke("launch_game", { instanceName: name, server: srv });
     showGameSplash(name, result);
   } catch (e) {
     hideGameSplash();
@@ -2161,9 +2478,38 @@ function hideGameSplash() {
 }
 
 async function deleteInstance(name, id) {
-  if (!confirm(`Instanz '${name}' wirklich löschen?`)) return;
-  await invoke("delete_instance", { name, id: id || null });
-  await refreshInstances();
+  return new Promise((resolve) => {
+    const overlay = document.createElement("div");
+    overlay.className = "modal";
+    overlay.style.display = "flex";
+    overlay.style.zIndex = "99999";
+    overlay.innerHTML = `
+      <div class="modal-content" style="max-width: 420px; text-align: center;">
+        <h3 style="color: var(--danger, #ff4d4d); margin-bottom: 0.8rem;">Instanz löschen?</h3>
+        <p style="margin-bottom: 1.2rem; color: var(--muted, #aaa);">Möchtest du die Instanz <b>"${name}"</b> wirklich endgültig löschen? Alle Welten und Mods gehen verloren!</p>
+        <div style="display: flex; gap: 10px; justify-content: center;">
+          <button id="delCancel" class="btn-secondary" style="padding: 0.6rem 1.2rem;">Abbrechen</button>
+          <button id="delConfirm" class="btn-primary" style="background: var(--danger, #ff4d4d); color: #fff; padding: 0.6rem 1.2rem;">Endgültig löschen</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+    overlay.querySelector("#delCancel").onclick = () => {
+      overlay.remove();
+      resolve(false);
+    };
+    overlay.querySelector("#delConfirm").onclick = async () => {
+      overlay.remove();
+      try {
+        await invoke("delete_instance", { name, id: id || null });
+        await refreshInstances();
+        toast(`Instanz "${name}" gelöscht.`, "ok");
+      } catch (e) {
+        alert("Löschen fehlgeschlagen: " + e);
+      }
+      resolve(true);
+    };
+  });
 }
 
 $("iVersion").onchange = updateLoaderVersions;
@@ -2344,6 +2690,10 @@ async function loadSettingsOnce() {
   } catch (e) {
     currentSettings = { theme: "Kollegen", theme_mode: "dark" };
   }
+  if (!currentSettings.font) {
+    currentSettings.font = localStorage.getItem("kollegen_font") || "inter";
+  }
+  applyLayout();
   return currentSettings;
 }
 
@@ -2408,21 +2758,19 @@ async function saveTheme(name) {
 
 // ─=== Settings panel wiring ===
 
-// Öffnet ein Settings-Panel deterministisch: Tab-Active-Klasse setzen, nur das
-// passende Panel anzeigen und dessen Inhalt (neu) rendern. Ein einziger Pfad für
-// Öffnen und Tab-Klick verhindert, dass Panels leer/unsichtbar bleiben, bis man
-// einmal weg- und wieder zurückwechselt (bekannter "leeres Panel"-Bug).
 function showSettingsTab(t) {
   document.querySelectorAll(".settings-tab").forEach((el) => {
     el.classList.toggle("active", el.dataset.tab === t);
   });
   $("settingsConnections").style.display = t === "connections" ? "" : "none";
   $("settingsThemes").style.display = t === "themes" ? "" : "none";
+  $("settingsServers").style.display = t === "servers" ? "" : "none";
   $("settingsImport").style.display = t === "import" ? "" : "none";
   $("settingsUpdates").style.display = t === "updates" ? "" : "none";
   $("settingsSteamDeck").style.display = t === "steamdeck" ? "" : "none";
   if (t === "themes") { renderThemeList(); renderLayoutOptions(); }
   if (t === "connections") { refreshSettingsAccounts(); }
+  if (t === "servers") { renderHiddenServers(); }
   if (t === "steamdeck") { initSteamDeckTab(); }
 }
 
@@ -2434,8 +2782,6 @@ $("settingsBtn").onclick = async () => {
   if (cmt && currentSettings) cmt.checked = !!currentSettings.companion_mod;
   const pmt = $("perfModsToggle");
   if (pmt && currentSettings) pmt.checked = currentSettings.perf_mods !== false;
-  // Immer auf den Verbindungen-Tab zurücksetzen, damit der Startzustand
-  // reproduzierbar ist und alle Panels korrekt (neu) gerendert werden.
   showSettingsTab("connections");
   if (consoleNavActive) setConsoleFocusFirstNonIcon();
 };
@@ -2454,6 +2800,185 @@ if (perfModsToggle) {
     const s = await loadSettingsOnce();
     s.perf_mods = perfModsToggle.checked;
     try { await invoke("save_settings", { settings: s }); } catch (e) {}
+  };
+}
+
+async function renderHiddenServers() {
+  const s = await loadSettingsOnce();
+  if (!Array.isArray(s.hidden_server_ips)) {
+    s.hidden_server_ips = [];
+  }
+  const listEl = $("hiddenServersList");
+  if (!listEl) return;
+  listEl.innerHTML = "";
+
+  if (s.hidden_server_ips.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "socials-hint";
+    empty.textContent = "Keine Server-IPs ausgeblendet.";
+    listEl.append(empty);
+  } else {
+    s.hidden_server_ips.forEach((ip, idx) => {
+      const item = document.createElement("div");
+      item.className = "hidden-server-item";
+
+      const addr = document.createElement("div");
+      addr.className = "hidden-server-address";
+      addr.textContent = "🔒 " + ip;
+
+      const delBtn = document.createElement("button");
+      delBtn.className = "btn-secondary btn-danger";
+      delBtn.textContent = "Entfernen";
+      delBtn.onclick = async () => {
+        s.hidden_server_ips.splice(idx, 1);
+        try {
+          await invoke("save_settings", { settings: s });
+        } catch (_) {}
+        renderHiddenServers();
+        renderInstanceList();
+        if (instancesCache && instancesCache.length) {
+          const heroInst = instancesCache.find((i) => i.name === activeInstance) || instancesCache[0];
+          if (heroInst) renderHero(heroInst);
+        }
+      };
+
+      item.append(addr, delBtn);
+      listEl.append(item);
+    });
+  }
+
+  renderDetectedServers(s);
+}
+
+async function renderDetectedServers(s) {
+  const detectedEl = $("detectedServersList");
+  if (!detectedEl) return;
+  detectedEl.innerHTML = "";
+
+  const syncBtn = $("syncGlobalNowBtn");
+  const syncStatus = $("syncGlobalStatus");
+  if (syncBtn && !syncBtn.dataset.bound) {
+    syncBtn.dataset.bound = "1";
+    syncBtn.onclick = async () => {
+      syncBtn.disabled = true;
+      if (syncStatus) syncStatus.textContent = "Synchronisiere Server & Keybinds...";
+      try {
+        await invoke("sync_global_settings");
+        if (syncStatus) syncStatus.textContent = "Erfolgreich synchronisiert!";
+        setTimeout(() => {
+          if (syncStatus) syncStatus.textContent = "";
+        }, 3000);
+      } catch (e) {
+        if (syncStatus) syncStatus.textContent = "Fehler: " + e;
+      } finally {
+        syncBtn.disabled = false;
+        renderServersTab(s);
+      }
+    };
+  }
+
+  let allServers = [];
+  try {
+    allServers = await invoke("get_all_servers");
+  } catch (_) {
+    allServers = [];
+  }
+
+  if (!Array.isArray(allServers) || allServers.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "socials-hint";
+    empty.textContent = "Keine Server in Instanzen gefunden.";
+    detectedEl.append(empty);
+    return;
+  }
+
+  allServers.forEach((srv) => {
+    const item = document.createElement("div");
+    item.className = "detected-server-item";
+
+    const info = document.createElement("div");
+    info.className = "detected-server-info";
+
+    const icon = document.createElement("img");
+    icon.className = "detected-server-icon";
+    icon.src = srv.icon || DEFAULT_MC_SERVER_ICON;
+
+    const text = document.createElement("div");
+    text.className = "detected-server-text";
+
+    const name = document.createElement("span");
+    name.className = "detected-server-name";
+    name.textContent = srv.name || srv.ip;
+
+    const isHidden = isServerIpHidden(srv.ip);
+    const ip = document.createElement("span");
+    ip.className = "detected-server-ip" + (isHidden ? " ip-masked" : "");
+    ip.textContent = isHidden ? maskServerIp(srv.ip) : srv.ip;
+
+    text.append(name, ip);
+    info.append(icon, text);
+
+    const actionBtn = document.createElement("button");
+    actionBtn.className = isHidden ? "btn-secondary" : "btn-primary";
+    actionBtn.textContent = isHidden ? "✓ Ausgeblendet (wieder einblenden)" : "IP ausblenden";
+    actionBtn.onclick = async () => {
+      const target = (srv.ip || "").trim();
+      if (!Array.isArray(s.hidden_server_ips)) s.hidden_server_ips = [];
+      const idx = s.hidden_server_ips.findIndex((h) => {
+        const hc = h.trim().toLowerCase();
+        const tc = target.toLowerCase();
+        return hc === tc || hc.split(":")[0] === tc.split(":")[0];
+      });
+      if (idx >= 0) {
+        s.hidden_server_ips.splice(idx, 1);
+      } else {
+        s.hidden_server_ips.push(target);
+      }
+      try {
+        await invoke("save_settings", { settings: s });
+      } catch (_) {}
+      renderHiddenServers();
+      renderDetectedServers(s);
+      renderInstanceList();
+      if (instancesCache && instancesCache.length) {
+        const heroInst = instancesCache.find((i) => i.name === activeInstance) || instancesCache[0];
+        if (heroInst) renderHero(heroInst);
+      }
+    };
+
+    item.append(info, actionBtn);
+    detectedEl.append(item);
+  });
+}
+
+const addHiddenServerBtn = $("addHiddenServerBtn");
+const hiddenServerInput = $("hiddenServerInput");
+if (addHiddenServerBtn && hiddenServerInput) {
+  const doAdd = async () => {
+    const val = hiddenServerInput.value.trim();
+    if (!val) return;
+    const s = await loadSettingsOnce();
+    if (!Array.isArray(s.hidden_server_ips)) s.hidden_server_ips = [];
+    if (!s.hidden_server_ips.some((h) => h.toLowerCase() === val.toLowerCase())) {
+      s.hidden_server_ips.push(val);
+      try {
+        await invoke("save_settings", { settings: s });
+      } catch (_) {}
+      hiddenServerInput.value = "";
+      renderHiddenServers();
+      renderInstanceList();
+      if (instancesCache && instancesCache.length) {
+        const heroInst = instancesCache.find((i) => i.name === activeInstance) || instancesCache[0];
+        if (heroInst) renderHero(heroInst);
+      }
+    }
+  };
+  addHiddenServerBtn.onclick = doAdd;
+  hiddenServerInput.onkeydown = (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      doAdd();
+    }
   };
 }
 // ─ SteamDeck / Konsolen-Modus ─
@@ -2685,6 +3210,30 @@ $("msAddBtn").onclick = async () => {
   }
 };
 
+if ($("msImportBtn")) {
+  $("msImportBtn").onclick = async () => {
+    try {
+      const sources = await invoke("detect_login_sources");
+      if (!sources || !sources.length) {
+        alert("Keine anderen Launcher (Modrinth, Prism, MultiMC) mit gespeicherten Anmeldungen gefunden.");
+        return;
+      }
+      for (const src of sources) {
+        try {
+          const count = await invoke("import_login_source", { sourceId: src.id });
+          toast(`${src.name}: ${count} Konto(s) importiert!`, "ok");
+        } catch (err) {
+          alert(`${src.name}: Import fehlgeschlagen: ${err}`);
+        }
+      }
+      await refreshSettingsAccounts();
+      refreshAuth();
+    } catch (e) {
+      alert("Suche nach Launchern fehlgeschlagen: " + e);
+    }
+  };
+}
+
 $("discordLogoutBtn").onclick = async () => {
   try {
     await invoke("discord_oauth_logout");
@@ -2716,11 +3265,22 @@ function renderThemeList() {
 }
 
 // ─ Layout-/Darstellungsoptionen ─
+const APP_FONTS = {
+  inter: '"Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
+  minecraft: '"Minecraft", monospace',
+  mono: '"JetBrains Mono", ui-monospace, monospace',
+  system: 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif'
+};
+
 function applyLayout() {
-  const s = currentSettings || { density: "comfortable", sidebar_visible: true, animations: true };
+  const s = currentSettings || { density: "comfortable", sidebar_visible: true, animations: true, font: "inter" };
   document.body.classList.toggle("density-compact", s.density === "compact");
   document.body.classList.toggle("hide-sidebar", !s.sidebar_visible);
   document.body.classList.toggle("reduce-motion", !s.animations);
+  const fontKey = s.font || localStorage.getItem("kollegen_font") || "inter";
+  const fontFamily = APP_FONTS[fontKey] || APP_FONTS.inter;
+  document.documentElement.style.setProperty("--app-font", fontFamily);
+  document.body.classList.toggle("font-minecraft", fontKey === "minecraft");
 }
 
 async function saveLayout(patch) {
@@ -2777,7 +3337,21 @@ function renderLayoutOptions() {
   );
   anim.append(animSeg);
 
-  wrap.append(density, sidebar, anim);
+  const fontRow = document.createElement("div");
+  fontRow.className = "layout-row";
+  fontRow.innerHTML = "<span class='layout-label'>Schriftart</span>";
+  const fontSeg = document.createElement("div");
+  fontSeg.className = "mode-toggle";
+  const curFont = s.font || localStorage.getItem("kollegen_font") || "inter";
+  fontSeg.append(
+    segButton("Inter", curFont === "inter", () => { localStorage.setItem("kollegen_font", "inter"); saveLayout({ font: "inter" }); renderLayoutOptions(); }),
+    segButton("Minecraft", curFont === "minecraft", () => { localStorage.setItem("kollegen_font", "minecraft"); saveLayout({ font: "minecraft" }); renderLayoutOptions(); }),
+    segButton("Mono", curFont === "mono", () => { localStorage.setItem("kollegen_font", "mono"); saveLayout({ font: "mono" }); renderLayoutOptions(); }),
+    segButton("System", curFont === "system", () => { localStorage.setItem("kollegen_font", "system"); saveLayout({ font: "system" }); renderLayoutOptions(); })
+  );
+  fontRow.append(fontSeg);
+
+  wrap.append(density, sidebar, anim, fontRow);
 }
 
 // ─ Importieren (andere Launcher) ─
@@ -2837,6 +3411,8 @@ $("importPackBtn").onclick = async () => {
     status.textContent = "";
     return;
   }
+  if (Array.isArray(path)) path = path[0];
+  if (path && typeof path === "object" && path.path) path = path.path;
   status.textContent = "Importiere Modpack…";
   try {
     const inst = await invoke("import_pack", { path });
@@ -2846,6 +3422,26 @@ $("importPackBtn").onclick = async () => {
     status.textContent = "Fehler: " + e;
   }
 };
+
+if (window.__TAURI__ && window.__TAURI__.event && window.__TAURI__.event.listen) {
+  window.__TAURI__.event.listen("tauri://drag-drop", async (event) => {
+    const paths = (event && event.payload && event.payload.paths) || [];
+    const packFile = paths.find((p) => typeof p === "string" && (p.toLowerCase().endsWith(".mrpack") || p.toLowerCase().endsWith(".zip")));
+    if (packFile) {
+      showSettingsTab("import");
+      settingsModalEl.style.display = "flex";
+      const status = $("importStatus");
+      if (status) status.textContent = "Importiere Modpack…";
+      try {
+        const inst = await invoke("import_pack", { path: packFile });
+        if (status) status.textContent = `Modpack '${inst.name}' importiert.`;
+        refreshInstances();
+      } catch (e) {
+        if (status) status.textContent = "Fehler: " + e;
+      }
+    }
+  });
+}
 
 async function showLauncherInstances(launcherId) {
   const list = $("importInstanceList");
@@ -3542,12 +4138,12 @@ function resolveStoreCapeTexture(it) {
   const known = {
     cape_phantomumhang: "cosmetics/store_phantomumhang.png",
     cape_sternenhimmel: "cosmetics/store_sternenhimmel_umhang.png",
-    cape_fluffybento: "cosmetics/fluffybento_fluffybento_cape.png",
-    cape_limitlos: "cosmetics/limit_los_limit_los_cape.png",
+    cape_fluffybento: "cosmetics/fluffybento_FluffyBento_cape.png",
+    cape_limitlos: "cosmetics/limit_los_Limit_Los_cape.png",
     cape_zerocraft77: "cosmetics/zerocraft77_Zerocraft77_cape.png",
     cape_irongirl: "cosmetics/irongirl_lp_Irongirl_lp_cape.png",
     cape_tson: "cosmetics/t_son__T_son__cape.png",
-    cape_rixhii: "cosmetics/rixhii_rixhii_cape.png",
+    cape_rixhii: "cosmetics/rixhii_Rixhii_cape.png",
   };
   if (known[id]) return known[id];
   const rawTex = (it.data && it.data.texture) || it.texture || "";
@@ -3560,11 +4156,17 @@ function resolveStoreCapeTexture(it) {
   return rawTex.replace(/^kollegen:/, "");
 }
 
+let __capeSyncAt = 0;
 async function loadCapesView() {
   const grid = $("capesGrid");
   if (!grid) return;
   clearCapeAnimTimers();
   disposeAllCapeViewers();
+
+  if (activeCapeCat === "community" && Date.now() - __capeSyncAt > 60000) {
+    __capeSyncAt = Date.now();
+    try { await invoke("capes_sync_community"); } catch (_) {}
+  }
 
   let capeData = { active_cape: null, capes: [] };
   try {
@@ -3809,18 +4411,25 @@ async function loadCapesView() {
           viewer.autoRotateSpeed = 2.2;
           capeViewers.push(viewer);
 
-          viewer.loadCape(validUrl).then(() => {
-            viewer.render();
-            setTimeout(() => {
-              try {
-                if (!card.matches(":hover")) {
-                  viewer.renderPaused = true;
-                }
-              } catch (_) {}
-            }, 120);
-          }).catch((err) => {
-            console.warn("SkinViewer loadCape error:", err);
-          });
+           viewer.loadCape(validUrl).then(() => {
+             let frames = 0;
+             const pump = () => {
+               try { viewer.render(); } catch (_) {}
+               if (frames++ < 4) requestAnimationFrame(pump);
+               else {
+                 setTimeout(() => {
+                   try {
+                     if (!card.matches(":hover")) {
+                       viewer.renderPaused = true;
+                     }
+                   } catch (_) {}
+                 }, 200);
+               }
+             };
+             requestAnimationFrame(pump);
+           }).catch((err) => {
+             console.warn("SkinViewer loadCape error:", err);
+           });
 
           card.addEventListener("mouseenter", () => {
             try {
@@ -4422,9 +5031,10 @@ $("manageCloneBtn").onclick = async () => {
           newLoader: loader,
           newLoaderVersion: null,
         });
-        toast(`Instanz "${name}" erfolgreich geklont!`, "ok");
-        manageLoadInstalled();
-        resolve(newInst);
+         toast(`Instanz "${name}" erfolgreich geklont!`, "ok");
+         manageLoadInstalled();
+         await refreshInstances();
+         resolve(newInst);
       } catch (e) {
         alert("Klonen fehlgeschlagen: " + e);
       }
@@ -5307,6 +5917,16 @@ startBackgroundIntervals();
           img.className = "thumb3d";
           img.alt = "";
           img.src = url;
+          if (pv.classList.contains("c3d-hovering")) {
+            img.style.display = "none";
+            img.style.visibility = "hidden";
+            img.style.opacity = "0";
+            const hoverCv = pv.querySelector(".thumb3d-hover");
+            if (hoverCv) {
+              pv.insertBefore(img, hoverCv);
+              return;
+            }
+          }
           pv.innerHTML = "";
           pv.append(img);
         } catch (e) {}
@@ -5316,8 +5936,63 @@ startBackgroundIntervals();
   function c3dObserve(pv, item) {
     try {
       if (!window.Cosmetic3D || !window.Cosmetic3D.ready()) return;
-      if (!window.Cosmetic3D.keyFor(item) || !item.id) return;
+      if (!item || !item.id) return;
+      const isPet = item.category === "pet";
+      const hasKey = !!window.Cosmetic3D.keyFor(item);
+      if (!hasKey && !isPet) return;
       pv.dataset.c3dId = item.id;
+
+      const card = pv.closest(".store-card") || pv.closest(".cosm-item") || pv;
+      if (card && !card.dataset.c3dHoverSetup) {
+        card.dataset.c3dHoverSetup = "1";
+        let hoverMount = null;
+        card.addEventListener("mouseenter", () => {
+          try {
+            if (hoverMount || !pv.isConnected || !window.Cosmetic3D) return;
+            const cv = document.createElement("canvas");
+            cv.className = "thumb3d-hover";
+            cv.style.position = "absolute";
+            cv.style.inset = "0";
+            cv.style.width = "100%";
+            cv.style.height = "100%";
+            cv.style.pointerEvents = "none";
+            pv.style.position = "relative";
+            pv.classList.add("c3d-hovering");
+            pv.querySelectorAll("img, svg, .pet-preview, .thumb3d, .pv-art, .pv-glyph").forEach((el) => {
+              if (el !== cv) {
+                el.style.display = "none";
+                el.style.visibility = "hidden";
+                el.style.opacity = "0";
+              }
+            });
+            pv.append(cv);
+            hoverMount = window.Cosmetic3D.mountPlayer(cv, {
+              skin: window.Cosmetic3D.getDefaultSkin() || null,
+              items: [item],
+              animate: true,
+              autoRotate: true,
+              rot: 0.55
+            });
+          } catch (_) {}
+        });
+        card.addEventListener("mouseleave", () => {
+          try {
+            pv.classList.remove("c3d-hovering");
+            pv.querySelectorAll("img, svg, .pet-preview, .thumb3d, .pv-art, .pv-glyph").forEach((el) => {
+              el.style.display = "";
+              el.style.visibility = "";
+              el.style.opacity = "";
+            });
+            if (hoverMount) {
+              hoverMount.dispose();
+              hoverMount = null;
+            }
+            const cv = pv.querySelector(".thumb3d-hover");
+            if (cv) cv.remove();
+          } catch (_) {}
+        });
+      }
+
       if (typeof IntersectionObserver === "undefined") { c3dRenderNow(pv, item); return; }
       if (!c3dObserver) {
         c3dObserver = new IntersectionObserver((ents) => {
@@ -6138,20 +6813,16 @@ startBackgroundIntervals();
           card.dataset.petBase = it.name || it.id;
           const pv = document.createElement("div");
           pv.className = "store-pv pet-pv";
-          const mythicKinds = { pet_ember_drake: "ember_drake", pet_void_wyrm: "void_wyrm", pet_shadow_reaper: "shadow_reaper", pet_rune_sentinel: "rune_sentinel", pet_flame_skull: "flame_skull", pet_storm_cloud: "storm_cloud", pet_crystal_golem: "crystal_golem", pet_spectre: "spectre", pet_lantern_spirit: "lantern_spirit", pet_bolt_bot: "bolt_bot", pet_mini_ufo: "mini_ufo", pet_grimoire: "grimoire", pet_mooncap: "mooncap", pet_jelly_cube: "jelly_cube" };
-          if (mythicKinds[it.id]) {
-            const img = document.createElement("img");
-            img.className = "pet-preview";
-            img.alt = "";
-            img.src = "pets/" + mythicKinds[it.id] + ".png";
-            if (window.Cosmetic3D && window.Cosmetic3D.petCropped) {
-              window.Cosmetic3D.petCropped(mythicKinds[it.id]).then((r) => { if (r && r.url) img.src = r.url; });
-            }
-            img.onerror = () => { img.remove(); pv.textContent = PET_ICON[it.id] || "🐾"; };
-            pv.append(img);
-          } else {
-            pv.textContent = PET_ICON[it.id] || "🐾";
+          const pKind = (window.Cosmetic3D && window.Cosmetic3D.petKind) ? window.Cosmetic3D.petKind(it) : String(it.id || "").replace(/^pet_/, "");
+          const img = document.createElement("img");
+          img.className = "pet-preview";
+          img.alt = "";
+          img.src = "pets/" + pKind + ".png";
+          if (window.Cosmetic3D && window.Cosmetic3D.petCropped) {
+            window.Cosmetic3D.petCropped(pKind).then((r) => { if (r && r.url) img.src = r.url; });
           }
+          img.onerror = () => { img.remove(); pv.textContent = (typeof PET_ICON !== "undefined" && PET_ICON[it.id]) || "🐾"; };
+          pv.append(img);
           card.append(pv);
           const body = document.createElement("div");
           body.className = "store-card-body";
@@ -6308,9 +6979,17 @@ startBackgroundIntervals();
 
   function disposeCosmSkinViewer() {
     if (cosmWorn) { try { cosmWorn.dispose(); } catch (_) {} cosmWorn = null; }
-    if (!cosmSkinViewer) return;
-    try { cosmSkinViewer.dispose && cosmSkinViewer.dispose(); } catch (_) {}
-    cosmSkinViewer = null;
+    if (cosmSkinViewer) {
+      try { cosmSkinViewer.dispose && cosmSkinViewer.dispose(); } catch (_) {}
+      cosmSkinViewer = null;
+    }
+    const cv = $("cosmSkinCanvas");
+    if (cv && cv.parentElement) {
+      cv.parentElement.querySelectorAll(".skin-fallback, img.skin-fallback").forEach((el) => el.remove());
+      cv.parentElement.querySelectorAll("canvas").forEach((c) => {
+        if (c !== cv) c.remove();
+      });
+    }
   }
   async function renderCosmSkin(me) {
     const canvas = $("cosmSkinCanvas");

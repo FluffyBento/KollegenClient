@@ -82,11 +82,25 @@ pub struct Settings {
     
     #[serde(default = "default_false")]
     pub steamdeck_mode: bool,
-    
-    
-    
+
+    #[serde(default)]
+    pub hidden_server_ips: Vec<String>,
+
+    #[serde(default)]
+    pub sync_ingame_settings: bool,
+
     #[serde(default)]
     pub profile: Option<ProfileSettings>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct SavedServer {
+    #[serde(default)]
+    pub name: String,
+    #[serde(default)]
+    pub ip: String,
+    #[serde(default)]
+    pub icon: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -140,6 +154,8 @@ impl Default for Settings {
             animations: true,
             perf_mods: true,
             steamdeck_mode: false,
+            hidden_server_ips: Vec::new(),
+            sync_ingame_settings: false,
             profile: None,
         }
     }

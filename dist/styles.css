@@ -36,6 +36,15 @@
   --shadow-glow-lg: 0 0 0 0 transparent;
   --transition-fast: 150ms ease;
   --transition-normal: 200ms ease;
+  --app-font: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+@font-face {
+  font-family: "Minecraft";
+  src: url("./fonts/minecraft.woff2") format("woff2");
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
 }
 
 * { box-sizing: border-box; }
@@ -46,7 +55,7 @@ html {
 
 body {
   margin: 0;
-  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-family: var(--app-font);
   letter-spacing: -0.01em;
   color: var(--text-primary);
   background: var(--bg);
@@ -55,8 +64,51 @@ body {
   padding-left: var(--sidebar-w);
 }
 
+.btn-quick-join {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.8rem;
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+.btn-quick-join:hover {
+  background: var(--surface-hover);
+  border-color: var(--accent);
+  box-shadow: 0 0 10px var(--accent-glow);
+}
+.btn-hero-server {
+  border-color: var(--accent) !important;
+}
+
+body.font-minecraft {
+  letter-spacing: 0.04em;
+  font-smooth: never;
+  -webkit-font-smoothing: none;
+}
+body.font-minecraft,
+body.font-minecraft *,
+body.font-minecraft button,
+body.font-minecraft input,
+body.font-minecraft select,
+body.font-minecraft textarea,
+body.font-minecraft h1,
+body.font-minecraft h2,
+body.font-minecraft h3,
+body.font-minecraft h4,
+body.font-minecraft .sidebar,
+body.font-minecraft .sidebar * {
+  font-family: "Minecraft", monospace !important;
+}
+
 h1, h2, h3, h4 {
-  font-family: "Inter", system-ui, sans-serif;
+  font-family: var(--app-font);
   letter-spacing: 0.01em;
   font-weight: 700;
   color: var(--text-primary);
@@ -151,7 +203,7 @@ header {
 }
 
 .sidebar-brand-text {
-  font-family: "Inter", system-ui, sans-serif;
+  font-family: var(--app-font);
   font-size: 0.9rem;
   font-weight: 600;
   color: var(--text-primary);
@@ -179,7 +231,7 @@ header {
   text-align: left;
   font-size: 0.875rem;
   font-weight: 500;
-  font-family: "Inter", system-ui, sans-serif;
+  font-family: var(--app-font);
   border: 1px solid transparent;
   border-left: 3px solid transparent;
   transition: background var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
@@ -2419,6 +2471,98 @@ button:disabled {
   color: var(--text-muted);
 }
 
+.hidden-servers-input-row {
+  display: flex;
+  gap: 0.5rem;
+  margin: 0.5rem 0;
+}
+
+.hidden-servers-input-row input {
+  flex: 1;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+  padding: 0.55rem 0.8rem;
+  font-size: 0.85rem;
+  color: var(--text-primary);
+}
+
+.hidden-servers-input-row input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.hidden-servers-list,
+.detected-servers-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.hidden-server-item,
+.detected-server-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.65rem 0.8rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+  font-size: 0.85rem;
+}
+
+.hidden-server-address {
+  font-family: monospace;
+  font-weight: 600;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.detected-server-info {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.detected-server-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.detected-server-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.detected-server-name {
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.detected-server-ip {
+  font-family: monospace;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.mc-server-ip-badge.ip-masked {
+  letter-spacing: 2px;
+  font-weight: bold;
+  opacity: 0.85;
+}
+
 .theme-list {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(135px, 1fr));
@@ -2829,19 +2973,20 @@ button:disabled {
 
 .home-layout .instance-grid { flex: 1; min-width: 0; }
 
-.home-skin {
+.home-skin,
+.home-skin.rail-card {
   flex: 0 0 240px;
-  background: var(--panel);
-  border: 1px solid var(--border-primary);
-  border-radius: var(--radius-lg);
-  padding: 1.1rem;
+  background: transparent !important;
+  background-image: none !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0.5rem;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 0.6rem;
   position: sticky;
   top: 4.6rem;
-  box-shadow: var(--shadow-card);
 }
 
 #homeSkinCanvas {

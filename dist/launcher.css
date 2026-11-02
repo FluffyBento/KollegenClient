@@ -969,15 +969,20 @@ body > header .icon-btn svg {
 
 /* Anmeldetext und Status wie die Kacheln daneben */
 body > header .btn-secondary {
-  font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-family: var(--app-font);
   border-radius: var(--radius-md);
 }
 
 /* --- Sidebar: Gruppen und Eintraege vereinheitlichen -------------------- */
+.sidebar,
+.sidebar * {
+  font-family: var(--app-font);
+}
+
 .sidebar-group {
   display: block;
   margin: 1.1rem 0 0.45rem 0.55rem;
-  font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-family: var(--app-font);
   font-size: 0.66rem;
   font-weight: 600;
   color: var(--text-muted);
@@ -1024,7 +1029,7 @@ body > header .btn-secondary {
 }
 
 .sidebar-link .side-label {
-  font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-family: var(--app-font);
   font-size: 0.84rem;
   font-weight: 500;
 }
@@ -1034,7 +1039,7 @@ body > header .btn-secondary {
 .btn-secondary,
 .btn-glass,
 .chip {
-  font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-family: var(--app-font);
   border-radius: var(--radius-md);
   transition: background var(--transition-fast), border-color var(--transition-fast),
     color var(--transition-fast);
