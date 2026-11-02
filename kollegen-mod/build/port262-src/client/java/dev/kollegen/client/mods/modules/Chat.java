@@ -8,7 +8,7 @@ import dev.kollegen.client.mods.StringSetting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.ChatScreen;
-import dev.kollegen.client.input.sdl.GLFW;
+import org.lwjgl.glfw.GLFW;
 
 public final class Chat {
 

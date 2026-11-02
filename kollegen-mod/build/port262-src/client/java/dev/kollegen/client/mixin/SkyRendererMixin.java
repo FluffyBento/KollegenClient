@@ -37,9 +37,9 @@ public class SkyRendererMixin {
         try {
             if (state != null) {
                 state.skyColor = switch (WeatherState.mode) {
-                    case 4 -> new org.joml.Vector3f(0.8f, 0.8f, 0.8f);   
-                    case 5 -> new org.joml.Vector3f(0.18f, 0.07f, 0.28f);  
-                    case 6 -> new org.joml.Vector3f(0.29f, 0.12f, 0.06f);  
+                    case 4 -> 0xFF_CCCC_CC;   
+                    case 5 -> 0xFF_2E_13_48;  
+                    case 6 -> 0xFF_4A_1E_10;  
                     default -> state.skyColor;
                 };
             }

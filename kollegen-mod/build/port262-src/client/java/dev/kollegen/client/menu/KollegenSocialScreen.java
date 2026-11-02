@@ -16,7 +16,7 @@ import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
-import dev.kollegen.client.input.sdl.GLFW;
+import org.lwjgl.glfw.GLFW;
 
 import java.net.URI;
 import java.net.URLEncoder;

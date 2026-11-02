@@ -1,9 +1,9 @@
 package dev.kollegen.client.mods.modules;
 
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.renderpearl.api.buffers.GpuBuffer;
-import com.mojang.renderpearl.api.buffers.GpuBufferSlice;
-import com.mojang.renderpearl.api.commands.CommandEncoder;
+import com.mojang.blaze3d.buffers.GpuBuffer;
+import com.mojang.blaze3d.buffers.GpuBufferSlice;
+import com.mojang.blaze3d.systems.CommandEncoder;
 import dev.kollegen.client.mixin.PostChainAccessor;
 import dev.kollegen.client.mixin.PostPassAccessor;
 import dev.kollegen.client.mods.BooleanSetting;

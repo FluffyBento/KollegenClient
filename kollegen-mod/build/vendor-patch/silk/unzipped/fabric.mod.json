@@ -1,7 +1,7 @@
 {
     "schemaVersion": 1,
     "id": "silk-all",
-    "version": "1.12.1",
+    "version": "1.12.0",
     "name": "Silk (All modules)",
     "description": "Silk is a Minecraft API for Kotlin",
     "authors": [
@@ -10,7 +10,7 @@
     ],
     "depends": {
         "fabric-language-kotlin": ">=1.9.0+kotlin.1.8.0",
-        "minecraft": "26.3.x"
+        "minecraft": "26.2.x"
     },
     "contact": {
         "homepage": "https://github.com/SilkMC/silk",
@@ -22,25 +22,25 @@
     "icon": "assets/silk-all/icon.png",
     "jars": [
         {
-            "file": "META-INF/jars/silk-commands-1.12.1.jar"
+            "file": "META-INF/jars/silk-commands-1.12.0.jar"
         },
         {
-            "file": "META-INF/jars/silk-core-1.12.1.jar"
+            "file": "META-INF/jars/silk-core-1.12.0.jar"
         },
         {
-            "file": "META-INF/jars/silk-game-1.12.1.jar"
+            "file": "META-INF/jars/silk-game-1.12.0.jar"
         },
         {
-            "file": "META-INF/jars/silk-igui-1.12.1.jar"
+            "file": "META-INF/jars/silk-igui-1.12.0.jar"
         },
         {
-            "file": "META-INF/jars/silk-nbt-1.12.1.jar"
+            "file": "META-INF/jars/silk-nbt-1.12.0.jar"
         },
         {
-            "file": "META-INF/jars/silk-network-1.12.1.jar"
+            "file": "META-INF/jars/silk-network-1.12.0.jar"
         },
         {
-            "file": "META-INF/jars/silk-persistence-1.12.1.jar"
+            "file": "META-INF/jars/silk-persistence-1.12.0.jar"
         }
     ],
     "custom": {

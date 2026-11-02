@@ -1,0 +1,112 @@
+{
+    "schemaVersion": 1,
+    "id": "owo",
+    "version": "0.13.1+26.2",
+    "name": "o\u03c9o",
+    "description": "yes its bad i know thanks",
+    "authors": [
+        "glisco"
+    ],
+    "contributors": [
+        "Blodhgarm",
+        "BasiqueEvangelist",
+        "Noaaan",
+        "chyzman"
+    ],
+    "contact": {
+        
+    },
+    "license": "MIT",
+    "icon": "assets/owo/icon.png",
+    "environment": "*",
+    "entrypoints": {
+        "client": [
+            "io.wispforest.owo.client.OwoClient"
+        ],
+        "main": [
+            "io.wispforest.owo.Owo"
+        ],
+        "rei_client": [
+            "io.wispforest.owo.compat.rei.OwoReiPlugin"
+        ],
+        "emi": [
+            "io.wispforest.owo.compat.emi.OwoEmiPlugin"
+        ],
+        "modmenu": [
+            "io.wispforest.owo.compat.modmenu.OwoModMenuPlugin"
+        ]
+    },
+    "mixins": [
+        "owo.mixins.json"
+    ],
+    "provides": [
+        "owo-impl",
+        "owo-lib"
+    ],
+    "accessWidener": "owo.accesswidener",
+    "depends": {
+        "fabricloader": ">=0.15.0",
+        "fabric-api": ">=0.100",
+        "minecraft": ">=26.1"
+    },
+    "custom": {
+        "modmenu": {
+            "parent": "kollegen-client"
+        },
+        "loom:injected_interfaces": {
+            "net/minecraft/nbt/CompoundTag": [
+                "io/wispforest/endec/util/MapCarrier"
+            ],
+            "net/minecraft/world/level/storage/ValueInput": [
+                "io/wispforest/endec/util/MapCarrierDecodable"
+            ],
+            "net/minecraft/world/level/storage/ValueOutput": [
+                "io/wispforest/endec/util/MapCarrierEncodable"
+            ],
+            "net/minecraft/network/FriendlyByteBuf": [
+                "io/wispforest/endec/util/EndecBuffer"
+            ],
+            "net/minecraft/client/gui/components/AbstractWidget": [
+                "io/wispforest/owo/ui/inject/UIComponentStub"
+            ],
+            "net/minecraft/client/gui/components/EditBox": [
+                "io/wispforest/owo/ui/inject/GreedyInputUIComponent"
+            ],
+            "net/minecraft/world/inventory/AbstractContainerMenu": [
+                "io/wispforest/owo/client/screens/OwoAbstractContainerMenu"
+            ],
+            "net/minecraft/client/gui/GuiGraphicsExtractor": [
+                "io/wispforest/owo/ui/util/MatrixStackTransformer"
+            ],
+            "net/minecraft/core/component/DataComponentType$Builder": [
+                "io/wispforest/owo/serialization/OwoDataComponentTypeBuilder<TT;>"
+            ],
+            "net/minecraft/world/item/Item$Properties": [
+                "io/wispforest/owo/itemgroup/OwoItemSettingsExtension"
+            ],
+            "net/minecraft/world/item/Item": [
+                "io/wispforest/owo/ext/OwoItem"
+            ]
+        }
+    },
+    "jars": [
+        {
+            "file": "META-INF/jars/endec-0.1.12.jar"
+        },
+        {
+            "file": "META-INF/jars/gson-0.1.7.jar"
+        },
+        {
+            "file": "META-INF/jars/jankson-0.1.7.jar"
+        },
+        {
+            "file": "META-INF/jars/jankson-1.2.2.jar"
+        },
+        {
+            "file": "META-INF/jars/kdl4j-1.0.1.jar"
+        },
+        {
+            "file": "META-INF/jars/netty-0.1.6.jar"
+        }
+    ]
+}

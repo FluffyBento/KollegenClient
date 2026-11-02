@@ -217,7 +217,7 @@ public class NametagMixin {
             if (orientation == null) return;
             poseStack.pushPose();
             poseStack.translate(anchor.x, nameY, anchor.z);
-            poseStack.rotate(orientation);
+            poseStack.mulPose(orientation);
             poseStack.scale(0.025F, -0.025F, 0.025F);
             int s = 8;
             float x = -tw / 2f - s - 2;

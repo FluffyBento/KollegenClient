@@ -6,8 +6,8 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.entity.player.Input;
 import net.minecraft.world.phys.Vec2;
-import dev.kollegen.client.input.sdl.GLFW;
-import dev.kollegen.client.input.sdl.GLFW.GLFWGamepadState;
+import org.lwjgl.glfw.GLFW;
+import org.lwjgl.glfw.GLFWGamepadState;
 
 import java.util.ArrayList;
 import java.util.List;

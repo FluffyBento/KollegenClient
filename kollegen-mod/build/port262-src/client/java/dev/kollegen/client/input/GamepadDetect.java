@@ -6,8 +6,8 @@ import com.google.gson.JsonParser;
 import dev.kollegen.client.KollegenMod;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
-import dev.kollegen.client.input.sdl.GLFW;
-import dev.kollegen.client.input.sdl.GLFW.GLFWGamepadState;
+import org.lwjgl.glfw.GLFW;
+import org.lwjgl.glfw.GLFWGamepadState;
 
 import java.io.InputStream;
 import java.nio.ByteBuffer;

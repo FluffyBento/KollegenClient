@@ -1,7 +1,7 @@
 {
     "schemaVersion": 1,
     "id": "iris",
-    "version": "1.11.7+mc26.3",
+    "version": "1.11.4+mc26.2",
     "name": "Iris",
     "description": "A modern shaders mod for Minecraft intended to be compatible with existing OptiFine shader packs",
     "authors": [
@@ -53,7 +53,7 @@
         "optifabric": "*",
         "worldeditcui": "<1.18.1",
         "physicsmod": "<=3.0.13",
-        "distanthorizons": "<=3.2.0",
+        "distanthorizons": "<=2.1.99",
         "immersive_portals": "<=1.4.2"
     },
     "custom": {
@@ -70,13 +70,13 @@
             "com/mojang/blaze3d/pipeline/RenderTarget": [
                 "net/irisshaders/iris/mixinterface/RenderTargetInterface"
             ],
-            "com/mojang/renderpearl/api/textures/GpuTexture": [
+            "com/mojang/blaze3d/textures/GpuTexture": [
                 "net/irisshaders/iris/mixinterface/GpuTextureInterface"
             ],
-            "com/mojang/renderpearl/backend/api/RenderPassBackend": [
+            "com/mojang/blaze3d/systems/RenderPassBackend": [
                 "net/irisshaders/iris/mixinterface/RenderPassInterface"
             ],
-            "com/mojang/renderpearl/api/commands/RenderPass": [
+            "com/mojang/blaze3d/systems/RenderPass": [
                 "net/irisshaders/iris/mixinterface/RenderPassInterface"
             ],
             "net/minecraft/client/renderer/rendertype/RenderType": [
@@ -95,10 +95,10 @@
             "file": "META-INF/jars/antlr4-runtime-4.13.1.jar"
         },
         {
-            "file": "META-INF/jars/fabric-api-base-2.0.6+fcdff87f02.jar"
+            "file": "META-INF/jars/fabric-api-base-2.0.4+ece063239c.jar"
         },
         {
-            "file": "META-INF/jars/fabric-key-mapping-api-v1-2.0.8+3434d6d902.jar"
+            "file": "META-INF/jars/fabric-key-mapping-api-v1-2.0.5+e2bdee789c.jar"
         },
         {
             "file": "META-INF/jars/glsl-transformer-3.0.0-pre3.jar"

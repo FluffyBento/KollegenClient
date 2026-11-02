@@ -70,12 +70,12 @@ public abstract class ItemEntityRendererMixin {
                 float halfThick = (float) Math.max(aabb.getZsize() * 0.5, 0.015);
                 float yOff = halfThick + 0.005F;
                 poseStack.translate(0.0F, yOff, 0.0F);
-                poseStack.rotate(Axis.YP.rotationDegrees(yaw));
-                poseStack.rotate(Axis.XP.rotationDegrees(90.0F));
+                poseStack.mulPose(Axis.YP.rotationDegrees(yaw));
+                poseStack.mulPose(Axis.XP.rotationDegrees(90.0F));
             } else {
                 float yOff = (float) -aabb.minY + 0.005F;
                 poseStack.translate(0.0F, yOff, 0.0F);
-                poseStack.rotate(Axis.YP.rotationDegrees(yaw));
+                poseStack.mulPose(Axis.YP.rotationDegrees(yaw));
             }
         } else {
             float speed = ItemPhysics.getRotationSpeed();
@@ -83,14 +83,14 @@ public abstract class ItemEntityRendererMixin {
                 float tumble = (state.ageInTicks * 12.0F * speed) % 360.0F;
                 float yOff = (float) -aabb.minY * 0.5F + 0.08F;
                 poseStack.translate(0.0F, yOff, 0.0F);
-                poseStack.rotate(Axis.YP.rotationDegrees(yaw));
-                poseStack.rotate(Axis.XP.rotationDegrees(tumble));
+                poseStack.mulPose(Axis.YP.rotationDegrees(yaw));
+                poseStack.mulPose(Axis.XP.rotationDegrees(tumble));
             } else {
                 float yOff = (float) -aabb.minY + 0.02F;
                 poseStack.translate(0.0F, yOff, 0.0F);
-                poseStack.rotate(Axis.YP.rotationDegrees(yaw));
+                poseStack.mulPose(Axis.YP.rotationDegrees(yaw));
                 if (!isFullCube && ItemPhysics.shouldLieFlat()) {
-                    poseStack.rotate(Axis.XP.rotationDegrees(90.0F));
+                    poseStack.mulPose(Axis.XP.rotationDegrees(90.0F));
                 }
             }
         }

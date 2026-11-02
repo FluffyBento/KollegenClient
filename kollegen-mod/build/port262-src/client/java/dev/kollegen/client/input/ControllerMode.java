@@ -5,8 +5,8 @@ import dev.kollegen.client.KollegenMod;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.input.MouseButtonInfo;
-import dev.kollegen.client.input.sdl.GLFW;
-import dev.kollegen.client.input.sdl.GLFW.GLFWGamepadState;
+import org.lwjgl.glfw.GLFW;
+import org.lwjgl.glfw.GLFWGamepadState;
 import java.nio.ByteBuffer;
 
 import java.nio.file.Files;

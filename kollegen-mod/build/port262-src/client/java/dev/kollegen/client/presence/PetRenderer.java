@@ -424,7 +424,7 @@ public final class PetRenderer {
             if (this.entity != null) {
                 this.entity.setId(NEXT_FAKE_ID.getAndDecrement());
                 if (this.entity instanceof Mob mob) mob.setNoAi(true);
-                this.entity.setPermanentlyInvulnerable(true);
+                this.entity.setInvulnerable(true);
                 this.entity.setSilent(true);
                 this.entity.setNoGravity(true);
             }
@@ -434,7 +434,7 @@ public final class PetRenderer {
             if (entity == null) return;
 
             if (entity instanceof Mob mob) mob.setNoAi(true);
-            entity.setPermanentlyInvulnerable(true);
+            entity.setInvulnerable(true);
             entity.setSilent(true);
             entity.setNoGravity(true);
             try {
