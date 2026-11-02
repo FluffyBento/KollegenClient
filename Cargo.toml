@@ -1,6 +1,6 @@
 [package]
 name = "kollegen-client"
-version = "1.24.0"
+version = "1.25.5"
 description = "Kollegen Client | Minecraft-Client"
 authors = ["FluffyBento"]
 edition = "2021"
@@ -33,6 +33,7 @@ image = "0.25"
 tar = "0.4"
 sha1 = "0.10"
 sha2 = "0.10"
+rusqlite = { version = "0.32", features = ["bundled"] }
 base64 = "0.21"
 url = "2.5"
 async-trait = "0.1"

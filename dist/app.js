@@ -1885,6 +1885,17 @@ async function refreshLogs() {
     const wrap = canvas.parentElement;
     dropSkinFallback(wrap);
 
+    if (homeWorn && !homeWorn.isDisposed()) {
+      try {
+        const itemsH = await currentWornItems(false);
+        homeWorn.setItems(itemsH);
+        canvas.style.display = "";
+        return;
+      } catch (_) {
+        try { homeWorn.dispose(); } catch (_) {}
+        homeWorn = null;
+      }
+    }
     if (homeSkinViewer && !homeSkinViewer.disposed) {
       try {
         const p = homeSkinViewer.loadSkin(skinUrl);
@@ -1898,6 +1909,39 @@ async function refreshLogs() {
 
     if (homeWorn) { try { homeWorn.dispose(); } catch (_) {} homeWorn = null; }
     disposeHomeSkinViewer();
+
+    // 3D-Render (Cosmetic3D) wie im Cosmetics-Tab, mit Skin + Cape + Items
+    if (!homeLegacy && window.Cosmetic3D && window.Cosmetic3D.ready()) {
+      try {
+        const itemsH = await currentWornItems(false);
+        const keyH = url + "|" + (currentCapeUrl || "");
+        if (homeWorn && !homeWorn.isDisposed() && homeSkinKey === keyH) { try { homeWorn.setItems(itemsH); } catch (_) {} return; }
+        homeSkinKey = keyH;
+        const wrapH = canvas.parentElement;
+        const fbH = wrapH.querySelector("img.skin-fallback, .skin-fallback");
+        if (fbH) fbH.remove();
+        canvas.style.display = "";
+        homeWorn = window.Cosmetic3D.mountPlayer(canvas, {
+          skin: url,
+          cape: currentCapeUrl || null,
+          items: itemsH,
+          animate: true,
+          onSkinError: () => {
+            homeLegacy = true;
+            try { homeWorn && homeWorn.dispose(); } catch (_) {}
+            homeWorn = null;
+            homeSkinKey = "";
+            loadHomeSkin(true);
+          },
+        });
+        setSkinState("");
+        return;
+      } catch (e) {
+        console.error("Home-3D fehlgeschlagen:", e);
+        try { homeWorn && homeWorn.dispose(); } catch (_) {}
+        homeWorn = null;
+      }
+    }
 
     if (!sv3d || !sv3d.SkinViewer) {
       showSkinFallback(wrap, canvas, url);

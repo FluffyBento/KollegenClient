@@ -276,3 +276,14 @@ pub struct NewsEntry {
     pub date: String,
     pub url: String,
 }
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct SavedServer {
+    #[serde(default)]
+    pub name: String,
+    #[serde(default)]
+    pub ip: String,
+    #[serde(default)]
+    pub icon: Option<String>,
+}
+
