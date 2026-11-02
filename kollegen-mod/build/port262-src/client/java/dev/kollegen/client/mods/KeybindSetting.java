@@ -6,7 +6,7 @@ import dev.kollegen.client.ui.GlassButton;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
-import org.lwjgl.glfw.GLFW;
+import dev.kollegen.client.input.sdl.GLFW;
 
 
 public class KeybindSetting extends Setting {

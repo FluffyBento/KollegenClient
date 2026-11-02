@@ -1,7 +1,7 @@
 {
     "schemaVersion": 1,
     "id": "iris",
-    "version": "1.10.8+mc1.21.11",
+    "version": "1.11.7+mc26.3",
     "name": "Iris",
     "description": "A modern shaders mod for Minecraft intended to be compatible with existing OptiFine shader packs",
     "authors": [
@@ -29,7 +29,6 @@
     "mixins": [
         "mixins.iris.json",
         "mixins.iris.fabric.json",
-        "mixins.iris.fantastic.json",
         "mixins.iris.vertexformat.json",
         "mixins.iris.bettermipmaps.json",
         "mixins.iris.compat.sodium.json",
@@ -40,7 +39,7 @@
     "depends": {
         "fabricloader": ">=0.12.3",
         "sodium": [
-            "0.8.x"
+            "0.9.x"
         ]
     },
     "breaks": {
@@ -54,7 +53,7 @@
         "optifabric": "*",
         "worldeditcui": "<1.18.1",
         "physicsmod": "<=3.0.13",
-        "distanthorizons": "<=2.1.99",
+        "distanthorizons": "<=3.2.0",
         "immersive_portals": "<=1.4.2"
     },
     "custom": {
@@ -68,19 +67,22 @@
             ]
         },
         "loom:injected_interfaces": {
-            "net/minecraft/class_276": [
+            "com/mojang/blaze3d/pipeline/RenderTarget": [
                 "net/irisshaders/iris/mixinterface/RenderTargetInterface"
             ],
-            "com/mojang/blaze3d/textures/GpuTexture": [
+            "com/mojang/renderpearl/api/textures/GpuTexture": [
                 "net/irisshaders/iris/mixinterface/GpuTextureInterface"
             ],
-            "com/mojang/blaze3d/systems/RenderPass": [
+            "com/mojang/renderpearl/backend/api/RenderPassBackend": [
                 "net/irisshaders/iris/mixinterface/RenderPassInterface"
             ],
-            "net/minecraft/class_1921": [
+            "com/mojang/renderpearl/api/commands/RenderPass": [
+                "net/irisshaders/iris/mixinterface/RenderPassInterface"
+            ],
+            "net/minecraft/client/renderer/rendertype/RenderType": [
                 "net/irisshaders/iris/mixinterface/RenderTypeInterface"
             ],
-            "net/minecraft/class_759": [
+            "net/minecraft/client/renderer/ItemInHandRenderer": [
                 "net/irisshaders/iris/mixinterface/ItemInHandInterface"
             ]
         },
@@ -93,10 +95,10 @@
             "file": "META-INF/jars/antlr4-runtime-4.13.1.jar"
         },
         {
-            "file": "META-INF/jars/fabric-api-base-1.0.5+4ebb5c083e.jar"
+            "file": "META-INF/jars/fabric-api-base-2.0.6+fcdff87f02.jar"
         },
         {
-            "file": "META-INF/jars/fabric-key-binding-api-v1-1.1.7+4fc5413f3e.jar"
+            "file": "META-INF/jars/fabric-key-mapping-api-v1-2.0.8+3434d6d902.jar"
         },
         {
             "file": "META-INF/jars/glsl-transformer-3.0.0-pre3.jar"

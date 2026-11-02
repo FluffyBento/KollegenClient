@@ -95,7 +95,7 @@ public final class BlubPets {
             poseStack.pushPose();
             try {
                 poseStack.translate(pos.x - cam.x, pos.y - cam.y, pos.z - cam.z);
-                if (frot != null) poseStack.mulPose(frot);
+                if (frot != null) poseStack.rotate(frot);
                 poseStack.scale(fsx, fsy, fsz);
                 poseStack.scale(1.0F, -1.0F, 1.0F);
                 poseStack.translate(-model.cx, hiY, -model.cz);

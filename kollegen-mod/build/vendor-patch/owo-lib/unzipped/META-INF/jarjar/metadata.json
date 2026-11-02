@@ -1,0 +1,70 @@
+{
+  "jars": [
+    {
+      "identifier": {
+        "group": "io.wispforest",
+        "artifact": "endec"
+      },
+      "version": {
+        "range": "[0.1.8.1,)",
+        "artifactVersion": "0.1.8.1"
+      },
+      "path": "META-INF/jars/endec-0.1.8.1.jar"
+    },
+    {
+      "identifier": {
+        "group": "org.sinytra.forgified-fabric-api",
+        "artifact": "fabric-api-base"
+      },
+      "version": {
+        "range": "[0.4.42+d1308dedd1,)",
+        "artifactVersion": "0.4.42+d1308dedd1"
+      },
+      "path": "META-INF/jars/fabric-api-base-0.4.42+d1308dedd1.jar"
+    },
+    {
+      "identifier": {
+        "group": "io.wispforest.endec",
+        "artifact": "gson"
+      },
+      "version": {
+        "range": "[0.1.5.1,)",
+        "artifactVersion": "0.1.5.1"
+      },
+      "path": "META-INF/jars/gson-0.1.5.1.jar"
+    },
+    {
+      "identifier": {
+        "group": "io.wispforest.endec",
+        "artifact": "jankson"
+      },
+      "version": {
+        "range": "[0.1.5.1,)",
+        "artifactVersion": "0.1.5.1"
+      },
+      "path": "META-INF/jars/jankson-0.1.5.1.jar"
+    },
+    {
+      "identifier": {
+        "group": "blue.endless",
+        "artifact": "jankson"
+      },
+      "version": {
+        "range": "[1.2.2,)",
+        "artifactVersion": "1.2.2"
+      },
+      "path": "META-INF/jars/jankson-1.2.2.jar"
+    },
+    {
+      "identifier": {
+        "group": "io.wispforest.endec",
+        "artifact": "netty"
+      },
+      "version": {
+        "range": "[0.1.4.1,)",
+        "artifactVersion": "0.1.4.1"
+      },
+      "path": "META-INF/jars/netty-0.1.4.1.jar"
+    }
+  ]
+}

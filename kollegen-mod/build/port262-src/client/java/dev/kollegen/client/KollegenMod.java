@@ -9,7 +9,7 @@ import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
-import org.lwjgl.glfw.GLFW;
+import dev.kollegen.client.input.sdl.GLFW;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

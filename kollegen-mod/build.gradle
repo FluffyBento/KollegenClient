@@ -381,10 +381,31 @@ if (is262) {
         client {
             java {
                     srcDirs = ["${portDir}/client/java"]
+                }
+            if (project.minecraft_version.startsWith('26.2')) {
+                sourceSets.client.java {
                     exclude '**/DynamicGpuDataStorageMappedMixin.java'
                     exclude '**/DynamicGpuDataStorageNonMappedMixin.java'
                     exclude '**/FirstPersonHandsAndItemsRendererMixin.java'
+                    exclude '**/CameraMixin.java'
+                    exclude '**/CapeLayerMixin.java'
+                    exclude '**/EquipmentLayerRendererMixin.java'
+                    exclude '**/PostShaderMixin.java'
+                    exclude '**/SkyRendererMixin.java'
+                    exclude '**/ShieldSettings.java'
+                    exclude '**/CosmeticRenderLayer.java'
+                    exclude '**/WaveyCapeRenderer.java'
+                    exclude '**/PlayerCosmeticsMixin.java'
+                    exclude '**/ShieldLayerMixin.java'
+                    exclude '**/ShieldSpecialRendererMixin.java'
+                    exclude '**/ShieldStatusContext.java'
+                    exclude '**/Visual.java'
+                    exclude '**/FogRendererMixin.java'
+                    exclude '**/GameRendererMixin.java'
+                    exclude '**/MouseHandlerMixin.java'
+                    exclude '**/ParticleEngineMixin.java'
                 }
+            }
             }
         }
         tasks.named('compileJava') { dependsOn('portSources262') }

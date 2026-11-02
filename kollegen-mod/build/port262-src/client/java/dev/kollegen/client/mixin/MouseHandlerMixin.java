@@ -54,7 +54,7 @@ public class MouseHandlerMixin {
     }
 
     @Inject(method = "onMove", at = @At("HEAD"))
-    private void kollegen_client$cursor(long window, double x, double y, CallbackInfo ci) {
+    private void kollegen_client$cursor(long window, double x, double y, double xdelta, double ydelta, CallbackInfo ci) {
         kollegen$cursorRawX = x;
         kollegen$cursorRawY = y;
         Minecraft mc = Minecraft.getInstance();

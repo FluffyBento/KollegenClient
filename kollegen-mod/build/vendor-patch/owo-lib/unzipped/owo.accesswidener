@@ -1,18 +1,14 @@
-accessWidener	v2	intermediary
-accessible	method	net/minecraft/class_437	method_37063	(Lnet/minecraft/class_364;)Lnet/minecraft/class_364;
-extendable	method	net/minecraft/class_1761	<init>	(Lnet/minecraft/class_1761$class_7915;ILnet/minecraft/class_1761$class_7916;Lnet/minecraft/class_2561;Ljava/util/function/Supplier;Lnet/minecraft/class_1761$class_7914;)V
-transitive-accessible	class	net/minecraft/class_1761$class_7704
-transitive-accessible	class	net/minecraft/class_1761$class_7703
-transitive-accessible	class	net/minecraft/class_332$class_8214
-extendable	method	net/minecraft/class_332	method_71273	(Lnet/minecraft/class_327;Ljava/util/List;IILnet/minecraft/class_8000;Lnet/minecraft/class_2960;Z)V
-transitive-extendable	method	net/minecraft/class_4286	<init>	(IIILnet/minecraft/class_2561;Lnet/minecraft/class_327;ZLnet/minecraft/class_4286$class_8930;)V
-accessible	class	net/minecraft/class_11228$class_11230
-accessible	class	net/minecraft/class_374$class_375
-accessible	class	net/minecraft/class_6903$class_9683
-accessible	method	net/minecraft/class_7529	<init>	(Lnet/minecraft/class_327;IIIILnet/minecraft/class_2561;Lnet/minecraft/class_2561;IZIZZ)V
-extendable	method	net/minecraft/class_465	method_64241	(Lnet/minecraft/class_332;)V
-extendable	method	net/minecraft/class_465	method_64242	(Lnet/minecraft/class_332;)V
-extendable	method	net/minecraft/class_465	method_2382	(Lnet/minecraft/class_332;Lnet/minecraft/class_1799;IILjava/lang/String;)V
-accessible	class	net/minecraft/class_9323$class_9324$class_9325
-accessible	class	net/minecraft/class_3294$class_7082
-accessible	field	net/minecraft/class_3294$class_7082	comp_530	Lnet/minecraft/class_3262;
+accessWidener v2 named
+
+extendable method net/minecraft/item/ItemGroup <init> (Lnet/minecraft/item/ItemGroup$Row;ILnet/minecraft/item/ItemGroup$Type;Lnet/minecraft/text/Text;Ljava/util/function/Supplier;Lnet/minecraft/item/ItemGroup$EntryCollector;Lnet/minecraft/util/Identifier;ZILnet/minecraft/util/Identifier;IILjava/util/List;Ljava/util/List;)V
+transitive-accessible class net/minecraft/item/ItemGroup$Entries
+transitive-accessible class net/minecraft/item/ItemGroup$EntriesImpl
+
+transitive-accessible class net/minecraft/client/gui/DrawContext$ScissorStack
+transitive-extendable method net/minecraft/client/gui/widget/CheckboxWidget <init> (IIILnet/minecraft/text/Text;Lnet/minecraft/client/font/TextRenderer;ZLnet/minecraft/client/gui/widget/CheckboxWidget$Callback;)V
+
+accessible class net/minecraft/registry/RegistryOps$CachedRegistryInfoGetter
+
+accessible class net/minecraft/server/world/ServerChunkLoadingManager$EntityTracker
+
+accessible class net/minecraft/component/ComponentMap$Builder$SimpleComponentMap

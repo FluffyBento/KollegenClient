@@ -22,13 +22,13 @@
     ],
     "accessWidener": "beryl.accesswidener",
     "depends": {
-        "fabricloader": ">=0.14.14",
-        "minecraft": "1.21.11",
+        "fabricloader": ">=0.18.0",
+        "minecraft": ">=26.1",
         "vulkanmod": ">=0.6.7"
     },
     "jars": [
         {
-            "file": "META-INF/jars/fabric-key-binding-api-v1-1.1.7+4fc5413f3e.jar"
+            "file": "META-INF/jars/fabric-key-mapping-api-v1-2.0.4+e2bdee78b3.jar"
         }
     ],
     "custom": {

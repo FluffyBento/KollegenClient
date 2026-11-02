@@ -1,26 +1,38 @@
-#version 330 core
+#version 460 core
 
-#import <sodium:include/fog.glsl>
-#import <sodium:include/chunk_material.glsl>
+#include <sodium:globals.glsl>
+#include <sodium:fog.glsl>
+#include <sodium:chunk_material.glsl>
+#include <minecraft:oit.glsl>
 
-in vec4 v_Color; // The interpolated vertex color
-in vec2 v_TexCoord; // The interpolated block texture coordinates
-in vec2 v_FragDistance; // The fragment's distance from the camera (cylindrical and spherical)
-in float fadeFactor;
-
-flat in uint v_Material;
+layout(location = 0) in vec4 v_Color; // The interpolated vertex color
+layout(location = 1) in vec2 v_TexCoord; // The interpolated block texture coordinates
+layout(location = 2) in vec2 v_FragDistance; // The fragment's distance from the camera (cylindrical and spherical)
+layout(location = 3) in float fadeFactor;
 
 uniform sampler2D u_BlockTex; // The block texture
 
-uniform vec4 u_FogColor; // The color of the shader fog
-uniform vec2 u_EnvironmentFog; // The start and end position for environmental fog
-uniform vec2 u_RenderFog; // The start and end position for border fog
-uniform vec2 u_TexelSize;
-uniform bool u_UseRGSS;
+#ifndef OIT_ALPHA_ONLY
+layout(location = 0) out vec4 fragColor; // The output fragment for the color framebuffer
+#endif
 
-out vec4 fragColor; // The output fragment for the color framebuffer
+vec4 calculateFinalColor(vec4 color) {
+    #ifdef OIT_ACCUMULATE
+        color = sampleColorForAccumulation(color);
+        vec4 fogColor = vec4(u_FogColor.rgb * color.a, u_FogColor.a);
+    #else
+        vec4 fogColor = u_FogColor;
+    #endif
 
-vec4 sampleNearest(sampler2D sampler, vec2 uv, vec2 pixelSize, vec2 du, vec2 dv, vec2 texelScreenSize) {
+    #ifdef OIT_ALPHA_ONLY
+    float factor = 1.0;
+    #else
+    float factor = fadeFactor;
+    #endif
+
+    return _linearFog(color, v_FragDistance, fogColor, u_EnvironmentFog, u_RenderFog, factor);
+}
+vec4 sampleNearest(sampler2D source, vec2 uv, vec2 pixelSize, vec2 du, vec2 dv, vec2 texelScreenSize) {
     // Convert our UV back up to texel coordinates and find out how far over we are from the center of each pixel
     vec2 uvTexelCoords = uv / pixelSize;
     vec2 texelCenter = round(uvTexelCoords) - 0.5f;
@@ -31,7 +43,7 @@ vec4 sampleNearest(sampler2D sampler, vec2 uv, vec2 pixelSize, vec2 du, vec2 dv,
     texelOffset = clamp(texelOffset, 0.0f, 1.0f);
 
     uv = (texelCenter + texelOffset) * pixelSize;
-    return textureGrad(sampler, uv, du, dv);
+    return textureGrad(source, uv, du, dv);
 }
 
 vec4 sampleNearest(sampler2D source, vec2 uv, vec2 pixelSize) {
@@ -87,11 +99,15 @@ void main() {
     vec4 color = u_UseRGSS ? sampleRGSS(u_BlockTex, v_TexCoord, u_TexelSize) : sampleNearest(u_BlockTex, v_TexCoord, u_TexelSize);
     color *= v_Color; // Apply per-vertex color modulator
 
-#ifdef USE_FRAGMENT_DISCARD
-    if (color.a < _material_alpha_cutoff(v_Material)) {
+#ifdef ALPHA_CUTOUT
+    if (color.a < ALPHA_CUTOUT) {
         discard;
     }
 #endif
 
-    fragColor = _linearFog(color, v_FragDistance, u_FogColor, u_EnvironmentFog, u_RenderFog, fadeFactor);
+    #ifdef OIT_ALPHA_ONLY
+    executeAlphaOnlyPhase(gl_FragCoord.z, color.a);
+    #else
+    fragColor = calculateFinalColor(color);
+    #endif
 }

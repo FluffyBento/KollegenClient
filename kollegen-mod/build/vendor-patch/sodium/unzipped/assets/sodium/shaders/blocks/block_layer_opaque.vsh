@@ -1,30 +1,35 @@
-#version 330 core
+#version 330
+#extension GL_ARB_separate_shader_objects : require
 
-#import <sodium:include/fog.glsl>
-#import <sodium:include/chunk_vertex.glsl>
-#import <sodium:include/chunk_matrices.glsl>
+#include <sodium:globals.glsl>
+#include <sodium:fog.glsl>
+#include <sodium:chunk_vertex.glsl>
 
-out vec4 v_Color;
-out vec2 v_TexCoord;
-
-flat out uint v_Material;
+layout(location = 0) out vec4 v_Color;
+layout(location = 1) out vec2 v_TexCoord;
 
 #ifdef USE_FOG
-out vec2 v_FragDistance;
-out float fadeFactor;
+layout(location = 2) out vec2 v_FragDistance;
+layout(location = 3) out float fadeFactor;
 #endif
 
-uniform vec3 u_RegionOffset;
-uniform vec2 u_TexCoordShrink;
+uniform isamplerBuffer u_SectionTimeInfo;
 
-uniform sampler2D u_LightTex; // The light map texture sampler
-
-uniform int u_CurrentTime;
-uniform float u_FadePeriodInv;
-
-layout(std140) uniform ChunkData {
-    ivec4 u_chunkFades[64]; // Packing into ivec4 is needed to avoid wasting 3KB...
+#ifdef VULKAN
+layout(push_constant) uniform PC {
+    vec3 u_RegionOffset;
+    int u_CurrentTime;
+    uint u_RegionID;
 };
+#else
+uniform vec3 u_RegionOffset;
+uniform int u_CurrentTime;
+uniform uint u_RegionID;
+#endif
+
+#ifndef OIT_ALPHA_ONLY
+uniform sampler2D u_LightTex; // The light map texture sampler
+#endif
 
 uvec3 _get_relative_chunk_coord(uint pos) {
     // Packing scheme is defined by LocalSectionIndex
@@ -46,7 +51,7 @@ void main() {
     v_FragDistance = getFragDistance(position);
 
     int chunkId = int(_draw_id);
-    int chunkFade = u_chunkFades[chunkId >> 2][chunkId & 3];
+    int chunkFade = texelFetch(u_SectionTimeInfo, int((u_RegionID * 256u) + uint(chunkId))).r;
     int fadeTime = u_CurrentTime - chunkFade;
     float elapsed = float(fadeTime);
     float fade = clamp(float(u_CurrentTime - chunkFade) * u_FadePeriodInv, 0.0, 1.0);
@@ -57,8 +62,11 @@ void main() {
     gl_Position = u_ProjectionMatrix * u_ModelViewMatrix * vec4(position, 1.0);
 
     // Add the light color to the vertex color, and pass the texture coordinates to the fragment shader
+#ifndef OIT_ALPHA_ONLY
     v_Color = _vert_color * texture(u_LightTex, _vert_tex_light_coord);
-    v_TexCoord = (_vert_tex_diffuse_coord_bias * u_TexCoordShrink) + _vert_tex_diffuse_coord; // FMA for precision
+#else
+    v_Color = _vert_color;
+#endif
 
-    v_Material = _material_params;
+    v_TexCoord = (_vert_tex_diffuse_coord_bias * u_TexCoordShrink) + _vert_tex_diffuse_coord; // FMA for precision
 }

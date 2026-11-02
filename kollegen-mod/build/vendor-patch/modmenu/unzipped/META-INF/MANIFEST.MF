@@ -1,13 +1,11 @@
 Manifest-Version: 1.0
-Fabric-Jar-Type: classes
-Fabric-Loom-Mixin-Remap-Type: static
-Fabric-Gradle-Version: 8.14.3
-Fabric-Loom-Version: 1.13.6
+Fabric-Mapping-Namespace: official
+Fabric-Gradle-Version: 9.7.1
+Fabric-Loom-Version: 1.17.21
 Fabric-Mixin-Compile-Extensions-Version: 0.6.0
-Fabric-Minecraft-Version: 1.21.11
-Fabric-Tiny-Remapper-Version: 0.12.0
-Fabric-Loader-Version: 0.18.3
-Fabric-Mixin-Version: 0.16.5+mixin.0.8.7
+Fabric-Minecraft-Version: 26.3
+Fabric-Tiny-Remapper-Version: 0.14.0
+Fabric-Loader-Version: 0.19.5
+Fabric-Mixin-Version: 0.17.4+mixin.0.8.7
 Fabric-Mixin-Group: net.fabricmc
-Fabric-Mapping-Namespace: intermediary
 

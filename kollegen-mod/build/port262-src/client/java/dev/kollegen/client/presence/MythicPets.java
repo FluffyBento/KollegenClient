@@ -438,7 +438,7 @@ public final class MythicPets {
             poseStack.pushPose();
             try {
                 poseStack.translate(st.rx - cam.x, st.ry - cam.y, st.rz - cam.z);
-                poseStack.mulPose(Axis.YP.rotationDegrees(180.0F - st.ryaw));
+                poseStack.rotate(Axis.YP.rotationDegrees(180.0F - st.ryaw));
                 poseStack.scale((float) scale, (float) scale, (float) scale);
                 poseStack.scale(-1.0F, -1.0F, 1.0F);
                 poseStack.translate(0.0F, -1.5F, 0.0F);
@@ -505,7 +505,7 @@ public final class MythicPets {
                 }
             }
             poseStack.translate(bone.px + p[0] / 16.0F, bone.py + p[1] / 16.0F, bone.pz + p[2] / 16.0F);
-            poseStack.mulPose(new Quaternionf().rotationZYX(
+            poseStack.rotate(new Quaternionf().rotationZYX(
                     (float) Math.toRadians(bone.rz + r[2]),
                     (float) Math.toRadians(bone.ry + r[1]),
                     (float) Math.toRadians(bone.rx + r[0])));

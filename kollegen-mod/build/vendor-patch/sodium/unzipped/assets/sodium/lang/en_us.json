@@ -12,8 +12,12 @@
   "sodium.options.simulation_distance.tooltip": "The simulation distance controls how far away terrain and entities will be loaded and ticked. Shorter distances can reduce the internal server's load and may improve frame rates.",
   "sodium.options.brightness.tooltip": "Controls the minimum brightness in the world. When increased, darker areas of the world will appear brighter. This does not affect the brightness of already well-lit areas.",
   "sodium.options.gui_scale.tooltip": "Sets the maximum scale factor to be used for the user interface. If \"auto\" is used, then the largest scale factor will always be used.",
-  "sodium.options.fullscreen.tooltip": "If enabled, the game will display in full-screen (if supported).",
-  "sodium.options.fullscreen_resolution.tooltip": "The monitor resolution and refresh rate to be used when in fullscreen mode. Changing this option may interfere with other applications and cause a delay when switching between applications.\n\nThis is only supported on the Windows or macOS operating systems.",
+  "sodium.options.fullscreen_mode.name" : "Fullscreen Mode",
+  "sodium.options.fullscreen_mode.off" : "Off",
+  "sodium.options.fullscreen_mode.exclusive" : "Exclusive",
+  "sodium.options.fullscreen_mode.borderless" : "Borderless",
+  "sodium.options.fullscreen_mode.tooltip" : "Exclusive fullscreen can improve latency, but may prevent some input methods from working and slow down switching out of the game. Borderless fullscreen can cause significant performance degradation.",
+  "sodium.options.fullscreen_resolution.tooltip": "The monitor resolution and refresh rate to be used when in fullscreen mode. Changing this option may interfere with other applications and cause a delay when switching between applications.",
   "sodium.options.v_sync.tooltip": "If enabled, the game's frame rate will be synchronized to the monitor's refresh rate, making for a generally smoother experience at the expense of overall input latency. This setting might reduce performance if your system is too slow.",
   "sodium.options.fps_limit.tooltip": "Limits the maximum number of frames per second. This can help reduce battery usage and system load when multi-tasking. If VSync is enabled, this option will be ignored unless it is lower than your display's refresh rate.",
   "sodium.options.attack_indicator.tooltip": "Controls where the Attack Indicator is displayed on screen.",
@@ -51,7 +55,7 @@
   "sodium.options.cpu_render_ahead_limit.value": "%s frame(s)",
   "sodium.options.performance_impact_string": "Performance Impact: %s",
   "sodium.options.use_persistent_mapping.name": "Use Persistent Mapping",
-  "sodium.options.use_persistent_mapping.tooltip": "For debugging only. If enabled, persistent memory mappings will be used for the staging buffer so that unnecessary memory copies can be avoided. Disabling this can be useful for narrowing down the cause of graphical corruption.\n\nRequires OpenGL 4.4 or ARB_buffer_storage.",
+  "sodium.options.use_persistent_mapping.tooltip": "This is now always on if supported.",
   "sodium.options.chunk_update_threads.name": "Chunk Update Threads",
   "sodium.options.chunk_update_threads.value": "%s Threads",
   "sodium.options.default": "Default",
@@ -99,5 +103,5 @@
   "sodium.console.corrupt_config.message.body": "A problem occurred while trying to load the configuration file. This\ncan happen when the file has been corrupted on disk, or when trying\nto manually edit the file by hand.\n\nIf you continue, the configuration file will be reset back to known-good\ndefaults, and you will lose any changes that have since been made to your\nVideo Settings.\n\nMore information about the error can be found in the log file.",
   "sodium.options.search": "Search",
   "sodium.options.search.hint": "Search...",
-  "sodium.options.open_external_page_button": "Open"
+  "sodium.options.open_external_page_button" : "Open"
 }

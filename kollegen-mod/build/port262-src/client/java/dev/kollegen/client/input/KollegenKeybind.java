@@ -1,7 +1,7 @@
 package dev.kollegen.client.input;
 
 import net.minecraft.client.Minecraft;
-import org.lwjgl.glfw.GLFW;
+import dev.kollegen.client.input.sdl.GLFW;
 
 
 public final class KollegenKeybind {
