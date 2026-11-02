@@ -1,0 +1,873 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+use log::{info, warn};
+use std::io::Write;
+use std::path::{Path, PathBuf};
+use std::time::Duration;
+
+
+pub const COMPANION_MOD_FILENAME: &str = "kollegen-client-mod.jar";
+pub const COMPANION_MOD_PREFIX: &str = "kollegen-client";
+pub const COMPANION_MOD_FILENAME_1_21: &str = "kollegen-client-mod-1.21.11.jar";
+pub const COMPANION_MOD_FILENAME_26_2: &str = "kollegen-client-mod-26.2.jar";
+pub const COMPANION_MOD_FILENAME_26_3: &str = "kollegen-client-mod-26.3.jar";
+pub const COMPANION_MOD_VERSION: &str = "1.21.89";
+
+pub fn companion_target_versions() -> &'static [&'static str] {
+    &["1.21.11", "26.2", "26.3"]
+}
+
+pub fn is_version_supported(version: &str) -> bool {
+    companion_target_versions().iter().any(|&v| version_compatible(version, v))
+}
+
+fn version_compatible(instance_version: &str, target_version: &str) -> bool {
+    if instance_version == target_version {
+        return true;
+    }
+    if target_version == "1.21.11" && instance_version.starts_with("1.21.") {
+        return true;
+    }
+    if target_version == "26.3" && instance_version.starts_with("26.3") {
+        return true;
+    }
+    if target_version == "26.2" && (instance_version.starts_with("26.2") || (instance_version.starts_with("26.") && !instance_version.starts_with("26.3"))) {
+        return true;
+    }
+    false
+}
+
+pub fn companion_filename_for_version(version: &str) -> &'static str {
+    if version.starts_with("1.21.") {
+        COMPANION_MOD_FILENAME_1_21
+    } else if version.starts_with("26.3") {
+        COMPANION_MOD_FILENAME_26_3
+    } else if version.starts_with("26.") {
+        COMPANION_MOD_FILENAME_26_2
+    } else {
+        COMPANION_MOD_FILENAME
+    }
+}
+
+pub fn is_companion_mod_name(filename: &str) -> bool {
+    let lc = filename.to_ascii_lowercase();
+    lc == COMPANION_MOD_FILENAME
+        || lc == COMPANION_MOD_FILENAME_1_21
+        || lc == COMPANION_MOD_FILENAME_26_2
+        || lc == COMPANION_MOD_FILENAME_26_3
+        || (lc.starts_with(COMPANION_MOD_PREFIX) && lc.ends_with(".jar"))
+}
+
+
+
+fn is_valid_jar(p: &Path) -> bool {
+    match std::fs::metadata(p) {
+        Ok(m) if m.len() > 0 => match std::fs::read(p) {
+            Ok(b) => b.len() >= 4 && b.starts_with(b"PK"),
+            Err(_) => false,
+        },
+        _ => false,
+    }
+}
+
+fn cache_dir(data_dir: &Path) -> PathBuf {
+    data_dir.join("companion")
+}
+
+fn fetch_latest_mod_version(version: &str) -> Option<String> {
+    let filename = companion_filename_for_version(version);
+    let url = format!(
+        "https://api.github.com/repos/FluffyBento/KollegenClient/releases/latest"
+    );
+    let client = match reqwest::blocking::Client::builder()
+        .user_agent(crate::USER_AGENT)
+        .timeout(Duration::from_secs(10))
+        .build()
+    {
+        Ok(c) => c,
+        Err(_) => return None,
+    };
+    let resp = client.get(&url).send().ok()?;
+    if !resp.status().is_success() {
+        return None;
+    }
+    let json: serde_json::Value = resp.json().ok()?;
+    let assets = json.get("assets")?.as_array()?;
+    for asset in assets {
+        if asset.get("name")?.as_str()? == filename {
+            return asset.get("updated_at")?.as_str().map(String::from);
+        }
+    }
+    None
+}
+
+fn get_cached_mod_timestamp(path: &Path) -> Option<String> {
+    std::fs::metadata(path).ok()?.modified().ok().and_then(|t| {
+        let dt: chrono::DateTime<chrono::Utc> = t.into();
+        Some(dt.to_rfc3339())
+    })
+}
+
+fn should_update_mod(data_dir: &Path, version: &str) -> bool {
+    let filename = companion_filename_for_version(version);
+    let cached = cache_dir(data_dir).join(filename);
+    if !cached.exists() {
+        return true;
+    }
+    let Some(latest_ts) = fetch_latest_mod_version(version) else {
+        return false;
+    };
+    let Some(cached_ts) = get_cached_mod_timestamp(&cached) else {
+        return false;
+    };
+    latest_ts > cached_ts
+}
+
+
+fn jar_fabric_version(p: &Path) -> Option<String> {
+    use std::io::Read;
+    let file = std::fs::File::open(p).ok()?;
+    let mut archive = zip::ZipArchive::new(file).ok()?;
+    let mut fmj = String::new();
+    archive
+        .by_name("fabric.mod.json")
+        .ok()?
+        .read_to_string(&mut fmj)
+        .ok()?;
+    let value: serde_json::Value = serde_json::from_str(&fmj).ok()?;
+    value.get("version")?.as_str().map(str::to_string)
+}
+
+
+
+
+
+fn version_at_least(a: &str, b: &str) -> bool {
+    let parse = |v: &str| -> Vec<(u64, bool)> {
+        v.split(['.', '-', '+'])
+            .map(|s| (s.parse::<u64>().unwrap_or(0), s.chars().all(|c| c.is_ascii_digit())))
+            .collect()
+    };
+    let (va, vb) = (parse(a), parse(b));
+    for i in 0..vb.len().max(va.len()) {
+        let (sa, sb) = (va.get(i), vb.get(i));
+        match (sa, sb) {
+            (Some(x), Some(y)) => match x.cmp(y) {
+                std::cmp::Ordering::Greater => return true,
+                std::cmp::Ordering::Less => return false,
+                std::cmp::Ordering::Equal => {}
+            },
+            
+            
+            (Some(x), None) => return x.0 > 0 && x.1,
+            (None, Some(y)) => return !(y.0 > 0 && y.1),
+            (None, None) => break,
+        }
+    }
+    true
+}
+
+fn try_download(data_dir: &Path, version: &str) -> Option<PathBuf> {
+    let filename = companion_filename_for_version(version);
+    let dest = cache_dir(data_dir).join(filename);
+    if companion_candidate_ok(&dest, version) && !should_update_mod(data_dir, version) {
+        return Some(dest);
+    }
+    let _ = std::fs::create_dir_all(cache_dir(data_dir));
+    let url = format!(
+        "https://github.com/FluffyBento/KollegenClient/releases/latest/download/{}",
+        filename
+    );
+    info!(
+        "Lade Kollegen Client Mod ({}) von GitHub Releases herunter…",
+        filename
+    );
+    let tmp = cache_dir(data_dir).join(format!("{}.tmp", filename));
+    match crate::utils::download_file(&url, &tmp) {
+        Ok(()) if companion_candidate_ok(&tmp, version) => {
+            let _ = std::fs::rename(&tmp, &dest);
+            Some(dest)
+        }
+        _ => {
+            let _ = std::fs::remove_file(&tmp);
+            let legacy = cache_dir(data_dir).join(COMPANION_MOD_FILENAME);
+            if companion_candidate_ok(&legacy, version) && !should_update_mod(data_dir, version) {
+                warn!(
+                    "Nutze legacy Companion-Cache ({}).",
+                    COMPANION_MOD_FILENAME
+                );
+                return Some(legacy);
+            }
+            warn!("Kollegen Mod-Download fehlgeschlagen.");
+            None
+        }
+    }
+}
+
+
+
+
+fn refresh_cache(data_dir: &Path, version: &str) -> Option<PathBuf> {
+    let dir = cache_dir(data_dir);
+    let _ = std::fs::create_dir_all(&dir);
+    let filename = companion_filename_for_version(version);
+    let dest = dir.join(filename);
+    let tmp = dir.join(format!("{}.tmp", filename));
+    let url = format!(
+        "https://github.com/FluffyBento/KollegenClient/releases/latest/download/{}",
+        filename
+    );
+    match crate::utils::download_file(&url, &tmp) {
+        Ok(()) if companion_candidate_ok(&tmp, version) => {
+
+
+
+            let keep_cached = companion_candidate_ok(&dest, version)
+                .then(|| {
+                    match (
+                        jar_fabric_version(&dest).as_deref(),
+                        jar_fabric_version(&tmp).as_deref(),
+                    ) {
+                        (Some(cur), Some(new)) => version_at_least(cur, new),
+
+                        _ => false,
+                    }
+                })
+                .unwrap_or(false);
+            if keep_cached && !should_update_mod(data_dir, version) {
+                let _ = std::fs::remove_file(&tmp);
+            } else {
+                let _ = std::fs::rename(&tmp, &dest);
+            }
+            Some(dest)
+        }
+        _ => {
+            let _ = std::fs::remove_file(&tmp);
+            warn!("Kollegen-Mod-Update fehlgeschlagen – bestehende Version wird genutzt.");
+            None
+        }
+    }
+}
+
+
+
+fn jar_mc_constraint(p: &Path) -> Option<String> {
+    let file = std::fs::File::open(p).ok()?;
+    let mut archive = zip::ZipArchive::new(file).ok()?;
+    let mut entry = archive.by_name("fabric.mod.json").ok()?;
+    let mut text = String::new();
+    use std::io::Read;
+    entry.read_to_string(&mut text).ok()?;
+    let v: serde_json::Value = serde_json::from_str(&text).ok()?;
+    v.get("depends")?.get("minecraft")?.as_str().map(|s| s.to_string())
+}
+
+pub(crate) fn jar_has_fabric_mod_json(p: &Path) -> bool {
+    let file = match std::fs::File::open(p) {
+        Ok(f) => f,
+        Err(_) => return false,
+    };
+    let mut archive = match zip::ZipArchive::new(file) {
+        Ok(a) => a,
+        Err(_) => return false,
+    };
+    let ok = archive.by_name("fabric.mod.json").is_ok();
+    ok
+}
+
+fn mc_constraint_supports(constraint: &str, version: &str) -> bool {
+    let c = constraint.trim();
+    if c == "*" {
+        return true;
+    }
+    if version.starts_with("1.21.") {
+        return c.contains("1.21");
+    }
+    if version == "26.3" || version.starts_with("26.3") {
+        if c.contains("<26.3") || c.contains("<=26.2") || c.contains("26.2.x") || c.contains("~26.2") {
+            return false;
+        }
+        if c.contains("26.3") {
+            return true;
+        }
+        if c.contains(">=26") {
+            return true;
+        }
+        return false;
+    }
+    if version == "26.2" || version.starts_with("26.2") {
+        if c.contains("26.2") {
+            return true;
+        }
+        if c.contains("<26.2") || c.contains("<=26.1") || c.contains("26.1.x") || c.contains("~26.1") || c.contains(">=26.3") {
+            return false;
+        }
+        if c.contains(">=26") {
+            return true;
+        }
+        return false;
+    }
+    c.contains(version)
+}
+
+pub(crate) fn jar_supports_mc(p: &Path, version: &str) -> bool {
+    let constraint = match jar_mc_constraint(p) {
+        Some(c) => c,
+        None => return true,
+    };
+    mc_constraint_supports(&constraint, version)
+}
+
+/// Liest die MC-Version einer eingebetteten Bundle-Payload (.bin ist selbst ein Jar).
+fn bin_mc_constraint(jar: &Path, bin_path: &str) -> Option<String> {
+    use std::io::Read;
+    let file = std::fs::File::open(jar).ok()?;
+    let mut archive = zip::ZipArchive::new(file).ok()?;
+    let mut entry = archive.by_name(bin_path).ok()?;
+    let mut bytes = Vec::new();
+    entry.read_to_end(&mut bytes).ok()?;
+    let cursor = std::io::Cursor::new(bytes);
+    let mut inner = zip::ZipArchive::new(cursor).ok()?;
+    let mut fmj = String::new();
+    inner
+        .by_name("fabric.mod.json")
+        .ok()?
+        .read_to_string(&mut fmj)
+        .ok()?;
+    let v: serde_json::Value = serde_json::from_str(&fmj).ok()?;
+    v.get("depends")?
+        .get("minecraft")?
+        .as_str()
+        .map(str::to_string)
+}
+
+/// Erkennt Companion-Jars, deren Code nie durch Loom geremapped wurde
+/// (Mojang-Namen im Klartext statt Intermediary-`class_`-Namen).
+/// Solche Jars crashen zur Laufzeit garantiert mit NoClassDefFoundError –
+/// sie dürfen weder deployed noch als Quelle verwendet werden.
+/// Gibt nur bei positivem Befund `true` zurück (Mod-Code mit Mojang-Refs
+/// aber ohne einzige Intermediary-Ref); unbekannte Inhalte gelten als OK.
+fn jar_code_is_unmapped(jar: &Path) -> bool {
+    use std::io::Read;
+    let file = match std::fs::File::open(jar) {
+        Ok(f) => f,
+        Err(_) => return false,
+    };
+    let mut archive = match zip::ZipArchive::new(file) {
+        Ok(a) => a,
+        Err(_) => return false,
+    };
+    const NEEDLE: &[u8] = b"net/minecraft/";
+    let mut mapped = 0u32;
+    let mut unmapped = 0u32;
+    let mut checked = 0u32;
+    for i in 0..archive.len() {
+        let bytes = match archive.by_index(i) {
+            Ok(mut entry) => {
+                let name = entry.name().to_string();
+                if !name.starts_with("dev/kollegen/") || !name.ends_with(".class") {
+                    continue;
+                }
+                let mut bytes = Vec::new();
+                if entry.read_to_end(&mut bytes).is_err() {
+                    continue;
+                }
+                bytes
+            }
+            Err(_) => continue,
+        };
+        for (idx, w) in bytes.windows(NEEDLE.len()).enumerate() {
+            if w == NEEDLE {
+                if bytes[idx + NEEDLE.len()..].starts_with(b"class_") {
+                    mapped += 1;
+                    if mapped > 0 {
+                        return false;
+                    }
+                } else {
+                    unmapped += 1;
+                }
+            }
+        }
+        checked += 1;
+        if checked >= 40 {
+            break;
+        }
+    }
+    unmapped > 0 && mapped == 0
+}
+
+/// Laufzeit-Namensschema: Seit MC 26 liefert Mojang unobfuskierte Jars
+/// (keine client_mappings, kein Yarn, Klarnamen im Jar, Loader meldet
+/// "Mappings not present!"). Dort ist ungemappter Mojang-Code KORREKT.
+/// Ältere Versionen (1.21.x) laufen unter Intermediary-Namen und brauchen
+/// Loom-geremappte Jars – ungemappte crashen dort garantiert.
+fn mc_runtime_uses_mojang_names(version: &str) -> bool {
+    version.starts_with("26.")
+}
+
+/// Vollvalidierung eines Companion-Kandidaten für eine MC-Version:
+/// gültiges Jar + MC-Constraint + .bin-Payloads + (wo nötig) Remapping.
+fn companion_candidate_ok(p: &Path, version: &str) -> bool {
+    let name = p.file_name().and_then(|n| n.to_str()).unwrap_or("").to_lowercase();
+    let expected = companion_filename_for_version(version);
+    if name.starts_with("kollegen-client-mod-") && name != expected {
+        return false;
+    }
+    is_valid_jar(p)
+        && jar_supports_mc(p, version)
+        && companion_bins_support_mc(p, version)
+        && (mc_runtime_uses_mojang_names(version) || !jar_code_is_unmapped(p))
+        && jar_mod_version_matches(p)
+}
+
+/// Prüft, ob die Mod-Version im Jar zur erwarteten Mod-Version passt
+fn jar_mod_version_matches(p: &Path) -> bool {
+    use zip::ZipArchive;
+    use std::fs::File;
+    use std::io::Read;
+    
+    let file = match File::open(p) {
+        Ok(f) => f,
+        Err(_) => return false,
+    };
+    let mut archive = match ZipArchive::new(file) {
+        Ok(a) => a,
+        Err(_) => return false,
+    };
+    
+    let mut fmj = match archive.by_name("fabric.mod.json") {
+        Ok(f) => f,
+        Err(_) => return false,
+    };
+    let mut json_str = String::new();
+    if fmj.read_to_string(&mut json_str).is_err() {
+        return false;
+    }
+    
+    let json: serde_json::Value = match serde_json::from_str(&json_str) {
+        Ok(v) => v,
+        Err(_) => return false,
+    };
+    
+    let mod_version = json.get("version").and_then(|v| v.as_str()).unwrap_or("");
+    mod_version == COMPANION_MOD_VERSION
+}
+
+/// Prüft zusätzlich die eingebetteten Bundle-Payloads: Ein Jar mit umgeschriebener
+/// fabric.mod.json (relaxed) fällt durch reine Metadaten-Checks – die .bins
+/// verraten die wahre MC-Version. Fehlende/ungültige Bins gelten als OK (lenient).
+pub(crate) fn companion_bins_support_mc(jar: &Path, version: &str) -> bool {
+    for bin in [
+        "dev/kollegen/client/chatheads.bin",
+        "dev/kollegen/client/silk.bin",
+    ] {
+        if let Some(c) = bin_mc_constraint(jar, bin) {
+            if !mc_constraint_supports(&c, version) {
+                return false;
+            }
+        }
+    }
+    true
+}
+
+pub fn companion_jar(data_dir: &Path, version: &str) -> Option<PathBuf> {
+    let filename = companion_filename_for_version(version);
+    
+    // Cache deaktiviert: immer aus resources/ neu kopieren, damit Updates ankommen.
+    let _ = cache_dir(data_dir);
+
+    
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(dir) = exe.parent() {
+            // Skip embedded resources in debug builds - they contain old mod versions
+            let is_debug = cfg!(debug_assertions);
+            if !is_debug {
+                // Ressourcen liegen je nach Paketformat woanders (alle OS abgedeckt):
+                // Windows NSIS / AppImage / Flatpak: neben der Binary (resources/),
+                // macOS .app-Bundle: Contents/Resources,
+                // Linux deb/rpm: /usr/lib/<Produkt>/resources.
+                for cand in [
+                    dir.join("resources").join(filename),
+                    dir.join(filename),
+                    dir.join("../Resources").join(filename),
+                    dir.join("../lib/Kollegen Client/resources").join(filename),
+                    dir.join("../lib/kollegen-client/resources").join(filename),
+                ] {
+                    if companion_candidate_ok(&cand, version) {
+                        return Some(cand);
+                    }
+                }
+                for cand in [
+                    dir.join("resources").join(COMPANION_MOD_FILENAME),
+                    dir.join(COMPANION_MOD_FILENAME),
+                    dir.join("../Resources").join(COMPANION_MOD_FILENAME),
+                    dir.join("../lib/Kollegen Client/resources").join(COMPANION_MOD_FILENAME),
+                    dir.join("../lib/kollegen-client/resources").join(COMPANION_MOD_FILENAME),
+                ] {
+                    if companion_candidate_ok(&cand, version) {
+                        return Some(cand);
+                    }
+                }
+            }
+        }
+    }
+
+    
+    let manifest = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let libs = manifest.join("kollegen-mod").join("build").join("libs");
+    if let Ok(entries) = std::fs::read_dir(&libs) {
+        let mut candidates: Vec<PathBuf> = entries
+            .flatten()
+            .map(|e| e.path())
+            .filter(|p| p.extension().and_then(|x| x.to_str()) == Some("jar"))
+            .collect();
+        
+        candidates.sort_by_key(|p| {
+            p.file_name()
+                .and_then(|n| n.to_str())
+                .map(|n| if n == filename { 0 } else if n == COMPANION_MOD_FILENAME { 1 } else { 2 })
+                .unwrap_or(3)
+        });
+        if let Some(p) = candidates
+            .into_iter()
+            .find(|p| {
+                p.file_name()
+                    .and_then(|n| n.to_str())
+                    .map(|n| is_companion_mod_name(n))
+                    .unwrap_or(false)
+            })
+            .filter(|p| companion_candidate_ok(p, version))
+        {
+            return Some(p);
+        }
+    }
+
+    for cand in [
+        manifest.join("resources").join(filename),
+        manifest.join("resources").join(COMPANION_MOD_FILENAME),
+    ] {
+        if companion_candidate_ok(&cand, version) {
+            return Some(cand);
+        }
+    }
+
+    let cached = cache_dir(data_dir).join(filename);
+    if companion_candidate_ok(&cached, version) {
+        return Some(cached);
+    }
+
+    try_download(data_dir, version)
+}
+
+
+
+
+
+
+fn relax_companion_constraints(jar: &Path, version: &str) -> PathBuf {
+    let patched = std::env::temp_dir().join(format!(
+        "kollegen-mod-relaxed-{}.jar",
+        std::process::id()
+    ));
+    if let (Ok(file), Ok(out)) = (std::fs::File::open(jar), std::fs::File::create(&patched)) {
+        if let Ok(mut archive) = zip::ZipArchive::new(file) {
+            let mut writer = zip::ZipWriter::new(out);
+            let opts = zip::write::FileOptions::default()
+                .compression_method(zip::CompressionMethod::Deflated);
+            let mut ok = true;
+            for i in 0..archive.len() {
+                let mut entry = match archive.by_index(i) {
+                    Ok(e) => e,
+                    Err(_) => {
+                        ok = false;
+                        break;
+                    }
+                };
+                let name = entry.name().to_string();
+                if name == "fabric.mod.json" {
+                    let mut bytes = Vec::new();
+                    if std::io::Read::read_to_end(&mut entry, &mut bytes).is_err() {
+                        ok = false;
+                        break;
+                    }
+                    match serde_json::from_slice::<serde_json::Value>(&bytes) {
+                        Ok(mut doc) => {
+                            if let Some(depends) =
+                                doc.get_mut("depends").and_then(|d| d.as_object_mut())
+                            {
+                                depends.insert(
+                                    "minecraft".to_string(),
+                                    serde_json::Value::String(if version.starts_with("26.3") { ">=26.3".to_string() } else if version.starts_with("26.") { ">=26.2".to_string() } else { ">=1.21".to_string() }),
+                                );
+                                if version.starts_with("1.21.") {
+                                    depends.insert(
+                                        "java".to_string(),
+                                        serde_json::Value::String(">=21".to_string()),
+                                    );
+                                } else {
+                                    depends.insert(
+                                        "java".to_string(),
+                                        serde_json::Value::String(">=25".to_string()),
+                                    );
+                                }
+                            }
+                            if let Ok(patched_bytes) = serde_json::to_vec(&doc) {
+                                let _ = writer.start_file(&name, opts);
+                                let _ = writer.write_all(&patched_bytes);
+                                continue;
+                            }
+                            ok = false;
+                            break;
+                        }
+                        Err(_) => {
+                            ok = false;
+                            break;
+                        }
+                    }
+                }
+                
+                let mut bytes = Vec::new();
+                if std::io::Read::read_to_end(&mut entry, &mut bytes).is_err() {
+                    ok = false;
+                    break;
+                }
+                let _ = writer.start_file(&name, opts);
+                let _ = writer.write_all(&bytes);
+            }
+            let _ = writer.finish();
+            if ok && patched.exists() {
+                return patched;
+            }
+        }
+    }
+    
+    jar.to_path_buf()
+}
+
+
+fn version_major_minor(version: &str) -> Option<(u32, u32)> {
+    let mut parts = version.split('.');
+    let major = parts.next().and_then(|s| s.parse::<u32>().ok())?;
+    let minor = parts.next().and_then(|s| s.parse::<u32>().ok())?;
+    Some((major, minor))
+}
+
+
+
+
+
+
+pub fn is_compatible_version(version: &str) -> bool {
+    is_version_supported(version)
+}
+
+
+
+
+
+
+
+
+
+
+
+pub fn bundles_compatible(version: &str) -> bool {
+    is_version_supported(version)
+}
+
+
+
+
+
+pub fn install_companion_mod(data_dir: &Path, instance_name: &str, version: &str, loader: &str) {
+    let loader_lc = loader.to_ascii_lowercase();
+    if loader_lc.is_empty() || loader_lc == "vanilla" {
+        return;
+    }
+    let fabric_compatible = loader_lc.contains("fabric") || loader_lc.contains("quilt");
+    if !fabric_compatible {
+        warn!(
+            "Kollegen-Client-Mod wird bei Loader '{}' übersprungen (nur Fabric/Quilt unterstützt).",
+            loader
+        );
+        return;
+    }
+
+    // DAU-sicher: kaputte Altlasten entfernen. Eine Companion ohne
+    // Loom-Remapping crasht garantiert (NoClassDefFoundError) – sie darf
+    // weder deployed bleiben noch je wieder als Quelle dienen.
+    // Es werden ausschließlich eigene kollegen-client*.jar-Dateien angefasst.
+    {
+        let mods_dir = crate::utils::instance_dir(data_dir, instance_name).join("mods");
+        let expected_companion = companion_filename_for_version(version);
+        if let Ok(entries) = std::fs::read_dir(&mods_dir) {
+            for e in entries.flatten() {
+                let p = e.path();
+                if !p.is_file() {
+                    continue;
+                }
+                let name = e.file_name().to_string_lossy().to_lowercase();
+                if is_companion_mod_name(&name) {
+                    if name != expected_companion || !companion_candidate_ok(&p, version) {
+                        warn!(
+                            "Entferne unpassende Companion-Altlast für MC {}: {}",
+                            version, name
+                        );
+                        let _ = std::fs::remove_file(&p);
+                    }
+                }
+            }
+        }
+        let stale_cache = cache_dir(data_dir).join(COMPANION_MOD_FILENAME);
+        if stale_cache.is_file() && !companion_candidate_ok(&stale_cache, version) {
+            warn!("Entferne unpassende Companion-Cache-Leiche.");
+            let _ = std::fs::remove_file(&stale_cache);
+        }
+    }
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    if !bundles_compatible(version) {
+        warn!(
+            "Kollegen-Client-Mod bei MC {v} übersprungen: die Mod (Mixins) ist nur mit Minecraft {t} kompatibel. \
+             Eine Installation auf {v} würde beim Start mit einer Mixin-'Critical injection failure' abstürzen. \
+             Bitte eine Instanz mit einer unterstützten Version nutzen (die Integrations-Bundles folgen derselben Regel).",
+            v = version,
+            t = companion_target_versions().join(", ")
+        );
+        
+        
+        
+        
+        
+        let mods_dir = crate::utils::instance_dir(data_dir, instance_name).join("mods");
+        if let Ok(entries) = std::fs::read_dir(&mods_dir) {
+            for e in entries.flatten() {
+                let p = e.path();
+                if !p.is_file() {
+                    continue;
+                }
+                let name = e.file_name().to_string_lossy().to_lowercase();
+                if is_companion_mod_name(&name) {
+                    info!("Entferne inkompatible Kollegen-Client-Mod aus Instanz '{}': {}", instance_name, name);
+                    let _ = std::fs::remove_file(&p);
+                }
+            }
+        }
+        return;
+    }
+
+    
+    
+    let _ = refresh_cache(data_dir, version);
+
+    let source = match companion_jar(data_dir, version) {
+        Some(j) => j,
+        None => {
+            warn!(
+                "Kollegen-Client-Mod konnte nicht gefunden werden – Instanz '{}' ohne Companion-Mod.",
+                instance_name
+            );
+            return;
+        }
+    };
+    
+    
+    let jar = relax_companion_constraints(&source, version);
+
+    let mods_dir = crate::utils::instance_dir(data_dir, instance_name).join("mods");
+    if let Err(e) = std::fs::create_dir_all(&mods_dir) {
+        warn!(
+            "Konnte Ordner 'mods' nicht anlegen ({}): {}",
+            mods_dir.display(),
+            e
+        );
+        return;
+    }
+
+    let target = mods_dir.join(companion_filename_for_version(version));
+
+    // Hash/Content check to preserve mtime, OS page-cache & AOT/CDS caches
+    let mut needs_copy = true;
+    if target.is_file() {
+        if let (Ok(meta_src), Ok(meta_tgt)) = (std::fs::metadata(&jar), std::fs::metadata(&target)) {
+            if meta_src.len() == meta_tgt.len() {
+                if let (Ok(data_src), Ok(data_tgt)) = (std::fs::read(&jar), std::fs::read(&target)) {
+                    if data_src == data_tgt {
+                        needs_copy = false;
+                    }
+                }
+            }
+        }
+    }
+
+    if needs_copy {
+        match std::fs::copy(&jar, &target) {
+            Ok(_) => info!(
+                "Kollegen-Client-Mod in Instanz '{}' (MC {}) injiziert.",
+                instance_name, version
+            ),
+            Err(e) => warn!(
+                "Konnte Kollegen-Client-Mod in Instanz '{}' nicht injizieren: {}",
+                instance_name, e
+            ),
+        }
+    } else {
+        info!(
+            "Kollegen-Client-Mod in Instanz '{}' (MC {}) ist unverändert (mtime/Cache geschont).",
+            instance_name, version
+        );
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_mc_constraint_supports_26_3() {
+        // 26.2 specific mods should NOT match 26.3
+        assert!(!mc_constraint_supports(">=26.1 <=26.2", "26.3"));
+        assert!(!mc_constraint_supports(">=26.2 <26.3-", "26.3"));
+        assert!(!mc_constraint_supports("26.2.x", "26.3"));
+        assert!(!mc_constraint_supports("~26.2", "26.3"));
+        assert!(!mc_constraint_supports("26.2", "26.3"));
+
+        // 26.3 compatible mods SHOULD match 26.3
+        assert!(mc_constraint_supports("26.3", "26.3"));
+        assert!(mc_constraint_supports("26.3.x", "26.3"));
+        assert!(mc_constraint_supports(">=26.3-", "26.3"));
+        assert!(mc_constraint_supports("~26.3-", "26.3"));
+        assert!(mc_constraint_supports("*", "26.3"));
+    }
+
+    #[test]
+    fn test_companion_candidate_filename_mismatch() {
+        let p_26_2 = Path::new("/path/to/kollegen-client-mod-26.2.jar");
+        assert!(!companion_candidate_ok(p_26_2, "26.3"));
+        let p_1_21 = Path::new("/path/to/kollegen-client-mod-1.21.11.jar");
+        assert!(!companion_candidate_ok(p_1_21, "26.2"));
+        assert!(!companion_candidate_ok(p_1_21, "26.3"));
+    }
+}

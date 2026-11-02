@@ -1,0 +1,262 @@
+{
+ "format": "mythic-cosmetic-pet/1",
+ "id": "jelly_cube",
+ "name": "Gelee-Würfel",
+ "space": {
+  "description": "Minecraft-Java-Entity-Modellraum: 1 Einheit = 1/16 Block, Y zeigt nach UNTEN, Bodenhöhe y=24, Vorderseite = -Z, +X = linke Körperseite.",
+  "pivots": "'pivot' ist relativ zum Eltern-Knochen. Würfel: 'origin' relativ zum eigenen Pivot, 'size' = [Breite,Höhe,Tiefe], 'uv' = Box-UV-Ursprung [u,v] (Layout wie Minecraft-Skins).",
+  "rotation": "Grad [pitch(x), yaw(y), roll(z)], Reihenfolge Z·Y·X; positive Pitch = Vorderseite nach unten.",
+  "animation": "Animationswerte sind Deltas auf die Ruhepose. r=Rotation(Grad), p=Position(px, Y nach unten), s=Skalierung (absolut, 1=normal). Wert = Zahl oder [offset, amplitude, zyklen, phase, 'sin'|'saw']  ->  offset + amplitude * wave(zyklen*φ + phase), φ = (Zeit % length)/length."
+ },
+ "texture": {
+  "file": "jelly_cube.png",
+  "glow": "jelly_cube_glow.png",
+  "width": 64,
+  "height": 32,
+  "notes": "Glow-Textur additiv/unbeleuchtet über das Modell zeichnen (wie Spinnenaugen)."
+ },
+ "bones": [
+  {
+   "name": "body",
+   "parent": null,
+   "pivot": [
+    0,
+    24,
+    0
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "cubes": [
+    {
+     "uv": [
+      0,
+      0
+     ],
+     "origin": [
+      -5,
+      -8,
+      -5
+     ],
+     "size": [
+      10,
+      8,
+      10
+     ]
+    }
+   ]
+  },
+  {
+   "name": "core",
+   "parent": "body",
+   "pivot": [
+    0,
+    -4,
+    0
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "cubes": [
+    {
+     "uv": [
+      0,
+      18
+     ],
+     "origin": [
+      -2,
+      -2,
+      -2
+     ],
+     "size": [
+      4,
+      4,
+      4
+     ]
+    }
+   ]
+  }
+ ],
+ "animations": {
+  "idle": {
+   "length": 2,
+   "bones": {
+    "body": {
+     "s": [
+      [
+       1,
+       -0.03,
+       1,
+       0,
+       "s"
+      ],
+      [
+       1,
+       0.06,
+       1,
+       0,
+       "s"
+      ],
+      [
+       1,
+       -0.03,
+       1,
+       0,
+       "s"
+      ]
+     ]
+    },
+    "core": {
+     "p": [
+      0,
+      [
+       0,
+       1,
+       1,
+       0,
+       "s"
+      ],
+      0
+     ],
+     "r": [
+      0,
+      [
+       0,
+       360,
+       1,
+       0,
+       "saw"
+      ],
+      0
+     ]
+    }
+   }
+  },
+  "move": {
+   "length": 0.8,
+   "bones": {
+    "body": {
+     "p": [
+      0,
+      [
+       -2.5,
+       2.5,
+       1,
+       0.25,
+       "s"
+      ],
+      0
+     ],
+     "s": [
+      [
+       1,
+       0.1,
+       1,
+       0.25,
+       "s"
+      ],
+      [
+       1,
+       -0.15,
+       1,
+       0.25,
+       "s"
+      ],
+      [
+       1,
+       0.1,
+       1,
+       0.25,
+       "s"
+      ]
+     ]
+    },
+    "core": {
+     "r": [
+      0,
+      [
+       0,
+       360,
+       1,
+       0,
+       "saw"
+      ],
+      0
+     ]
+    }
+   }
+  },
+  "sit": {
+   "length": 2,
+   "bones": {
+    "body": {
+     "s": [
+      1.1,
+      [
+       0.75,
+       0.03,
+       1,
+       0,
+       "s"
+      ],
+      1.1
+     ]
+    },
+    "core": {
+     "p": [
+      0,
+      2,
+      0
+     ],
+     "r": [
+      0,
+      [
+       0,
+       360,
+       1,
+       0,
+       "saw"
+      ],
+      0
+     ]
+    }
+   }
+  }
+ },
+ "behavior": {
+  "mode": "ground",
+  "side": "behind-right",
+  "look_at_player": true,
+  "follow": {
+   "start_distance": 2.6,
+   "stop_distance": 1.4,
+   "speed": 3.6,
+   "teleport_distance": 16
+  },
+  "states": {
+   "idle": "idle",
+   "moving": "move",
+   "sit": "sit",
+   "sit_after_idle_seconds": 10
+  },
+  "reactions": {
+   "player_sprint": {
+    "speed_multiplier": 1.5
+   },
+   "player_sneak": {
+    "state": "sit"
+   }
+  },
+  "particles": [
+   {
+    "type": "item_slime",
+    "rate_per_second": 1,
+    "bone": "body"
+   }
+  ]
+ }
+}

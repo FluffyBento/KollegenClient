@@ -1,0 +1,553 @@
+
+
+
+
+
+
+
+
+use base64::Engine;
+use serde_json::Value;
+use std::path::Path;
+use std::time::{SystemTime, UNIX_EPOCH};
+
+fn now_secs() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0)
+}
+
+
+
+fn mc_token(data_dir: &Path) -> Option<String> {
+    let path = crate::utils::accounts_file(data_dir);
+    let mut accts =
+        crate::utils::load_json::<Vec<crate::types::Account>>(&path, Vec::new());
+    let expired = accts
+        .first()
+        .and_then(|a| a.expires_at)
+        .map(|e| now_secs() >= e)
+        .unwrap_or(true);
+    if expired {
+        if let Some(acc) = accts.first() {
+            if acc.refresh_token.is_some() {
+                let _ = crate::auth::refresh_stored_account();
+            }
+        }
+        accts = crate::utils::load_json::<Vec<crate::types::Account>>(&path, Vec::new());
+    }
+    accts.first().map(|a| a.access_token.clone())
+}
+
+fn skins_dir(data_dir: &Path) -> std::path::PathBuf {
+    data_dir.join("skins")
+}
+
+fn index_path(data_dir: &Path) -> std::path::PathBuf {
+    skins_dir(data_dir).join("index.json")
+}
+
+fn read_index(data_dir: &Path) -> Value {
+    let v = crate::utils::load_json::<Value>(
+        &index_path(data_dir),
+        serde_json::json!({ "active": Value::Null, "skins": [] }),
+    );
+    let mut v = if v.is_object() {
+        v
+    } else {
+        serde_json::json!({ "active": Value::Null, "skins": [] })
+    };
+    if v.get("skins").is_none() {
+        v["skins"] = serde_json::json!([]);
+    }
+    if v.get("active").is_none() {
+        v["active"] = Value::Null;
+    }
+    v
+}
+
+fn sync_skins_to_instances(data_dir: &Path, idx: &Value) {
+    let instances_file = crate::utils::instances_file(data_dir);
+    let instances = crate::utils::load_json::<Vec<crate::types::Instance>>(&instances_file, vec![]);
+    for inst in &instances {
+        let inst_dir = crate::utils::instance_dir(data_dir, &inst.name);
+        let cfg = inst_dir.join("config");
+        let _ = std::fs::create_dir_all(&cfg);
+        let _ = crate::utils::save_json(&cfg.join("kollegen-skins.json"), idx);
+    }
+}
+
+fn write_index(data_dir: &Path, idx: &Value) {
+    let _ = std::fs::create_dir_all(skins_dir(data_dir));
+    let _ = crate::utils::save_json(&index_path(data_dir), idx);
+    sync_skins_to_instances(data_dir, idx);
+}
+
+fn data_url_of(data_dir: &Path, file: &str) -> String {
+    let p = skins_dir(data_dir).join(file);
+    match std::fs::read(&p) {
+        Ok(b) => format!(
+            "data:image/png;base64,{}",
+            base64::engine::general_purpose::STANDARD.encode(&b)
+        ),
+        Err(_) => String::new(),
+    }
+}
+
+pub fn b64_to_bytes(s: &str) -> Result<Vec<u8>, String> {
+    let s = s.split(',').last().unwrap_or(s).to_string();
+    base64::engine::general_purpose::STANDARD
+        .decode(&s)
+        .map_err(|e| format!("Ungültiges Bild (Base64): {}", e))
+}
+
+
+pub fn list_skins(data_dir: &Path) -> Value {
+    let idx = read_index(data_dir);
+    let skins = idx
+        .get("skins")
+        .and_then(|s| s.as_array())
+        .cloned()
+        .unwrap_or_default();
+    let mut out = Vec::new();
+    for s in skins {
+        if let Some(name) = s.get("name").and_then(|n| n.as_str()) {
+            let file = s
+                .get("file")
+                .and_then(|f| f.as_str())
+                .unwrap_or("")
+                .to_string();
+            let model = s
+                .get("model")
+                .and_then(|m| m.as_str())
+                .unwrap_or("classic")
+                .to_string();
+            let url = data_url_of(data_dir, &file);
+            out.push(serde_json::json!({
+                "name": name,
+                "url": url,
+                "model": model,
+                "file": file
+            }));
+        }
+    }
+    serde_json::json!({
+        "active": idx.get("active").cloned().unwrap_or(Value::Null),
+        "skins": out,
+    })
+}
+
+fn save_skin_bytes(data_dir: &Path, name: &str, bytes: &[u8]) -> Result<String, String> {
+    let safe = sanitize_filename::sanitize(name);
+    let safe = if safe.is_empty() { "skin".to_string() } else { safe };
+    let file = format!("{}.png", safe);
+    let _ = std::fs::create_dir_all(skins_dir(data_dir));
+    std::fs::write(skins_dir(data_dir).join(&file), bytes)
+        .map_err(|e| format!("Konnte Skin nicht speichern: {}", e))?;
+    Ok(file)
+}
+
+pub fn import_skin(data_dir: &Path, name: &str, bytes: &[u8]) -> Value {
+    import_skin_with_model(data_dir, name, bytes, "classic")
+}
+
+pub fn import_skin_with_model(data_dir: &Path, name: &str, bytes: &[u8], model: &str) -> Value {
+    // Deduplizierung: wenn ein Skin mit identischem Inhalt bereits existiert, diesen wiederverwenden.
+    let mut existing_name: Option<String> = None;
+    let idx = read_index(data_dir);
+    let skins = idx.get("skins").and_then(|s| s.as_array()).cloned().unwrap_or_default();
+    for sk in &skins {
+        if let Some(f) = sk.get("file").and_then(|x| x.as_str()) {
+            if let Ok(old_bytes) = std::fs::read(skins_dir(data_dir).join(f)) {
+                if old_bytes == bytes {
+                    existing_name = sk.get("name").and_then(|n| n.as_str()).map(|s| s.to_string());
+                    break;
+                }
+            }
+        }
+    }
+    if existing_name.is_some() {
+        return list_skins(data_dir);
+    }
+
+    let file = match save_skin_bytes(data_dir, name, bytes) {
+        Ok(f) => f,
+        Err(e) => return serde_json::json!({ "error": e }),
+    };
+    let mut idx = read_index(data_dir);
+    let mut skins: Vec<Value> = idx
+        .get("skins")
+        .and_then(|s| s.as_array())
+        .cloned()
+        .unwrap_or_default();
+    skins.retain(|s| s.get("name").and_then(|n| n.as_str()) != Some(name));
+    let model_str = if model.eq_ignore_ascii_case("slim") { "slim" } else { "classic" };
+    skins.push(serde_json::json!({ "name": name, "file": file, "model": model_str }));
+    idx["skins"] = serde_json::Value::Array(skins);
+    if idx.get("active").map(|v| v.is_null()).unwrap_or(true) {
+        idx["active"] = serde_json::json!(name);
+    }
+    write_index(data_dir, &idx);
+    list_skins(data_dir)
+}
+
+pub fn edit_skin(data_dir: &Path, old_name: &str, new_name: &str, model: &str) -> Value {
+    let mut idx = read_index(data_dir);
+    let mut skins: Vec<Value> = idx
+        .get("skins")
+        .and_then(|s| s.as_array())
+        .cloned()
+        .unwrap_or_default();
+
+    let new_name = new_name.trim();
+    let model_str = if model.eq_ignore_ascii_case("slim") { "slim" } else { "classic" };
+
+    for s in skins.iter_mut() {
+        if s.get("name").and_then(|n| n.as_str()) == Some(old_name) {
+            if !new_name.is_empty() {
+                s["name"] = serde_json::json!(new_name);
+            }
+            s["model"] = serde_json::json!(model_str);
+        }
+    }
+
+    if idx.get("active").and_then(|v| v.as_str()) == Some(old_name) && !new_name.is_empty() {
+        idx["active"] = serde_json::json!(new_name);
+    }
+
+    idx["skins"] = serde_json::Value::Array(skins);
+    write_index(data_dir, &idx);
+    list_skins(data_dir)
+}
+
+
+pub fn set_active_skin(data_dir: &Path, name: &str) -> Value {
+    let mut idx = read_index(data_dir);
+    idx["active"] = serde_json::json!(name);
+    write_index(data_dir, &idx);
+    list_skins(data_dir)
+}
+
+
+pub fn delete_skin(data_dir: &Path, name: &str) -> Value {
+    let mut idx = read_index(data_dir);
+    let skins: Vec<Value> = idx
+        .get("skins")
+        .and_then(|s| s.as_array())
+        .cloned()
+        .unwrap_or_default();
+    let mut kept = Vec::new();
+    for s in skins {
+        if let Some(n) = s.get("name").and_then(|n| n.as_str()) {
+            if n == name {
+                if let Some(f) = s.get("file").and_then(|x| x.as_str()) {
+                    let _ = std::fs::remove_file(skins_dir(data_dir).join(f));
+                }
+            } else {
+                kept.push(s);
+            }
+        }
+    }
+    idx["skins"] = serde_json::Value::Array(kept);
+    if idx
+        .get("active")
+        .and_then(|v| v.as_str())
+        .map(|a| a == name)
+        .unwrap_or(false)
+    {
+        idx["active"] = Value::Null;
+    }
+    write_index(data_dir, &idx);
+    list_skins(data_dir)
+}
+
+
+pub fn minecraft_profile(data_dir: &Path) -> Value {
+    let token = match mc_token(data_dir) {
+        Some(t) => t,
+        None => return serde_json::json!({ "error": "not_authenticated" }),
+    };
+    let resp = reqwest::blocking::Client::builder().timeout(std::time::Duration::from_secs(15)).connect_timeout(std::time::Duration::from_secs(5)).build().unwrap_or_else(|_| reqwest::blocking::Client::new())
+        .get("https://api.minecraftservices.com/minecraft/profile")
+        .bearer_auth(&token)
+        .header("Accept", "application/json")
+        .send();
+    match resp {
+        Ok(r) if r.status().is_success() => match r.json::<Value>() {
+            Ok(v) => v,
+            Err(e) => serde_json::json!({ "error": e.to_string() }),
+        },
+        Ok(r) => serde_json::json!({ "error": format!("HTTP {}", r.status()) }),
+        Err(e) => serde_json::json!({ "error": e.to_string() }),
+    }
+}
+
+
+pub fn download_current_skin(data_dir: &Path) -> Value {
+    let prof = minecraft_profile(data_dir);
+    if prof.get("error").is_some() {
+        return prof;
+    }
+    let skins = prof.get("skins").and_then(|s| s.as_array());
+    let url = skins
+        .and_then(|arr| {
+            arr.iter()
+                .find(|s| s.get("state").and_then(|v| v.as_str()) == Some("ACTIVE"))
+                .or_else(|| arr.first())
+        })
+        .and_then(|s| s.get("url").and_then(|u| u.as_str()))
+        .map(|s| s.to_string());
+    let url = match url {
+        Some(u) => u,
+        None => return serde_json::json!({ "error": "Keine Skin-URL im Profil gefunden" }),
+    };
+    let bytes = match reqwest::blocking::Client::builder().timeout(std::time::Duration::from_secs(15)).connect_timeout(std::time::Duration::from_secs(5)).build().unwrap_or_else(|_| reqwest::blocking::Client::new())
+        .get(&url)
+        .send()
+        .and_then(|r| r.bytes())
+    {
+        Ok(b) => b.to_vec(),
+        Err(e) => {
+            return serde_json::json!({ "error": format!("Skin-Download fehlgeschlagen: {}", e) })
+        }
+    };
+    let name = format!("minecraft-{}", now_secs());
+    let state = import_skin(data_dir, &name, &bytes);
+    serde_json::json!({ "state": state })
+}
+
+
+
+pub fn upload_skin(data_dir: &Path, name: &str, b64: &str, variant: &str) -> Value {
+    let bytes = match b64_to_bytes(b64) {
+        Ok(b) => b,
+        Err(e) => return serde_json::json!({ "error": e }),
+    };
+    let variant = if variant == "slim" { "slim" } else { "classic" };
+
+    let token = match mc_token(data_dir) {
+        Some(t) => t,
+        None => {
+            let r = import_skin(data_dir, name, &bytes);
+            return serde_json::json!({
+                "ok": true,
+                "mc_uploaded": false,
+                "state": r.get("state").cloned().unwrap_or(Value::Null),
+            });
+        }
+    };
+
+    let part = reqwest::blocking::multipart::Part::bytes(bytes.clone())
+        .file_name(format!("{}.png", sanitize_filename::sanitize(name)))
+        .mime_str("image/png")
+        .unwrap_or_else(|_| reqwest::blocking::multipart::Part::bytes(bytes.clone()));
+    let form = reqwest::blocking::multipart::Form::new()
+        .text("variant", variant.to_string())
+        .part("file", part);
+
+    let resp = reqwest::blocking::Client::builder().timeout(std::time::Duration::from_secs(15)).connect_timeout(std::time::Duration::from_secs(5)).build().unwrap_or_else(|_| reqwest::blocking::Client::new())
+        .post("https://api.minecraftservices.com/minecraft/profile/skins")
+        .bearer_auth(&token)
+        .multipart(form)
+        .send();
+
+    match resp {
+        Ok(r) if r.status().is_success() => {
+            let r = import_skin(data_dir, name, &bytes);
+            serde_json::json!({
+                "ok": true,
+                "mc_uploaded": true,
+                "state": r.get("state").cloned().unwrap_or(Value::Null),
+            })
+        }
+        Ok(r) => {
+            let status = r.status();
+            let body = r.text().unwrap_or_default();
+            serde_json::json!({ "error": format!("Hochladen fehlgeschlagen ({}): {}", status, body) })
+        }
+        Err(e) => serde_json::json!({ "error": format!("Hochladen fehlgeschlagen: {}", e) }),
+    }
+}
+
+
+pub fn equip_cape(data_dir: &Path, cape_id: &str) -> Value {
+    let token = match mc_token(data_dir) {
+        Some(t) => t,
+        None => return serde_json::json!({ "error": "not_authenticated" }),
+    };
+    let resp = reqwest::blocking::Client::builder().timeout(std::time::Duration::from_secs(15)).connect_timeout(std::time::Duration::from_secs(5)).build().unwrap_or_else(|_| reqwest::blocking::Client::new())
+        .put("https://api.minecraftservices.com/minecraft/profile/capes/active")
+        .bearer_auth(&token)
+        .json(&serde_json::json!({ "capeId": cape_id }))
+        .send();
+    match resp {
+        Ok(r) if r.status().is_success() => serde_json::json!({ "ok": true }),
+        Ok(r) => serde_json::json!({ "error": format!("HTTP {}", r.status()) }),
+        Err(e) => serde_json::json!({ "error": e.to_string() }),
+    }
+}
+
+
+
+
+pub fn minecraft_profile_by_name(_data_dir: &Path, name: &str) -> Value {
+    
+    let lookup = format!("https://api.mojang.com/users/profiles/minecraft/{}", name);
+    let id_resp = match reqwest::blocking::get(&lookup) {
+        Ok(r) if r.status().is_success() => match r.json::<Value>() {
+            Ok(v) => v,
+            Err(e) => return serde_json::json!({ "error": format!("JSON parse: {}", e) }),
+        },
+        Ok(r) => return serde_json::json!({ "error": format!("Name lookup HTTP {}", r.status()) }),
+        Err(e) => return serde_json::json!({ "error": format!("Name lookup failed: {}", e) }),
+    };
+    let uuid = match id_resp.get("id").and_then(|v| v.as_str()) {
+        Some(s) => s,
+        None => return serde_json::json!({ "error": "UUID not found for name" }),
+    };
+
+    
+    let sess_url = format!("https://sessionserver.mojang.com/session/minecraft/profile/{}", uuid);
+    let sess = match reqwest::blocking::get(&sess_url) {
+        Ok(r) if r.status().is_success() => match r.json::<Value>() {
+            Ok(v) => v,
+            Err(e) => return serde_json::json!({ "error": format!("Profile JSON parse: {}", e) }),
+        },
+        Ok(r) => return serde_json::json!({ "error": format!("Profile HTTP {}", r.status()) }),
+        Err(e) => return serde_json::json!({ "error": format!("Profile fetch failed: {}", e) }),
+    };
+
+    
+    let props = sess.get("properties").and_then(|p| p.as_array()).cloned().unwrap_or_default();
+    let mut textures_b64: Option<String> = None;
+    for p in props {
+        if p.get("name").and_then(|n| n.as_str()) == Some("textures") {
+            textures_b64 = p.get("value").and_then(|v| v.as_str()).map(|s| s.to_string());
+            break;
+        }
+    }
+    let textures = if let Some(tb) = textures_b64 {
+        match base64::engine::general_purpose::STANDARD.decode(tb) {
+            Ok(b) => match String::from_utf8(b) {
+                Ok(s) => match serde_json::from_str::<Value>(&s) {
+                    Ok(v) => v,
+                    Err(_) => serde_json::json!({}),
+                },
+                Err(_) => serde_json::json!({}),
+            },
+            Err(_) => serde_json::json!({}),
+        }
+    } else {
+        serde_json::json!({})
+    };
+
+    let skin_url = textures
+        .get("textures")
+        .and_then(|t| t.get("SKIN"))
+        .and_then(|s| s.get("url"))
+        .and_then(|u| u.as_str())
+        .map(|s| s.to_string());
+    let cape_url = textures
+        .get("textures")
+        .and_then(|t| t.get("CAPE"))
+        .and_then(|s| s.get("url"))
+        .and_then(|u| u.as_str())
+        .map(|s| s.to_string());
+
+    
+    let skin_data_url = skin_url.as_ref().and_then(|url| match reqwest::blocking::get(url) {
+        Ok(r) if r.status().is_success() => match r.bytes() {
+            Ok(b) => Some(format!("data:image/png;base64,{}", base64::engine::general_purpose::STANDARD.encode(&b))),
+            Err(_) => None,
+        },
+        _ => None,
+    });
+
+    let cape_data_url = cape_url.as_ref().and_then(|url| match reqwest::blocking::get(url) {
+        Ok(r) if r.status().is_success() => match r.bytes() {
+            Ok(b) => Some(format!("data:image/png;base64,{}", base64::engine::general_purpose::STANDARD.encode(&b))),
+            Err(_) => None,
+        },
+        _ => None,
+    });
+
+    serde_json::json!({
+        "name": name,
+        "uuid": uuid,
+        "skin_url": skin_url,
+        "skin_data_url": skin_data_url,
+        "cape_url": cape_url,
+        "cape_data_url": cape_data_url,
+        "raw_textures": textures
+    })
+}
+
+pub fn read_mod_asset(data_dir: &Path, file: &str) -> serde_json::Value {
+    let clean: String = file
+        .chars()
+        .map(|c| if c == ':' { '/' } else { c })
+        .filter(|c| c.is_ascii_alphanumeric() || *c == '_' || *c == '-' || *c == '.' || *c == '/')
+        .collect();
+    let clean = clean.trim_start_matches('/').to_string();
+    if clean.is_empty() || !clean.ends_with(".png") && !clean.ends_with(".bbmodel") {
+        return serde_json::json!({ "error": "ungueltiger Dateiname" });
+    }
+    if clean.contains("..") {
+        return serde_json::json!({ "error": "ungueltiger Pfad" });
+    }
+    let entry = format!("assets/{}", clean);
+
+    let jar = ["26.2", "1.21.11", ""]
+        .iter()
+        .filter_map(|v| crate::companion::companion_jar(data_dir, v))
+        .find(|p| p.exists());
+
+    let jar = match jar {
+        Some(j) => j,
+        None => return serde_json::json!({ "error": "Mod-Jar nicht gefunden" }),
+    };
+
+    let file_h = match std::fs::File::open(&jar) {
+        Ok(f) => f,
+        Err(_) => return serde_json::json!({ "error": "Mod-Jar nicht lesbar" }),
+    };
+    let mut archive = match zip::ZipArchive::new(file_h) {
+        Ok(a) => a,
+        Err(_) => return serde_json::json!({ "error": "Mod-Jar unlesbar" }),
+    };
+    let bytes = {
+        let mut zf = match archive.by_name(&entry) {
+            Ok(z) => z,
+            Err(_) => return serde_json::json!({ "error": format!("nicht im Jar: {}", entry) }),
+        };
+        let mut b = Vec::new();
+        if std::io::Read::read_to_end(&mut zf, &mut b).is_err() {
+            return serde_json::json!({ "error": "Lesen fehlgeschlagen" });
+        }
+        b
+    };
+
+    if clean.ends_with(".bbmodel") {
+        let text = String::from_utf8_lossy(&bytes).to_string();
+        let png_name = clean.trim_end_matches(".bbmodel").to_string() + ".png";
+        let png_entry = format!("assets/{}", png_name);
+        let mut texture = String::new();
+        if let Ok(mut pz) = archive.by_name(&png_entry) {
+            let mut pb = Vec::new();
+            if std::io::Read::read_to_end(&mut pz, &mut pb).is_ok() {
+                use base64::Engine;
+                texture = format!(
+                    "data:image/png;base64,{}",
+                    base64::engine::general_purpose::STANDARD.encode(&pb)
+                );
+            }
+        }
+        serde_json::json!({ "bbmodel": text, "texture": texture })
+    } else {
+        use base64::Engine;
+        serde_json::json!({
+            "data": format!("data:image/png;base64,{}", base64::engine::general_purpose::STANDARD.encode(&bytes))
+        })
+    }
+}

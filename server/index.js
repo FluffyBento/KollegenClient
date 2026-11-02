@@ -1,0 +1,2282 @@
+'use strict';
+
+
+
+const http = require('http');
+const crypto = require('crypto');
+const fs = require('fs');
+const path = require('path');
+const { URL } = require('url');
+
+const PORT = parseInt(process.env.PORT || '8080', 10);
+const DATA_DIR = process.env.KOLLEGEN_DATA_DIR || path.join(__dirname, 'data');
+const PRESENCE_TTL_MS = parseInt(process.env.PRESENCE_TTL_MS || '90000', 10);
+const STORE_FILE = path.join(DATA_DIR, 'store.json');
+
+
+
+
+
+const START_POINTS = 250;
+
+
+const CATALOG = [
+  { id: 'pkg_fluffybento', category: 'package', name: 'FluffyBento-Paket', desc: 'Cape, Schild, Flügel und Visier von FluffyBento.', price: 0, rarity: 'legendary', comingSoon: true, data: { comingSoon: true, items: ['cape_fluffybento', 'schild_fluffybento', 'back_fluffybento', 'head_fluffybento'] } },
+  { id: 'pkg_limitlos', category: 'package', name: 'Limit_Los-Paket', desc: 'Cape, Bandana, Schild, Schwert und Dolche von Limit_Los.', price: 0, rarity: 'legendary', comingSoon: true, data: { comingSoon: true, items: ['cape_limitlos', 'head_limitlos', 'shield_limitlos', 'back_limitlos', 'shoulder_limitlos'] } },
+  { id: 'pkg_zerocraft77', category: 'package', name: 'Zerocraft77-Paket', desc: 'Cape, Bandana, Flügel, Handschuhe und Schild von Zerocraft77.', price: 0, rarity: 'legendary', comingSoon: true, data: { comingSoon: true, items: ['cape_zerocraft77', 'head_zerocraft77', 'back_zerocraft77', 'gloves_zerocraft77', 'shield_zerocraft77'] } },
+  { id: 'pkg_irongirl', category: 'package', name: 'Irongirl-Paket', desc: 'Cape, Flügel, Halo und Schild von Irongirl.', price: 0, rarity: 'legendary', comingSoon: true, data: { comingSoon: true, items: ['cape_irongirl', 'back_irongirl', 'head_irongirl', 'shield_irongirl'] } },
+  { id: 'title_luigi', category: 'title', name: 'Luigi', desc: 'Exklusiv verliehen, nicht käuflich.', price: 0, rarity: 'legendary', hidden: true, data: { text: 'Luigi', color: '#00b140' } },
+  
+  { id: 'title_erkunder', category: 'title', name: 'Erkunder', desc: 'Zeig deinen Entdeckermut.', price: 120, rarity: 'common', data: { text: 'Erkunder' } },
+  { id: 'title_veteran', category: 'title', name: 'Veteran', desc: 'Viele Stunden im Nether überlebt.', price: 450, rarity: 'rare', data: { text: 'Veteran' } },
+  { id: 'title_champion', category: 'title', name: 'Champion', desc: 'Unbesiegt in deiner Arena.', price: 900, rarity: 'epic', data: { text: 'Champion' } },
+  { id: 'title_legende', category: 'title', name: 'Legende', desc: 'Eine Legende unter den Kollegen.', price: 1600, rarity: 'legendary', featured: true, data: { text: 'Legende' } },
+  { id: 'title_kollege', category: 'title', name: 'Kollege', desc: 'Exklusiv verliehen, nicht käuflich.', price: 0, rarity: 'legendary', hidden: true, data: { text: 'Kollege', color: '#ffc400' } },
+  { id: 'title_promoter', category: 'title', name: 'Promoter', desc: 'Exklusiv verliehen, nicht käuflich.', price: 0, rarity: 'legendary', hidden: true, data: { text: 'Promoter', color: '#ffe97a' } },
+  { id: 'title_atze', category: 'title', name: 'Atze', desc: 'Exklusiv verliehen, nicht käuflich.', price: 0, rarity: 'legendary', hidden: true, data: { text: 'Atze', color: '#ff6b9d' } },
+  
+  { id: 'frame_bronze', category: 'avatar_frame', name: 'Bronzen', desc: 'Bronzefarbener Avatar-Rahmen.', price: 200, rarity: 'common', data: { color1: '#cd7f32', color2: '#7a5630' } },
+  { id: 'frame_silber', category: 'avatar_frame', name: 'Silbern', desc: 'Silberner Avatar-Rahmen.', price: 500, rarity: 'rare', data: { color1: '#c0c0c0', color2: '#7f7f8a' } },
+  { id: 'frame_gold', category: 'avatar_frame', name: 'Golden', desc: 'Goldener Avatar-Rahmen.', price: 1000, rarity: 'epic', data: { color1: '#ffd700', color2: '#b8860b' } },
+  { id: 'frame_regenbogen', category: 'avatar_frame', name: 'Regenbogen', desc: 'Schimmernder Regenbogen-Rahmen.', price: 2500, rarity: 'legendary', featured: true, data: { color1: '#ff6b6b', color2: '#6b5bff' } },
+  
+  { id: 'theme_nebel', category: 'avatar_theme', name: 'Nebel', desc: 'Ruhiger Nebel-Hintergrund.', price: 250, rarity: 'common', data: { gradient: 'linear-gradient(135deg,#3a4a6b,#1c1c28)' } },
+  { id: 'theme_lava', category: 'avatar_theme', name: 'Lava', desc: 'Glühende Lava.', price: 600, rarity: 'rare', data: { gradient: 'linear-gradient(135deg,#ff8c00,#3a1212)' } },
+  { id: 'theme_galaxie', category: 'avatar_theme', name: 'Galaxie', desc: 'Jenseits aller Welten.', price: 1200, rarity: 'epic', data: { gradient: 'linear-gradient(135deg,#2b1055,#7597de)' } },
+  { id: 'theme_nether', category: 'avatar_theme', name: 'Nether', desc: 'Trotz der Hitze des Nethers.', price: 2000, rarity: 'legendary', data: { gradient: 'linear-gradient(135deg,#4a0e0e,#c92020)' } },
+  
+  { id: 'badge_stein', category: 'badge', name: 'Stein-Abzeichen', desc: 'Felsenfest im Kollegenkreis.', price: 100, rarity: 'common', data: { icon: '●', color: '#9aa5b1' } },
+  { id: 'badge_diamant', category: 'badge', name: 'Diamant-Abzeichen', desc: 'Wertvoll wie ein Diamant.', price: 350, rarity: 'rare', data: { icon: '◆', color: '#4deeea' } },
+  { id: 'badge_netherit', category: 'badge', name: 'Netherit-Abzeichen', desc: 'Unzerstörbar und dunkel.', price: 700, rarity: 'epic', data: { icon: '⬢', color: '#d4c9c0' } },
+  { id: 'badge_drache', category: 'badge', name: 'Enderdrache-Abzeichen', desc: 'Bezwing den Drachen.', price: 1200, rarity: 'legendary', data: { icon: '★', color: '#c77dff' } },
+  
+  { id: 'pframe_emerald', category: 'profile_frame', name: 'Smaragd-Rahmen', desc: 'Grüner Glanz um dein Profil.', price: 500, rarity: 'rare', data: { color1: '#2ea043', color2: '#0f6b32' } },
+  { id: 'pframe_ruby', category: 'profile_frame', name: 'Rubin-Rahmen', desc: 'Edler roter Rahmen.', price: 900, rarity: 'epic', data: { color1: '#f85149', color2: '#a32127' } },
+  { id: 'pframe_royal', category: 'profile_frame', name: 'Königsblau-Rahmen', desc: 'Royal blau strahlend.', price: 1400, rarity: 'epic', data: { color1: '#3b82f6', color2: '#1e3a8a' } },
+  { id: 'pframe_onyx', category: 'profile_frame', name: 'Onyx-Gold-Rahmen', desc: 'Schwarz mit Gold-Akzenten.', price: 2200, rarity: 'legendary', data: { color1: '#e6c96b', color2: '#374151' } },
+  
+  { id: 'pbg_dusk', category: 'profile_bg', name: 'Zwielicht', desc: 'Ruhiges, dunkles Dämmerlicht.', price: 300, rarity: 'common', data: { gradient: 'linear-gradient(135deg,#1a1b2e,#0b0d14)' } },
+  { id: 'pbg_lava', category: 'profile_bg', name: 'Lavastrom', desc: 'Glühende Lava unter deinem Profil.', price: 700, rarity: 'rare', data: { gradient: 'linear-gradient(135deg,#7a2200,#120404)' } },
+  { id: 'pbg_aurora', category: 'profile_bg', name: 'Aurora', desc: 'Polarlichter über dunkler See.', price: 1400, rarity: 'epic', data: { gradient: 'linear-gradient(135deg,#0f2027,#203a43,#2c5364)' } },
+  { id: 'pbg_ender', category: 'profile_bg', name: 'Das Ende', desc: 'Würde dem Enderdrachen gefallen.', price: 2400, rarity: 'legendary', featured: true, data: { gradient: 'linear-gradient(135deg,#0f0c29,#302b63,#24243e)' } },
+  
+  { id: 'banner_dawn', category: 'banner', name: 'Morgenröte', desc: 'Warme Töne für deinen Banner.', price: 400, rarity: 'common', data: { gradient: 'linear-gradient(135deg,#f6d365,#fda085)' } },
+  { id: 'banner_ember', category: 'banner', name: 'Glut', desc: 'Feuer und Gold.', price: 800, rarity: 'rare', data: { gradient: 'linear-gradient(135deg,#f12711,#f5af19)' } },
+  { id: 'banner_ocean', category: 'banner', name: 'Ozean', desc: 'Blau wie die offene See.', price: 1500, rarity: 'epic', data: { gradient: 'linear-gradient(135deg,#2193b0,#6dd5ed)' } },
+  { id: 'banner_onyx', category: 'banner', name: 'Onyx Gold', desc: 'Elegant, dunkel, teuer.', price: 2400, rarity: 'legendary', featured: true, data: { gradient: 'linear-gradient(135deg,#232526,#414345,#b8860b)' } },
+  
+  { id: 'stil_klassisch', category: 'profil_stil', name: 'Klassisch Gold', desc: 'Warme Gold-Akzente, seri\u00f6s.', price: 350, rarity: 'common', data: { accent: '#D4AF37', font: 'Outfit' } },
+  { id: 'stil_cyan', category: 'profil_stil', name: 'Eisblau', desc: 'Klare Cyan-Akzente mit Tech-Feeling.', price: 500, rarity: 'rare', data: { accent: '#4deeea', font: 'Inter' } },
+  { id: 'stil_aura', category: 'profil_stil', name: 'Aura', desc: 'Sanftes Lila f\u00fcr mystische Profile.', price: 600, rarity: 'rare', data: { accent: '#c77dff', font: 'Outfit' } },
+  { id: 'stil_wald', category: 'profil_stil', name: 'Wald', desc: 'Erdige Gr\u00fcnt\u00f6ne f\u00fcr Naturen.', price: 700, rarity: 'epic', data: { accent: '#7ee787', font: 'Outfit' } },
+  { id: 'stil_gluth', category: 'profil_stil', name: 'Glut', desc: 'Feuriges Rot \u2013 hei\u00df und selbstbewusst.', price: 800, rarity: 'epic', data: { accent: '#f85149', font: 'Inter' } },
+  { id: 'stil_ozean', category: 'profil_stil', name: 'Ozean', desc: 'K\u00f6nigsblau mit Tiefe.', price: 1000, rarity: 'epic', data: { accent: '#3b82f6', font: 'Outfit' } },
+  { id: 'stil_onyx', category: 'profil_stil', name: 'Onyx Schwarzgold', desc: 'Dunkel mit edlem Gold-Glanz.', price: 2200, rarity: 'legendary', featured: true, data: { accent: '#e6c96b', font: 'Outfit' } },
+  
+  { id: 'name_bernstein', category: 'name_color', name: 'Bernstein', desc: 'Warm wie Bernstein.', price: 150, rarity: 'common', data: { accent: '#ffb454' } },
+  { id: 'name_karmesin', category: 'name_color', name: 'Karmesin', desc: 'Feuriges Rot für deinen Namen.', price: 400, rarity: 'rare', data: { accent: '#ff5f56' } },
+  { id: 'name_tuerkis', category: 'name_color', name: 'Türkis', desc: 'Frisch wie eine Lagune.', price: 700, rarity: 'epic', data: { accent: '#39d7ff' } },
+  { id: 'name_violett', category: 'name_color', name: 'Neonviolett', desc: 'Kräftiges Violett mit Glow.', price: 1400, rarity: 'epic', data: { accent: '#c77dff' } },
+  { id: 'name_onyxgold', category: 'name_color', name: 'Onyxgold', desc: 'Schwarz und Gold für den Namen.', price: 2200, rarity: 'legendary', featured: true, data: { accent: '#e6c96b' } },
+  
+  { id: 'sticker_herz', category: 'sticker', name: 'Herz-Sticker', desc: 'Zeig deine Zuneigung.', price: 120, rarity: 'common', data: { icon: '❤', color: '#ff6b6b' } },
+  { id: 'sticker_glueck', category: 'sticker', name: 'Glücksklee', desc: 'Grün wie Freude.', price: 350, rarity: 'rare', data: { icon: '🍀', color: '#7ee787' } },
+  { id: 'sticker_stern', category: 'sticker', name: 'Goldstern', desc: 'Strahl wie ein Star.', price: 650, rarity: 'epic', data: { icon: '⭐', color: '#ffd700' } },
+  { id: 'sticker_blitz', category: 'sticker', name: 'Blitz', desc: 'Schnell und elektrisierend.', price: 800, rarity: 'epic', data: { icon: '⚡', color: '#ffd23f' } },
+  { id: 'sticker_drache', category: 'sticker', name: 'Drachen-Sticker', desc: 'Der Enderdrache grüßt.', price: 1200, rarity: 'legendary', data: { icon: '🐉', color: '#c77dff' } },
+  
+  { id: 'font_rund', category: 'font', name: 'Rund und freundlich', desc: 'Weiche, freundliche Schrift.', price: 100, rarity: 'common', data: { font: '"Verdana","Segoe UI",sans-serif' } },
+  { id: 'font_serif', category: 'font', name: 'Klassische Buchstaben', desc: 'Serifen für die Ewigkeit.', price: 250, rarity: 'rare', data: { font: '"Georgia","Times New Roman",serif' } },
+  { id: 'font_typewriter', category: 'font', name: 'Typewriter', desc: 'Wie auf einer Schreibmaschine.', price: 600, rarity: 'epic', data: { font: '"Courier New",monospace' } },
+  { id: 'font_banner', category: 'font', name: 'Banner-Bliter', desc: 'Groß, fett, auffällig.', price: 1600, rarity: 'legendary', data: { font: 'Impact,"Arial Narrow Bold",sans-serif' } },
+
+  { id: 'pet_allay', category: 'pet', name: 'Allay', desc: 'Ein Allay als Begleiter. Sichtbar für alle mit Kollegen-Client.', price: 10000, rarity: 'legendary', featured: true, data: { kind: 'allay', scale: 1.0, accent: '#39d7ff' } },
+  { id: 'pet_blub', category: 'pet', name: 'Blub', desc: 'Ein Blub als Begleiter. Exklusiv verliehen, nicht käuflich.', price: 0, rarity: 'legendary', hidden: true, data: { kind: 'blub', scale: 1.0 } },
+  { id: 'pet_cat', category: 'pet', name: 'Katze', desc: 'Eine schnurrende Katze als Begleiter.', price: 1800, rarity: 'rare', data: { kind: 'cat', scale: 1.0 } },
+  { id: 'pet_dog', category: 'pet', name: 'Hund', desc: 'Ein treuer Hund als Begleiter.', price: 1800, rarity: 'rare', data: { kind: 'dog', scale: 1.0 } },
+  { id: 'pet_chicken', category: 'pet', name: 'Huhn', desc: 'Ein gackerndes Huhn als Begleiter.', price: 500, rarity: 'common', data: { kind: 'chicken', scale: 1.0 } },
+  { id: 'pet_rabbit', category: 'pet', name: 'Kaninchen', desc: 'Ein hüpfendes Kaninchen als Begleiter.', price: 650, rarity: 'common', data: { kind: 'rabbit', scale: 1.0 } },
+  { id: 'pet_axolotl', category: 'pet', name: 'Axolotl', desc: 'Ein Axolotl als Begleiter. Farbe als Skin wählbar.', price: 2000, rarity: 'rare', data: { kind: 'axolotl', scale: 1.0 } },
+  { id: 'pet_bat', category: 'pet', name: 'Fledermaus', desc: 'Eine Fledermaus als Begleiter. Fliegt nebenher.', price: 1500, rarity: 'rare', data: { kind: 'bat', scale: 1.0 } },
+  { id: 'pet_fox', category: 'pet', name: 'Fuchs', desc: 'Ein Fuchs als Begleiter.', price: 2200, rarity: 'rare', data: { kind: 'fox', scale: 1.0 } },
+  { id: 'pet_parrot', category: 'pet', name: 'Papagei', desc: 'Ein Papagei als Begleiter. Fliegt nebenher.', price: 2200, rarity: 'rare', data: { kind: 'parrot', scale: 1.0 } },
+  { id: 'pet_bee', category: 'pet', name: 'Biene', desc: 'Eine Biene als Begleiter. Fliegt nebenher.', price: 900, rarity: 'common', data: { kind: 'bee', scale: 1.0 } },
+  { id: 'pet_squid', category: 'pet', name: 'Tintenfisch', desc: 'Ein Tintenfisch als Begleiter. Schwebt nebenher.', price: 1500, rarity: 'rare', data: { kind: 'squid', scale: 0.5 } },
+  { id: 'pet_nautilus', category: 'pet', name: 'Nautilus', desc: 'Ein Nautilus als Begleiter. Schwebt nebenher.', price: 10000, rarity: 'legendary', featured: true, data: { kind: 'nautilus', scale: 0.5 } },
+  { id: 'pet_copper_golem', category: 'pet', name: 'Kupfergolem', desc: 'Ein Kupfergolem als Begleiter.', price: 10000, rarity: 'legendary', featured: true, data: { kind: 'copper_golem', scale: 1.0 } },
+  { id: 'pet_ember_drake', category: 'pet', name: 'Glutdrache', desc: 'Ein Glutdrache als Begleiter mit Flügelschlag und Schweifflammen. Sichtbar für alle mit Kollegen-Client.', price: 12000, rarity: 'legendary', featured: true, data: { kind: 'ember_drake', scale: 1.0, accent: '#ff6a00' } },
+  { id: 'pet_void_wyrm', category: 'pet', name: 'Leerendrache', desc: 'Ein Leerendrache als Begleiter mit Wellenschwanz und Leerenflügeln. Sichtbar für alle mit Kollegen-Client.', price: 12000, rarity: 'legendary', featured: true, data: { kind: 'void_wyrm', scale: 1.0, accent: '#7b2ff7' } },
+  { id: 'pet_shadow_reaper', category: 'pet', name: 'Schnitter', desc: 'Ein Schnitter als Begleiter mit Kapuze und Sense. Sichtbar für alle mit Kollegen-Client.', price: 10000, rarity: 'legendary', data: { kind: 'shadow_reaper', scale: 1.0, accent: '#6d28d9' } },
+  { id: 'pet_rune_sentinel', category: 'pet', name: 'Runen-Wächter', desc: 'Ein Runen-Wächter als Begleiter mit rotierenden Ringen. Sichtbar für alle mit Kollegen-Client.', price: 10000, rarity: 'legendary', data: { kind: 'rune_sentinel', scale: 1.0, accent: '#22d3ee' } },
+  { id: 'pet_flame_skull', category: 'pet', name: 'Flammenschädel', desc: 'Ein Flammenschädel als Begleiter mit kreisenden Feuerkugeln. Sichtbar für alle mit Kollegen-Client.', price: 9000, rarity: 'legendary', data: { kind: 'flame_skull', scale: 0.9, accent: '#ff3b00' } },
+  { id: 'pet_storm_cloud', category: 'pet', name: 'Sturmwölkchen', desc: 'Ein Sturmwölkchen als Begleiter mit Regen und Blitz. Sichtbar für alle mit Kollegen-Client.', price: 9000, rarity: 'legendary', data: { kind: 'storm_cloud', scale: 1.0, accent: '#60a5fa' } },
+  { id: 'pet_crystal_golem', category: 'pet', name: 'Kristallgolem', desc: 'Ein Kristallgolem als Begleiter mit leuchtenden Kristallen. Sichtbar für alle mit Kollegen-Client.', price: 8000, rarity: 'legendary', data: { kind: 'crystal_golem', scale: 1.0, accent: '#67e8f9' } },
+  { id: 'pet_spectre', category: 'pet', name: 'Spuk-Wisp', desc: 'Ein Spuk-Wisp als Begleiter, umkreist dich. Sichtbar für alle mit Kollegen-Client.', price: 7500, rarity: 'legendary', data: { kind: 'spectre', scale: 0.9, accent: '#c4b5fd' } },
+  { id: 'pet_lantern_spirit', category: 'pet', name: 'Laternengeist', desc: 'Ein Laternengeist als Begleiter mit Fächer-Flügeln. Sichtbar für alle mit Kollegen-Client.', price: 7500, rarity: 'legendary', data: { kind: 'lantern_spirit', scale: 0.9, accent: '#fbbf24' } },
+  { id: 'pet_bolt_bot', category: 'pet', name: 'Bolt-Bot', desc: 'Ein Bolt-Bot als Begleiter mit Rotor und Funken. Sichtbar für alle mit Kollegen-Client.', price: 5000, rarity: 'epic', data: { kind: 'bolt_bot', scale: 0.8, accent: '#facc15' } },
+  { id: 'pet_mini_ufo', category: 'pet', name: 'Mini-UFO', desc: 'Ein Mini-UFO als Begleiter mit Traktorstrahl. Sichtbar für alle mit Kollegen-Client.', price: 5000, rarity: 'epic', data: { kind: 'mini_ufo', scale: 0.9, accent: '#34d399' } },
+  { id: 'pet_grimoire', category: 'pet', name: 'Zauberbuch', desc: 'Ein Zauberbuch als Begleiter mit Runen. Sichtbar für alle mit Kollegen-Client.', price: 4500, rarity: 'epic', data: { kind: 'grimoire', scale: 0.8, accent: '#a78bfa' } },
+  { id: 'pet_mooncap', category: 'pet', name: 'Mondkappe', desc: 'Eine Mondkappe als Begleiter, hüpft nebenher. Sichtbar für alle mit Kollegen-Client.', price: 3200, rarity: 'epic', data: { kind: 'mooncap', scale: 0.7, accent: '#f472b6' } },
+  { id: 'pet_jelly_cube', category: 'pet', name: 'Gelee-Würfel', desc: 'Ein Gelee-Würfel als Begleiter mit Squash und Stretch. Sichtbar für alle mit Kollegen-Client.', price: 2800, rarity: 'epic', data: { kind: 'jelly_cube', scale: 0.6, accent: '#4ade80' } },
+  { id: 'skin_baby_cat', category: 'pet_skin', name: 'Baby-Katze', desc: 'Skin für Katze. Exklusiv verliehen.', price: 0, rarity: 'legendary', hidden: true, data: { variantOf: 'pet_cat', variant: 'baby', label: 'Baby' } },
+  { id: 'skin_baby_dog', category: 'pet_skin', name: 'Baby-Hund', desc: 'Skin für Hund. Exklusiv verliehen.', price: 0, rarity: 'legendary', hidden: true, data: { variantOf: 'pet_dog', variant: 'baby', label: 'Baby' } },
+  { id: 'skin_axolotl_wild', category: 'pet_skin', name: 'Axolotl Wild', desc: 'Braune Axolotl-Farbe. Exklusiv verliehen.', price: 0, rarity: 'legendary', hidden: true, data: { variantOf: 'pet_axolotl', variant: 'wild', label: 'Wild' } },
+  { id: 'skin_axolotl_gold', category: 'pet_skin', name: 'Axolotl Gold', desc: 'Goldene Axolotl-Farbe. Exklusiv verliehen.', price: 0, rarity: 'legendary', hidden: true, data: { variantOf: 'pet_axolotl', variant: 'gold', label: 'Gold' } },
+  { id: 'skin_axolotl_cyan', category: 'pet_skin', name: 'Axolotl Cyan', desc: 'Cyane Axolotl-Farbe. Exklusiv verliehen.', price: 0, rarity: 'legendary', hidden: true, data: { variantOf: 'pet_axolotl', variant: 'cyan', label: 'Cyan' } },
+  { id: 'skin_axolotl_blue', category: 'pet_skin', name: 'Axolotl Blau', desc: 'Blaue Axolotl-Farbe. Exklusiv verliehen.', price: 0, rarity: 'legendary', hidden: true, data: { variantOf: 'pet_axolotl', variant: 'blue', label: 'Blau' } },
+  { id: 'skin_glow_squid', category: 'pet_skin', name: 'Glow-Squid', desc: 'Leuchtender Skin für Tintenfisch. Exklusiv verliehen.', price: 0, rarity: 'legendary', hidden: true, data: { variantOf: 'pet_squid', variant: 'glow', label: 'Glow-Squid' } },
+  { id: 'skin_snow_fox', category: 'pet_skin', name: 'Schneefuchs', desc: 'Weißer Skin für Fuchs. Exklusiv verliehen.', price: 0, rarity: 'legendary', hidden: true, data: { variantOf: 'pet_fox', variant: 'snow', label: 'Schneefuchs' } },
+  { id: 'skin_zombie_nautilus', category: 'pet_skin', name: 'Zombie-Nautilus', desc: 'Dunkler Skin für Nautilus. Exklusiv verliehen.', price: 0, rarity: 'legendary', hidden: true, data: { variantOf: 'pet_nautilus', variant: 'zombie', label: 'Zombie' } },
+
+  { id: 'mace_kriegshammer', category: 'mace', name: 'Kollegen Kriegshammer', desc: 'Ersetzt den normalen Mace durch einen kollektiven Kriegshammer.', price: 2400, rarity: 'legendary', featured: true, data: { texture: 'kollegen:cosmetics/store/kollegen_warhammer.png', model: 'kollegen:cosmetics/store/kollegen_warhammer.bbmodel' } },
+  { id: 'cape_fluffybento', category: 'cape', name: 'FluffyBento Cape', desc: 'FluffyBento Cape.', price: 0, rarity: 'legendary', featured: true, hidden: true, data: { texture: 'kollegen:cosmetics/fluffybento/fluffybento_cape.png', model: 'kollegen:cosmetics/fluffybento/fluffybento_cape.bbmodel' } },
+  { id: 'schild_fluffybento', category: 'shield', name: 'FluffyBento Schild', desc: 'FluffyBento Schild.', price: 0, rarity: 'legendary', featured: true, hidden: true, data: { texture: 'kollegen:cosmetics/fluffybento/fluffybento_schild.png', model: 'kollegen:cosmetics/fluffybento/fluffybento_schild.bbmodel' } },
+  { id: 'back_fluffybento', category: 'back_accessory', name: 'FluffyBento Flügel', desc: 'FluffyBento Flügel.', price: 0, rarity: 'legendary', featured: true, hidden: true, data: { texture: 'kollegen:cosmetics/fluffybento/fluffybento_fluegel.png', model: 'kollegen:cosmetics/fluffybento/fluffybento_fluegel.bbmodel' } },
+  { id: 'head_fluffybento', category: 'face_accessory', name: 'FluffyBento Visor', desc: 'FluffyBento Visor.', price: 0, rarity: 'legendary', featured: true, hidden: true, data: { texture: 'kollegen:cosmetics/fluffybento/fluffybento_visor.png', model: 'kollegen:cosmetics/fluffybento/fluffybento_visor.bbmodel' } },
+
+  { id: 'cape_limitlos', category: 'cape', name: 'Limit_Los Cape', desc: 'Limit_Los Cape.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/limit_los/limit_los_cape.png', model: 'kollegen:cosmetics/limit_los/limit_los_cape.bbmodel' } },
+  { id: 'head_limitlos', category: 'head_accessory', name: 'Limit_Los Bandana', desc: 'Limit_Los Bandana.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/limit_los/limit_los_bandana.png', model: 'kollegen:cosmetics/limit_los/limit_los_bandana.bbmodel' } },
+  { id: 'shield_limitlos', category: 'shield', name: 'Limit_Los Schild', desc: 'Limit_Los Schild.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/limit_los/limit_los_schild.png', model: 'kollegen:cosmetics/limit_los/limit_los_schild.bbmodel' } },
+  { id: 'back_limitlos', category: 'back_accessory', name: 'Limit_Los Schwert', desc: 'Limit_Los Schwert (Rücken).', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/limit_los/limit_los_schwert.png', model: 'kollegen:cosmetics/limit_los/limit_los_schwert.bbmodel' } },
+  { id: 'shoulder_limitlos', category: 'aura', name: 'Limit_Los Dolche', desc: 'Limit_Los Dolche.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/limit_los/limit_los_dolche.png', model: 'kollegen:cosmetics/limit_los/limit_los_dolche.bbmodel' } },
+
+  { id: 'cape_zerocraft77', category: 'cape', name: 'Zerocraft77 Cape', desc: 'Zerocraft77 Cape.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/zerocraft77/zerocraft77_cape.png', model: 'kollegen:cosmetics/zerocraft77/zerocraft77_cape.bbmodel' } },
+  { id: 'head_zerocraft77', category: 'head_accessory', name: 'Zerocraft77 Bandana', desc: 'Zerocraft77 Bandana.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/zerocraft77/zerocraft77_bandana.png', model: 'kollegen:cosmetics/zerocraft77/zerocraft77_bandana.bbmodel' } },
+  { id: 'back_zerocraft77', category: 'back_accessory', name: 'Zerocraft77 Flügel', desc: 'Zerocraft77 Flügel.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/zerocraft77/zerocraft77_fluegel.png', model: 'kollegen:cosmetics/zerocraft77/zerocraft77_fluegel.bbmodel' } },
+  { id: 'gloves_zerocraft77', category: 'gloves', name: 'Zerocraft77 Handschuhe', desc: 'Zerocraft77 Handschuhe.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/zerocraft77/zerocraft77_handschuhe.png', model: 'kollegen:cosmetics/zerocraft77/zerocraft77_handschuhe.bbmodel' } },
+  { id: 'shield_zerocraft77', category: 'shield', name: 'Zerocraft77 Schild', desc: 'Zerocraft77 Schild.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/zerocraft77/zerocraft77_schild.png', model: 'kollegen:cosmetics/zerocraft77/zerocraft77_schild.bbmodel' } },
+
+  { id: 'cape_irongirl', category: 'cape', name: 'Irongirl Cape', desc: 'Irongirl Cape.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/irongirl_lp/irongirl_lp_cape.png', model: 'kollegen:cosmetics/irongirl_lp/irongirl_lp_cape.bbmodel' } },
+  { id: 'back_irongirl', category: 'back_accessory', name: 'Irongirl Flügel', desc: 'Irongirl Flügel.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/irongirl_lp/irongirl_lp_fluegel.png', model: 'kollegen:cosmetics/irongirl_lp/irongirl_lp_fluegel.bbmodel' } },
+  { id: 'head_irongirl', category: 'head_accessory', name: 'Irongirl Halo', desc: 'Irongirl Halo.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/irongirl_lp/irongirl_lp_halo.png', model: 'kollegen:cosmetics/irongirl_lp/irongirl_lp_halo.bbmodel' } },
+  { id: 'shield_irongirl', category: 'shield', name: 'Irongirl Schild', desc: 'Irongirl Schild.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/irongirl_lp/irongirl_lp_schild.png', model: 'kollegen:cosmetics/irongirl_lp/irongirl_lp_schild.bbmodel' } },
+
+  { id: 'cape_tson', category: 'cape', name: 'T_son_ Cape', desc: 'T_son_ Cape.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/t_son_/t_son__cape.png', model: 'kollegen:cosmetics/t_son_/t_son__cape.bbmodel' } },
+  { id: 'head_tson', category: 'head_accessory', name: 'T_son_ Bandana', desc: 'T_son_ Bandana.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/t_son_/t_son__bandana.png', model: 'kollegen:cosmetics/t_son_/t_son__bandana.bbmodel' } },
+  { id: 'back_tson', category: 'back_accessory', name: 'T_son_ Flügel', desc: 'T_son_ Flügel.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/t_son_/t_son__fluegel.png', model: 'kollegen:cosmetics/t_son_/t_son__fluegel.bbmodel' } },
+  { id: 'shield_tson', category: 'shield', name: 'T_son_ Schild', desc: 'T_son_ Schild.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/t_son_/t_son__schild.png', model: 'kollegen:cosmetics/t_son_/t_son__schild.bbmodel' } },
+
+  { id: 'cape_rixhii', category: 'cape', name: 'Rixhii Cape', desc: 'Rixhii Cape.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/rixhii/rixhii_cape.png', model: 'kollegen:cosmetics/rixhii/rixhii_cape.bbmodel' } },
+  { id: 'head_rixhii', category: 'head_accessory', name: 'Rixhii Bandana', desc: 'Rixhii Bandana.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/rixhii/rixhii_bandana.png', model: 'kollegen:cosmetics/rixhii/rixhii_bandana.bbmodel' } },
+  { id: 'back_rixhii', category: 'back_accessory', name: 'Rixhii Flügel', desc: 'Rixhii Flügel.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/rixhii/rixhii_fluegel.png', model: 'kollegen:cosmetics/rixhii/rixhii_fluegel.bbmodel' } },
+  { id: 'shield_rixhii', category: 'shield', name: 'Rixhii Schild', desc: 'Rixhii Schild.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/rixhii/rixhii_schild.png', model: 'kollegen:cosmetics/rixhii/rixhii_schild.bbmodel' } },
+
+  { id: 'cape_phantomumhang', category: 'cape', name: 'Phantomumhang', desc: 'Dunkler Umhang mit Glutpartikeln.', price: 8500, rarity: 'legendary', featured: true, data: { texture: 'kollegen:cosmetics/store/phantomumhang.png', model: 'kollegen:cosmetics/store/phantomumhang.bbmodel' } },
+  { id: 'cape_sternenhimmel', category: 'cape', name: 'Sternenhimmel-Umhang', desc: 'Der Nachthimmel zum Umhängen.', price: 2600, rarity: 'legendary', featured: true, data: { texture: 'kollegen:cosmetics/store/sternenhimmel_umhang.png', model: 'kollegen:cosmetics/store/sternenhimmel_umhang.bbmodel' } },
+
+  { id: 'face_kitsune', category: 'face_accessory', name: 'Kitsune-Maske', desc: 'Mystische Fuchsmaske fürs Gesicht.', price: 1500, rarity: 'epic', data: { texture: 'kollegen:cosmetics/store/kitsune_maske.png', model: 'kollegen:cosmetics/store/kitsune_maske.bbmodel' } },
+  { id: 'face_neon_visier', category: 'face_accessory', name: 'Neon-Visier', desc: 'Leuchtendes Visier im Cyber-Look.', price: 900, rarity: 'rare', data: { texture: 'kollegen:cosmetics/store/neon_visier.png', model: 'kollegen:cosmetics/store/neon_visier.bbmodel' } },
+
+  { id: 'head_krone', category: 'head_accessory', name: 'Schwebende Krone', desc: 'Eine Krone, die über dir schwebt.', price: 15000, rarity: 'legendary', featured: true, data: { texture: 'kollegen:cosmetics/store/schwebende_krone.png', model: 'kollegen:cosmetics/store/schwebende_krone.bbmodel' } },
+  { id: 'head_planetenkranz', category: 'head_accessory', name: 'Planetenkranz', desc: 'Ein kleines Sonnensystem als Kranz.', price: 1700, rarity: 'epic', data: { texture: 'kollegen:cosmetics/store/planetenkranz.png', model: 'kollegen:cosmetics/store/planetenkranz.bbmodel' } },
+  { id: 'head_gewitterwolke', category: 'head_accessory', name: 'Gewitterwolke', desc: 'Deine eigene kleine Gewitterwolke.', price: 1600, rarity: 'epic', data: { texture: 'kollegen:cosmetics/store/gewitterwolke.png', model: 'kollegen:cosmetics/store/gewitterwolke.bbmodel' } },
+  { id: 'head_geweih', category: 'head_accessory', name: 'Waldgeist-Geweih', desc: 'Majestätisches Geweih des Waldgeists.', price: 1100, rarity: 'rare', data: { texture: 'kollegen:cosmetics/store/waldgeist_geweih.png', model: 'kollegen:cosmetics/store/waldgeist_geweih.bbmodel' } },
+
+  { id: 'shield_drachenschuppen', category: 'shield', name: 'Drachenschuppen-Schild', desc: 'Schild aus gehärteten Drachenschuppen.', price: 7500, rarity: 'legendary', featured: true, data: { texture: 'kollegen:cosmetics/store/drachenschuppen_schild.png', model: 'kollegen:cosmetics/store/drachenschuppen_schild.bbmodel' } },
+  { id: 'shield_energie', category: 'shield', name: 'Energieschild', desc: 'Schild aus reiner Energie.', price: 1400, rarity: 'epic', data: { texture: 'kollegen:cosmetics/store/energieschild.png', model: 'kollegen:cosmetics/store/energieschild.bbmodel' } },
+
+  { id: 'back_jetpack', category: 'back_accessory', name: 'Mini-Jetpack', desc: 'Jetpack für kleine Fluchten.', price: 2500, rarity: 'legendary', data: { texture: 'kollegen:cosmetics/store/mini_jetpack.png', model: 'kollegen:cosmetics/store/mini_jetpack.bbmodel' } },
+  { id: 'back_kristallfluegel', category: 'back_accessory', name: 'Kristallflügel', desc: 'Flügel aus leuchtendem Kristall.', price: 7000, rarity: 'legendary', featured: true, data: { texture: 'kollegen:cosmetics/store/kristallfluegel.png', model: 'kollegen:cosmetics/store/kristallfluegel.bbmodel' } },
+  { id: 'back_klingenfaecher', category: 'back_accessory', name: 'Klingenfächer', desc: 'Fächer aus scharfen Klingen.', price: 1700, rarity: 'epic', data: { texture: 'kollegen:cosmetics/store/klingenfaecher.png', model: 'kollegen:cosmetics/store/klingenfaecher.bbmodel' } },
+  { id: 'back_rucksack', category: 'back_accessory', name: 'Abenteurer-Rucksack', desc: 'Platz für alles Wichtige.', price: 800, rarity: 'rare', data: { texture: 'kollegen:cosmetics/store/abenteurer_rucksack.png', model: 'kollegen:cosmetics/store/abenteurer_rucksack.bbmodel' } },
+
+  { id: 'shoulder_minidrache', category: 'shoulder_accessory', name: 'Mini-Drache', desc: 'Ein kleiner Drache auf deiner Schulter.', price: 1600, rarity: 'epic', data: { texture: 'kollegen:cosmetics/store/mini_drache.png', model: 'kollegen:cosmetics/store/mini_drache.bbmodel' } },
+  { id: 'shoulder_eule', category: 'shoulder_accessory', name: 'Eulenfreund', desc: 'Eine weise Eule als Begleiter.', price: 1000, rarity: 'rare', data: { texture: 'kollegen:cosmetics/store/eulenfreund.png', model: 'kollegen:cosmetics/store/eulenfreund.bbmodel' } },
+
+  { id: 'torso_reaktor', category: 'torso_accessory', name: 'Reaktorkern', desc: 'Pulsierender Kern auf der Brust.', price: 1500, rarity: 'epic', data: { texture: 'kollegen:cosmetics/store/reaktorkern.png', model: 'kollegen:cosmetics/store/reaktorkern.bbmodel' } },
+  { id: 'torso_schal', category: 'torso_accessory', name: 'Flatterschal', desc: 'Leichter Schal für den Hals.', price: 850, rarity: 'rare', data: { texture: 'kollegen:cosmetics/store/flatterschal.png', model: 'kollegen:cosmetics/store/flatterschal.bbmodel' } },
+
+  { id: 'legs_fuchsschweif', category: 'legs_accessory', name: 'Fuchsschweif', desc: 'Buschiger Schweif für den Rücken.', price: 1600, rarity: 'epic', data: { texture: 'kollegen:cosmetics/store/fuchsschweif.png', model: 'kollegen:cosmetics/store/fuchsschweif.bbmodel' } },
+  { id: 'legs_flammenstiefel', category: 'legs_accessory', name: 'Flammenstiefel', desc: 'Stiefel mit ewigem Feuer.', price: 1200, rarity: 'rare', data: { texture: 'kollegen:cosmetics/store/flammenstiefel.png', model: 'kollegen:cosmetics/store/flammenstiefel.bbmodel' } },
+
+  { id: 'aura_totenlaeufer', category: 'aura', name: 'Totenläufer', desc: 'Düstere Aura mit Geisterbegleitung.', price: 2800, rarity: 'legendary', featured: true, data: { texture: 'kollegen:cosmetics/store/totenlaeufer.png', model: 'kollegen:cosmetics/store/totenlaeufer.bbmodel' } },
+  { id: 'aura_orbit', category: 'aura', name: 'Orbit-Aura', desc: 'Kreisende Ringe aus Energie.', price: 2200, rarity: 'legendary', data: { texture: 'kollegen:cosmetics/store/orbit_aura.png', model: 'kollegen:cosmetics/store/orbit_aura.bbmodel' } },
+  { id: 'aura_blueten', category: 'aura', name: 'Blütenwirbel', desc: 'Sanfter Wirbel aus Blütenblättern.', price: 1500, rarity: 'epic', data: { texture: 'kollegen:cosmetics/store/bluetenwirbel.png', model: 'kollegen:cosmetics/store/bluetenwirbel.bbmodel' } },
+];
+
+function catById(id) {
+  const i = typeof id === 'string' ? id : id && id.id ? id.id : null;
+  if (!i) return null;
+  return CATALOG.find((c) => c.id === i) || (store.catalog || []).find((c) => c.id === i);
+}
+
+function ensureUserExtras(u) {
+  if (!u) return u;
+  if (typeof u.points !== 'number') u.points = START_POINTS;
+  if (typeof u.points_total !== 'number') u.points_total = typeof u.points === 'number' ? u.points : START_POINTS;
+  if (!Array.isArray(u.cosmetics)) u.cosmetics = [];
+  if (!u.equipped || typeof u.equipped !== 'object') u.equipped = {};
+  if (!u.petConfig || typeof u.petConfig !== 'object') u.petConfig = { mode: 'follow', name: null, nameColor: null };
+  if (!u.petConfigs || typeof u.petConfigs !== 'object' || Array.isArray(u.petConfigs)) u.petConfigs = {};
+  if (!Array.isArray(u.friend_requests)) u.friend_requests = [];
+  return u;
+}
+
+function levelOf(u) {
+  const t = typeof u.points_total === 'number' ? u.points_total : START_POINTS;
+  return 1 + Math.floor(t / 300);
+}
+
+function normUuid(s) {
+  const hex = String(s || '').toLowerCase().replace(/[^0-9a-f]/g, '');
+  if (hex.length !== 32) return null;
+  return hex.slice(0, 8) + '-' + hex.slice(8, 12) + '-' + hex.slice(12, 16) + '-' + hex.slice(16, 20) + '-' + hex.slice(20);
+}
+
+function sameUuid(a, b) {
+  const x = normUuid(a);
+  const y = normUuid(b);
+  return !!x && x === y;
+}
+
+const GRANTED_TITLES = {
+  '734794262188785741': 'Kollege',
+  '624247056566976522': 'Kollege',
+};
+
+const TITLE_COLORS = {
+  'Kollege': '#ffc400',
+  'Atze': '#ff6b9d',
+  'Promoter': '#ffe97a',
+};
+
+function titleColorFor(text) {
+  if (text === null || text === undefined) return null;
+  const c = TITLE_COLORS[String(text)];
+  return typeof c === 'string' ? c : null;
+}
+
+function grantedTitle(u) {  if (!u) return null;
+  const t = GRANTED_TITLES[String(u.discordId)] || (u.grantedTitle ? String(u.grantedTitle) : null);
+  return t || null;
+}
+
+function grantSpecialTitle(u) {
+  if (!u || !grantedTitle(u)) return;
+  ensureUserExtras(u);
+  if (!u.cosmetics.some((x) => x && x.id === 'title_kollege')) {
+    u.cosmetics.push({ id: 'title_kollege', boughtAt: Date.now() });
+  }
+  u.equipped.title = 'title_kollege';
+}
+
+const PET_MODES = {
+  pet_allay: ['follow', 'hover', 'shoulder', 'head'],
+  pet_blub: ['follow'],
+  pet_cat: ['follow'],
+  pet_dog: ['follow'],
+  pet_chicken: ['follow'],
+  pet_rabbit: ['follow'],
+  pet_axolotl: ['follow'],
+  pet_fox: ['follow'],
+  pet_copper_golem: ['follow'],
+  pet_parrot: ['follow', 'hover'],
+  pet_bee: ['follow', 'hover'],
+  pet_bat: ['follow', 'hover'],
+  pet_squid: ['follow', 'hover'],
+  pet_nautilus: ['follow', 'hover'],
+  pet_ember_drake: ['follow', 'hover'],
+  pet_void_wyrm: ['follow', 'hover'],
+  pet_shadow_reaper: ['follow', 'hover'],
+  pet_rune_sentinel: ['follow', 'hover'],
+  pet_flame_skull: ['follow', 'hover'],
+  pet_storm_cloud: ['follow', 'hover'],
+  pet_crystal_golem: ['follow'],
+  pet_spectre: ['follow', 'hover'],
+  pet_lantern_spirit: ['follow', 'hover'],
+  pet_bolt_bot: ['follow', 'hover'],
+  pet_mini_ufo: ['follow', 'hover'],
+  pet_grimoire: ['follow', 'hover'],
+  pet_mooncap: ['follow'],
+  pet_jelly_cube: ['follow'],
+};
+
+function petModesFor(petId) {
+  return PET_MODES[petId] || ['follow'];
+}
+
+function petSkinsFor(u, petId) {
+  ensureUserExtras(u);
+  const out = [];
+  for (const c of (u.cosmetics || [])) {
+    const item = c && c.id && catById(c.id);
+    if (item && item.category === 'pet_skin' && item.data && item.data.variantOf === petId && item.data.variant) {
+      out.push({ id: item.id, variant: item.data.variant, label: item.data.label || item.data.variant });
+    }
+  }
+  return out;
+}
+
+function petCfgFor(u, petId) {
+  ensureUserExtras(u);
+  const map = (u.petConfigs && typeof u.petConfigs === 'object') ? u.petConfigs : {};
+  const own = (petId && map[petId] && typeof map[petId] === 'object') ? map[petId] : {};
+  const legacy = (u.petConfig && typeof u.petConfig === 'object') ? u.petConfig : {};
+  const modes = petModesFor(petId);
+  const rawMode = (typeof own.mode === 'string' && own.mode) ? own.mode : legacy.mode;
+  const rawName = (typeof own.name === 'string' && own.name) ? own.name : legacy.name;
+  const rawColor = (typeof own.nameColor === 'string' && own.nameColor) ? own.nameColor : legacy.nameColor;
+  const rawVariant = (typeof own.variant === 'string' && own.variant) ? own.variant : null;
+  const allowedVariants = petSkinsFor(u, petId).map((s) => s.variant);
+  return {
+    mode: modes.includes(rawMode) ? rawMode : 'follow',
+    name: (typeof rawName === 'string' && rawName) ? String(rawName).slice(0, 16) : null,
+    nameColor: (typeof rawColor === 'string' && /^#[0-9a-fA-F]{6}$/.test(rawColor)) ? rawColor : null,
+    variant: (rawVariant && allowedVariants.includes(rawVariant)) ? rawVariant : null,
+  };
+}
+
+function resolvePetIdFor(user, petId) {
+  ensureUserExtras(user);
+  let id = (typeof petId === 'string' && petId) ? petId : user.equipped.pet;
+  const ownedPetIds = (user.cosmetics || []).map((x) => x && x.id).filter((x) => x && (catById(x) || {}).category === 'pet');
+  if ((!id || !(catById(id) || {}).category) && ownedPetIds.length) id = ownedPetIds[0];
+  const item = id && catById(id);
+  if (!id || !item || item.category !== 'pet') return { error: 'invalid_pet' };
+  if (!ownedPetIds.includes(id)) return { error: 'not_owned' };
+  if (!user.petConfigs || typeof user.petConfigs !== 'object') user.petConfigs = {};
+  const cfg = (user.petConfigs[id] && typeof user.petConfigs[id] === 'object') ? user.petConfigs[id] : (user.petConfigs[id] = { mode: 'follow', name: null, nameColor: null });
+  return { id, cfg };
+}
+
+function presenceCosmetics(u) {
+  if (!u) return null;
+  if (u.profile && u.profile.public === false) return null;
+  ensureUserExtras(u);
+  const eq = u.equipped || {};
+  const out = {};
+  const granted = grantedTitle(u);
+  if (granted) {
+    out.title = { text: granted, color: titleColorFor(granted) };
+  } else {
+    const t = eq.title && catById(eq.title);
+    if (t && t.data && t.data.text) out.title = { text: t.data.text, color: (t.data && t.data.color) || titleColorFor(t.data.text) };
+  }
+  const b = eq.badge && catById(eq.badge);
+  if (b && b.data) out.badge = { icon: b.data.icon || null, color: b.data.color || null };
+  const nc = eq.name_color && catById(eq.name_color);
+  const stil = eq.profil_stil && catById(eq.profil_stil);
+  const accent = (nc && nc.data && nc.data.accent) || (stil && stil.data && stil.data.accent) || null;
+  if (accent) out.nameColor = accent;
+  const fn = eq.font && catById(eq.font);
+  if (fn && fn.data && fn.data.font) out.font = fn.data.font;
+  const sk = eq.sticker && catById(eq.sticker);
+  if (sk && sk.data) out.sticker = { icon: sk.data.icon || null, color: sk.data.color || null };
+  const pet = eq.pet && catById(eq.pet);
+  if (pet && pet.category === 'pet' && pet.data && pet.data.kind) {
+    const cfg = petCfgFor(u, eq.pet);
+    out.pet = {
+      kind: pet.data.kind,
+      scale: typeof pet.data.scale === 'number' ? pet.data.scale : 0.2,
+      mode: cfg.mode,
+      name: cfg.name,
+      nameColor: cfg.nameColor,
+      variant: cfg.variant,
+    };
+  }
+  const cape = eq.cape && catById(eq.cape);
+  if (cape && cape.data && cape.data.texture) out.cape = { texture: cape.data.texture, model: cape.data.model || null };
+  const back = eq.back_accessory && catById(eq.back_accessory);
+  if (back && back.data && back.data.texture) out.backAccessory = { texture: back.data.texture, model: back.data.model || null };
+  const head = eq.head_accessory && catById(eq.head_accessory);
+  if (head && head.data && head.data.texture) out.headAccessory = { texture: head.data.texture, model: head.data.model || null };
+  const shield = eq.shield && catById(eq.shield);
+  if (shield && shield.data && shield.data.texture) out.shield = { texture: shield.data.texture, model: shield.data.model || null };
+  const face = eq.face_accessory && catById(eq.face_accessory);
+  if (face && face.data && face.data.texture) out.face_accessory = { texture: face.data.texture, model: face.data.model || null };
+  const aura = eq.aura && catById(eq.aura);
+  if (aura && aura.data && aura.data.texture) out.aura = { texture: aura.data.texture, model: aura.data.model || null };
+  const shoulder = eq.shoulder_accessory && catById(eq.shoulder_accessory);
+  if (shoulder && shoulder.data && shoulder.data.texture) out.shoulder_accessory = { texture: shoulder.data.texture, model: shoulder.data.model || null };
+  const torso = eq.torso_accessory && catById(eq.torso_accessory);
+  if (torso && torso.data && torso.data.texture) out.torso_accessory = { texture: torso.data.texture, model: torso.data.model || null };
+  const legs = eq.legs_accessory && catById(eq.legs_accessory);
+  if (legs && legs.data && legs.data.texture) out.legs_accessory = { texture: legs.data.texture, model: legs.data.model || null };
+  const gloves = eq.gloves && catById(eq.gloves);
+  if (gloves && gloves.data && gloves.data.texture) out.gloves = { texture: gloves.data.texture, model: gloves.data.model || null };
+  return out;
+}
+
+
+function socialView(u) {
+  ensureUserExtras(u);
+  const p = store.presence[u.discordId];
+  const online = !!(p && Date.now() - (p.timestamp || 0) <= PRESENCE_TTL_MS);
+  return {
+    id: u.id,
+    discordId: u.discordId,
+    name: u.name || u.discordName,
+    uuid: u.uuid || null,
+    code: u.code,
+    online,
+    server: online && p ? p.server : null,
+    points: u.points,
+    points_total: u.points_total,
+    level: levelOf(u),
+    cosmetics: (u.cosmetics || []).map((c) => (typeof c === 'object' && c && c.id ? c : { id: String(c), boughtAt: null })),
+    equipped: u.equipped || {},
+    profile: u.profile || null,
+  };
+}
+
+
+let store = { users: {}, sessions: {}, codes: {}, presence: {}, dms: {}, groups: {}, groupDms: {}, seq: 1, catalog: CATALOG };
+let liveCalls = {};
+let callSeq = 1;
+let saveTimer = null;
+
+function loadStore() {
+  try {
+    if (fs.existsSync(STORE_FILE)) {
+      const raw = fs.readFileSync(STORE_FILE, 'utf8');
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object') store = Object.assign(store, parsed);
+    }
+  } catch (e) {
+    console.error('Konnte store.json nicht laden:', e.message);
+  }
+  
+  
+  
+  const curCat = Array.isArray(store.catalog) ? store.catalog : [];
+  const byId = {};
+  for (const c of curCat) if (c && c.id) byId[c.id] = c;
+  store.catalog = CATALOG.map((c) => Object.assign({}, byId[c.id] || {}, c));
+  for (const key of Object.keys(store.users || {})) {
+    const u = store.users[key];
+    if (!u || typeof u !== 'object') continue;
+    ensureUserExtras(u);
+    if (Array.isArray(u.cosmetics)) {
+      for (const c of u.cosmetics) {
+        if (c && c.id === 'pet_drache') c.id = 'pet_allay';
+      }
+    }
+    if (u.equipped && u.equipped.pet === 'pet_drache') u.equipped.pet = 'pet_allay';
+    if (u.petConfig && typeof u.petConfig === 'object' && (!u.petConfigs || typeof u.petConfigs !== 'object')) {
+      const legacy = u.petConfig;
+      if (legacy.mode || legacy.name || legacy.nameColor) {
+        u.petConfigs = {};
+        for (const c of (u.cosmetics || [])) {
+          const pid = c && c.id;
+          const pitem = pid && catById(pid);
+          if (pitem && pitem.category === 'pet') u.petConfigs[pid] = { mode: legacy.mode || 'follow', name: legacy.name || null, nameColor: legacy.nameColor || null };
+        }
+      }
+    }
+  }
+  saveStore();
+}
+
+function saveStore() {
+  if (saveTimer) return;
+  saveTimer = setTimeout(() => {
+    saveTimer = null;
+    try {
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+      fs.writeFileSync(STORE_FILE, JSON.stringify(store, null, 2));
+    } catch (e) {
+      console.error('Konnte store.json nicht schreiben:', e.message);
+    }
+  }, 500);
+}
+
+loadStore();
+
+
+function sendJson(res, status, obj) {
+  const body = JSON.stringify(obj);
+  res.writeHead(status, {
+    'Content-Type': 'application/json; charset=utf-8',
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+  });
+  res.end(body);
+}
+
+function readBody(req) {
+  return new Promise((resolve) => {
+    let data = '';
+    req.on('data', (c) => (data += c));
+    req.on('end', () => {
+      if (!data) return resolve({});
+      try {
+        resolve(JSON.parse(data));
+      } catch {
+        resolve({});
+      }
+    });
+  });
+}
+
+function bearerUser(req) {
+  const h = req.headers['authorization'] || '';
+  const m = h.match(/^Bearer\s+(.+)$/i);
+  if (!m) return null;
+  const token = m[1].trim();
+  const discordId = store.sessions[token];
+  if (!discordId) return null;
+  return store.users[discordId] || null;
+}
+
+function genCode() {
+  let code;
+  do {
+    code = crypto.randomBytes(5).toString('hex').toUpperCase();
+  } while (store.codes[code]);
+  return code;
+}
+
+
+function resolveUser(x) {
+  if (!x) return null;
+  const s = String(x);
+  if (store.users[s]) return store.users[s];
+  const hit = Object.values(store.users || {}).find((u) => u && (u.id === s || u.code === s.toUpperCase()));
+  return hit || null;
+}
+
+function publicFriend(u) {
+  if (!u) return null;
+  ensureUserExtras(u);
+  const p = store.presence[u.discordId];
+  const online = !!(p && Date.now() - (p.timestamp || 0) <= PRESENCE_TTL_MS);
+  const eq = u.equipped || {};
+  const equippedData = {};
+  for (const cat of Object.keys(eq)) {
+    const it = eq[cat] ? catById(eq[cat]) : null;
+    equippedData[cat] = it ? { id: it.id, category: it.category, name: it.name || null, data: it.data || null } : null;
+  }
+  return {
+    id: u.id,
+    name: u.name || u.discordName,
+    uuid: u.uuid || null,
+    code: u.code,
+    server: online && p ? p.server : null,
+    online,
+    level: levelOf(u),
+    equipped: equippedData,
+    
+    profile:
+      u.profile && typeof u.profile === 'object'
+        ? {
+            bio: u.profile.bio || null,
+            avatar_data_url: u.profile.avatar_data_url || null,
+            banner_data_url: u.profile.banner_data_url || null,
+            avatar_choice: u.profile.avatar_choice || 'discord',
+            public: !!u.profile.public,
+          }
+        : null,
+  };
+}
+
+
+function addFriendByCode(me, target) {
+  
+  me.friends = me.friends || [];
+  target.friends = target.friends || [];
+  target.friend_requests = target.friend_requests || [];
+  me.friend_requests = me.friend_requests || [];
+  if (me.friends.includes(target.discordId)) return { ok: true, already: true };
+  const mutual = target.friend_requests.findIndex((r) => r && r.from === me.discordId);
+  if (mutual >= 0) {
+    target.friend_requests.splice(mutual, 1);
+    if (!me.friends.includes(target.discordId)) me.friends.push(target.discordId);
+    if (!target.friends.includes(me.discordId)) target.friends.push(me.discordId);
+    saveStore();
+    return { ok: true, accepted: true };
+  }
+  const mine = me.friend_requests.findIndex((r) => r && r.from === target.discordId);
+  if (mine >= 0) return { ok: true, pending: true };
+  target.friend_requests.push({ from: me.discordId, at: Date.now() });
+  saveStore();
+  return { ok: true, pending: true };
+}
+
+function acceptFriendRequest(me, fromId) {
+  me.friends = me.friends || [];
+  const from = fromId ? store.users[fromId] : null;
+  if (!from) return { error: 'user_not_found' };
+  const idx = (me.friend_requests || []).findIndex((r) => r && r.from === fromId);
+  if (idx < 0) return { error: 'request_not_found' };
+  me.friend_requests.splice(idx, 1);
+  from.friends = from.friends || [];
+  if (!me.friends.includes(fromId)) me.friends.push(fromId);
+  if (!from.friends.includes(me.discordId)) from.friends.push(me.discordId);
+  saveStore();
+  return { ok: true };
+}
+
+function declineFriendRequest(me, fromId) {
+  const idx = (me.friend_requests || []).findIndex((r) => r && r.from === fromId);
+  if (idx >= 0) me.friend_requests.splice(idx, 1);
+  saveStore();
+  return { ok: true };
+}
+
+function incomingRequests(user) {
+  if (!user) return [];
+  const out = (user.friend_requests || [])
+    .map((r) => {
+      const from = r && r.from ? store.users[r.from] : null;
+      if (!from) return null;
+      return { request: { from: r.from, at: r.at || 0 }, user: publicFriend(from) };
+    })
+    .filter(Boolean)
+    .sort((a, b) => (b.request.at || 0) - (a.request.at || 0));
+  return out;
+}
+
+
+async function verifyDiscordToken(discordToken) {
+  if (!discordToken) return null;
+  try {
+    const r = await fetch('https://discord.com/api/v10/users/@me', {
+      headers: { Authorization: 'Bearer ' + discordToken },
+    });
+    if (!r.ok) return null;
+    return await r.json();
+  } catch {
+    return null;
+  }
+}
+
+
+const server = http.createServer(async (req, res) => {
+  if (req.method === 'OPTIONS') return sendJson(res, 204, {});
+
+  const url = new URL(req.url, 'http://localhost');
+  let pathname = url.pathname;
+  if (pathname === '/api/store' || pathname.startsWith('/api/store/')) pathname = pathname.slice(4);
+  const method = req.method;
+
+  try {
+    
+    if (pathname === '/health' && method === 'GET') {
+      return sendJson(res, 200, { ok: true });
+    }
+
+    
+    if (pathname === '/auth' && method === 'POST') {
+      const body = await readBody(req);
+      const discord = await verifyDiscordToken(body.discord_token);
+      if (!discord || !discord.id) return sendJson(res, 401, { error: 'invalid_discord_token' });
+
+      const discordAvatar = discord.avatar
+        ? 'https://cdn.discordapp.com/avatars/' + discord.id + '/' + discord.avatar + (String(discord.avatar).startsWith('a_') ? '.gif' : '.png')
+        : null;
+      let user = store.users[discord.id];
+      if (!user) {
+        user = {
+          discordId: discord.id,
+          discordName: discord.global_name || discord.username,
+          discordAvatar,
+          uuid: null,
+          name: null,
+          accounts: [],
+          code: genCode(),
+          friends: [],
+          id: String(store.seq++),
+        };
+        store.users[discord.id] = user;
+        store.codes[user.code] = discord.id;
+      } else {
+        user.discordName = discord.global_name || discord.username;
+        if (discordAvatar) user.discordAvatar = discordAvatar;
+      }
+      ensureUserExtras(user);
+      grantSpecialTitle(user);
+
+      if (body.profile && typeof body.profile === 'object') {
+        if (body.profile.uuid) user.uuid = String(body.profile.uuid);
+        if (body.profile.name) user.name = String(body.profile.name);
+        if (Array.isArray(body.profile.accounts)) user.accounts = body.profile.accounts;
+      }
+
+      const token = crypto.randomBytes(32).toString('hex');
+      store.sessions[token] = discord.id;
+
+      saveStore();
+      return sendJson(res, 200, { token });
+    }
+
+    
+    if (pathname === '/profile' && method === 'POST') {
+      const user = bearerUser(req);
+      if (!user) return sendJson(res, 401, { error: 'not_authenticated' });
+      const body = await readBody(req);
+      if (body.uuid) user.uuid = String(body.uuid);
+      if (body.name) user.name = String(body.name);
+      if (Array.isArray(body.accounts)) user.accounts = body.accounts;
+
+      
+      user.profile = user.profile || {};
+      if (body.profile && typeof body.profile === 'object') {
+        const p = body.profile;
+        if (typeof p.bio === 'string') user.profile.bio = p.bio;
+        if (typeof p.banner_data_url === 'string') user.profile.banner_data_url = p.banner_data_url;
+        if (typeof p.avatar_data_url === 'string') user.profile.avatar_data_url = p.avatar_data_url;
+        if (typeof p.avatar_choice === 'string') user.profile.avatar_choice = p.avatar_choice;
+        if (typeof p.public === 'boolean') user.profile.public = p.public;
+      }
+
+      
+      if (Array.isArray(body.cosmetics)) {
+        for (const c of body.cosmetics) {
+          const itemId = typeof c === 'object' && c ? String(c.id) : String(c);
+          if (itemId && !user.cosmetics.some((x) => x && x.id === itemId)) {
+            user.cosmetics.push({ id: itemId, boughtAt: Date.now() });
+          }
+        }
+      }
+      if (body.equipped && typeof body.equipped === 'object') {
+        const next = {};
+        for (const cat of Object.keys(body.equipped)) {
+          const itemId = String(body.equipped[cat] || '').trim();
+          if (!itemId) { next[cat] = ''; continue; }
+          const item = catById(itemId);
+          if (item && item.category === cat && user.cosmetics.some((x) => x && x.id === itemId)) {
+            next[cat] = itemId;
+          }
+        }
+        user.equipped = next;
+      }
+
+      saveStore();
+      return sendJson(res, 200, { ok: true });
+    }
+
+    
+    if (pathname === '/me' && method === 'GET') {
+      const user = bearerUser(req);
+      if (!user) return sendJson(res, 401, { error: 'not_authenticated' });
+      const sv = socialView(user);
+      return sendJson(res, 200, {
+        id: user.id,
+        name: user.name || user.discordName,
+        uuid: user.uuid,
+        code: user.code,
+        avatar: user.discordAvatar || null,
+        accounts: user.accounts,
+        profile: user.profile || null,
+        points: sv.points,
+        points_total: sv.points_total,
+        level: sv.level,
+        cosmetics: sv.cosmetics,
+        equipped: sv.equipped,
+        petConfig: (user.petConfig && typeof user.petConfig === 'object') ? user.petConfig : { mode: 'follow', name: null, nameColor: null },
+        petConfigs: (user.petConfigs && typeof user.petConfigs === 'object') ? user.petConfigs : {},
+      });
+    }
+
+    
+    if ((pathname === '/store' || pathname === '/store/catalog') && method === 'GET') {
+      let user = bearerUser(req);
+      if (!user) {
+        const dId = url.searchParams.get('discordId');
+        if (dId && internalAuthorized(req)) user = store.users[dId] || null;
+      }
+      const hasUser = !!user;
+      if (user) ensureUserExtras(user);
+      const ownedIds = hasUser ? new Set(user.cosmetics.map((x) => x && x.id)) : new Set();
+      const items = (store.catalog || CATALOG)
+        .filter((c) => !c.hidden || ownedIds.has(c.id))
+        .map((c) => Object.assign({}, c, {
+          owned: hasUser ? user.cosmetics.some((x) => x && x.id === c.id) : false,
+          equippedCategory: hasUser ? user.equipped[c.category] === c.id : false,
+        }));
+      return sendJson(res, 200, hasUser
+        ? { catalog: items, points: user.points, points_total: user.points_total, level: levelOf(user), equipped: user.equipped, petConfigs: (user.petConfigs && typeof user.petConfigs === 'object') ? user.petConfigs : {} }
+        : { catalog: items, needsAuth: true });
+    }
+
+    
+    if (pathname === '/api/minigame' && method === 'POST') {
+      const user = bearerUser(req);
+      if (!user) return sendJson(res, 401, { error: 'not_authenticated' });
+      ensureUserExtras(user);
+      const body = await readBody(req);
+      const game = String(body.game || '').trim().toLowerCase();
+      const rates = { tetris: 100 };
+      if (!rates[game]) return sendJson(res, 400, { error: 'unknown_game' });
+      const score = Math.max(0, Math.min(2000000, Math.floor(Number(body.score) || 0)));
+      let awarded = Math.floor(score / rates[game]);
+      if (awarded <= 0) return sendJson(res, 200, { ok: true, awarded: 0, points: user.points });
+      if (awarded > 2000) awarded = 2000;
+      const day = new Date().toISOString().slice(0, 10);
+      if (!user.minigame || typeof user.minigame !== 'object') user.minigame = {};
+      if (user.minigame.date !== day) user.minigame = { date: day };
+      const used = Math.max(0, Math.floor(Number(user.minigame[game]) || 0));
+      const left = Math.max(0, 5000 - used);
+      if (left <= 0) return sendJson(res, 200, { ok: true, awarded: 0, points: user.points, limit: true });
+      if (awarded > left) awarded = left;
+      user.minigame[game] = used + awarded;
+      user.points = Math.max(0, (user.points || 0) + awarded);
+      user.points_total = Math.max(0, (user.points_total || 0) + awarded);
+      saveStore();
+      return sendJson(res, 200, { ok: true, awarded, points: user.points, level: levelOf(user) });
+    }
+
+    if (pathname === '/store/buy' && method === 'POST') {      const user = bearerUser(req);
+      if (!user) return sendJson(res, 401, { error: 'not_authenticated' });
+      ensureUserExtras(user);
+      const body = await readBody(req);
+      const itemId = String(body.item_id || '').trim();
+      const item = catById(itemId);
+      if (!item) return sendJson(res, 404, { error: 'item_not_found' });
+      if (item.hidden) return sendJson(res, 400, { error: 'not_buyable' });
+      if (user.cosmetics.some((x) => x && x.id === itemId)) return sendJson(res, 400, { error: 'already_owned' });
+      if (user.points < item.price) return sendJson(res, 400, { error: 'not_enough_points', points: user.points, price: item.price });
+      user.points -= item.price;
+      user.cosmetics.push({ id: itemId, boughtAt: Date.now() });
+      
+      if (!user.equipped[item.category]) user.equipped[item.category] = itemId;
+      saveStore();
+      return sendJson(res, 200, {
+        ok: true,
+        points: user.points,
+        item: { id: itemId, category: item.category, equipped: true },
+        equipped: user.equipped,
+      });
+    }
+
+    
+    if (pathname === '/store/equip' && method === 'POST') {
+      const user = bearerUser(req);
+      if (!user) return sendJson(res, 401, { error: 'not_authenticated' });
+      ensureUserExtras(user);
+      const body = await readBody(req);
+      const itemId = String(body.item_id || '');
+      if (!itemId) {
+        
+        if (!user.equipped || typeof user.equipped !== 'object') user.equipped = {};
+        const cat = String(body.category || '');
+        if (cat) user.equipped[cat] = '';
+        else if (body.all) user.equipped = {};
+        saveStore();
+        return sendJson(res, 200, { ok: true, equipped: user.equipped });
+      }
+      const item = catById(itemId);
+      if (!item) return sendJson(res, 404, { error: 'item_not_found' });
+      if (!user.cosmetics.some((x) => x && x.id === itemId)) return sendJson(res, 403, { error: 'not_owned' });
+      user.equipped = user.equipped || {};
+      if (item.category === 'pet_skin' && item.data && item.data.variantOf && item.data.variant) {
+        user.equipped.pet = item.data.variantOf;
+        if (!user.petConfigs || typeof user.petConfigs !== 'object') user.petConfigs = {};
+        const scfg = (user.petConfigs[item.data.variantOf] && typeof user.petConfigs[item.data.variantOf] === 'object') ? user.petConfigs[item.data.variantOf] : (user.petConfigs[item.data.variantOf] = { mode: 'follow', name: null, nameColor: null });
+        scfg.variant = item.data.variant;
+      } else {
+        user.equipped[item.category] = itemId;
+      }
+      saveStore();
+      return sendJson(res, 200, { ok: true, equipped: user.equipped });
+    }
+
+    
+    if (pathname === '/pet-config' && method === 'POST') {
+      const user = bearerUser(req);
+      if (!user) { console.log('[pet-config] 401 no session'); return sendJson(res, 401, { error: 'not_authenticated' }); }
+      ensureUserExtras(user);
+      const body = await readBody(req);
+      console.log('[pet-config] attempt', user.discordId, 'pet=', body.pet, 'fields=', Object.keys(body).join(','));
+      const target = resolvePetIdFor(user, body.pet);
+      if (target.error) { console.log('[pet-config] 400', target.error); return sendJson(res, 400, { error: target.error }); }
+      const cfg = target.cfg;
+      if (body.mode !== undefined) {
+        const mode = String(body.mode || '');
+        if (!petModesFor(target.id).includes(mode)) { console.log('[pet-config] 400 invalid_mode', target.id, mode); return sendJson(res, 400, { error: 'invalid_mode' }); }
+        cfg.mode = mode;
+      }
+      if (body.name !== undefined) {
+        const name = String(body.name || '').trim().slice(0, 16);
+        cfg.name = name || null;
+      }
+      if (body.nameColor !== undefined) {
+        const color = String(body.nameColor || '').trim();
+        if (color && !/^#[0-9a-fA-F]{6}$/.test(color)) { console.log('[pet-config] 400 invalid_color', target.id); return sendJson(res, 400, { error: 'invalid_color' }); }
+        cfg.nameColor = color || null;
+      }
+      if (body.variant !== undefined) {
+        const variant = String(body.variant || '').trim();
+        if (variant && !petSkinsFor(user, target.id).some((s) => s.variant === variant)) { console.log('[pet-config] 400 invalid_variant', target.id, variant); return sendJson(res, 400, { error: 'invalid_variant' }); }
+        cfg.variant = variant || null;
+      }
+      saveStore();
+      console.log('[pet-config] 200 ok', target.id, JSON.stringify(cfg));
+      return sendJson(res, 200, { ok: true, pet: target.id, petConfig: cfg, petConfigs: user.petConfigs });
+    }
+
+    
+    if (pathname === '/profiles' && method === 'GET') {
+      
+      const search = (url.searchParams.get('search') || '').toLowerCase();
+      const limit = parseInt(url.searchParams.get('limit') || '50', 10);
+      const offset = parseInt(url.searchParams.get('offset') || '0', 10);
+
+      const all = Object.values(store.users || {})
+        .filter(u => u && u.profile && u.profile.public)
+        .map(u => ({
+          id: u.id,
+          name: u.name || u.discordName,
+          uuid: u.uuid || null,
+          code: u.code,
+          avatar_data_url: (u.profile && u.profile.avatar_data_url) || null,
+          banner_data_url: (u.profile && u.profile.banner_data_url) || null,
+          bio: (u.profile && u.profile.bio) || null,
+          level: levelOf(u),
+          equipped: ensureUserExtras(u).equipped || {},
+        }));
+
+      const filtered = search
+        ? all.filter(p => (p.name || '').toLowerCase().includes(search) || (p.code || '').toLowerCase().includes(search))
+        : all;
+
+      const slice = filtered.slice(offset, offset + Math.min(limit, 200));
+      return sendJson(res, 200, { total: filtered.length, items: slice });
+    }
+
+    
+    if (pathname.startsWith('/profiles/') && method === 'GET') {
+      const parts = pathname.split('/').filter(Boolean);
+      
+      if (parts.length === 2) {
+        const id = parts[1];
+        const u = Object.values(store.users || {}).find(x => x && (x.id === id || x.code === id));
+        if (!u || !u.profile || !u.profile.public) return sendJson(res, 404, { error: 'not_found' });
+        return sendJson(res, 200, {
+          id: u.id,
+          name: u.name || u.discordName,
+          uuid: u.uuid || null,
+          code: u.code,
+          avatar_data_url: (u.profile && u.profile.avatar_data_url) || null,
+          banner_data_url: (u.profile && u.profile.banner_data_url) || null,
+          bio: (u.profile && u.profile.bio) || null,
+          level: levelOf(u),
+          equipped: ensureUserExtras(u).equipped || {},
+        });
+      }
+    }
+
+    
+
+
+
+
+function internalAuthorized(req) {
+  const expect = process.env.KOLLEGEN_INTERNAL_SECRET || '';
+  if (!expect) return false;
+  const h = req.headers['x-kollegen-internal'] || '';
+  return h === expect;
+}
+
+
+if (pathname === '/internal/user' && method === 'GET') {
+  if (!internalAuthorized(req)) return sendJson(res, 403, { error: 'forbidden' });
+  const discordId = url.searchParams.get('discordId');
+  const id = url.searchParams.get('id');
+  let u = null;
+  if (discordId) u = store.users[discordId];
+  else if (id) u = Object.values(store.users || {}).find(x => x && x.id === String(id)) || null;
+  if (!u) return sendJson(res, 404, { error: 'not_found' });
+  ensureUserExtras(u);
+  return sendJson(res, 200, {
+    id: u.id,
+    discordId: u.discordId,
+    name: u.name || u.discordName,
+    uuid: u.uuid || null,
+    code: u.code,
+    avatar: u.discordAvatar || null,
+    profile: u.profile || null,
+    mc_name: u.name || null,
+    points: u.points,
+    points_total: u.points_total,
+    level: levelOf(u),
+    cosmetics: u.cosmetics,
+    equipped: u.equipped || {},
+  });
+}
+
+
+if (pathname === '/internal/profile' && method === 'POST') {
+  if (!internalAuthorized(req)) return sendJson(res, 403, { error: 'forbidden' });
+  const body = await readBody(req);
+  const discordId = String(body.discordId || '');
+  if (!discordId) return sendJson(res, 400, { error: 'discordId_required' });
+  const user = store.users[discordId] || (store.users[discordId] = {
+    discordId,
+    discordName: String(body.discordName || 'Discord-Nutzer'),
+    uuid: null,
+    name: null,
+    accounts: [],
+    code: genCode(),
+    friends: [],
+    id: String(store.seq++),
+  });
+  ensureUserExtras(user);
+  if (body.mcName) user.name = String(body.mcName);
+  if (body.uuid) user.uuid = String(body.uuid);
+  if (body.discordName) user.discordName = String(body.discordName);
+    if (body.profile && typeof body.profile === 'object') {
+      user.profile = user.profile || {};
+      const p = body.profile;
+      if (typeof p.bio === 'string') user.profile.bio = p.bio;
+      if (typeof p.banner_data_url === 'string') user.profile.banner_data_url = p.banner_data_url;
+      if (typeof p.avatar_data_url === 'string') user.profile.avatar_data_url = p.avatar_data_url;
+      if (typeof p.avatar_choice === 'string') user.profile.avatar_choice = p.avatar_choice;
+      if (typeof p.public === 'boolean') user.profile.public = p.public;
+    }
+  if (body.equipped && typeof body.equipped === 'object') {
+    const next = {};
+    for (const cat of Object.keys(body.equipped)) {
+      const itemId = String(body.equipped[cat] || '').trim();
+      if (!itemId) { next[cat] = ''; continue; }
+      const item = catById(itemId);
+      if (item && item.category === cat && user.cosmetics.some((x) => x && x.id === itemId)) {
+        next[cat] = itemId;
+      }
+    }
+    user.equipped = next;
+  }
+  store.codes[user.code] = user.discordId;
+  saveStore();
+  return sendJson(res, 200, { ok: true, user: { id: user.id, code: user.code } });
+}
+
+
+if (pathname === '/internal/store-buy' && method === 'POST') {
+  if (!internalAuthorized(req)) return sendJson(res, 403, { error: 'forbidden' });
+  const body = await readBody(req);
+  const discordId = String(body.discordId || '');
+  const user = discordId ? store.users[discordId] : null;
+  if (!user) return sendJson(res, 404, { error: 'user_not_found' });
+  ensureUserExtras(user);
+  const itemId = String(body.item_id || '').trim();
+  const item = catById(itemId);
+  if (!item) return sendJson(res, 404, { error: 'item_not_found' });
+  if (user.cosmetics.some((x) => x && x.id === itemId)) return sendJson(res, 400, { error: 'already_owned' });
+  if (user.points < item.price) return sendJson(res, 400, { error: 'not_enough_points', points: user.points, price: item.price });
+  user.points -= item.price;
+  user.cosmetics.push({ id: itemId, boughtAt: Date.now() });
+  if (!user.equipped[item.category]) user.equipped[item.category] = itemId;
+  saveStore();
+  return sendJson(res, 200, { ok: true, points: user.points, item: { id: itemId, category: item.category, equipped: true }, equipped: user.equipped });
+}
+
+
+if (pathname === '/internal/store-equip' && method === 'POST') {
+  if (!internalAuthorized(req)) return sendJson(res, 403, { error: 'forbidden' });
+  const body = await readBody(req);
+  const discordId = String(body.discordId || '');
+  const user = discordId ? store.users[discordId] : null;
+  if (!user) return sendJson(res, 404, { error: 'user_not_found' });
+  ensureUserExtras(user);
+  const itemId = String(body.item_id || '');
+  if (!itemId) {
+    const cat = String(body.category || '');
+    if (cat) user.equipped[cat] = '';
+    else if (body.all) user.equipped = {};
+    saveStore();
+    return sendJson(res, 200, { ok: true, equipped: user.equipped });
+  }
+  const item = catById(itemId);
+  if (!item) return sendJson(res, 404, { error: 'item_not_found' });
+  if (!user.cosmetics.some((x) => x && x.id === itemId)) return sendJson(res, 403, { error: 'not_owned' });
+  user.equipped[item.category] = itemId;
+  saveStore();
+  return sendJson(res, 200, { ok: true, equipped: user.equipped });
+}
+
+
+if (pathname === '/internal/pet-config' && method === 'POST') {
+  if (!internalAuthorized(req)) return sendJson(res, 403, { error: 'forbidden' });
+  const body = await readBody(req);
+  const discordId = String(body.discordId || '');
+  const user = discordId ? store.users[discordId] : null;
+  if (!user) return sendJson(res, 404, { error: 'user_not_found' });
+  ensureUserExtras(user);
+  const target = resolvePetIdFor(user, body.pet);
+  if (target.error) return sendJson(res, 400, { error: target.error });
+  const cfg = target.cfg;
+  if (body.mode !== undefined) {
+    const mode = String(body.mode || '');
+    if (!petModesFor(target.id).includes(mode)) return sendJson(res, 400, { error: 'invalid_mode' });
+    cfg.mode = mode;
+  }
+  if (body.name !== undefined) {
+    const name = String(body.name || '').trim().slice(0, 16);
+    cfg.name = name || null;
+  }
+  if (body.nameColor !== undefined) {
+    const color = String(body.nameColor || '').trim();
+    if (color && !/^#[0-9a-fA-F]{6}$/.test(color)) return sendJson(res, 400, { error: 'invalid_color' });
+    cfg.nameColor = color || null;
+  }
+  if (body.variant !== undefined) {
+    const variant = String(body.variant || '').trim();
+    if (variant && !petSkinsFor(user, target.id).some((s) => s.variant === variant)) return sendJson(res, 400, { error: 'invalid_variant' });
+    cfg.variant = variant || null;
+  }
+  saveStore();
+  return sendJson(res, 200, { ok: true, pet: target.id, petConfig: cfg, petConfigs: user.petConfigs });
+}
+
+
+if (pathname === '/internal/friends' && method === 'GET') {
+  if (!internalAuthorized(req)) return sendJson(res, 403, { error: 'forbidden' });
+  const discordId = url.searchParams.get('discordId');
+  const user = discordId ? store.users[discordId] : null;
+  if (!user) return sendJson(res, 404, { error: 'user_not_found' });
+  const list = (user.friends || [])
+    .map((id) => store.users[id])
+    .filter(Boolean)
+    .map((f) => Object.assign(publicFriend(f), { discordId: f.discordId }));
+  return sendJson(res, 200, list);
+}
+
+
+if (pathname === '/internal/friend-add' && method === 'POST') {
+  if (!internalAuthorized(req)) return sendJson(res, 403, { error: 'forbidden' });
+  const body = await readBody(req);
+  const discordId = String(body.discordId || '');
+  const user = discordId ? store.users[discordId] : null;
+  if (!user) return sendJson(res, 404, { error: 'user_not_found' });
+  const targetId = body.code ? store.codes[String(body.code).toUpperCase()] : (body.target_id ? String(body.target_id) : null);
+  const target = targetId ? resolveUser(targetId) : null;
+  if (!target) return sendJson(res, 404, { error: 'target_not_found' });
+  if (target.discordId === user.discordId) return sendJson(res, 400, { error: 'cannot_friend_self' });
+  const r = addFriendByCode(user, target);
+  if (r.error) return sendJson(res, 400, { error: r.error });
+  return sendJson(res, 200, r);
+}
+
+
+if (pathname === '/internal/friend-remove' && method === 'POST') {
+  if (!internalAuthorized(req)) return sendJson(res, 403, { error: 'forbidden' });
+  const body = await readBody(req);
+  const discordId = String(body.discordId || '');
+  const user = discordId ? store.users[discordId] : null;
+  if (!user) return sendJson(res, 404, { error: 'user_not_found' });
+  const targetId = body.target_id ? String(body.target_id) : null;
+  const target = targetId ? resolveUser(targetId) : null;
+  if (target) {
+    user.friends = (user.friends || []).filter((x) => x !== target.discordId);
+    target.friends = (target.friends || []).filter((x) => x !== user.discordId);
+  }
+  saveStore();
+  return sendJson(res, 200, { ok: true });
+}
+
+
+if (pathname === '/internal/friend-requests' && method === 'GET') {
+  if (!internalAuthorized(req)) return sendJson(res, 403, { error: 'forbidden' });
+  const discordId = url.searchParams.get('discordId');
+  const user = discordId ? store.users[discordId] : null;
+  if (!user) return sendJson(res, 404, { error: 'user_not_found' });
+  return sendJson(res, 200, incomingRequests(user));
+}
+
+
+if (pathname === '/internal/friend-accept' && method === 'POST') {
+  if (!internalAuthorized(req)) return sendJson(res, 403, { error: 'forbidden' });
+  const body = await readBody(req);
+  const user = body.discordId ? store.users[String(body.discordId)] : null;
+  if (!user) return sendJson(res, 404, { error: 'user_not_found' });
+  const r = acceptFriendRequest(user, String(body.from_id || ''));
+  if (r.error) return sendJson(res, 400, { error: r.error });
+  return sendJson(res, 200, r);
+}
+
+
+if (pathname === '/internal/friend-decline' && method === 'POST') {
+  if (!internalAuthorized(req)) return sendJson(res, 403, { error: 'forbidden' });
+  const body = await readBody(req);
+  const user = body.discordId ? store.users[String(body.discordId)] : null;
+  if (!user) return sendJson(res, 404, { error: 'user_not_found' });
+  const r = declineFriendRequest(user, String(body.from_id || ''));
+  return sendJson(res, 200, r);
+}
+
+
+
+
+if (pathname === '/internal/profile-view' && method === 'GET') {
+  if (!internalAuthorized(req)) return sendJson(res, 403, { error: 'forbidden' });
+  const code = (url.searchParams.get('code') || '').toUpperCase();
+  const id = url.searchParams.get('id');
+  const viewerId = url.searchParams.get('viewer_id');
+  let u = null;
+  if (code) u = store.users[store.codes[code]];
+  else if (id) u = resolveUser(id);
+  if (!u) return sendJson(res, 404, { error: 'not_found' });
+  ensureUserExtras(u);
+  const eq = u.equipped || {};
+  const equippedData = {};
+  for (const cat of Object.keys(eq)) {
+    const it = eq[cat] ? catById(eq[cat]) : null;
+    equippedData[cat] = it ? { id: it.id, category: it.category, name: it.name || null, data: it.data || null } : null;
+  }
+  const owned = (u.cosmetics || [])
+    .map((c) => {
+      const idStr = c && c.id ? String(c.id) : String(c);
+      const it = catById(idStr);
+      return { id: idStr, category: it ? it.category : 'title' };
+    });
+  const p = u.profile && typeof u.profile === 'object' ? u.profile : {};
+  const isViewer = viewerId && String(viewerId) === String(u.discordId);
+  const isFriend = viewerId && Array.isArray(u.friends) && u.friends.includes(String(viewerId));
+  const showFull = isViewer || isFriend || !!p.public;
+  const pr = store.presence[u.discordId];
+  const online = !!(pr && Date.now() - (pr.timestamp || 0) <= PRESENCE_TTL_MS);
+  return sendJson(res, 200, {
+    id: u.id,
+    discordId: u.discordId,
+    name: u.name || u.discordName,
+    uuid: u.uuid || null,
+    code: u.code,
+    online,
+    server: online && pr ? pr.server : null,
+    level: levelOf(u),
+    equipped: equippedData,
+    owned,
+    bio: showFull ? p.bio || null : null,
+    avatar_data_url: showFull ? p.avatar_data_url || null : null,
+    banner_data_url: showFull ? p.banner_data_url || null : null,
+    avatar_choice: p.avatar_choice || 'discord',
+    isFriend,
+    isViewer,
+  });
+}
+function dmKey(a, b) {
+  return [String(a), String(b)].sort().join(':');
+}
+
+
+if (pathname === '/internal/dm/send' && method === 'POST') {
+  if (!internalAuthorized(req)) return sendJson(res, 403, { error: 'forbidden' });
+  const body = await readBody(req);
+  const fromId = String(body.from_id || '');
+  const toId = String(body.to_id || '');
+  const from = fromId ? store.users[fromId] : null;
+  const to = toId ? store.users[toId] : null;
+  if (!from || !to) return sendJson(res, 404, { error: 'user_not_found' });
+  if (from.discordId === to.discordId) return sendJson(res, 400, { error: 'cannot_dm_self' });
+  if (!Array.isArray(from.friends) || !from.friends.includes(to.discordId)) return sendJson(res, 403, { error: 'not_friends' });
+  const text = String(body.text || '').trim().slice(0, 2000);
+  if (!text) return sendJson(res, 400, { error: 'text_required' });
+  store.dms = store.dms || {};
+  const key = dmKey(from.discordId, to.discordId);
+  store.dms[key] = store.dms[key] || [];
+  const msg = { from: from.discordId, to: to.discordId, text, ts: Date.now() };
+  store.dms[key].push(msg);
+  if (store.dms[key].length > 500) store.dms[key] = store.dms[key].slice(-500);
+  saveStore();
+  return sendJson(res, 200, { ok: true, message: msg });
+}
+
+
+if (pathname === '/internal/dm/conversations' && method === 'GET') {
+  if (!internalAuthorized(req)) return sendJson(res, 403, { error: 'forbidden' });
+  const me = url.searchParams.get('discordId');
+  const myUser = me ? store.users[me] : null;
+  if (!myUser) return sendJson(res, 404, { error: 'user_not_found' });
+  const out = [];
+  for (const key of Object.keys(store.dms || {})) {
+    const parts = key.split(':');
+    if (!parts.includes(myUser.discordId)) continue;
+    const otherDid = parts[0] === myUser.discordId ? parts[1] : parts[0];
+    const other = store.users[otherDid];
+    if (!other) continue;
+    const msgs = store.dms[key];
+    const last = msgs[msgs.length - 1];
+    out.push({
+      user: Object.assign(publicFriend(other), { discordId: other.discordId }),
+      last: last || null,
+    });
+  }
+  out.sort((a, b) => ((b.last && b.last.ts) || 0) - ((a.last && a.last.ts) || 0));
+  return sendJson(res, 200, out);
+}
+
+
+if (pathname === '/internal/dm/messages' && method === 'GET') {
+  if (!internalAuthorized(req)) return sendJson(res, 403, { error: 'forbidden' });
+  const me = url.searchParams.get('me');
+  const other = url.searchParams.get('other');
+  const myUser = me ? store.users[me] : null;
+  const otherUser = other ? store.users[other] : null;
+  if (!myUser || !otherUser) return sendJson(res, 404, { error: 'user_not_found' });
+  const key = dmKey(myUser.discordId, otherUser.discordId);
+  const msgs = (store.dms[key] || []).slice(-100);
+  return sendJson(res, 200, msgs);
+}
+
+function groupById(id) {
+  return (store.groups || {})[id] || null;
+}
+function groupView(id, viewerDid) {
+  const g = groupById(id);
+  if (!g) return null;
+  const msgs = (store.groupDms && store.groupDms[id]) ? store.groupDms[id] : [];
+  const last = msgs.length ? msgs[msgs.length - 1] : null;
+  return {
+    id: g.id,
+    name: g.name,
+    owner: g.owner,
+    createdAt: g.createdAt || 0,
+    memberCount: Array.isArray(g.members) ? g.members.length : 0,
+    isOwner: !!g.owner && String(g.owner) === String(viewerDid),
+    last,
+  };
+}
+function groupMemberUsers(g) {
+  const out = [];
+  for (const did of (Array.isArray(g && g.members) ? g.members : [])) {
+    const u = store.users[did];
+    if (!u) continue;
+    out.push(Object.assign(publicFriend(u), { discordId: u.discordId }));
+  }
+  return out;
+}
+function isGroupMember(g, did) {
+  return !!g && Array.isArray(g.members) && g.members.includes(String(did));
+}
+function callForGroup(groupId) {
+  for (const cid of Object.keys(liveCalls)) {
+    const c = liveCalls[cid];
+    if (c && c.groupId === groupId) return c;
+  }
+  return null;
+}
+function callPublicView(c, me) {
+  if (!c) return null;
+  const ps = Object.keys(c.participants || {}).map((did) => {
+    const u = store.users[did];
+    return { id: did, name: (u && (u.name || u.discordName)) || ('User ' + did) };
+  });
+  return { id: c.id, groupId: c.groupId, participants: ps, selfInCall: !!me && !!c.participants[me] };
+}
+
+if (pathname === '/internal/groups' && method === 'GET') {
+  if (!internalAuthorized(req)) return sendJson(res, 403, { error: 'forbidden' });
+  const did = url.searchParams.get('discordId');
+  const myUser = did ? store.users[did] : null;
+  if (!myUser) return sendJson(res, 404, { error: 'user_not_found' });
+  const out = [];
+  for (const id of Object.keys(store.groups || {})) {
+    const g = store.groups[id];
+    if (!g || !isGroupMember(g, myUser.discordId)) continue;
+    out.push(groupView(id, myUser.discordId));
+  }
+  out.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+  return sendJson(res, 200, out);
+}
+
+if (pathname === '/internal/group/create' && method === 'POST') {
+  if (!internalAuthorized(req)) return sendJson(res, 403, { error: 'forbidden' });
+  const body = await readBody(req);
+  const myUser = store.users[String(body.discordId || '')];
+  if (!myUser) return sendJson(res, 404, { error: 'user_not_found' });
+  const name = String(body.name || '').trim().slice(0, 60) || 'Gruppe';
+  const members = [myUser.discordId];
+  if (Array.isArray(body.memberIds)) {
+    for (const raw of body.memberIds) {
+      const u = resolveUser(raw);
+      if (u && !members.includes(u.discordId)) members.push(u.discordId);
+    }
+  }
+  const id = crypto.randomBytes(4).toString('hex').toUpperCase();
+  store.groups = store.groups || {};
+  store.groupDms = store.groupDms || {};
+  store.groups[id] = { id, name, owner: myUser.discordId, members, createdAt: Date.now() };
+  store.groupDms[id] = [];
+  saveStore();
+  return sendJson(res, 200, { ok: true, data: { id, name } });
+}
+
+if (pathname === '/internal/group/view' && method === 'GET') {
+  if (!internalAuthorized(req)) return sendJson(res, 403, { error: 'forbidden' });
+  const did = url.searchParams.get('discordId');
+  const gid = url.searchParams.get('groupId');
+  const myUser = did ? store.users[did] : null;
+  if (!myUser) return sendJson(res, 404, { error: 'user_not_found' });
+  const g = (store.groups || {})[gid];
+  if (!g || !g.members.includes(myUser.discordId)) return sendJson(res, 404, { error: 'group_not_found' });
+  return sendJson(res, 200, {
+    id: g.id,
+    name: g.name,
+    owner: g.owner,
+    createdAt: g.createdAt || 0,
+    memberCount: g.members.length,
+    isOwner: String(g.owner) === String(myUser.discordId),
+    last: (store.groupDms && store.groupDms[g.id] && store.groupDms[g.id].length) ? store.groupDms[g.id][store.groupDms[g.id].length - 1] : null,
+    group: groupView(g.id, myUser.discordId),
+    members: g.members.map((dId) => Object.assign(publicFriend(store.users[dId]), { discordId: dId })).filter(Boolean),
+  });
+}
+
+if (pathname === '/internal/group/poll' && method === 'GET') {
+  if (!internalAuthorized(req)) return sendJson(res, 403, { error: 'forbidden' });
+  const did = url.searchParams.get('discordId');
+  const gid = url.searchParams.get('groupId');
+  const myUser = did ? store.users[did] : null;
+  if (!myUser) return sendJson(res, 404, { error: 'user_not_found' });
+  const g = (store.groups || {})[gid];
+  if (!g || !g.members.includes(myUser.discordId)) return sendJson(res, 200, { messages: [], call: null, sig: [], sigId: 0 });
+  const sinceMsg = parseInt(url.searchParams.get('sinceMsg') || '0', 10) || 0;
+  const sinceSig = parseInt(url.searchParams.get('sinceSig') || '0', 10) || 0;
+  const messages = [];
+  const all = (store.groupDms && store.groupDms[gid]) || [];
+  for (const m of all) if ((m.ts || 0) > sinceMsg) messages.push(m);
+  const now = Date.now();
+  const cl = callForGroup(gid);
+  let call = null;
+  let sig = [];
+  let sigId = 0;
+  if (cl) {
+    const myDid = String(myUser.discordId);
+    if (cl.participants[myDid]) cl.participants[myDid].lastSeen = now;
+    for (const pid of Object.keys(cl.participants || {})) {
+      if (now - cl.participants[pid].lastSeen > 20000) delete cl.participants[pid];
+    }
+    if (cl.participants[myDid]) {
+      const smsgs = (cl.msgs || []).filter((m) => m.id > sinceSig && (!m.to || String(m.to) === myDid));
+      sig = smsgs.slice(0, 200);
+      if (sig.length) sigId = sig[sig.length - 1].id;
+      const cutoff = now - 30000;
+      cl.msgs = (cl.msgs || []).filter((m) => (m.ts || 0) >= cutoff);
+    }
+    call = callPublicView(cl, myDid);
+    if (!Object.keys(cl.participants).length) { delete liveCalls[cl.id]; call = null; }
+  }
+  return sendJson(res, 200, { messages, call, sig, sigId });
+}
+
+if (pathname === '/internal/group/send' && method === 'POST') {
+  if (!internalAuthorized(req)) return sendJson(res, 403, { error: 'forbidden' });
+  const body = await readBody(req);
+  const myUser = store.users[String(body.discordId || '')];
+  if (!myUser) return sendJson(res, 404, { error: 'user_not_found' });
+  const gid = String(body.groupId || '');
+  const g = (store.groups || {})[gid];
+  if (!g || !g.members.includes(myUser.discordId)) return sendJson(res, 404, { error: 'group_not_found' });
+  const text = String(body.text || '').trim().slice(0, 2000);
+  if (!text) return sendJson(res, 400, { error: 'text_required' });
+  store.groupDms = store.groupDms || {};
+  store.groupDms[gid] = store.groupDms[gid] || [];
+  const msg = { id: store.seq++, from: myUser.discordId, text, ts: Date.now() };
+  store.groupDms[gid].push(msg);
+  if (store.groupDms[gid].length > 1000) store.groupDms[gid] = store.groupDms[gid].slice(-1000);
+  saveStore();
+  return sendJson(res, 200, { ok: true, message: msg });
+}
+
+if (pathname === '/internal/group/add' && method === 'POST') {
+  if (!internalAuthorized(req)) return sendJson(res, 403, { error: 'forbidden' });
+  const body = await readBody(req);
+  const myUser = store.users[String(body.discordId || '')];
+  if (!myUser) return sendJson(res, 404, { error: 'user_not_found' });
+  const gid = String(body.groupId || '');
+  const g = (store.groups || {})[gid];
+  if (!g || !g.members.includes(myUser.discordId)) return sendJson(res, 404, { error: 'group_not_found' });
+  const u = resolveUser(body.memberId);
+  if (!u) return sendJson(res, 404, { error: 'user_not_found' });
+  if (!g.members.includes(u.discordId)) g.members.push(u.discordId);
+  saveStore();
+  return sendJson(res, 200, { ok: true });
+}
+
+if (pathname === '/internal/group/leave' && method === 'POST') {
+  if (!internalAuthorized(req)) return sendJson(res, 403, { error: 'forbidden' });
+  const body = await readBody(req);
+  const myUser = store.users[String(body.discordId || '')];
+  if (!myUser) return sendJson(res, 404, { error: 'user_not_found' });
+  const gid = String(body.groupId || '');
+  const g = (store.groups || {})[gid];
+  if (!g || !g.members.includes(myUser.discordId)) return sendJson(res, 404, { error: 'group_not_found' });
+  g.members = g.members.filter((d) => d !== myUser.discordId);
+  if (g.members.length === 0) {
+    delete store.groups[gid];
+    if (store.groupDms) delete store.groupDms[gid];
+  }
+  saveStore();
+  return sendJson(res, 200, { ok: true });
+}
+
+if (pathname === '/internal/group/delete' && method === 'POST') {
+  if (!internalAuthorized(req)) return sendJson(res, 403, { error: 'forbidden' });
+  const body = await readBody(req);
+  const myUser = store.users[String(body.discordId || '')];
+  if (!myUser) return sendJson(res, 404, { error: 'user_not_found' });
+  const gid = String(body.groupId || '');
+  const g = (store.groups || {})[gid];
+  if (!g) return sendJson(res, 404, { error: 'group_not_found' });
+  if (g.owner !== myUser.discordId) return sendJson(res, 403, { error: 'not_owner' });
+  delete store.groups[gid];
+  if (store.groupDms) delete store.groupDms[gid];
+  const deadCall = callForGroup(gid);
+  if (deadCall) delete liveCalls[deadCall.id];
+  saveStore();
+  return sendJson(res, 200, { ok: true });
+}if (pathname === '/internal/call/direct/active' && method === 'GET') {
+  if (!internalAuthorized(req)) return sendJson(res, 403, { error: 'forbidden' });
+  const did = url.searchParams.get('discordId');
+  const myUser = did ? store.users[did] : null;
+  if (!myUser) return sendJson(res, 200, []);
+  const out = [];
+  for (const cid of Object.keys(liveCalls)) {
+    const c = liveCalls[cid];
+    if (!c || c.groupId !== null || !c.directKey) continue;
+    const pair = c.directKey.slice(2).split('_');
+    if (!pair || pair.length !== 2 || !pair.includes(String(myUser.discordId))) continue;
+    if (!Object.keys(c.participants || {}).length) continue;
+    const otherId = String(pair[0]) === String(myUser.discordId) ? pair[1] : pair[0];
+    const u = store.users[otherId];
+    out.push({
+      callId: c.id,
+      groupId: null,
+      direct: true,
+      incoming: !c.participants[String(myUser.discordId)],
+      otherId,
+      otherName: (u && (u.name || u.discordName)) || ('User ' + otherId),
+      peer: u ? Object.assign(publicFriend(u), { discordId: otherId }) : null,
+      ts: c.createdAt,
+    });
+  }
+  out.sort((a, b) => (b.ts || 0) - (a.ts || 0));
+  return sendJson(res, 200, out);
+}
+
+if (pathname === '/internal/call/direct/open' && method === 'POST') {
+  if (!internalAuthorized(req)) return sendJson(res, 403, { error: 'forbidden' });
+  const body = await readBody(req);
+  const myUser = store.users[String(body.discordId || '')];
+  if (!myUser) return sendJson(res, 404, { error: 'user_not_found' });
+  const peer = resolveUser(String(body.peerId || body.peer || ''));
+  if (!peer) return sendJson(res, 404, { error: 'peer_not_found' });
+  const did = String(myUser.discordId);
+  const pid = String(peer.discordId);
+  if (did === pid) return sendJson(res, 403, { error: 'cannot_call_self' });
+  const key = 'd_' + [did, pid].sort().join('_');
+  let cl = null;
+  for (const cid of Object.keys(liveCalls)) {
+    const c = liveCalls[cid];
+    if (c && c.directKey === key) { cl = c; break; }
+  }
+  const now = Date.now();
+  if (!cl) {
+    const cid = 'call_' + crypto.randomBytes(4).toString('hex');
+    cl = { id: cid, groupId: null, directKey: key, participants: {}, msgs: [], createdAt: now };
+    liveCalls[cid] = cl;
+  }
+  cl.participants[did] = { joined: now, lastSeen: now };
+  return sendJson(res, 200, {
+    ok: true,
+    call: callPublicView(cl, did),
+    callId: cl.id,
+    peer: Object.assign(publicFriend(peer), { discordId: pid }),
+  });
+}
+
+if (pathname === '/internal/call/direct/poll' && method === 'GET') {
+  if (!internalAuthorized(req)) return sendJson(res, 403, { error: 'forbidden' });
+  const did = url.searchParams.get('discordId');
+  const myUser = did ? store.users[did] : null;
+  if (!myUser) return sendJson(res, 200, { signals: [], members: [], call: null, sig: [], sigId: 0 });
+  const cid = String(url.searchParams.get('callId') || '');
+  const cl = liveCalls[cid];
+  if (!cl || !cl.participants[myUser.discordId]) return sendJson(res, 200, { signals: [], members: [], call: null, sig: [], sigId: 0 });
+  const sinceSig = parseInt(url.searchParams.get('sinceSig') || '0', 10) || 0;
+  const now = Date.now();
+  cl.participants[myUser.discordId].lastSeen = now;
+  for (const pid of Object.keys(cl.participants || {})) {
+    if (now - cl.participants[pid].lastSeen > 20000) delete cl.participants[pid];
+  }
+  const sigs = (cl.msgs || []).filter((m) => m.id > sinceSig && (!m.to || String(m.to) === myUser.discordId)).slice(0, 200);
+  const cutoff = now - 30000;
+  cl.msgs = (cl.msgs || []).filter((m) => (m.ts || 0) >= cutoff);
+  if (!Object.keys(cl.participants).length) { delete liveCalls[cl.id]; return sendJson(res, 200, { signals: [], members: [], call: null, sig: [], sigId: 0 }); }
+  const sigId = sigs.length ? sigs[sigs.length - 1].id : 0;
+  return sendJson(res, 200, { signals: sigs, members: Object.keys(cl.participants), call: callPublicView(cl, String(myUser.discordId)), sig: sigs, sigId });
+}
+
+if (pathname === '/internal/call/open' && method === 'POST') {
+  if (!internalAuthorized(req)) return sendJson(res, 403, { error: 'forbidden' });
+  const body = await readBody(req);
+  const myUser = store.users[String(body.discordId || '')];
+  if (!myUser) return sendJson(res, 404, { error: 'user_not_found' });
+  const gid = String(body.groupId || '');
+  const g = gid ? (store.groups || {})[gid] : null;
+  if (!g) return sendJson(res, 404, { error: 'group_not_found' });
+  if (!g.members.includes(myUser.discordId)) return sendJson(res, 403, { error: 'not_member' });
+  const now = Date.now();
+  let cl = callForGroup(g.id);
+  if (!cl) {
+    const cid = 'call_' + crypto.randomBytes(4).toString('hex');
+    cl = { id: cid, groupId: g.id, createdAt: now, participants: {}, msgs: [] };
+    liveCalls[cid] = cl;
+  }
+  const did = String(myUser.discordId);
+  cl.participants[did] = { joined: now, lastSeen: now };
+  return sendJson(res, 200, { ok: true, call: callPublicView(cl, did), callId: cl.id });
+}
+
+if (pathname === '/internal/call/join' && method === 'POST') {
+  if (!internalAuthorized(req)) return sendJson(res, 403, { error: 'forbidden' });
+  const body = await readBody(req);
+  const myUser = store.users[String(body.discordId || '')];
+  if (!myUser) return sendJson(res, 404, { error: 'user_not_found' });
+  const cl = liveCalls[String(body.callId || '')];
+  if (!cl) return sendJson(res, 404, { error: 'call_not_found' });
+  const g = cl.groupId ? groupById(cl.groupId) : null;
+  if (g && !isGroupMember(g, myUser.discordId)) return sendJson(res, 403, { error: 'not_member' });
+  const now = Date.now();
+  const did = String(myUser.discordId);
+  cl.participants[did] = { joined: (cl.participants[did] && cl.participants[did].joined) || now, lastSeen: now };
+  return sendJson(res, 200, { ok: true, call: callPublicView(cl, did), callId: cl.id });
+}
+
+if (pathname === '/internal/call/leave' && method === 'POST') {
+  if (!internalAuthorized(req)) return sendJson(res, 403, { error: 'forbidden' });
+  const body = await readBody(req);
+  const cl = liveCalls[String(body.callId || '')];
+  if (!cl) return sendJson(res, 200, { ok: true });
+  const did = String(body.discordId || '');
+  delete cl.participants[did];
+  cl.msgs.push({ id: callSeq++, from: did, to: '', kind: 'bye', data: null, ts: Date.now() });
+  if (!Object.keys(cl.participants).length) delete liveCalls[cl.id];
+  return sendJson(res, 200, { ok: true });
+}
+
+if (pathname === '/internal/call/signal' && method === 'POST') {
+  if (!internalAuthorized(req)) return sendJson(res, 403, { error: 'forbidden' });
+  const body = await readBody(req);
+  const cl = liveCalls[String(body.callId || '')];
+  if (!cl) return sendJson(res, 404, { error: 'call_not_found' });
+  const fromId = String(body.from_id || '');
+  const toId = String(body.to_id || '');
+  if (!cl.participants[fromId] || (toId && !cl.participants[toId])) return sendJson(res, 403, { error: 'not_in_call' });
+  cl.msgs.push({
+    id: callSeq++,
+    from: fromId,
+    to: toId,
+    kind: String(body.kind || '').slice(0, 16),
+    data: body.data || null,
+    ts: Date.now(),
+  });
+  if (cl.msgs.length > 5000) cl.msgs = cl.msgs.slice(-5000);
+  return sendJson(res, 200, { ok: true });
+}
+
+
+if (pathname === '/internal/users' && method === 'GET') {
+  if (!internalAuthorized(req)) return sendJson(res, 403, { error: 'forbidden' });
+  const search = (url.searchParams.get('search') || '').toLowerCase();
+  const all = Object.values(store.users || {})
+    .filter(Boolean)
+    .filter((u) => {
+      if (!search) return true;
+      const h = [u.name, u.discordName, u.code, u.id, u.discordId, u.uuid]
+        .map((x) => String(x || '').toLowerCase())
+        .join(' ');
+      return h.includes(search);
+    })
+    .map(socialView)
+    .sort((a, b) => (a.name || '').toLowerCase().localeCompare((b.name || '').toLowerCase()) || String(a.discordId).localeCompare(String(b.discordId)));
+  return sendJson(res, 200, all);
+}
+
+
+if (pathname === '/internal/points' && method === 'POST') {
+  if (!internalAuthorized(req)) return sendJson(res, 403, { error: 'forbidden' });
+  const body = await readBody(req);
+  const user = resolveUser(body.discordId);
+  if (!user) return sendJson(res, 404, { error: 'user_not_found' });
+  ensureUserExtras(user);
+  const delta = Math.round(Number(body.delta) || 0);
+  user.points = Math.max(0, user.points + delta);
+  user.points_total = Math.max(0, user.points_total + delta);
+  saveStore();
+  return sendJson(res, 200, { ok: true, points: user.points, points_total: user.points_total, level: levelOf(user) });
+}
+
+
+if (pathname === '/internal/grant' && method === 'POST') {
+  if (!internalAuthorized(req)) return sendJson(res, 403, { error: 'forbidden' });
+  const body = await readBody(req);
+  const user = resolveUser(body.discordId);
+  if (!user) return sendJson(res, 404, { error: 'user_not_found' });
+  const itemId = String(body.item_id || '').trim();
+  const item = catById(itemId);
+  if (!item) return sendJson(res, 404, { error: 'item_not_found' });
+  ensureUserExtras(user);
+  if (!user.cosmetics.some((x) => x && x.id === itemId)) {
+    user.cosmetics.push({ id: itemId, boughtAt: Date.now(), granted: true });
+  }
+  if (item.category !== 'pet_skin' && body.equip !== false && !user.equipped[item.category]) user.equipped[item.category] = itemId;
+  saveStore();
+  return sendJson(res, 200, { ok: true, items: user.cosmetics.length, equipped: user.equipped });
+}
+
+
+if (pathname === '/internal/reset' && method === 'POST') {
+  if (!internalAuthorized(req)) return sendJson(res, 403, { error: 'forbidden' });
+  const body = await readBody(req);
+  const user = resolveUser(body.discordId);
+  if (!user) return sendJson(res, 404, { error: 'user_not_found' });
+  ensureUserExtras(user);
+  user.points = START_POINTS;
+  user.points_total = START_POINTS;
+  user.equipped = {};
+  saveStore();
+  return sendJson(res, 200, { ok: true, points: user.points, level: levelOf(user) });
+}
+
+    if (pathname === '/friends' && method === 'GET') {
+      const user = bearerUser(req);
+      if (!user) return sendJson(res, 401, { error: 'not_authenticated' });
+      const list = (user.friends || [])
+        .map((id) => store.users[id])
+        .filter(Boolean)
+        .map(publicFriend);
+      return sendJson(res, 200, list);
+    }
+
+    if (pathname === '/friends' && method === 'POST') {
+      const user = bearerUser(req);
+      if (!user) return sendJson(res, 401, { error: 'not_authenticated' });
+      const body = await readBody(req);
+
+      let targetId = null;
+      if (body.code) targetId = store.codes[String(body.code).toUpperCase()];
+      else if (body.target_id) targetId = String(body.target_id);
+
+      const target = targetId ? resolveUser(targetId) : null;
+      if (!target) return sendJson(res, 404, { error: 'target_not_found' });
+      if (target.discordId === user.discordId) return sendJson(res, 400, { error: 'cannot_friend_self' });
+
+      const r = addFriendByCode(user, target);
+      if (r.error) return sendJson(res, 400, { error: r.error });
+      return sendJson(res, 200, r);
+    }
+
+    if (pathname === '/friend/requests' && method === 'GET') {
+      const user = bearerUser(req);
+      if (!user) return sendJson(res, 401, { error: 'not_authenticated' });
+      return sendJson(res, 200, incomingRequests(user));
+    }
+
+    if (pathname === '/friend/accept' && method === 'POST') {
+      const user = bearerUser(req);
+      if (!user) return sendJson(res, 401, { error: 'not_authenticated' });
+      const body = await readBody(req);
+      const r = acceptFriendRequest(user, String(body.from_id || ''));
+      if (r.error) return sendJson(res, 400, { error: r.error });
+      return sendJson(res, 200, r);
+    }
+
+    if (pathname === '/friend/decline' && method === 'POST') {
+      const user = bearerUser(req);
+      if (!user) return sendJson(res, 401, { error: 'not_authenticated' });
+      const body = await readBody(req);
+      const r = declineFriendRequest(user, String(body.from_id || ''));
+      return sendJson(res, 200, r);
+    }
+
+    if (pathname === '/friends' && method === 'DELETE') {
+      const user = bearerUser(req);
+      if (!user) return sendJson(res, 401, { error: 'not_authenticated' });
+      const body = await readBody(req);
+      const targetId = body.target_id ? String(body.target_id) : null;
+      const target = targetId ? resolveUser(targetId) : null;
+      if (target) {
+        user.friends = (user.friends || []).filter((x) => x !== target.discordId);
+        target.friends = (target.friends || []).filter((x) => x !== user.discordId);
+      }
+      saveStore();
+      return sendJson(res, 200, { ok: true });
+    }if (pathname === '/profile-view' && method === 'GET') {
+      const viewer = bearerUser(req);
+      const code = (url.searchParams.get('code') || '').toUpperCase();
+      const target = code ? store.users[store.codes[code]] : null;
+      if (!target) return sendJson(res, 404, { error: 'not_found' });
+      ensureUserExtras(target);
+      const eq = target.equipped || {};
+      const equippedData = {};
+      for (const cat of Object.keys(eq)) {
+        const it = eq[cat] ? catById(eq[cat]) : null;
+        equippedData[cat] = it ? { id: it.id, category: it.category, name: it.name || null, data: it.data || null } : null;
+      }
+      const p = target.profile && typeof target.profile === 'object' ? target.profile : {};
+      const isViewer = viewer && String(viewer.discordId) === String(target.discordId);
+      const isFriend = viewer && Array.isArray(target.friends) && target.friends.includes(String(viewer.discordId));
+      const showFull = isViewer || isFriend || !!p.public;
+      const pr = store.presence[target.discordId];
+      const online = !!(pr && Date.now() - (pr.timestamp || 0) <= PRESENCE_TTL_MS);
+      return sendJson(res, 200, {
+        id: target.id,
+        discordId: target.discordId,
+        name: target.name || target.discordName,
+        uuid: target.uuid || null,
+        code: target.code,
+        online,
+        server: online && pr ? pr.server : null,
+        level: levelOf(target),
+        equipped: equippedData,
+        owned: (target.cosmetics || []).map((c) => {
+          const idStr = c && c.id ? String(c.id) : String(c);
+          const it = catById(idStr);
+          return { id: idStr, category: it ? it.category : 'title' };
+        }),
+        bio: showFull ? p.bio || null : null,
+        avatar_data_url: showFull ? p.avatar_data_url || null : null,
+        banner_data_url: showFull ? p.banner_data_url || null : null,
+        avatar_choice: p.avatar_choice || 'discord',
+        isFriend,
+        isViewer,
+      });
+    }
+
+    if (pathname === '/dm/conversations' && method === 'GET') {
+      const me = bearerUser(req);
+      if (!me) return sendJson(res, 401, { error: 'not_authenticated' });
+      const out = [];
+      for (const key of Object.keys(store.dms || {})) {
+        const parts = key.split(':');
+        if (!parts.includes(me.discordId)) continue;
+        const otherDid = parts[0] === me.discordId ? parts[1] : parts[0];
+        const other = store.users[otherDid];
+        if (!other) continue;
+        const msgs = store.dms[key];
+        const last = msgs[msgs.length - 1];
+        out.push({
+          user: Object.assign(publicFriend(other), { discordId: other.discordId }),
+          last: last || null,
+        });
+      }
+      out.sort((a, b) => ((b.last && b.last.ts) || 0) - ((a.last && a.last.ts) || 0));
+      return sendJson(res, 200, out);
+    }
+
+    if (pathname === '/dm/messages' && method === 'GET') {
+      const me = bearerUser(req);
+      if (!me) return sendJson(res, 401, { error: 'not_authenticated' });
+      const other = url.searchParams.get('other');
+      const otherUser = other ? store.users[String(other)] : null;
+      if (!otherUser) return sendJson(res, 404, { error: 'user_not_found' });
+      const key = dmKey(me.discordId, otherUser.discordId);
+      return sendJson(res, 200, (store.dms[key] || []).slice(-100));
+    }
+
+    if (pathname === '/dm/send' && method === 'POST') {
+      const me = bearerUser(req);
+      if (!me) return sendJson(res, 401, { error: 'not_authenticated' });
+      const body = await readBody(req);
+      const toId = String(body.to_id || '');
+      const to = toId ? store.users[toId] : null;
+      if (!to) return sendJson(res, 404, { error: 'user_not_found' });
+      if (me.discordId === to.discordId) return sendJson(res, 400, { error: 'cannot_dm_self' });
+      if (!Array.isArray(me.friends) || !me.friends.includes(to.discordId)) return sendJson(res, 403, { error: 'not_friends' });
+      const text = String(body.text || '').trim().slice(0, 2000);
+      if (!text) return sendJson(res, 400, { error: 'text_required' });
+      store.dms = store.dms || {};
+      const key = dmKey(me.discordId, to.discordId);
+      store.dms[key] = store.dms[key] || [];
+      const msg = { from: me.discordId, to: to.discordId, text, ts: Date.now() };
+      store.dms[key].push(msg);
+      if (store.dms[key].length > 500) store.dms[key] = store.dms[key].slice(-500);
+      saveStore();
+      return sendJson(res, 200, { ok: true, message: msg });
+    }
+
+    if (pathname === '/presence' && method === 'PUT') {
+      const user = bearerUser(req);
+      if (!user) return sendJson(res, 401, { error: 'not_authenticated' });
+      const body = await readBody(req);
+      if (!body.server || !body.name) return sendJson(res, 400, { error: 'server_and_name_required' });
+      store.presence[user.discordId] = {
+        server: String(body.server),
+        name: String(body.name),
+        timestamp: typeof body.timestamp === 'number' ? body.timestamp : Date.now(),
+      };
+      saveStore();
+      return sendJson(res, 200, { ok: true });
+    }
+
+    if (pathname === '/presence' && method === 'DELETE') {
+      const user = bearerUser(req);
+      if (!user) return sendJson(res, 401, { error: 'not_authenticated' });
+      delete store.presence[user.discordId];
+      saveStore();
+      return sendJson(res, 200, { ok: true });
+    }
+
+    if (pathname === '/presence' && method === 'GET') {
+      const server = url.searchParams.get('server');
+      if (!server) return sendJson(res, 400, { error: 'server_required' });
+      const now = Date.now();
+      const names = [];
+      for (const dId of Object.keys(store.presence)) {
+        const p = store.presence[dId];
+        if (!p) continue;
+        if (p.server !== server) continue;
+        if (now - (p.timestamp || 0) > PRESENCE_TTL_MS) continue;
+        if (p.name) names.push(p.name);
+      }
+      return sendJson(res, 200, names);
+    }
+
+    if (pathname === '/presence/uuids' && method === 'GET') {
+      const now = Date.now();
+      const out = [];
+      for (const key of Object.keys(store.presence || {})) {
+        const p = store.presence[key];
+        if (!p || !p.uuid) continue;
+        if (now - (p.ts || p.timestamp || 0) > 120000) continue;
+        const u = Object.values(store.users || {}).find((x) => x && x.uuid && sameUuid(x.uuid, p.uuid)) || null;
+        out.push({
+          uuid: p.uuid,
+          name: p.name || (u && (u.name || u.discordName)) || null,
+          level: u ? levelOf(u) : null,
+          cosmetics: presenceCosmetics(u),
+          mod: p.mod || null,
+          dbg: p.dbg || null,
+          cos: typeof p.cos === 'number' ? p.cos : null,
+        });
+      }
+      return sendJson(res, 200, out);
+    }
+
+    if (pathname.startsWith('/presence/') && (method === 'POST' || method === 'DELETE')) {
+      const raw = decodeURIComponent(pathname.slice('/presence/'.length).split('/')[0] || '');
+      const id = normUuid(raw);
+      if (!id) return sendJson(res, 400, { error: 'uuid_required' });
+      if (method === 'DELETE') {
+        delete store.presence[id];
+        return sendJson(res, 200, { ok: true });
+      }
+      const body = await readBody(req);
+      store.presence[id] = {
+        uuid: id,
+        name: typeof body.name === 'string' ? body.name.slice(0, 16) : null,
+        mod: typeof body.mod === 'string' ? body.mod.slice(0, 24) : null,
+        dbg: typeof body.dbg === 'string' ? body.dbg.slice(0, 48) : null,
+        cos: typeof body.cos === 'number' ? body.cos : null,
+        ts: Date.now(),
+      };
+      return sendJson(res, 200, { ok: true });
+    }if (pathname === '/groups' && method === 'GET') {
+      const me = bearerUser(req);
+      if (!me) return sendJson(res, 401, { error: 'not_authenticated' });
+      const out = [];
+      for (const id of Object.keys(store.groups || {})) {
+        const g = store.groups[id];
+        if (!g || !isGroupMember(g, me.discordId)) continue;
+        out.push(groupView(id, me.discordId));
+      }
+      out.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+      return sendJson(res, 200, out);
+    }
+
+    if (pathname === '/group/create' && method === 'POST') {
+      const me = bearerUser(req);
+      if (!me) return sendJson(res, 401, { error: 'not_authenticated' });
+      const body = await readBody(req);
+      const name = String(body.name || '').trim().slice(0, 60) || 'Gruppe';
+      const members = [me.discordId];
+      if (Array.isArray(body.memberIds)) {
+        for (const raw of body.memberIds) {
+          const u = resolveUser(raw);
+          if (u && !members.includes(u.discordId)) members.push(u.discordId);
+        }
+      }
+      const id = crypto.randomBytes(4).toString('hex').toUpperCase();
+      store.groups = store.groups || {};
+      store.groupDms = store.groupDms || {};
+      store.groups[id] = { id, name, owner: me.discordId, members, createdAt: Date.now() };
+      store.groupDms[id] = [];
+      saveStore();
+      return sendJson(res, 200, { ok: true, id, name, group: groupView(id, me.discordId) });
+    }
+
+    if (pathname === '/group/view' && method === 'GET') {
+      const me = bearerUser(req);
+      if (!me) return sendJson(res, 401, { error: 'not_authenticated' });
+      const gid = String(url.searchParams.get('groupId') || '');
+      const g = (store.groups || {})[gid];
+      if (!g || !g.members.includes(me.discordId)) return sendJson(res, 404, { error: 'group_not_found' });
+      return sendJson(res, 200, {
+        id: g.id,
+        name: g.name,
+        owner: g.owner,
+        createdAt: g.createdAt || 0,
+        memberCount: g.members.length,
+        isOwner: String(g.owner) === String(me.discordId),
+        last: (store.groupDms && store.groupDms[g.id] && store.groupDms[g.id].length) ? store.groupDms[g.id][store.groupDms[g.id].length - 1] : null,
+        group: groupView(g.id, me.discordId),
+        members: g.members.map((dId) => Object.assign(publicFriend(store.users[dId]), { discordId: dId })).filter(Boolean),
+      });
+    }
+
+    if (pathname === '/group/add' && method === 'POST') {
+      const me = bearerUser(req);
+      if (!me) return sendJson(res, 401, { error: 'not_authenticated' });
+      const body = await readBody(req);
+      const gid = String(body.groupId || '');
+      const g = (store.groups || {})[gid];
+      if (!g || !g.members.includes(me.discordId)) return sendJson(res, 404, { error: 'group_not_found' });
+      const u = resolveUser(body.memberId);
+      if (!u) return sendJson(res, 404, { error: 'user_not_found' });
+      if (!g.members.includes(u.discordId)) g.members.push(u.discordId);
+      saveStore();
+      return sendJson(res, 200, { ok: true });
+    }
+
+    if (pathname === '/group/leave' && method === 'POST') {
+      const me = bearerUser(req);
+      if (!me) return sendJson(res, 401, { error: 'not_authenticated' });
+      const body = await readBody(req);
+      const gid = String(body.groupId || '');
+      const g = (store.groups || {})[gid];
+      if (!g || !g.members.includes(me.discordId)) return sendJson(res, 404, { error: 'group_not_found' });
+      g.members = g.members.filter((d) => d !== me.discordId);
+      if (g.members.length === 0) {
+        delete store.groups[gid];
+        if (store.groupDms) delete store.groupDms[gid];
+      }
+      saveStore();
+      return sendJson(res, 200, { ok: true });
+    }
+
+    if (pathname === '/group/delete' && method === 'POST') {
+      const me = bearerUser(req);
+      if (!me) return sendJson(res, 401, { error: 'not_authenticated' });
+      const body = await readBody(req);
+      const gid = String(body.groupId || '');
+      const g = (store.groups || {})[gid];
+      if (!g) return sendJson(res, 404, { error: 'group_not_found' });
+      if (g.owner !== me.discordId) return sendJson(res, 403, { error: 'not_owner' });
+      delete store.groups[gid];
+      if (store.groupDms) delete store.groupDms[gid];
+      const deadCall = callForGroup(gid);
+      if (deadCall) delete liveCalls[deadCall.id];
+      saveStore();
+      return sendJson(res, 200, { ok: true });
+    }
+
+    if (pathname === '/group/poll' && method === 'GET') {
+      const me = bearerUser(req);
+      if (!me) return sendJson(res, 401, { error: 'not_authenticated' });
+      const gid = String(url.searchParams.get('groupId') || '');
+      const g = (store.groups || {})[gid];
+      if (!g || !g.members.includes(me.discordId)) return sendJson(res, 200, { messages: [], call: null, sig: [], sigId: 0 });
+      const sinceMsg = parseInt(url.searchParams.get('sinceMsg') || '0', 10) || 0;
+      const sinceSig = parseInt(url.searchParams.get('sinceSig') || '0', 10) || 0;
+      const messages = [];
+      const all = (store.groupDms && store.groupDms[gid]) || [];
+      for (const m of all) if ((m.ts || 0) > sinceMsg) messages.push(m);
+      const now = Date.now();
+      const cl = callForGroup(gid);
+      let call = null;
+      let sig = [];
+      let sigId = 0;
+      if (cl) {
+        const myDid = String(me.discordId);
+        if (cl.participants[myDid]) cl.participants[myDid].lastSeen = now;
+        for (const pid of Object.keys(cl.participants || {})) {
+          if (now - cl.participants[pid].lastSeen > 20000) delete cl.participants[pid];
+        }
+        if (cl.participants[myDid]) {
+          const smsgs = (cl.msgs || []).filter((m) => m.id > sinceSig && (!m.to || String(m.to) === myDid));
+          sig = smsgs.slice(0, 200);
+          if (sig.length) sigId = sig[sig.length - 1].id;
+          const cutoff = now - 30000;
+          cl.msgs = (cl.msgs || []).filter((m) => (m.ts || 0) >= cutoff);
+        }
+        call = callPublicView(cl, myDid);
+        if (!Object.keys(cl.participants).length) { delete liveCalls[cl.id]; call = null; }
+      }
+      return sendJson(res, 200, { messages, call, sig, sigId });
+    }
+
+    if (pathname === '/group/send' && method === 'POST') {
+      const me = bearerUser(req);
+      if (!me) return sendJson(res, 401, { error: 'not_authenticated' });
+      const body = await readBody(req);
+      const gid = String(body.groupId || '');
+      const g = (store.groups || {})[gid];
+      if (!g || !g.members.includes(me.discordId)) return sendJson(res, 404, { error: 'group_not_found' });
+      const text = String(body.text || '').trim().slice(0, 2000);
+      if (!text) return sendJson(res, 400, { error: 'text_required' });
+      store.groupDms = store.groupDms || {};
+      store.groupDms[gid] = store.groupDms[gid] || [];
+      const msg = { id: store.seq++, from: me.discordId, text, ts: Date.now() };
+      store.groupDms[gid].push(msg);
+      if (store.groupDms[gid].length > 1000) store.groupDms[gid] = store.groupDms[gid].slice(-1000);
+      saveStore();
+      return sendJson(res, 200, { ok: true, message: msg });
+    }
+
+    if (pathname === '/call/open' && method === 'POST') {
+      const me = bearerUser(req);
+      if (!me) return sendJson(res, 401, { error: 'not_authenticated' });
+      const body = await readBody(req);
+      const g = groupById(String(body.groupId || ''));
+      if (!g) return sendJson(res, 404, { error: 'group_not_found' });
+      if (!isGroupMember(g, me.discordId)) return sendJson(res, 403, { error: 'not_member' });
+      const now = Date.now();
+      let cl = callForGroup(g.id);
+      if (!cl) {
+        const cid = 'call_' + crypto.randomBytes(4).toString('hex');
+        cl = { id: cid, groupId: g.id, createdAt: now, participants: {}, msgs: [] };
+        liveCalls[cid] = cl;
+      }
+      const did = String(me.discordId);
+      cl.participants[did] = { joined: now, lastSeen: now };
+      return sendJson(res, 200, { ok: true, callId: cl.id, call: callPublicView(cl, did) });
+    }
+
+    if (pathname === '/call/join' && method === 'POST') {
+      const me = bearerUser(req);
+      if (!me) return sendJson(res, 401, { error: 'not_authenticated' });
+      const body = await readBody(req);
+      const cl = liveCalls[String(body.callId || '')];
+      if (!cl) return sendJson(res, 404, { error: 'call_not_found' });
+      const g = groupById(cl.groupId);
+      if (!g || !isGroupMember(g, me.discordId)) return sendJson(res, 403, { error: 'not_member' });
+      const now = Date.now();
+      const did = String(me.discordId);
+      cl.participants[did] = { joined: (cl.participants[did] && cl.participants[did].joined) || now, lastSeen: now };
+      return sendJson(res, 200, { ok: true, callId: cl.id, call: callPublicView(cl, did) });
+    }
+
+    if (pathname === '/call/leave' && method === 'POST') {
+      const me = bearerUser(req);
+      if (!me) return sendJson(res, 401, { error: 'not_authenticated' });
+      const body = await readBody(req);
+      const cl = liveCalls[String(body.callId || '')];
+      if (!cl) return sendJson(res, 200, { ok: true });
+      const did = String(me.discordId);
+      delete cl.participants[did];
+      cl.msgs.push({ id: callSeq++, from: did, to: '', kind: 'bye', data: null, ts: Date.now() });
+      if (!Object.keys(cl.participants).length) delete liveCalls[cl.id];
+      return sendJson(res, 200, { ok: true });
+    }
+
+    if (pathname === '/call/signal' && method === 'POST') {
+      const me = bearerUser(req);
+      if (!me) return sendJson(res, 401, { error: 'not_authenticated' });
+      const body = await readBody(req);
+      const cl = liveCalls[String(body.callId || '')];
+      if (!cl) return sendJson(res, 404, { error: 'call_not_found' });
+      const fromId = String(me.discordId);
+      const toId = String(body.to_id || body.peer || '');
+      if (!cl.participants[fromId] || (toId && toId !== '*' && !cl.participants[toId])) return sendJson(res, 403, { error: 'not_in_call' });
+      cl.msgs.push({
+        id: callSeq++,
+        from: fromId,
+        to: toId,
+        kind: String(body.kind || '').slice(0, 16),
+        data: body.data || null,
+        ts: Date.now(),
+      });
+      if (cl.msgs.length > 5000) cl.msgs = cl.msgs.slice(-5000);
+      return sendJson(res, 200, { ok: true });
+    }
+
+    if (pathname === '/call/direct/open' && method === 'POST') {
+      const me = bearerUser(req);
+      if (!me) return sendJson(res, 401, { error: 'not_authenticated' });
+      const body = await readBody(req);
+      const peer = resolveUser(body.peerId || body.peer);
+      if (!peer) return sendJson(res, 404, { error: 'peer_not_found' });
+      const did = String(me.discordId);
+      const pid = String(peer.discordId);
+      if (did === pid) return sendJson(res, 403, { error: 'cannot_call_self' });
+      const key = 'd_' + [did, pid].sort().join('_');
+      let cl = null;
+      for (const cid of Object.keys(liveCalls)) {
+        const c = liveCalls[cid];
+        if (c && c.directKey === key) { cl = c; break; }
+      }
+      const now = Date.now();
+      if (!cl) {
+        const cid = 'call_' + crypto.randomBytes(4).toString('hex');
+        cl = { id: cid, groupId: null, directKey: key, participants: {}, msgs: [], createdAt: now };
+        liveCalls[cid] = cl;
+      }
+      cl.participants[did] = { joined: now, lastSeen: now };
+      return sendJson(res, 200, {
+        ok: true,
+        callId: cl.id,
+        peer: Object.assign(publicFriend(peer), { discordId: pid }),
+        call: callPublicView(cl, did),
+      });
+    }
+
+    if (pathname === '/call/direct/poll' && method === 'GET') {
+      const me = bearerUser(req);
+      if (!me) return sendJson(res, 401, { error: 'not_authenticated' });
+      const cl = liveCalls[String(url.searchParams.get('callId') || '')];
+      const did = String(me.discordId);
+      const sinceSig = parseInt(url.searchParams.get('sinceSig') || '0', 10) || 0;
+      if (!cl || !cl.participants[did]) return sendJson(res, 200, { call: null, sig: [], sigId: 0, signals: [], members: [] });
+      const now = Date.now();
+      cl.participants[did].lastSeen = now;
+      for (const pid of Object.keys(cl.participants || {})) {
+        if (now - cl.participants[pid].lastSeen > 20000) delete cl.participants[pid];
+      }
+      const smsgs = (cl.msgs || []).filter((m) => m.id > sinceSig && (!m.to || String(m.to) === did));
+      const sig = smsgs.slice(0, 200);
+      let sigId = 0;
+      if (sig.length) sigId = sig[sig.length - 1].id;
+      const cutoff = now - 30000;
+      cl.msgs = (cl.msgs || []).filter((m) => (m.ts || 0) >= cutoff);
+      let call = callPublicView(cl, did);
+      if (!Object.keys(cl.participants).length) { delete liveCalls[cl.id]; call = null; }
+      return sendJson(res, 200, {
+        call,
+        sig,
+        sigId,
+        signals: sig,
+        members: Object.keys(cl.participants || {}),
+      });
+    }
+
+    if (pathname === '/call/direct/active' && method === 'GET') {
+      const me = bearerUser(req);
+      if (!me) return sendJson(res, 401, { error: 'not_authenticated' });
+      const did = String(me.discordId);
+      const out = [];
+      for (const cid of Object.keys(liveCalls)) {
+        const c = liveCalls[cid];
+        if (!c || c.groupId !== null || !c.directKey) continue;
+        const pair = c.directKey.slice(2).split('_');
+        if (!pair || pair.length !== 2 || !pair.includes(did)) continue;
+        if (!Object.keys(c.participants || {}).length) continue;
+        const otherId = pair[0] === did ? pair[1] : pair[0];
+        const u = store.users[otherId];
+        out.push({
+          callId: c.id,
+          groupId: null,
+          direct: true,
+          incoming: !c.participants[did],
+          otherId,
+          otherName: (u && (u.name || u.discordName)) || ('User ' + otherId),
+          peer: u ? Object.assign(publicFriend(u), { discordId: u.discordId }) : null,
+          ts: c.createdAt,
+        });
+      }
+      out.sort((a, b) => (b.ts || 0) - (a.ts || 0));
+      return sendJson(res, 200, out);
+    }
+
+    return sendJson(res, 404, { error: 'not_found' });
+  } catch (e) {
+    console.error('Fehler:', e);
+    return sendJson(res, 500, { error: 'internal_error' });
+  }
+});
+
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`Kollegen-Backend läuft auf Port ${PORT} (Daten: ${DATA_DIR})`);
+});

@@ -1,0 +1,739 @@
+{
+ "format": "mythic-cosmetic-pet/1",
+ "id": "flame_skull",
+ "name": "Flammenschädel",
+ "space": {
+  "description": "Minecraft-Java-Entity-Modellraum: 1 Einheit = 1/16 Block, Y zeigt nach UNTEN, Bodenhöhe y=24, Vorderseite = -Z, +X = linke Körperseite.",
+  "pivots": "'pivot' ist relativ zum Eltern-Knochen. Würfel: 'origin' relativ zum eigenen Pivot, 'size' = [Breite,Höhe,Tiefe], 'uv' = Box-UV-Ursprung [u,v] (Layout wie Minecraft-Skins).",
+  "rotation": "Grad [pitch(x), yaw(y), roll(z)], Reihenfolge Z·Y·X; positive Pitch = Vorderseite nach unten.",
+  "animation": "Animationswerte sind Deltas auf die Ruhepose. r=Rotation(Grad), p=Position(px, Y nach unten), s=Skalierung (absolut, 1=normal). Wert = Zahl oder [offset, amplitude, zyklen, phase, 'sin'|'saw']  ->  offset + amplitude * wave(zyklen*φ + phase), φ = (Zeit % length)/length."
+ },
+ "texture": {
+  "file": "flame_skull.png",
+  "glow": "flame_skull_glow.png",
+  "width": 64,
+  "height": 64,
+  "notes": "Glow-Textur additiv/unbeleuchtet über das Modell zeichnen (wie Spinnenaugen)."
+ },
+ "bones": [
+  {
+   "name": "skull",
+   "parent": null,
+   "pivot": [
+    0,
+    14,
+    0
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "cubes": [
+    {
+     "uv": [
+      0,
+      0
+     ],
+     "origin": [
+      -4,
+      -4,
+      -4
+     ],
+     "size": [
+      8,
+      8,
+      8
+     ]
+    }
+   ]
+  },
+  {
+   "name": "jaw",
+   "parent": "skull",
+   "pivot": [
+    0,
+    3,
+    3
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "cubes": [
+    {
+     "uv": [
+      32,
+      0
+     ],
+     "origin": [
+      -3,
+      0,
+      -6
+     ],
+     "size": [
+      6,
+      2,
+      6
+     ]
+    }
+   ]
+  },
+  {
+   "name": "flame1",
+   "parent": "skull",
+   "pivot": [
+    0,
+    -4,
+    0
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "cubes": [
+    {
+     "uv": [
+      0,
+      16
+     ],
+     "origin": [
+      -2,
+      -5,
+      -2
+     ],
+     "size": [
+      4,
+      5,
+      4
+     ]
+    }
+   ]
+  },
+  {
+   "name": "flame2",
+   "parent": "skull",
+   "pivot": [
+    -2,
+    -4,
+    1
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "cubes": [
+    {
+     "uv": [
+      16,
+      16
+     ],
+     "origin": [
+      -1.5,
+      -4,
+      -1.5
+     ],
+     "size": [
+      3,
+      4,
+      3
+     ]
+    }
+   ]
+  },
+  {
+   "name": "flame3",
+   "parent": "skull",
+   "pivot": [
+    2,
+    -4,
+    -1
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "cubes": [
+    {
+     "uv": [
+      28,
+      16
+     ],
+     "origin": [
+      -1,
+      -3,
+      -1
+     ],
+     "size": [
+      2,
+      3,
+      2
+     ]
+    }
+   ]
+  },
+  {
+   "name": "orbit",
+   "parent": "skull",
+   "pivot": [
+    0,
+    0,
+    0
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "cubes": [
+    {
+     "uv": [
+      36,
+      16
+     ],
+     "origin": [
+      -0.5,
+      -0.5,
+      -0.5
+     ],
+     "size": [
+      1,
+      1,
+      1
+     ]
+    }
+   ]
+  },
+  {
+   "name": "orb1",
+   "parent": "orbit",
+   "pivot": [
+    8,
+    0,
+    0
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "cubes": [
+    {
+     "uv": [
+      40,
+      16
+     ],
+     "origin": [
+      -1.5,
+      -1.5,
+      -1.5
+     ],
+     "size": [
+      3,
+      3,
+      3
+     ]
+    }
+   ]
+  },
+  {
+   "name": "orb2",
+   "parent": "orbit",
+   "pivot": [
+    -4,
+    0,
+    7
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "cubes": [
+    {
+     "uv": [
+      52,
+      16
+     ],
+     "origin": [
+      -1.5,
+      -1.5,
+      -1.5
+     ],
+     "size": [
+      3,
+      3,
+      3
+     ]
+    }
+   ]
+  },
+  {
+   "name": "orb3",
+   "parent": "orbit",
+   "pivot": [
+    -4,
+    0,
+    -7
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "cubes": [
+    {
+     "uv": [
+      0,
+      25
+     ],
+     "origin": [
+      -1.5,
+      -1.5,
+      -1.5
+     ],
+     "size": [
+      3,
+      3,
+      3
+     ]
+    }
+   ]
+  }
+ ],
+ "animations": {
+  "idle": {
+   "length": 2,
+   "bones": {
+    "skull": {
+     "p": [
+      0,
+      [
+       0,
+       1.5,
+       1,
+       0,
+       "s"
+      ],
+      0
+     ],
+     "r": [
+      0,
+      [
+       0,
+       8,
+       1,
+       0.1,
+       "s"
+      ],
+      0
+     ]
+    },
+    "jaw": {
+     "r": [
+      [
+       6,
+       5.6,
+       3,
+       0,
+       "s"
+      ],
+      0,
+      0
+     ]
+    },
+    "orbit": {
+     "r": [
+      0,
+      [
+       0,
+       360,
+       1,
+       0,
+       "saw"
+      ],
+      0
+     ]
+    },
+    "flame1": {
+     "s": [
+      1,
+      [
+       1,
+       0.25,
+       3,
+       0,
+       "s"
+      ],
+      1
+     ],
+     "r": [
+      0,
+      0,
+      [
+       0,
+       8,
+       2,
+       0,
+       "s"
+      ]
+     ]
+    },
+    "flame2": {
+     "s": [
+      1,
+      [
+       1,
+       0.3,
+       4,
+       0.3,
+       "s"
+      ],
+      1
+     ],
+     "r": [
+      0,
+      0,
+      [
+       0,
+       12,
+       3,
+       0.2,
+       "s"
+      ]
+     ]
+    },
+    "flame3": {
+     "s": [
+      1,
+      [
+       1,
+       0.3,
+       5,
+       0.6,
+       "s"
+      ],
+      1
+     ],
+     "r": [
+      0,
+      0,
+      [
+       0,
+       15,
+       4,
+       0,
+       "s"
+      ]
+     ]
+    }
+   }
+  },
+  "move": {
+   "length": 1,
+   "bones": {
+    "skull": {
+     "p": [
+      0,
+      [
+       0,
+       1.5,
+       1,
+       0,
+       "s"
+      ],
+      0
+     ],
+     "r": [
+      18,
+      [
+       0,
+       8,
+       1,
+       0.1,
+       "s"
+      ],
+      0
+     ]
+    },
+    "jaw": {
+     "r": [
+      [
+       16,
+       11.6,
+       3,
+       0,
+       "s"
+      ],
+      0,
+      0
+     ]
+    },
+    "orbit": {
+     "r": [
+      0,
+      [
+       0,
+       360,
+       2,
+       0,
+       "saw"
+      ],
+      0
+     ]
+    },
+    "flame1": {
+     "s": [
+      1,
+      [
+       1.1,
+       0.25,
+       3,
+       0,
+       "s"
+      ],
+      1
+     ],
+     "r": [
+      0,
+      0,
+      [
+       0,
+       8,
+       2,
+       0,
+       "s"
+      ]
+     ]
+    },
+    "flame2": {
+     "s": [
+      1,
+      [
+       1.1,
+       0.3,
+       4,
+       0.3,
+       "s"
+      ],
+      1
+     ],
+     "r": [
+      0,
+      0,
+      [
+       0,
+       12,
+       3,
+       0.2,
+       "s"
+      ]
+     ]
+    },
+    "flame3": {
+     "s": [
+      1,
+      [
+       1.1,
+       0.3,
+       5,
+       0.6,
+       "s"
+      ],
+      1
+     ],
+     "r": [
+      0,
+      0,
+      [
+       0,
+       15,
+       4,
+       0,
+       "s"
+      ]
+     ]
+    }
+   }
+  },
+  "sit": {
+   "length": 4,
+   "bones": {
+    "skull": {
+     "p": [
+      0,
+      [
+       2,
+       1.5,
+       1,
+       0,
+       "s"
+      ],
+      0
+     ],
+     "r": [
+      0,
+      [
+       0,
+       8,
+       1,
+       0.1,
+       "s"
+      ],
+      0
+     ]
+    },
+    "jaw": {
+     "r": [
+      [
+       0,
+       2.0,
+       3,
+       0,
+       "s"
+      ],
+      0,
+      0
+     ]
+    },
+    "orbit": {
+     "r": [
+      0,
+      [
+       0,
+       360,
+       1,
+       0,
+       "saw"
+      ],
+      0
+     ]
+    },
+    "flame1": {
+     "s": [
+      1,
+      [
+       0.5,
+       0.25,
+       3,
+       0,
+       "s"
+      ],
+      1
+     ],
+     "r": [
+      0,
+      0,
+      [
+       0,
+       8,
+       2,
+       0,
+       "s"
+      ]
+     ]
+    },
+    "flame2": {
+     "s": [
+      1,
+      [
+       0.5,
+       0.3,
+       4,
+       0.3,
+       "s"
+      ],
+      1
+     ],
+     "r": [
+      0,
+      0,
+      [
+       0,
+       12,
+       3,
+       0.2,
+       "s"
+      ]
+     ]
+    },
+    "flame3": {
+     "s": [
+      1,
+      [
+       0.5,
+       0.3,
+       5,
+       0.6,
+       "s"
+      ],
+      1
+     ],
+     "r": [
+      0,
+      0,
+      [
+       0,
+       15,
+       4,
+       0,
+       "s"
+      ]
+     ]
+    }
+   }
+  }
+ },
+ "behavior": {
+  "mode": "hover",
+  "side": "behind-right",
+  "look_at_player": true,
+  "follow": {
+   "start_distance": 2.2,
+   "stop_distance": 1.4,
+   "speed": 5.0,
+   "teleport_distance": 16
+  },
+  "states": {
+   "idle": "idle",
+   "moving": "move",
+   "sit": "sit",
+   "sit_after_idle_seconds": 6
+  },
+  "reactions": {
+   "player_sprint": {
+    "speed_multiplier": 1.5
+   },
+   "player_sneak": {
+    "state": "sit"
+   }
+  },
+  "particles": [
+   {
+    "type": "flame",
+    "rate_per_second": 8,
+    "bone": "flame1"
+   },
+   {
+    "type": "smoke",
+    "rate_per_second": 2,
+    "bone": "skull"
+   }
+  ],
+  "hover": {
+   "height": 1.7,
+   "bob_amplitude": 0.06,
+   "bob_speed": 1.2
+  },
+  "orbit": {
+   "radius": 1.3,
+   "speed": 1.2,
+   "chance_per_second": 0.12,
+   "duration_seconds": 7
+  }
+ }
+}

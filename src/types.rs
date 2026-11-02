@@ -1,0 +1,270 @@
+
+
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Account {
+    pub username: String,
+    pub uuid: String,
+    pub access_token: String,
+    pub refresh_token: Option<String>,
+    pub expires_at: Option<u64>,
+    pub avatar_id: Option<String>,
+    pub xuid: Option<String>,
+    
+    
+    
+    #[serde(default)]
+    pub client_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct Instance {
+    
+    
+    
+    #[serde(default)]
+    pub id: String,
+    pub name: String,
+    pub version: String,
+    pub loader: String, 
+    pub loader_version: Option<String>,
+    pub description: String,
+    pub mods: Vec<String>,
+    pub vulkan_enabled: bool,
+    pub memory_min: String,
+    pub memory_max: String,
+    pub created_at: String,
+    pub last_played: Option<String>,
+    pub java_args: Option<String>,
+    pub server: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Settings {
+    pub java_path: String,
+    pub minecraft_dir: String,
+    pub memory_min: String,
+    pub memory_max: String,
+    pub global_vulkan: bool,
+    pub lang: String,
+    pub theme: String,
+    #[serde(default)]
+    pub theme_mode: String,
+    pub proxy: Option<String>,
+    
+    
+    #[serde(default)]
+    pub presence_backend: String,
+    
+    
+    #[serde(default)]
+    pub presence_token: String,
+    
+    
+    
+    #[serde(default = "default_true")]
+    pub companion_mod: bool,
+    
+    #[serde(default = "default_density")]
+    pub density: String,
+    
+    #[serde(default = "default_true")]
+    pub sidebar_visible: bool,
+    
+    #[serde(default = "default_true")]
+    pub animations: bool,
+    
+    
+    #[serde(default = "default_true")]
+    pub perf_mods: bool,
+    
+    
+    #[serde(default = "default_false")]
+    pub steamdeck_mode: bool,
+    
+    
+    
+    #[serde(default)]
+    pub profile: Option<ProfileSettings>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct ProfileSettings {
+    #[serde(default)]
+    pub bio: String,
+    #[serde(default)]
+    pub banner_data_url: String,
+    #[serde(default)]
+    pub avatar_data_url: String,
+    #[serde(default)]
+    pub avatar_choice: String,
+    #[serde(default)]
+    pub public: bool,
+    #[serde(default)]
+    pub server_url: String,
+    #[serde(default)]
+    pub server_token: String,
+}
+
+fn default_density() -> String {
+    "comfortable".to_string()
+}
+
+fn default_true() -> bool {
+    true
+}
+
+fn default_false() -> bool {
+    false
+}
+
+impl Default for Settings {
+    fn default() -> Self {
+        let home = dirs::home_dir().unwrap_or_else(|| std::path::PathBuf::from("."));
+        Self {
+            java_path: String::new(),
+            minecraft_dir: home.join(".minecraft").to_string_lossy().into_owned(),
+            memory_min: crate::DEFAULT_MEMORY_MIN.to_string(),
+            memory_max: crate::DEFAULT_MEMORY_MAX.to_string(),
+            global_vulkan: false,
+            lang: "de".to_string(),
+            theme: "Limit_Los".to_string(),
+            theme_mode: "dark".to_string(),
+            proxy: None,
+            presence_backend: "https://kollegen.me".to_string(),
+            presence_token: String::new(),
+            companion_mod: true,
+            density: "comfortable".to_string(),
+            sidebar_visible: true,
+            animations: true,
+            perf_mods: true,
+            steamdeck_mode: false,
+            profile: None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MojangVersionEntry {
+    pub id: String,
+    #[serde(rename = "type")]
+    pub version_type: String,
+    pub url: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MojangVersionManifest {
+    pub versions: Vec<MojangVersionEntry>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct VersionJson {
+    #[serde(rename = "mainClass")]
+    pub main_class: Option<String>,
+    pub assets: Option<String>,
+    #[serde(rename = "assetIndex")]
+    pub asset_index: Option<AssetIndexInfo>,
+    #[serde(default)]
+    pub libraries: Vec<LibraryEntry>,
+    #[serde(rename = "javaVersion")]
+    pub java_version: Option<JavaVersionInfo>,
+    #[serde(rename = "downloads")]
+    pub downloads: Option<VersionDownloads>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AssetIndexInfo {
+    pub url: String,
+    pub sha1: String,
+    pub size: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LibraryEntry {
+    pub name: String,
+    pub url: Option<String>,
+    pub downloads: Option<LibraryDownloads>,
+    pub rules: Option<Vec<LibraryRule>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LibraryDownloads {
+    pub artifact: Option<ArtifactInfo>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ArtifactInfo {
+    pub url: String,
+    pub path: String,
+    pub sha1: String,
+    pub size: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LibraryRule {
+    pub action: String,
+    pub os: Option<OsRule>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OsRule {
+    pub name: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct JavaVersionInfo {
+    pub component: String,
+    #[serde(rename = "majorVersion")]
+    pub major_version: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct VersionDownloads {
+    pub client: Option<DownloadInfo>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DownloadInfo {
+    pub url: String,
+    pub sha1: String,
+    pub size: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ModrinthProject {
+    pub project_id: String,
+    pub title: String,
+    pub description: Option<String>,
+    pub client_side: String,
+    pub project_type: String,
+    pub latest_version: String,
+    pub icon_url: Option<String>,
+    pub downloads: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ModEntry {
+    pub filename: String,
+    pub enabled: bool,
+    pub size: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ServerEntry {
+    pub name: String,
+    pub ip: String,
+    pub players: Option<String>,
+    pub online: bool,
+    pub version: Option<String>,
+    pub motd: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NewsEntry {
+    pub title: String,
+    pub content: String,
+    pub image: Option<String>,
+    pub date: String,
+    pub url: String,
+}

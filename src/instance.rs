@@ -1,0 +1,3121 @@
+
+
+
+use crate::types::{Instance, MojangVersionManifest, Settings, VersionJson};
+use crate::AppState;
+use anyhow::{anyhow, Result};
+use log::{info, warn};
+use serde_json::Value;
+use std::fs;
+use std::path::{Path, PathBuf};
+use std::process::{Command, Stdio};
+use std::io::Write;
+use std::io::Read;
+use std::sync::{Arc, Mutex};
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::thread;
+use std::time::Duration;
+
+
+
+
+
+const TITLE_LOGO_PACK: &[u8] = include_bytes!("title_logo_pack.zip");
+const TITLE_LOGO_PACK_ID: &str = "KollegenTitle";
+
+
+
+fn pack_format_for(version: &str) -> u32 {
+    let mut it = version.split('.');
+    let major: u32 = it.next().and_then(|s| s.parse().ok()).unwrap_or(1);
+    let minor: u32 = it.next().and_then(|s| s.parse().ok()).unwrap_or(0);
+    let patch: u32 = it.next().and_then(|s| s.parse().ok()).unwrap_or(0);
+    if major == 1 {
+        match minor {
+            21 => {
+                return match patch {
+                    11 => 75,
+                    9 | 10 => 69,
+                    7 | 8 => 64,
+                    6 => 63,
+                    5 => 55,
+                    4 => 46,
+                    2 | 3 => 42,
+                    _ => 34,
+                }
+            }
+            20 => {
+                return match patch {
+                    6 | 5 => 32,
+                    4 | 3 => 22,
+                    2 => 18,
+                    _ => 15,
+                }
+            }
+            19 => return if patch >= 4 { 13 } else { 9 },
+            18 => return if patch >= 2 { 8 } else { 7 },
+            17 => return 7,
+            16 => return 6,
+            _ => {}
+        }
+    }
+    75
+}
+
+
+
+
+
+fn fit_logo_square(png: &[u8]) -> Vec<u8> {
+    const SIZE: u32 = 256;
+    const FILL: f32 = 0.92;
+    let img = match image::load_from_memory(png) {
+        Ok(i) => i,
+        Err(_) => return png.to_vec(),
+    };
+    let (w, h) = (img.width(), img.height());
+    if w == 0 || h == 0 {
+        return png.to_vec();
+    }
+    let scale = (SIZE as f32 * FILL) / (w.max(h) as f32);
+    let nw = ((w as f32) * scale).max(1.0) as u32;
+    let nh = ((h as f32) * scale).max(1.0) as u32;
+    let resized = img.resize(nw, nh, image::imageops::FilterType::Lanczos3);
+    let mut canvas = image::RgbaImage::from_pixel(SIZE, SIZE, image::Rgba([0, 0, 0, 0]));
+    let x = ((SIZE as i64 - nw as i64) / 2) as i64;
+    let y = ((SIZE as i64 - nh as i64) / 2) as i64;
+    image::imageops::overlay(&mut canvas, &resized, x, y);
+    let mut buf = Vec::new();
+    {
+        let img = image::DynamicImage::ImageRgba8(canvas);
+        let mut cursor = std::io::Cursor::new(&mut buf);
+        if !img
+            .write_to(&mut cursor, image::ImageFormat::Png)
+            .is_ok()
+        {
+            return png.to_vec();
+        }
+    }
+    buf
+}
+
+
+
+
+
+fn build_title_logo_pack(version: &str) -> Vec<u8> {
+    let fmt = pack_format_for(version);
+    let meta = if fmt >= 65 {
+        serde_json::json!({
+            "pack": {
+                "description": "Kollegen Client Titel-Logo",
+                "min_format": [fmt, 0],
+                "max_format": [fmt + 24, 0]
+            }
+        })
+    } else {
+        serde_json::json!({
+            "pack": {
+                "description": "Kollegen Client Titel-Logo",
+                "pack_format": fmt
+            }
+        })
+    };
+    let meta_str = serde_json::to_string_pretty(&meta).unwrap_or_default();
+
+    let reader = std::io::Cursor::new(TITLE_LOGO_PACK);
+    let mut archive = match zip::ZipArchive::new(reader) {
+        Ok(a) => a,
+        Err(_) => return TITLE_LOGO_PACK.to_vec(),
+    };
+    let mut out = Vec::new();
+    {
+        let mut writer = zip::ZipWriter::new(std::io::Cursor::new(&mut out));
+        let opts = zip::write::FileOptions::default()
+            .compression_method(zip::CompressionMethod::Deflated);
+        for i in 0..archive.len() {
+            let mut file = match archive.by_index(i) {
+                Ok(f) => f,
+                Err(_) => continue,
+            };
+            let name = file.name().to_string();
+            if name == "pack.mcmeta" {
+                let _ = writer.start_file("pack.mcmeta", opts);
+                let _ = writer.write_all(meta_str.as_bytes());
+            } else if name.ends_with("title/minecraft.png") {
+                let mut data = Vec::new();
+                let _ = std::io::copy(&mut file, &mut data);
+                let processed = fit_logo_square(&data);
+                let _ = writer.start_file(&name, opts);
+                let _ = writer.write_all(&processed);
+            } else {
+                let _ = writer.start_file(&name, opts);
+                let _ = std::io::copy(&mut file, &mut writer);
+            }
+        }
+        let _ = writer.finish();
+    }
+    out
+}
+
+
+
+
+
+pub fn ensure_title_logo_pack(inst_dir: &Path, version: &str) {
+    let rp_dir = inst_dir.join("resourcepacks");
+    if let Err(e) = fs::create_dir_all(&rp_dir) {
+        warn!("Konnte resourcepacks nicht anlegen: {}", e);
+        return;
+    }
+    let pack_zip = rp_dir.join(format!("{}.zip", TITLE_LOGO_PACK_ID));
+    let bytes = build_title_logo_pack(version);
+    if let Err(e) = fs::write(&pack_zip, &bytes) {
+        warn!("Konnte Titel-Logo-Pack nicht installieren: {}", e);
+        return;
+    }
+
+    let opts = inst_dir.join("options.txt");
+    let mut lines: Vec<String> = if opts.exists() {
+        fs::read_to_string(&opts)
+            .unwrap_or_default()
+            .lines()
+            .map(|l| l.to_string())
+            .collect()
+    } else {
+        Vec::new()
+    };
+    ensure_option_list(&mut lines, "resourcePacks", "file/KollegenTitle.zip");
+    ensure_option_list(
+        &mut lines,
+        "incompatibleResourcePacks",
+        "file/KollegenTitle.zip",
+    );
+    if let Err(e) = fs::write(&opts, lines.join("\n") + "\n") {
+        warn!("Konnte options.txt nicht aktualisieren: {}", e);
+    }
+}
+
+
+
+
+pub fn ensure_kollegen_mod(data_dir: &Path, name: &str, loader: &str, version: &str) {
+    crate::companion::install_companion_mod(data_dir, name, version, loader);
+}
+
+
+
+
+fn ensure_option_list(lines: &mut Vec<String>, key: &str, value: &str) {
+    let prefix = format!("{}:[", key);
+    for line in lines.iter_mut() {
+        if line.starts_with(&prefix) {
+            if line.trim_end() == format!("{}:[]", key) {
+                *line = format!("{}:[\"{}\"]", key, value);
+            } else if !line.contains(value) {
+                if let Some(b) = line.find('[') {
+                    let mut result = line[..=b].to_string();
+                    result.push_str(&format!("\"{}\", ", value));
+                    result.push_str(&line[b + 1..]);
+                    *line = result;
+                }
+            }
+            return;
+        }
+    }
+    lines.push(format!("{}:[\"{}\"]", key, value));
+}
+
+
+
+
+pub fn fetch_available_versions() -> Result<Vec<String>> {
+    let client = reqwest::blocking::Client::builder()
+        .user_agent(crate::USER_AGENT)
+        .build()?;
+
+    let resp = client
+        .get("https://launchermeta.mojang.com/mc/game/version_manifest_v2.json")
+        .send()?;
+
+    if !resp.status().is_success() {
+        return Err(anyhow!("Failed to fetch version manifest"));
+    }
+
+    let manifest: MojangVersionManifest = resp.json()?;
+    let versions: Vec<String> = manifest.versions.into_iter().map(|v| v.id).collect();
+
+    Ok(versions)
+}
+
+
+
+pub fn fetch_loaders_for_version(version: &str) -> Result<Value> {
+    let client = reqwest::blocking::Client::builder()
+        .user_agent(crate::USER_AGENT)
+        .build()?;
+
+    let mut result = serde_json::json!({
+        "fabric": [],
+        "forge": [],
+        "neoforge": []
+    });
+
+    
+    let fabric_resp = client
+        .get(&format!("https://meta.fabricmc.net/v2/versions/loader/{}", version))
+        .send();
+
+    if let Ok(resp) = fabric_resp {
+        if resp.status().is_success() {
+            if let Ok(loaders) = resp.json::<Vec<Value>>() {
+                result["fabric"] = serde_json::Value::Array(loaders);
+            }
+        }
+    }
+
+    
+
+    Ok(result)
+}
+
+
+
+
+fn maven_library_path(name: &str) -> Option<PathBuf> {
+    let (name, ext) = match name.rsplit_once('@') {
+        Some((n, e)) => (n, e),
+        None => (name, "jar"),
+    };
+    let parts: Vec<&str> = name.split(':').collect();
+    let (group, artifact, version, classifier) = match parts.as_slice() {
+        [g, a, v] => (g, a, v, None),
+        [g, a, v, c] => (g, a, v, Some(*c)),
+        _ => return None,
+    };
+    let mut out = PathBuf::from(group.replace('.', "/"));
+    out.push(artifact);
+    out.push(version);
+    let mut file = format!("{}-{}", artifact, version);
+    if let Some(c) = classifier {
+        file.push('-');
+        file.push_str(c);
+    }
+    file.push('.');
+    file.push_str(ext);
+    out.push(file);
+    Some(out)
+}
+
+fn download_libraries(libs_dir: &Path, vjson: &VersionJson) {
+    for lib in &vjson.libraries {
+        let allowed = match &lib.rules {
+            Some(rules) => rules.iter().all(|rule| {
+                match rule.action.as_str() {
+                    "allow" => {
+                        if let Some(os) = &rule.os {
+                            match os.name.as_str() {
+                                "windows" => cfg!(target_os = "windows"),
+                                "osx" => cfg!(target_os = "macos"),
+                                "linux" => cfg!(target_os = "linux"),
+                                _ => true,
+                            }
+                        } else {
+                            true
+                        }
+                    }
+                    "disallow" => {
+                        if let Some(os) = &rule.os {
+                            match os.name.as_str() {
+                                "windows" => !cfg!(target_os = "windows"),
+                                "osx" => !cfg!(target_os = "macos"),
+                                "linux" => !cfg!(target_os = "linux"),
+                                _ => true,
+                            }
+                        } else {
+                            true
+                        }
+                    }
+                    _ => true,
+                }
+            }),
+            None => true,
+        };
+        if !allowed {
+            continue;
+        }
+        let (rel, url) = if let Some(artifact) = lib
+            .downloads
+            .as_ref()
+            .and_then(|d| d.artifact.as_ref())
+        {
+            (PathBuf::from(&artifact.path), artifact.url.clone())
+        } else if let Some(base) = &lib.url {
+            let Some(rel) = maven_library_path(&lib.name) else {
+                continue;
+            };
+            let rel = rel.to_string_lossy().replace('\\', "/");
+            let url = format!("{}/{}", base.trim_end_matches('/'), rel);
+            (PathBuf::from(&rel), url)
+        } else {
+            continue;
+        };
+        let lib_path = libs_dir.join(&rel);
+        if !lib_path.exists() {
+            let _ = crate::utils::download_file(&url, &lib_path);
+        }
+    }
+}
+
+
+pub fn install_instance(
+    data_dir: &Path,
+    name: &str,
+    version: &str,
+    loader: &str,
+    _loader_version: Option<&str>,
+) -> Result<()> {
+    let inst_dir = crate::utils::instance_dir(data_dir, name);
+    let version_dir = inst_dir.join("versions").join(version);
+    let libs_dir = inst_dir.join("libraries");
+    let assets_dir = inst_dir.join("assets");
+
+    fs::create_dir_all(&version_dir)?;
+    fs::create_dir_all(&libs_dir)?;
+    fs::create_dir_all(&assets_dir)?;
+
+    info!("Installing Minecraft {} for instance '{}'...", version, name);
+
+    let client = reqwest::blocking::Client::builder()
+        .user_agent(crate::USER_AGENT)
+        .build()?;
+
+    let manifest_resp = client.get("https://launchermeta.mojang.com/mc/game/version_manifest_v2.json").send()?;
+    if !manifest_resp.status().is_success() {
+        return Err(anyhow!("Konnte Version Manifest nicht laden"));
+    }
+    let manifest: MojangVersionManifest = manifest_resp.json()?;
+    
+    let version_entry = manifest.versions.iter().find(|v| v.id == version)
+        .ok_or_else(|| anyhow!("Version {} nicht im Manifest gefunden", version))?;
+
+    let resp = client.get(&version_entry.url).send()?;
+    if !resp.status().is_success() {
+        return Err(anyhow!("Version JSON für {} nicht gefunden (Status: {})", version, resp.status()));
+    }
+
+    let body_text = resp.text()?;
+    let version_json: VersionJson = serde_json::from_str(&body_text)
+        .map_err(|e| anyhow!("JSON Parse Fehler für Version {}: {} (Snippet: {})", version, e, &body_text[..body_text.len().min(100)]))?;
+
+    
+    let version_json_path = version_dir.join(format!("{}.json", version));
+    crate::utils::save_json(&version_json_path, &serde_json::to_value(&version_json)?)?;
+
+    
+    let downloads = version_json.downloads.as_ref()
+        .ok_or_else(|| anyhow!("Keine Download-Informationen in Version JSON für {} gefunden", version))?;
+    let client_download = downloads.client.as_ref()
+        .ok_or_else(|| anyhow!("Kein Client-Jar-Download für {} gefunden", version))?;
+
+    let jar_path = version_dir.join(format!("{}.jar", version));
+    if !jar_path.exists() {
+        crate::utils::download_file(&client_download.url, &jar_path)?;
+    }
+
+    
+    download_libraries(&libs_dir, &version_json);
+
+    
+    download_assets(data_dir, name, version)?;
+
+    
+    if loader != "vanilla" {
+        crate::utils::ensure_essential(name, data_dir, version)?;
+    }
+
+    
+    ensure_kollegen_mod(data_dir, name, loader, version);
+
+    
+    
+    ensure_title_logo_pack(&inst_dir, version);
+
+    Ok(())
+}
+
+
+
+
+
+
+fn download_asset_object(
+    client: &reqwest::blocking::Client,
+    url: &str,
+    dest: &Path,
+    expected_hash: &str,
+    expected_size: u64,
+) -> Result<()> {
+    let resp = client.get(url).send()?;
+    if !resp.status().is_success() {
+        return Err(anyhow::anyhow!("HTTP {}", resp.status()));
+    }
+    let bytes = resp.bytes()?;
+    if expected_size != 0 && bytes.len() as u64 != expected_size {
+        return Err(anyhow::anyhow!("Größe stimmt nicht überein"));
+    }
+    if crate::utils::sha1_hex(&bytes) != expected_hash {
+        return Err(anyhow::anyhow!("SHA1 stimmt nicht überein"));
+    }
+    if let Some(parent) = dest.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    let tmp = dest.with_extension("part");
+    let _ = fs::remove_file(&tmp);
+    fs::write(&tmp, &bytes)?;
+    fs::rename(&tmp, dest)?;
+    Ok(())
+}
+
+
+
+
+pub fn download_assets(data_dir: &Path, name: &str, version: &str) -> Result<()> {
+    let inst_dir = crate::utils::instance_dir(data_dir, name);
+    let version_dir = inst_dir.join("versions").join(version);
+    let assets_dir = inst_dir.join("assets");
+    fs::create_dir_all(&assets_dir)?;
+
+    let vjson_path = version_dir.join(format!("{}.json", version));
+    let vjson_str = fs::read_to_string(&vjson_path)?;
+    let vjson: VersionJson = serde_json::from_str(&vjson_str)?;
+    let assets_id = match &vjson.assets {
+        Some(a) => a.clone(),
+        None => return Ok(()),
+    };
+
+    
+    let index_path = assets_dir.join(format!("indexes/{}.json", assets_id));
+    if !index_path.exists() {
+        match &vjson.asset_index {
+            Some(asset_index) => {
+                crate::utils::download_file(&asset_index.url, &index_path)?;
+            }
+            None => return Ok(()),
+        }
+    }
+
+    let index_str = fs::read_to_string(&index_path)?;
+    let index: Value = serde_json::from_str(&index_str)?;
+    let objects = match index.get("objects").and_then(|o| o.as_object()) {
+        Some(o) => o,
+        None => return Ok(()),
+    };
+
+    
+    
+    
+    
+    let mut jobs: Vec<(String, std::path::PathBuf, String, u64)> = Vec::new();
+    for (_key, obj) in objects {
+        let hash = match obj.get("hash").and_then(|h| h.as_str()) {
+            Some(h) => h,
+            None => continue,
+        };
+        let size = obj.get("size").and_then(|s| s.as_u64());
+        let prefix = &hash[0..2];
+        let obj_path = assets_dir.join("objects").join(prefix).join(hash);
+        let needs = if obj_path.exists() {
+            match (size, fs::metadata(&obj_path)) {
+                
+                
+                (Some(expected), Ok(m)) => m.len() != expected,
+                
+                _ => match fs::read(&obj_path) {
+                    Ok(bytes) => crate::utils::sha1_hex(&bytes) != hash,
+                    Err(_) => true,
+                },
+            }
+        } else {
+            true
+        };
+        if needs {
+            let url = format!(
+                "https://resources.download.minecraft.net/{}/{}",
+                prefix, hash
+            );
+            jobs.push((url, obj_path, hash.to_string(), size.unwrap_or(0)));
+        }
+    }
+
+    let total = jobs.len();
+    if total == 0 {
+        info!("Alle Assets für {} bereits vorhanden.", version);
+        return Ok(());
+    }
+    info!("Lade {} Asset-Objekte herunter...", total);
+
+    let jobs = Arc::new(Mutex::new(jobs));
+    let workers = std::thread::available_parallelism()
+        .map(|n| n.get())
+        .unwrap_or(4)
+        .min(16)
+        .max(1);
+
+    let mut handles = Vec::new();
+    for _ in 0..workers {
+        let jobs = Arc::clone(&jobs);
+        let handle = thread::spawn(move || {
+            let client = reqwest::blocking::Client::builder()
+                .user_agent(crate::USER_AGENT)
+                .timeout(Duration::from_secs(120))
+                .build()
+                .unwrap();
+            loop {
+                let next = {
+                    let mut g = jobs.lock().unwrap();
+                    g.pop()
+                };
+                let (url, path, expected, size) = match next {
+                    Some(j) => j,
+                    None => break,
+                };
+                let mut ok = false;
+                for attempt in 0..3 {
+                    match download_asset_object(&client, &url, &path, &expected, size) {
+                        Ok(()) => {
+                            ok = true;
+                            break;
+                        }
+                        Err(e) => {
+                            if attempt == 2 {
+                                log::warn!(
+                                    "Asset-Download endgültig fehlgeschlagen ({}): {}",
+                                    url,
+                                    e
+                                );
+                            }
+                        }
+                    }
+                }
+                if !ok {
+                    
+                    let _ = fs::remove_file(path.with_extension("part"));
+                }
+            }
+        });
+        handles.push(handle);
+    }
+    for h in handles {
+        let _ = h.join();
+    }
+    info!("Asset-Download abgeschlossen.");
+    Ok(())
+}
+
+
+
+
+const MIN_FABRIC_LOADER_VERSION: &str = "0.19.5";
+
+fn fabric_loader_at_least(version: &str) -> bool {
+    let (Ok(cur), Ok(min)) = (
+        semver::Version::parse(version),
+        semver::Version::parse(MIN_FABRIC_LOADER_VERSION),
+    ) else {
+        return false;
+    };
+    cur >= min
+}
+
+fn installed_fabric_loader_version(dir_name: &str) -> Option<String> {
+    let rest = dir_name.to_lowercase();
+    let rest = rest.strip_prefix("fabric-loader")?;
+    let rest = rest.strip_prefix('-').or_else(|| rest.strip_prefix('_'))?;
+    Some(rest.split('-').next().unwrap_or_default().to_string())
+}
+
+fn remove_fabric_version_dirs(versions_dir: &Path) {
+    let Ok(entries) = fs::read_dir(versions_dir) else {
+        return;
+    };
+    for e in entries.flatten() {
+        let p = e.path();
+        if !p.is_dir() {
+            continue;
+        }
+        let name = p
+            .file_name()
+            .map(|n| n.to_string_lossy().to_string())
+            .unwrap_or_default();
+        if name.to_lowercase().contains("fabric")
+            && p.join(format!("{}.json", name)).is_file()
+        {
+            info!("Entferne veraltete Fabric-Installation: {}", name);
+            let _ = fs::remove_dir_all(&p);
+        }
+    }
+}
+
+fn resolve_fabric_loader_version(mc_version: &str) -> Result<String> {
+    let client = reqwest::blocking::Client::builder()
+        .user_agent(crate::USER_AGENT)
+        .build()?;
+    let resp = client
+        .get(&format!(
+            "https://meta.fabricmc.net/v2/versions/loader/{}",
+            mc_version
+        ))
+        .send()?;
+    if !resp.status().is_success() {
+        return Err(anyhow!("Konnte Fabric Loader Version nicht laden"));
+    }
+    let arr: Vec<Value> = resp.json()?;
+    for v in &arr {
+        if let Some(s) = v
+            .get("loader")
+            .and_then(|l| l.get("version"))
+            .and_then(|s| s.as_str())
+        {
+            if fabric_loader_at_least(s) {
+                return Ok(s.to_string());
+            }
+        }
+    }
+    let ver = arr
+        .first()
+        .and_then(|v| v.get("loader"))
+        .and_then(|l| l.get("version"))
+        .and_then(|s| s.as_str())
+        .ok_or_else(|| anyhow!("Keine Fabric Loader Version gefunden"))?;
+    Ok(ver.to_string())
+}
+
+
+fn resolve_fabric_installer_version() -> Result<String> {
+    let client = reqwest::blocking::Client::builder()
+        .user_agent(crate::USER_AGENT)
+        .build()?;
+    let resp = client
+        .get("https://maven.fabricmc.net/net/fabricmc/fabric-installer/maven-metadata.xml")
+        .send()?;
+    let body = resp.text()?;
+    let mut last = String::new();
+    for line in body.lines() {
+        let t = line.trim();
+        if let Some(rest) = t.strip_prefix("<version>") {
+            if let Some(v) = rest.strip_suffix("</version>") {
+                last = v.to_string();
+            }
+        }
+    }
+    if last.is_empty() {
+        return Err(anyhow!("Konnte Fabric Installer Version nicht laden"));
+    }
+    Ok(last)
+}
+
+
+
+
+fn find_fabric_version_dir(versions_dir: &Path) -> Option<String> {
+    let entries = fs::read_dir(versions_dir).ok()?;
+    for e in entries.flatten() {
+        let p = e.path();
+        if !p.is_dir() {
+            continue;
+        }
+        let name = p.file_name()?.to_string_lossy().to_string();
+        if name.to_lowercase().contains("fabric")
+            && p.join(format!("{}.json", name)).is_file()
+        {
+            return Some(name);
+        }
+    }
+    None
+}
+
+
+
+
+fn ensure_fabric(data_dir: &Path, inst: &Instance, java_path: &str) -> Result<String> {
+    let inst_dir = crate::utils::instance_dir(data_dir, &inst.name);
+    let versions_dir = inst_dir.join("versions");
+    fs::create_dir_all(&versions_dir).ok();
+
+    
+    if let Some(id) = find_fabric_version_dir(&versions_dir) {
+        let installed = installed_fabric_loader_version(&id).unwrap_or_default();
+        if fabric_loader_at_least(&installed) {
+            return Ok(id);
+        }
+        warn!(
+            "Fabric Loader {} in Instanz '{}' ist zu alt (mindestens {} erforderlich), installiere neu...",
+            installed, inst.name, MIN_FABRIC_LOADER_VERSION
+        );
+        remove_fabric_version_dirs(&versions_dir);
+        if !installed.is_empty() {
+            let _ = fs::remove_dir_all(
+                inst_dir
+                    .join("libraries")
+                    .join("net")
+                    .join("fabricmc")
+                    .join("fabric-loader")
+                    .join(&installed),
+            );
+        }
+    }
+
+    let loader_ver = match &inst.loader_version {
+        Some(v) if fabric_loader_at_least(v) => v.clone(),
+        _ => resolve_fabric_loader_version(&inst.version)?,
+    };
+    info!("Installiere Fabric Loader {} für '{}'...", loader_ver, inst.name);
+
+    let installer_ver = resolve_fabric_installer_version()?;
+    let installer_url = format!(
+        "https://maven.fabricmc.net/net/fabricmc/fabric-installer/{}/fabric-installer-{}.jar",
+        installer_ver, installer_ver
+    );
+    fs::create_dir_all(&inst_dir)?;
+    let installer_path = inst_dir.join("fabric-installer.jar");
+    if !installer_path.exists() {
+        crate::utils::download_file(&installer_url, &installer_path)?;
+    }
+
+    let mut fab_cmd = Command::new(java_path);
+    crate::java::sanitize_java_env(&mut fab_cmd);
+    
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        fab_cmd.creation_flags(0x08000000);
+    }
+    let status = fab_cmd
+        .arg("-jar")
+        .arg(&installer_path)
+        .arg("client")
+        .arg("-mcversion")
+        .arg(&inst.version)
+        .arg("-loader")
+        .arg(&loader_ver)
+        .arg("-dir")
+        .arg(&inst_dir)
+        .arg("-noprofile")
+        .status()?;
+    if !status.success() {
+        return Err(anyhow!(
+            "Fabric Installer fehlgeschlagen (Exit {})",
+            status.code().unwrap_or(-1)
+        ));
+    }
+
+    
+    
+    find_fabric_version_dir(&versions_dir)
+        .ok_or_else(|| anyhow!("Fabric Version-Verzeichnis nicht gefunden"))
+}
+
+
+
+fn clean_corrupt_mods(mods_dir: &Path) {
+    if let Ok(entries) = fs::read_dir(mods_dir) {
+        for e in entries.flatten() {
+            let p = e.path();
+            if p.extension().and_then(|x| x.to_str()) != Some("jar") {
+                continue;
+            }
+            let meta = match fs::metadata(&p) {
+                Ok(m) => m,
+                Err(_) => continue,
+            };
+            
+            let corrupt = meta.len() == 0
+                || fs::read(&p)
+                    .map(|b| b.len() < 4 || !b.starts_with(b"PK"))
+                    .unwrap_or(false);
+            if corrupt {
+                log::warn!("Entferne beschädigte Mod-Datei: {}", p.display());
+                let _ = fs::remove_file(&p);
+            }
+        }
+    }
+}
+
+
+
+
+
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum RendererGroup {
+    Opengl, 
+    Vulkan, 
+}
+
+
+
+
+
+
+
+
+
+
+
+fn renderer_mod_group(fname: &str) -> Option<RendererGroup> {
+    let f = fname.to_lowercase();
+    let f = f.strip_suffix(".disabled").unwrap_or(&f);
+    if f.starts_with("sodium")
+        || f.starts_with("iris")
+        || f.starts_with("axiom")
+        || f.starts_with("xaeroworldmap")
+        || f.starts_with("xaerominimap")
+        || f.starts_with("xaerolib")
+    {
+        Some(RendererGroup::Opengl)
+    } else if f.starts_with("vulkanmod") || f.starts_with("beryl") {
+        Some(RendererGroup::Vulkan)
+    } else {
+        None
+    }
+}
+
+
+
+
+fn renderer_state_path(mods_dir: &Path) -> PathBuf {
+    mods_dir.join(".kollegen-renderer")
+}
+
+
+
+
+
+
+pub(crate) fn read_renderer_state(mods_dir: &Path) -> Option<bool> {
+    let s = fs::read_to_string(renderer_state_path(mods_dir)).ok()?;
+    match s.trim().to_lowercase().as_str() {
+        "vulkan" => Some(true),
+        "opengl" => Some(false),
+        _ => None,
+    }
+}
+
+
+
+
+fn controller_state_path(mods_dir: &Path) -> PathBuf {
+    mods_dir.join(".kollegen-controller")
+}
+
+
+
+pub(crate) fn enforce_controller_state(mods_dir: &Path, on: bool) {
+    if !mods_dir.exists() {
+        let _ = std::fs::create_dir_all(mods_dir);
+    }
+    let _ = fs::write(controller_state_path(mods_dir), if on { "on" } else { "off" });
+}
+
+
+
+
+
+
+
+
+
+
+
+
+fn is_intact_jar(path: &Path) -> bool {
+    match fs::File::open(path) {
+        Ok(f) => zip::ZipArchive::new(f).is_ok(),
+        Err(_) => false,
+    }
+}
+
+pub(crate) fn enforce_renderer_consistency(mods_dir: &Path, vulkan_enabled: bool) {
+    if !mods_dir.exists() {
+        return;
+    }
+    
+    
+    
+    
+    
+    let essential_present = fs::read_dir(mods_dir)
+        .map(|entries| {
+            entries.flatten().any(|e| {
+                let name = e.file_name().to_string_lossy().to_lowercase();
+                name.starts_with("essential") && name.ends_with(".jar")
+            })
+        })
+        .unwrap_or(false);
+    let vulkan_enabled = if essential_present {
+        if vulkan_enabled {
+            info!("Essential-Mod erkannt – erzwinge OpenGL-Renderer (Vulkan/VulkanMod+Beryl ist mit Essential inkompatibel: kopfstehende UI/Crash).");
+        }
+        false
+    } else {
+        vulkan_enabled
+    };
+    
+    let vulkan_enabled = if vulkan_enabled && mods_dir.join(".kollegen-vulkan-fallback").is_file() {
+        info!("Nativer Absturz beim letzten Start mit Vulkan-Renderer – starte einmalig mit OpenGL (Sodium+Iris).");
+        let _ = fs::remove_file(mods_dir.join(".kollegen-vulkan-fallback"));
+        false
+    } else {
+        vulkan_enabled
+    };
+    for name in ["VulkanMod.jar", "sodium.jar", "iris.jar", "beryl.jar"] {
+        for candidate in [
+            mods_dir.join(name),
+            mods_dir.join(format!("{}.disabled", name)),
+        ] {
+            if candidate.is_file() && !is_intact_jar(&candidate) {
+                info!("Entferne korrupte Renderer-Datei (wird beim Start neu deployed): {}", name);
+                let _ = fs::remove_file(&candidate);
+            }
+        }
+    }
+    let state = if vulkan_enabled { "vulkan" } else { "opengl" };
+    let _ = fs::write(renderer_state_path(mods_dir), state);
+
+    if let Ok(entries) = fs::read_dir(mods_dir) {
+        for e in entries.flatten() {
+            let p = e.path();
+            let ext = p.to_string_lossy().to_lowercase();
+            
+            let is_jar = p.extension().and_then(|x| x.to_str()) == Some("jar")
+                || ext.ends_with(".jar.disabled");
+            if !is_jar {
+                continue;
+            }
+            let fname = p.file_name().unwrap().to_string_lossy().to_lowercase();
+            let group = match renderer_mod_group(&fname) {
+                Some(g) => g,
+                None => continue,
+            };
+            let active = if vulkan_enabled {
+                group == RendererGroup::Vulkan
+            } else {
+                group == RendererGroup::Opengl
+            };
+            let is_disabled = fname.ends_with(".disabled");
+            if active && is_disabled {
+                
+                let target = p.with_file_name(fname.trim_end_matches(".disabled").to_string());
+                let _ = fs::rename(&p, &target);
+            } else if !active && !is_disabled {
+                
+                let target = p.with_file_name(format!("{}.disabled", fname));
+                let _ = fs::rename(&p, &target);
+            }
+        }
+    }
+}
+
+
+
+
+
+const BUNDLED_MODS: &[(&str, &str, &str)] = &[
+    ("chatheads", "kollegen-bundle-chatheads.jar", "dev/kollegen/client/chatheads.bin"),
+    ("@deps", "kollegen-bundle-fabric-api.jar", "dev/kollegen/client/fabricapi.bin"),
+    ("@deps", "kollegen-bundle-flk.jar", "dev/kollegen/client/flk.bin"),
+    ("@deps", "kollegen-bundle-owo.jar", "dev/kollegen/client/owo.bin"),
+    ("@deps", "kollegen-bundle-modmenu.jar", "dev/kollegen/client/modmenu.bin"),
+    ("@deps", "kollegen-bundle-tpa.jar", "dev/kollegen/client/tpa.bin"),
+    ("@deps", "kollegen-bundle-silk.jar", "dev/kollegen/client/silk.bin"),
+    ("@deps", "kollegen-bundle-clothconfig.jar", "dev/kollegen/client/clothconfig.bin"),
+];
+
+
+
+
+
+const LEGACY_BUNDLE_JARS: &[&str] = &["kollegen-bundle-flk.jar"];
+
+
+
+
+
+
+fn norm_mod_key(s: &str) -> String {
+    s.to_lowercase()
+        .chars()
+        .filter(|c| *c != '-' && *c != '_' && *c != ' ' && *c != '.')
+        .collect()
+}
+
+/// Mod-ID-Familien pro Bundle (deckt Yarn-/Modrinth-Namensvarianten ab,
+/// z. B. `chat_heads` vs. `chatheads`, `silk-all` vs. `silk`).
+fn bundle_mod_families(jar_name: &str) -> &'static [&'static str] {
+    match jar_name {
+        "kollegen-bundle-chatheads.jar" => &["chatheads"],
+        "kollegen-bundle-silk.jar" => &["silk"],
+        "kollegen-bundle-clothconfig.jar" => &["clothconfig"],
+        "kollegen-bundle-modmenu.jar" => &["modmenu"],
+        "kollegen-bundle-owo.jar" => &["owo", "owolib"],
+        "kollegen-bundle-tpa.jar" => &["placeholder", "tpa"],
+        "kollegen-bundle-fabric-api.jar" => &["fabricapi"],
+        "kollegen-bundle-flk.jar" => &["fabriclanguagekotlin"],
+        _ => &[],
+    }
+}
+
+/// Findet ein Launcher-Bundle anhand von Mod-ID/Name aus dem Fabric-Konfliktlog.
+/// Normale Dateisuche (`find_mod_jar`) scheitert hier, weil z. B. die Mod-ID
+/// `chat_heads` nicht in `kollegen-bundle-chatheads.jar` als Substring vorkommt
+/// (Unterstrich) und `silk-all` nicht in `kollegen-bundle-silk.jar`.
+pub(crate) fn find_bundle_jar(mods_dir: &Path, modid: &str, name: &str) -> Option<PathBuf> {
+    let mid = norm_mod_key(modid);
+    let nm = norm_mod_key(name);
+    if mid.len() < 3 && nm.len() < 3 {
+        return None;
+    }
+    for &(_flag_key, jar_name, _bin_path) in BUNDLED_MODS {
+        let hit = bundle_mod_families(jar_name).iter().any(|f| {
+            (!mid.is_empty() && (mid.starts_with(f) || f.starts_with(&mid)))
+                || (!nm.is_empty() && (nm.contains(f) || f.contains(&nm)))
+        });
+        if !hit {
+            continue;
+        }
+        let p = mods_dir.join(jar_name);
+        if p.is_file() {
+            return Some(p);
+        }
+        let dis = mods_dir.join(format!("{}.disabled", jar_name));
+        if dis.is_file() {
+            return Some(dis);
+        }
+    }
+    None
+}
+
+fn bundle_standalone_prefixes(jar_name: &str) -> &'static [&'static str] {
+    match jar_name {
+        "kollegen-bundle-chatheads.jar" => &["chat_heads", "chat-heads"],
+        "kollegen-bundle-fabric-api.jar" => &["fabric-api", "fabric_api"],
+        "kollegen-bundle-flk.jar" => &["fabric-language-kotlin", "fabric_language_kotlin"],
+        "kollegen-bundle-owo.jar" => &["owo-lib", "owo_lib"],
+        "kollegen-bundle-modmenu.jar" => &["modmenu"],
+        "kollegen-bundle-tpa.jar" => &["kollegen-tpa", "tpa-"],
+        "kollegen-bundle-silk.jar" => &["silk-"],
+        "kollegen-bundle-clothconfig.jar" => &["cloth-config", "cloth_config"],
+        _ => &[],
+    }
+}
+
+fn bundles_flag_path(mods_dir: &Path) -> PathBuf {
+    mods_dir.join(".kollegen-bundles.json")
+}
+
+
+
+fn read_bundle_flags(mods_dir: &Path) -> Value {
+    let mut flags = serde_json::json!({ "chatheads": true });
+    if let Ok(s) = fs::read_to_string(bundles_flag_path(mods_dir)) {
+        if let Ok(v) = serde_json::from_str::<Value>(&s) {
+            if v.is_object() {
+                for k in ["chatheads"] {
+                    if let Some(b) = v.get(k).and_then(|x| x.as_bool()) {
+                        flags[k] = serde_json::Value::Bool(b);
+                    }
+                }
+            }
+        }
+    }
+    flags
+}
+
+
+
+
+
+
+
+
+
+
+fn remove_bundle_jars(mods_dir: &Path) {
+    let Ok(entries) = fs::read_dir(mods_dir) else {
+        return;
+    };
+    for e in entries.flatten() {
+        let p = e.path();
+        if !p.is_file() {
+            continue;
+        }
+        let name = e.file_name().to_string_lossy().to_lowercase();
+        if name.starts_with("kollegen-bundle-") {
+            info!("Entferne Bundle aus inkompatibler Instanz: {}", name);
+            let _ = fs::remove_file(&p);
+        }
+    }
+}
+
+
+
+
+
+
+
+pub(crate) fn enforce_bundled_mods(mods_dir: &Path, mc_version: &str, companion_jar: Option<&Path>) {
+    if let Err(e) = fs::create_dir_all(mods_dir) {
+        warn!("mods-Verzeichnis {} nicht erstellbar: {}", mods_dir.display(), e);
+        return;
+    }
+
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    if !crate::companion::bundles_compatible(mc_version) {
+        warn!(
+            "Integrations-Bundles bei MC {} übersprungen: die gebündelten Jars sind exakt für {} kompiliert/remapped. \
+             Lade keine Bundles anderer MC-Versionen in diese Instanz.",
+            mc_version, crate::companion::companion_target_versions().join(", ")
+        );
+        remove_bundle_jars(mods_dir);
+        return;
+    }
+    let flags = read_bundle_flags(mods_dir);
+    let flag_on =
+        |k: &str| flags.get(k).and_then(|v| v.as_bool()).unwrap_or(true);
+
+    
+    let mut archive: Option<zip::ZipArchive<fs::File>> = None;
+    if let Some(path) = companion_jar {
+        match fs::File::open(path) {
+            Ok(f) => match zip::ZipArchive::new(f) {
+                Ok(z) => archive = Some(z),
+                Err(e) => warn!("Begleit-Jar {} nicht lesbar: {}", path.display(), e),
+            },
+            Err(e) => warn!("Begleit-Jar {} nicht gefunden: {}", path.display(), e),
+        }
+    }
+    let archive_available = archive.is_some();
+    let available: std::collections::HashSet<String> = archive
+        .as_mut()
+        .map(|a| a.file_names().map(|s| s.to_string()).collect())
+        .unwrap_or_default();
+
+    
+    
+    
+    
+    
+    
+    
+    
+    let essential_present = fs::read_dir(mods_dir)
+        .map(|entries| {
+            entries.flatten().any(|e| {
+                e.file_name().to_string_lossy().to_lowercase().starts_with("essential")
+            })
+        })
+        .unwrap_or(false);
+
+    
+    
+    
+    
+    
+    let decisions: Vec<(&str, &str, bool, bool)> = BUNDLED_MODS
+        .iter()
+        .map(|&(flag_key, jar_name, bin_path)| {
+            
+            
+            
+            
+            
+            
+            
+            let desired = if flag_key == "@deps" { true } else { flag_on(flag_key) };
+            let deployable = archive_available && available.contains(bin_path);
+            (jar_name, bin_path, desired, desired && deployable)
+        })
+        .collect();
+
+    
+    
+    
+    let flk_will_deploy = decisions
+        .iter()
+        .any(|&(jn, _, _, wd)| jn == "kollegen-bundle-flk.jar" && wd);
+
+    
+    
+    
+    
+    let autoremove = mods_dir.join(".kollegen-autoremove").exists();
+    if let Ok(entries) = fs::read_dir(mods_dir) {
+        for e in entries.flatten() {
+            let p = e.path();
+            if !p.is_file() {
+                continue;
+            }
+            let name = e.file_name().to_string_lossy().to_lowercase();
+            
+            // 1. Altes, nicht mehr unterstütztes Bundle? Weg damit.
+            if LEGACY_BUNDLE_JARS
+                .iter()
+                .any(|l| name == *l || name == format!("{l}.disabled"))
+            {
+                info!("Entferne Legacy-Bundle (wird nicht mehr gebündelt): {}", name);
+                let _ = fs::remove_file(&p);
+                continue;
+            }
+            
+            // 2. Standalone-FLK entfernen (Essential bündelt es ohnehin).
+            if name.starts_with("fabric-language-kotlin") || name.starts_with("fabric_language_kotlin") {
+                info!("Entferne eigenständiges FLK (Essential stellt es selbst bereit): {}", name);
+                let _ = fs::remove_file(&p);
+                continue;
+            }
+            if !name.ends_with(".jar") && !name.ends_with(".disabled") {
+                continue;
+            }
+            if name.starts_with("kollegen-client-mod") || name.starts_with("kollegen-bundle") {
+                continue;
+            }
+            let will_replace = decisions.iter().any(|&(jn, _, _, wd)| {
+                wd && bundle_standalone_prefixes(jn).iter().any(|pre| name.starts_with(*pre))
+            });
+            let incompatible = !crate::companion::jar_supports_mc(&p, mc_version);
+            if (will_replace && autoremove) || (will_replace && incompatible) {
+                info!("Entferne unpassende/ersetzte Standalone-Kopie: {}", name);
+                let _ = fs::remove_file(&p);
+            }
+        }
+    } 
+
+    
+    
+    
+    
+    
+    
+    
+    
+    if essential_present && flk_will_deploy {
+        if let Ok(entries) = fs::read_dir(mods_dir) {
+            for e in entries.flatten() {
+                let p = e.path();
+                if !p.is_file() {
+                    continue;
+                }
+                let name = e.file_name().to_string_lossy().to_lowercase();
+                if name.starts_with("fabric-language-kotlin") || name.starts_with("fabric_language_kotlin") {
+                    info!("Entferne eigenständiges FLK (Essential stellt es selbst bereit): {}", name);
+                    let _ = fs::remove_file(&p);
+                }
+            }
+        }
+    }
+
+    
+    
+    
+    for &(jar_name, bin_path, desired, will_deploy) in &decisions {
+        let dest = mods_dir.join(jar_name);
+        if will_deploy {
+            let Some(archive) = archive.as_mut() else { continue };
+            let mut src = match archive.by_name(bin_path) {
+                Ok(s) => s,
+                Err(_) => continue,
+            };
+
+            let mut src_bytes = Vec::with_capacity(src.size() as usize);
+            if src.read_to_end(&mut src_bytes).is_err() {
+                continue;
+            }
+
+            // Check if existing file is already identical to preserve mtime, page cache & CDS
+            let mut needs_extract = true;
+            if dest.is_file() {
+                if let Ok(dest_bytes) = fs::read(&dest) {
+                    if src_bytes == dest_bytes {
+                        needs_extract = false;
+                    }
+                }
+            }
+
+            if needs_extract {
+                let tmp = dest.with_extension("jar.tmp");
+                let ok = fs::write(&tmp, &src_bytes).is_ok();
+                if ok {
+                    let _ = fs::rename(&tmp, &dest);
+                } else {
+                    let _ = fs::remove_file(&tmp);
+                    warn!("Konnte Bundle {} nicht aus der Begleit-Mod extrahieren.", jar_name);
+                }
+            }
+        } else if !desired {
+            let _ = fs::remove_file(&dest);
+            let _ = fs::remove_file(mods_dir.join(format!("{}.disabled", jar_name)));
+        }
+    }
+
+    
+    
+    
+    
+    
+    
+    // Backstop: niemals MC-fremde Bundles liegen lassen (z. B. 26.2-Payloads
+    // aus einem falsch zugeordneten Companion-Jar in einer 1.21.11-Instanz).
+    // Falsche Dateien werden entfernt – der nächste Start ist dann zumindest
+    // konfliktfrei; mit korrektem Companion werden sie neu bereitgestellt.
+    for &(_flag_key, jar_name, _bin_path) in BUNDLED_MODS {
+        let p = mods_dir.join(jar_name);
+        if p.is_file()
+            && (!crate::companion::jar_supports_mc(&p, mc_version)
+                || !crate::companion::jar_has_fabric_mod_json(&p))
+        {
+            warn!(
+                "Entferne versionsfremdes oder inkompatibles Bundle {} aus {}-Instanz.",
+                jar_name, mc_version
+            );
+            let _ = fs::remove_file(&p);
+        }
+    }
+
+    for name in [
+        "kollegen-bundle-spotify.jar",
+        "kollegen-bundle-spotify.jar.disabled",
+    ] {
+        let _ = fs::remove_file(mods_dir.join(name));
+    }
+
+    
+    if let Ok(json) = serde_json::to_string_pretty(&flags) {
+        let _ = fs::write(bundles_flag_path(mods_dir), json);
+    }
+}
+
+
+fn write_classpath_jar(inst_dir: &Path, entries: &[String]) -> Result<String> {
+    let jar_path = inst_dir.join("classpath.jar");
+    let mut tokens: Vec<String> = Vec::with_capacity(entries.len());
+    for abs in entries {
+        match Path::new(abs).strip_prefix(inst_dir) {
+            Ok(rel) => tokens.push(rel.to_string_lossy().replace('\\', "/").replace(' ', "%20")),
+            Err(_) => tokens.push(format!("file:///{}", abs.replace('\\', "/").replace(' ', "%20"))),
+        }
+    }
+    let mut manifest = String::from("Manifest-Version: 1.0\r\nClass-Path: ");
+    for (i, t) in tokens.iter().enumerate() {
+        if i > 0 {
+            manifest.push(' ');
+        }
+        manifest.push_str(t);
+    }
+    manifest.push_str("\r\n\r\n");
+    let file = fs::File::create(&jar_path)?;
+    let mut zw = zip::ZipWriter::new(file);
+    let opts = zip::write::FileOptions::default()
+        .compression_method(zip::CompressionMethod::Stored);
+    zw.start_file("META-INF/MANIFEST.MF", opts)?;
+    zw.write_all(manifest.as_bytes())?;
+    zw.finish()?;
+    Ok(jar_path.to_string_lossy().into_owned())
+}
+
+pub fn parse_memory_gb(mem_str: &str) -> usize {
+    let s = mem_str.trim();
+    if s.is_empty() {
+        return 4;
+    }
+    if let Some(val) = s.strip_suffix(['g', 'G']) {
+        val.parse::<usize>().unwrap_or(4)
+    } else if let Some(val) = s.strip_suffix(['m', 'M']) {
+        val.parse::<usize>().map(|m| m / 1024).unwrap_or(4)
+    } else {
+        s.parse::<usize>().unwrap_or(4)
+    }
+}
+
+pub fn warmup_page_cache(targets: Vec<PathBuf>) {
+    thread::spawn(move || {
+        let mut buf = [0u8; 64 * 1024];
+        for path in targets {
+            if !path.exists() {
+                continue;
+            }
+            if path.is_file() {
+                warmup_single_file(&path, &mut buf);
+            } else if path.is_dir() {
+                if let Ok(entries) = fs::read_dir(&path) {
+                    for entry in entries.flatten() {
+                        let p = entry.path();
+                        if p.is_file() && p.extension().and_then(|e| e.to_str()) == Some("jar") {
+                            warmup_single_file(&p, &mut buf);
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+fn warmup_single_file(path: &Path, buf: &mut [u8]) {
+    #[cfg(target_os = "linux")]
+    {
+        use std::os::unix::io::AsRawFd;
+        if let Ok(file) = fs::File::open(path) {
+            let fd = file.as_raw_fd();
+            unsafe {
+                libc::posix_fadvise(fd, 0, 0, libc::POSIX_FADV_WILLNEED);
+            }
+        }
+    }
+    if let Ok(mut file) = fs::File::open(path) {
+        while let Ok(n) = file.read(buf) {
+            if n == 0 {
+                break;
+            }
+        }
+    }
+}
+
+#[cfg(target_os = "linux")]
+pub fn detect_p_cores_linux() -> Option<Vec<usize>> {
+    let mut p_cores = Vec::new();
+    let mut e_cores = Vec::new();
+    let mut freqs = Vec::new();
+
+    let mut cpu_idx = 0;
+    loop {
+        let cpu_dir = format!("/sys/devices/system/cpu/cpu{}", cpu_idx);
+        if !Path::new(&cpu_dir).exists() {
+            break;
+        }
+
+        let type_path = format!("{}/topology/core_type", cpu_dir);
+        if let Ok(c_type) = fs::read_to_string(&type_path) {
+            let trimmed = c_type.trim().to_lowercase();
+            if trimmed == "core" {
+                p_cores.push(cpu_idx);
+            } else if trimmed == "atom" {
+                e_cores.push(cpu_idx);
+            }
+        } else {
+            let freq_path = format!("{}/cpufreq/cpuinfo_max_freq", cpu_dir);
+            if let Ok(freq_str) = fs::read_to_string(&freq_path) {
+                if let Ok(freq) = freq_str.trim().parse::<u64>() {
+                    freqs.push((cpu_idx, freq));
+                }
+            }
+        }
+        cpu_idx += 1;
+    }
+
+    if !p_cores.is_empty() && !e_cores.is_empty() {
+        return Some(p_cores);
+    }
+
+    if freqs.len() >= 4 {
+        let max_freq = freqs.iter().map(|(_, f)| *f).max().unwrap_or(0);
+        let min_freq = freqs.iter().map(|(_, f)| *f).min().unwrap_or(0);
+        if max_freq > min_freq + 200_000 {
+            let threshold = min_freq + (max_freq - min_freq) / 2;
+            let detected: Vec<usize> = freqs
+                .into_iter()
+                .filter(|(_, f)| *f > threshold)
+                .map(|(c, _)| c)
+                .collect();
+            if !detected.is_empty() && detected.len() < cpu_idx {
+                return Some(detected);
+            }
+        }
+    }
+
+    None
+}
+
+#[cfg(windows)]
+pub fn ensure_windows_gpu_preference(java_path: &str) {
+    let _ = Command::new("reg")
+        .args([
+            "add",
+            r"HKCU\Software\Microsoft\DirectX\UserGpuPreferences",
+            "/v",
+            java_path,
+            "/t",
+            "REG_SZ",
+            "/d",
+            "GpuPreference=2;",
+            "/f",
+        ])
+        .output();
+}
+
+pub fn launch(
+    state: &AppState,
+    data_dir: &Path,
+    inst: &Instance,
+    java_path: &str,
+    settings: &Settings,
+) -> Result<(String, u32)> {
+    let inst_dir = crate::utils::instance_dir(data_dir, &inst.name);
+    
+    ensure_kollegen_mod(data_dir, &inst.name, &inst.loader, &inst.version);
+    
+    
+    
+    
+    let mods_dir = inst_dir.join("mods");
+    enforce_renderer_consistency(&mods_dir, inst.vulkan_enabled);
+    
+    
+    enforce_controller_state(&mods_dir, settings.steamdeck_mode);
+    
+    
+    
+    
+    let companion_jar = crate::companion::companion_jar(data_dir, &inst.version);
+    enforce_bundled_mods(&mods_dir, &inst.version, companion_jar.as_deref());
+    
+    
+    if let Ok(mut logs) = state.logs.lock() {
+        logs.clear();
+    }
+    let version_dir = inst_dir.join("versions").join(&inst.version);
+    let libs_dir = inst_dir.join("libraries");
+    let assets_dir = inst_dir.join("assets");
+
+    info!("Launching Minecraft {} ({}) for instance '{}'...", inst.version, inst.loader, inst.name);
+
+    // Page-Cache vorwärmen (Task 4): JARs & Bibliotheken im Hintergrund vorab in OS-Cache einlesen
+    warmup_page_cache(vec![
+        mods_dir.clone(),
+        libs_dir.clone(),
+        version_dir.join(format!("{}.jar", inst.version)),
+    ]);
+
+    let version_jar = version_dir.join(format!("{}.jar", inst.version));
+    if !version_jar.exists() {
+        info!(
+            "Version jar fehlt, installiere Instanz '{}' automatisch vor dem Start...",
+            inst.name
+        );
+        install_instance(
+            data_dir,
+            &inst.name,
+            &inst.version,
+            &inst.loader,
+            inst.loader_version.as_deref(),
+        )?;
+    }
+
+    
+    info!("Prüfe Minecraft-Assets...");
+    let _ = download_assets(data_dir, &inst.name, &inst.version);
+
+    
+    let vjson_path = version_dir.join(format!("{}.json", inst.version));
+    let vjson_str = fs::read_to_string(&vjson_path)?;
+    let vjson: VersionJson = serde_json::from_str(&vjson_str)?;
+
+    
+    
+    
+    let (main_class, asset_index) = if inst.loader.eq_ignore_ascii_case("fabric") {
+        let fabric_id = ensure_fabric(data_dir, inst, java_path)?;
+        let fabric_json_path = crate::utils::instance_dir(data_dir, &inst.name)
+            .join("versions")
+            .join(&fabric_id)
+            .join(format!("{}.json", &fabric_id));
+        let fabric_str = fs::read_to_string(&fabric_json_path)?;
+        let fabric_v: VersionJson = serde_json::from_str(&fabric_str)?;
+        download_libraries(&libs_dir, &fabric_v);
+        let mc = fabric_v.main_class.clone().unwrap_or_else(|| {
+            "net.fabricmc.loader.impl.launch.knot.KnotClient".to_string()
+        });
+        (mc, vjson.assets.clone().unwrap_or_else(|| inst.version.clone()))
+    } else {
+        (
+            vjson
+                .main_class
+                .unwrap_or_else(|| "net.minecraft.client.main.Main".to_string()),
+            vjson.assets.clone().unwrap_or_else(|| inst.version.clone()),
+        )
+    };
+    info!("Launching with main class: {}", main_class);
+
+    
+    let mut classpath = vec![version_jar.to_string_lossy().into_owned()];
+
+    
+    if libs_dir.exists() {
+        for entry in collect_jars(&libs_dir) {
+            if !classpath.contains(&entry) {
+                classpath.push(entry);
+            }
+        }
+    }
+
+    
+    let mods_dir = inst_dir.join("mods");
+    clean_corrupt_mods(&mods_dir);
+    if mods_dir.exists() {
+        for entry in fs::read_dir(&mods_dir)? {
+            let entry = entry?;
+            let path = entry.path();
+            if path.extension().and_then(|e| e.to_str()) == Some("jar") {
+                classpath.push(path.to_string_lossy().into_owned());
+            }
+        }
+    }
+
+    
+    let mut jvm_args: Vec<String> = vec![];
+
+    
+    if cfg!(target_os = "macos") {
+        jvm_args.push("-XstartOnFirstThread".to_string());
+    }
+
+    
+    let natives_dir = version_dir.join("natives");
+    if natives_dir.exists() {
+        jvm_args.push(format!("-Djava.library.path={}", natives_dir.to_string_lossy()));
+    }
+
+    
+    jvm_args.push(format!("-Xms{}", inst.memory_min));
+    jvm_args.push(format!("-Xmx{}", inst.memory_max));
+
+    let is_mc_26_plus = inst.version.starts_with("26.");
+    let ram_gb = parse_memory_gb(&inst.memory_max);
+    let cores = std::thread::available_parallelism()
+        .map(|n| n.get())
+        .unwrap_or(4);
+
+    jvm_args.push("-XX:+UnlockExperimentalVMOptions".to_string());
+
+    // Java 25 (MC 26.x) Compact Object Headers (JEP 450)
+    // Reduziert Object Headers von 12/16 Bytes auf 8 Bytes.
+    // Spart massiv Heap & CPU Cache L1/L2/L3 bei BlockPos, Vec3, ChunkPos und Partikeln.
+    if is_mc_26_plus {
+        jvm_args.push("-XX:+UseCompactObjectHeaders".to_string());
+    }
+
+    // Hardware-optimierte Garbage Collector Strategie:
+    // Ab 6 CPU-Kernen & >= 4 GB zugewiesenem RAM glänzt Generational ZGC mit Latenzen < 1 ms.
+    // Bei weniger RAM/Kernen oder auf Java 21 (1.21.x) garantiert getunter G1GC höchsten Durchsatz ohne Stutter.
+    if is_mc_26_plus && cores >= 6 && ram_gb >= 4 {
+        info!("Hardware-Profil: Generational ZGC gewählt ({} Kerne, {} GB RAM)", cores, ram_gb);
+        for flag in [
+            "-XX:+UseZGC",
+            "-XX:+DisableExplicitGC",
+            "-XX:+AlwaysPreTouch",
+            "-XX:+PerfDisableSharedMem",
+        ] {
+            jvm_args.push(flag.to_string());
+        }
+    } else {
+        info!("Hardware-Profil: Optimierter G1GC gewählt ({} Kerne, {} GB RAM)", cores, ram_gb);
+        for flag in [
+            "-XX:+UseG1GC",
+            "-XX:+ParallelRefProcEnabled",
+            "-XX:MaxGCPauseMillis=20",
+            "-XX:+UnlockExperimentalVMOptions",
+            "-XX:+DisableExplicitGC",
+            "-XX:+AlwaysPreTouch",
+            "-XX:G1NewSizePercent=30",
+            "-XX:G1MaxNewSizePercent=40",
+            "-XX:G1ReservePercent=15",
+            "-XX:G1HeapWastePercent=5",
+            "-XX:G1MixedGCCountTarget=4",
+            "-XX:InitiatingHeapOccupancyPercent=15",
+            "-XX:G1MixedGCLiveThresholdPercent=90",
+            "-XX:G1RSetUpdatingPauseTimePercent=5",
+            "-XX:SurvivorRatio=32",
+            "-XX:+PerfDisableSharedMem",
+            "-XX:MaxTenuringThreshold=1",
+        ] {
+            jvm_args.push(flag.to_string());
+        }
+    }
+
+    jvm_args.push("-Dsun.rmi.dgc.client.gcInterval=3600000".to_string());
+    jvm_args.push("-Dsun.rmi.dgc.server.gcInterval=3600000".to_string());
+    jvm_args.push("-Djava.lang.invoke.MethodHandle.EAGER_COMPILE=true".to_string());
+
+    // Selbstoptimierender Launcher: Profil-Auswahl aus Allowlist mit automatischem Crash-Rollback
+    let (chosen_preset, active_idx) = select_and_apply_optimization_preset(&inst_dir);
+    info!(
+        "Selbstoptimierender Launcher aktiv: Verwende Preset {} ('{}' - {})",
+        active_idx, chosen_preset.name, chosen_preset.description
+    );
+    for flag in chosen_preset.jvm_flags {
+        jvm_args.push(flag.to_string());
+    }
+
+    
+    ensure_optimal_renderer_config(&inst_dir, cores);
+
+    let os_cp_sep = if cfg!(target_os = "windows") { ";" } else { ":" };
+    let joined = classpath.join(os_cp_sep);
+    let cp_arg = if cfg!(target_os = "windows") && joined.len() > 28000 {
+        write_classpath_jar(&inst_dir, &classpath)?
+    } else {
+        joined
+    };
+    jvm_args.push("-cp".to_string());
+    jvm_args.push(cp_arg);
+
+    
+    let mut accounts = crate::utils::load_json::<Vec<crate::types::Account>>(
+        &crate::utils::accounts_file(&state.data_dir),
+        vec![],
+    );
+
+    
+    let now = chrono::Utc::now().timestamp() as u64;
+    let expired = accounts
+        .first()
+        .map(|a| a.expires_at.map(|e| now >= e).unwrap_or(true))
+        .unwrap_or(true);
+    if expired {
+        if let Some(acc) = accounts.first() {
+            if acc.refresh_token.is_some() && crate::auth::refresh_stored_account().is_ok() {
+                accounts = crate::utils::load_json::<Vec<crate::types::Account>>(
+                    &crate::utils::accounts_file(&state.data_dir),
+                    vec![],
+                );
+            }
+        }
+    }
+
+    let first = accounts.first();
+    let username = first.map(|a| a.username.clone()).unwrap_or_else(|| "Spieler".to_string());
+    let uuid = first.map(|a| a.uuid.clone()).unwrap_or_else(|| "0".to_string());
+    let access_token = first.map(|a| a.access_token.clone()).unwrap_or_default();
+
+    
+    let mut cmd = std::process::Command::new(java_path);
+    crate::java::sanitize_java_env(&mut cmd);
+
+    // Dedizierte GPU Zuordnung & CPU P-Core Affinität / Priorität
+    #[cfg(target_os = "linux")]
+    {
+        use std::os::unix::process::CommandExt;
+
+        // Dedizierte GPU auf Linux Hybrid-Systemen (PRIME / NVIDIA Offload)
+        cmd.env("__NV_PRIME_RENDER_OFFLOAD", "1");
+        cmd.env("__GLX_VENDOR_LIBRARY_NAME", "nvidia");
+        cmd.env("__VK_LAYER_NV_optimus", "NVIDIA_only");
+        cmd.env("DRI_PRIME", "1");
+
+        // 64-bit Vulkan ICD explizit vorgeben (verhindert 32-bit ELFCLASS32 Fehlversuche)
+        let nvidia_64 = std::path::Path::new("/usr/share/vulkan/icd.d/nvidia_icd.x86_64.json");
+        if nvidia_64.exists() {
+            cmd.env("VK_ICD_FILENAMES", nvidia_64);
+            cmd.env("VK_DRIVER_FILES", nvidia_64);
+        }
+
+        // NVIDIA OpenGL Threading & Ultra-High Framerate Treiber-Flags:
+        // __GL_THREADED_OPTIMIZATIONS=0: Verhindert NVIDIA_THREADED_OPTIMIZATIONS_BROKEN Workaround in Sodium
+        // (Sodium nutzt bereits eigenes Multithreading; Treiber-GLThread erzwingt sonst periodische CPU-GPU Synchronisations-Barrieren / 25ms Stalls)
+        // __GL_SYNC_TO_VBLANK=0 / vblank_mode=0: Verhindert jegliche Treiber- oder Compositor-Framerate-Drossel
+        // __GL_YIELD="NOTHING": Verhindert Scheduler-Yields bei Buffer-Swaps & minimiert Frame-Latenz
+        cmd.env("__GL_THREADED_OPTIMIZATIONS", "0");
+        cmd.env("__GL_SYNC_TO_VBLANK", "0");
+        cmd.env("__GL_YIELD", "NOTHING");
+        cmd.env("__GL_GSYNC_ALLOWED", "0");
+        cmd.env("__GL_VRR_ALLOWED", "0");
+        cmd.env("vblank_mode", "0");
+        cmd.env("mesa_glthread", "false");
+        cmd.env("MESA_VK_WSI_PRESENT_MODE", "immediate");
+
+        // Native Wayland Window & Display-Pipeline:
+        // Lässt SDL & LWJGL nativ auf Wayland laufen (verhindert XWayland-HiDPI-Skalierung auf 4K & Swapchain-Konflikte)
+        cmd.env("SDL_VIDEO_ALLOW_SCREENSAVER", "1");
+        cmd.env("SDL_VIDEO_MINIMIZE_ON_FOCUS_LOSS", "0");
+
+        // P-Core CPU-Affinität & Priorität setzen (verhindert E-Core FPS-Drops)
+        let p_cores_opt = detect_p_cores_linux();
+        unsafe {
+            cmd.pre_exec(move || {
+                // Höhere Prozess-Priorität für gleichmäßiges Frame-Pacing (-5 nice)
+                let _ = libc::setpriority(libc::PRIO_PROCESS, 0, -5);
+
+                if let Some(ref cores) = p_cores_opt {
+                    let mut cpuset: libc::cpu_set_t = std::mem::zeroed();
+                    libc::CPU_ZERO(&mut cpuset);
+                    for &cpu in cores {
+                        libc::CPU_SET(cpu, &mut cpuset);
+                    }
+                    let _ = libc::sched_setaffinity(0, std::mem::size_of::<libc::cpu_set_t>(), &cpuset);
+                }
+                Ok(())
+            });
+        }
+    }
+
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        ensure_windows_gpu_preference(java_path);
+        // 0x00008000 = ABOVE_NORMAL_PRIORITY_CLASS, 0x08000000 = CREATE_NO_WINDOW
+        cmd.creation_flags(0x00008000 | 0x08000000);
+    }
+    cmd.args(&jvm_args);
+
+    
+    cmd.arg(&main_class);
+
+    
+    cmd.args(&[
+        "--username", &username,
+        "--version", &inst.version,
+        "--gameDir", &inst_dir.to_string_lossy(),
+        "--assetsDir", &assets_dir.to_string_lossy(),
+        "--assetIndex", &asset_index,
+        "--uuid", &uuid,
+        "--accessToken", &access_token,
+        "--clientId", "0",
+        "--xuid", "",
+        "--userType", "msa",
+        "--versionType", "release",
+    ]);
+
+    
+    if let Some(server) = &inst.server {
+        let parts: Vec<&str> = server.split(':').collect();
+        if parts.len() >= 2 {
+            cmd.args(&["--server", parts[0], "--port", parts[1]]);
+        }
+    }
+
+    
+    if let Some(jargs) = &inst.java_args {
+        for arg in jargs.split_whitespace() {
+            cmd.arg(arg);
+        }
+    }
+
+    
+    cmd.current_dir(&inst_dir);
+
+    
+    
+    
+    
+    
+    let log_path = inst_dir.join("logs").join("latest.log");
+    if let Some(parent) = log_path.parent() {
+        let _ = fs::create_dir_all(parent);
+    }
+    let _ = fs::File::create(&log_path);
+    cmd.stdout(Stdio::piped());
+    cmd.stderr(Stdio::piped());
+
+    
+    
+    ensure_title_logo_pack(&inst_dir, &inst.version);
+
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    let report_path = dirs::home_dir().map(|h| h.join(".kollegen").join("last-launch-report.txt"));
+    if let Some(rp) = &report_path {
+        if let Some(p) = rp.parent() {
+            let _ = fs::create_dir_all(p);
+        }
+    }
+
+    
+    let java_probe = std::process::Command::new(java_path)
+        .arg("-version")
+        .output();
+    let java_version_note = match &java_probe {
+        Ok(o) => {
+            let s = String::from_utf8_lossy(&o.stderr);
+            let t = s.trim();
+            if t.is_empty() {
+                String::from_utf8_lossy(&o.stdout).trim().to_string()
+            } else {
+                t.to_string()
+            }
+        }
+        Err(e) => format!("java -version fehlgeschlagen: {}", e),
+    };
+    if java_probe.is_err() {
+        let mut extra = String::new();
+        if let Some(rp) = &report_path {
+            extra = format!(" (Bericht: {})", rp.display());
+        }
+        return Err(anyhow!(
+            "Java ist nicht startbar ({}):{}{}",
+            java_path,
+            if java_version_note.is_empty() {
+                String::new()
+            } else {
+                format!(" {}", java_version_note)
+            },
+            extra
+        ));
+    }
+
+    let cmdline = std::iter::once(java_path.to_string())
+        .chain(cmd.get_args().map(|a| a.to_string_lossy().into_owned()))
+        .collect::<Vec<_>>()
+        .join(" ");
+    {
+        let mut txt = String::new();
+        txt.push_str(&format!(
+            "Kollegen-Launcher Start-Bericht — {}\n",
+            chrono::Local::now().format("%Y-%m-%d %H:%M:%S")
+        ));
+        txt.push_str(&format!(
+            "Instanz: {} ({} / {})\n",
+            inst.name, inst.version, inst.loader
+        ));
+        txt.push_str(&format!("java-Binary: {}\n", java_path));
+        txt.push_str(&format!("java -version:\n{}\n", java_version_note));
+        txt.push_str("Umgebung (relevant):\n");
+        for key in [
+            "DISPLAY",
+            "WAYLAND_DISPLAY",
+            "XDG_SESSION_TYPE",
+            "XDG_CURRENT_DESKTOP",
+            "STEAM_GAMEID",
+            "STEAM_COMPAT_APP_ID",
+            "APPIMAGE",
+            "APPDIR",
+            "JAVA_HOME",
+            "JAVA_TOOL_OPTIONS",
+            "_JAVA_OPTIONS",
+            "GDK_BACKEND",
+            "LIBGL_ALWAYS_SOFTWARE",
+            "MESA_VK_WSI_PRESENT_MODE",
+        ] {
+            if let Ok(v) = std::env::var(key) {
+                txt.push_str(&format!("  {}={}\n", key, v));
+            }
+        }
+        txt.push_str("Aufruf:\n");
+        txt.push_str(&cmdline);
+        txt.push_str("\n");
+        txt.push_str("── Start (Spawn) ──\n");
+        if let Some(rp) = &report_path {
+            let _ = fs::write(rp, txt);
+        }
+    }
+
+    info!("Starting Minecraft process...");
+    let mut child = cmd.spawn()?;
+    let pid = child.id();
+
+    
+    
+    
+    
+    let last_activity = Arc::new(AtomicU64::new(0));
+
+    
+    
+    
+    
+    let log_discord_tx = state.discord.tx.clone();
+    let log_version = inst.version.clone();
+    let log_loader = inst.loader.clone();
+    let log_name = inst.name.clone();
+    let inst_dir_telemetry = inst_dir.clone();
+    if let Some(mut out) = child.stdout.take() {
+        let logs_arc = Arc::clone(&state.logs);
+        let log_path2 = log_path.clone();
+        let last_activity2 = Arc::clone(&last_activity);
+        let inst_dir_perf = inst_dir_telemetry.clone();
+        thread::spawn(move || {
+            use std::io::Read;
+            let mut buf = [0u8; 4096];
+            let mut file = fs::OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(&log_path2)
+                .ok();
+            let mut carry = String::new();
+            loop {
+                match out.read(&mut buf) {
+                    Ok(0) => break,
+                    Ok(n) => {
+                        let chunk = String::from_utf8_lossy(&buf[..n]);
+                        if let Some(f) = file.as_mut() {
+                            let _ = f.write_all(chunk.as_bytes());
+                        }
+                        carry.push_str(&chunk);
+                        while let Some(idx) = carry.find('\n') {
+                            let line = carry[..idx].trim_end().to_string();
+                            carry.replace_range(..=idx, "");
+                            if !line.is_empty() {
+                                if line.contains("[KOLLEGEN_PERF_TELEMETRY]") {
+                                    parse_and_record_perf_telemetry(&inst_dir_perf, &line);
+                                }
+                                
+                                if let Some(srv) = parse_server_from_log(&line) {
+                                    crate::discord::set_current_server(Some(srv.clone()));
+                                    let _ = log_discord_tx.send(crate::discord::RpcMessage::Set {
+                                        details: format!("Spielt auf {}", srv),
+                                        state: format!("{} · {}", log_version, log_loader),
+                                        large_text: log_name.clone(),
+                                        server: Some(srv),
+                                        players: None,
+                                    });
+                                } else if is_disconnect_log(&line) {
+                                    crate::discord::set_current_server(None);
+                                    let _ = log_discord_tx.send(crate::discord::RpcMessage::Set {
+                                        details: "Spielt Minecraft".to_string(),
+                                        state: format!("{} · {}", log_version, log_loader),
+                                        large_text: log_name.clone(),
+                                        server: None,
+                                        players: None,
+                                    });
+                                }
+                                if let Ok(mut logs) = logs_arc.lock() {
+                                    logs.push(line);
+                                    if logs.len() > crate::MAX_LOG_LINES {
+                                        logs.remove(0);
+                                    }
+                                }
+                                last_activity2.store(
+                                    std::time::SystemTime::now()
+                                        .duration_since(std::time::UNIX_EPOCH)
+                                        .map(|d| d.as_millis() as u64)
+                                        .unwrap_or(0),
+                                    Ordering::Relaxed,
+                                );
+                            }
+                        }
+                    }
+                    Err(_) => break,
+                }
+            }
+            if !carry.trim().is_empty() {
+                if let Ok(mut logs) = logs_arc.lock() {
+                    logs.push(carry.trim().to_string());
+                    if logs.len() > crate::MAX_LOG_LINES {
+                        logs.remove(0);
+                    }
+                }
+            }
+        });
+    }
+
+    
+    
+    if let Some(mut err) = child.stderr.take() {
+        let logs_arc = Arc::clone(&state.logs);
+        let log_path2 = log_path.clone();
+        let last_activity2 = Arc::clone(&last_activity);
+        thread::spawn(move || {
+            use std::io::Read;
+            let mut buf = [0u8; 4096];
+            let mut file = fs::OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(&log_path2)
+                .ok();
+            let mut carry = String::new();
+            loop {
+                match err.read(&mut buf) {
+                    Ok(0) => break,
+                    Ok(n) => {
+                        let chunk = String::from_utf8_lossy(&buf[..n]);
+                        if let Some(f) = file.as_mut() {
+                            let _ = f.write_all(chunk.as_bytes());
+                        }
+                        carry.push_str(&chunk);
+                        while let Some(idx) = carry.find('\n') {
+                            let line = carry[..idx].trim_end().to_string();
+                            carry.replace_range(..=idx, "");
+                            if !line.is_empty() {
+                                if let Ok(mut logs) = logs_arc.lock() {
+                                    logs.push(line);
+                                    if logs.len() > crate::MAX_LOG_LINES {
+                                        logs.remove(0);
+                                    }
+                                }
+                            }
+                        }
+                        last_activity2.store(
+                            std::time::SystemTime::now()
+                                .duration_since(std::time::UNIX_EPOCH)
+                                .map(|d| d.as_millis() as u64)
+                                .unwrap_or(0),
+                            Ordering::Relaxed,
+                        );
+                    }
+                    Err(_) => break,
+                }
+            }
+        });
+    }
+
+    
+    
+    
+    
+    
+    
+    let discord_tx = state.discord.tx.clone();
+    let logs_arc = Arc::clone(&state.logs);
+    let log_path2 = log_path.clone();
+    let data_dir2 = state.data_dir.clone();
+    let report_path2 = report_path.clone();
+    thread::spawn(move || {
+        let t0 = std::time::Instant::now();
+        let mut exit_code: Option<i32> = None;
+        let mut signalled = false;
+        let mut last_silent_warn = 0u64;
+        loop {
+            match child.try_wait() {
+                Ok(Some(status)) => {
+                    match status.code() {
+                        Some(c) => exit_code = Some(c),
+                        None => signalled = true,
+                    }
+                    break;
+                }
+                Ok(None) => {
+                    
+                    
+                    
+                    let last = last_activity.load(Ordering::Relaxed);
+                    if last != 0 && t0.elapsed().as_secs() > 10 {
+                        let now_ms = std::time::SystemTime::now()
+                            .duration_since(std::time::UNIX_EPOCH)
+                            .map(|d| d.as_millis() as u64)
+                            .unwrap_or(0);
+                        let silent = now_ms.saturating_sub(last);
+                        if silent > 60_000 && last != last_silent_warn {
+                            last_silent_warn = last;
+                            let warn = format!(
+                                "WARNUNG: Minecraft läuft (PID {}), schreibt aber seit {}s keinen Output mehr – das Spiel hängt vermutlich (Renderer/OpenAL/Vulkan?).",
+                                pid, silent / 1000
+                            );
+                            if let Ok(mut logs) = logs_arc.lock() {
+                                logs.push(warn);
+                                if logs.len() > crate::MAX_LOG_LINES {
+                                    logs.remove(0);
+                                }
+                            }
+                        }
+                    }
+                    thread::sleep(Duration::from_millis(2000));
+                }
+                Err(_) => {
+                    signalled = true;
+                    break;
+                }
+            }
+        }
+        let runtime = t0.elapsed().as_secs_f64();
+        let mut line = format!("Minecraft-Prozess beendet ({:.0}s).", runtime);
+        match exit_code {
+            Some(0) => {
+                let perf_file = log_path2.parent().and_then(|p| p.parent()).map(|p| p.join("kollegen_perf.json"));
+                if let Some(pf) = perf_file {
+                    if let Ok(mut data) = fs::read_to_string(&pf).and_then(|s| serde_json::from_str::<serde_json::Value>(&s).map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))) {
+                        data["current_attempt_crashed"] = serde_json::json!(false);
+                        let _ = fs::write(&pf, serde_json::to_string_pretty(&data).unwrap_or_default());
+                    }
+                }
+            }
+            Some(c) => line.push_str(&format!(" Exit-Code: {}.", c)),
+            None => line.push_str(if signalled { " Vom Signal beendet (Absturz?)." } else { "" }),
+        }
+        if runtime < 20.0 {
+            line.push_str(" Sehr kurze Laufzeit – vermutlich Startabsturz.");
+        }
+        if let Ok(mut logs) = logs_arc.lock() {
+            logs.push(line.clone());
+            if logs.len() > crate::MAX_LOG_LINES {
+                logs.remove(0);
+            }
+        }
+        let lf = crate::utils::log_file(&data_dir2);
+        if let Ok(mut f) = fs::OpenOptions::new().create(true).append(true).open(lf) {
+            let ts = chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
+            let _ = std::writeln!(f, "[{}] {}", ts, line);
+        }
+        
+        
+        let log_tail = crate::read_log_tail(&log_path2, 16 * 1024);
+        if !log_tail.trim().is_empty() {
+            if let Ok(mut logs) = logs_arc.lock() {
+                logs.push("── Letzte Log-Zeilen vor dem Ende ──".to_string());
+                for l in log_tail.lines().rev().take(8) {
+                    logs.push(l.trim_end().to_string());
+                }
+            }
+        }
+        let mut crash_hint: Vec<String> = Vec::new();
+        let mut crash_modules: Vec<String> = Vec::new();
+        if runtime < 120.0 {
+            if let Some(inst) = log_path2.parent().and_then(|p| p.parent()) {
+                let (hints, modules) = analyze_native_crash(inst, runtime);
+                crash_hint = hints;
+                crash_modules = modules;
+            }
+        }
+        let graphics_suspect = crash_modules.iter().any(|m| {
+            let l = m.to_lowercase();
+            l.contains("vulkan")
+                || l.contains("nvoglv")
+                || l.contains("atio6axx")
+                || l.contains("amdxn64")
+                || l.contains("igc64")
+                || l.contains("igxelpicd")
+                || l.contains("lwjgl")
+                || l.contains("glfw")
+                || l.contains("beryl")
+                || l.contains("opengl32")
+        });
+        let mut renderer_note: Option<String> = None;
+        if graphics_suspect || (!crash_hint.is_empty() && crash_modules.is_empty()) {
+            if let Some(inst) = log_path2.parent().and_then(|p| p.parent()) {
+                let marker = inst.join("mods").join(".kollegen-vulkan-fallback");
+                if read_renderer_state(&inst.join("mods")) == Some(true)
+                    && fs::write(&marker, "vulkan-crash").is_ok()
+                {
+                    renderer_note = Some("Nativer Absturz mit aktivem Vulkan-Renderer – nächster Start fällt einmalig auf den Standard-OpenGL-Renderer zurück.".to_string());
+                }
+            }
+        }
+        if let Some(note) = &renderer_note {
+            if let Ok(mut logs) = logs_arc.lock() {
+                logs.push(note.clone());
+                if logs.len() > crate::MAX_LOG_LINES {
+                    logs.remove(0);
+                }
+            }
+        }
+        if !crash_hint.is_empty() {
+            if let Ok(mut logs) = logs_arc.lock() {
+                for l in &crash_hint {
+                    logs.push(l.clone());
+                    if logs.len() > crate::MAX_LOG_LINES {
+                        logs.remove(0);
+                    }
+                }
+            }
+        }
+        
+        if let Some(rp) = &report_path2 {
+            let mut txt = String::new();
+            txt.push_str(&format!(
+                "\n── Ende ({}) ──\n{}\n",
+                chrono::Local::now().format("%Y-%m-%d %H:%M:%S"),
+                line,
+            ));
+            if !log_tail.trim().is_empty() {
+                txt.push_str("── Letzte Log-Zeilen ──\n");
+                for l in log_tail.lines().rev().take(15) {
+                    txt.push_str(l.trim_end());
+                    txt.push('\n');
+                }
+            }
+            if !crash_hint.is_empty() {
+                txt.push_str("── Native-Crash-Analyse ──\n");
+                for l in &crash_hint {
+                    txt.push_str(l);
+                    txt.push('\n');
+                }
+            }
+            if let Some(note) = &renderer_note {
+                txt.push_str("── Renderer-Fallback ──\n");
+                txt.push_str(note);
+                txt.push('\n');
+            }
+            if let Ok(mut f) = fs::OpenOptions::new().create(true).append(true).open(rp) {
+                let _ = f.write_all(txt.as_bytes());
+            }
+        }
+        let _ = discord_tx.send(crate::discord::RpcMessage::Set {
+            details: "Kollegen Client".to_string(),
+            state: "Im Launcher".to_string(),
+            large_text: "Kollegen Client".to_string(),
+            server: None,
+            players: None,
+        });
+        crate::discord::set_current_server(None);
+    });
+
+    
+    let path = crate::utils::instances_file(&state.data_dir);
+    let mut instances = crate::utils::load_json::<Vec<Instance>>(&path, vec![]);
+    for i in &mut instances {
+        if i.name == inst.name {
+            i.last_played = Some(chrono::Utc::now().to_rfc3339());
+        }
+    }
+    let _ = crate::utils::save_json(&path, &instances);
+
+    Ok((format!("Minecraft started (PID: {})", pid), pid))
+}
+
+
+
+fn native_crash_suspect(module: &str) -> Option<&'static str> {
+    let m = module.to_lowercase();
+    if m.contains("mediainterface_winrt") || m.contains("spotify") {
+        return Some("spotify-overlay (WinRT-Bridge)");
+    }
+    if m.contains("discord_game_sdk") {
+        return Some("Discord-RPC (kollegen-client)");
+    }
+    if m.contains("opus") || m.contains("rnnoise") || m.contains("voicechat") {
+        return Some("Simple Voice Chat (Audio-Natives)");
+    }
+    if m.contains("tcnative") || m.contains("boringssl") || m.contains("velocity") || m.contains("netty") {
+        return Some("krypton (velocity-native)");
+    }
+    if m.contains("lwjgl") || m.contains("glfw") || m.contains("openal") || m.contains("soft_oal") {
+        return Some("LWJGL/Audio-Natives");
+    }
+    if m.contains("nvoglv") || m.contains("atio6axx") || m.contains("amdxn64") || m.contains("igc64") || m.contains("igxelpicd") || m.contains("opengl32") {
+        return Some("GPU-Treiber");
+    }
+    if m.contains("jvm.dll") {
+        return Some("Java-VM (Heap/JIT)");
+    }
+    None
+}
+
+fn analyze_native_crash(inst_dir: &std::path::Path, runtime_secs: f64) -> (Vec<String>, Vec<String>) {
+    let mut out: Vec<String> = Vec::new();
+    let now_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as u64)
+        .unwrap_or(0);
+    let started_ms = now_ms.saturating_sub((runtime_secs * 1000.0) as u64);
+    let mut newest: Option<(u64, std::path::PathBuf)> = None;
+    if let Ok(entries) = std::fs::read_dir(inst_dir) {
+        for e in entries.flatten() {
+            let p = e.path();
+            let name = p.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
+            if !name.starts_with("hs_err_pid") || !name.ends_with(".log") {
+                continue;
+            }
+            if let Ok(md) = e.metadata() {
+                if let Ok(mt) = md.modified() {
+                    if let Ok(ms) = mt.duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis() as u64) {
+                        if ms + 120_000 >= started_ms && newest.as_ref().map(|(m, _)| ms > *m).unwrap_or(true) {
+                            newest = Some((ms, p));
+                        }
+                    }
+                }
+            }
+        }
+    }
+    let path = match newest {
+        Some((_, p)) => p,
+        None => return (out, Vec::new()),
+    };
+    let text = match std::fs::read_to_string(&path) {
+        Ok(t) => t,
+        Err(_) => return (out, Vec::new()),
+    };
+    let mut exception = String::new();
+    let mut frame = String::new();
+    let mut thread = String::new();
+    let mut modules: Vec<String> = Vec::new();
+    for l in text.lines() {
+        let t = l.trim().trim_start_matches('#').trim();
+        if t.starts_with("EXCEPTION_") && exception.is_empty() {
+            exception = t.to_string();
+        } else if t.starts_with("Problematic frame:") && frame.is_empty() {
+            frame = t.trim_start_matches("Problematic frame:").trim().to_string();
+        } else if t.starts_with("Current thread") && thread.is_empty() {
+            thread = t.to_string();
+        } else if t.starts_with('C') && (t.contains(".dll") || t.contains(".so")) && modules.len() < 6 {
+            if let Some(a) = t.find('[') {
+                if let Some(b) = t[a..].find(']') {
+                    let raw = t[a + 1..a + b].to_string();
+                    let base = raw.split(['+', '!']).next().unwrap_or(&raw).to_string();
+                    if !base.is_empty() && !modules.contains(&base) {
+                        modules.push(base);
+                    }
+                }
+            }
+        }
+    }
+    if exception.is_empty() && frame.is_empty() {
+        return (out, modules);
+    }
+    if !exception.is_empty() {
+        out.push(format!("Nativer Absturz erkannt: {}", exception));
+    }
+    if !frame.is_empty() {
+        out.push(format!("Problematic frame: {}", frame));
+    }
+    if !thread.is_empty() {
+        let short = thread.chars().take(120).collect::<String>();
+        out.push(format!("Thread: {}", short));
+    }
+    let mut first_suspect = String::new();
+    for m in &modules {
+        if let Some(suspect) = native_crash_suspect(m) {
+            out.push(format!("Verdächtiges natives Modul: {} – mögliche Quelle: {}.", m, suspect));
+            if first_suspect.is_empty() && !suspect.starts_with("GPU-") && !suspect.starts_with("Java-") {
+                first_suspect = suspect.to_string();
+            }
+        }
+    }
+    if first_suspect.is_empty() {
+        out.push("Tipp: hs_err-Datei in der Instanz prüfen, Mods einzeln deaktivieren, Grafiktreiber und VC++-Redistributable aktualisieren.".to_string());
+    } else {
+        out.push(format!("Tipp: zum Eingrenzen zuerst {} deaktivieren und erneut starten.", first_suspect));
+    }
+    (out, modules)
+}
+
+fn parse_server_from_log(line: &str) -> Option<String> {
+    let marker = "Connecting to ";
+    let idx = line.find(marker)?;
+    let rest = &line[idx + marker.len()..];
+    let host_part = rest.split(',').next().unwrap_or("").trim();
+    
+    let host = host_part.split('/').next().unwrap_or(host_part).trim();
+    if host.is_empty() {
+        return None;
+    }
+    let port: String = rest
+        .split(',')
+        .nth(1)
+        .map(|p| p.trim().chars().take_while(|c| c.is_ascii_digit()).collect())
+        .unwrap_or_default();
+    let server = if port.is_empty() || port == "25565" {
+        host.to_string()
+    } else {
+        format!("{}:{}", host, port)
+    };
+    if server.is_empty() {
+        None
+    } else {
+        Some(server)
+    }
+}
+
+
+fn is_disconnect_log(line: &str) -> bool {
+    line.contains("Disconnected from server")
+        || line.contains("Lost connection")
+        || line.contains("Client disconnected")
+}
+
+fn ensure_optimal_renderer_config(inst_dir: &Path, cores: usize) {
+    let cfg_path = inst_dir.join("config").join("sodium-options.json");
+    if cfg_path.exists() {
+        if let Ok(content) = fs::read_to_string(&cfg_path) {
+            if let Ok(mut val) = serde_json::from_str::<serde_json::Value>(&content) {
+                let threads = cores.saturating_sub(2).clamp(2, 8);
+                if let Some(perf) = val.get_mut("performance").and_then(|p| p.as_object_mut()) {
+                    perf.insert("chunk_builder_threads".to_string(), serde_json::json!(threads));
+                    perf.insert("quad_splitting_mode".to_string(), serde_json::json!("OFF"));
+                    perf.insert("chunk_build_defer_mode".to_string(), serde_json::json!("ALWAYS"));
+                    perf.insert("animate_only_visible_textures".to_string(), serde_json::json!(true));
+                    perf.insert("use_entity_culling".to_string(), serde_json::json!(true));
+                    perf.insert("use_fog_occlusion".to_string(), serde_json::json!(true));
+                    perf.insert("use_block_face_culling".to_string(), serde_json::json!(true));
+                    perf.insert("use_no_error_g_l_context".to_string(), serde_json::json!(true));
+                }
+                if let Some(quality) = val.get_mut("quality").and_then(|q| q.as_object_mut()) {
+                    quality.insert("hidden_fluid_culling".to_string(), serde_json::json!(true));
+                    quality.insert("improved_fluid_shaping".to_string(), serde_json::json!(false));
+                    quality.insert("use_closest_point_entity_sort".to_string(), serde_json::json!(true));
+                }
+                let _ = fs::write(cfg_path, serde_json::to_string_pretty(&val).unwrap_or_default());
+            }
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct OptimizationPreset {
+    pub id: usize,
+    pub name: &'static str,
+    pub description: &'static str,
+    pub jvm_flags: &'static [&'static str],
+}
+
+pub static OPTIMIZATION_PRESETS: &[OptimizationPreset] = &[
+    OptimizationPreset {
+        id: 0,
+        name: "Standard ZGC + SIMD",
+        description: "Generational ZGC mit C2 Tiered Compilation & SIMD Vektorisierung",
+        jvm_flags: &[
+            "-XX:+UseFastUnorderedTimeStamps",
+            "-XX:CompileThreshold=1000",
+            "-XX:ReservedCodeCacheSize=512M",
+            "-XX:+SegmentedCodeCache",
+            "-XX:+TieredCompilation",
+            "-XX:CICompilerCount=4",
+            "-XX:+UseVectorCmov",
+            "-XX:+UseXMMForArrayCopy",
+            "-XX:+OptimizeStringConcat",
+            "-XX:+UseStringDeduplication",
+        ],
+    },
+    OptimizationPreset {
+        id: 1,
+        name: "Aggressives C2 Inlining & Geometrie-Durchsatz (2000+ FPS)",
+        description: "Erhöhtes C2 Inlining-Budget & Loop-Unrolling für Hotspot-Geometrie",
+        jvm_flags: &[
+            "-XX:FreqInlineSize=500",
+            "-XX:MaxInlineSize=45",
+            "-XX:InlineSmallCode=3000",
+            "-XX:LoopUnrollLimit=120",
+            "-XX:+UseFastUnorderedTimeStamps",
+            "-XX:CompileThreshold=800",
+            "-XX:ReservedCodeCacheSize=512M",
+            "-XX:+SegmentedCodeCache",
+            "-XX:+TieredCompilation",
+            "-XX:CICompilerCount=4",
+            "-XX:+UseVectorCmov",
+            "-XX:+UseXMMForArrayCopy",
+            "-XX:+OptimizeStringConcat",
+            "-XX:+UseStringDeduplication",
+        ],
+    },
+    OptimizationPreset {
+        id: 2,
+        name: "Zen4 AVX-512 & Vektor-Register Peak",
+        description: "512-Bit AVX Register, AlignVector & FMA für Berechnungen & Chunk-Transformationen",
+        jvm_flags: &[
+            "-XX:MaxVectorSize=64",
+            "-XX:+UseVectorCmov",
+            "-XX:+UseXMMForArrayCopy",
+            "-XX:+UseFMA",
+            "-XX:+AlignVector",
+            "-XX:LoopMaxUnroll=32",
+            "-XX:LoopUnrollLimit=120",
+            "-XX:FreqInlineSize=500",
+            "-XX:MaxInlineSize=45",
+            "-XX:InlineSmallCode=3000",
+            "-XX:MaxInlineLevel=18",
+            "-XX:+TrustFinalNonStaticFields",
+            "-XX:+UseCMoveUnconditionally",
+            "-XX:+UseFastJNIAccessors",
+            "-XX:+EliminateAllocations",
+            "-XX:+EliminateLocks",
+            "-XX:+DoEscapeAnalysis",
+            "-XX:+UseTransparentHugePages",
+            "-XX:ZAllocationSpikeTolerance=4",
+            "-XX:+UseFastUnorderedTimeStamps",
+            "-XX:CompileThreshold=600",
+            "-XX:ReservedCodeCacheSize=512M",
+            "-XX:+SegmentedCodeCache",
+            "-XX:+TieredCompilation",
+            "-XX:CICompilerCount=6",
+            "-XX:+OptimizeStringConcat",
+            "-XX:+UseStringDeduplication",
+        ],
+    },
+    OptimizationPreset {
+        id: 3,
+        name: "Ultra-Fast JIT Early Inlining & Zen4 Vektor",
+        description: "Früheres C2-Kompilieren bei 500 Aufrufen kombiniert mit AVX-512 Vektorisierung",
+        jvm_flags: &[
+            "-XX:CompileThreshold=500",
+            "-XX:MaxVectorSize=64",
+            "-XX:+UseVectorCmov",
+            "-XX:+UseXMMForArrayCopy",
+            "-XX:+UseFMA",
+            "-XX:+AlignVector",
+            "-XX:LoopMaxUnroll=32",
+            "-XX:LoopUnrollLimit=120",
+            "-XX:FreqInlineSize=500",
+            "-XX:MaxInlineSize=45",
+            "-XX:InlineSmallCode=3000",
+            "-XX:MaxInlineLevel=18",
+            "-XX:+TrustFinalNonStaticFields",
+            "-XX:+UseCMoveUnconditionally",
+            "-XX:+UseFastJNIAccessors",
+            "-XX:+EliminateAllocations",
+            "-XX:+EliminateLocks",
+            "-XX:ZAllocationSpikeTolerance=4",
+            "-XX:+UseFastUnorderedTimeStamps",
+            "-XX:ReservedCodeCacheSize=512M",
+            "-XX:+SegmentedCodeCache",
+            "-XX:+TieredCompilation",
+            "-XX:CICompilerCount=4",
+            "-XX:+OptimizeStringConcat",
+            "-XX:+UseStringDeduplication",
+        ],
+    },
+    OptimizationPreset {
+        id: 4,
+        name: "Zen4 Vektor-Apex (Ultimate Inlining & Vektor-Pipeline)",
+        description: "Höchstes Inlining-Budget (Freq 600, Size 50, SmallCode 3500) & LoopUnroll 150 für absolute FPS-Peaks (2000+ FPS)",
+        jvm_flags: &[
+            "-XX:CompileThreshold=800",
+            "-XX:MaxVectorSize=64",
+            "-XX:+UseVectorCmov",
+            "-XX:+UseXMMForArrayCopy",
+            "-XX:+UseFMA",
+            "-XX:+AlignVector",
+            "-XX:LoopMaxUnroll=32",
+            "-XX:LoopUnrollLimit=150",
+            "-XX:FreqInlineSize=600",
+            "-XX:MaxInlineSize=50",
+            "-XX:InlineSmallCode=3500",
+            "-XX:MaxInlineLevel=18",
+            "-XX:+TrustFinalNonStaticFields",
+            "-XX:+UseCMoveUnconditionally",
+            "-XX:+UseFastJNIAccessors",
+            "-XX:+EliminateAllocations",
+            "-XX:+EliminateLocks",
+            "-XX:ZAllocationSpikeTolerance=4",
+            "-XX:+UseFastUnorderedTimeStamps",
+            "-XX:ReservedCodeCacheSize=512M",
+            "-XX:+SegmentedCodeCache",
+            "-XX:+TieredCompilation",
+            "-XX:CICompilerCount=4",
+            "-XX:+OptimizeStringConcat",
+            "-XX:+UseStringDeduplication",
+        ],
+    },
+];
+
+fn select_and_apply_optimization_preset(inst_dir: &Path) -> (&'static OptimizationPreset, usize) {
+    let perf_file = inst_dir.join("kollegen_perf.json");
+    let mut perf_data: serde_json::Value = fs::read_to_string(&perf_file)
+        .ok()
+        .and_then(|s| serde_json::from_str(&s).ok())
+        .unwrap_or_else(|| serde_json::json!({
+            "record_avg_fps": 0,
+            "record_p1_low": 0,
+            "best_preset_index": 0,
+            "active_preset_index": 0,
+            "current_attempt_crashed": false,
+            "tested_presets": {}
+        }));
+
+    let was_crashed = perf_data["current_attempt_crashed"].as_bool().unwrap_or(false);
+    let mut active_idx = perf_data["active_preset_index"].as_u64().unwrap_or(0) as usize;
+    let best_idx = perf_data["best_preset_index"].as_u64().unwrap_or(0) as usize;
+
+    if was_crashed && active_idx != best_idx {
+        warn!(
+            "Selbstoptimierender Launcher: Vorheriger Start mit Preset {} ist unerwartet abgebrochen! Automatischer Rollback auf verifiziertes Profil (Preset {} - '{}')",
+            active_idx, best_idx, OPTIMIZATION_PRESETS.get(best_idx).map(|p| p.name).unwrap_or("Baseline")
+        );
+        if let Some(tested) = perf_data.get_mut("tested_presets").and_then(|t| t.as_object_mut()) {
+            if let Some(cur) = tested.get_mut(&active_idx.to_string()) {
+                cur["crashed"] = serde_json::json!(true);
+            }
+        }
+        active_idx = best_idx;
+        perf_data["active_preset_index"] = serde_json::json!(best_idx);
+    } else if !was_crashed {
+        let cur_tested = perf_data["tested_presets"]
+            .get(&active_idx.to_string())
+            .and_then(|p| p["runs"].as_u64())
+            .unwrap_or(0) >= 1;
+
+        if cur_tested {
+            let mut found_next = false;
+            for (i, _) in OPTIMIZATION_PRESETS.iter().enumerate() {
+                let runs = perf_data["tested_presets"]
+                    .get(&i.to_string())
+                    .and_then(|p| p["runs"].as_u64())
+                    .unwrap_or(0);
+                let crashed = perf_data["tested_presets"]
+                    .get(&i.to_string())
+                    .and_then(|p| p["crashed"].as_bool())
+                    .unwrap_or(false);
+                if runs == 0 && !crashed {
+                    active_idx = i;
+                    found_next = true;
+                    perf_data["active_preset_index"] = serde_json::json!(active_idx);
+                    info!(
+                        "Selbstoptimierender Launcher: Erprobe nächstes Flag-Set aus Allowlist: Preset {} ('{}')",
+                        active_idx, OPTIMIZATION_PRESETS[active_idx].name
+                    );
+                    break;
+                }
+            }
+            if !found_next {
+                active_idx = best_idx;
+                perf_data["active_preset_index"] = serde_json::json!(best_idx);
+                info!(
+                    "Selbstoptimierender Launcher: Alle Allowlist-Profile erfolgreich erprobt! Schalte auf Performance-Champion: Preset {} ('{}')",
+                    best_idx, OPTIMIZATION_PRESETS.get(best_idx).map(|p| p.name).unwrap_or("Optimal")
+                );
+            }
+        }
+    }
+
+    perf_data["current_attempt_crashed"] = serde_json::json!(true);
+    let _ = fs::write(&perf_file, serde_json::to_string_pretty(&perf_data).unwrap_or_default());
+
+    let safe_idx = active_idx.min(OPTIMIZATION_PRESETS.len().saturating_sub(1));
+    (&OPTIMIZATION_PRESETS[safe_idx], safe_idx)
+}
+
+fn parse_and_record_perf_telemetry(inst_dir: &Path, line: &str) {
+    let mut avg_fps = 0u32;
+    let mut p1_low = 0u32;
+    let mut p01_low = 0u32;
+    let mut samples = 0u64;
+
+    for part in line.split_whitespace() {
+        if let Some((k, v)) = part.split_once('=') {
+            match k {
+                "avg_fps" => avg_fps = v.parse().unwrap_or(0),
+                "p1_low" => p1_low = v.parse().unwrap_or(0),
+                "p01_low" => p01_low = v.parse().unwrap_or(0),
+                "samples" => samples = v.parse().unwrap_or(0),
+                _ => {}
+            }
+        }
+    }
+
+    if avg_fps > 0 && samples >= 2000 {
+        let perf_file = inst_dir.join("kollegen_perf.json");
+        let mut data: serde_json::Value = fs::read_to_string(&perf_file)
+            .ok()
+            .and_then(|s| serde_json::from_str(&s).ok())
+            .unwrap_or_else(|| serde_json::json!({
+                "record_avg_fps": 0,
+                "record_p1_low": 0,
+                "best_preset_index": 0,
+                "active_preset_index": 0,
+                "current_attempt_crashed": false,
+                "tested_presets": {}
+            }));
+
+        data["current_attempt_crashed"] = serde_json::json!(false);
+
+        let active_idx = data["active_preset_index"].as_u64().unwrap_or(0) as usize;
+        let preset_name = OPTIMIZATION_PRESETS.get(active_idx).map(|p| p.name).unwrap_or("Custom");
+
+        let cur_entry = data["tested_presets"].get(&active_idx.to_string());
+        let prev_best_avg = cur_entry.and_then(|p| p["avg_fps"].as_u64()).unwrap_or(0) as u32;
+        let prev_best_p1 = cur_entry.and_then(|p| p["p1_low"].as_u64()).unwrap_or(0) as u32;
+        let prev_runs = cur_entry.and_then(|p| p["runs"].as_u64()).unwrap_or(0);
+
+        let best_avg_this_preset = avg_fps.max(prev_best_avg);
+        let best_p1_this_preset = p1_low.max(prev_best_p1);
+
+        if data.get("tested_presets").is_none() || !data["tested_presets"].is_object() {
+            data["tested_presets"] = serde_json::json!({});
+        }
+
+        data["tested_presets"][active_idx.to_string()] = serde_json::json!({
+            "avg_fps": best_avg_this_preset,
+            "p1_low": best_p1_this_preset,
+            "p01_low": p01_low,
+            "samples": samples,
+            "runs": prev_runs.max(1),
+            "crashed": false,
+            "name": preset_name,
+            "tested_at": chrono::Utc::now().to_rfc3339()
+        });
+
+        let rec_avg = data["record_avg_fps"].as_u64().unwrap_or(0) as u32;
+        let rec_p1 = data["record_p1_low"].as_u64().unwrap_or(0) as u32;
+
+        let is_new_record = p1_low > rec_p1 || (p1_low as f32 >= rec_p1 as f32 * 0.95 && avg_fps > rec_avg);
+
+        if avg_fps > rec_avg {
+            data["record_avg_fps"] = serde_json::json!(avg_fps);
+        }
+        if p1_low > rec_p1 {
+            data["record_p1_low"] = serde_json::json!(p1_low);
+        }
+        if is_new_record {
+            data["best_preset_index"] = serde_json::json!(active_idx);
+            info!(
+                "Selbstoptimierender Launcher: Neuer Performance-Rekord mit Preset {} ('{}')! (1% Low: {} FPS, Avg: {} FPS)",
+                active_idx, preset_name, p1_low, avg_fps
+            );
+        }
+
+        data["last_avg_fps"] = serde_json::json!(avg_fps);
+        data["last_p1_low"] = serde_json::json!(p1_low);
+        data["last_timestamp"] = serde_json::json!(chrono::Utc::now().to_rfc3339());
+
+        info!(
+            "Selbstoptimierender Launcher: Telemetrie erhalten für Preset {} ('{}') - Schnitt: {} FPS, 1% Low: {} FPS, 0.1% Low: {} FPS ({} Samples) [Bestes Preset: {}]",
+            active_idx, preset_name, avg_fps, p1_low, p01_low, samples,
+            data["best_preset_index"].as_u64().unwrap_or(0)
+        );
+
+        let _ = fs::write(perf_file, serde_json::to_string_pretty(&data).unwrap_or_default());
+    }
+}
+
+
+fn collect_jars(dir: &Path) -> Vec<String> {
+    let mut result = vec![];
+    if let Ok(entries) = fs::read_dir(dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                result.extend(collect_jars(&path));
+            } else if path.extension().and_then(|e| e.to_str()) == Some("jar") {
+                result.push(path.to_string_lossy().into_owned());
+            }
+        }
+    }
+    result
+}
+
+
+
+
+
+fn sanitize_name(name: &str) -> String {
+    let cleaned: String = name
+        .trim()
+        .chars()
+        .map(|c| match c {
+            '/' | '\\' | ':' | '*' | '?' | '"' | '<' | '>' | '|' => '_',
+            c => c,
+        })
+        .collect();
+    if cleaned.is_empty() {
+        "Modpack".to_string()
+    } else {
+        cleaned
+    }
+}
+
+
+
+
+
+pub fn import_pack(data_dir: &Path, path: &str) -> Result<Instance> {
+    let file = fs::File::open(path)
+        .map_err(|e| anyhow!("Konnte Paket nicht öffnen: {}", e))?;
+    let mut archive = zip::ZipArchive::new(file)
+        .map_err(|e| anyhow!("Datei ist kein gültiges zip: {}", e))?;
+
+    
+    let mut index_name = None;
+    for i in 0..archive.len() {
+        if let Ok(f) = archive.by_index(i) {
+            let lower = f.name().to_lowercase();
+            if lower == "modrinth.index.json" || lower.ends_with("/modrinth.index.json") {
+                index_name = Some(f.name().to_string());
+                break;
+            }
+        }
+    }
+    let index_name = index_name.ok_or_else(|| {
+        anyhow!(
+            "Kein Modrinth-Pack erkannt (modrinth.index.json fehlt). Nur .mrpack / Modrinth-zip werden unterstützt."
+        )
+    })?;
+
+    let mut idx_file = archive
+        .by_name(&index_name)
+        .map_err(|e| anyhow!("Konnte Index nicht lesen: {}", e))?;
+    let mut index_str = String::new();
+    idx_file
+        .read_to_string(&mut index_str)
+        .map_err(|e| anyhow!("Index ungültig: {}", e))?;
+    let index: Value = serde_json::from_str(&index_str)
+        .map_err(|e| anyhow!("modrinth.index.json Parse-Fehler: {}", e))?;
+
+    let game = index
+        .get("game")
+        .and_then(|g| g.as_str())
+        .unwrap_or("minecraft");
+    if game != "minecraft" {
+        return Err(anyhow!(
+            "Nur Minecraft-Packs werden unterstützt (game={}).",
+            game
+        ));
+    }
+
+    let deps = index
+        .get("dependencies")
+        .and_then(|d| d.as_object())
+        .ok_or_else(|| anyhow!("Keine dependencies im Pack."))?;
+    let mc_version = deps
+        .get("minecraft")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| anyhow!("Minecraft-Version fehlt im Pack."))?
+        .to_string();
+
+    
+    let (loader, loader_version) = if let Some(v) =
+        deps.get("fabric-loader").and_then(|v| v.as_str())
+    {
+        ("fabric".to_string(), Some(v.to_string()))
+    } else if let Some(v) = deps.get("forge").and_then(|v| v.as_str()) {
+        ("forge".to_string(), Some(v.to_string()))
+    } else if let Some(v) = deps.get("neoforge").and_then(|v| v.as_str()) {
+        ("neoforge".to_string(), Some(v.to_string()))
+    } else if let Some(v) = deps.get("quilt-loader").and_then(|v| v.as_str()) {
+        ("quilt".to_string(), Some(v.to_string()))
+    } else {
+        ("vanilla".to_string(), None)
+    };
+
+    let pack_name = index
+        .get("name")
+        .and_then(|n| n.as_str())
+        .unwrap_or("Importiertes Pack")
+        .to_string();
+    let summary = index
+        .get("summary")
+        .and_then(|s| s.as_str())
+        .unwrap_or("")
+        .to_string();
+
+    
+    let inst_path = crate::utils::instances_file(data_dir);
+    let mut instances = crate::utils::load_json::<Vec<Instance>>(&inst_path, vec![]);
+    let base = sanitize_name(&pack_name);
+    let mut name = base.clone();
+    let mut n = 2;
+    while instances.iter().any(|i| i.name == name) {
+        name = format!("{} ({})", base, n);
+        n += 1;
+    }
+
+    let inst = Instance {
+        id: uuid::Uuid::new_v4().to_string(),
+        name: name.clone(),
+        version: mc_version.clone(),
+        loader: loader.clone(),
+        loader_version,
+        description: summary,
+        mods: vec!["essentialmod.jar".to_string()],
+        vulkan_enabled: false,
+        memory_min: crate::DEFAULT_MEMORY_MIN.to_string(),
+        memory_max: crate::DEFAULT_MEMORY_MAX.to_string(),
+        created_at: chrono::Utc::now().to_rfc3339(),
+        last_played: None,
+        java_args: None,
+        server: None,
+    };
+
+    instances.push(inst.clone());
+    crate::utils::save_json(&inst_path, &instances)?;
+
+    
+    info!("Importiere Modpack '{}' (MC {})…", name, mc_version);
+    install_instance(
+        data_dir,
+        &name,
+        &mc_version,
+        &loader,
+        inst.loader_version.as_deref(),
+    )?;
+
+    
+    let inst_dir = crate::utils::instance_dir(data_dir, &name);
+    let client = reqwest::blocking::Client::builder()
+        .user_agent(crate::USER_AGENT)
+        .timeout(Duration::from_secs(120))
+        .build()?;
+    if let Some(files) = index.get("files").and_then(|f| f.as_array()) {
+        for f in files {
+            let fpath = match f.get("path").and_then(|p| p.as_str()) {
+                Some(p) => p,
+                None => continue,
+            };
+            
+            if let Some(env) = f.get("env").and_then(|e| e.as_object()) {
+                let client_env = env
+                    .get("client")
+                    .and_then(|c| c.as_str())
+                    .unwrap_or("required");
+                if client_env == "unsupported" {
+                    continue;
+                }
+            }
+            let downloads = match f.get("downloads").and_then(|d| d.as_array()) {
+                Some(d) if !d.is_empty() => d,
+                _ => continue,
+            };
+            let url = match downloads[0].as_str() {
+                Some(u) => u.to_string(),
+                None => continue,
+            };
+            let dest = inst_dir.join(fpath);
+            if let Some(parent) = dest.parent() {
+                let _ = fs::create_dir_all(parent);
+            }
+            if dest.exists() {
+                continue;
+            }
+            info!("Lade Pack-Datei {}…", fpath);
+            if let Err(e) = crate::utils::download_file_client(&client, &url, &dest) {
+                warn!("Konnte {} nicht laden: {}", fpath, e);
+            } else if let Some(h) = f
+                .get("hashes")
+                .and_then(|h| h.get("sha1"))
+                .and_then(|h| h.as_str())
+            {
+                if let Ok(bytes) = fs::read(&dest) {
+                    if crate::utils::sha1_hex(&bytes) != h {
+                        warn!("SHA1 stimmt nicht überein bei {} (ignoriert).", fpath);
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(inst)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_memory_gb() {
+        assert_eq!(parse_memory_gb("4G"), 4);
+        assert_eq!(parse_memory_gb("8g"), 8);
+        assert_eq!(parse_memory_gb("6144M"), 6);
+        assert_eq!(parse_memory_gb("8192m"), 8);
+        assert_eq!(parse_memory_gb("12"), 12);
+        assert_eq!(parse_memory_gb(""), 4);
+        assert_eq!(parse_memory_gb("invalid"), 4);
+    }
+}
+
+
+
+

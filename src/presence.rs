@@ -1,0 +1,1068 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+use log::{debug, warn};
+use serde::{Deserialize, Serialize};
+use serde_json;
+use std::path::PathBuf;
+use std::sync::Mutex;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct PresenceEntry {
+    server: String,
+    name: String,
+    timestamp: u64,
+}
+
+const HEARTBEAT_MS: u64 = 20_000;
+const POLL_MS: u64 = 2_000;
+
+
+static SESSION: Mutex<Option<String>> = Mutex::new(None);
+
+fn now_ms() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_millis() as u64)
+        .unwrap_or(0)
+}
+
+fn touch_refresh_signal(data_dir: &PathBuf) {
+    let instances = data_dir.join("instances");
+    let entries = match std::fs::read_dir(&instances) {
+        Ok(e) => e,
+        Err(_) => return,
+    };
+    for entry in entries.flatten() {
+        let cfg = entry.path().join("config");
+        let _ = std::fs::create_dir_all(&cfg);
+        let _ = std::fs::write(cfg.join("kollegen-refresh.txt"), now_ms().to_string());
+    }
+}
+
+fn request_ok(v: &serde_json::Value) -> bool {
+    v.get("error").is_none()
+}
+
+fn now_secs() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0)
+}
+
+
+
+fn mc_profile_value(data_dir: &PathBuf) -> Option<serde_json::Value> {
+    let accounts = crate::utils::load_json::<Vec<crate::types::Account>>(
+        &crate::utils::accounts_file(data_dir),
+        Vec::new(),
+    );
+    let acc = accounts.into_iter().next()?;
+    if acc.uuid.is_empty() {
+        return None;
+    }
+    Some(serde_json::json!({
+        "uuid": acc.uuid,
+        "name": acc.username,
+        "accounts": [{ "type": "microsoft", "name": acc.username }]
+    }))
+}
+
+
+fn discord_access_token(data_dir: &PathBuf) -> Option<String> {
+    let tok = crate::discord_auth::load_token(data_dir)?;
+    if !tok.access_token.is_empty() {
+        if let Some(exp) = tok.expires_at {
+            if exp > now_secs() + 60 {
+                return Some(tok.access_token.clone());
+            }
+        }
+    }
+    if let Some(rt) = &tok.refresh_token {
+        if let Some(at) = refresh_discord_token(rt, data_dir) {
+            return Some(at);
+        }
+    }
+    Some(tok.access_token)
+}
+
+
+fn refresh_discord_token(refresh: &str, data_dir: &PathBuf) -> Option<String> {
+    let params = [
+        ("client_id", crate::discord_client_id()),
+        ("grant_type", "refresh_token"),
+        ("refresh_token", refresh),
+    ];
+    let client = reqwest::blocking::Client::builder()
+        .timeout(Duration::from_secs(10))
+        .connect_timeout(Duration::from_secs(3))
+        .build()
+        .unwrap_or_else(|_| reqwest::blocking::Client::new());
+    let resp = client
+        .post("https://discord.com/api/v10/oauth2/token")
+        .form(&params)
+        .send()
+        .ok()?;
+    if !resp.status().is_success() {
+        return None;
+    }
+    let v: serde_json::Value = resp.json().ok()?;
+    let at = v.get("access_token")?.as_str()?.to_string();
+    let rt = v
+        .get("refresh_token")
+        .and_then(|x| x.as_str())
+        .map(String::from);
+    let exp = v
+        .get("expires_in")
+        .and_then(|x| x.as_u64())
+        .map(|s| now_secs() + s);
+    let mut base = crate::discord_auth::load_token(data_dir)?;
+    base.access_token = at.clone();
+    if let Some(rt) = rt {
+        base.refresh_token = Some(rt);
+    }
+    base.expires_at = exp;
+    crate::discord_auth::save_token(data_dir, &base);
+    Some(at)
+}
+
+
+
+
+
+const DEFAULT_PRESENCE_BACKEND: &str = "https://kollegen.me";
+
+
+pub(crate) fn backend_url(data_dir: &PathBuf) -> Option<String> {
+    let env = std::env::var("KOLLEGEN_PRESENCE_BACKEND").ok();
+    if let Some(b) = env.filter(|s| !s.trim().is_empty()) {
+        return Some(b.trim().trim_end_matches('/').to_string());
+    }
+    let settings = crate::utils::load_json::<crate::types::Settings>(
+        &crate::utils::settings_file(data_dir),
+        crate::types::Settings::default(),
+    );
+    let b = settings.presence_backend.trim().to_string();
+    if b.is_empty() {
+        Some(DEFAULT_PRESENCE_BACKEND.to_string())
+    } else {
+        Some(b.trim_end_matches('/').to_string())
+    }
+}
+
+
+
+pub fn mod_backend_url(data_dir: &PathBuf) -> String {
+    backend_url(data_dir).unwrap_or_else(|| DEFAULT_PRESENCE_BACKEND.to_string())
+}
+
+
+fn ensure_session(
+    client: &reqwest::blocking::Client,
+    backend: &str,
+    discord_token: &str,
+    data_dir: &PathBuf,
+) -> Option<String> {
+    if let Some(s) = SESSION.lock().unwrap().clone() {
+        return Some(s);
+    }
+    let url = format!("{}/auth", backend);
+    let mut body = serde_json::json!({ "discord_token": discord_token });
+    if let Some(profile) = mc_profile_value(data_dir) {
+        body["profile"] = profile;
+    }
+    let resp = client.post(&url).json(&body).send();
+    let resp = match resp {
+        Ok(r) => r,
+        Err(e) => {
+            debug!("Presence-Auth fehlgeschlagen: {}", e);
+            return None;
+        }
+    };
+    if !resp.status().is_success() {
+        debug!("Presence-Auth lieferte {}", resp.status());
+        return None;
+    }
+    let v: serde_json::Value = match resp.json() {
+        Ok(j) => j,
+        Err(_) => return None,
+    };
+    let tok = v.get("token")?.as_str()?.to_string();
+    *SESSION.lock().unwrap() = Some(tok.clone());
+    persist_session_token(data_dir, Some(&tok));
+    Some(tok)
+}
+
+fn persist_session_token(data_dir: &PathBuf, tok: Option<&str>) {
+    let instances = data_dir.join("instances");
+    let entries = match std::fs::read_dir(&instances) {
+        Ok(e) => e,
+        Err(_) => return,
+    };
+    for entry in entries.flatten() {
+        let cfg = entry.path().join("config");
+        match tok {
+            Some(t) => {
+                let _ = std::fs::create_dir_all(&cfg);
+                let _ = std::fs::write(cfg.join("kollegen-session.txt"), t);
+            }
+            None => {
+                let _ = std::fs::remove_file(cfg.join("kollegen-session.txt"));
+            }
+        }
+    }
+}
+
+
+
+
+
+
+
+
+
+pub(crate) fn authed_request(
+    data_dir: &PathBuf,
+) -> Option<(reqwest::blocking::Client, String, String)> {
+    let backend = backend_url(data_dir)?;
+    let discord_token = discord_access_token(data_dir)?;
+    let client = reqwest::blocking::Client::builder()
+        .timeout(Duration::from_secs(3))
+        .connect_timeout(Duration::from_secs(3))
+        .build()
+        .ok()?;
+    let session = ensure_session(&client, &backend, &discord_token, data_dir)?;
+    Some((client, backend, session))
+}
+
+
+
+
+
+
+
+pub fn kollegen_me(data_dir: &PathBuf) -> serde_json::Value {
+    me_value(data_dir)
+}
+
+fn me_value(data_dir: &PathBuf) -> serde_json::Value {
+    let (client, backend, session) = match authed_request(data_dir) {
+        Some(x) => x,
+        None => {
+            log::info!("KOLLEGEN_DIAG me no-auth");
+            return serde_json::json!({ "error": "not_authenticated" });
+        }
+    };
+    log::info!("KOLLEGEN_DIAG me authed ok");
+        let url = format!("{}/me", backend);
+        match client
+            .get(&url)
+            .header("Authorization", format!("Bearer {}", session))
+            .send()
+        {
+            Ok(r) if r.status().is_success() => {
+                log::info!("KOLLEGEN_DIAG me sent ok");
+                let v = r.json().unwrap_or(serde_json::json!({}));
+                log::info!("KOLLEGEN_DIAG me done");
+                v
+            }
+        Ok(r) if r.status() == 401 => {
+            *SESSION.lock().unwrap() = None;
+            serde_json::json!({ "error": "not_authenticated" })
+        }
+        _ => serde_json::json!({ "error": "request_failed" }),
+    }
+}
+
+fn friends_value(data_dir: &PathBuf) -> serde_json::Value {
+    let (client, backend, session) = match authed_request(data_dir) {
+        Some(x) => x,
+        None => return serde_json::json!({ "error": "not_authenticated" }),
+    };
+    let url = format!("{}/friends", backend);
+    match client
+        .get(&url)
+        .header("Authorization", format!("Bearer {}", session))
+        .send()
+    {
+        Ok(r) if r.status().is_success() => r.json().unwrap_or(serde_json::json!([])),
+        Ok(r) if r.status() == 401 => {
+            *SESSION.lock().unwrap() = None;
+            serde_json::json!({ "error": "not_authenticated" })
+        }
+        _ => serde_json::json!({ "error": "request_failed" }),
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+pub fn sync_social(data_dir: &PathBuf, backend: Option<&str>, session: Option<&str>) {
+    let me = me_value(data_dir);
+    if me.get("error").is_some() {
+        return;
+    }
+    let friends = friends_value(data_dir);
+    let out = serde_json::json!({ "me": me, "friends": friends });
+    if let Some(home) = dirs::home_dir() {
+        let dir = home.join(".kollegen");
+        if std::fs::create_dir_all(&dir).is_ok() {
+            if let Ok(s) = serde_json::to_string_pretty(&out) {
+                let _ = std::fs::write(dir.join("social.json"), s);
+            }
+            if let (Some(backend), Some(session)) = (backend, session) {
+                let bridge = serde_json::json!({
+                    "version": 1,
+                    "backend": backend,
+                    "session": session,
+                    "me": me,
+                    "friends": friends,
+                    "ts": now_ms(),
+                });
+                if let Ok(s) = serde_json::to_string_pretty(&bridge) {
+                    let _ = std::fs::write(dir.join("client.json"), s);
+                }
+            }
+        }
+    }
+}
+
+
+
+pub fn process_pending_friend_add(data_dir: &PathBuf) {
+    if let Some(home) = dirs::home_dir() {
+        let file = home.join(".kollegen").join("friend_add.json");
+        if let Ok(text) = std::fs::read_to_string(&file) {
+            if let Ok(v) = serde_json::from_str::<serde_json::Value>(&text) {
+                if let Some(code) = v.get("code").and_then(|c| c.as_str()) {
+                    let _ = add_friend_by_code(data_dir, code);
+                }
+            }
+            let _ = std::fs::remove_file(&file);
+        }
+    }
+}
+
+
+pub fn add_friend_by_code(data_dir: &PathBuf, code: &str) -> serde_json::Value {
+    let (client, backend, session) = match authed_request(data_dir) {
+        Some(x) => x,
+        None => return serde_json::json!({ "error": "not_authenticated" }),
+    };
+    let url = format!("{}/friends", backend);
+    match client
+        .post(&url)
+        .header("Authorization", format!("Bearer {}", session))
+        .json(&serde_json::json!({ "code": code }))
+        .send()
+    {
+        Ok(r) if r.status().is_success() => r.json().unwrap_or(serde_json::json!({ "ok": true })),
+        Ok(r) if r.status() == 401 => {
+            *SESSION.lock().unwrap() = None;
+            serde_json::json!({ "error": "not_authenticated" })
+        }
+        Ok(r) => serde_json::json!({ "error": format!("HTTP {}", r.status()) }),
+        Err(e) => serde_json::json!({ "error": e.to_string() }),
+    }
+}
+
+
+pub fn kollegen_friends(data_dir: &PathBuf) -> serde_json::Value {
+    friends_value(data_dir)
+}
+
+
+pub fn kollegen_friend_add(data_dir: &PathBuf, code: &str) -> serde_json::Value {
+    add_friend_by_code(data_dir, code)
+}
+
+
+pub fn kollegen_friend_remove(data_dir: &PathBuf, target_id: &str) -> serde_json::Value {
+    let (client, backend, session) = match authed_request(data_dir) {
+        Some(x) => x,
+        None => return serde_json::json!({ "error": "not_authenticated" }),
+    };
+    let url = format!("{}/friends", backend);
+    match client
+        .delete(&url)
+        .header("Authorization", format!("Bearer {}", session))
+        .json(&serde_json::json!({ "target_id": target_id }))
+        .send()
+    {
+        Ok(r) if r.status().is_success() => serde_json::json!({ "ok": true }),
+        Ok(r) if r.status() == 401 => {
+            *SESSION.lock().unwrap() = None;
+            serde_json::json!({ "error": "not_authenticated" })
+        }
+        Ok(r) => serde_json::json!({ "error": format!("HTTP {}", r.status()) }),
+        Err(e) => serde_json::json!({ "error": e.to_string() }),
+    }
+}
+
+
+pub fn kollegen_friend_requests(data_dir: &PathBuf) -> serde_json::Value {
+    let (client, backend, session) = match authed_request(data_dir) {
+        Some(x) => x,
+        None => return serde_json::json!({ "error": "not_authenticated" }),
+    };
+    let url = format!("{}/friend/requests", backend);
+    match client
+        .get(&url)
+        .header("Authorization", format!("Bearer {}", session))
+        .send()
+    {
+        Ok(r) if r.status().is_success() => r.json().unwrap_or(serde_json::json!([])),
+        Ok(r) if r.status() == 401 => {
+            *SESSION.lock().unwrap() = None;
+            serde_json::json!({ "error": "not_authenticated" })
+        }
+        _ => serde_json::json!({ "error": "request_failed" }),
+    }
+}
+
+
+pub fn kollegen_friend_accept(data_dir: &PathBuf, from_id: &str) -> serde_json::Value {
+    friend_request_act(data_dir, "/friend/accept", from_id)
+}
+
+
+pub fn kollegen_friend_decline(data_dir: &PathBuf, from_id: &str) -> serde_json::Value {
+    friend_request_act(data_dir, "/friend/decline", from_id)
+}
+
+fn friend_request_act(data_dir: &PathBuf, path: &str, from_id: &str) -> serde_json::Value {
+    let (client, backend, session) = match authed_request(data_dir) {
+        Some(x) => x,
+        None => return serde_json::json!({ "error": "not_authenticated" }),
+    };
+    let url = format!("{}{}", backend, path);
+    match client
+        .post(&url)
+        .header("Authorization", format!("Bearer {}", session))
+        .json(&serde_json::json!({ "from_id": from_id }))
+        .send()
+    {
+        Ok(r) if r.status().is_success() => r.json().unwrap_or(serde_json::json!({ "ok": true })),
+        Ok(r) if r.status() == 401 => {
+            *SESSION.lock().unwrap() = None;
+            serde_json::json!({ "error": "not_authenticated" })
+        }
+        Ok(r) => serde_json::json!({ "error": format!("HTTP {}", r.status()) }),
+        Err(e) => serde_json::json!({ "error": e.to_string() }),
+    }
+}
+
+
+pub fn kollegen_profile_view(data_dir: &PathBuf, code: &str) -> serde_json::Value {
+    let (client, backend, session) = match authed_request(data_dir) {
+        Some(x) => x,
+        None => return serde_json::json!({ "error": "not_authenticated" }),
+    };
+    let url = format!("{}/profile-view?code={}", backend, urlencode(code));
+    match client
+        .get(&url)
+        .header("Authorization", format!("Bearer {}", session))
+        .send()
+    {
+        Ok(r) if r.status().is_success() => r.json().unwrap_or(serde_json::json!({})),
+        Ok(r) if r.status() == 401 => {
+            *SESSION.lock().unwrap() = None;
+            serde_json::json!({ "error": "not_authenticated" })
+        }
+        Ok(r) => serde_json::json!({ "error": format!("HTTP {}", r.status()) }),
+        Err(e) => serde_json::json!({ "error": e.to_string() }),
+    }
+}
+
+
+pub fn kollegen_dm_conversations(data_dir: &PathBuf) -> serde_json::Value {
+    let (client, backend, session) = match authed_request(data_dir) {
+        Some(x) => x,
+        None => return serde_json::json!({ "error": "not_authenticated" }),
+    };
+    let url = format!("{}/dm/conversations", backend);
+    match client
+        .get(&url)
+        .header("Authorization", format!("Bearer {}", session))
+        .send()
+    {
+        Ok(r) if r.status().is_success() => r.json().unwrap_or(serde_json::json!([])),
+        Ok(r) if r.status() == 401 => {
+            *SESSION.lock().unwrap() = None;
+            serde_json::json!({ "error": "not_authenticated" })
+        }
+        Ok(r) => serde_json::json!({ "error": format!("HTTP {}", r.status()) }),
+        Err(e) => serde_json::json!({ "error": e.to_string() }),
+    }
+}
+
+
+pub fn kollegen_dm_messages(data_dir: &PathBuf, other: &str) -> serde_json::Value {
+    let (client, backend, session) = match authed_request(data_dir) {
+        Some(x) => x,
+        None => return serde_json::json!({ "error": "not_authenticated" }),
+    };
+    let url = format!("{}/dm/messages?other={}", backend, urlencode(other));
+    match client
+        .get(&url)
+        .header("Authorization", format!("Bearer {}", session))
+        .send()
+    {
+        Ok(r) if r.status().is_success() => r.json().unwrap_or(serde_json::json!([])),
+        Ok(r) if r.status() == 401 => {
+            *SESSION.lock().unwrap() = None;
+            serde_json::json!({ "error": "not_authenticated" })
+        }
+        Ok(r) => serde_json::json!({ "error": format!("HTTP {}", r.status()) }),
+        Err(e) => serde_json::json!({ "error": e.to_string() }),
+    }
+}
+
+
+pub fn kollegen_dm_send(data_dir: &PathBuf, to_id: &str, text: &str) -> serde_json::Value {
+    let (client, backend, session) = match authed_request(data_dir) {
+        Some(x) => x,
+        None => return serde_json::json!({ "error": "not_authenticated" }),
+    };
+    let url = format!("{}/dm/send", backend);
+    match client
+        .post(&url)
+        .header("Authorization", format!("Bearer {}", session))
+        .json(&serde_json::json!({ "to_id": to_id, "text": text }))
+        .send()
+    {
+        Ok(r) if r.status().is_success() => serde_json::json!({ "ok": true }),
+        Ok(r) if r.status() == 401 => {
+            *SESSION.lock().unwrap() = None;
+            serde_json::json!({ "error": "not_authenticated" })
+        }
+        Ok(r) => serde_json::json!({ "error": format!("HTTP {}", r.status()) }),
+        Err(e) => serde_json::json!({ "error": e.to_string() }),
+    }
+}
+
+
+pub fn kollegen_store(data_dir: &PathBuf) -> serde_json::Value {
+    let out = get_authed(data_dir, "/api/store", &[]);
+    let owned = out
+        .get("catalog")
+        .and_then(|c| c.as_array())
+        .map(|a| a.iter().filter(|i| i.get("owned").and_then(|o| o.as_bool()) == Some(true)).count())
+        .unwrap_or(0);
+    let total = out.get("catalog").and_then(|c| c.as_array()).map(|a| a.len()).unwrap_or(0);
+    if out.get("error").is_some() {
+        log::info!("KOLLEGEN_DIAG store fehler {:?}", out.get("error"));
+    } else {
+        log::info!("KOLLEGEN_DIAG store ok total={} owned={}", total, owned);
+    }
+    out
+}
+
+
+pub fn kollegen_store_equip(data_dir: &PathBuf, item_id: &str, category: &str) -> serde_json::Value {
+    let (client, backend, session) = match authed_request(data_dir) {
+        Some(x) => x,
+        None => return serde_json::json!({ "error": "not_authenticated" }),
+    };
+    let url = format!("{}/api/store/equip", backend);
+    let body = if item_id.is_empty() {
+        serde_json::json!({ "category": category })
+    } else {
+        serde_json::json!({ "item_id": item_id })
+    };
+    match client
+        .post(&url)
+        .header("Authorization", format!("Bearer {}", session))
+        .json(&body)
+        .send()
+    {
+        Ok(r) if r.status().is_success() => {
+            let v = r.json().unwrap_or(serde_json::json!({ "ok": true }));
+            if request_ok(&v) {
+                touch_refresh_signal(data_dir);
+            }
+            v
+        }
+        Ok(r) if r.status() == 401 => {
+            *SESSION.lock().unwrap() = None;
+            serde_json::json!({ "error": "not_authenticated" })
+        }
+        Ok(r) => serde_json::json!({ "error": format!("HTTP {}", r.status()) }),
+        Err(e) => serde_json::json!({ "error": e.to_string() }),
+    }
+}
+
+
+pub fn kollegen_store_buy(data_dir: &PathBuf, item_id: &str) -> serde_json::Value {
+    let v = post_authed(data_dir, "/api/store/buy", serde_json::json!({ "item_id": item_id }));
+    if request_ok(&v) {
+        touch_refresh_signal(data_dir);
+    }
+    v
+}
+
+
+pub fn kollegen_pet_config(
+    data_dir: &PathBuf,
+    pet: Option<&str>,
+    mode: Option<&str>,
+    name: Option<&str>,
+    color: Option<&str>,
+) -> serde_json::Value {
+    let mut body = serde_json::Map::new();
+    if let Some(p) = pet {
+        body.insert("pet".into(), serde_json::Value::String(p.to_string()));
+    }
+    if let Some(m) = mode {
+        body.insert("mode".into(), serde_json::Value::String(m.to_string()));
+    }
+    if let Some(n) = name {
+        body.insert("name".into(), serde_json::Value::String(n.to_string()));
+    }
+    if let Some(c) = color {
+        body.insert("nameColor".into(), serde_json::Value::String(c.to_string()));
+    }
+    let v = post_authed(
+        data_dir,
+        "/pet-config",
+        serde_json::Value::Object(body),
+    );
+    if request_ok(&v) {
+        touch_refresh_signal(data_dir);
+    }
+    v
+}
+
+
+fn urlencode(s: &str) -> String {
+    let mut out = String::new();
+    for b in s.bytes() {
+        match b {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
+                out.push(b as char)
+            }
+            _ => out.push_str(&format!("%{:02X}", b)),
+        }
+    }
+    out
+}
+
+
+
+
+
+fn authed_value(
+    data_dir: &PathBuf,
+    method: reqwest::Method,
+    path: &str,
+    body: Option<serde_json::Value>,
+    query: &[(&str, String)],
+) -> serde_json::Value {
+    let (client, backend, session) = match authed_request(data_dir) {
+        Some(x) => x,
+        None => return serde_json::json!({ "error": "not_authenticated" }),
+    };
+    let mut url = match reqwest::Url::parse(&format!("{}{}", backend, path)) {
+        Ok(u) => u,
+        Err(_) => return serde_json::json!({ "error": "bad_backend" }),
+    };
+    {
+        let mut qp = url.query_pairs_mut();
+        for (k, v) in query {
+            qp.append_pair(k, v);
+        }
+    }
+    let mut req = client
+        .request(method, url)
+        .header("Authorization", format!("Bearer {}", session));
+    if let Some(b) = body {
+        req = req.json(&b);
+    }
+    match req.send() {
+        Ok(r) if r.status().is_success() => r.json().unwrap_or(serde_json::json!({ "ok": true })),
+        Ok(r) if r.status() == 401 => {
+            *SESSION.lock().unwrap() = None;
+            serde_json::json!({ "error": "not_authenticated" })
+        }
+        Ok(r) => serde_json::json!({ "error": format!("HTTP {}", r.status()) }),
+        Err(e) => serde_json::json!({ "error": e.to_string() }),
+    }
+}
+
+fn get_authed(data_dir: &PathBuf, path: &str, query: &[(&str, String)]) -> serde_json::Value {
+    authed_value(data_dir, reqwest::Method::GET, path, None, query)
+}
+
+fn post_authed(data_dir: &PathBuf, path: &str, body: serde_json::Value) -> serde_json::Value {
+    authed_value(data_dir, reqwest::Method::POST, path, Some(body), &[])
+}
+
+
+pub fn kollegen_groups(data_dir: &PathBuf) -> serde_json::Value {
+    get_authed(data_dir, "/groups", &[])
+}
+
+
+pub fn kollegen_group_create(data_dir: &PathBuf, name: &str, member_ids: Vec<String>) -> serde_json::Value {
+    post_authed(
+        data_dir,
+        "/group/create",
+        serde_json::json!({ "name": name, "memberIds": member_ids }),
+    )
+}
+
+
+pub fn kollegen_group_view(data_dir: &PathBuf, group_id: &str) -> serde_json::Value {
+    get_authed(data_dir, "/group/view", &[("groupId", group_id.to_string())])
+}
+
+
+pub fn kollegen_group_add_member(data_dir: &PathBuf, group_id: &str, member_id: &str) -> serde_json::Value {
+    post_authed(
+        data_dir,
+        "/group/add",
+        serde_json::json!({ "groupId": group_id, "memberId": member_id }),
+    )
+}
+
+
+pub fn kollegen_group_leave(data_dir: &PathBuf, group_id: &str) -> serde_json::Value {
+    post_authed(data_dir, "/group/leave", serde_json::json!({ "groupId": group_id }))
+}
+
+
+pub fn kollegen_group_delete(data_dir: &PathBuf, group_id: &str) -> serde_json::Value {
+    post_authed(data_dir, "/group/delete", serde_json::json!({ "groupId": group_id }))
+}
+
+
+pub fn kollegen_group_poll(data_dir: &PathBuf, group_id: &str, since_msg: u64, since_sig: u64) -> serde_json::Value {
+    get_authed(
+        data_dir,
+        "/group/poll",
+        &[
+            ("groupId", group_id.to_string()),
+            ("sinceMsg", since_msg.to_string()),
+            ("sinceSig", since_sig.to_string()),
+        ],
+    )
+}
+
+
+pub fn kollegen_group_send(data_dir: &PathBuf, group_id: &str, text: &str) -> serde_json::Value {
+    post_authed(data_dir, "/group/send", serde_json::json!({ "groupId": group_id, "text": text }))
+}
+
+
+
+
+pub fn kollegen_call_open(data_dir: &PathBuf, group_id: &str) -> serde_json::Value {
+    post_authed(data_dir, "/call/open", serde_json::json!({ "groupId": group_id }))
+}
+
+
+pub fn kollegen_call_join(data_dir: &PathBuf, call_id: &str) -> serde_json::Value {
+    post_authed(data_dir, "/call/join", serde_json::json!({ "callId": call_id }))
+}
+
+
+pub fn kollegen_call_leave(data_dir: &PathBuf, call_id: &str) -> serde_json::Value {
+    post_authed(data_dir, "/call/leave", serde_json::json!({ "callId": call_id }))
+}
+
+
+pub fn kollegen_call_signal(
+    data_dir: &PathBuf,
+    call_id: &str,
+    to_id: &str,
+    kind: &str,
+    data: serde_json::Value,
+) -> serde_json::Value {
+    post_authed(
+        data_dir,
+        "/call/signal",
+        serde_json::json!({ "callId": call_id, "to_id": to_id, "kind": kind, "data": data }),
+    )
+}
+
+
+
+
+pub fn kollegen_call_direct_open(data_dir: &PathBuf, peer_id: &str) -> serde_json::Value {
+    post_authed(data_dir, "/call/direct/open", serde_json::json!({ "peerId": peer_id }))
+}
+
+
+pub fn kollegen_call_direct_poll(data_dir: &PathBuf, call_id: &str, since_sig: u64) -> serde_json::Value {
+    get_authed(
+        data_dir,
+        "/call/direct/poll",
+        &[("callId", call_id.to_string()), ("sinceSig", since_sig.to_string())],
+    )
+}
+
+
+pub fn kollegen_call_direct_active(data_dir: &PathBuf) -> serde_json::Value {
+    get_authed(data_dir, "/call/direct/active", &[])
+}
+
+
+
+pub fn browse_profiles(data_dir: &PathBuf, search: &str) -> serde_json::Value {
+    let backend = match backend_url(data_dir) {
+        Some(b) => b,
+        None => return serde_json::json!({ "error": "no_backend" }),
+    };
+    let client = match reqwest::blocking::Client::builder()
+        .timeout(Duration::from_secs(6))
+        .connect_timeout(Duration::from_secs(3))
+        .build()
+    {
+        Ok(c) => c,
+        Err(_) => return serde_json::json!({ "error": "client_failed" }),
+    };
+    let mut url = match reqwest::Url::parse(&format!("{}/profiles", backend)) {
+        Ok(u) => u,
+        Err(_) => return serde_json::json!({ "error": "bad_backend" }),
+    };
+    if !search.trim().is_empty() {
+        url.query_pairs_mut().append_pair("search", search.trim());
+    }
+    match client.get(url).send() {
+        Ok(r) if r.status().is_success() => {
+            r.json().unwrap_or(serde_json::json!({ "items": [], "total": 0 }))
+        }
+        Ok(r) => serde_json::json!({ "error": format!("HTTP {}", r.status()) }),
+        Err(e) => serde_json::json!({ "error": e.to_string() }),
+    }
+}
+
+
+
+pub fn publish_profile(data_dir: &PathBuf, profile: &serde_json::Value) -> serde_json::Value {
+    let (client, backend, session) = match authed_request(data_dir) {
+        Some(x) => x,
+        None => return serde_json::json!({ "error": "not_authenticated" }),
+    };
+    let url = format!("{}/profile", backend);
+    match client
+        .post(&url)
+        .header("Authorization", format!("Bearer {}", session))
+        .json(profile)
+        .send()
+    {
+        Ok(r) if r.status().is_success() => serde_json::json!({ "ok": true }),
+        Ok(r) if r.status() == 401 => {
+            *SESSION.lock().unwrap() = None;
+            serde_json::json!({ "error": "not_authenticated" })
+        }
+        Ok(r) => serde_json::json!({ "error": format!("HTTP {}", r.status()) }),
+        Err(e) => serde_json::json!({ "error": e.to_string() }),
+    }
+}
+
+fn read_entry(path: &PathBuf) -> Option<PresenceEntry> {
+    let text = std::fs::read_to_string(path).ok()?;
+    let v: serde_json::Value = serde_json::from_str(&text).ok()?;
+    let server = v.get("server")?.as_str()?.to_string();
+    let name = v.get("name")?.as_str()?.to_string();
+    if server.is_empty() || name.is_empty() {
+        return None;
+    }
+    let timestamp = v
+        .get("timestamp")
+        .and_then(|t| t.as_u64())
+        .unwrap_or_else(now_ms);
+    Some(PresenceEntry { server, name, timestamp })
+}
+
+fn send_upsert(
+    client: &reqwest::blocking::Client,
+    backend: &str,
+    session: &str,
+    e: &PresenceEntry,
+) -> Result<(), String> {
+    let url = format!("{}/presence", backend);
+    let resp = client
+        .put(&url)
+        .header("Authorization", format!("Bearer {}", session))
+        .json(e)
+        .send()
+        .map_err(|e| e.to_string())?;
+    match resp.status() {
+        s if s.is_success() => Ok(()),
+        s if s == reqwest::StatusCode::UNAUTHORIZED => {
+            *SESSION.lock().unwrap() = None;
+            Err("401".into())
+        }
+        s => Err(format!("HTTP {}", s)),
+    }
+}
+
+fn send_delete(
+    client: &reqwest::blocking::Client,
+    backend: &str,
+    session: &str,
+    e: &PresenceEntry,
+) -> Result<(), String> {
+    let url = format!("{}/presence", backend);
+    let body = serde_json::json!({ "server": e.server, "name": e.name });
+    let resp = client
+        .delete(&url)
+        .header("Authorization", format!("Bearer {}", session))
+        .json(&body)
+        .send()
+        .map_err(|e| e.to_string())?;
+    match resp.status() {
+        s if s.is_success() => Ok(()),
+        s if s == reqwest::StatusCode::UNAUTHORIZED => {
+            *SESSION.lock().unwrap() = None;
+            Err("401".into())
+        }
+        s => Err(format!("HTTP {}", s)),
+    }
+}
+
+
+
+pub fn start(data_dir: PathBuf) {
+    std::thread::Builder::new()
+        .name("kollegen-presence".into())
+        .spawn(move || run(data_dir))
+        .ok();
+}
+
+fn run(data_dir: PathBuf) {
+    let presence_path = match dirs::home_dir() {
+        Some(h) => h.join(".kollegen").join("presence.json"),
+        None => {
+            warn!("Konnte Home-Verzeichnis nicht ermitteln – Presence deaktiviert.");
+            return;
+        }
+    };
+
+    let client = match reqwest::blocking::Client::builder()
+        .timeout(Duration::from_secs(5))
+        .connect_timeout(Duration::from_secs(3))
+        .build()
+    {
+        Ok(c) => c,
+        Err(e) => {
+            warn!("Presence-HTTP-Client konnte nicht erstellt werden: {}", e);
+            return;
+        }
+    };
+
+    let mut last_reported: Option<PresenceEntry> = None;
+    let mut last_heartbeat: u64 = 0;
+    let mut last_social: u64 = 0;
+    let mut auth_failures: u32 = 0;
+
+    loop {
+        std::thread::sleep(Duration::from_millis(POLL_MS));
+
+        
+        
+        
+        
+        if auth_failures > 0 {
+            let backoff = std::cmp::min(auth_failures, 15) as u64;
+            std::thread::sleep(Duration::from_secs(backoff));
+        }
+
+        let backend = match backend_url(&data_dir) {
+            Some(b) => b,
+            None => {
+                *SESSION.lock().unwrap() = None;
+                last_reported = None;
+                continue;
+            }
+        };
+
+        let discord_token = match discord_access_token(&data_dir) {
+            Some(t) => t,
+            None => {
+                *SESSION.lock().unwrap() = None;
+                last_reported = None;
+                continue;
+            }
+        };
+
+        let session = match ensure_session(&client, &backend, &discord_token, &data_dir) {
+            Some(s) => {
+                auth_failures = 0;
+                s
+            }
+            None => {
+                auth_failures = auth_failures.saturating_add(1);
+                last_reported = None;
+                continue;
+            }
+        };
+
+        let now = now_ms();
+        let entry = read_entry(&presence_path);
+
+        match entry {
+            None => {
+                if let Some(prev) = last_reported.take() {
+                    if let Err(err) = send_delete(&client, &backend, &session, &prev) {
+                        debug!("Presence-Delete fehlgeschlagen: {}", err);
+                    }
+                }
+            }
+            Some(e) => {
+                let changed = match &last_reported {
+                    Some(p) => p.server != e.server || p.name != e.name,
+                    None => true,
+                };
+                let need_heartbeat = now - last_heartbeat > HEARTBEAT_MS;
+                if changed || need_heartbeat {
+                    match send_upsert(&client, &backend, &session, &e) {
+                        Ok(()) => {
+                            last_reported = Some(e);
+                            last_heartbeat = now;
+                        }
+                    Err(err) => debug!("Presence-Meldung fehlgeschlagen: {}", err),
+                }
+            }
+        }
+        }
+
+        
+        
+        if now - last_social > 5000 {
+            last_social = now;
+            sync_social(&data_dir, Some(&backend), Some(&session));
+            process_pending_friend_add(&data_dir);
+        }
+    }
+}

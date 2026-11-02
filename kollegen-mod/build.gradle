@@ -1,0 +1,754 @@
+
+buildscript {
+    repositories {
+        maven { url 'https://maven.fabricmc.net/' }
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'org.ow2.asm:asm:9.7.1'
+        classpath 'net.fabricmc:fabric-loom:1.18.2'
+    }
+}
+
+plugins {
+    id 'maven-publish'
+}
+
+if (project.minecraft_version.startsWith('1.21')) {
+    apply plugin: 'net.fabricmc.fabric-loom-remap'
+} else {
+    apply plugin: 'net.fabricmc.fabric-loom'
+}
+
+version = project.mod_version
+ext.minecraft_range = (project.minecraft_version.toString().startsWith('1.21')) ? '>=1.21' : ('>=' + project.minecraft_version)
+ext.java_range = (project.minecraft_version.toString().startsWith('1.21')) ? '>=21' : '>=25'
+group = project.maven_group
+
+base {
+    archivesName = project.archives_base_name
+}
+
+repositories {
+    
+    
+    
+    maven { url = uri("${projectDir}/libs") }
+    mavenLocal()
+    maven { url 'https://maven.fabricmc.net/' }
+    mavenCentral()
+}
+loom {
+    splitEnvironmentSourceSets()
+
+    runs {
+        client {
+            client()
+            ideConfigGenerated = true
+            runDir = "run"
+        }
+    }
+
+    mods {
+        "kollegen-client" {
+            sourceSet sourceSets.main
+            sourceSet sourceSets.client
+        }
+    }
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:${project.minecraft_version}"
+    implementation "net.fabricmc:fabric-loader:${project.loader_version}"
+    implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+
+    implementation('dev.kollegen:discord-rpc:1.3.6') { transitive = false }
+    include('dev.kollegen:discord-rpc:1.3.6') { transitive = false }
+}
+
+def is121 = project.minecraft_version.startsWith('1.21')
+def is262 = project.minecraft_version.startsWith('26.')
+
+if (is121) {
+    dependencies {
+        mappings loom.officialMojangMappings()
+        clientImplementation "net.fabricmc:sponge-mixin:0.15.2+mixin.0.8.7"
+    }
+}
+if (is262) {
+    dependencies {
+        clientImplementation "net.fabricmc:sponge-mixin:0.15.2+mixin.0.8.7"
+    }
+}
+
+if (is121) {
+    def portDir = file("${buildDir}/port1211-src")
+    tasks.register('cleanVendoredBins1211') {
+        doLast {
+            fileTree('src/main/resources/dev/kollegen/client').matching { include '*.bin' }.each { File f ->
+                if (!f.name.equals('vulkanmod.bin')) {
+                    f.delete()
+                }
+            }
+        }
+    }
+    tasks.matching { it.name.startsWith('vendor') }.configureEach {
+        dependsOn('cleanVendoredBins1211')
+    }
+    tasks.register('portSources1211') {
+        dependsOn('cleanVendoredBins1211')
+        doLast {
+            delete(portDir)
+            copy {
+                from('src/main/java')
+                into("${portDir}/main/java")
+            }
+            copy {
+                from('src/client/java')
+                into("${portDir}/client/java")
+            }
+            fileTree("${portDir}").matching { include '**/*.java' }.each { File f ->
+                String rel = portDir.toPath().relativize(f.toPath()).toString().replace(File.separator, '/')
+                String t = f.getText('UTF-8')
+                t = t.replace('GuiGraphicsExtractor', 'GuiGraphics')
+                // Neue UI zeichnet Text über den Glass-Helper (Glass.text/...), nicht über
+                // GuiGraphics.text — der Helper heißt in beiden Versionen gleich und darf
+                // daher nicht zu drawString portiert werden (nur g.text( schon).
+                t = t.replace('Glass.text(', 'Glass.__text__(')
+                    .replace('.text(', '.drawString(')
+                    .replace('Glass.__text__(', 'Glass.text(')
+                    .replace('.item(', '.renderItem(')
+                    .replace('.gui.screen()', '.screen')
+                    .replace('renderer.state.level.CameraRenderState', 'renderer.state.CameraRenderState')
+                    .replace('renderer.state.level.SkyRenderState', 'renderer.state.SkyRenderState')
+                    .replace('renderer/state/level/CameraRenderState', 'renderer/state/CameraRenderState')
+                    .replace('renderer/state/level/SkyRenderState', 'renderer/state/SkyRenderState')
+                    .replace('net.minecraft.client.multiplayer.chat.GuiMessageTag', 'net.minecraft.client.GuiMessageTag')
+                    .replace('client/multiplayer/chat/GuiMessageTag', 'client/GuiMessageTag')
+                    .replace('addPlayerMessage(', 'addMessage(')
+                    .replace('.gui.hud.isHidden()', '.options.hideGui')
+                    .replace('.gui.hud.getChat()', '.gui.getChat()')
+                    .replace('0, title, !state.isDiscrete, state.lightCoords, camera);', '0, title, !state.isDiscrete, state.lightCoords, state.distanceToCameraSq, camera);')
+                    .replace('0, level, !state.isDiscrete, state.lightCoords, camera);', '0, level, !state.isDiscrete, state.lightCoords, state.distanceToCameraSq, camera);')
+                if (rel.endsWith('mixin/HudMixin.java')) {
+                    t = t.replace('extractRenderState(Lnet/minecraft/client/gui/GuiGraphics;Lnet/minecraft/client/DeltaTracker;)V', 'render(Lnet/minecraft/client/gui/GuiGraphics;Lnet/minecraft/client/DeltaTracker;)V')
+                    t = t.replace('@Mixin(Hud.class)', '@Mixin(Gui.class)')
+                    t = t.replace('import net.minecraft.client.gui.Hud;', 'import net.minecraft.client.gui.Gui;')
+                }
+                if (rel.endsWith('mixin/ContainerScreenMixin.java')) {
+                    t = t.replace('extractRenderState(Lnet/minecraft/client/gui/GuiGraphics;IIF)V', 'renderBackground(Lnet/minecraft/client/gui/GuiGraphics;IIF)V')
+                }
+if (rel.endsWith('mixin/NametagMixin.java')) {
+                    t = t.replace('method = "submitNameDisplay(', 'method = "submitNameTag(')
+                }
+                if (rel.endsWith('presence/PetRenderer.java')) {
+                    t = t.replace('collector.submitNameTag(poseStack, new Vec3(pos.x, pos.y + 2.2, pos.z), 0, nameComp, true, 15728880, camera);', 'collector.submitNameTag(poseStack, new Vec3(pos.x, pos.y + 2.2, pos.z), 0, nameComp, true, 15728880, 0.0, camera);')
+                    if (!t.contains('EntitySpawnReason')) {
+                        t = t.replace('type.create(level)', 'type.create(level, net.minecraft.world.entity.EntitySpawnReason.LOAD)')
+                    }
+                }
+                if (rel.endsWith('presence/MythicPets.java')) {
+                    t = t.replace('collector.submitNameTag(poseStack, anchor, 0, comp, false, 15728880, state.cameraRenderState);', 'collector.submitNameTag(poseStack, anchor, 0, comp, false, 15728880, 0.0, state.cameraRenderState);')
+                }
+                if (rel.endsWith('presence/BlubPets.java')) {
+                    t = t.replace('collector.submitNameTag(poseStack, anchor, 0, comp, false, 15728880, state.cameraRenderState);', 'collector.submitNameTag(poseStack, anchor, 0, comp, false, 15728880, 0.0, state.cameraRenderState);')
+                }
+                if (rel.endsWith('mixin/NametagMixin.java')) {
+                    t = t.replace('method = "submitNameDisplay(', 'method = "submitNameTag(')
+                    t = t.replace('renderer/state/level/CameraRenderState;)V', 'renderer/state/CameraRenderState;)V')
+                    if (!t.contains('import dev.kollegen.client.presence.PetRenderer;')) {
+                        t = t.replace('import dev.kollegen.client.presence.KollegenPresence;', 'import dev.kollegen.client.presence.KollegenPresence;\nimport dev.kollegen.client.presence.PetRenderer;')
+                    }
+                }
+                if (rel.endsWith('mixin/GameRendererMixin.java')) {
+                    t = t.replace('@Mixin(Camera.class)', '@Mixin(GameRenderer.class)')
+                    t = t.replace('import net.minecraft.client.Camera;', 'import net.minecraft.client.Camera;\nimport net.minecraft.client.renderer.GameRenderer;')
+                    t = t.replace('method = "getFov"', 'method = "getFov(Lnet/minecraft/client/Camera;FZ)F"')
+                    t = t.replace('private void kollegen$zoomFov(CallbackInfoReturnable<Float> cir) {', 'private void kollegen$zoomFov(Camera camera, float partialTick, boolean allowZoom, CallbackInfoReturnable<Float> cir) {')
+                }
+                if (rel.endsWith('presence/KollegenPresence.java')) {
+                    t = t.replace('import net.minecraft.client.renderer.entity.state.EntityRenderState;', 'import net.minecraft.client.renderer.entity.state.EntityRenderState;\nimport net.minecraft.world.level.Level;')
+                    t = t.replace('Level level = mc != null ? mc.level : null;', 'net.minecraft.world.level.Level level = mc != null ? mc.level : null;')
+                }
+if (rel.endsWith('mixin/MinecraftAccessor.java')) {
+                    t = t.replace('import net.minecraft.client.renderer.state.CameraRenderState;', 'import net.minecraft.client.renderer.state.CameraRenderState;')
+                    t = t.replace('net.minecraft.client.renderer.GameRenderer', 'net.minecraft.client.renderer.GameRenderer')
+                    t = t.replace('net.minecraft.client.renderer.SubmitNodeCollector', 'net.minecraft.client.renderer.SubmitNodeCollector')
+                }
+                if (rel.endsWith('mixin/PetLevelRendererMixin.java')) {
+                    t = t.replace('import net.minecraft.client.renderer.state.CameraRenderState;', 'import net.minecraft.client.renderer.state.CameraRenderState;')
+                    t = t.replace('dev.kollegen.client.mixin.MinecraftAccessor accessor = (dev.kollegen.client.mixin.MinecraftAccessor) mc;', 'dev.kollegen.client.mixin.MinecraftAccessor accessor = (dev.kollegen.client.mixin.MinecraftAccessor) mc;')
+                    t = t.replace('net.minecraft.client.renderer.GameRenderer gameRenderer = accessor.kollegen$getGameRenderer();', 'net.minecraft.client.renderer.GameRenderer gameRenderer = accessor.kollegen$getGameRenderer();')
+                }
+                if (rel.endsWith('mixin/LevelRendererMixin.java')) {
+                    t = t.replace('renderLevel(Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/SubmitNodeCollector;Lnet/minecraft/client/renderer/state/level/CameraRenderState;FZ)V', 'renderLevel(Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/SubmitNodeCollector;Lnet/minecraft/client/renderer/state/CameraRenderState;FZ)V')
+                    t = t.replace('renderer.state.level.CameraRenderState', 'renderer.state.CameraRenderState')
+                }
+                if (rel.endsWith('mixin/LogoRendererMixin.java')) {
+                    t = t.replace('extractRenderState(Lnet/minecraft/client/gui/GuiGraphics;IF)V', 'renderLogo(Lnet/minecraft/client/gui/GuiGraphics;IF)V')
+                    t = t.replace('extractRenderState(Lnet/minecraft/client/gui/GuiGraphics;IFI)V', 'renderLogo(Lnet/minecraft/client/gui/GuiGraphics;IFI)V')
+                }
+                if (rel.contains('/menu/')) {
+                    if (rel.endsWith('menu/ThemeSelectorScreen.java')) {
+                        t = t.replace('backBtn.extractRenderState(', 'backBtn.renderContents(')
+                    }
+                    t = t.replace('extractRenderState(', 'renderBackground(')
+                }
+                if (rel.contains('/game/')) {
+                    // Spiel-Screens: gleicheumbenennung wie /menu/ (Screen-API)
+                    t = t.replace('extractRenderState(', 'renderBackground(')
+                }
+                if (rel.endsWith('ui/GlassSlider.java') || rel.endsWith('ui/GlassToggle.java')) {
+                    t = t.replace('extractWidgetRenderState(', 'renderWidget(')
+                }
+                if (rel.endsWith('ui/ColorButton.java') || rel.endsWith('ui/GlassButton.java')) {
+                    t = t.replace('extractContents(', 'renderContents(')
+                    t = t.replace('protected void renderContents(', 'public void renderContents(')
+                }
+                f.write(t, 'UTF-8')
+            }
+        }
+    }
+    sourceSets {
+        main { java { srcDirs = ["${portDir}/main/java"] } }
+        client {
+            java {
+                    srcDirs = ["${portDir}/client/java"]
+                    exclude '**/FogRendererMixin.java'
+                    exclude '**/BlockEntityRenderDispatcherMixin.java'
+                    exclude '**/MthMixin.java'
+                    exclude '**/BlockTintCacheMixin.java'
+                    exclude '**/EntityRendererMixin.java'
+                    exclude '**/ItemClusterRenderStateMixin.java'
+                    exclude '**/WeatherEffectRendererMixin.java'
+                    exclude '**/FramerateLimitTrackerMixin.java'
+                    exclude '**/SoundEngineMixin.java'
+                    exclude '**/ClientChunkCacheMixin.java'
+                    exclude '**/ClientLevelMixin.java'
+                }
+            }
+        }
+        tasks.named('compileJava') { dependsOn('portSources1211') }
+    tasks.named('compileClientJava') { dependsOn('portSources1211') }
+
+    tasks.register('fixup1211Jar') {
+        dependsOn('build')
+        doLast {
+            def jarFile = file("${buildDir}/libs/${project.archives_base_name}-${project.mod_version}.jar")
+            def targetFile = file("${buildDir}/libs/kollegen-client-mod-1.21.11.jar")
+            def infos = []
+            def data = [:]
+            new java.util.zip.ZipFile(jarFile).withCloseable { z ->
+                z.entries().each { e ->
+                    infos << e.name
+                    data[e.name] = z.getInputStream(e).bytes
+                }
+            }
+            def slurper = new groovy.json.JsonSlurper()
+            def mix = slurper.parseText(new String(data['kollegen.mixins.json'], 'UTF-8'))
+            mix.remove('refmap')
+            mix.mixins = mix.mixins.findAll { !(it in ['FogRendererMixin', 'BlockEntityRenderDispatcherMixin', 'MthMixin', 'BlockTintCacheMixin', 'EntityRendererMixin', 'ItemClusterRenderStateMixin', 'WeatherEffectRendererMixin', 'FramerateLimitTrackerMixin', 'SoundEngineMixin', 'ClientChunkCacheMixin', 'ClientLevelMixin']) }
+            data['kollegen.mixins.json'] = (groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(mix)) + '\n').getBytes('UTF-8')
+            def fmj = slurper.parseText(new String(data['fabric.mod.json'], 'UTF-8'))
+            fmj.depends = [fabricloader: '>=0.16.0', minecraft: '>=1.21', java: '>=21']
+            data['fabric.mod.json'] = (groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(fmj)) + '\n').getBytes('UTF-8')
+            targetFile.delete()
+            new java.util.zip.ZipOutputStream(new FileOutputStream(targetFile)).withCloseable { out ->
+                infos.each { name ->
+                    out.putNextEntry(new java.util.zip.ZipEntry(name))
+                    out.write(data[name])
+                    out.closeEntry()
+                }
+            }
+        }
+    }
+}
+
+if (is262) {
+    def portDir = file("${buildDir}/port262-src")
+    tasks.register('cleanVendoredBins262') {
+        doLast {
+            fileTree('src/main/resources/dev/kollegen/client').matching { include '*.bin' }.each { File f ->
+                f.delete()
+            }
+        }
+    }
+    tasks.register('portSources262') {
+        dependsOn('cleanVendoredBins262')
+        doLast {
+            delete(portDir)
+            copy {
+                from('src/main/java')
+                into("${portDir}/main/java")
+            }
+            copy {
+                from('src/client/java')
+                into("${portDir}/client/java")
+            }
+            if (project.minecraft_version.startsWith('26.3')) {
+                copy {
+                    from('src/compat263/java')
+                    into("${portDir}/client/java")
+                }
+            }
+            fileTree("${portDir}").matching { include '**/*.java' }.each { File f ->
+                String rel = portDir.toPath().relativize(f.toPath()).toString().replace(File.separator, '/')
+                String t = f.getText('UTF-8')
+                if (rel.endsWith('presence/MythicPets.java')) {
+                    t = t.replace('import net.minecraft.client.renderer.state.LevelRenderState;', 'import net.minecraft.client.renderer.state.level.LevelRenderState;')
+                }
+                if (rel.endsWith('presence/BlubPets.java')) {
+                    t = t.replace('import net.minecraft.client.renderer.state.LevelRenderState;', 'import net.minecraft.client.renderer.state.level.LevelRenderState;')
+                }
+                if (rel.endsWith('presence/PetRenderer.java')) {
+                    t = t.replace('import net.minecraft.client.renderer.state.LevelRenderState;', 'import net.minecraft.client.renderer.state.level.LevelRenderState;')
+                    t = t.replace('return EntityType.ENDER_DRAGON;', 'return EntityTypes.ENDER_DRAGON;')
+                    t = t.replace('if (petKind == null) return EntityType.ALLAY;', 'if (petKind == null) return EntityTypes.ALLAY;')
+                    t = t.replace('case "ender_dragon", "dragon", "enderdragon" -> EntityType.ENDER_DRAGON;', 'case "ender_dragon", "dragon", "enderdragon" -> EntityTypes.ENDER_DRAGON;')
+                    t = t.replace('case "ender_dragon", "dragon", "enderdragon" -> EntityType.ALLAY;', 'case "ender_dragon", "dragon", "enderdragon" -> EntityTypes.ALLAY;')
+                    t = t.replace('case "blub" -> EntityType.ITEM_DISPLAY;', 'case "blub" -> EntityTypes.ITEM_DISPLAY;')
+                    t = t.replace('case "allay", "ender_dragon", "dragon", "enderdragon" -> EntityType.ALLAY;', 'case "allay", "ender_dragon", "dragon", "enderdragon" -> EntityTypes.ALLAY;')
+                    t = t.replace('case "chicken", "hen" -> EntityType.CHICKEN;', 'case "chicken", "hen" -> EntityTypes.CHICKEN;')
+                    t = t.replace('case "bee" -> EntityType.BEE;', 'case "bee" -> EntityTypes.BEE;')
+                    t = t.replace('case "axolotl" -> EntityType.AXOLOTL;', 'case "axolotl" -> EntityTypes.AXOLOTL;')
+                    t = t.replace('case "bat" -> EntityType.BAT;', 'case "bat" -> EntityTypes.BAT;')
+                    t = t.replace('case "squid" -> EntityType.SQUID;', 'case "squid" -> EntityTypes.SQUID;')
+                    t = t.replace('case "glow_squid", "glowsquid" -> EntityType.GLOW_SQUID;', 'case "glow_squid", "glowsquid" -> EntityTypes.GLOW_SQUID;')
+                    t = t.replace('case "nautilus" -> EntityType.NAUTILUS;', 'case "nautilus" -> EntityTypes.NAUTILUS;')
+                    t = t.replace('case "zombie_nautilus", "zombienautilus" -> EntityType.ZOMBIE_NAUTILUS;', 'case "zombie_nautilus", "zombienautilus" -> EntityTypes.ZOMBIE_NAUTILUS;')
+                    t = t.replace('case "copper_golem", "coppergolem", "golem" -> EntityType.COPPER_GOLEM;', 'case "copper_golem", "coppergolem", "golem" -> EntityTypes.COPPER_GOLEM;')
+                    t = t.replace('case "wolf", "dog" -> EntityType.WOLF;', 'case "wolf", "dog" -> EntityTypes.WOLF;')
+                    t = t.replace('case "cat", "ocelot" -> EntityType.CAT;', 'case "cat", "ocelot" -> EntityTypes.CAT;')
+                    t = t.replace('case "parrot" -> EntityType.PARROT;', 'case "parrot" -> EntityTypes.PARROT;')
+                    t = t.replace('case "fox" -> EntityType.FOX;', 'case "fox" -> EntityTypes.FOX;')
+                    t = t.replace('case "rabbit", "bunny" -> EntityType.RABBIT;', 'case "rabbit", "bunny" -> EntityTypes.RABBIT;')
+                    t = t.replace('case "shulker" -> EntityType.SHULKER;', 'case "shulker" -> EntityTypes.SHULKER;')
+                    t = t.replace('default -> EntityType.ENDER_DRAGON;', 'default -> EntityTypes.ENDER_DRAGON;')
+                    t = t.replace('default -> EntityType.ALLAY;', 'default -> EntityTypes.ALLAY;')
+                    if (!t.contains('import net.minecraft.world.entity.EntityTypes;')) {
+                        t = t.replace('import net.minecraft.world.entity.EntityType;', 'import net.minecraft.world.entity.EntityType;\nimport net.minecraft.world.entity.EntityTypes;')
+                    }
+                }
+                if (rel.endsWith('mixin/NametagMixin.java')) {
+                    if (!t.contains('import dev.kollegen.client.presence.PetRenderer;')) {
+                        t = t.replace('import dev.kollegen.client.presence.KollegenPresence;', 'import dev.kollegen.client.presence.KollegenPresence;\nimport dev.kollegen.client.presence.PetRenderer;')
+                    }
+                }
+                if (rel.endsWith('mixin/PetLevelRendererMixin.java')) {
+                    t = t.replace('import net.minecraft.client.renderer.state.LevelRenderState;', 'import net.minecraft.client.renderer.state.level.LevelRenderState;')
+                    t = t.replace('    @Inject(method = "extractVisibleEntities(Lnet/minecraft/client/Camera;Lnet/minecraft/client/renderer/culling/Frustum;Lnet/minecraft/client/DeltaTracker;Lnet/minecraft/client/renderer/state/LevelRenderState;)V", at = @At("TAIL"))\n    private void kollegen$addPets(Camera camera, Frustum frustum, DeltaTracker tracker, LevelRenderState state, CallbackInfo ci) {\n        try {\n            Minecraft mc = Minecraft.getInstance();\n            if (mc == null || mc.level == null) return;\n            PetRenderer.extractPets(mc, tracker, state);\n        } catch (Throwable ignored) {\n        }\n    }\n\n', '')
+                    t = t.replace('client/renderer/state/LevelRenderState;', 'client/renderer/state/level/LevelRenderState;')
+                }
+                if (rel.endsWith('mixin/PetLevelExtractorMixin.java')) {
+                    t = 'package dev.kollegen.client.mixin;\n\nimport dev.kollegen.client.presence.PetRenderer;\nimport net.minecraft.client.Camera;\nimport net.minecraft.client.DeltaTracker;\nimport net.minecraft.client.Minecraft;\nimport net.minecraft.client.renderer.culling.Frustum;\nimport net.minecraft.client.renderer.extract.LevelExtractor;\nimport net.minecraft.client.renderer.state.level.LevelRenderState;\nimport org.spongepowered.asm.mixin.Mixin;\nimport org.spongepowered.asm.mixin.injection.At;\nimport org.spongepowered.asm.mixin.injection.Inject;\nimport org.spongepowered.asm.mixin.injection.callback.CallbackInfo;\n\n@Mixin(LevelExtractor.class)\npublic class PetLevelExtractorMixin {\n\n    @Inject(method = "extractVisibleEntities(Lnet/minecraft/client/Camera;Lnet/minecraft/client/renderer/culling/Frustum;Lnet/minecraft/client/DeltaTracker;Lnet/minecraft/client/renderer/state/level/LevelRenderState;)V", at = @At("TAIL"))\n    private void kollegen$addPets(Camera camera, Frustum frustum, DeltaTracker tracker, LevelRenderState state, CallbackInfo ci) {\n        try {\n            Minecraft mc = Minecraft.getInstance();\n            if (mc == null || mc.level == null) return;\n            PetRenderer.extractPets(mc, tracker, state, frustum);\n        } catch (Throwable ignored) {\n        }\n    }\n}\n'
+                }
+                if (project.minecraft_version.startsWith('26.2')) {
+                    t = t.replace('com.mojang.renderpearl.api.buffers.GpuBuffer', 'com.mojang.blaze3d.buffers.GpuBuffer')
+                         .replace('com.mojang.renderpearl.api.buffers.GpuBufferSlice', 'com.mojang.blaze3d.buffers.GpuBufferSlice')
+                         .replace('com.mojang.renderpearl.api.commands.CommandEncoder', 'com.mojang.blaze3d.systems.CommandEncoder')
+                         .replace('com.mojang.renderpearl.api.pipeline.RenderPipeline', 'com.mojang.blaze3d.pipeline.RenderPipeline')
+                         .replace('com.mojang.renderpearl.api.textures.GpuTextureView', 'com.mojang.blaze3d.textures.GpuTextureView')
+                }
+                if (project.minecraft_version.startsWith('26.3')) {
+                    t = t.replace('import org.lwjgl.glfw.GLFW;', 'import dev.kollegen.client.input.sdl.GLFW;')
+                         .replace('import org.lwjgl.glfw.GLFWGamepadState;', 'import dev.kollegen.client.input.sdl.GLFW.GLFWGamepadState;')
+                         .replace('poseStack.mulPose(', 'poseStack.rotate(')
+                    if (rel.endsWith('presence/PetRenderer.java')) {
+                        t = t.replace('.setInvulnerable(', '.setPermanentlyInvulnerable(')
+                    }
+                    if (rel.endsWith('mixin/SkyRendererMixin.java')) {
+                        t = t.replace('case 4 -> 0xFF_CCCC_CC;', 'case 4 -> new org.joml.Vector3f(0.8f, 0.8f, 0.8f);')
+                             .replace('case 5 -> 0xFF_2E_13_48;', 'case 5 -> new org.joml.Vector3f(0.18f, 0.07f, 0.28f);')
+                             .replace('case 6 -> 0xFF_4A_1E_10;', 'case 6 -> new org.joml.Vector3f(0.29f, 0.12f, 0.06f);')
+                    }
+                    if (rel.endsWith('mixin/MouseHandlerMixin.java')) {
+                        t = t.replace('kollegen_client$cursor(long window, double x, double y, CallbackInfo ci)',
+                                      'kollegen_client$cursor(long window, double x, double y, double xdelta, double ydelta, CallbackInfo ci)')
+                    }
+                    if (rel.endsWith('mixin/SkyBodiesMixin.java')) {
+                        t = t.replace('renderSunMoonAndStars(Lcom/mojang/blaze3d/vertex/PoseStack;FFFLnet/minecraft/world/level/MoonPhase;FF)V',
+                                      'renderSunMoonAndStars(Lcom/mojang/renderpearl/api/commands/RenderPass;Lcom/mojang/blaze3d/vertex/PoseStack;FFFLnet/minecraft/world/level/MoonPhase;FF)V')
+                             .replace('(PoseStack matrices,',
+                                      '(com.mojang.renderpearl.api.commands.RenderPass pass, PoseStack matrices,')
+                    }
+                }
+                f.write(t, 'UTF-8')
+            }
+        }
+    }
+    sourceSets {
+        main { java { srcDirs = ["${portDir}/main/java"] } }
+        client {
+            java {
+                    srcDirs = ["${portDir}/client/java"]
+                    exclude '**/DynamicGpuDataStorageMappedMixin.java'
+                    exclude '**/DynamicGpuDataStorageNonMappedMixin.java'
+                    exclude '**/FirstPersonHandsAndItemsRendererMixin.java'
+                }
+            }
+        }
+        tasks.named('compileJava') { dependsOn('portSources262') }
+    tasks.named('compileClientJava') { dependsOn('portSources262') }
+}
+
+
+
+
+
+
+
+
+
+
+def modrinthPrimaryFileUrl(String slug, String mc, String loader) {
+    def slurp = { String body -> new groovy.json.JsonSlurper().parseText(body) }
+    def fetch = { String u ->
+        def conn = new URL(u).openConnection()
+        
+        conn.setRequestProperty("User-Agent", "KollegenClient/${project.version} (+https://github.com/FluffyBento/KollegenClient)")
+        conn.setConnectTimeout(20000)
+        conn.setReadTimeout(120000)
+        def code = conn.responseCode
+        if (code != 200) {
+            throw new GradleException("Modrinth-Anfrage fehlgeschlagen (HTTP ${code}) für: ${u}")
+        }
+        return slurp(conn.inputStream.getText("UTF-8"))
+    }
+
+    
+    
+    def enc = { String v -> java.net.URLEncoder.encode(v, "UTF-8") }
+
+    List versions = []
+    try {
+        versions = fetch("https://api.modrinth.com/v2/project/${slug}/version?game_versions=${enc("[\"${mc}\"]")}&loaders=${enc("[\"${loader}\"]")}")
+    } catch (Exception e) {
+        println("vendor${slug.capitalize()}Mod: gefilterte Modrinth-Abfrage fehlgeschlagen (${e.message}) – nutze ungefilterte Abfrage.")
+    }
+
+    if (!versions) {
+        versions = fetch("https://api.modrinth.com/v2/project/${slug}/version")
+    }
+    if (!versions) {
+        throw new GradleException("Keine Modrinth-Versionen für '${slug}' gefunden.")
+    }
+
+    def chosen = versions.find { it.game_versions?.contains(mc) && it.loaders?.contains(loader) }
+            ?: versions.find { it.game_versions?.contains(mc) }
+            ?: versions.first()
+    def file = (chosen.files.find { it.primary } ?: chosen.files[0])
+    return file.url
+}
+
+def vendorModResource(String resourceRel, String slug, String urlOverride = null) {
+    def res = file("src/main/resources/${resourceRel}")
+    
+    def safeSlug = slug.replaceAll('[^a-zA-Z0-9]', '')
+    tasks.register("vendor${safeSlug.capitalize()}Mod") {
+        onlyIf { !res.exists() }
+        doLast {
+            res.parentFile.mkdirs()
+            
+            
+            def url = urlOverride ?: modrinthPrimaryFileUrl(slug, project.minecraft_version, "fabric")
+            
+            def cacheDir = file("${buildDir}/vendor-patch/${slug}")
+            cacheDir.mkdirs()
+            def download = new File(cacheDir, "${safeSlug}-${project.minecraft_version}-orig.jar")
+            if (!download.exists()) {
+                ant.get(src: url, dest: download, verbose: true)
+            }
+
+            
+            
+            def unzipDir = new File(cacheDir, "unzipped")
+            unzipDir.deleteDir()
+            unzipDir.mkdirs()
+            ant.unzip(src: download, dest: unzipDir)
+            def fmj = new File(unzipDir, "fabric.mod.json")
+            if (fmj.exists()) {
+                def json = new groovy.json.JsonSlurper().parseText(fmj.text)
+                if (!(json.custom instanceof Map)) {
+                    json.custom = [:]
+                }
+                json.custom.modmenu = [parent: "kollegen-client"]
+                fmj.write(groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(json)))
+            }
+            ant.zip(destfile: res, basedir: unzipDir)
+        }
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+def sodiumTask = vendorModResource('dev/kollegen/client/sodium.bin', 'sodium')
+def irisTask = vendorModResource('dev/kollegen/client/iris.bin', 'iris')
+def berylTask = vendorModResource('dev/kollegen/client/beryl.bin', 'beryl')
+
+
+
+
+
+
+
+
+
+
+def flkUrl = 'https://cdn.modrinth.com/data/Ha28R6CL/versions/SKW1BTL3/fabric-language-kotlin-1.14.2%2Bkotlin.2.4.21.jar'
+def flkTask = vendorModResource('dev/kollegen/client/flk.bin', 'fabric-language-kotlin', flkUrl)
+def fabricApiTask = vendorModResource('dev/kollegen/client/fabricapi.bin', 'fabric-api')
+def owoTask = vendorModResource('dev/kollegen/client/owo.bin', 'owo-lib')
+def modMenuTask = vendorModResource('dev/kollegen/client/modmenu.bin', 'modmenu')
+def tpaTask = vendorModResource('dev/kollegen/client/tpa.bin', 'placeholder-api')
+def silkTask = vendorModResource('dev/kollegen/client/silk.bin', 'silk')
+def clothConfigTask = vendorModResource('dev/kollegen/client/clothconfig.bin', 'cloth-config')
+def chatHeadsTask = vendorModResource('dev/kollegen/client/chatheads.bin', 'chat-heads')
+
+
+
+
+
+
+
+
+processResources {
+    inputs.property 'version', project.version
+    inputs.property 'minecraft_range', project.minecraft_range
+    inputs.property 'java_range', project.java_range
+    filesMatching('fabric.mod.json') {
+        expand(['version': project.version, 'minecraft_range': project.minecraft_range, 'java_range': project.java_range])
+    }
+}
+
+if (is121) {
+    tasks.named('processResources') {
+        doLast {
+            def f = file("${buildDir}/resources/main/kollegen.mixins.json")
+            if (f.exists()) {
+                def slurper = new groovy.json.JsonSlurper()
+                def mix = slurper.parseText(f.getText('UTF-8'))
+                mix.mixins = mix.mixins.findAll { !(it in ['FogRendererMixin', 'BlockEntityRenderDispatcherMixin', 'MthMixin', 'BlockTintCacheMixin', 'EntityRendererMixin', 'ItemClusterRenderStateMixin', 'WeatherEffectRendererMixin', 'FramerateLimitTrackerMixin', 'SoundEngineMixin', 'ClientChunkCacheMixin', 'ClientLevelMixin']) }
+                f.write(groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(mix)) + '\n', 'UTF-8')
+            }
+        }
+    }
+}
+
+
+
+
+
+
+
+
+def vulkanRes = file("src/main/resources/dev/kollegen/client/vulkanmod.bin")
+def vulkanUrl = "https://cdn.modrinth.com/data/JYQhtZtO/versions/hWKRTXbQ/VulkanMod-0.6.8%2B1.21.11.jar"
+tasks.register('vendorVulkanMod') {
+    onlyIf { project.minecraft_version.startsWith('1.21') }
+    doLast {
+        vulkanRes.parentFile.mkdirs()
+        def cacheDir = file("${buildDir}/vulkanmod-patch")
+        cacheDir.mkdirs()
+        
+        def download = file("${cacheDir}/VulkanMod-orig.jar")
+        if (!download.exists()) {
+            ant.get(src: vulkanUrl, dest: download, verbose: true)
+        }
+
+        def unzipDir = file("${cacheDir}/unzipped")
+        unzipDir.deleteDir()
+        unzipDir.mkdirs()
+        ant.unzip(src: download, dest: unzipDir)
+
+        
+        def srcLogo = file("src/main/resources/assets/kollegen/textures/kollegen.png")
+        if (srcLogo.exists()) {
+            ant.copy(file: srcLogo, tofile: file("${unzipDir}/assets/vulkanmod/vlogo.png"))
+            ant.copy(file: srcLogo, tofile: file("${unzipDir}/assets/vulkanmod/vlogo_transparent.png"))
+        }
+
+        
+        def fabricFile = file("${unzipDir}/fabric.mod.json")
+        if (fabricFile.exists()) {
+            def json = new groovy.json.JsonSlurper().parseText(fabricFile.text)
+            json.name = "Kollegen Client Vulkan+${project.version}"
+            json.description = "Vulkan-Renderer (VulkanMod), integriert in den Kollegen Client. Von Kollegen Client verwaltet."
+            
+            if (!(json.custom instanceof Map)) {
+                json.custom = [:]
+            }
+            json.custom.modmenu = [parent: "kollegen-client"]
+            fabricFile.write(groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(json)))
+        }
+
+        
+        def langFile = file("${unzipDir}/assets/vulkanmod/lang/en_us.json")
+        if (langFile.exists()) {
+            def json = new groovy.json.JsonSlurper().parseText(langFile.text)
+            
+            json["vulkanmod.options.unknown"] = "Unbekannt"
+            json["vulkanmod.options.pages.video"] = "Video"
+            json["vulkanmod.options.pages.graphics"] = "Grafik"
+            json["vulkanmod.options.pages.optimizations"] = "Optimierungen"
+            json["vulkanmod.options.pages.other"] = "Sonstiges"
+            json["vulkanmod.options.performanceImpact"] = "Performance-Auswirkung: %s"
+            json["vulkanmod.options.performanceImpact.low"] = "Niedrig"
+            json["vulkanmod.options.performanceImpact.medium"] = "Mittel"
+            json["vulkanmod.options.performanceImpact.high"] = "Hoch"
+            json["vulkanmod.options.buttons.apply"] = "Anwenden"
+            json["vulkanmod.options.buttons.undo"] = "Zurücksetzen"
+            json["vulkanmod.options.buttons.kofi"] = "Zum Discord"
+            json["vulkanmod.options.buttons.update_available"] = "Update verfügbar!"
+            json["vulkanmod.options.advCulling"] = "Erweitertes Chunk-Culling"
+            json["vulkanmod.options.advCulling.aggressive"] = "Aggressiv"
+            json["vulkanmod.options.advCulling.conservative"] = "Konservativ"
+            json["vulkanmod.options.advCulling.normal"] = "Normal"
+            json["vulkanmod.options.advCulling.tooltip"] = "Verwendet einen Culling-Algorithmus, der die Performance durch Reduzierung nicht sichtbarer Chunk-Abschnitte verbessern kann."
+            json["vulkanmod.options.ao.subBlock"] = "Sub-Block"
+            json["vulkanmod.options.ao.subBlock.tooltip"] = "Aktiviert weiche Beleuchtung für nicht-vollständige Blöcke (experimentell)."
+            json["vulkanmod.options.deviceSelector"] = "Geräte-Auswahl"
+            json["vulkanmod.options.deviceSelector.auto"] = "Auto"
+            json["vulkanmod.options.deviceSelector.tooltip"] = "Aktuelles Gerät"
+            json["vulkanmod.options.entityCulling"] = "Entity-Culling"
+            json["vulkanmod.options.entityCulling.tooltip"] = "Aktiviert Culling für Entitäten in nicht sichtbaren Abschnitten."
+            json["vulkanmod.options.frameQueue"] = "Render-Warteschlangengröße"
+            json["vulkanmod.options.frameQueue.tooltip"] = "Höhere Werte können Frametimes stabilisieren, erhöhen aber die Eingabeverzögerung."
+            json["vulkanmod.options.backfaceCulling"] = "Backface-Culling"
+            json["vulkanmod.options.backfaceCulling.tooltip"] = "Blendet nicht sichtbare Blockseiten auf der CPU aus, verbessert GPU-Performance. Für weniger CPU-Overhead: Indirect Draw aktivieren."
+            json["vulkanmod.options.indirectDraw"] = "Indirect Draw"
+            json["vulkanmod.options.indirectDraw.tooltip"] = "Reduziert CPU-Overhead, kann GPU-Overhead erhöhen."
+            json["vulkanmod.options.refreshRate"] = "Vollbild-Bildwiederholrate"
+            json["vulkanmod.options.uniqueOpaqueLayer"] = "Eindeutiger undurchsichtiger Layer"
+            json["vulkanmod.options.uniqueOpaqueLayer.tooltip"] = "Verwendet einen einzigartigen Render-Layer für undurchsichtiges Terrain zur Performance-Verbesserung."
+            json["vulkanmod.options.wayland"] = "Wayland nutzen"
+            json["vulkanmod.options.wayland.tooltip"] = "Nutzt Linux Wayland Compositor falls verfügbar (Experimentell). Erfordert Neustart."
+            json["vulkanmod.options.windowMode"] = "Fenstermodus"
+            json["vulkanmod.options.windowMode.windowed"] = "Fenster"
+            json["vulkanmod.options.windowMode.windowedFullscreen"] = "Vollbild im Fenster"
+            json["vulkanmod.options.builderThreads"] = "Chunk-Builder-Threads"
+            json["vulkanmod.options.builderThreads.auto"] = "Auto"
+            json["vulkanmod.options.textureAnimations"] = "Textur-Animationen"
+            json["vulkanmod.options.searchFieldPlaceholder"] = "Grafikeinstellungen suchen"
+            langFile.write(groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(json)))
+        }
+
+        
+        def mixinFile = file("${unzipDir}/vulkanmod.mixins.json")
+        if (mixinFile.exists()) {
+            def json = new groovy.json.JsonSlurper().parseText(mixinFile.text)
+            json.mixins.each { mixin ->
+                if (mixin.config && mixin.config.injectors) {
+                    mixin.config.injectors.each { injector ->
+                        if (injector.method?.contains("method_60895") && injector.at?.value == "INVOKE") {
+                            injector.priority = 1100
+                        }
+                    }
+                }
+            }
+            mixinFile.write(groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(json)))
+        }
+
+        
+        def voptionScreen = file("${unzipDir}/net/vulkanmod/config/gui/VOptionScreen.class")
+        if (voptionScreen.exists()) {
+            def classBytes = voptionScreen.bytes
+            def reader = new org.objectweb.asm.ClassReader(classBytes)
+            def writer = new org.objectweb.asm.ClassWriter(reader, org.objectweb.asm.ClassWriter.COMPUTE_MAXS)
+            def visitor = new org.objectweb.asm.ClassVisitor(org.objectweb.asm.Opcodes.ASM9, writer) {
+                org.objectweb.asm.MethodVisitor visitMethod(int access, String name, String desc, String signature, String[] exceptions) {
+                    def mv = super.visitMethod(access, name, desc, signature, exceptions)
+                    if (name == "<init>" || name == "<clinit>") {
+                        return new org.objectweb.asm.MethodVisitor(org.objectweb.asm.Opcodes.ASM9, mv) {
+                            void visitLdcInsn(Object value) {
+                                if (value instanceof String && value.contains("ko-fi.com/xcollateral")) {
+                                    super.visitLdcInsn("https://dsc.gg/Kollegen")
+                                    return
+                                }
+                                super.visitLdcInsn(value)
+                            }
+                        }
+                    }
+                    return mv
+                }
+            }
+            reader.accept(visitor, 0)
+            file("${unzipDir}/net/vulkanmod/config/gui/VOptionScreen.class").bytes = writer.toByteArray()
+        }
+
+        
+        
+        def colorUtil = file("${unzipDir}/net/vulkanmod/vulkan/util/ColorUtil\$ARGB.class")
+        if (colorUtil.exists()) {
+            def cuReader = new org.objectweb.asm.ClassReader(colorUtil.bytes)
+            def cuWriter = new org.objectweb.asm.ClassWriter(cuReader, org.objectweb.asm.ClassWriter.COMPUTE_MAXS)
+            def cuVisitor = new org.objectweb.asm.ClassVisitor(org.objectweb.asm.Opcodes.ASM9, cuWriter) {
+                void visitLdcInsn(Object value) {
+                    if (value instanceof Integer) {
+                        int v = value.intValue()
+                        if (v == (0xffffff as int)) { super.visitLdcInsn(0xFFf3e9d8 as int); return }
+                        if (v == (0xFF00FF00 as int)) { super.visitLdcInsn(0xFFf5a623 as int); return }
+                        if (v == (0xff0000 as int)) { super.visitLdcInsn(0xFFff5b6e as int); return }
+                    }
+                    super.visitLdcInsn(value)
+                }
+            }
+            cuReader.accept(cuVisitor, 0)
+            colorUtil.bytes = cuWriter.toByteArray()
+        }
+
+        
+        def patchedJar = file("${cacheDir}/VulkanMod-patched.jar")
+        ant.zip(destfile: patchedJar, basedir: unzipDir)
+
+        
+        ant.copy(file: patchedJar, tofile: vulkanRes)
+    }
+}
+processResources.dependsOn vendorVulkanMod, sodiumTask, irisTask, berylTask,
+        flkTask, fabricApiTask, owoTask, modMenuTask,
+        tpaTask, silkTask, clothConfigTask, chatHeadsTask
+
+def javaRelease = project.minecraft_version.startsWith('1.21') ? 21 : 25
+
+java {
+    sourceCompatibility = JavaVersion.toVersion(javaRelease)
+    targetCompatibility = JavaVersion.toVersion(javaRelease)
+}
+
+tasks.withType(JavaCompile).configureEach {
+    it.options.encoding = 'UTF-8'
+    it.options.release = javaRelease
+}
+
+// Erzwingt das korrekte Remapping aller Klassen auf Intermediary-Namen für 26.x
+if (project.minecraft_version.startsWith('26.')) {
+    tasks.register('remapJar262') {
+        dependsOn('jar')
+        doLast {
+            def inputJar = file("${buildDir}/libs/${project.archives_base_name}-${project.mod_version}.jar")
+            def outputJar = file("${buildDir}/libs/${project.archives_base_name}.jar")
+            if (inputJar.exists()) {
+                if (outputJar.exists()) {
+                    outputJar.delete()
+                }
+                inputJar.renameTo(outputJar)
+            }
+        }
+    }
+    tasks.named('build') { dependsOn('remapJar262') }
+}

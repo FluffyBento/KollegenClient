@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=Kollegen Client
+Comment=Bester Minecraft-Client
+Exec=kollegen-client
+Icon=dev.kollegen.client
+Type=Application
+Categories=Game;
+Keywords=minecraft;launcher;

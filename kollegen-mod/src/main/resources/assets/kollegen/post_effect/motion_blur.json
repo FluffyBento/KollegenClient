@@ -1,0 +1,53 @@
+{
+    "targets": {
+        "previous": {
+            "persistent": true
+        }
+    },
+    "passes": [
+        {
+            "vertex_shader": "minecraft:core/screenquad",
+            "fragment_shader": "kollegen:post/motion_blur",
+            "inputs": [
+                {
+                    "sampler_name": "In",
+                    "target": "minecraft:main"
+                },
+                {
+                    "sampler_name": "Previous",
+                    "target": "previous"
+                }
+            ],
+            "output": "previous",
+            "uniforms": {
+                "BlurConfig": [
+                    {
+                        "name": "BlurStrength",
+                        "type": "float",
+                        "value": 0.40
+                    }
+                ]
+            }
+        },
+        {
+            "vertex_shader": "minecraft:core/screenquad",
+            "fragment_shader": "minecraft:post/blit",
+            "inputs": [
+                {
+                    "sampler_name": "In",
+                    "target": "previous"
+                }
+            ],
+            "uniforms": {
+                "BlitConfig": [
+                    {
+                        "name": "ColorModulate",
+                        "type": "vec4",
+                        "value": [ 1.0, 1.0, 1.0, 1.0 ]
+                    }
+                ]
+            },
+            "output": "minecraft:main"
+        }
+    ]
+}
