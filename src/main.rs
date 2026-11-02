@@ -1932,6 +1932,35 @@ fn sync_global_settings() -> Result<(), String> {
 }
 
 
+#[tauri::command]
+fn get_all_servers() -> Result<Vec<Value>, String> {
+    let data_dir = match crate::utils::get_project_dirs() {
+        Ok(d) => d,
+        Err(e) => return Err(e.to_string()),
+    };
+    let instances = crate::utils::load_json::<Vec<crate::types::Instance>>(
+        &crate::utils::instances_file(&data_dir),
+        vec![],
+    );
+    let mut out: Vec<Value> = Vec::new();
+    let mut seen: Vec<String> = Vec::new();
+    for inst in &instances {
+        if let Some(srv) = &inst.server {
+            if srv.to_lowercase().contains("voice") || seen.iter().any(|s| s == srv) {
+                continue;
+            }
+            seen.push(srv.clone());
+            out.push(serde_json::json!({
+                "ip": srv,
+                "name": inst.name,
+                "icon": Value::Null,
+            }));
+        }
+    }
+    Ok(out)
+}
+
+
 
 #[tauri::command]
 fn detect_launchers() -> Result<Vec<Value>, String> {
@@ -3002,6 +3031,7 @@ fn main() {
             detect_login_sources,
             import_login_source,
             sync_global_settings,
+            get_all_servers,
             detect_launchers,
             list_launcher_instances,
             import_instance,
