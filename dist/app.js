@@ -572,6 +572,17 @@ function renderHomeHero(instances) {
   const heroActions = [
     makePlayButton("Spielen", "btn-play", () => launchGame(inst.name))
   ];
+  if (inst.server && inst.server.trim()) {
+    const quickBtn = document.createElement("button");
+    quickBtn.className = "btn-glass";
+    quickBtn.innerHTML = uiIcon("bolt");
+    quickBtn.append(document.createTextNode("Direkt beitreten"));
+    quickBtn.onclick = (e) => {
+      e.stopPropagation();
+      launchGame(inst.name, inst.server);
+    };
+    heroActions.push(quickBtn);
+  }
   heroActions.push((() => {
     const b = document.createElement("button");
     b.className = "btn-glass";
