@@ -201,11 +201,7 @@ public class TwitchChat extends HudModule {
                 final String emoteName = clean;
                 if (isEmote(emoteName)) {
                     SevenTvEmoteManager.ensureLoaded(emoteName);
-                    String key = SevenTvEmoteManager.getSafeKey(emoteName);
-                    Identifier atlasId = Identifier.tryParse("kollegen:7tv");
-                    Identifier spriteId = Identifier.tryParse("kollegen:" + key);
-                    Component fallback = Component.literal("[" + emoteName + "]");
-                    MutableComponent emote = Component.object(new AtlasSprite(atlasId, spriteId), fallback);
+                    MutableComponent emote = Component.literal("§d§l[" + emoteName + "]§r");
                     emote.withStyle(s -> s.withHoverEvent(new HoverEvent.ShowText(Component.literal(emoteName))));
                     root.append(emote);
                     if (!punct.isEmpty()) {
