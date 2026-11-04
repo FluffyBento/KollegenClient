@@ -145,6 +145,17 @@ public final class StoreClient {
         }
     }
 
+    public static JsonObject deleteItem(String itemId) {
+        try {
+            if (itemId == null || itemId.isEmpty()) return null;
+            JsonObject body = new JsonObject();
+            body.addProperty("item_id", itemId);
+            return post("/api/store/delete", body);
+        } catch (Throwable ignored) {
+            return null;
+        }
+    }
+
     public static JsonObject petConfig(String pet, String mode) {
         return petConfig(pet, mode, null, null, null);
     }

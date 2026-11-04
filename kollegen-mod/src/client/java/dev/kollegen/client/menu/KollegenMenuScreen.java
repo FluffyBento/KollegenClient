@@ -1237,6 +1237,15 @@ public class KollegenMenuScreen extends Screen {
                     if (id.isEmpty()) {
                         return false;
                     }
+                    // Delete button for owned capes
+                    if ("cape".equalsIgnoreCase(itemCat) && bool(c.data, "owned")) {
+                        float delX = X + c.w - 8 - 122;
+                        float delY = Y + (c.h - 18) / 2.0f;
+                        if (hit(mx, my, delX, delY, 46, 18)) {
+                            this.runStoreAction("Cape gelöscht", () -> StoreClient.deleteItem(id));
+                            return true;
+                        }
+                    }
                     if (!bool(c.data, "owned")) {
                         this.runStoreAction("Gekauft", () -> StoreClient.buy(id));
                     } else if (id.equals(this.equippedId(itemCat))) {
@@ -1643,7 +1652,7 @@ public class KollegenMenuScreen extends Screen {
                 this.drawSkinCard(g, c, X, Y, hov);
                 break;
             case K_CAPE_ITEM:
-                this.drawCapeCard(g, c, X, Y, hov);
+                this.drawCapeCard(g, c, X, Y, hov, mx, my);
                 break;
             case K_CAPE_TAB:
                 this.drawCapeTabs(g, c, X, Y, mx, my);
@@ -2238,7 +2247,7 @@ public class KollegenMenuScreen extends Screen {
         }
     }
 
-    private void drawCapeCard(GuiGraphicsExtractor g, Cell c, float X, float Y, boolean hov) {
+    private void drawCapeCard(GuiGraphicsExtractor g, Cell c, float X, float Y, boolean hov, double mx, double my) {
         JsonObject d = c.data;
         String id = str(d, "id", "");
         String name = str(d, "name", id);
@@ -2320,10 +2329,14 @@ public class KollegenMenuScreen extends Screen {
                 c.truncDesc = "Kein Umhang";
             } else if (isUpload) {
                 c.truncDesc = "Im Launcher hochladen";
-            } else if ("community".equalsIgnoreCase(cat) && uses > 0) {
-                c.truncDesc = author + " · " + uses + " Downloads";
+            } else if ("community".equalsIgnoreCase(cat) || "gekauft".equalsIgnoreCase(cat) || "store".equalsIgnoreCase(cat)) {
+                if (uses > 0) {
+                    c.truncDesc = "von " + author + " · " + uses + " Downloads";
+                } else {
+                    c.truncDesc = "von " + author;
+                }
             } else {
-                c.truncDesc = author;
+                c.truncDesc = author != null && !author.isEmpty() ? "von " + author : "";
             }
             c.truncDesc = Glass.trunc(this.font, c.truncDesc, (int) (c.w - 110));
         }
@@ -2336,6 +2349,10 @@ public class KollegenMenuScreen extends Screen {
             this.drawPill(g, c, X + c.w - 8 - 66, Y + (c.h - 18) / 2.0f, 66, 18, "Upload", true, hov);
         } else {
             this.drawPill(g, c, X + c.w - 8 - 66, Y + (c.h - 18) / 2.0f, 66, 18, isNone ? "Ablegen" : "Auswählen", true, hov);
+        }
+        // Delete button for owned capes
+        if (bool(d, "owned") && "cape".equalsIgnoreCase(cat) && !isNone && !isUpload) {
+            this.drawPill(g, c, X + c.w - 8 - 122, Y + (c.h - 18) / 2.0f, 46, 18, "Löschen", true, hov && hit(mx, my, X + c.w - 8 - 122, Y + (c.h - 18) / 2.0f, 46, 18));
         }
     }
 
