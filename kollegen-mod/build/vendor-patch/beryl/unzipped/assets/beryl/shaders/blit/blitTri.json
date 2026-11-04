@@ -1,9 +1,0 @@
-{
-  "vertex": "blitTri",
-  "fragment": "blitTri",
-  "attributes": [],
-  "samplers": [
-    { "name": "Sampler0" }
-  ],
-  "UBOs": []
-}
