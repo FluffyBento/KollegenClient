@@ -32,7 +32,7 @@ public class ChatMixin {
     private List<GuiMessage> allMessages;
 
     @Unique
-    private List<GuiMessage> kollegen$keptTwitch = new ArrayList<>();
+    private List<GuiMessage> kollegen$keptTwitch;
 
     private static boolean kollegen$busy = false;
     private static boolean kollegen$gameMsg = false;
@@ -111,6 +111,7 @@ public class ChatMixin {
 
     @Inject(method = "clearMessages(Z)V", at = @At("HEAD"))
     private void kollegen$captureTwitchOnClear(boolean clearHistory, CallbackInfo ci) {
+        if (kollegen$keptTwitch == null) kollegen$keptTwitch = new ArrayList<>();
         kollegen$keptTwitch.clear();
         if (!clearHistory || !TwitchChat.isKeepOnServerSwitch()) return;
         for (GuiMessage message : allMessages) {
@@ -122,7 +123,7 @@ public class ChatMixin {
 
     @Inject(method = "clearMessages(Z)V", at = @At("TAIL"))
     private void kollegen$restoreTwitchOnClear(boolean clearHistory, CallbackInfo ci) {
-        if (kollegen$keptTwitch.isEmpty()) return;
+        if (kollegen$keptTwitch == null || kollegen$keptTwitch.isEmpty()) return;
         try {
             for (int i = kollegen$keptTwitch.size() - 1; i >= 0; i--) {
                 GuiMessage message = kollegen$keptTwitch.get(i);
@@ -131,7 +132,7 @@ public class ChatMixin {
             }
         } catch (Throwable ignored) {
         } finally {
-            kollegen$keptTwitch.clear();
+            if (kollegen$keptTwitch != null) kollegen$keptTwitch.clear();
         }
     }
 
