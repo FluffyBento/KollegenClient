@@ -8,6 +8,7 @@ import dev.kollegen.client.presence.KollegenPresence;
 import dev.kollegen.client.presence.RenderStateIds;
 import dev.kollegen.client.render.WaveyCapeRenderer;
 import net.minecraft.client.model.HumanoidModel;
+import net.minecraft.client.model.player.PlayerCapeModel;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.entity.layers.CapeLayer;
 import net.minecraft.client.renderer.entity.state.AvatarRenderState;
@@ -74,7 +75,7 @@ public abstract class CapeLayerMixin {
                 if (this.hasLayer(state.chestEquipment, EquipmentClientInfo.LayerType.HUMANOID)) {
                     poseStack.translate(0.0F, -0.053125F, 0.06875F);
                 }
-                collector.submitModel(this.model, state, poseStack,
+                collector.submitModel((PlayerCapeModel) this.model, state, poseStack,
                         RenderTypes.entitySolid(capeTexture),
                         packedLight, OverlayTexture.NO_OVERLAY, state.outlineColor);
                 poseStack.popPose();
