@@ -98,6 +98,9 @@ public final class CosmeticText {
         if (d.stickerIcon != null) {
             out.append(Component.literal(d.stickerIcon).withStyle(Style.EMPTY.withColor(TextColor.fromRgb(parseColor(d.stickerColor, FALLBACK_NAME)))));
         }
+        if (d.capeOwner != null && !d.capeOwner.isEmpty()) {
+            out.append(Component.literal("\n§7Cape von: §f" + d.capeOwner));
+        }
         return out;
     }
 
