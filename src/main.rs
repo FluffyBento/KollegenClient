@@ -868,6 +868,13 @@ fn auto_resolve_conflict(
     state: State<'_, AppState>,
     instance_name: String,
 ) -> Result<String, String> {
+    let settings = crate::utils::load_json::<crate::types::Settings>(
+        &crate::utils::settings_file(&state.data_dir),
+        crate::types::Settings::default(),
+    );
+    if !settings.auto_resolve_conflicts {
+        return Ok("Automatische Konflikt-Auflösung ist deaktiviert. Bitte manuell in den Mods-Ordner eingreifen.".to_string());
+    }
     let log_path = crate::utils::instance_dir(&state.data_dir, &instance_name)
         .join("logs")
         .join("latest.log");

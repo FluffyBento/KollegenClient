@@ -698,7 +698,14 @@ async function refreshLogs() {
     }
 
     // Auto-detect and resolve Fabric mod incompatibilities in the game log
+    // (only if enabled in settings - default: disabled)
+    let autoResolveEnabled = false;
+    try {
+      const ss = await invoke("get_settings");
+      autoResolveEnabled = !!(ss && ss.auto_resolve_conflicts);
+    } catch (_) {}
     if (
+      autoResolveEnabled &&
       activeInstance &&
       !conflictHandled &&
       glogText.includes("Incompatible mods found")
@@ -2782,6 +2789,8 @@ $("settingsBtn").onclick = async () => {
   if (cmt && currentSettings) cmt.checked = !!currentSettings.companion_mod;
   const pmt = $("perfModsToggle");
   if (pmt && currentSettings) pmt.checked = currentSettings.perf_mods !== false;
+  const arct = $("autoResolveConflictsToggle");
+  if (arct && currentSettings) arct.checked = !!currentSettings.auto_resolve_conflicts;
   showSettingsTab("connections");
   if (consoleNavActive) setConsoleFocusFirstNonIcon();
 };
@@ -2799,6 +2808,14 @@ if (perfModsToggle) {
   perfModsToggle.onchange = async () => {
     const s = await loadSettingsOnce();
     s.perf_mods = perfModsToggle.checked;
+    try { await invoke("save_settings", { settings: s }); } catch (e) {}
+  };
+}
+const autoResolveConflictsToggle = $("autoResolveConflictsToggle");
+if (autoResolveConflictsToggle) {
+  autoResolveConflictsToggle.onchange = async () => {
+    const s = await loadSettingsOnce();
+    s.auto_resolve_conflicts = autoResolveConflictsToggle.checked;
     try { await invoke("save_settings", { settings: s }); } catch (e) {}
   };
 }

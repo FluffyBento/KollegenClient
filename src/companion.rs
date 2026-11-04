@@ -24,7 +24,7 @@ pub const COMPANION_MOD_PREFIX: &str = "kollegen-client";
 pub const COMPANION_MOD_FILENAME_1_21: &str = "kollegen-client-mod-1.21.11.jar";
 pub const COMPANION_MOD_FILENAME_26_2: &str = "kollegen-client-mod-26.2.jar";
 pub const COMPANION_MOD_FILENAME_26_3: &str = "kollegen-client-mod-26.3.jar";
-pub const COMPANION_MOD_VERSION: &str = "1.25.5";
+pub const COMPANION_MOD_VERSION: &str = "1.25.6";
 
 pub fn companion_target_versions() -> &'static [&'static str] {
     &["1.21.11", "26.2", "26.3"]

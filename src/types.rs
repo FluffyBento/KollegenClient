@@ -83,6 +83,9 @@ pub struct Settings {
     #[serde(default = "default_false")]
     pub steamdeck_mode: bool,
     
+    #[serde(default = "default_false")]
+    pub auto_resolve_conflicts: bool,
+    
     
     
     #[serde(default)]
@@ -147,6 +150,7 @@ impl Default for Settings {
             animations: true,
             perf_mods: true,
             steamdeck_mode: false,
+            auto_resolve_conflicts: false,
             profile: None,
             hidden_server_ips: vec![],
         }
