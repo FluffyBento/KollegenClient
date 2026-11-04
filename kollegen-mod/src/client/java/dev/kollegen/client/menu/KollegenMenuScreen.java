@@ -2368,11 +2368,12 @@ public class KollegenMenuScreen extends Screen {
 
         if ("none".equalsIgnoreCase(capeId) || capeId.isEmpty()) {
             this.inGameActiveCape = null;
-            KollegenPresence.setLocalCape(null, null);
+            KollegenPresence.setLocalCape(null, null, null);
             this.runStoreAction("Cape abgelegt", () -> StoreClient.unequipCategory("cape"));
         } else {
             this.inGameActiveCape = capeId;
-            KollegenPresence.setLocalCape(capeTex != null && !capeTex.isEmpty() ? capeTex : capeId, capeModel);
+            String capeAuthor = str(d, "author", null);
+            KollegenPresence.setLocalCape(capeTex != null && !capeTex.isEmpty() ? capeTex : capeId, capeModel, capeAuthor);
             if ("gekauft".equalsIgnoreCase(cat) || "store".equalsIgnoreCase(cat)) {
                 this.runStoreAction("Cape ausgewählt", () -> StoreClient.equipItem(capeId));
             } else {

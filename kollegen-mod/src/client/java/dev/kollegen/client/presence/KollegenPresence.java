@@ -82,10 +82,14 @@ public final class KollegenPresence {
     }
 
     public static void setLocalCape(String texture) {
-        setLocalCape(texture, null);
+        setLocalCape(texture, null, null);
     }
 
     public static void setLocalCape(String texture, String model) {
+        setLocalCape(texture, model, null);
+    }
+
+    public static void setLocalCape(String texture, String model, String capeOwner) {
         Minecraft mc = Minecraft.getInstance();
         UUID id = selfId != null ? selfId : (mc.player != null ? mc.player.getUUID() : null);
         if (id == null) return;
@@ -135,7 +139,7 @@ public final class KollegenPresence {
             old != null ? old.petNameColor : null,
             old != null ? old.petVariant : null,
             texture, resolvedModel,
-            old != null ? old.capeOwner : null,
+            capeOwner != null ? capeOwner : (old != null ? old.capeOwner : null),
             old != null ? old.backAccessoryTexture : null,
             old != null ? old.backAccessoryModel : null,
             old != null ? old.headAccessoryTexture : null,
