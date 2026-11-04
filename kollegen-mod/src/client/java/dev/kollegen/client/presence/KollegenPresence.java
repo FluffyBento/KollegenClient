@@ -135,6 +135,7 @@ public final class KollegenPresence {
             old != null ? old.petNameColor : null,
             old != null ? old.petVariant : null,
             texture, resolvedModel,
+            old != null ? old.capeOwner : null,
             old != null ? old.backAccessoryTexture : null,
             old != null ? old.backAccessoryModel : null,
             old != null ? old.headAccessoryTexture : null,

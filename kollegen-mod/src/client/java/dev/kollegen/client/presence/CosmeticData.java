@@ -20,6 +20,7 @@ public final class CosmeticData {
     public final String petVariant;
     public final String capeTexture;
     public final String capeModel;
+    public final String capeOwner;
     public final String backAccessoryTexture;
     public final String backAccessoryModel;
     public final String headAccessoryTexture;
@@ -44,7 +45,7 @@ public final class CosmeticData {
     public CosmeticData(int level, String titleText, String titleColor, String nameColor, String badgeIcon,
                         String badgeColor, String stickerIcon, String stickerColor, String font,
                         String petKind, double petScale, String petMode, String petName, String petNameColor, String petVariant,
-                        String capeTexture, String capeModel, String backAccessoryTexture, String backAccessoryModel,
+                        String capeTexture, String capeModel, String capeOwner, String backAccessoryTexture, String backAccessoryModel,
                         String headAccessoryTexture, String headAccessoryModel, String shieldTexture, String shieldModel,
                         String faceAccessoryTexture, String faceAccessoryModel, String auraTexture, String auraModel,
                         String shoulderAccessoryTexture, String shoulderAccessoryModel, String torsoAccessoryTexture, String torsoAccessoryModel,
@@ -67,6 +68,7 @@ public final class CosmeticData {
         this.petVariant = petVariant;
         this.capeTexture = capeTexture;
         this.capeModel = capeModel;
+        this.capeOwner = capeOwner;
         this.backAccessoryTexture = backAccessoryTexture;
         this.backAccessoryModel = backAccessoryModel;
         this.headAccessoryTexture = headAccessoryTexture;
@@ -105,7 +107,7 @@ public final class CosmeticData {
                 ? safeInt(root.get("level").getAsInt()) : 0;
         JsonObject c = root.has("cosmetics") && root.get("cosmetics").isJsonObject()
                 ? root.getAsJsonObject("cosmetics") : null;
-        if (c == null) return level > 0 ? new CosmeticData(level, null, null, null, null, null, null, null, null, null, 0.2, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null) : null;
+        if (c == null) return level > 0 ? new CosmeticData(level, null, null, null, null, null, null, null, null, null, 0.2, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null) : null;
         String titleText = textOf(c, "title", "text");
         String titleColor = textOf(c, "title", "color");
         String nameColor = strOf(c, "nameColor");
@@ -116,6 +118,7 @@ public final class CosmeticData {
         String font = strOf(c, "font");
         String capeTexture = textureOf(c, "cape");
         String capeModel = modelOf(c, "cape", capeTexture);
+        String capeOwner = strOf(c, "capeOwner");
         String backAccessoryTexture = textureOf(c, "backAccessory");
         String backAccessoryModel = modelOf(c, "backAccessory", backAccessoryTexture);
         String headAccessoryTexture = textureOf(c, "headAccessory");
@@ -160,7 +163,7 @@ public final class CosmeticData {
             } catch (Throwable ignored) {
             }
         }
-        CosmeticData d = new CosmeticData(level, titleText, titleColor, nameColor, badgeIcon, badgeColor, stickerIcon, stickerColor, font, petKind, petScale, petMode, petName, petNameColor, petVariant, capeTexture, capeModel, backAccessoryTexture, backAccessoryModel, headAccessoryTexture, headAccessoryModel, shieldTexture, shieldModel, faceAccessoryTexture, faceAccessoryModel, auraTexture, auraModel, shoulderAccessoryTexture, shoulderAccessoryModel, torsoAccessoryTexture, torsoAccessoryModel, legsAccessoryTexture, legsAccessoryModel, glovesTexture, glovesModel, maceTexture, maceModel);
+        CosmeticData d = new CosmeticData(level, titleText, titleColor, nameColor, badgeIcon, badgeColor, stickerIcon, stickerColor, font, petKind, petScale, petMode, petName, petNameColor, petVariant, capeTexture, capeModel, capeOwner, backAccessoryTexture, backAccessoryModel, headAccessoryTexture, headAccessoryModel, shieldTexture, shieldModel, faceAccessoryTexture, faceAccessoryModel, auraTexture, auraModel, shoulderAccessoryTexture, shoulderAccessoryModel, torsoAccessoryTexture, torsoAccessoryModel, legsAccessoryTexture, legsAccessoryModel, glovesTexture, glovesModel, maceTexture, maceModel);
         if (d.isEmpty() && petKind == null) return null;
         return d;
     }
