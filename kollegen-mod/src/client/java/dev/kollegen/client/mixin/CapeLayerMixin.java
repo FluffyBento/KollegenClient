@@ -7,7 +7,7 @@ import dev.kollegen.client.presence.CosmeticData;
 import dev.kollegen.client.presence.KollegenPresence;
 import dev.kollegen.client.presence.RenderStateIds;
 import dev.kollegen.client.render.WaveyCapeRenderer;
-import net.minecraft.client.model.player.PlayerCapeModel;
+import net.minecraft.client.model.HumanoidModel;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.entity.layers.CapeLayer;
 import net.minecraft.client.renderer.entity.state.AvatarRenderState;
@@ -28,7 +28,7 @@ import java.util.UUID;
 @Mixin(CapeLayer.class)
 public abstract class CapeLayerMixin {
     @Shadow
-    private PlayerCapeModel model;
+    private HumanoidModel<net.minecraft.client.renderer.entity.state.AvatarRenderState> model;
 
     @Shadow
     protected abstract boolean hasLayer(ItemStack stack, EquipmentClientInfo.LayerType type);
