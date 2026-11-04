@@ -21,6 +21,7 @@ public final class World {
         ModuleManager.register(new TimeChanger());
         ModuleManager.register(new WeatherChanger());
         ModuleManager.register(new CelestialBodies());
+        ModuleManager.register(new LightLevelOverlay());
     }
 
     private static class TimeChanger extends Module {
