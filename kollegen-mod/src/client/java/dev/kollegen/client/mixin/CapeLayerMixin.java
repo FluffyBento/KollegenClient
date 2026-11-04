@@ -69,13 +69,13 @@ public abstract class CapeLayerMixin {
             if (Visual.WaveyCapes.enabled) {
                 WaveyCapeRenderer.renderWaveyCape(poseStack, collector, capeTexture, packedLight, state, hasArmor);
                 ci.cancel();
-            } else {
+            } else if (this.model instanceof PlayerCapeModel capeModel) {
                 // Render flat cape using PlayerCapeModel for ALL capes (vanilla + Kollegen store)
                 poseStack.pushPose();
                 if (this.hasLayer(state.chestEquipment, EquipmentClientInfo.LayerType.HUMANOID)) {
                     poseStack.translate(0.0F, -0.053125F, 0.06875F);
                 }
-                collector.submitModel((PlayerCapeModel) this.model, state, poseStack,
+                collector.submitModel(capeModel, state, poseStack,
                         RenderTypes.entitySolid(capeTexture),
                         packedLight, OverlayTexture.NO_OVERLAY, state.outlineColor);
                 poseStack.popPose();
