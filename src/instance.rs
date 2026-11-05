@@ -1912,10 +1912,7 @@ pub fn launch(
 
     
     if let Some(server) = &inst.server {
-        let parts: Vec<&str> = server.split(':').collect();
-        if parts.len() >= 2 {
-            cmd.args(&["--server", parts[0], "--port", parts[1]]);
-        }
+        cmd.args(&["--quickPlayMultiplayer", server]);
     }
 
     
