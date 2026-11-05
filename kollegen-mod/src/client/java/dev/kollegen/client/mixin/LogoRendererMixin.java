@@ -14,7 +14,7 @@ public class LogoRendererMixin {
 
     private void kollegen$drawCustomLogo(GuiGraphicsExtractor gui, CallbackInfo ci) {
         ci.cancel();
-        int targetW = Math.min(384, gui.guiWidth() - 20);
+        int targetW = Math.min(384, Math.max(96, gui.guiWidth() / 3));
         int drawX = (gui.guiWidth() - targetW) / 2;
         LogoDraw.draw(gui, drawX, 16, targetW);
     }

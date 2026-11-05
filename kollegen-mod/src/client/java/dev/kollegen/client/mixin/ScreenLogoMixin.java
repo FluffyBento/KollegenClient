@@ -17,7 +17,7 @@ public class ScreenLogoMixin {
     private void kollegen$drawLogoInner(GuiGraphicsExtractor gui) {
         try {
             int[] dim = LogoDraw.dims();
-            int targetW = 110;
+            int targetW = Math.min(110, Math.max(48, gui.guiWidth() / 8));
             int targetH = (int) (targetW * (dim[1] / (float) dim[0]));
             int x = gui.guiWidth() - targetW - 10;
             int y = gui.guiHeight() - targetH - 10;
