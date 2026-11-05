@@ -3,7 +3,7 @@
   "id": "kollegen-client",
   "version": "${version}",
   "name": "Kollegen Client Mod",
-  "description": "Umfangreiches Mod-Menü (Rechts-Shift) mit Optionen aus Visual, HUD, Gameplay, Player, Welt, Chat, Performance und Verschiedenes – angelehnt an NoRisk Client, Feather und LabyMod.",
+  "description": "Umfangreiches Mod-Menü (Rechts-Shift) mit Optionen aus Visual, HUD, Gameplay, Player, Welt, Chat, Performance und Verschiedenes.",
   "authors": ["FluffyBento"],
   "contact": {
     "homepage": "https://github.com/FluffyBento/KollegenClient",

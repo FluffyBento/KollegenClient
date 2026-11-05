@@ -1727,44 +1727,31 @@ pub fn launch(
     }
 
     // Hardware-optimierte Garbage Collector Strategie:
-    // Ab 6 CPU-Kernen & >= 4 GB zugewiesenem RAM glänzt Generational ZGC mit Latenzen < 1 ms.
-    // Bei weniger RAM/Kernen oder auf Java 21 (1.21.x) garantiert getunter G1GC höchsten Durchsatz ohne Stutter.
-    if is_mc_26_plus && cores >= 6 && ram_gb >= 4 {
-        info!("Hardware-Profil: Generational ZGC gewählt ({} Kerne, {} GB RAM)", cores, ram_gb);
-        for flag in [
-            "-XX:+UseZGC",
-            "-XX:+DisableExplicitGC",
-            "-XX:+AlwaysPreTouch",
-            "-XX:+PerfDisableSharedMem",
-            "-XX:ZCollectionInterval=5",
-            "-XX:ZAllocationSpikeTolerance=2",
-            "-XX:ZUncommitDelay=300",
-        ] {
-            jvm_args.push(flag.to_string());
-        }
-    } else {
-        info!("Hardware-Profil: Optimierter G1GC gewählt ({} Kerne, {} GB RAM)", cores, ram_gb);
-        for flag in [
-            "-XX:+UseG1GC",
-            "-XX:+ParallelRefProcEnabled",
-            "-XX:MaxGCPauseMillis=20",
-            "-XX:+UnlockExperimentalVMOptions",
-            "-XX:+DisableExplicitGC",
-            "-XX:+AlwaysPreTouch",
-            "-XX:G1NewSizePercent=30",
-            "-XX:G1MaxNewSizePercent=40",
-            "-XX:G1ReservePercent=15",
-            "-XX:G1HeapWastePercent=5",
-            "-XX:G1MixedGCCountTarget=4",
-            "-XX:InitiatingHeapOccupancyPercent=15",
-            "-XX:G1MixedGCLiveThresholdPercent=90",
-            "-XX:G1RSetUpdatingPauseTimePercent=5",
-            "-XX:SurvivorRatio=32",
-            "-XX:+PerfDisableSharedMem",
-            "-XX:MaxTenuringThreshold=1",
-        ] {
-            jvm_args.push(flag.to_string());
-        }
+    // G1GC mit aggressivem Tuning für Minecraft (viele kleine Objekte, moderate Heap-Größe).
+    // ZGC verursacht Major-GC-Pausen von 700ms+ bei diesem Workload.
+    info!("Hardware-Profil: Optimierter G1GC gewählt ({} Kerne, {} GB RAM)", cores, ram_gb);
+    for flag in [
+        "-XX:+UseG1GC",
+        "-XX:+ParallelRefProcEnabled",
+        "-XX:MaxGCPauseMillis=10",
+        "-XX:+UnlockExperimentalVMOptions",
+        "-XX:+DisableExplicitGC",
+        "-XX:+AlwaysPreTouch",
+        "-XX:G1NewSizePercent=40",
+        "-XX:G1MaxNewSizePercent=50",
+        "-XX:G1ReservePercent=20",
+        "-XX:G1HeapWastePercent=3",
+        "-XX:G1MixedGCCountTarget=8",
+        "-XX:InitiatingHeapOccupancyPercent=20",
+        "-XX:G1MixedGCLiveThresholdPercent=90",
+        "-XX:G1RSetUpdatingPauseTimePercent=5",
+        "-XX:SurvivorRatio=32",
+        "-XX:+PerfDisableSharedMem",
+        "-XX:MaxTenuringThreshold=1",
+        "-XX:+UseStringDeduplication",
+        "-XX:+OptimizeStringConcat",
+    ] {
+        jvm_args.push(flag.to_string());
     }
 
     jvm_args.push("-Dsun.rmi.dgc.client.gcInterval=3600000".to_string());
