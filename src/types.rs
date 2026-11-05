@@ -137,7 +137,7 @@ impl Default for Settings {
             minecraft_dir: home.join(".minecraft").to_string_lossy().into_owned(),
             memory_min: crate::DEFAULT_MEMORY_MIN.to_string(),
             memory_max: crate::DEFAULT_MEMORY_MAX.to_string(),
-            global_vulkan: false,
+            global_vulkan: true,
             lang: "de".to_string(),
             theme: "Limit_Los".to_string(),
             theme_mode: "dark".to_string(),

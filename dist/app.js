@@ -4888,17 +4888,104 @@ function setManageTab(kind) {
     t.classList.toggle("active", t.dataset.kind === kind)
   );
   const isSettings = kind === "settings";
+  const isModules = kind === "modules";
   const modActions = document.getElementById("manageModActions");
   const settingsPanel = document.getElementById("manageSettings");
-  const installedHeading = document.querySelector(".installed-heading");
+  const modulesPanel = document.getElementById("manageModules");
+  const installedHeading = document.getElementById("installedHeading") || document.querySelector(".installed-heading");
   const installedList = document.getElementById("manageInstalled");
-  if (modActions) modActions.style.display = isSettings ? "none" : "";
+  if (modActions) modActions.style.display = (isSettings || isModules) ? "none" : "";
   if (settingsPanel) settingsPanel.hidden = !isSettings;
-  if (installedHeading) installedHeading.style.display = isSettings ? "none" : "";
-  if (installedList) installedList.style.display = isSettings ? "none" : "";
-  if (!isSettings) {
+  if (modulesPanel) modulesPanel.hidden = !isModules;
+  if (installedHeading) installedHeading.style.display = (isSettings || isModules) ? "none" : "";
+  if (installedList) installedList.style.display = (isSettings || isModules) ? "none" : "";
+  if (isModules) {
+    loadManageModules();
+  } else if (!isSettings) {
     resetManageSearch();
     manageLoadInstalled();
+  }
+}
+
+async function loadManageModules() {
+  const container = document.getElementById("manageModulesList");
+  if (!container || !manageInst) return;
+  container.innerHTML = "<p style='color:#888;padding:12px;'>Lade Module…</p>";
+  try {
+    const data = await invoke("get_instance_modules", { instanceName: manageInst.name });
+    container.innerHTML = "";
+    const modules = [
+      {
+        id: "vulkan",
+        title: "Nativer Vulkan-Renderer (Max FPS)",
+        desc: "Mojangs native Vulkan 1.4 MDI-Engine für maximale Frameraten (500–1000+ FPS). Deaktivieren für Shaderpacks (Sodium + Iris auf OpenGL).",
+        active: data.vulkan,
+        badge: "Ultra FPS"
+      },
+      {
+        id: "essential",
+        title: "Essential Mod",
+        desc: "Freundesliste, Ingame-Cosmetics und Singleplayer-Welten direkt mit Freunden teilen.",
+        active: data.essential,
+        badge: "Social"
+      },
+      {
+        id: "chatheads",
+        title: "Chat Heads",
+        desc: "Zeigt die Köpfe von Spielern neben Chatnachrichten an.",
+        active: data.chatheads,
+        badge: "QoL"
+      }
+    ];
+
+    for (const mod of modules) {
+      const card = document.createElement("div");
+      card.className = "module-card";
+      card.style.cssText = "display:flex;align-items:center;justify-content:space-between;padding:14px;margin-bottom:10px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:8px;";
+
+      const left = document.createElement("div");
+      left.style.cssText = "flex:1;padding-right:16px;";
+      
+      const titleRow = document.createElement("div");
+      titleRow.style.cssText = "display:flex;align-items:center;gap:8px;margin-bottom:4px;";
+      
+      const titleEl = document.createElement("strong");
+      titleEl.textContent = mod.title;
+      titleEl.style.fontSize = "15px";
+      
+      const badgeEl = document.createElement("span");
+      badgeEl.textContent = mod.badge;
+      badgeEl.style.cssText = "font-size:11px;padding:2px 6px;border-radius:4px;background:rgba(255,255,255,0.1);color:#aaa;";
+      
+      titleRow.append(titleEl, badgeEl);
+
+      const descEl = document.createElement("div");
+      descEl.textContent = mod.desc;
+      descEl.style.cssText = "font-size:13px;color:#888;line-height:1.4;";
+
+      left.append(titleRow, descEl);
+
+      const toggleBtn = document.createElement("button");
+      toggleBtn.className = mod.active ? "btn-primary" : "btn-secondary";
+      toggleBtn.textContent = mod.active ? "Aktiviert" : "Deaktiviert";
+      toggleBtn.style.cssText = "min-width:100px;font-weight:600;padding:8px 14px;border-radius:6px;cursor:pointer;";
+      toggleBtn.onclick = async () => {
+        toggleBtn.disabled = true;
+        toggleBtn.textContent = "…";
+        try {
+          await invoke("toggle_instance_module", { instanceName: manageInst.name, module: mod.id });
+          await loadManageModules();
+        } catch (e) {
+          alert("Fehler beim Umschalten: " + e);
+          toggleBtn.disabled = false;
+        }
+      };
+
+      card.append(left, toggleBtn);
+      container.append(card);
+    }
+  } catch (err) {
+    container.innerHTML = `<p style="color:#e06c75;padding:12px;">Fehler: ${err}</p>`;
   }
 }
 

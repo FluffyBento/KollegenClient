@@ -429,6 +429,9 @@ pub fn list_content(data_dir: &Path, instance_name: &str) -> Value {
                         
                         
                         
+                        if name.starts_with('.') {
+                            continue;
+                        }
                         if key == "resourcepack" && name == "KollegenTitle.zip" {
                             continue;
                         }

@@ -296,8 +296,8 @@ pub fn import_instance(
         loader,
         loader_version: None,
         description: format!("Importiert von {}", launcher_id),
-        mods: vec!["essentialmod.jar".to_string()],
-        vulkan_enabled: false,
+        mods: vec![],
+        vulkan_enabled: true,
         memory_min: mem_min.unwrap_or_else(|| crate::DEFAULT_MEMORY_MIN.to_string()),
         memory_max: mem_max.unwrap_or_else(|| crate::DEFAULT_MEMORY_MAX.to_string()),
         created_at: chrono::Utc::now().to_rfc3339(),
@@ -307,11 +307,6 @@ pub fn import_instance(
     };
     instances.push(inst.clone());
     utils::save_json(&inst_file, &instances)?;
-
-    
-    if !inst.loader.eq_ignore_ascii_case("vanilla") {
-        let _ = crate::utils::ensure_essential(&dest_name, data_dir, &inst.version);
-    }
 
     Ok(inst)
 }

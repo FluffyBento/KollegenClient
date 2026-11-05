@@ -457,6 +457,7 @@
           <button class="tab active" data-kind="mod" role="tab" aria-selected="true">Mods</button>
           <button class="tab" data-kind="resourcepack" role="tab" aria-selected="false">Resource Packs</button>
           <button class="tab" data-kind="shader" role="tab" aria-selected="false">Shader</button>
+          <button class="tab" data-kind="modules" role="tab" aria-selected="false">Module</button>
           <button class="tab" data-kind="settings" role="tab" aria-selected="false">Einstellungen</button>
         </div>
         <div class="manage-actions" id="manageModActions">
@@ -472,7 +473,10 @@
             <button id="manageRamBtn" class="btn-secondary">RAM anpassen</button>
           </div>
         </div>
-        <h3 class="installed-heading">Installiert</h3>
+        <div id="manageModules" hidden="">
+          <div id="manageModulesList" class="modules-grid"></div>
+        </div>
+        <h3 class="installed-heading" id="installedHeading">Installiert</h3>
         <ul id="manageInstalled" role="list"></ul>
       </div>
       <div id="manageBrowse" hidden="">

@@ -10,18 +10,14 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.zip.ZipFile;
 
-
 public final class RendererManager {
 
     private RendererManager() {
     }
 
-    
     private static final String[][] MODS = {
-            
             {"/dev/kollegen/client/sodium.bin", "sodium.jar", "sodium"},
             {"/dev/kollegen/client/iris.bin", "iris.jar", "iris"},
-            
             {"/dev/kollegen/client/vulkanmod.bin", "VulkanMod.jar", "vulkanmod"},
             {"/dev/kollegen/client/beryl.bin", "beryl.jar", "beryl"},
     };
@@ -38,13 +34,16 @@ public final class RendererManager {
         try {
             if (Files.exists(STATE_FILE)) {
                 String s = Files.readString(STATE_FILE).trim();
+                if ("opengl".equalsIgnoreCase(s)) {
+                    return Group.OPENGL;
+                }
                 if ("vulkan".equalsIgnoreCase(s)) {
                     return Group.VULKAN;
                 }
             }
         } catch (IOException ignored) {
         }
-        return Group.OPENGL;
+        return Group.VULKAN;
     }
 
     public static void setDesired(Group g) {
@@ -55,33 +54,19 @@ public final class RendererManager {
         }
     }
 
-    
     public static void apply() {
         Path mods = FabricLoader.getInstance().getGameDir().resolve("mods");
         if (!Files.isDirectory(mods)) {
             return;
         }
         Group active = desiredGroup();
-        
-        
-        
-        
-        
-        
-        if (active == Group.VULKAN && essentialPresent(mods)) {
-            KollegenMod.LOGGER.warn(
-                    "Kollegen: Essential-Mod erkannt – Vulkan (VulkanMod/Beryl) ist mit dem "
-                            + "Essential-Renderer inkompatibel (kopfstehende UI / Crash). Erzwinge OpenGL (Sodium+Iris).");
-            active = Group.OPENGL;
-            setDesired(Group.OPENGL);
-        }
         for (String[] mod : MODS) {
             boolean wantActive = isVulkan(mod[2]) == (active == Group.VULKAN);
             ensureState(mods, mod[0], mod[1], wantActive);
         }
         handleRendererConflicts(mods, active);
         syncOptionsBackend(active);
-        KollegenMod.LOGGER.info("Kollegen: Renderer abgestimmt → {}", active == Group.VULKAN ? "Vulkan (VulkanMod + Beryl)" : "OpenGL (Sodium + Iris)");
+        KollegenMod.LOGGER.info("Kollegen: Renderer abgestimmt -> {}", active == Group.VULKAN ? "Vulkan Native MDI" : "OpenGL (Sodium + Iris)");
     }
 
     private static void syncOptionsBackend(Group active) {
@@ -105,7 +90,6 @@ public final class RendererManager {
         return id.equals("vulkanmod") || id.equals("beryl");
     }
 
-    
     public static boolean essentialPresent(Path mods) {
         try (java.nio.file.DirectoryStream<Path> ds = Files.newDirectoryStream(mods)) {
             for (Path p : ds) {
@@ -123,13 +107,9 @@ public final class RendererManager {
         Path jar = mods.resolve(fileName);
         Path disabled = mods.resolve(fileName + ".disabled");
         if (active) {
-            
-            
-            
-            
             try (InputStream in = RendererManager.class.getResourceAsStream(resource)) {
                 if (in == null) {
-                    KollegenMod.LOGGER.warn("Kollegen: eingebettete Mod '{}' fehlt (Build-Fehler).", resource);
+                    KollegenMod.LOGGER.warn("Kollegen: eingebettete Mod '{}' fehlt.", resource);
                     removeIfBroken(jar, fileName);
                 } else {
                     byte[] payload = in.readAllBytes();
@@ -153,13 +133,11 @@ public final class RendererManager {
             } catch (IOException e) {
                 KollegenMod.LOGGER.warn("Kollegen: Mod '{}' konnte nicht deployt werden: {}", fileName, e.getMessage());
             }
-            
             try {
                 Files.deleteIfExists(disabled);
             } catch (IOException ignored) {
             }
         } else {
-            
             if (Files.exists(jar)) {
                 try {
                     Files.move(jar, disabled);
@@ -169,28 +147,20 @@ public final class RendererManager {
         }
     }
 
-    
     private static void handleRendererConflicts(Path mods, Group active) {
         boolean vulkan = active == Group.VULKAN;
         if (vulkan) {
-            
             try (java.nio.file.DirectoryStream<Path> ds = Files.newDirectoryStream(mods, "animatium*.jar")) {
                 for (Path p : ds) {
                     try {
                         Path disabled = mods.resolve(p.getFileName().toString() + ".kollegen-disabled");
                         Files.move(p, disabled);
-                        KollegenMod.LOGGER.warn(
-                                "Kollegen: '{}' ist mit dem Vulkan(Beryl)-Renderer inkompatibel "
-                                        + "(Sky-Renderer-Mixin-Konflikt) und wurde deaktiviert. Beim Wechsel auf den "
-                                        + "OpenGL-Renderer wird es automatisch reaktiviert – ein Neustart der Instanz ist nötig.",
-                                p.getFileName());
                     } catch (IOException ignored) {
                     }
                 }
             } catch (IOException ignored) {
             }
         } else {
-            
             try (java.nio.file.DirectoryStream<Path> ds = Files.newDirectoryStream(mods, "animatium*.jar.kollegen-disabled")) {
                 for (Path p : ds) {
                     String name = p.getFileName().toString();
@@ -213,7 +183,6 @@ public final class RendererManager {
             Files.deleteIfExists(jar);
         } catch (IOException ignored) {
         }
-        KollegenMod.LOGGER.warn("Kollegen: Mod '{}' war defekt und wurde entfernt.", fileName);
     }
 
     private static boolean isIntactJar(Path jar) {

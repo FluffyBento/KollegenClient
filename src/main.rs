@@ -367,8 +367,8 @@ fn create_instance(
         loader,
         loader_version,
         description: String::new(),
-        mods: vec!["essentialmod.jar".to_string()],
-        vulkan_enabled: false,
+        mods: vec![],
+        vulkan_enabled: true,
         memory_min: DEFAULT_MEMORY_MIN.to_string(),
         memory_max: DEFAULT_MEMORY_MAX.to_string(),
         created_at: chrono::Utc::now().to_rfc3339(),
@@ -773,12 +773,10 @@ fn clone_instance_v2(
     let comp = crate::companion::companion_jar(&state.data_dir, &new_version);
     crate::instance::enforce_bundled_mods(&new_mods_dir, &new_version, comp.as_deref());
     
-    // Essential Mod für Zielversion
-    if !new_loader.eq_ignore_ascii_case("vanilla") {
+    if !new_loader.eq_ignore_ascii_case("vanilla") && source.mods.iter().any(|m| m.starts_with("essential")) {
         let _ = crate::utils::ensure_essential(&new_name, &state.data_dir, &new_version);
     }
     
-    // Renderer Konsistenz prüfen
     crate::instance::enforce_renderer_consistency(&new_mods_dir, source.vulkan_enabled);
     
     // Performance Mods nachziehen
@@ -819,7 +817,7 @@ fn clone_instance_v2(
         } else {
             source.description.clone()
         },
-        mods: vec!["essentialmod.jar".to_string()],
+        mods: source.mods.clone(),
         vulkan_enabled: source.vulkan_enabled,
         memory_min: source.memory_min.clone(),
         memory_max: source.memory_max.clone(),
@@ -1750,6 +1748,90 @@ fn open_instance_folder(state: State<'_, AppState>, instance_name: String) -> Re
         return Err(format!("Instanzordner '{}' nicht gefunden.", instance_name));
     }
     open::that(dir.as_os_str()).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn get_instance_modules(state: State<'_, AppState>, instance_name: String) -> Result<Value, String> {
+    let inst_dir = crate::utils::instance_dir(&state.data_dir, &instance_name);
+    let mods_dir = inst_dir.join("mods");
+    let instances = crate::utils::load_json::<Vec<types::Instance>>(
+        &crate::utils::instances_file(&state.data_dir),
+        vec![],
+    );
+    let vulkan_enabled = instances.iter().find(|i| i.name == instance_name).map(|i| i.vulkan_enabled).unwrap_or(true);
+    let essential_enabled = mods_dir.join("essentialmod.jar").is_file();
+    let sodium_enabled = !vulkan_enabled;
+    let bundle_flags = crate::instance::read_bundle_flags(&mods_dir);
+    let chatheads_enabled = bundle_flags.get("chatheads").and_then(|v| v.as_bool()).unwrap_or(true);
+
+    Ok(serde_json::json!({
+        "vulkan": vulkan_enabled,
+        "essential": essential_enabled,
+        "sodium": sodium_enabled,
+        "chatheads": chatheads_enabled,
+    }))
+}
+
+#[tauri::command]
+fn toggle_instance_module(
+    state: State<'_, AppState>,
+    instance_name: String,
+    module: String,
+) -> Result<Value, String> {
+    let inst_dir = crate::utils::instance_dir(&state.data_dir, &instance_name);
+    let mods_dir = inst_dir.join("mods");
+    let mut instances = crate::utils::load_json::<Vec<types::Instance>>(
+        &crate::utils::instances_file(&state.data_dir),
+        vec![],
+    );
+
+    let cores = std::thread::available_parallelism().map(|n| n.get()).unwrap_or(4);
+
+    match module.as_str() {
+        "vulkan" => {
+            if let Some(i) = instances.iter_mut().find(|i| i.name == instance_name) {
+                i.vulkan_enabled = !i.vulkan_enabled;
+                let ve = i.vulkan_enabled;
+                let _ = crate::utils::save_json(&crate::utils::instances_file(&state.data_dir), &instances);
+                crate::instance::enforce_renderer_consistency(&mods_dir, ve);
+                crate::instance::ensure_optimal_renderer_config(&inst_dir, cores, ve);
+            }
+        }
+        "sodium" => {
+            if let Some(i) = instances.iter_mut().find(|i| i.name == instance_name) {
+                i.vulkan_enabled = !i.vulkan_enabled;
+                let ve = i.vulkan_enabled;
+                let _ = crate::utils::save_json(&crate::utils::instances_file(&state.data_dir), &instances);
+                crate::instance::enforce_renderer_consistency(&mods_dir, ve);
+                crate::instance::ensure_optimal_renderer_config(&inst_dir, cores, ve);
+            }
+        }
+        "essential" => {
+            let active = mods_dir.join("essentialmod.jar");
+            let disabled = mods_dir.join("essentialmod.jar.disabled");
+            if active.is_file() {
+                let _ = std::fs::rename(&active, &disabled);
+            } else if disabled.is_file() {
+                let _ = std::fs::rename(&disabled, &active);
+            } else {
+                let ver = instances.iter().find(|i| i.name == instance_name).map(|i| i.version.clone()).unwrap_or_else(|| "26.3".to_string());
+                let _ = crate::utils::ensure_essential(&instance_name, &state.data_dir, &ver);
+            }
+        }
+        "chatheads" => {
+            let mut flags = crate::instance::read_bundle_flags(&mods_dir);
+            let cur = flags.get("chatheads").and_then(|v| v.as_bool()).unwrap_or(true);
+            flags["chatheads"] = serde_json::Value::Bool(!cur);
+            let p = crate::instance::bundles_flag_path(&mods_dir);
+            let _ = std::fs::write(p, serde_json::to_string(&flags).unwrap_or_default());
+            let ver = instances.iter().find(|i| i.name == instance_name).map(|i| i.version.clone()).unwrap_or_else(|| "26.3".to_string());
+            let comp = crate::companion::companion_jar(&state.data_dir, &ver);
+            crate::instance::enforce_bundled_mods(&mods_dir, &ver, comp.as_deref());
+        }
+        _ => return Err(format!("Unbekanntes Modul: {}", module)),
+    }
+
+    get_instance_modules(state, instance_name)
 }
 
 #[tauri::command]
@@ -3038,6 +3120,8 @@ fn main() {
             set_console_mode,
             create_instance,
             update_instance_memory,
+            get_instance_modules,
+            toggle_instance_module,
             delete_instance,
             get_logs,
             clone_instance_v2,

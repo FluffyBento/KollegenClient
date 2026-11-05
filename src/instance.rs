@@ -430,11 +430,6 @@ pub fn install_instance(
     download_assets(data_dir, name, version)?;
 
     
-    if loader != "vanilla" {
-        crate::utils::ensure_essential(name, data_dir, version)?;
-    }
-
-    
     ensure_kollegen_mod(data_dir, name, loader, version);
 
     
@@ -940,30 +935,7 @@ pub(crate) fn enforce_renderer_consistency(mods_dir: &Path, vulkan_enabled: bool
     if !mods_dir.exists() {
         return;
     }
-    
-    
-    
-    
-    
-    let essential_present = fs::read_dir(mods_dir)
-        .map(|entries| {
-            entries.flatten().any(|e| {
-                let name = e.file_name().to_string_lossy().to_lowercase();
-                name.starts_with("essential") && name.ends_with(".jar")
-            })
-        })
-        .unwrap_or(false);
-    let vulkan_enabled = if essential_present {
-        if vulkan_enabled {
-            info!("Essential-Mod erkannt – erzwinge OpenGL-Renderer (Vulkan/VulkanMod+Beryl ist mit Essential inkompatibel: kopfstehende UI/Crash).");
-        }
-        false
-    } else {
-        vulkan_enabled
-    };
-    
     let vulkan_enabled = if vulkan_enabled && mods_dir.join(".kollegen-vulkan-fallback").is_file() {
-        info!("Nativer Absturz beim letzten Start mit Vulkan-Renderer – starte einmalig mit OpenGL (Sodium+Iris).");
         let _ = fs::remove_file(mods_dir.join(".kollegen-vulkan-fallback"));
         false
     } else {
@@ -1110,13 +1082,11 @@ fn bundle_standalone_prefixes(jar_name: &str) -> &'static [&'static str] {
     }
 }
 
-fn bundles_flag_path(mods_dir: &Path) -> PathBuf {
+pub(crate) fn bundles_flag_path(mods_dir: &Path) -> PathBuf {
     mods_dir.join(".kollegen-bundles.json")
 }
 
-
-
-fn read_bundle_flags(mods_dir: &Path) -> Value {
+pub(crate) fn read_bundle_flags(mods_dir: &Path) -> Value {
     let mut flags = serde_json::json!({ "chatheads": true });
     if let Ok(s) = fs::read_to_string(bundles_flag_path(mods_dir)) {
         if let Ok(v) = serde_json::from_str::<Value>(&s) {
@@ -1232,46 +1202,15 @@ pub(crate) fn enforce_bundled_mods(mods_dir: &Path, mc_version: &str, companion_
     
     
     
-    let essential_present = fs::read_dir(mods_dir)
-        .map(|entries| {
-            entries.flatten().any(|e| {
-                e.file_name().to_string_lossy().to_lowercase().starts_with("essential")
-            })
-        })
-        .unwrap_or(false);
-
-    
-    
-    
-    
-    
     let decisions: Vec<(&str, &str, bool, bool)> = BUNDLED_MODS
         .iter()
         .map(|&(flag_key, jar_name, bin_path)| {
-            
-            
-            
-            
-            
-            
-            
             let desired = if flag_key == "@deps" { true } else { flag_on(flag_key) };
             let deployable = archive_available && available.contains(bin_path);
             (jar_name, bin_path, desired, desired && deployable)
         })
         .collect();
 
-    
-    
-    
-    let flk_will_deploy = decisions
-        .iter()
-        .any(|&(jn, _, _, wd)| jn == "kollegen-bundle-flk.jar" && wd);
-
-    
-    
-    
-    
     let autoremove = mods_dir.join(".kollegen-autoremove").exists();
     if let Ok(entries) = fs::read_dir(mods_dir) {
         for e in entries.flatten() {
@@ -1291,12 +1230,6 @@ pub(crate) fn enforce_bundled_mods(mods_dir: &Path, mc_version: &str, companion_
                 continue;
             }
             
-            // 2. Standalone-FLK entfernen (Essential bündelt es ohnehin).
-            if name.starts_with("fabric-language-kotlin") || name.starts_with("fabric_language_kotlin") {
-                info!("Entferne eigenständiges FLK (Essential stellt es selbst bereit): {}", name);
-                let _ = fs::remove_file(&p);
-                continue;
-            }
             if !name.ends_with(".jar") && !name.ends_with(".disabled") {
                 continue;
             }
@@ -1322,27 +1255,22 @@ pub(crate) fn enforce_bundled_mods(mods_dir: &Path, mc_version: &str, companion_
     
     
     
-    if essential_present && flk_will_deploy {
-        if let Ok(entries) = fs::read_dir(mods_dir) {
-            for e in entries.flatten() {
-                let p = e.path();
-                if !p.is_file() {
-                    continue;
-                }
+    let has_standalone_flk = fs::read_dir(mods_dir)
+        .map(|entries| {
+            entries.flatten().any(|e| {
                 let name = e.file_name().to_string_lossy().to_lowercase();
-                if name.starts_with("fabric-language-kotlin") || name.starts_with("fabric_language_kotlin") {
-                    info!("Entferne eigenständiges FLK (Essential stellt es selbst bereit): {}", name);
-                    let _ = fs::remove_file(&p);
-                }
-            }
-        }
-    }
+                (name.starts_with("fabric-language-kotlin") || name.starts_with("fabric_language_kotlin"))
+                    && name.ends_with(".jar")
+            })
+        })
+        .unwrap_or(false);
 
-    
-    
-    
     for &(jar_name, bin_path, desired, will_deploy) in &decisions {
         let dest = mods_dir.join(jar_name);
+        if jar_name == "kollegen-bundle-flk.jar" && has_standalone_flk {
+            let _ = fs::remove_file(&dest);
+            continue;
+        }
         if will_deploy {
             let Some(archive) = archive.as_mut() else { continue };
             let mut src = match archive.by_name(bin_path) {
@@ -1591,13 +1519,16 @@ pub fn launch(
     
     let mods_dir = inst_dir.join("mods");
     enforce_renderer_consistency(&mods_dir, inst.vulkan_enabled);
-    
-    
     enforce_controller_state(&mods_dir, settings.steamdeck_mode);
-    
-    
-    
-    
+    if inst.loader == "fabric" || inst.loader == "quilt" {
+        let _ = crate::utils::ensure_flk(&inst.name, data_dir, &inst.version);
+        if !inst.vulkan_enabled {
+            let _ = crate::utils::ensure_sodium(&inst.name, data_dir, &inst.version);
+        }
+        if mods_dir.join("essentialmod.jar").is_file() {
+            let _ = crate::utils::ensure_essential(&inst.name, data_dir, &inst.version);
+        }
+    }
     let companion_jar = crate::companion::companion_jar(data_dir, &inst.version);
     enforce_bundled_mods(&mods_dir, &inst.version, companion_jar.as_deref());
     
@@ -1769,7 +1700,7 @@ pub fn launch(
     }
 
     
-    ensure_optimal_renderer_config(&inst_dir, cores);
+    ensure_optimal_renderer_config(&inst_dir, cores, inst.vulkan_enabled);
 
     let os_cp_sep = if cfg!(target_os = "windows") { ";" } else { ":" };
     let joined = classpath.join(os_cp_sep);
@@ -2526,7 +2457,7 @@ fn is_disconnect_log(line: &str) -> bool {
         || line.contains("Client disconnected")
 }
 
-fn ensure_optimal_renderer_config(inst_dir: &Path, cores: usize) {
+pub(crate) fn ensure_optimal_renderer_config(inst_dir: &Path, cores: usize, vulkan_enabled: bool) {
     let cfg_path = inst_dir.join("config").join("sodium-options.json");
     if cfg_path.exists() {
         if let Ok(content) = fs::read_to_string(&cfg_path) {
@@ -2552,14 +2483,21 @@ fn ensure_optimal_renderer_config(inst_dir: &Path, cores: usize) {
         }
     }
     let opts = inst_dir.join("options.txt");
+    let target_backend = if vulkan_enabled {
+        "preferredGraphicsBackend:\"vulkan\""
+    } else {
+        "preferredGraphicsBackend:\"opengl\""
+    };
     if opts.exists() {
         if let Ok(content) = fs::read_to_string(&opts) {
             let mut lines: Vec<String> = content.lines().map(|l| l.to_string()).collect();
             let mut changed = false;
+            let mut has_backend = false;
             for line in lines.iter_mut() {
                 if line.starts_with("preferredGraphicsBackend:") {
-                    if *line != "preferredGraphicsBackend:\"opengl\"" {
-                        *line = "preferredGraphicsBackend:\"opengl\"".to_string();
+                    has_backend = true;
+                    if *line != target_backend {
+                        *line = target_backend.to_string();
                         changed = true;
                     }
                 }
@@ -2575,6 +2513,10 @@ fn ensure_optimal_renderer_config(inst_dir: &Path, cores: usize) {
                         changed = true;
                     }
                 }
+            }
+            if !has_backend {
+                lines.push(target_backend.to_string());
+                changed = true;
             }
             if changed {
                 let _ = fs::write(&opts, lines.join("\n") + "\n");
@@ -3037,8 +2979,8 @@ pub fn import_pack(data_dir: &Path, path: &str) -> Result<Instance> {
         loader: loader.clone(),
         loader_version,
         description: summary,
-        mods: vec!["essentialmod.jar".to_string()],
-        vulkan_enabled: false,
+        mods: vec![],
+        vulkan_enabled: true,
         memory_min: crate::DEFAULT_MEMORY_MIN.to_string(),
         memory_max: crate::DEFAULT_MEMORY_MAX.to_string(),
         created_at: chrono::Utc::now().to_rfc3339(),
