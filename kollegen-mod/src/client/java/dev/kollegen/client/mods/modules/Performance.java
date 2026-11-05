@@ -266,7 +266,6 @@ public final class Performance {
 
         FastGraphics() {
             super("fastgraphics", "Fast Graphics", "Setzt Grafik auf Schnell.", Category.PERFORMANCE);
-            this.enabled = true;
         }
 
         @Override
@@ -288,7 +287,6 @@ public final class Performance {
 
         NoClouds() {
             super("noclouds", "Keine Wolken", "Blendet Wolken aus.", Category.PERFORMANCE);
-            this.enabled = true;
         }
 
         @Override
@@ -310,7 +308,6 @@ public final class Performance {
 
         SmoothLighting() {
             super("smoothlighting", "Keine weiche Beleuchtung", "Schaltet Ambient Occlusion aus.", Category.PERFORMANCE);
-            this.enabled = true;
         }
 
         @Override
@@ -336,7 +333,6 @@ public final class Performance {
 
         CpuOffload() {
             super("cpuoffload", "CPU-Last", "Last auf die CPU verschieben, GPU entlasten (VSync aus, Mipmaps/Biom-Mischung aus, Chunk-Updates nahe).", Category.PERFORMANCE);
-            this.enabled = true;
         }
 
         @Override
@@ -378,7 +374,6 @@ public final class Performance {
 
         MaxFps() {
             super("maxfps", "Max FPS", "Wendet die aggressivsten Performance-Einstellungen auf einmal an.", Category.PERFORMANCE);
-            this.enabled = true;
         }
 
         @Override
