@@ -1425,6 +1425,9 @@ fn launch_game(
     if let Some(s) = &server {
         
         inst.server = Some(if s.contains(':') { s.clone() } else { format!("{}:25565", s) });
+    } else {
+        // Normal start: clear any previously set server from quicklaunch
+        inst.server = None;
     }
 
     
