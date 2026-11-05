@@ -240,14 +240,14 @@ public final class Performance {
         public static final SliderSetting maxChunks = new SliderSetting(
                 "Max. Sichtweite",
                 "Maximale Chunk-Distanz, die im Client-Speicher gehalten und gerendert wird.",
-                32.0, 12.0, 64.0, 2.0,
+                16.0, 8.0, 32.0, 2.0,
                 v -> (int) Math.round(v) + " Chunks",
                 null
         );
 
         public KollegenDistance() {
             super("kollegendistance", "Kollegen Distance", "Erweiterte Sichtweite: Hält bereits besuchte Chunks im Client-Speicher über das Server-Limit hinaus sichtbar (bis zu 64 Chunks Sichtweite auf jedem Server).", Category.PERFORMANCE);
-            this.enabled = true;
+            this.enabled = false;
             instance = this;
             add(maxChunks);
         }
@@ -448,7 +448,7 @@ public final class Performance {
         public void onTick() {
             var o = mc.options;
             if (o == null || mc.level == null) return;
-            if (++timer < 100) return; // Nur alle 5 Sekunden prüfen, niemals jede Sekunde Worker Threads neu starten
+            if (++timer < 100) return;
             timer = 0;
             int fps = mc.getFps();
             int cur = o.renderDistance().get();

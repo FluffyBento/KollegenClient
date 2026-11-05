@@ -80,7 +80,25 @@ public final class RendererManager {
             ensureState(mods, mod[0], mod[1], wantActive);
         }
         handleRendererConflicts(mods, active);
+        syncOptionsBackend(active);
         KollegenMod.LOGGER.info("Kollegen: Renderer abgestimmt → {}", active == Group.VULKAN ? "Vulkan (VulkanMod + Beryl)" : "OpenGL (Sodium + Iris)");
+    }
+
+    private static void syncOptionsBackend(Group active) {
+        try {
+            Path opts = FabricLoader.getInstance().getGameDir().resolve("options.txt");
+            if (Files.isRegularFile(opts)) {
+                String content = Files.readString(opts);
+                String target = active == Group.VULKAN ? "preferredGraphicsBackend:\"vulkan\"" : "preferredGraphicsBackend:\"opengl\"";
+                String other = active == Group.VULKAN ? "preferredGraphicsBackend:\"opengl\"" : "preferredGraphicsBackend:\"vulkan\"";
+                if (content.contains(other)) {
+                    Files.writeString(opts, content.replace(other, target));
+                } else if (!content.contains(target)) {
+                    Files.writeString(opts, content + "\n" + target + "\n");
+                }
+            }
+        } catch (Throwable ignored) {
+        }
     }
 
     private static boolean isVulkan(String id) {

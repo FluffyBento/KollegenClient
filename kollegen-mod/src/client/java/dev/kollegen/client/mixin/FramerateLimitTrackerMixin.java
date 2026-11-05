@@ -17,11 +17,15 @@ public class FramerateLimitTrackerMixin {
 
     @Inject(method = "getFramerateLimit", at = @At("HEAD"), cancellable = true)
     private void kollegen$dynamicFps(CallbackInfoReturnable<Integer> cir) {
-        if (!Performance.KollegenTricks.shouldUseDynamicFps()) return;
-
         if (this.minecraft != null && this.minecraft.getWindow() != null) {
             if (!this.minecraft.getWindow().isFocused()) {
-                cir.setReturnValue(15);
+                if (Performance.KollegenTricks.shouldUseDynamicFps()) {
+                    cir.setReturnValue(15);
+                    return;
+                }
+            } else if (Performance.KollegenTricks.isEnabled()) {
+                cir.setReturnValue(260);
+                return;
             }
         }
     }

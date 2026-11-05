@@ -2551,6 +2551,36 @@ fn ensure_optimal_renderer_config(inst_dir: &Path, cores: usize) {
             }
         }
     }
+    let opts = inst_dir.join("options.txt");
+    if opts.exists() {
+        if let Ok(content) = fs::read_to_string(&opts) {
+            let mut lines: Vec<String> = content.lines().map(|l| l.to_string()).collect();
+            let mut changed = false;
+            for line in lines.iter_mut() {
+                if line.starts_with("preferredGraphicsBackend:") {
+                    if *line != "preferredGraphicsBackend:\"opengl\"" {
+                        *line = "preferredGraphicsBackend:\"opengl\"".to_string();
+                        changed = true;
+                    }
+                }
+                if line.starts_with("enableVsync:") {
+                    if *line != "enableVsync:false" {
+                        *line = "enableVsync:false".to_string();
+                        changed = true;
+                    }
+                }
+                if line.starts_with("maxFps:") {
+                    if *line != "maxFps:260" {
+                        *line = "maxFps:260".to_string();
+                        changed = true;
+                    }
+                }
+            }
+            if changed {
+                let _ = fs::write(&opts, lines.join("\n") + "\n");
+            }
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug)]

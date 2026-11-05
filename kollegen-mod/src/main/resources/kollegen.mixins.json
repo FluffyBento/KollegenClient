@@ -49,6 +49,7 @@
     "MaceLayerMixin",
     "WeatherEffectRendererMixin",
     "FramerateLimitTrackerMixin",
+    "FramerateLimiterMixin",
     "SoundEngineMixin",
     "ClientChunkCacheMixin",
     "ClientLevelMixin",

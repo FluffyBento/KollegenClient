@@ -131,6 +131,8 @@ function openInstanceFolder(inst) {
 async function optimizeInstance(inst, btn) {
   btn.disabled = true;
   btn.classList.add("busy");
+  const origText = btn.textContent;
+  btn.textContent = "Optimiere...";
   try {
     const msg = await invoke("optimize_instance", { name: inst.name });
     alert(msg || "Performance-Modpack verarbeitet.");
@@ -139,6 +141,7 @@ async function optimizeInstance(inst, btn) {
   }
   btn.disabled = false;
   btn.classList.remove("busy");
+  btn.textContent = origText;
 }
 
 const instanceImageCache = new Map();
@@ -2356,16 +2359,31 @@ async function createInstance() {
   if (!name || !version) return alert("Name und Version erforderlich");
   
   const submitBtn = document.querySelector("#createForm button[type=submit]");
+  let progressBar = document.getElementById("createProgressBar");
+  if (!progressBar) {
+    progressBar = document.createElement("div");
+    progressBar.id = "createProgressBar";
+    progressBar.style.cssText = "width:100%;height:6px;background:rgba(255,255,255,0.1);border-radius:3px;margin-top:8px;overflow:hidden;";
+    const fill = document.createElement("div");
+    fill.id = "createProgressFill";
+    fill.style.cssText = "width:0%;height:100%;background:linear-gradient(90deg,#55ff55,#00aa00);transition:width 0.3s;";
+    progressBar.append(fill);
+    const form = document.getElementById("createForm");
+    if (form) form.append(progressBar);
+  }
+  const fill = document.getElementById("createProgressFill");
   try {
     if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = "Erstelle..."; }
+    if (fill) fill.style.width = "10%";
 
-    // 1. Create instance in json and show immediately
     await invoke("create_instance", { name, version, loader, loaderVersion });
+    if (fill) fill.style.width = "30%";
     await refreshInstances();
 
-    // 2. Install files
     if (submitBtn) submitBtn.textContent = "Installiere...";
+    if (fill) fill.style.width = "50%";
     await invoke("install_instance", { name, version, loader, loaderVersion });
+    if (fill) fill.style.width = "100%";
 
     alert("Instanz erfolgreich erstellt und installiert!");
     $("iName").value = "";
@@ -2374,6 +2392,7 @@ async function createInstance() {
     alert("Fehler bei Instanz-Installation: " + e);
   } finally {
     if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = "Erstellen"; }
+    if (progressBar) { setTimeout(() => progressBar.remove(), 2000); }
   }
 }
 

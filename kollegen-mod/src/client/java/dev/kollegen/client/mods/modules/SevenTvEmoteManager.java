@@ -522,9 +522,13 @@ public final class SevenTvEmoteManager {
         });
     }
 
+    private static long kollegen$lastAnimTick = 0;
+
     public static void tickAnimations() {
         if (ANIMATIONS.isEmpty()) return;
         long now = System.currentTimeMillis();
+        if (now - kollegen$lastAnimTick < 33) return;
+        kollegen$lastAnimTick = now;
         for (AnimatedTexture anim : ANIMATIONS) {
             int idx = anim.currentFrame(now);
             if (idx == anim.lastFrame) continue;
