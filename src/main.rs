@@ -424,6 +424,25 @@ fn create_instance(
 }
 
 #[tauri::command]
+fn update_instance_memory(
+    state: State<'_, AppState>,
+    instance_name: String,
+    memory_min: String,
+    memory_max: String,
+) -> Result<(), String> {
+    let path = utils::instances_file(&state.data_dir);
+    let mut instances = utils::load_json::<Vec<types::Instance>>(&path, vec![]);
+    if let Some(inst) = instances.iter_mut().find(|i| i.name == instance_name) {
+        inst.memory_min = memory_min;
+        inst.memory_max = memory_max;
+        utils::save_json(&path, &instances).map_err(|e| e.to_string())?;
+        Ok(())
+    } else {
+        Err("Instanz nicht gefunden".to_string())
+    }
+}
+
+#[tauri::command]
 fn delete_instance(
     state: State<'_, AppState>,
     name: String,
@@ -3015,6 +3034,7 @@ fn main() {
             save_settings,
             set_console_mode,
             create_instance,
+            update_instance_memory,
             delete_instance,
             get_logs,
             clone_instance_v2,
