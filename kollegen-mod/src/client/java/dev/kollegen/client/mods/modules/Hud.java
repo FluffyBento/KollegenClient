@@ -29,10 +29,14 @@ public final class Hud {
 
     public static double lastAttackReach = -1.0;
     public static long lastAttackTime = 0L;
+    public static double maxAttackReach = 0.0;
 
     public static void recordAttackHit(double dist) {
         lastAttackReach = dist;
         lastAttackTime = System.currentTimeMillis();
+        if (dist > maxAttackReach) {
+            maxAttackReach = dist;
+        }
     }
 
     private Hud() {
@@ -63,6 +67,10 @@ public final class Hud {
         ModuleManager.register(new ShieldStatus());
         ModuleManager.register(new ItemCounter());
         ModuleManager.register(new InventoryHud());
+        ModuleManager.register(new ToggleSprintDisplay());
+        ModuleManager.register(new TotemCounter());
+        ModuleManager.register(new PingEqualizer());
+        ModuleManager.register(new GearTiers());
     }
 
     private static class Coordinates extends HudModule {
@@ -328,26 +336,38 @@ public final class Hud {
     }
 
     private static class ArmorHud extends HudModule {
+        private final ModeSetting mode = new ModeSetting("Format", "Darstellung der Haltbarkeit.", new String[]{"Prozent (%)", "Bruch (Aktuell/Max)", "Balken", "Aus"}, 0);
+        private final BooleanSetting showHeld = new BooleanSetting("Gehaltene Items", "Zeigt Haupt- und Zweithand an.", true);
+        private final BooleanSetting lowDurabilityAlert = new BooleanSetting("Warnung bei < 20%", "Blinkt rot bei niedriger Haltbarkeit.", true);
+
         ArmorHud() {
-            super("armor", "Rüstung", "Zeigt die getragene Rüstung + Haltbarkeit untereinander.");
+            super("armor", "Rüstungs-HUD", "Erweitertes Rüstungs- und Hand-HUD mit Haltbarkeitsanzeige.");
+            add(mode);
+            add(showHeld);
+            add(lowDurabilityAlert);
         }
 
         @Override
         public void onRenderHud(GuiGraphicsExtractor g, float td) {
             if (mc.player == null) return;
-            var armor = java.util.List.of(
-                    mc.player.getItemBySlot(net.minecraft.world.entity.EquipmentSlot.HEAD),
-                    mc.player.getItemBySlot(net.minecraft.world.entity.EquipmentSlot.CHEST),
-                    mc.player.getItemBySlot(net.minecraft.world.entity.EquipmentSlot.LEGS),
-                    mc.player.getItemBySlot(net.minecraft.world.entity.EquipmentSlot.FEET));
-            int n = armor.size();
+            List<ItemStack> items = new ArrayList<>();
+            items.add(mc.player.getItemBySlot(net.minecraft.world.entity.EquipmentSlot.HEAD));
+            items.add(mc.player.getItemBySlot(net.minecraft.world.entity.EquipmentSlot.CHEST));
+            items.add(mc.player.getItemBySlot(net.minecraft.world.entity.EquipmentSlot.LEGS));
+            items.add(mc.player.getItemBySlot(net.minecraft.world.entity.EquipmentSlot.FEET));
+            if (showHeld.value) {
+                items.add(mc.player.getMainHandItem());
+                items.add(mc.player.getOffhandItem());
+            }
+
+            int n = items.size();
             int rowH = 20;
             int icon = 16;
             int textGap = 6;
 
             int textW = 0;
-            for (ItemStack s : armor) {
-                String t = durabilityText(s);
+            for (ItemStack s : items) {
+                String t = durabilityText(s, mode.index);
                 if (!t.isEmpty()) textW = Math.max(textW, mc.font.width(t));
             }
             int w = (textW > 0 ? icon + textGap + textW : icon) + 6;
@@ -359,25 +379,48 @@ public final class Hud {
                 Glass.fillRound(g, x - 4, y - 4, w + 8, h + 8, 6, backgroundColor.value);
             }
             markBounds(x - 4, y - 4, w + 8, h + 8);
+
+            long now = System.currentTimeMillis();
+            boolean flashRed = ((now / 250) % 2) == 0;
+
             for (int i = 0; i < n; i++) {
-                ItemStack stack = armor.get(i);
+                ItemStack stack = items.get(i);
                 int ry = y + i * rowH;
-                g.item(stack, x, ry + (rowH - icon) / 2);
-                String t = durabilityText(stack);
-                if (!t.isEmpty()) {
-                    int dmg = stack.getDamageValue();
-                    int max = Math.max(1, stack.getMaxDamage());
-                    float f = 1f - (float) dmg / max;
-                    int col = f > 0.5 ? Palette.GREEN : (f > 0.25 ? Palette.ACCENT : Palette.DANGER);
-                    g.text(mc.font, t, x + icon + textGap, ry + (rowH - mc.font.lineHeight) / 2, col, true);
+                if (!stack.isEmpty()) {
+                    g.item(stack, x, ry + (rowH - icon) / 2);
+                    String t = durabilityText(stack, mode.index);
+                    if (!t.isEmpty()) {
+                        int dmg = stack.getDamageValue();
+                        int max = Math.max(1, stack.getMaxDamage());
+                        float f = 1f - (float) dmg / max;
+                        int col = f > 0.5f ? Palette.GREEN : (f > 0.2f ? Palette.ACCENT : (lowDurabilityAlert.value && flashRed ? 0xFFFF2222 : Palette.DANGER));
+
+                        if (mode.index == 2) {
+                            int barW = 32;
+                            int barH = 4;
+                            int bx = x + icon + textGap;
+                            int by = ry + (rowH - barH) / 2;
+                            g.fill(bx, by, bx + barW, by + barH, 0x88000000);
+                            g.fill(bx, by, bx + (int) (barW * f), by + barH, col);
+                        } else {
+                            g.text(mc.font, t, x + icon + textGap, ry + (rowH - mc.font.lineHeight) / 2, col, true);
+                        }
+                    }
                 }
             }
         }
 
-        private static String durabilityText(ItemStack s) {
-            if (s.isEmpty() || !s.isDamageableItem()) return "";
+        private static String durabilityText(ItemStack s, int mode) {
+            if (s.isEmpty() || !s.isDamageableItem() || mode == 3) return "";
             int left = s.getMaxDamage() - s.getDamageValue();
-            return left + "/" + s.getMaxDamage();
+            int max = Math.max(1, s.getMaxDamage());
+            if (mode == 0) {
+                int pct = Math.round(((float) left / max) * 100f);
+                return pct + "%";
+            } else if (mode == 1) {
+                return left + "/" + max;
+            }
+            return "";
         }
     }
 
@@ -431,16 +474,20 @@ public final class Hud {
     private static class Crosshair extends HudModule {
         private final SliderSetting size = new SliderSetting("Größe", "", 4, 1, 20, 1);
         private final SliderSetting gap = new SliderSetting("Lücke", "", 2, 0, 12, 1);
-        private final ModeSetting type = new ModeSetting("Typ", "", new String[]{"Kreuz", "Punkt", "Viereck"}, 0);
+        private final ModeSetting type = new ModeSetting("Typ", "", new String[]{"Kreuz", "Punkt", "Viereck", "Kreis", "Chevron", "T-Form"}, 0);
+        private final ModeSetting indicator = new ModeSetting("Angriffs-Indikator", "Zeigt den Waffen-Cooldown am Fadenkreuz an.", new String[]{"Aus", "Balken", "Punkt"}, 1);
+        private final BooleanSetting bowCharge = new BooleanSetting("Bogen-Ladeanzeige", "Zeigt Spannfortschritt von Bogen und Armbrust an.", true);
         private final BooleanSetting canHitEnabled = new BooleanSetting("Farbwechsel bei Treffer",
                 "Fadenkreuz färbt sich um, wenn die anvisierte Person schlagbar ist.", false);
         private final ColorSetting canHitColor = new ColorSetting("Treffer-Farbe", "", 0xFFff5b6e);
 
         Crosshair() {
-            super("crosshair", "Fadenkreuz", "Eigenes Fadenkreuz über dem Vanilla-Kreuz.");
+            super("crosshair", "Fadenkreuz", "Eigenes modulares Fadenkreuz mit Angriffs- & Bogen-Indikator.");
             add(size);
             add(gap);
             add(type);
+            add(indicator);
+            add(bowCharge);
             add(canHitEnabled);
             add(canHitColor);
         }
@@ -467,14 +514,54 @@ public final class Hud {
             int gp = (int) gap.value;
             int c = (canHitEnabled.value && canHit()) ? canHitColor.value : color.value;
             if (type.index == 1) {
-                g.fill(cx - s / 2, cy - s / 2, cx + s / 2, cy + s / 2, c);
+                g.fill(cx - s / 2, cy - s / 2, cx + s / 2 + 1, cy + s / 2 + 1, c);
             } else if (type.index == 2) {
-                Glass.fillRound(g, cx - s, cy - s, s * 2, s * 2, s, c);
+                g.fill(cx - s, cy - s, cx + s, cy - s + 1, c);
+                g.fill(cx - s, cy + s - 1, cx + s, cy + s, c);
+                g.fill(cx - s, cy - s, cx - s + 1, cy + s, c);
+                g.fill(cx + s - 1, cy - s, cx + s, cy + s, c);
+            } else if (type.index == 3) {
+                Glass.ring(g, cx - s, cy - s, s * 2, s * 2, s, 1.2f, c);
+            } else if (type.index == 4) {
+                g.fill(cx - s, cy + s, cx, cy, c);
+                g.fill(cx, cy, cx + s, cy + s, c);
+            } else if (type.index == 5) {
+                g.fill(cx - s, cy - gp - 1, cx + s, cy - gp, c);
+                g.fill(cx, cy - gp, cx + 1, cy + s, c);
             } else {
                 g.fill(cx - s, cy - gp - s, cx + s, cy - gp, c);
                 g.fill(cx - s, cy + gp, cx + s, cy + gp + s, c);
                 g.fill(cx - gp - s, cy - s, cx - gp, cy + s, c);
                 g.fill(cx + gp, cy - s, cx + gp + s, cy + s, c);
+            }
+
+            if (mc.player != null) {
+                float attackScale = mc.player.getAttackStrengthScale(0.0f);
+                if (indicator.index > 0 && attackScale < 0.99f) {
+                    if (indicator.index == 1) {
+                        int barW = s * 2 + 8;
+                        int barH = 2;
+                        int bx = cx - barW / 2;
+                        int by = cy + gp + s + 4;
+                        g.fill(bx, by, bx + barW, by + barH, 0x88000000);
+                        g.fill(bx, by, bx + (int) (barW * attackScale), by + barH, c);
+                    } else {
+                        g.fill(cx - 1, cy + gp + s + 3, cx + 2, cy + gp + s + 6, c);
+                    }
+                }
+
+                if (bowCharge.value && mc.player.isUsingItem()) {
+                    ItemStack using = mc.player.getUseItem();
+                    if (using.is(net.minecraft.world.item.Items.BOW) || using.is(net.minecraft.world.item.Items.CROSSBOW)) {
+                        int useTicks = mc.player.getTicksUsingItem();
+                        float progress = Math.min(1.0f, useTicks / 20.0f);
+                        int barW = s * 2 + 10;
+                        int bx = cx - barW / 2;
+                        int by = cy + gp + s + 8;
+                        g.fill(bx, by, bx + barW, by + 2, 0x88000000);
+                        g.fill(bx, by, bx + (int) (barW * progress), by + 2, 0xFFFFCC00);
+                    }
+                }
             }
         }
     }
@@ -553,11 +640,17 @@ public final class Hud {
     }
 
     private static class Reach extends HudModule {
-        private final ModeSetting mode = new ModeSetting("Modus", "Anzeigemodus der Reichweite.", new String[]{"Letzter Treffer", "Fadenkreuz"}, 0);
+        private final ModeSetting mode = new ModeSetting("Modus", "Anzeigemodus der Reichweite.", new String[]{"Letzter Treffer", "Fadenkreuz", "Kombiniert"}, 0);
+        private final ModeSetting precision = new ModeSetting("Genauigkeit", "Nachkommastellen.", new String[]{"2 Dezimalen", "3 Dezimalen"}, 0);
+        private final BooleanSetting showMax = new BooleanSetting("Höchstwert", "Zeigt die maximale Reichweite der Session an.", true);
+        private final BooleanSetting colorDistance = new BooleanSetting("Distanz-Farben", "Färbt die Zahl grün/gelb/rot nach Weite ein.", true);
 
         Reach() {
-            super("reach", "Reichweite", "Distanz des letzten Angriffs-Treffers oder Ziels.");
+            super("reach", "Reichweite", "Erweiterte Distanzanzeige des Angriffs-Treffers oder Ziels.");
             add(mode);
+            add(precision);
+            add(showMax);
+            add(colorDistance);
         }
 
         @Override
@@ -566,11 +659,12 @@ public final class Hud {
             double d = -1;
             if (mc.player == null) return;
 
-            if (mode.index == 0) {
-                if (System.currentTimeMillis() - lastAttackTime < 3000L && lastAttackReach > 0) {
+            if (mode.index == 0 || mode.index == 2) {
+                if (System.currentTimeMillis() - lastAttackTime < 4000L && lastAttackReach > 0) {
                     d = lastAttackReach;
                 }
-            } else {
+            }
+            if (d < 0 && (mode.index == 1 || mode.index == 2)) {
                 try {
                     var hr = mc.hitResult;
                     if (hr != null) {
@@ -584,7 +678,27 @@ public final class Hud {
                 } catch (Throwable ignored) {
                 }
             }
-            lines.add("Reichweite: " + (d < 0 ? "–" : String.format("%.2f", d) + " m"));
+
+            String formatStr = precision.index == 1 ? "%.3f" : "%.2f";
+            String dStr;
+            if (d < 0) {
+                dStr = "–";
+            } else {
+                String num = String.format(java.util.Locale.US, formatStr, d);
+                if (colorDistance.value) {
+                    String col = d < 3.0 ? "§a" : (d < 3.5 ? "§e" : "§c");
+                    dStr = col + num + " §7m";
+                } else {
+                    dStr = num + " m";
+                }
+            }
+
+            if (showMax.value && maxAttackReach > 0) {
+                String maxNum = String.format(java.util.Locale.US, formatStr, maxAttackReach);
+                lines.add("Reichweite: " + dStr + " §8(Max: " + maxNum + "m)");
+            } else {
+                lines.add("Reichweite: " + dStr);
+            }
             renderLines(g, lines, 0, 0);
         }
     }
@@ -664,8 +778,15 @@ public final class Hud {
     }
 
     private static class TargetInfo extends HudModule {
+        private final BooleanSetting showArmor = new BooleanSetting("Rüstungswert", "Zeigt Rüstungspunkte des Ziels an.", true);
+        private final BooleanSetting showAbsorb = new BooleanSetting("Absorption", "Zeigt goldene Absorptionsherzen an.", true);
+        private final BooleanSetting showHealthBar = new BooleanSetting("Lebensbalken", "Zeigt einen visuellen Lebensbalken an.", true);
+
         TargetInfo() {
-            super("targetinfo", "Ziel-Info", "Name & Leben des anvisierten Lebewesens.");
+            super("targetinfo", "Ziel-Info (TrueHealth)", "Exakte Lebenspunkte, Absorptionsherzen und Rüstung des Ziels.");
+            add(showArmor);
+            add(showAbsorb);
+            add(showHealthBar);
         }
 
         @Override
@@ -677,8 +798,31 @@ public final class Hud {
                     var e = ((net.minecraft.world.phys.EntityHitResult) hr).getEntity();
                     if (e instanceof LivingEntity le) {
                         lines.add(le.getName().getString());
-                        lines.add("Leben: " + String.format("%.1f", le.getHealth()) + " / "
-                                + String.format("%.1f", le.getMaxHealth()));
+                        float hp = le.getHealth();
+                        float maxHp = le.getMaxHealth();
+                        float abs = le.getAbsorptionAmount();
+                        int armor = le.getArmorValue();
+
+                        String hpStr = String.format(java.util.Locale.US, "%.1f / %.1f ❤", hp, maxHp);
+                        if (showAbsorb.value && abs > 0) {
+                            hpStr += String.format(java.util.Locale.US, " §6+%.1f", abs);
+                        }
+                        lines.add("Leben: " + hpStr);
+
+                        if (showArmor.value && armor > 0) {
+                            lines.add("Rüstung: §b" + armor + " 🛡");
+                        }
+
+                        if (showHealthBar.value) {
+                            float ratio = Math.max(0.0f, Math.min(1.0f, hp / Math.max(1.0f, maxHp)));
+                            int barLength = 12;
+                            int filled = Math.round(ratio * barLength);
+                            StringBuilder sb = new StringBuilder("§a");
+                            for (int i = 0; i < filled; i++) sb.append("|");
+                            sb.append("§c");
+                            for (int i = filled; i < barLength; i++) sb.append("|");
+                            lines.add(sb.toString());
+                        }
                     } else {
                         lines.add(e.getName().getString());
                     }
@@ -864,6 +1008,156 @@ public final class Hud {
             }
 
             g.pose().popMatrix();
+        }
+    }
+
+    public static class ToggleSprintDisplay extends HudModule {
+        ToggleSprintDisplay() {
+            super("togglesprintdisplay", "Toggle-Sprint-Display", "Zeigt aktuellen Status von Sprint, Schleichen und Flugmodus an.");
+        }
+
+        @Override
+        public void onRenderHud(GuiGraphicsExtractor g, float td) {
+            if (mc.player == null) return;
+            List<String> lines = new ArrayList<>();
+            if (mc.player.getAbilities().flying) {
+                lines.add("§b[Fliegend]");
+            } else if (mc.player.isSprinting()) {
+                boolean toggle = Gameplay.isToggleSprintActive();
+                lines.add(toggle ? "§a[Sprinting (Toggled)]" : "§a[Sprinting (Key)]");
+            } else if (mc.player.isCrouching()) {
+                boolean toggle = Gameplay.isToggleSneakActive();
+                lines.add(toggle ? "§e[Sneaking (Toggled)]" : "§e[Sneaking (Key)]");
+            } else if (mc.player.isPassenger()) {
+                lines.add("§d[Reitend]");
+            }
+            if (lines.isEmpty()) {
+                lines.add("§8[Stehend]");
+            }
+            renderLines(g, lines, 0, 0);
+        }
+    }
+
+    public static class TotemCounter extends HudModule {
+        public static int selfPops = 0;
+        public static final java.util.Map<String, Integer> playerPops = new java.util.concurrent.ConcurrentHashMap<>();
+        public static long lastPopTime = 0L;
+        public static String lastPopMsg = "";
+
+        public final BooleanSetting showChatAlert = new BooleanSetting("Chat-Benachrichtigung", "Sendet Pop-Meldungen in den Chat.", true);
+
+        TotemCounter() {
+            super("totemcounter", "Totem-Zähler", "Zählt verbrauchte Totems der Unsterblichkeit für Spieler und Gegner.");
+            add(showChatAlert);
+        }
+
+        public static void onPop(String playerName) {
+            lastPopTime = System.currentTimeMillis();
+            if (playerName == null || playerName.isEmpty()) {
+                selfPops++;
+                lastPopMsg = "Eigenes Totem gepoppt! (#" + selfPops + ")";
+            } else {
+                int count = playerPops.getOrDefault(playerName, 0) + 1;
+                playerPops.put(playerName, count);
+                lastPopMsg = playerName + " gepoppt! (#" + count + ")";
+            }
+
+            Minecraft mc = Minecraft.getInstance();
+            if (mc != null && mc.gui != null && mc.gui.hud != null && mc.gui.hud.getChat() != null) {
+                Module m = ModuleManager.byId("totemcounter");
+                if (m instanceof TotemCounter tc && tc.enabled && tc.showChatAlert.value) {
+                    mc.gui.hud.getChat().addClientSystemMessage(net.minecraft.network.chat.Component.literal("§6[Totem] §f" + lastPopMsg));
+                }
+            }
+        }
+
+        @Override
+        public void onRenderHud(GuiGraphicsExtractor g, float td) {
+            List<String> lines = new ArrayList<>();
+            lines.add("Totem-Pops: §6" + selfPops);
+            if (System.currentTimeMillis() - lastPopTime < 4000L && !lastPopMsg.isEmpty()) {
+                lines.add("§e" + lastPopMsg);
+            }
+            renderLines(g, lines, 0, 0);
+        }
+    }
+
+    public static class PingEqualizer extends HudModule {
+        private static final java.util.ArrayDeque<Integer> pingSamples = new java.util.ArrayDeque<>();
+
+        PingEqualizer() {
+            super("pingequalizer", "Ping-Equalizer", "Zeigt Ping-Stabilität, Jitter und Latenz-Ausgleich an.");
+        }
+
+        @Override
+        public void onTick() {
+            if (mc.getConnection() != null && mc.player != null) {
+                var info = mc.getConnection().getPlayerInfo(mc.player.getUUID());
+                if (info != null) {
+                    int latency = info.getLatency();
+                    if (latency >= 0) {
+                        pingSamples.addLast(latency);
+                        while (pingSamples.size() > 20) pingSamples.removeFirst();
+                    }
+                }
+            }
+        }
+
+        @Override
+        public void onRenderHud(GuiGraphicsExtractor g, float td) {
+            List<String> lines = new ArrayList<>();
+            if (pingSamples.isEmpty()) {
+                lines.add("Latenz: –");
+            } else {
+                int sum = 0;
+                int min = Integer.MAX_VALUE;
+                int max = Integer.MIN_VALUE;
+                for (int val : pingSamples) {
+                    sum += val;
+                    if (val < min) min = val;
+                    if (val > max) max = val;
+                }
+                int avg = sum / pingSamples.size();
+                int jitter = (max - min) / 2;
+                String quality = jitter <= 5 ? "§aOptimal" : (jitter <= 15 ? "§eStabil" : "§cJitter");
+                lines.add("Latenz: " + avg + " ms §8(±" + jitter + "ms) [" + quality + "§8]");
+            }
+            renderLines(g, lines, 0, 0);
+        }
+    }
+
+    public static class GearTiers extends HudModule {
+        GearTiers() {
+            super("geartiers", "Ausrüstungs-Tiers", "Zeigt Material-Tier (Tier I - V) von Waffe & Rüstung an.");
+        }
+
+        @Override
+        public void onRenderHud(GuiGraphicsExtractor g, float td) {
+            if (mc.player == null) return;
+            List<String> lines = new ArrayList<>();
+            ItemStack main = mc.player.getMainHandItem();
+            if (!main.isEmpty()) {
+                lines.add("Waffe: " + getTierLabel(main));
+            }
+            ItemStack chest = mc.player.getItemBySlot(net.minecraft.world.entity.EquipmentSlot.CHEST);
+            if (!chest.isEmpty()) {
+                lines.add("Rüstung: " + getTierLabel(chest));
+            }
+            if (lines.isEmpty()) {
+                lines.add("Tier: Keine Ausrüstung");
+            }
+            renderLines(g, lines, 0, 0);
+        }
+
+        private static String getTierLabel(ItemStack stack) {
+            String id = stack.getItem().toString().toLowerCase();
+            if (id.contains("netherite")) return "§5Tier V (Netherite)";
+            if (id.contains("diamond")) return "§bTier IV (Diamant)";
+            if (id.contains("iron")) return "§fTier III (Eisen)";
+            if (id.contains("gold")) return "§6Tier II (Gold)";
+            if (id.contains("stone") || id.contains("chainmail")) return "§7Tier I (Stein/Kette)";
+            if (id.contains("wood") || id.contains("leather")) return "§8Tier 0 (Holz/Leder)";
+            return "§fStandard";
         }
     }
 }

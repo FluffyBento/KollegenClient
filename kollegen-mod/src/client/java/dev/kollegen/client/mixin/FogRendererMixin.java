@@ -23,8 +23,21 @@ public class FogRendererMixin {
             if (data == null) return;
 
             if (dev.kollegen.client.mods.modules.Visual.noFogEnabled) {
-                data.renderDistanceStart = 100000.0f;
-                data.renderDistanceEnd = 100000.0f;
+                var fluid = camera.getFluidInCamera();
+                boolean clear = false;
+                if (fluid == net.minecraft.world.level.material.FogType.WATER) {
+                    clear = dev.kollegen.client.mods.modules.Visual.noFogWater;
+                } else if (fluid == net.minecraft.world.level.material.FogType.LAVA) {
+                    clear = dev.kollegen.client.mods.modules.Visual.noFogLava;
+                } else if (level != null && level.dimension() == net.minecraft.world.level.Level.NETHER) {
+                    clear = dev.kollegen.client.mods.modules.Visual.noFogNether;
+                } else {
+                    clear = dev.kollegen.client.mods.modules.Visual.noFogTerrain;
+                }
+                if (clear) {
+                    data.renderDistanceStart = 100000.0f;
+                    data.renderDistanceEnd = 100000.0f;
+                }
             }
 
             if (Performance.KollegenDistance.isDistanceEnabled()) {

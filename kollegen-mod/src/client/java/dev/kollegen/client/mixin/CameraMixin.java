@@ -29,7 +29,7 @@ public abstract class CameraMixin {
 
     @Inject(method = "isDetached", at = @At("HEAD"), cancellable = true)
     private void kollegen_client$overrideIsDetached(CallbackInfoReturnable<Boolean> cir) {
-        if (Freecam.isActive()) {
+        if (Freecam.isActive() || dev.kollegen.client.mods.modules.Visual.isAfkCinematicActive()) {
             cir.setReturnValue(true);
         }
     }
@@ -39,6 +39,10 @@ public abstract class CameraMixin {
         if (Freecam.isActive()) {
             state.isFirstPerson = false;
             state.smartCull = false;
+        }
+        if (state.entityRenderState != null) {
+            float intensity = dev.kollegen.client.mods.modules.Visual.getFightCameraIntensity();
+            state.entityRenderState.hurtTime *= intensity;
         }
     }
 }

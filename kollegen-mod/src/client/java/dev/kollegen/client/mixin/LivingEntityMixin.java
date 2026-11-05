@@ -42,4 +42,32 @@ public abstract class LivingEntityMixin {
             cir.setReturnValue(false);
         }
     }
+
+    @Inject(method = "handleEntityEvent", at = @At("HEAD"))
+    private void kollegen$totemCounter(byte status, CallbackInfo ci) {
+        if (status == 35) {
+            LivingEntity self = (LivingEntity) (Object) this;
+            net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
+            if (mc != null && mc.player != null) {
+                if (self == mc.player) {
+                    dev.kollegen.client.mods.modules.Hud.TotemCounter.onPop(null);
+                } else if (self instanceof net.minecraft.world.entity.player.Player p) {
+                    dev.kollegen.client.mods.modules.Hud.TotemCounter.onPop(p.getName().getString());
+                }
+            }
+        }
+    }
+
+    @Inject(method = "getItemBlockingWith", at = @At("HEAD"), cancellable = true)
+    private void kollegen$instantShieldFix(CallbackInfoReturnable<net.minecraft.world.item.ItemStack> cir) {
+        if (dev.kollegen.client.mods.modules.ShieldSettings.instantShieldFixes) {
+            LivingEntity self = (LivingEntity) (Object) this;
+            if (self.isUsingItem()) {
+                net.minecraft.world.item.ItemStack useItem = self.getUseItem();
+                if (useItem != null && useItem.has(net.minecraft.core.component.DataComponents.BLOCKS_ATTACKS)) {
+                    cir.setReturnValue(useItem);
+                }
+            }
+        }
+    }
 }

@@ -27,4 +27,12 @@ public class KeyboardInputMixin {
             ci.cancel();
         }
     }
+
+    @Inject(method = "tick", at = @At("RETURN"))
+    private void kollegen$afkActivity(CallbackInfo ci) {
+        KeyboardInput self = (KeyboardInput) (Object) this;
+        if (self.keyPresses.forward() || self.keyPresses.backward() || self.keyPresses.left() || self.keyPresses.right() || self.keyPresses.jump() || self.keyPresses.shift()) {
+            dev.kollegen.client.mods.modules.Visual.resetAfkTimer();
+        }
+    }
 }

@@ -17,6 +17,10 @@ public class SoundEngineMixin {
     private void kollegen$cullInaudibleSounds(SoundInstance sound, CallbackInfoReturnable<SoundEngine.PlayResult> cir) {
         if (sound == null) return;
         try {
+            if (dev.kollegen.client.mods.modules.Misc.isSoundControllerActive() && dev.kollegen.client.mods.modules.Misc.shouldMuteSound(sound)) {
+                cir.setReturnValue(SoundEngine.PlayResult.NOT_STARTED);
+                return;
+            }
             if (sound.getIdentifier() != null && sound.getIdentifier().getPath().contains("shield.break")) {
                 dev.kollegen.client.mods.modules.ShieldCooldownTracker.onShieldBreak(sound.getX(), sound.getY(), sound.getZ());
             }

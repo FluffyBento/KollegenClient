@@ -55,6 +55,7 @@ public class MouseHandlerMixin {
 
     @Inject(method = "onMove", at = @At("HEAD"))
     private void kollegen_client$cursor(long window, double x, double y, CallbackInfo ci) {
+        dev.kollegen.client.mods.modules.Visual.resetAfkTimer();
         kollegen$cursorRawX = x;
         kollegen$cursorRawY = y;
         Minecraft mc = Minecraft.getInstance();
@@ -67,8 +68,14 @@ public class MouseHandlerMixin {
         }
     }
 
+    @Inject(method = "onScroll", at = @At("HEAD"))
+    private void kollegen$onScroll(long window, double xoffset, double yoffset, CallbackInfo ci) {
+        dev.kollegen.client.mods.modules.Visual.resetAfkTimer();
+    }
+
     @Inject(method = "onButton(JLnet/minecraft/client/input/MouseButtonInfo;I)V", at = @At("HEAD"))
     private void kollegen_client$cps(long window, MouseButtonInfo info, int action, CallbackInfo ci) {
+        dev.kollegen.client.mods.modules.Visual.resetAfkTimer();
         int button = info.button();
         int mods = info.modifiers();
         if (action != 0 && action != 1) return;
@@ -81,7 +88,6 @@ public class MouseHandlerMixin {
             else ClickTracker.releaseRight();
         }
 
-        
         if (button == InputConstants.MOUSE_BUTTON_LEFT) {
             Minecraft mc = Minecraft.getInstance();
             if (mc.gui.screen() == null) {

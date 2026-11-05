@@ -5,6 +5,7 @@ import dev.kollegen.client.mods.modules.Freecam;
 import dev.kollegen.client.mods.modules.Performance;
 import net.minecraft.client.Minecraft;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
@@ -12,7 +13,12 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 
 @Mixin(Minecraft.class)
-public class MinecraftClientMixin {
+public abstract class MinecraftClientMixin {
+
+    @Shadow protected int missTime;
+    @Shadow public abstract boolean startAttack();
+    @Shadow public net.minecraft.world.phys.HitResult hitResult;
+    @Shadow public net.minecraft.client.player.LocalPlayer player;
 
     @Inject(method = "<init>", at = @At("RETURN"))
     private void kollegen_client$onInit(CallbackInfo ci) {
@@ -51,6 +57,12 @@ public class MinecraftClientMixin {
     private void kollegen_client$freecamAttack(CallbackInfoReturnable<Boolean> cir) {
         if (Freecam.isActive()) {
             cir.setReturnValue(false);
+            return;
+        }
+        if (dev.kollegen.client.mods.modules.Gameplay.isCrystalOptimizerActive()) {
+            if (this.hitResult instanceof net.minecraft.world.phys.EntityHitResult ehr && ehr.getEntity() instanceof net.minecraft.world.entity.boss.enderdragon.EndCrystal) {
+                this.missTime = 0;
+            }
         }
     }
 
@@ -79,6 +91,22 @@ public class MinecraftClientMixin {
     private void kollegen_client$freecamContinueAttack(boolean leftClick, CallbackInfo ci) {
         if (Freecam.isActive()) {
             ci.cancel();
+            return;
+        }
+        if (leftClick && dev.kollegen.client.mods.modules.Gameplay.isCrystalOptimizerActive()) {
+            if (this.hitResult instanceof net.minecraft.world.phys.EntityHitResult ehr && ehr.getEntity() instanceof net.minecraft.world.entity.boss.enderdragon.EndCrystal) {
+                this.missTime = 0;
+                this.startAttack();
+            }
+        }
+    }
+
+    @Inject(method = "shouldEntityAppearGlowing", at = @At("HEAD"), cancellable = true)
+    private void kollegen_client$spectatorHighlight(net.minecraft.world.entity.Entity entity, CallbackInfoReturnable<Boolean> cir) {
+        if (dev.kollegen.client.mods.modules.Visual.isSpectatorHighlightEnabled()) {
+            if (this.player != null && this.player.isSpectator() && entity instanceof net.minecraft.world.entity.player.Player && entity != this.player) {
+                cir.setReturnValue(true);
+            }
         }
     }
 }

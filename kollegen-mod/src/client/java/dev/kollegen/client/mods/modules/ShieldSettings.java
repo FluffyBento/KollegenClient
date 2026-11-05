@@ -17,6 +17,13 @@ import java.util.UUID;
 
 public class ShieldSettings extends Module {
     public static ShieldSettings INSTANCE;
+    public static boolean instantShieldFixes = true;
+
+    public final BooleanSetting shieldFixes = new BooleanSetting(
+            "ShieldFixes (Instant-Block)",
+            "Entfernt die künstliche 5-Tick-Verzögerung beim Heben des Schilds für sofortigen Block.",
+            true
+    );
 
     public final BooleanSetting lowerShield = new BooleanSetting(
             "PvP-Position (Tief & Seitlich)",
@@ -103,6 +110,7 @@ public class ShieldSettings extends Module {
     public ShieldSettings() {
         super("shieldsettings", "Schild-Einstellungen", "Schildgröße, Position und Drehung für freies Sichtfeld (FOV) und Status-Umrandung (grün = nutzbar, rot = Cooldown).", Category.VISUAL);
         INSTANCE = this;
+        add(shieldFixes);
         add(lowerShield);
         add(scale);
         add(offsetX);
@@ -114,6 +122,11 @@ public class ShieldSettings extends Module {
         add(statusOutline);
         add(tintShield);
         add(colorPreset);
+    }
+
+    @Override
+    public void onTick() {
+        instantShieldFixes = enabled && shieldFixes.value;
     }
 
     public static boolean isCustomTransformEnabled() {

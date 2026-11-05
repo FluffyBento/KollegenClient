@@ -1752,6 +1752,23 @@ fn open_instance_folder(state: State<'_, AppState>, instance_name: String) -> Re
     open::that(dir.as_os_str()).map_err(|e| e.to_string())
 }
 
+const INSTANCE_MOD_MODULES: &[(&str, &str, &str)] = &[
+    ("spark", "spark", "spark.jar"),
+    ("soundphysics", "sound-physics-remastered", "sound-physics-remastered.jar"),
+    ("skinlayers3d", "3dskinlayers", "3dskinlayers.jar"),
+    ("skyboxify", "skyboxify", "skyboxify.jar"),
+    ("reeses_sodium", "reeses-sodium-options", "reeses-sodium-options.jar"),
+    ("sodium_extra", "sodium-extra", "sodium-extra.jar"),
+    ("resourcify", "resourcify", "resourcify.jar"),
+    ("weaponmaster", "weaponmaster", "weaponmaster.jar"),
+    ("rrls", "rrls", "rrls.jar"),
+    ("supermartijn642corelib", "supermartijn642s-core-lib", "supermartijn642corelib.jar"),
+    ("easeon", "easeon", "easeon.jar"),
+    ("zfastnoise", "zfastnoise", "zfastnoise.jar"),
+    ("zconfig", "zconfig", "zconfig.jar"),
+    ("hudlib", "dynamic-hudlib", "dynamic-hudlib.jar"),
+];
+
 #[tauri::command]
 fn get_instance_modules(state: State<'_, AppState>, instance_name: String) -> Result<Value, String> {
     let inst_dir = crate::utils::instance_dir(&state.data_dir, &instance_name);
@@ -1766,12 +1783,17 @@ fn get_instance_modules(state: State<'_, AppState>, instance_name: String) -> Re
     let bundle_flags = crate::instance::read_bundle_flags(&mods_dir);
     let chatheads_enabled = bundle_flags.get("chatheads").and_then(|v| v.as_bool()).unwrap_or(true);
 
-    Ok(serde_json::json!({
-        "vulkan": vulkan_enabled,
-        "essential": essential_enabled,
-        "sodium": sodium_enabled,
-        "chatheads": chatheads_enabled,
-    }))
+    let mut map = serde_json::Map::new();
+    map.insert("vulkan".to_string(), serde_json::Value::Bool(vulkan_enabled));
+    map.insert("essential".to_string(), serde_json::Value::Bool(essential_enabled));
+    map.insert("sodium".to_string(), serde_json::Value::Bool(sodium_enabled));
+    map.insert("chatheads".to_string(), serde_json::Value::Bool(chatheads_enabled));
+    for (id, _, jar_name) in INSTANCE_MOD_MODULES {
+        let active = mods_dir.join(jar_name).is_file();
+        map.insert(id.to_string(), serde_json::Value::Bool(active));
+    }
+
+    Ok(serde_json::Value::Object(map))
 }
 
 #[tauri::command]
@@ -1830,7 +1852,22 @@ fn toggle_instance_module(
             let comp = crate::companion::companion_jar(&state.data_dir, &ver);
             crate::instance::enforce_bundled_mods(&mods_dir, &ver, comp.as_deref());
         }
-        _ => return Err(format!("Unbekanntes Modul: {}", module)),
+        _ => {
+            if let Some((_, slug, jar_name)) = INSTANCE_MOD_MODULES.iter().find(|(id, _, _)| *id == module.as_str()) {
+                let active = mods_dir.join(jar_name);
+                let disabled = mods_dir.join(format!("{}.disabled", jar_name));
+                if active.is_file() {
+                    let _ = std::fs::rename(&active, &disabled);
+                } else if disabled.is_file() {
+                    let _ = std::fs::rename(&disabled, &active);
+                } else {
+                    let ver = instances.iter().find(|i| i.name == instance_name).map(|i| i.version.clone()).unwrap_or_else(|| "26.3".to_string());
+                    let _ = crate::utils::ensure_modrinth_mod(&mods_dir, slug, jar_name, &ver);
+                }
+            } else {
+                return Err(format!("Unbekanntes Modul: {}", module));
+            }
+        }
     }
 
     get_instance_modules(state, instance_name)

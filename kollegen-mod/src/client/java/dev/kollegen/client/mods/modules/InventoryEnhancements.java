@@ -32,6 +32,12 @@ public class InventoryEnhancements extends Module {
             true
     );
 
+    public final BooleanSetting shulkerPreview = new BooleanSetting(
+            "Shulker-Vorschau",
+            "Zeigt den Inhalt von Shulker-Kisten und Bündeln als 9x3 Raster beim Darüberfahren an.",
+            true
+    );
+
     public final BooleanSetting itemLock = new BooleanSetting(
             "Item-Sperre (Lock)",
             "Sperrt Items mit Taste, damit sie nicht versehentlich bewegt oder gedroppt werden.",
@@ -50,9 +56,14 @@ public class InventoryEnhancements extends Module {
         INSTANCE = this;
         this.enabled = true;
         add(searchBar);
+        add(shulkerPreview);
         add(itemLock);
         add(lockKey);
         loadFromFile();
+    }
+
+    public static boolean isShulkerPreviewEnabled() {
+        return INSTANCE != null && INSTANCE.enabled && INSTANCE.shulkerPreview.value;
     }
 
     public static String getCurrentServerKey() {

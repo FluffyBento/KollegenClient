@@ -21,6 +21,15 @@ public final class Visual {
     
     public static float zoomFovDivisor = 1.0f;
     public static boolean noFogEnabled = false;
+    public static boolean noFogTerrain = true;
+    public static boolean noFogNether = true;
+    public static boolean noFogWater = true;
+    public static boolean noFogLava = true;
+    public static boolean spectatorHighlightEnabled = true;
+    public static boolean smoothSwappingEnabled = true;
+    public static float fightCameraIntensity = 1.0f;
+    public static boolean afkCinematicActive = false;
+    public static long lastInputTime = System.currentTimeMillis();
     public static boolean zoomActive = false;
     public static boolean zoomSmoothCamera = false;
 
@@ -30,6 +39,34 @@ public final class Visual {
 
     public static boolean isZoomSmoothCamera() {
         return zoomActive && zoomSmoothCamera;
+    }
+
+    public static boolean isSpectatorHighlightEnabled() {
+        return spectatorHighlightEnabled;
+    }
+
+    public static boolean isSmoothSwappingEnabled() {
+        return smoothSwappingEnabled;
+    }
+
+    public static float getFightCameraIntensity() {
+        return fightCameraIntensity;
+    }
+
+    public static boolean isAfkCinematicActive() {
+        return afkCinematicActive;
+    }
+
+    public static void resetAfkTimer() {
+        lastInputTime = System.currentTimeMillis();
+        if (afkCinematicActive) {
+            afkCinematicActive = false;
+            Minecraft mc = Minecraft.getInstance();
+            if (mc != null && mc.options != null && AfkCinematic.savedCamera != null) {
+                mc.options.setCameraType(AfkCinematic.savedCamera);
+                AfkCinematic.savedCamera = null;
+            }
+        }
     }
 
     private Visual() {
@@ -46,6 +83,10 @@ public final class Visual {
         ModuleManager.register(new FovModifier());
         ModuleManager.register(new KollegenShader());
         ModuleManager.register(new WaveyCapes());
+        ModuleManager.register(new SpectatorHighlighting());
+        ModuleManager.register(new SmoothSwapping());
+        ModuleManager.register(new FightCamera());
+        ModuleManager.register(new AfkCinematic());
     }
 
     public static class WaveyCapes extends Module {
@@ -79,19 +120,45 @@ public final class Visual {
         }
     }
 
-    private static class NoFog extends Module {
+    public static class NoFog extends Module {
+        public static NoFog INSTANCE;
+        private final BooleanSetting terrain = new BooleanSetting("Oberwelt-Nebel", "Entfernt normalen Atmosphären-Nebel.", true);
+        private final BooleanSetting nether = new BooleanSetting("Nether-Nebel", "Entfernt dichten roten Nether-Nebel.", true);
+        private final BooleanSetting water = new BooleanSetting("Unterwasser-Nebel", "Entfernt trüben Unterwasser-Nebel für freie Sicht.", true);
+        private final BooleanSetting lava = new BooleanSetting("Lava-Nebel", "Entfernt Lava-Sichtbehinderung.", true);
+
         NoFog() {
-            super("nofog", "Kein Nebel", "Entfernt den atmosphärischen Nebel für freie Sicht.", Category.VISUAL);
+            super("nofog", "Kein Nebel", "Entfernt Nebel in Oberwelt, Nether, Wasser und Lava.", Category.VISUAL);
+            INSTANCE = this;
+            add(terrain);
+            add(nether);
+            add(water);
+            add(lava);
         }
 
         @Override
         public void onEnable() {
             noFogEnabled = true;
+            updateFlags();
+        }
+
+        @Override
+        public void onTick() {
+            noFogEnabled = enabled;
+            updateFlags();
         }
 
         @Override
         public void onDisable() {
             noFogEnabled = false;
+            updateFlags();
+        }
+
+        private void updateFlags() {
+            noFogTerrain = enabled && terrain.value;
+            noFogNether = enabled && nether.value;
+            noFogWater = enabled && water.value;
+            noFogLava = enabled && lava.value;
         }
     }
 
@@ -191,6 +258,112 @@ public final class Visual {
             Visual.zoomActive = false;
             Visual.zoomSmoothCamera = false;
             Visual.zoomFovDivisor = 1.0f;
+        }
+    }
+
+    public static class SpectatorHighlighting extends Module {
+        SpectatorHighlighting() {
+            super("spectatorhighlight", "Zuschauer-Leuchten", "Hebt alle Spieler im Zuschauermodus mit leuchtenden Konturen hervor.", Category.VISUAL);
+            this.enabled = true;
+        }
+
+        @Override
+        public void onEnable() {
+            spectatorHighlightEnabled = true;
+        }
+
+        @Override
+        public void onTick() {
+            spectatorHighlightEnabled = enabled;
+        }
+
+        @Override
+        public void onDisable() {
+            spectatorHighlightEnabled = false;
+        }
+    }
+
+    public static class SmoothSwapping extends Module {
+        SmoothSwapping() {
+            super("smoothswapping", "Flüssiger Item-Wechsel", "Weiche Animation beim Wechseln von Items in den Händen.", Category.VISUAL);
+            this.enabled = true;
+        }
+
+        @Override
+        public void onEnable() {
+            smoothSwappingEnabled = true;
+        }
+
+        @Override
+        public void onTick() {
+            smoothSwappingEnabled = enabled;
+        }
+
+        @Override
+        public void onDisable() {
+            smoothSwappingEnabled = false;
+        }
+    }
+
+    public static class FightCamera extends Module {
+        private final SliderSetting intensity = new SliderSetting("Schadens-Wackeln", "Stärke des Kamerawackelns bei Treffern (0% = Aus).", 1.0, 0.0, 2.0, 0.1);
+
+        FightCamera() {
+            super("fightcamera", "Kampf-Kamera", "Passt die Intensität des Kamerawackelns bei erlittenem Schaden an.", Category.VISUAL);
+            this.enabled = true;
+            add(intensity);
+        }
+
+        @Override
+        public void onEnable() {
+            fightCameraIntensity = (float) intensity.value;
+        }
+
+        @Override
+        public void onTick() {
+            fightCameraIntensity = enabled ? (float) intensity.value : 1.0f;
+        }
+
+        @Override
+        public void onDisable() {
+            fightCameraIntensity = 1.0f;
+        }
+    }
+
+    public static class AfkCinematic extends Module {
+        public static net.minecraft.client.CameraType savedCamera = null;
+        private final SliderSetting delay = new SliderSetting("AFK-Zeit (s)", "Wartezeit bis zum Start.", 20.0, 5.0, 120.0, 5.0);
+        private final SliderSetting speed = new SliderSetting("Rotations-Tempo", "Drehgeschwindigkeit der Kamera.", 0.5, 0.1, 2.0, 0.1);
+
+        AfkCinematic() {
+            super("afkcinematic", "AFK-Kamera", "Weiche rotierende Drittpersonen-Kamera nach Inaktivität.", Category.VISUAL);
+            this.enabled = true;
+            add(delay);
+            add(speed);
+        }
+
+        @Override
+        public void onTick() {
+            if (!enabled || mc.player == null) {
+                if (afkCinematicActive) resetAfkTimer();
+                return;
+            }
+
+            long idle = System.currentTimeMillis() - lastInputTime;
+            long threshold = (long) (delay.value * 1000L);
+            if (idle > threshold) {
+                if (!afkCinematicActive) {
+                    savedCamera = mc.options.getCameraType();
+                    mc.options.setCameraType(net.minecraft.client.CameraType.THIRD_PERSON_BACK);
+                    afkCinematicActive = true;
+                }
+                mc.player.setYRot(mc.player.getYRot() + (float) speed.value);
+            }
+        }
+
+        @Override
+        public void onDisable() {
+            resetAfkTimer();
         }
     }
 

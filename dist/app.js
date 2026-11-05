@@ -4935,6 +4935,104 @@ async function loadManageModules() {
         desc: "Zeigt die Köpfe von Spielern neben Chatnachrichten an.",
         active: data.chatheads,
         badge: "QoL"
+      },
+      {
+        id: "resourcify",
+        title: "Resourcify",
+        desc: "In-Game Browser: Texturen, Shaders und Welten direkt von Modrinth im Spiel herunterladen und verwalten.",
+        active: data.resourcify,
+        badge: "QoL"
+      },
+      {
+        id: "spark",
+        title: "Spark Profiler",
+        desc: "Leistungsfähiger Echtzeit-Profiler für TPS, CPU, RAM und Stutter-Analyse.",
+        active: data.spark,
+        badge: "Diagnose"
+      },
+      {
+        id: "soundphysics",
+        title: "Sound Physics Remastered",
+        desc: "Realistische Akustik, Raumhall, Schalldämpfung und Echos.",
+        active: data.soundphysics,
+        badge: "Audio"
+      },
+      {
+        id: "skinlayers3d",
+        title: "3D Skin Layers",
+        desc: "Plastische 3D-Voxel für Kleidung, Hüte und Jacken aller Spieler.",
+        active: data.skinlayers3d,
+        badge: "Visual"
+      },
+      {
+        id: "skyboxify",
+        title: "Skyboxify",
+        desc: "Unterstützung für benutzerdefinierte Himmel und Custom Skyboxes unter Fabric.",
+        active: data.skyboxify,
+        badge: "Visual"
+      },
+      {
+        id: "weaponmaster",
+        title: "Weapon Master",
+        desc: "Zeigt Waffen und Werkzeuge sichtbar auf dem Rücken oder an der Hüfte des Spielers.",
+        active: data.weaponmaster,
+        badge: "Visual"
+      },
+      {
+        id: "rrls",
+        title: "Remove Reloading Screen (RRLS)",
+        desc: "Verhindert den Ladebildschirm beim Neuladen von Resource-Packs oder F3+T.",
+        active: data.rrls,
+        badge: "QoL"
+      },
+      {
+        id: "reeses_sodium",
+        title: "Reese's Sodium Options",
+        desc: "Ersetzt das Sodium-Einstellungsmenü durch eine übersichtliche Tab-Struktur.",
+        active: data.reeses_sodium,
+        badge: "Sodium"
+      },
+      {
+        id: "sodium_extra",
+        title: "Sodium Extra",
+        desc: "Erweiterte Schalter für Sodium: Partikel-, Wolken-, Schatten- und Animations-Feineinstellungen.",
+        active: data.sodium_extra,
+        badge: "Sodium"
+      },
+      {
+        id: "easeon",
+        title: "Easeon",
+        desc: "Singleplayer QoL: Schnelleres Aufheben, Amboss-Mending und Komfortfunktionen.",
+        active: data.easeon,
+        badge: "QoL"
+      },
+      {
+        id: "supermartijn642corelib",
+        title: "SuperMartijn642's Core Lib",
+        desc: "Basis-Bibliothek für kompatible Mods und Erweiterungen.",
+        active: data.supermartijn642corelib,
+        badge: "Library"
+      },
+      {
+        id: "zfastnoise",
+        title: "ZFastNoise",
+        desc: "Optimierte Rausch- und Terrain-Bibliothek für flüssigere Welt-Generierung.",
+        active: data.zfastnoise,
+        badge: "Library"
+      },
+      {
+        id: "zconfig",
+        title: "ZConfig",
+        desc: "Konfigurations-Framework für modulare Fabric-Komponenten.",
+        active: data.zconfig,
+        badge: "Library"
+      },
+      {
+        id: "hudlib",
+        title: "Dynamic HUD Lib",
+        desc: "Flexible HUD-Rendering-Bibliothek für dynamische Overlays.",
+        active: data.hudlib,
+        badge: "Library"
       }
     ];
 

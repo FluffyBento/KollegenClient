@@ -160,41 +160,37 @@ pub fn ensure_modrinth_mod(
         _ => vec![],
     };
 
-    for version in versions {
-        let supports_mc = version
-            .get("game_versions")
+    let matching_version = versions.iter().find(|v| {
+        v.get("game_versions")
             .and_then(|g| g.as_array())
-            .map(|g| g.iter().any(|v| v.as_str() == Some(mc_version)))
-            .unwrap_or(false);
-        if !supports_mc {
-            continue;
-        }
+            .map(|g| g.iter().any(|ver| ver.as_str() == Some(mc_version)))
+            .unwrap_or(false)
+    }).or_else(|| versions.first());
+
+    if let Some(version) = matching_version {
         let files = version
             .get("files")
             .and_then(|f| f.as_array())
             .cloned()
             .unwrap_or_default();
-        for file in files {
-            if file.get("primary").and_then(|p| p.as_bool()).unwrap_or(false) != true {
-                continue;
-            }
-            let Some(url) = file.get("url").and_then(|u| u.as_str()) else {
-                continue;
-            };
-            let expected_size = file.get("size").and_then(|s| s.as_u64()).unwrap_or(0);
-            if target.is_file() && expected_size > 0 {
-                if let Ok(meta) = fs::metadata(&target) {
-                    if meta.len() == expected_size {
-                        return Ok(());
+        let primary_file = files.iter().find(|f| f.get("primary").and_then(|p| p.as_bool()).unwrap_or(false)).or_else(|| files.first());
+        if let Some(file) = primary_file {
+            if let Some(url) = file.get("url").and_then(|u| u.as_str()) {
+                let expected_size = file.get("size").and_then(|s| s.as_u64()).unwrap_or(0);
+                if target.is_file() && expected_size > 0 {
+                    if let Ok(meta) = fs::metadata(&target) {
+                        if meta.len() == expected_size {
+                            return Ok(());
+                        }
                     }
                 }
-            }
-            if let Ok(resp) = client.get(url).send() {
-                if resp.status().is_success() {
-                    if let Ok(bytes) = resp.bytes() {
-                        if bytes.len() > 0 && bytes.starts_with(b"PK") {
-                            fs::write(&target, &bytes)?;
-                            return Ok(());
+                if let Ok(resp) = client.get(url).send() {
+                    if resp.status().is_success() {
+                        if let Ok(bytes) = resp.bytes() {
+                            if bytes.len() > 0 && bytes.starts_with(b"PK") {
+                                fs::write(&target, &bytes)?;
+                                return Ok(());
+                            }
                         }
                     }
                 }
