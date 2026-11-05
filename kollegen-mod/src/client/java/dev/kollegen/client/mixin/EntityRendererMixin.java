@@ -150,6 +150,10 @@ public abstract class EntityRendererMixin<T extends Entity, S extends EntityRend
                 return;
             }
 
+            // For distant entities (>16 blocks): only check center (skip feet + silhouette)
+            boolean far = distSq > 256.0;
+            boolean mid = distSq > 64.0;
+
             // Check 2: Center position
             Vec3 centerPos = new Vec3(entity.getX(), entity.getY() + entity.getBbHeight() * 0.5, entity.getZ());
             BlockHitResult hitCenter = level.clip(new ClipContext(camPos, centerPos, ClipContext.Block.VISUAL, ClipContext.Fluid.NONE, entity));
@@ -157,6 +161,15 @@ public abstract class EntityRendererMixin<T extends Entity, S extends EntityRend
                 KOLLEGEN$CACHED_IDS[idx] = id;
                 KOLLEGEN$CACHED_TIMES[idx] = now;
                 KOLLEGEN$CACHED_OCCLUDED[idx] = false;
+                return;
+            }
+
+            if (far) {
+                // Distant: mark occluded (eye + center both blocked)
+                KOLLEGEN$CACHED_IDS[idx] = id;
+                KOLLEGEN$CACHED_TIMES[idx] = now;
+                KOLLEGEN$CACHED_OCCLUDED[idx] = true;
+                cir.setReturnValue(false);
                 return;
             }
 
@@ -170,7 +183,16 @@ public abstract class EntityRendererMixin<T extends Entity, S extends EntityRend
                 return;
             }
 
-            // Check 4 & 5: Left and right silhouette edges (avoids pop-in when peeking around corners)
+            if (mid) {
+                // Mid-distance: skip silhouette checks
+                KOLLEGEN$CACHED_IDS[idx] = id;
+                KOLLEGEN$CACHED_TIMES[idx] = now;
+                KOLLEGEN$CACHED_OCCLUDED[idx] = true;
+                cir.setReturnValue(false);
+                return;
+            }
+
+            // Check 4 & 5: Left and right silhouette edges (close entities only)
             double halfWidth = entity.getBbWidth() * 0.45;
             double invDist = 1.0 / Math.sqrt(distSq);
             double perpX = -dz * invDist * halfWidth;
