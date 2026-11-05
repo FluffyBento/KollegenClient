@@ -14,6 +14,7 @@ public abstract class Module {
     public final String description;
     public final Category category;
     public boolean enabled = false;
+    public boolean initialized = false;
     public int key = -1; 
 
     
@@ -86,6 +87,9 @@ public abstract class Module {
                 if (s.has(set.name)) set.load(s.getAsJsonObject(set.name));
             }
         }
-        if (enabled) onEnable();
+        if (enabled) {
+            onEnable();
+            initialized = true;
+        }
     }
 }

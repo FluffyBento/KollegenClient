@@ -98,18 +98,30 @@ public final class ModuleManager {
 
     public static void load() {
         try {
-            if (!Files.exists(PATH)) return;
-            JsonObject root = GSON.fromJson(Files.readString(PATH), JsonObject.class);
-            if (root == null) return;
-            for (Module m : MODULES) {
-                if (root.has(m.id)) {
-                    try {
-                        m.load(root.getAsJsonObject(m.id));
-                    } catch (Throwable t) {
+            if (Files.exists(PATH)) {
+                JsonObject root = GSON.fromJson(Files.readString(PATH), JsonObject.class);
+                if (root != null) {
+                    for (Module m : MODULES) {
+                        if (root.has(m.id)) {
+                            try {
+                                m.load(root.getAsJsonObject(m.id));
+                            } catch (Throwable t) {
+                            }
+                        }
                     }
                 }
             }
         } catch (Exception ignored) {
+        }
+        // Ensure onEnable is called for all modules that are enabled but haven't been initialized
+        for (Module m : MODULES) {
+            if (m.enabled && !m.initialized && m.mc.options != null) {
+                try {
+                    m.onEnable();
+                    m.initialized = true;
+                } catch (Throwable t) {
+                }
+            }
         }
     }
 }
