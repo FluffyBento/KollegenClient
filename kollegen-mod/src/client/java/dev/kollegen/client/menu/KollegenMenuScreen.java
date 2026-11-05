@@ -68,6 +68,7 @@ public class KollegenMenuScreen extends Screen {
     private static final int K_COS_TAB = 17;
     private static final int K_COS_PREVIEW = 18;
     private static final int K_SKIN_CAPE_TOP_TAB = 19;
+    private static final int K_MODULE_TAB = 20;
     private static final int GAP = 6;
     private static final int PET_ACTIVE_H = 92;
 
@@ -741,8 +742,13 @@ public class KollegenMenuScreen extends Screen {
         Module m = this.detail;
         Cell h = this.addFull(K_DETAIL, m.risk != null ? 54.0f : 42.0f);
         h.module = m;
-        List<Setting> sorted = new ArrayList<Setting>(m.settings());
-        sorted.sort((a, b) -> a.name.compareToIgnoreCase(b.name));
+        String[] tabs = m.tabs();
+        if (tabs != null && tabs.length > 0) {
+            if (m.activeTab == null) m.activeTab = tabs[0];
+            this.addFull(K_MODULE_TAB, 22.0f);
+        }
+        List<Setting> list = (tabs != null && tabs.length > 0) ? m.settingsForTab(m.activeTab) : m.settings();
+        List<Setting> sorted = new ArrayList<Setting>(list);
         if (sorted.isEmpty()) {
             Cell e = this.addFull(K_TEXT, 30.0f);
             e.text = "Dieses Modul hat keine Einstellungen.";
@@ -1374,6 +1380,20 @@ public class KollegenMenuScreen extends Screen {
                     }
                     return false;
                 }
+                case K_MODULE_TAB: {
+                    if (this.detail != null && this.detail.tabs() != null) {
+                        String[] tabs = this.detail.tabs();
+                        float tw = c.w / tabs.length;
+                        for (int i = 0; i < tabs.length; i++) {
+                            if (hit(mx, my, X + i * tw, Y, tw, c.h)) {
+                                this.detail.activeTab = tabs[i];
+                                this.relayout();
+                                return true;
+                            }
+                        }
+                    }
+                    return false;
+                }
                 default:
                     break;
             }
@@ -1665,6 +1685,9 @@ public class KollegenMenuScreen extends Screen {
                 break;
             case K_COS_PREVIEW:
                 this.drawCosPreview(g, c, X, Y, mx, my);
+                break;
+            case K_MODULE_TAB:
+                this.drawModuleTabs(g, c, X, Y, mx, my);
                 break;
             default:
                 break;
@@ -2064,6 +2087,23 @@ public class KollegenMenuScreen extends Screen {
             Glass.ring(g, tx, Y, tw - 2, c.h, 6, 0.5f, border);
             int textColor = active ? 0xFFFFFFFF : (hov ? Palette.TEXT : Palette.MUTED);
             Glass.textC(g, this.font, labels[i], Math.round(tx + (tw - 2) / 2.0f), Math.round(Y + (c.h - 8) / 2.0f), textColor, active);
+        }
+    }
+
+    private void drawModuleTabs(GuiGraphicsExtractor g, Cell c, float X, float Y, int mx, int my) {
+        if (this.detail == null || this.detail.tabs() == null) return;
+        String[] tabs = this.detail.tabs();
+        float tw = c.w / tabs.length;
+        for (int i = 0; i < tabs.length; i++) {
+            float tx = X + i * tw;
+            boolean active = tabs[i].equalsIgnoreCase(this.detail.activeTab);
+            boolean hov = hit(mx, my, tx, Y, tw - 2, c.h);
+            int bg = active ? Glass.a(Palette.ACCENT, 0.45f) : (hov ? Glass.a(0xFFFFFF, 0.12f) : Glass.a(0x000000, 0.25f));
+            int border = active ? Glass.a(Palette.ACCENT, 0.9f) : (hov ? 0x66FFFFFF : 0x22FFFFFF);
+            Glass.rr(g, tx, Y, tw - 2, c.h, 6, bg);
+            Glass.ring(g, tx, Y, tw - 2, c.h, 6, 0.5f, border);
+            int textColor = active ? 0xFFFFFFFF : (hov ? Palette.TEXT : Palette.MUTED);
+            Glass.textC(g, this.font, tabs[i], Math.round(tx + (tw - 2) / 2.0f), Math.round(Y + (c.h - 8) / 2.0f), textColor, active);
         }
     }
 

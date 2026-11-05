@@ -78,8 +78,7 @@ public final class Visual {
         ModuleManager.register(new Zoom());
         ModuleManager.register(new Freecam());
         ModuleManager.register(new NoFog());
-        ModuleManager.register(new ArmorTransparency.Own());
-        ModuleManager.register(new ArmorTransparency.Others());
+        ModuleManager.register(new ArmorTransparency());
         ModuleManager.register(new FovModifier());
         ModuleManager.register(new KollegenShader());
         ModuleManager.register(new WaveyCapes());

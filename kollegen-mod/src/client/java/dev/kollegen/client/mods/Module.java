@@ -45,6 +45,16 @@ public abstract class Module {
         return settings;
     }
 
+    public String[] tabs() {
+        return null;
+    }
+
+    public String activeTab = null;
+
+    public List<Setting> settingsForTab(String tab) {
+        return settings();
+    }
+
     public void onEnable() {
     }
 
