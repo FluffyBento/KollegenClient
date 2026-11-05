@@ -69,7 +69,10 @@ public final class TwitchBadges {
 
     public static Component logo() {
         ensureLogo();
-        MutableComponent component = Component.literal("§d§l[Twitch]§r");
+        MutableComponent component = Component.object(
+                new AtlasSprite(Identifier.tryParse("kollegen:7tv"), Identifier.tryParse("kollegen:" + LOGO_KEY)),
+                Component.literal("[Twitch]")
+        );
         component.withStyle(s -> s.withHoverEvent(new HoverEvent.ShowText(Component.literal("Twitch"))));
         return component;
     }
@@ -77,7 +80,10 @@ public final class TwitchBadges {
     public static Component component(Badge badge) {
         if (badge == null) return Component.empty();
         if (badge.hasImage) {
-            MutableComponent component = Component.literal("§d§l[" + badge.shortLabel() + "]§r");
+            MutableComponent component = Component.object(
+                    new AtlasSprite(Identifier.tryParse("kollegen:7tv"), Identifier.tryParse("kollegen:" + badge.key)),
+                    Component.literal("[" + badge.shortLabel() + "]")
+            );
             component.withStyle(s -> s.withHoverEvent(new HoverEvent.ShowText(Component.literal(badge.label))));
             return component;
         }
