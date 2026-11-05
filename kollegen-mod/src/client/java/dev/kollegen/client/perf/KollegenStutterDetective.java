@@ -16,7 +16,7 @@ public final class KollegenStutterDetective {
     private static final Logger LOGGER = LoggerFactory.getLogger("KollegenPerformance");
     private static final AtomicBoolean STARTED = new AtomicBoolean(false);
 
-    private static final int SAMPLES_SIZE = 8192;
+    private static final int SAMPLES_SIZE = 1024;
     private static final int SAMPLES_MASK = SAMPLES_SIZE - 1;
     private static final long[] FRAME_SAMPLES = new long[SAMPLES_SIZE];
     private static int sampleCursor = 0;
@@ -232,8 +232,8 @@ public final class KollegenStutterDetective {
         double durationMs = durationNano / 1_000_000.0;
 
         // Stutter detection:
-        // Calculate median of recent frames
-        if (sampleCursor >= 64 && durationMs >= 14.0) {
+        // Calculate median of recent frames (cached, recomputed every 8 frames)
+        if (sampleCursor >= 64 && durationMs >= 14.0 && (sampleCursor & 7) == 0) {
             long medianNano = computeMedian();
             double medianMs = medianNano / 1_000_000.0;
 
@@ -259,29 +259,29 @@ public final class KollegenStutterDetective {
         }
     }
 
+    private static final long[] MEDIAN_BUF = new long[SAMPLES_SIZE];
+
     private static long computeMedian() {
         int count = Math.min(sampleCursor, SAMPLES_SIZE);
         if (count == 0) return 1_000_000L;
-        long[] copy = new long[count];
-        System.arraycopy(FRAME_SAMPLES, 0, copy, 0, count);
-        Arrays.sort(copy);
-        return copy[count / 2];
+        System.arraycopy(FRAME_SAMPLES, 0, MEDIAN_BUF, 0, count);
+        Arrays.sort(MEDIAN_BUF, 0, count);
+        return MEDIAN_BUF[count / 2];
     }
 
     private static void emitTelemetry(long now) {
         int count = Math.min(sampleCursor, SAMPLES_SIZE);
         if (count < 50 || totalFrames == 0) return;
 
-        long[] copy = new long[count];
-        System.arraycopy(FRAME_SAMPLES, 0, copy, 0, count);
-        Arrays.sort(copy);
+        System.arraycopy(FRAME_SAMPLES, 0, MEDIAN_BUF, 0, count);
+        Arrays.sort(MEDIAN_BUF, 0, count);
 
         // 1% Low is the 99th percentile frametime (1% slowest frames)
         int p99Idx = Math.min((int) (count * 0.99), count - 1);
         int p999Idx = Math.min((int) (count * 0.999), count - 1);
 
-        long p99Nano = copy[p99Idx];
-        long p999Nano = copy[p999Idx];
+        long p99Nano = MEDIAN_BUF[p99Idx];
+        long p999Nano = MEDIAN_BUF[p999Idx];
 
         double avgFrametimeMs = (double) totalNanoAccum / (totalFrames * 1_000_000.0);
         int avgFps = avgFrametimeMs > 0.0 ? (int) Math.round(1000.0 / avgFrametimeMs) : 0;
