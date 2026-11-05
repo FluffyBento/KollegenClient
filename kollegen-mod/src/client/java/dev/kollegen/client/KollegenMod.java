@@ -27,6 +27,7 @@ public class KollegenMod implements ClientModInitializer {
     private static boolean shiftWasDown = false;
     private static final Set<Integer> pressedKeys = new HashSet<>();
     private static boolean wasConnected = false;
+    private static boolean perfApplied = false;
 
     @Override
     public void onInitializeClient() {
@@ -45,6 +46,20 @@ public class KollegenMod implements ClientModInitializer {
     public static void onTick() {
         Minecraft mc = Minecraft.getInstance();
         if (mc == null) return;
+
+        // Apply performance module settings once when options become available
+        if (!perfApplied && mc.options != null) {
+            perfApplied = true;
+            for (Module m : ModuleManager.modules()) {
+                if (m.enabled && !m.initialized) {
+                    try {
+                        m.onEnable();
+                        m.initialized = true;
+                    } catch (Throwable ignored) {
+                    }
+                }
+            }
+        }
 
         
         dev.kollegen.client.input.GamepadDetect.ensureMappings();
