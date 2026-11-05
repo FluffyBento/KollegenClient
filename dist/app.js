@@ -4979,6 +4979,7 @@ $("manageRamBtn").onclick = async () => {
     manageInst.memory_min = min;
     manageInst.memory_max = val;
     toast("RAM aktualisiert: " + val, "ok");
+    if (typeof renderInstances === "function") renderInstances();
   } catch (e) {
     alert("Fehler: " + e);
   }
