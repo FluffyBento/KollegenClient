@@ -292,22 +292,7 @@ function buildInstanceCard(inst, index) {
   const launch = makePlayButton("Starten", "primary", () => launchGame(inst.name));
   const manage = makeIconButton("manage", "Instanz bearbeiten / verwalten", "", () => openManage(inst));
   const folder = makeIconButton("folder", "Instanz-Ordner öffnen", "", () => openInstanceFolder(inst));
-  const ramBtn = makeIconButton("ram", "RAM anpassen", "", async () => {
-    const current = inst.memory_max || "4G";
-    const val = prompt("RAM (z.B. 4G, 6G, 8G):", current);
-    if (!val) return;
-    const min = (parseInt(val) > 2 ? Math.max(1, parseInt(val) - 2) + "G" : "1G");
-    try {
-      await invoke("update_instance_memory", { instanceName: inst.name, memoryMin: min, memoryMax: val });
-      inst.memory_min = min;
-      inst.memory_max = val;
-      toast("RAM aktualisiert: " + val, "ok");
-      renderInstances();
-    } catch (e) {
-      alert("Fehler: " + e);
-    }
-  });
-  actions.append(launch, manage, folder, ramBtn);
+  actions.append(launch, manage, folder);
 
   const body = document.createElement("div");
   body.className = "instance-card-body";
@@ -4883,8 +4868,19 @@ function setManageTab(kind) {
   document.querySelectorAll(".tab").forEach((t) =>
     t.classList.toggle("active", t.dataset.kind === kind)
   );
-  resetManageSearch();
-  manageLoadInstalled();
+  const isSettings = kind === "settings";
+  const modActions = document.getElementById("manageModActions");
+  const settingsPanel = document.getElementById("manageSettings");
+  const installedHeading = document.querySelector(".installed-heading");
+  const installedList = document.getElementById("manageInstalled");
+  if (modActions) modActions.style.display = isSettings ? "none" : "";
+  if (settingsPanel) settingsPanel.hidden = !isSettings;
+  if (installedHeading) installedHeading.style.display = isSettings ? "none" : "";
+  if (installedList) installedList.style.display = isSettings ? "none" : "";
+  if (!isSettings) {
+    resetManageSearch();
+    manageLoadInstalled();
+  }
 }
 
 function showManageOverview() {
@@ -4969,6 +4965,22 @@ $("manageImportBtn").onclick = async () => {
     manageLoadInstalled();
   } catch (e) {
     alert("Import fehlgeschlagen: " + e);
+  }
+};
+
+$("manageRamBtn").onclick = async () => {
+  if (!manageInst) return;
+  const current = manageInst.memory_max || "4G";
+  const val = prompt("RAM (z.B. 4G, 6G, 8G):", current);
+  if (!val) return;
+  const min = (parseInt(val) > 2 ? Math.max(1, parseInt(val) - 2) + "G" : "1G");
+  try {
+    await invoke("update_instance_memory", { instanceName: manageInst.name, memoryMin: min, memoryMax: val });
+    manageInst.memory_min = min;
+    manageInst.memory_max = val;
+    toast("RAM aktualisiert: " + val, "ok");
+  } catch (e) {
+    alert("Fehler: " + e);
   }
 };
 

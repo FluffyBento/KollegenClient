@@ -457,14 +457,20 @@
           <button class="tab active" data-kind="mod" role="tab" aria-selected="true">Mods</button>
           <button class="tab" data-kind="resourcepack" role="tab" aria-selected="false">Resource Packs</button>
           <button class="tab" data-kind="shader" role="tab" aria-selected="false">Shader</button>
+          <button class="tab" data-kind="settings" role="tab" aria-selected="false">Einstellungen</button>
         </div>
-        <div class="manage-actions">
-          <button id="manageIconBtn" class="btn-secondary">Icon ändern</button>
-          <button id="manageBannerBtn" class="btn-secondary">Banner ändern</button>
-          <button id="manageImagesResetBtn" class="btn-secondary">Bilder zurücksetzen</button>
+        <div class="manage-actions" id="manageModActions">
           <button id="manageImportBtn" class="btn-secondary">Importieren</button>
-          <button id="manageCloneBtn" class="btn-secondary">Instanz klonen</button>
           <button id="manageBrowseBtn" class="btn-primary">Browse</button>
+        </div>
+        <div id="manageSettings" hidden="">
+          <div class="manage-actions">
+            <button id="manageIconBtn" class="btn-secondary">Icon ändern</button>
+            <button id="manageBannerBtn" class="btn-secondary">Banner ändern</button>
+            <button id="manageImagesResetBtn" class="btn-secondary">Bilder zurücksetzen</button>
+            <button id="manageCloneBtn" class="btn-secondary">Instanz klonen</button>
+            <button id="manageRamBtn" class="btn-secondary">RAM anpassen</button>
+          </div>
         </div>
         <h3 class="installed-heading">Installiert</h3>
         <ul id="manageInstalled" role="list"></ul>
