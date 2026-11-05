@@ -869,8 +869,6 @@ fn renderer_mod_group(fname: &str) -> Option<RendererGroup> {
         || f.starts_with("xaerolib")
     {
         Some(RendererGroup::Opengl)
-    } else if f.starts_with("vulkanmod") || f.starts_with("beryl") {
-        Some(RendererGroup::Vulkan)
     } else {
         None
     }
@@ -941,13 +939,22 @@ pub(crate) fn enforce_renderer_consistency(mods_dir: &Path, vulkan_enabled: bool
     } else {
         vulkan_enabled
     };
-    for name in ["VulkanMod.jar", "sodium.jar", "iris.jar", "beryl.jar"] {
+    for name in ["sodium.jar", "iris.jar"] {
         for candidate in [
             mods_dir.join(name),
             mods_dir.join(format!("{}.disabled", name)),
         ] {
             if candidate.is_file() && !is_intact_jar(&candidate) {
-                info!("Entferne korrupte Renderer-Datei (wird beim Start neu deployed): {}", name);
+                let _ = fs::remove_file(&candidate);
+            }
+        }
+    }
+    for name in ["VulkanMod.jar", "beryl.jar"] {
+        for candidate in [
+            mods_dir.join(name),
+            mods_dir.join(format!("{}.disabled", name)),
+        ] {
+            if candidate.is_file() {
                 let _ = fs::remove_file(&candidate);
             }
         }

@@ -18,8 +18,6 @@ public final class RendererManager {
     private static final String[][] MODS = {
             {"/dev/kollegen/client/sodium.bin", "sodium.jar", "sodium"},
             {"/dev/kollegen/client/iris.bin", "iris.jar", "iris"},
-            {"/dev/kollegen/client/vulkanmod.bin", "VulkanMod.jar", "vulkanmod"},
-            {"/dev/kollegen/client/beryl.bin", "beryl.jar", "beryl"},
     };
 
     private static final Path STATE_FILE = FabricLoader.getInstance()
@@ -61,8 +59,15 @@ public final class RendererManager {
         }
         Group active = desiredGroup();
         for (String[] mod : MODS) {
-            boolean wantActive = isVulkan(mod[2]) == (active == Group.VULKAN);
+            boolean wantActive = active == Group.OPENGL;
             ensureState(mods, mod[0], mod[1], wantActive);
+        }
+        try {
+            Files.deleteIfExists(mods.resolve("beryl.jar"));
+            Files.deleteIfExists(mods.resolve("beryl.jar.disabled"));
+            Files.deleteIfExists(mods.resolve("VulkanMod.jar"));
+            Files.deleteIfExists(mods.resolve("VulkanMod.jar.disabled"));
+        } catch (IOException ignored) {
         }
         handleRendererConflicts(mods, active);
         syncOptionsBackend(active);
@@ -84,10 +89,6 @@ public final class RendererManager {
             }
         } catch (Throwable ignored) {
         }
-    }
-
-    private static boolean isVulkan(String id) {
-        return id.equals("vulkanmod") || id.equals("beryl");
     }
 
     public static boolean essentialPresent(Path mods) {
