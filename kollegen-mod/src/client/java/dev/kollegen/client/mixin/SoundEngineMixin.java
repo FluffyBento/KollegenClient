@@ -25,7 +25,6 @@ public class SoundEngineMixin {
         if (!Performance.KollegenTricks.shouldCullSounds()) return;
 
         try {
-            // Cull sounds with linear attenuation that are inaudible or out of range
             if (sound.getAttenuation() == SoundInstance.Attenuation.LINEAR) {
                 float volume = sound.getVolume();
                 if (volume <= 0.0001f) {
@@ -46,7 +45,6 @@ public class SoundEngineMixin {
                         double dz = sound.getZ() - camZ;
                         double distSq = dx * dx + dy * dy + dz * dz;
 
-                        // Linear attenuation in Minecraft: effective max audible distance = max(volume, 1.0) * 16.0
                         double maxAudibleDist = Math.max(volume, 1.0f) * 16.0;
                         double cutoff = maxAudibleDist + 2.0;
                         if (distSq > cutoff * cutoff) {

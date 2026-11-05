@@ -1650,16 +1650,10 @@ pub fn launch(
 
     jvm_args.push("-XX:+UnlockExperimentalVMOptions".to_string());
 
-    // Java 25 (MC 26.x) Compact Object Headers (JEP 450)
-    // Reduziert Object Headers von 12/16 Bytes auf 8 Bytes.
-    // Spart massiv Heap & CPU Cache L1/L2/L3 bei BlockPos, Vec3, ChunkPos und Partikeln.
     if is_mc_26_plus {
         jvm_args.push("-XX:+UseCompactObjectHeaders".to_string());
     }
 
-    // Hardware-optimierte Garbage Collector Strategie:
-    // G1GC mit aggressivem Tuning für Minecraft (viele kleine Objekte, moderate Heap-Größe).
-    // ZGC verursacht Major-GC-Pausen von 700ms+ bei diesem Workload.
     info!("Hardware-Profil: Optimierter G1GC gewählt ({} Kerne, {} GB RAM)", cores, ram_gb);
     for flag in [
         "-XX:+UseG1GC",
@@ -1681,6 +1675,9 @@ pub fn launch(
         "-XX:MaxTenuringThreshold=1",
         "-XX:+UseStringDeduplication",
         "-XX:+OptimizeStringConcat",
+        "-XX:ReservedCodeCacheSize=1024M",
+        "-XX:+SegmentedCodeCache",
+        "-XX:CICompilerCount=8",
     ] {
         jvm_args.push(flag.to_string());
     }
@@ -1688,8 +1685,9 @@ pub fn launch(
     jvm_args.push("-Dsun.rmi.dgc.client.gcInterval=3600000".to_string());
     jvm_args.push("-Dsun.rmi.dgc.server.gcInterval=3600000".to_string());
     jvm_args.push("-Djava.lang.invoke.MethodHandle.EAGER_COMPILE=true".to_string());
+    jvm_args.push("-Dsun.java2d.opengl=false".to_string());
+    jvm_args.push("-Dsun.java2d.vulkan=true".to_string());
 
-    // Selbstoptimierender Launcher: Profil-Auswahl aus Allowlist mit automatischem Crash-Rollback
     let (chosen_preset, active_idx) = select_and_apply_optimization_preset(&inst_dir);
     info!(
         "Selbstoptimierender Launcher aktiv: Verwende Preset {} ('{}' - {})",
@@ -1699,7 +1697,6 @@ pub fn launch(
         jvm_args.push(flag.to_string());
     }
 
-    
     ensure_optimal_renderer_config(&inst_dir, cores, inst.vulkan_enabled);
 
     let os_cp_sep = if cfg!(target_os = "windows") { ";" } else { ":" };
@@ -1712,13 +1709,11 @@ pub fn launch(
     jvm_args.push("-cp".to_string());
     jvm_args.push(cp_arg);
 
-    
     let mut accounts = crate::utils::load_json::<Vec<crate::types::Account>>(
         &crate::utils::accounts_file(&state.data_dir),
         vec![],
     );
 
-    
     let now = chrono::Utc::now().timestamp() as u64;
     let expired = accounts
         .first()
@@ -1740,52 +1735,41 @@ pub fn launch(
     let uuid = first.map(|a| a.uuid.clone()).unwrap_or_else(|| "0".to_string());
     let access_token = first.map(|a| a.access_token.clone()).unwrap_or_default();
 
-    
     let mut cmd = std::process::Command::new(java_path);
     crate::java::sanitize_java_env(&mut cmd);
 
-    // Dedizierte GPU Zuordnung & CPU P-Core Affinität / Priorität
     #[cfg(target_os = "linux")]
     {
         use std::os::unix::process::CommandExt;
 
-        // Dedizierte GPU auf Linux Hybrid-Systemen (PRIME / NVIDIA Offload)
         cmd.env("__NV_PRIME_RENDER_OFFLOAD", "1");
         cmd.env("__GLX_VENDOR_LIBRARY_NAME", "nvidia");
         cmd.env("__VK_LAYER_NV_optimus", "NVIDIA_only");
         cmd.env("DRI_PRIME", "1");
 
-        // 64-bit Vulkan ICD explizit vorgeben (verhindert 32-bit ELFCLASS32 Fehlversuche)
         let nvidia_64 = std::path::Path::new("/usr/share/vulkan/icd.d/nvidia_icd.x86_64.json");
         if nvidia_64.exists() {
             cmd.env("VK_ICD_FILENAMES", nvidia_64);
             cmd.env("VK_DRIVER_FILES", nvidia_64);
         }
 
-        // NVIDIA OpenGL Threading & Ultra-High Framerate Treiber-Flags:
-        // __GL_THREADED_OPTIMIZATIONS=0: Verhindert NVIDIA_THREADED_OPTIMIZATIONS_BROKEN Workaround in Sodium
-        // (Sodium nutzt bereits eigenes Multithreading; Treiber-GLThread erzwingt sonst periodische CPU-GPU Synchronisations-Barrieren / 25ms Stalls)
-        // __GL_SYNC_TO_VBLANK=0 / vblank_mode=0: Verhindert jegliche Treiber- oder Compositor-Framerate-Drossel
-        // __GL_YIELD="NOTHING": Verhindert Scheduler-Yields bei Buffer-Swaps & minimiert Frame-Latenz
-        cmd.env("__GL_THREADED_OPTIMIZATIONS", "0");
+        cmd.env("__GL_THREADED_OPTIMIZATIONS", "1");
         cmd.env("__GL_SYNC_TO_VBLANK", "0");
         cmd.env("__GL_YIELD", "NOTHING");
         cmd.env("__GL_GSYNC_ALLOWED", "0");
         cmd.env("__GL_VRR_ALLOWED", "0");
         cmd.env("vblank_mode", "0");
-        cmd.env("mesa_glthread", "false");
+        cmd.env("mesa_glthread", "true");
         cmd.env("MESA_VK_WSI_PRESENT_MODE", "immediate");
+        cmd.env("VK_PRESENT_MODE_OVERRIDE", "MAILBOX");
 
-        // Native Wayland Window & Display-Pipeline:
-        // Lässt SDL & LWJGL nativ auf Wayland laufen (verhindert XWayland-HiDPI-Skalierung auf 4K & Swapchain-Konflikte)
+        cmd.env("SDL_VIDEODRIVER", "wayland,x11");
         cmd.env("SDL_VIDEO_ALLOW_SCREENSAVER", "1");
         cmd.env("SDL_VIDEO_MINIMIZE_ON_FOCUS_LOSS", "0");
 
-        // P-Core CPU-Affinität & Priorität setzen (verhindert E-Core FPS-Drops)
         let p_cores_opt = detect_p_cores_linux();
         unsafe {
             cmd.pre_exec(move || {
-                // Höhere Prozess-Priorität für gleichmäßiges Frame-Pacing (-5 nice)
                 let _ = libc::setpriority(libc::PRIO_PROCESS, 0, -5);
 
                 if let Some(ref cores) = p_cores_opt {
@@ -2457,7 +2441,97 @@ fn is_disconnect_log(line: &str) -> bool {
         || line.contains("Client disconnected")
 }
 
+pub fn apply_instance_performance_patch(inst_dir: &Path, is_new: bool, vulkan_enabled: bool) {
+    let opts = inst_dir.join("options.txt");
+    let target_backend = if vulkan_enabled {
+        "\"vulkan\""
+    } else {
+        "\"opengl\""
+    };
+
+    let optimal_pairs = [
+        ("preferredGraphicsBackend", target_backend),
+        ("enableVsync", "false"),
+        ("maxFps", "260"),
+        ("chunkSectionFadeInTime", "0.0"),
+        ("improvedTransparency", "false"),
+        ("prioritizeChunkUpdates", "2"),
+        ("cutoutLeaves", "true"),
+        ("biomeBlendRadius", "0"),
+        ("ao", "false"),
+        ("renderClouds", "\"false\""),
+        ("cloudRange", "8"),
+        ("entityShadows", "false"),
+        ("vignette", "false"),
+        ("syncChunkWrites", "false"),
+        ("mipmapLevels", "0"),
+        ("particles", "2"),
+        ("entityDistanceScaling", "0.5"),
+        ("weatherRadius", "1"),
+        ("graphicsPreset", "\"fast\""),
+    ];
+
+    if !opts.exists() || is_new {
+        let mut default_lines = Vec::new();
+        default_lines.push("version:5023".to_string());
+        default_lines.push("renderDistance:12".to_string());
+        default_lines.push("simulationDistance:8".to_string());
+        for (k, v) in &optimal_pairs {
+            default_lines.push(format!("{}:{}", k, v));
+        }
+        let _ = fs::write(&opts, default_lines.join("\n") + "\n");
+    } else if let Ok(content) = fs::read_to_string(&opts) {
+        let mut lines: Vec<String> = content.lines().map(|l| l.to_string()).collect();
+        let mut changed = false;
+
+        for (key, val) in &optimal_pairs {
+            let prefix = format!("{}:", key);
+            let target = format!("{}:{}", key, val);
+            let mut found = false;
+            for line in lines.iter_mut() {
+                if line.starts_with(&prefix) {
+                    found = true;
+                    if *line != target {
+                        *line = target.clone();
+                        changed = true;
+                    }
+                    break;
+                }
+            }
+            if !found {
+                lines.push(target);
+                changed = true;
+            }
+        }
+
+        for line in lines.iter_mut() {
+            if line.starts_with("renderDistance:") {
+                if let Ok(dist) = line["renderDistance:".len()..].trim().parse::<u32>() {
+                    if dist > 16 {
+                        *line = "renderDistance:14".to_string();
+                        changed = true;
+                    }
+                }
+            }
+            if line.starts_with("simulationDistance:") {
+                if let Ok(dist) = line["simulationDistance:".len()..].trim().parse::<u32>() {
+                    if dist > 12 {
+                        *line = "simulationDistance:8".to_string();
+                        changed = true;
+                    }
+                }
+            }
+        }
+
+        if changed {
+            let _ = fs::write(&opts, lines.join("\n") + "\n");
+        }
+    }
+}
+
 pub(crate) fn ensure_optimal_renderer_config(inst_dir: &Path, cores: usize, vulkan_enabled: bool) {
+    apply_instance_performance_patch(inst_dir, false, vulkan_enabled);
+
     let cfg_path = inst_dir.join("config").join("sodium-options.json");
     if cfg_path.exists() {
         if let Ok(content) = fs::read_to_string(&cfg_path) {
@@ -2482,47 +2556,6 @@ pub(crate) fn ensure_optimal_renderer_config(inst_dir: &Path, cores: usize, vulk
             }
         }
     }
-    let opts = inst_dir.join("options.txt");
-    let target_backend = if vulkan_enabled {
-        "preferredGraphicsBackend:\"vulkan\""
-    } else {
-        "preferredGraphicsBackend:\"opengl\""
-    };
-    if opts.exists() {
-        if let Ok(content) = fs::read_to_string(&opts) {
-            let mut lines: Vec<String> = content.lines().map(|l| l.to_string()).collect();
-            let mut changed = false;
-            let mut has_backend = false;
-            for line in lines.iter_mut() {
-                if line.starts_with("preferredGraphicsBackend:") {
-                    has_backend = true;
-                    if *line != target_backend {
-                        *line = target_backend.to_string();
-                        changed = true;
-                    }
-                }
-                if line.starts_with("enableVsync:") {
-                    if *line != "enableVsync:false" {
-                        *line = "enableVsync:false".to_string();
-                        changed = true;
-                    }
-                }
-                if line.starts_with("maxFps:") {
-                    if *line != "maxFps:260" {
-                        *line = "maxFps:260".to_string();
-                        changed = true;
-                    }
-                }
-            }
-            if !has_backend {
-                lines.push(target_backend.to_string());
-                changed = true;
-            }
-            if changed {
-                let _ = fs::write(&opts, lines.join("\n") + "\n");
-            }
-        }
-    }
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -2541,10 +2574,10 @@ pub static OPTIMIZATION_PRESETS: &[OptimizationPreset] = &[
         jvm_flags: &[
             "-XX:+UseFastUnorderedTimeStamps",
             "-XX:CompileThreshold=1000",
-            "-XX:ReservedCodeCacheSize=512M",
+            "-XX:ReservedCodeCacheSize=1024M",
             "-XX:+SegmentedCodeCache",
             "-XX:+TieredCompilation",
-            "-XX:CICompilerCount=4",
+            "-XX:CICompilerCount=8",
             "-XX:+UseVectorCmov",
             "-XX:+UseXMMForArrayCopy",
             "-XX:+OptimizeStringConcat",
@@ -2562,10 +2595,10 @@ pub static OPTIMIZATION_PRESETS: &[OptimizationPreset] = &[
             "-XX:LoopUnrollLimit=120",
             "-XX:+UseFastUnorderedTimeStamps",
             "-XX:CompileThreshold=800",
-            "-XX:ReservedCodeCacheSize=512M",
+            "-XX:ReservedCodeCacheSize=1024M",
             "-XX:+SegmentedCodeCache",
             "-XX:+TieredCompilation",
-            "-XX:CICompilerCount=4",
+            "-XX:CICompilerCount=8",
             "-XX:+UseVectorCmov",
             "-XX:+UseXMMForArrayCopy",
             "-XX:+OptimizeStringConcat",
@@ -2598,10 +2631,10 @@ pub static OPTIMIZATION_PRESETS: &[OptimizationPreset] = &[
             "-XX:ZAllocationSpikeTolerance=4",
             "-XX:+UseFastUnorderedTimeStamps",
             "-XX:CompileThreshold=600",
-            "-XX:ReservedCodeCacheSize=512M",
+            "-XX:ReservedCodeCacheSize=1024M",
             "-XX:+SegmentedCodeCache",
             "-XX:+TieredCompilation",
-            "-XX:CICompilerCount=6",
+            "-XX:CICompilerCount=8",
             "-XX:+OptimizeStringConcat",
             "-XX:+UseStringDeduplication",
         ],
@@ -2630,10 +2663,10 @@ pub static OPTIMIZATION_PRESETS: &[OptimizationPreset] = &[
             "-XX:+EliminateLocks",
             "-XX:ZAllocationSpikeTolerance=4",
             "-XX:+UseFastUnorderedTimeStamps",
-            "-XX:ReservedCodeCacheSize=512M",
+            "-XX:ReservedCodeCacheSize=1024M",
             "-XX:+SegmentedCodeCache",
             "-XX:+TieredCompilation",
-            "-XX:CICompilerCount=4",
+            "-XX:CICompilerCount=8",
             "-XX:+OptimizeStringConcat",
             "-XX:+UseStringDeduplication",
         ],
@@ -2662,10 +2695,10 @@ pub static OPTIMIZATION_PRESETS: &[OptimizationPreset] = &[
             "-XX:+EliminateLocks",
             "-XX:ZAllocationSpikeTolerance=4",
             "-XX:+UseFastUnorderedTimeStamps",
-            "-XX:ReservedCodeCacheSize=512M",
+            "-XX:ReservedCodeCacheSize=1024M",
             "-XX:+SegmentedCodeCache",
             "-XX:+TieredCompilation",
-            "-XX:CICompilerCount=4",
+            "-XX:CICompilerCount=8",
             "-XX:+OptimizeStringConcat",
             "-XX:+UseStringDeduplication",
         ],

@@ -42,7 +42,6 @@ public class WeatherEffectRendererMixin {
                         double dz = (pos.getZ() + 0.5) - camZ;
                         double distSq = dx * dx + dz * dz;
 
-                        // Columns immediately around the player (within 4 blocks) are always kept to avoid popping overhead
                         if (distSq > 16.0) {
                             int groundY = level.getHeight(Heightmap.Types.MOTION_BLOCKING, pos.getX(), pos.getZ());
                             int topY = level.getMaxY();

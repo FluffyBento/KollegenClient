@@ -51,7 +51,6 @@ public abstract class CapeLayerMixin {
             Identifier capeTexture = null;
 
             if (data != null && data.capeTexture != null) {
-                // If it has a 3D BbModel (e.g. store creator capes), CosmeticRenderLayer renders it
                 if (data.capeModel != null && !data.capeModel.isEmpty()) {
                     ci.cancel();
                     return;
@@ -70,7 +69,6 @@ public abstract class CapeLayerMixin {
                 WaveyCapeRenderer.renderWaveyCape(poseStack, collector, capeTexture, packedLight, state, hasArmor);
                 ci.cancel();
             } else if (this.model instanceof PlayerCapeModel capeModel) {
-                // Render flat cape using PlayerCapeModel for ALL capes (vanilla + Kollegen store)
                 poseStack.pushPose();
                 if (this.hasLayer(state.chestEquipment, EquipmentClientInfo.LayerType.HUMANOID)) {
                     poseStack.translate(0.0F, -0.053125F, 0.06875F);

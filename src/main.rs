@@ -379,6 +379,7 @@ fn create_instance(
 
     let dir = utils::instance_dir(&state.data_dir, &name);
     std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    crate::instance::apply_instance_performance_patch(&dir, true, inst.vulkan_enabled);
 
     instances.push(inst.clone());
     utils::save_json(&path, &instances).map_err(|e| e.to_string())?;
@@ -834,6 +835,7 @@ fn clone_instance_v2(
     instances.push(new_inst.clone());
     utils::save_json(&utils::instances_file(&state.data_dir), &instances).map_err(|e| e.to_string())?;
     
+    crate::instance::apply_instance_performance_patch(&new_dir, false, source.vulkan_enabled);
     Ok(new_inst)
 }
 

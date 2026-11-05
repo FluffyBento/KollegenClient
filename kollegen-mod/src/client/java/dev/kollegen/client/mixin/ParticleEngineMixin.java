@@ -46,16 +46,13 @@ public class ParticleEngineMixin {
             double dz = cz - camPos.z;
             double distSq = dx * dx + dy * dy + dz * dz;
 
-            // Particles in direct vicinity of the player (within 4 blocks) are always kept
             if (distSq <= 16.0) return;
 
-            // Ambient particles > 36 blocks away are invisible subpixels (saves thousands of checks in Nether/Caves)
             if (distSq > 1296.0) {
                 ci.cancel();
                 return;
             }
 
-            // Frustum check with 1.0 block padding without allocating AABB objects
             if (frustum instanceof FrustumAccessor fa) {
                 int res = fa.kollegen$cubeInFrustum(
                         bb.minX - 1.0, bb.minY - 1.0, bb.minZ - 1.0,

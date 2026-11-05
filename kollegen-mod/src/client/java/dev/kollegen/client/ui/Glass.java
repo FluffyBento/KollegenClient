@@ -11,7 +11,6 @@ public final class Glass {
     public static float opacity = 0.58f;
     public static float dt = 0.016f;
     private static long lastNs = 0L;
-    // PERF-DEBUG: Zähler pro Frame (wird vom Menü zurückgesetzt/geloggt).
     public static int fillCount = 0;
     public static int primCount = 0;
 
@@ -338,8 +337,8 @@ public final class Glass {
             return;
         }
         float k = k();
-        int T = Math.max(1, P(spread / 4.0f, k));
-        int L = 4;
+        int T = Math.max(1, P(spread / 2.0f, k));
+        int L = 2;
         pBegin(g);
         int X0 = P(x, k);
         int Y0 = P(y + dy, k);
@@ -368,8 +367,6 @@ public final class Glass {
         float bx = x1 * k;
         float by = y1 * k;
         int t = Math.max(1, Math.round(thick * k));
-        // Achsenparallele Linien (der Normalfall bei Icons/Rahmen) als
-        // einzelnes Rechteck statt DDA-Pixel — identisches Bild, ~20x weniger Fills.
         if (Math.abs(by - ay) < 0.5f) {
             int y = Math.round(ay - t / 2.0f);
             int xa = Math.round(Math.min(ax, bx));
@@ -533,8 +530,6 @@ public final class Glass {
         if (font.width(s) <= maxW) {
             return s;
         }
-        // PERF: Binäre Suche statt linearem Kürzen — trunc() läuft pro Frame für
-        // dutzende Strings; linear ist O(n^2) durch wiederholtes Neuvermessen.
         int ew = font.width("...");
         int lo = 1;
         int hi = s.length();
@@ -559,7 +554,6 @@ public final class Glass {
     public static void pill(GuiGraphicsExtractor g, float x, float y, float w, float h, float hov, boolean primary, boolean disabled) {
         float r = Math.min(w, h) / 2.0f;
         if (primary) {
-            // PERF: Glanz in Verlauf eingebacken (ein rrGrad statt zwei).
             int c1 = Palette.ACCENT;
             int c2 = Palette.ACCENT2;
             int top = mix(lighten(c1, 0.1f + 0.12f * hov), 0xFFFFFFFF, 0.10f);
@@ -567,7 +561,6 @@ public final class Glass {
             rrGrad(g, x, y, w, h, r, a(top, disabled ? 0.4f : 0.95f), a(bot, disabled ? 0.4f : 0.95f));
             ring(g, x, y, w, h, r, 0.5f, 0x55FFFFFF);
         } else {
-            // PERF: Solider Button + Glanz eingebacken (kein separater Sheen-Pass).
             int base = mix(mix(Palette.PANEL2, 0xFFFFFFFF, 0.04f + 0.12f * hov), 0xFFFFFFFF, 0.08f);
             rr(g, x, y, w, h, r, a(base, disabled ? 0.35f : 0.75f));
             ring(g, x, y, w, h, r, 0.5f, mixA(0x30FFFFFF, a(Palette.ACCENT, 0.9f), hov * 0.8f));

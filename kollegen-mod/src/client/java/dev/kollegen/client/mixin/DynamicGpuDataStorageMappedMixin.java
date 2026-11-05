@@ -15,6 +15,6 @@ public class DynamicGpuDataStorageMappedMixin {
             ordinal = 2
     )
     private static int kollegen$boostMappedCapacity(int initialCapacity) {
-        return Math.max(initialCapacity, 128);
+        return Math.max(initialCapacity, 4096);
     }
 }

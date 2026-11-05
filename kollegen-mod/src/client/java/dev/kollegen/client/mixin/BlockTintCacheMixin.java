@@ -52,7 +52,6 @@ public class BlockTintCacheMixin {
 
     @Inject(method = "invalidateForChunk(II)V", at = @At("HEAD"))
     private void kollegen$invalidateChunk(int x, int z, CallbackInfo ci) {
-        // Targeted chunk invalidation: keeps cache hot for all other chunks in view
         for (int i = 0; i < 1024; i++) {
             long k = kollegen$keys[i];
             if (k != Long.MIN_VALUE) {
