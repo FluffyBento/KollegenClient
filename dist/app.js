@@ -4973,9 +4973,12 @@ $("manageRamBtn").onclick = async () => {
   const current = manageInst.memory_max || "4G";
   const val = prompt("RAM (z.B. 4G, 6G, 8G):", current);
   if (!val) return;
-  const min = (parseInt(val) > 2 ? Math.max(1, parseInt(val) - 2) + "G" : "1G");
+  let maxVal = val.trim().toUpperCase();
+  if (!maxVal.endsWith("G") && !maxVal.endsWith("M")) maxVal += "G";
+  const num = parseInt(maxVal);
+  const min = (num > 2 ? Math.max(1, num - 2) + "G" : "1G");
   try {
-    await invoke("update_instance_memory", { instanceName: manageInst.name, memoryMin: min, memoryMax: val });
+    await invoke("update_instance_memory", { instanceName: manageInst.name, memoryMin: min, memoryMax: maxVal });
     manageInst.memory_min = min;
     manageInst.memory_max = val;
     toast("RAM aktualisiert: " + val, "ok");
