@@ -93,7 +93,55 @@ public final class KollegenStutterDetective {
                 "net.minecraft.client.renderer.blockentity.BlockEntityRenderDispatcher",
                 "java.lang.invoke.MethodHandles",
                 "java.lang.invoke.MethodType",
-                "java.lang.invoke.ConstantCallSite"
+                "java.lang.invoke.ConstantCallSite",
+                "net.minecraft.client.renderer.RenderType",
+                "net.minecraft.client.renderer.chunk.SectionCompiler",
+                "net.minecraft.client.renderer.culling.Frustum",
+                "net.minecraft.client.renderer.entity.EntityRenderer",
+                "net.minecraft.client.renderer.block.ModelBlockRenderer",
+                "net.minecraft.world.level.block.state.BlockState",
+                "net.minecraft.core.BlockPos",
+                "net.minecraft.world.phys.Vec3",
+                "net.minecraft.client.renderer.texture.TextureAtlas",
+                "net.minecraft.client.renderer.texture.TextureAtlasSprite",
+                "net.minecraft.client.gui.GuiGraphicsExtractor",
+                "net.minecraft.client.gui.Font",
+                "net.minecraft.network.chat.Component",
+                "net.minecraft.network.chat.MutableComponent",
+                "net.minecraft.client.renderer.MultiBufferSource",
+                "net.minecraft.client.renderer.RenderBuffers",
+                "net.minecraft.client.renderer.PostChain",
+                "net.minecraft.client.renderer.GameRenderer",
+                "net.minecraft.client.renderer.FogRenderer",
+                "net.minecraft.client.renderer.LightTexture",
+                "net.minecraft.client.renderer.CloudRenderer",
+                "net.minecraft.client.renderer.WeatherEffectRenderer",
+                "net.minecraft.client.renderer.entity.ItemRenderer",
+                "net.minecraft.client.renderer.item.ItemModelResolver",
+                "net.minecraft.client.resources.model.ModelManager",
+                "net.minecraft.client.resources.model.BakedModel",
+                "net.minecraft.client.multiplayer.ClientLevel",
+                "net.minecraft.client.player.LocalPlayer",
+                "net.minecraft.world.entity.Entity",
+                "net.minecraft.world.entity.LivingEntity",
+                "net.minecraft.world.item.ItemStack",
+                "net.minecraft.world.level.chunk.LevelChunk",
+                "net.minecraft.world.level.Level",
+                "net.minecraft.server.level.ServerLevel",
+                "net.minecraft.network.protocol.Packet",
+                "net.minecraft.network.protocol.game.ClientboundLevelChunkPacket",
+                "java.util.concurrent.ConcurrentHashMap",
+                "java.util.ArrayList",
+                "java.util.HashMap",
+                "java.util.HashSet",
+                "java.util.TreeMap",
+                "java.util.concurrent.atomic.AtomicReference",
+                "java.util.concurrent.locks.ReentrantLock",
+                "java.lang.reflect.Proxy",
+                "java.lang.reflect.Method",
+                "java.lang.reflect.Field",
+                "sun.misc.Unsafe",
+                "jdk.internal.reflect.ReflectionFactory"
             };
             for (String cls : classes) {
                 try {
@@ -106,9 +154,9 @@ public final class KollegenStutterDetective {
                 int val = (int) mh.invokeExact(1, 2);
             } catch (Throwable ignored) {}
         }, "Kollegen-ClassPrewarmer");
-        prewarmThread.setDaemon(true);
-        prewarmThread.setPriority(Thread.MIN_PRIORITY);
-        prewarmThread.start();
+            prewarmThread.setDaemon(true);
+            prewarmThread.setPriority(Thread.NORM_PRIORITY);
+            prewarmThread.start();
     }
 
     public static void onFrameStart() {

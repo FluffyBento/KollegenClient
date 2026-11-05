@@ -90,6 +90,7 @@ public final class SevenTvEmoteManager {
         final int height;
         final long startTime;
         int lastFrame = -1;
+        NativeImage cachedPixels;
 
         AnimatedTexture(DynamicTexture texture, List<AnimatedFrame> frames, int width, int height) {
             this.texture = texture;
@@ -325,13 +326,19 @@ public final class SevenTvEmoteManager {
 
     public static boolean containsEmote(String text) {
         if (text == null || text.isEmpty()) return false;
-        String[] words = text.split("\\s+");
-        for (String w : words) {
-            if (w.isEmpty()) continue;
+        int len = text.length();
+        int start = 0;
+        while (start < len) {
+            while (start < len && Character.isWhitespace(text.charAt(start))) start++;
+            if (start >= len) break;
+            int end = start;
+            while (end < len && !Character.isWhitespace(text.charAt(end))) end++;
+            String w = text.substring(start, end);
             if (isEmote(w)) return true;
-            int end = w.length();
-            while (end > 0 && ",.!?~:;".indexOf(w.charAt(end - 1)) >= 0) end--;
-            if (end > 0 && end < w.length() && isEmote(w.substring(0, end))) return true;
+            int p = w.length();
+            while (p > 0 && ",.!?~:;".indexOf(w.charAt(p - 1)) >= 0) p--;
+            if (p > 0 && p < w.length() && isEmote(w.substring(0, p))) return true;
+            start = end;
         }
         return false;
     }
@@ -522,8 +529,15 @@ public final class SevenTvEmoteManager {
             int idx = anim.currentFrame(now);
             if (idx == anim.lastFrame) continue;
             anim.lastFrame = idx;
-            NativeImage img = anim.texture.getPixels();
-            if (img == null) continue;
+            if (anim.cachedPixels == null) {
+                anim.cachedPixels = anim.texture.getPixels();
+            }
+            NativeImage img = anim.cachedPixels;
+            if (img == null) {
+                anim.cachedPixels = anim.texture.getPixels();
+                img = anim.cachedPixels;
+                if (img == null) continue;
+            }
             int[] pixels = anim.frames.get(idx).pixels;
             int w = Math.min(img.getWidth(), anim.width);
             int h = Math.min(img.getHeight(), anim.height);
