@@ -33,6 +33,7 @@ public class MinecraftClientMixin {
     @Inject(method = "renderFrame", at = @At("TAIL"))
     private void kollegen_client$renderFrameEnd(boolean renderLevel, CallbackInfo ci) {
         dev.kollegen.client.perf.KollegenStutterDetective.onFrameEnd();
+        dev.kollegen.client.mods.modules.SevenTvEmoteManager.tickAnimations();
     }
 
     @Inject(method = "tick", at = @At("HEAD"))
