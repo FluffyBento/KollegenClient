@@ -1733,9 +1733,13 @@ pub fn launch(
         info!("Hardware-Profil: Generational ZGC gewählt ({} Kerne, {} GB RAM)", cores, ram_gb);
         for flag in [
             "-XX:+UseZGC",
+            "-XX:+ZGenerational",
             "-XX:+DisableExplicitGC",
             "-XX:+AlwaysPreTouch",
             "-XX:+PerfDisableSharedMem",
+            "-XX:ZCollectionInterval=5",
+            "-XX:ZAllocationSpikeTolerance=2",
+            "-XX:ZUncommitDelay=300",
         ] {
             jvm_args.push(flag.to_string());
         }
