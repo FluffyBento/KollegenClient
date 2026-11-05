@@ -1036,7 +1036,7 @@ const BUNDLED_MODS: &[(&str, &str, &str)] = &[
 
 
 
-const LEGACY_BUNDLE_JARS: &[&str] = &["kollegen-bundle-flk.jar"];
+const LEGACY_BUNDLE_JARS: &[&str] = &[];
 
 
 
