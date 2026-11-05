@@ -30,6 +30,11 @@ public final class Visual {
     public static float fightCameraIntensity = 1.0f;
     public static boolean afkCinematicActive = false;
     public static long lastInputTime = System.currentTimeMillis();
+    public static float afkRotationSpeed = 0.6f;
+    public static float afkCameraDistance = 4.0f;
+    public static float afkCameraPitch = 12.0f;
+    public static float afkCameraYaw = 0.0f;
+    private static long lastAfkFrameNano = 0L;
     public static boolean zoomActive = false;
     public static boolean zoomSmoothCamera = false;
 
@@ -57,16 +62,37 @@ public final class Visual {
         return afkCinematicActive;
     }
 
+    public static float getAfkCameraYaw() {
+        return afkCameraYaw;
+    }
+
+    public static float getAfkCameraPitch() {
+        return afkCameraPitch;
+    }
+
+    public static float getAfkCameraDistance() {
+        return afkCameraDistance;
+    }
+
+    public static void onFrame() {
+        long now = System.nanoTime();
+        if (lastAfkFrameNano == 0L) {
+            lastAfkFrameNano = now;
+            return;
+        }
+        float dt = (now - lastAfkFrameNano) / 1_000_000_000.0f;
+        lastAfkFrameNano = now;
+        if (dt > 0.1f) dt = 0.016f;
+
+        if (afkCinematicActive) {
+            afkCameraYaw += afkRotationSpeed * 25.0f * dt;
+            if (afkCameraYaw >= 360.0f) afkCameraYaw -= 360.0f;
+        }
+    }
+
     public static void resetAfkTimer() {
         lastInputTime = System.currentTimeMillis();
-        if (afkCinematicActive) {
-            afkCinematicActive = false;
-            Minecraft mc = Minecraft.getInstance();
-            if (mc != null && mc.options != null && AfkCinematic.savedCamera != null) {
-                mc.options.setCameraType(AfkCinematic.savedCamera);
-                AfkCinematic.savedCamera = null;
-            }
-        }
+        afkCinematicActive = false;
     }
 
     private Visual() {
@@ -330,33 +356,38 @@ public final class Visual {
     }
 
     public static class AfkCinematic extends Module {
-        public static net.minecraft.client.CameraType savedCamera = null;
         private final SliderSetting delay = new SliderSetting("AFK-Zeit (s)", "Wartezeit bis zum Start.", 20.0, 5.0, 120.0, 5.0);
-        private final SliderSetting speed = new SliderSetting("Rotations-Tempo", "Drehgeschwindigkeit der Kamera.", 0.5, 0.1, 2.0, 0.1);
+        private final SliderSetting speed = new SliderSetting("Rotations-Tempo", "Drehgeschwindigkeit der Kamera.", 0.6, 0.1, 2.0, 0.1);
+        private final SliderSetting distance = new SliderSetting("Kamera-Abstand", "Distanz zum Spieler in Blöcken.", 4.0, 2.0, 8.0, 0.5);
+        private final SliderSetting pitch = new SliderSetting("Kamera-Neigung", "Blickwinkel von oben herab.", 12.0, -20.0, 45.0, 1.0);
 
         AfkCinematic() {
             super("afkcinematic", "AFK-Kamera", "Weiche rotierende Drittpersonen-Kamera nach Inaktivität.", Category.VISUAL);
             this.enabled = true;
             add(delay);
             add(speed);
+            add(distance);
+            add(pitch);
         }
 
         @Override
         public void onTick() {
-            if (!enabled || mc.player == null) {
+            if (!enabled || mc.player == null || (mc.gui != null && mc.gui.screen() != null)) {
                 if (afkCinematicActive) resetAfkTimer();
                 return;
             }
 
+            afkRotationSpeed = (float) speed.value;
+            afkCameraDistance = (float) distance.value;
+            afkCameraPitch = (float) pitch.value;
+
             long idle = System.currentTimeMillis() - lastInputTime;
             long threshold = (long) (delay.value * 1000L);
-            if (idle > threshold) {
-                if (!afkCinematicActive) {
-                    savedCamera = mc.options.getCameraType();
-                    mc.options.setCameraType(net.minecraft.client.CameraType.THIRD_PERSON_BACK);
-                    afkCinematicActive = true;
+            if (idle > threshold && !afkCinematicActive) {
+                afkCinematicActive = true;
+                if (mc.player != null) {
+                    afkCameraYaw = mc.player.getYRot();
                 }
-                mc.player.setYRot(mc.player.getYRot() + (float) speed.value);
             }
         }
 

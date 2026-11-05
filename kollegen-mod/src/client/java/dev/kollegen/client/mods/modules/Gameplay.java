@@ -11,7 +11,6 @@ public final class Gameplay {
 
     private static boolean toggleSprintActive = false;
     private static boolean toggleSneakActive = false;
-    private static boolean crystalOptimizerActive = false;
 
     public static boolean isToggleSprintActive() {
         return toggleSprintActive;
@@ -19,10 +18,6 @@ public final class Gameplay {
 
     public static boolean isToggleSneakActive() {
         return toggleSneakActive;
-    }
-
-    public static boolean isCrystalOptimizerActive() {
-        return crystalOptimizerActive;
     }
 
     private Gameplay() {
@@ -33,7 +28,6 @@ public final class Gameplay {
         ModuleManager.register(new AutoJump());
         ModuleManager.register(new ToggleSprint());
         ModuleManager.register(new ToggleSneak());
-        ModuleManager.register(new CrystalOptimizer());
     }
 
     private static class AutoSprint extends Module {
@@ -122,27 +116,6 @@ public final class Gameplay {
             toggled = false;
             toggleSneakActive = false;
             if (mc.player != null) mc.options.keyShift.setDown(false);
-        }
-    }
-
-    private static class CrystalOptimizer extends Module {
-        CrystalOptimizer() {
-            super("crystaloptimizer", "Crystal-Optimizer", "Entfernt Angriffs-Cooldown und Klick-Verzögerung bei End-Kristallen.", Category.GAMEPLAY);
-        }
-
-        @Override
-        public void onEnable() {
-            crystalOptimizerActive = true;
-        }
-
-        @Override
-        public void onTick() {
-            crystalOptimizerActive = enabled;
-        }
-
-        @Override
-        public void onDisable() {
-            crystalOptimizerActive = false;
         }
     }
 }

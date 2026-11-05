@@ -63,13 +63,11 @@ public final class Hud {
         ModuleManager.register(new Combo());
         ModuleManager.register(new Saturation());
         ModuleManager.register(new ServerInfo());
-        ModuleManager.register(new TargetInfo());
         ModuleManager.register(new ShieldStatus());
         ModuleManager.register(new ItemCounter());
         ModuleManager.register(new InventoryHud());
         ModuleManager.register(new ToggleSprintDisplay());
         ModuleManager.register(new TotemCounter());
-        ModuleManager.register(new PingEqualizer());
         ModuleManager.register(new GearTiers());
     }
 
@@ -105,8 +103,26 @@ public final class Hud {
     }
 
     private static class Ping extends HudModule {
+        private final BooleanSetting showJitter = new BooleanSetting("Jitter & Stabilität", "Zeigt Ping-Schwankungen und Verbindungsqualität an.", false);
+        private static final java.util.ArrayDeque<Integer> pingSamples = new java.util.ArrayDeque<>();
+
         Ping() {
-            super("ping", "Ping", "Latenz zum Server in ms.");
+            super("ping", "Ping", "Latenz zum Server mit optionaler Jitter- und Stabilitätsanzeige.");
+            add(showJitter);
+        }
+
+        @Override
+        public void onTick() {
+            if (showJitter.value && mc.getConnection() != null && mc.player != null) {
+                var info = mc.getConnection().getPlayerInfo(mc.player.getUUID());
+                if (info != null) {
+                    int latency = info.getLatency();
+                    if (latency >= 0) {
+                        pingSamples.addLast(latency);
+                        while (pingSamples.size() > 20) pingSamples.removeFirst();
+                    }
+                }
+            }
         }
 
         @Override
@@ -120,7 +136,23 @@ public final class Hud {
                 }
             } catch (Throwable ignored) {
             }
-            lines.add("Ping: " + (p < 0 ? "–" : p + " ms"));
+            if (showJitter.value && !pingSamples.isEmpty()) {
+                int sum = 0;
+                int min = Integer.MAX_VALUE;
+                int max = Integer.MIN_VALUE;
+                for (int val : pingSamples) {
+                    sum += val;
+                    if (val < min) min = val;
+                    if (val > max) max = val;
+                }
+                int avg = sum / pingSamples.size();
+                int jitter = (max - min) / 2;
+                String quality = jitter <= 5 ? "§aOptimal" : (jitter <= 15 ? "§eStabil" : "§cJitter");
+                lines.add("Ping: " + (p < 0 ? "–" : p + " ms") + " §8(Ø " + avg + "ms)");
+                lines.add("Stabilität: ±" + jitter + " ms [" + quality + "§8]");
+            } else {
+                lines.add("Ping: " + (p < 0 ? "–" : p + " ms"));
+            }
             renderLines(g, lines, 0, 0);
         }
     }
@@ -186,7 +218,6 @@ public final class Hud {
                 return;
             }
 
-            // Kompass-Leiste (inspiriert vom Norisk Client)
             int w = (int) compassWidth.value;
             int h = 18;
             boolean deg = showDegrees.value;
@@ -777,65 +808,6 @@ public final class Hud {
         }
     }
 
-    private static class TargetInfo extends HudModule {
-        private final BooleanSetting showArmor = new BooleanSetting("Rüstungswert", "Zeigt Rüstungspunkte des Ziels an.", true);
-        private final BooleanSetting showAbsorb = new BooleanSetting("Absorption", "Zeigt goldene Absorptionsherzen an.", true);
-        private final BooleanSetting showHealthBar = new BooleanSetting("Lebensbalken", "Zeigt einen visuellen Lebensbalken an.", true);
-
-        TargetInfo() {
-            super("targetinfo", "Ziel-Info (TrueHealth)", "Exakte Lebenspunkte, Absorptionsherzen und Rüstung des Ziels.");
-            add(showArmor);
-            add(showAbsorb);
-            add(showHealthBar);
-        }
-
-        @Override
-        public void onRenderHud(GuiGraphicsExtractor g, float td) {
-            List<String> lines = new ArrayList<>();
-            try {
-                var hr = mc.hitResult;
-                if (hr != null && hr.getType() == net.minecraft.world.phys.HitResult.Type.ENTITY) {
-                    var e = ((net.minecraft.world.phys.EntityHitResult) hr).getEntity();
-                    if (e instanceof LivingEntity le) {
-                        lines.add(le.getName().getString());
-                        float hp = le.getHealth();
-                        float maxHp = le.getMaxHealth();
-                        float abs = le.getAbsorptionAmount();
-                        int armor = le.getArmorValue();
-
-                        String hpStr = String.format(java.util.Locale.US, "%.1f / %.1f ❤", hp, maxHp);
-                        if (showAbsorb.value && abs > 0) {
-                            hpStr += String.format(java.util.Locale.US, " §6+%.1f", abs);
-                        }
-                        lines.add("Leben: " + hpStr);
-
-                        if (showArmor.value && armor > 0) {
-                            lines.add("Rüstung: §b" + armor + " 🛡");
-                        }
-
-                        if (showHealthBar.value) {
-                            float ratio = Math.max(0.0f, Math.min(1.0f, hp / Math.max(1.0f, maxHp)));
-                            int barLength = 12;
-                            int filled = Math.round(ratio * barLength);
-                            StringBuilder sb = new StringBuilder("§a");
-                            for (int i = 0; i < filled; i++) sb.append("|");
-                            sb.append("§c");
-                            for (int i = filled; i < barLength; i++) sb.append("|");
-                            lines.add(sb.toString());
-                        }
-                    } else {
-                        lines.add(e.getName().getString());
-                    }
-                } else {
-                    lines.add("Kein Ziel");
-                }
-            } catch (Throwable ignored) {
-                lines.add("Kein Ziel");
-            }
-            renderLines(g, lines, 0, 0);
-        }
-    }
-
     private static class ShieldStatus extends HudModule {
         ShieldStatus() {
             super("shield", "Schild-Status", "Zeigt an, ob das Schild einsatzbereit (grün) oder auf Cooldown (rot) ist.");
@@ -877,19 +849,23 @@ public final class Hud {
     }
 
     private static class ItemCounter extends HudModule {
-        public final BooleanSetting showTotem = new BooleanSetting("Totem", "Zählt Totems der Unsterblichkeit.", true);
+        public final BooleanSetting showTotem = new BooleanSetting("Totems", "Zählt Totems der Unsterblichkeit.", true);
         public final BooleanSetting showGapple = new BooleanSetting("Goldäpfel", "Zählt normale Goldäpfel.", true);
         public final BooleanSetting showNotch = new BooleanSetting("Verzauberte Äpfel", "Zählt verzauberte Goldäpfel.", true);
         public final BooleanSetting showPearl = new BooleanSetting("Enderperlen", "Zählt Enderperlen.", true);
         public final BooleanSetting showArrow = new BooleanSetting("Pfeile", "Zählt Pfeile im Inventar.", true);
+        public final BooleanSetting showFirework = new BooleanSetting("Feuerwerk", "Zählt Raketen im Inventar.", false);
+        public final BooleanSetting showWindCharge = new BooleanSetting("Windkugeln", "Zählt Windkugeln im Inventar.", false);
 
         ItemCounter() {
-            super("itemcounter", "Item-Zähler", "Zählt wichtige PvP-Items (Totems, Goldäpfel, Perlen, Pfeile) im Inventar.");
+            super("itemcounter", "Item-Zähler", "Zählt frei konfigurierbare Items (Totems, Äpfel, Perlen, Pfeile, Raketen) im Inventar.");
             add(showTotem);
             add(showGapple);
             add(showNotch);
             add(showPearl);
             add(showArrow);
+            add(showFirework);
+            add(showWindCharge);
         }
 
         @Override
@@ -902,6 +878,8 @@ public final class Hud {
             if (showNotch.value) checkAdd(items, net.minecraft.world.item.Items.ENCHANTED_GOLDEN_APPLE);
             if (showPearl.value) checkAdd(items, net.minecraft.world.item.Items.ENDER_PEARL);
             if (showArrow.value) checkAdd(items, net.minecraft.world.item.Items.ARROW);
+            if (showFirework.value) checkAdd(items, net.minecraft.world.item.Items.FIREWORK_ROCKET);
+            if (showWindCharge.value) checkAdd(items, net.minecraft.world.item.Items.WIND_CHARGE);
 
             if (items.isEmpty()) return;
 
@@ -1077,50 +1055,6 @@ public final class Hud {
             lines.add("Totem-Pops: §6" + selfPops);
             if (System.currentTimeMillis() - lastPopTime < 4000L && !lastPopMsg.isEmpty()) {
                 lines.add("§e" + lastPopMsg);
-            }
-            renderLines(g, lines, 0, 0);
-        }
-    }
-
-    public static class PingEqualizer extends HudModule {
-        private static final java.util.ArrayDeque<Integer> pingSamples = new java.util.ArrayDeque<>();
-
-        PingEqualizer() {
-            super("pingequalizer", "Ping-Equalizer", "Zeigt Ping-Stabilität, Jitter und Latenz-Ausgleich an.");
-        }
-
-        @Override
-        public void onTick() {
-            if (mc.getConnection() != null && mc.player != null) {
-                var info = mc.getConnection().getPlayerInfo(mc.player.getUUID());
-                if (info != null) {
-                    int latency = info.getLatency();
-                    if (latency >= 0) {
-                        pingSamples.addLast(latency);
-                        while (pingSamples.size() > 20) pingSamples.removeFirst();
-                    }
-                }
-            }
-        }
-
-        @Override
-        public void onRenderHud(GuiGraphicsExtractor g, float td) {
-            List<String> lines = new ArrayList<>();
-            if (pingSamples.isEmpty()) {
-                lines.add("Latenz: –");
-            } else {
-                int sum = 0;
-                int min = Integer.MAX_VALUE;
-                int max = Integer.MIN_VALUE;
-                for (int val : pingSamples) {
-                    sum += val;
-                    if (val < min) min = val;
-                    if (val > max) max = val;
-                }
-                int avg = sum / pingSamples.size();
-                int jitter = (max - min) / 2;
-                String quality = jitter <= 5 ? "§aOptimal" : (jitter <= 15 ? "§eStabil" : "§cJitter");
-                lines.add("Latenz: " + avg + " ms §8(±" + jitter + "ms) [" + quality + "§8]");
             }
             renderLines(g, lines, 0, 0);
         }

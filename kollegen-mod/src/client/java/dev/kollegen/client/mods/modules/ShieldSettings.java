@@ -17,12 +17,12 @@ import java.util.UUID;
 
 public class ShieldSettings extends Module {
     public static ShieldSettings INSTANCE;
-    public static boolean instantShieldFixes = true;
+    public static boolean instantShieldFixes = false;
 
     public final BooleanSetting shieldFixes = new BooleanSetting(
             "ShieldFixes (Instant-Block)",
-            "Entfernt die künstliche 5-Tick-Verzögerung beim Heben des Schilds für sofortigen Block.",
-            true
+            "Entfernt die künstliche 5-Tick-Verzögerung beim Heben des Schilds (Empfohlen für Singleplayer).",
+            false
     );
 
     public final BooleanSetting lowerShield = new BooleanSetting(
@@ -127,6 +127,11 @@ public class ShieldSettings extends Module {
     @Override
     public void onTick() {
         instantShieldFixes = enabled && shieldFixes.value;
+    }
+
+    @Override
+    public void onDisable() {
+        instantShieldFixes = false;
     }
 
     public static boolean isCustomTransformEnabled() {

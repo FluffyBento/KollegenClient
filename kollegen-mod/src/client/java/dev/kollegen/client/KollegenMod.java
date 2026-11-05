@@ -47,7 +47,6 @@ public class KollegenMod implements ClientModInitializer {
         Minecraft mc = Minecraft.getInstance();
         if (mc == null) return;
 
-        // Apply performance module settings once when options become available
         if (!perfApplied && mc.options != null) {
             perfApplied = true;
             for (Module m : ModuleManager.modules()) {
@@ -95,7 +94,6 @@ public class KollegenMod implements ClientModInitializer {
             }
         }
 
-        // Module Hotkeys (nur ausführen wenn kein Screen geöffnet ist)
         if (mc.gui != null && mc.gui.screen() == null) {
             for (Module m : ModuleManager.modules()) {
                 for (dev.kollegen.client.mods.Setting s : m.settings()) {
@@ -134,6 +132,7 @@ public class KollegenMod implements ClientModInitializer {
         Minecraft mc = Minecraft.getInstance();
         if (mc == null || mc.player == null || mc.level == null) return;
         dev.kollegen.client.input.GamepadInput.onFrame(mc);
+        dev.kollegen.client.mods.modules.Visual.onFrame();
     }
 
     private static boolean isKeyDown(int key) {

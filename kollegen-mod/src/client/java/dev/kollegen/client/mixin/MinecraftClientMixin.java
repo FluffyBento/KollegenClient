@@ -59,11 +59,6 @@ public abstract class MinecraftClientMixin {
             cir.setReturnValue(false);
             return;
         }
-        if (dev.kollegen.client.mods.modules.Gameplay.isCrystalOptimizerActive()) {
-            if (this.hitResult instanceof net.minecraft.world.phys.EntityHitResult ehr && ehr.getEntity() instanceof net.minecraft.world.entity.boss.enderdragon.EndCrystal) {
-                this.missTime = 0;
-            }
-        }
     }
 
     @Inject(method = "startAttack", at = @At("RETURN"))
@@ -92,12 +87,6 @@ public abstract class MinecraftClientMixin {
         if (Freecam.isActive()) {
             ci.cancel();
             return;
-        }
-        if (leftClick && dev.kollegen.client.mods.modules.Gameplay.isCrystalOptimizerActive()) {
-            if (this.hitResult instanceof net.minecraft.world.phys.EntityHitResult ehr && ehr.getEntity() instanceof net.minecraft.world.entity.boss.enderdragon.EndCrystal) {
-                this.missTime = 0;
-                this.startAttack();
-            }
         }
     }
 
