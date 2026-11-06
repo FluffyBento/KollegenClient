@@ -52,6 +52,25 @@ public class ChatScreenMixin {
                 if (dev.kollegen.client.mods.modules.Clips.INSTANCE != null) {
                     dev.kollegen.client.mods.modules.Clips.INSTANCE.triggerClip();
                 }
+            } else if (lower.equals("/emote") || lower.startsWith("/emote ") || lower.equals("/emotes") || lower.startsWith("/emotes ") || lower.equals("/emotewheel")) {
+                ci.cancel();
+                Minecraft mc = Minecraft.getInstance();
+                if (addToHistory && mc != null && mc.gui != null && mc.gui.hud != null && mc.gui.hud.getChat() != null) {
+                    mc.gui.hud.getChat().addRecentChat(message);
+                }
+                String args = trimmed.contains(" ") ? trimmed.substring(trimmed.indexOf(' ') + 1).trim() : "";
+                if (args.isEmpty() || args.equalsIgnoreCase("wheel") || args.equalsIgnoreCase("rad")) {
+                    dev.kollegen.client.mods.modules.Emotes.openWheel();
+                } else if (args.equalsIgnoreCase("stop")) {
+                    dev.kollegen.client.emotes.EmoteManager.stopAllEmotes();
+                } else {
+                    dev.kollegen.client.emotes.Emote e = dev.kollegen.client.emotes.EmoteManager.getById(args.toLowerCase());
+                    if (e != null) {
+                        dev.kollegen.client.emotes.EmoteManager.playEmote(e);
+                    } else {
+                        dev.kollegen.client.mods.modules.Emotes.openWheel();
+                    }
+                }
             }
         }
     }

@@ -2028,12 +2028,28 @@ public class KollegenMenuScreen extends Screen {
 
     private void layoutEmotes(String q) {
         this.ensureStore();
-        Cell tWheel = this.addFull(K_TITLE, 20.0f);
-        tWheel.text = "Emote-Rad (8 Slots)";
-        tWheel.data = new JsonObject();
-        tWheel.data.addProperty("sub", "Wähle Emotes für die 8 Slots deines Schnellzugriffs-Rads.");
+        if (q.isEmpty()) {
+            Cell tWheel = this.addFull(K_TITLE, 20.0f);
+            tWheel.text = "Emote-Rad (8 Slots)";
+            tWheel.data = new JsonObject();
+            tWheel.data.addProperty("sub", "Wähle Emotes für die 8 Slots deines Schnellzugriffs-Rads.");
 
-        this.addFull(K_EMOTE_WHEEL_PREVIEW, 54.0f);
+            this.addFull(K_EMOTE_WHEEL_PREVIEW, 54.0f);
+
+            Cell tSet = this.addFull(K_TITLE, 20.0f);
+            tSet.text = "Einstellungen";
+            tSet.data = new JsonObject();
+            tSet.data.addProperty("sub", "Schnellzugriff-Taste und Perspektiven-Optionen.");
+
+            Module mEmotes = ModuleManager.byId("emotes");
+            if (mEmotes != null) {
+                for (Setting s : mEmotes.settings()) {
+                    Cell c = this.addFull(K_SETTING, 30.0f);
+                    c.setting = s;
+                    c.module = mEmotes;
+                }
+            }
+        }
 
         Cell tAll = this.addFull(K_TITLE, 20.0f);
         tAll.text = "Alle Emotes";

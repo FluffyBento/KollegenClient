@@ -166,6 +166,25 @@ public class EmoteWheelScreen extends Screen {
                 return true;
             }
 
+            String[] wheel = EmoteManager.getWheel();
+            for (int i = 0; i < 8; i++) {
+                float theta = (float) Math.toRadians(i * 45.0f - 90.0f);
+                float sx = cx + (float) Math.cos(theta) * 88.0f;
+                float sy = cy + (float) Math.sin(theta) * 88.0f;
+                float cardW = 66.0f;
+                float cardH = 44.0f;
+                if (mx >= sx - cardW / 2.0f && mx <= sx + cardW / 2.0f && my >= sy - cardH / 2.0f && my <= sy + cardH / 2.0f) {
+                    if (i < wheel.length && wheel[i] != null && !wheel[i].isEmpty()) {
+                        Emote e = EmoteManager.getById(wheel[i]);
+                        if (e != null) {
+                            EmoteManager.playEmote(e);
+                        }
+                    }
+                    this.onClose();
+                    return true;
+                }
+            }
+
             if (dist <= 170.0f) {
                 float angle = (float) Math.toDegrees(Math.atan2(my - cy, mx - cx));
                 float adjusted = (angle + 90.0f + 22.5f);
@@ -173,7 +192,6 @@ public class EmoteWheelScreen extends Screen {
                 adjusted = adjusted % 360.0f;
                 int slot = (int) (adjusted / 45.0f) % 8;
 
-                String[] wheel = EmoteManager.getWheel();
                 if (slot >= 0 && slot < wheel.length) {
                     String id = wheel[slot];
                     Emote e = EmoteManager.getById(id);
@@ -196,6 +214,14 @@ public class EmoteWheelScreen extends Screen {
         if (event.key() == InputConstants.KEY_ESCAPE || event.isEscape()) {
             this.onClose();
             return true;
+        }
+
+        if (dev.kollegen.client.mods.modules.Emotes.INSTANCE != null) {
+            int targetKey = dev.kollegen.client.mods.modules.Emotes.INSTANCE.hotkey.value;
+            if (targetKey > 0 && event.key() == targetKey) {
+                this.onClose();
+                return true;
+            }
         }
 
         int code = event.key();

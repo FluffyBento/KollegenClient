@@ -43,6 +43,12 @@ public class Emote {
                 head.xRot = (float) Math.toRadians(25 * p);
                 head.yRot = (float) Math.toRadians(45 * p);
                 head.zRot = (float) Math.toRadians(-15 * p);
+                body.yRot = (float) Math.toRadians(-18 * p);
+                body.zRot = (float) Math.toRadians(-8 * p);
+                rightLeg.xRot = (float) Math.toRadians(14 * p);
+                rightLeg.zRot = (float) Math.toRadians(10 * p);
+                leftLeg.xRot = (float) Math.toRadians(-10 * p);
+                leftLeg.zRot = (float) Math.toRadians(-8 * p);
                 break;
             }
             case "clap": {
@@ -53,6 +59,9 @@ public class Emote {
                 leftArm.xRot = (float) Math.toRadians(-75);
                 leftArm.yRot = (float) Math.toRadians(25) + clap * 0.25f;
                 leftArm.zRot = (float) Math.toRadians(35) - clap * 0.2f;
+                float bounce = clap * 0.06f;
+                rightLeg.xRot = bounce;
+                leftLeg.xRot = -bounce;
                 break;
             }
             case "bow": {
@@ -63,6 +72,9 @@ public class Emote {
                 rightArm.zRot = (float) Math.toRadians(15 * p);
                 leftArm.xRot = (float) Math.toRadians(-25 * p);
                 leftArm.zRot = (float) Math.toRadians(-15 * p);
+                rightLeg.xRot = (float) Math.toRadians(-10 * p);
+                leftLeg.xRot = (float) Math.toRadians(-10 * p);
+                body.y += 2.0f * p;
                 break;
             }
             case "point": {
@@ -70,6 +82,8 @@ public class Emote {
                 rightArm.xRot = (float) Math.toRadians(-90 * p);
                 rightArm.yRot = (float) Math.toRadians(-10 * p);
                 head.xRot = (float) Math.toRadians(-5 * p);
+                rightLeg.zRot = 0.08f * p;
+                leftLeg.zRot = -0.08f * p;
                 break;
             }
             case "facepalm": {
@@ -79,15 +93,18 @@ public class Emote {
                 rightArm.zRot = (float) Math.toRadians(-30 * p);
                 head.xRot = (float) Math.toRadians(25 * p);
                 head.yRot = (float) Math.toRadians(10 * p);
+                body.xRot = (float) Math.toRadians(10 * p);
+                rightLeg.xRot = (float) Math.toRadians(5 * p);
                 break;
             }
             case "sit": {
-                body.y += 10.0f;
-                head.y += 10.0f;
-                rightArm.y += 10.0f;
-                leftArm.y += 10.0f;
-                rightLeg.y += 10.0f;
-                leftLeg.y += 10.0f;
+                float sitY = 10.0f;
+                body.y += sitY;
+                head.y += sitY;
+                rightArm.y += sitY;
+                leftArm.y += sitY;
+                rightLeg.y += sitY;
+                leftLeg.y += sitY;
                 rightLeg.xRot = (float) Math.toRadians(-85);
                 leftLeg.xRot = (float) Math.toRadians(-85);
                 rightLeg.yRot = (float) Math.toRadians(15);
@@ -99,29 +116,47 @@ public class Emote {
                 break;
             }
             case "liedown": {
-                body.y += 19.0f;
-                body.xRot = (float) Math.toRadians(90);
-                head.y += 19.0f;
-                head.xRot = (float) Math.toRadians(80);
-                rightLeg.y += 19.0f;
-                leftLeg.y += 19.0f;
-                rightArm.y += 19.0f;
-                leftArm.y += 19.0f;
-                rightArm.zRot = (float) Math.toRadians(25);
-                leftArm.zRot = (float) Math.toRadians(-25);
+                float floorY = 22.0f;
+                body.y = floorY;
+                head.y = floorY;
+                rightArm.y = floorY;
+                leftArm.y = floorY;
+                rightLeg.y = floorY;
+                leftLeg.y = floorY;
+                body.xRot = (float) Math.toRadians(-90);
+                head.xRot = (float) Math.toRadians(-85);
+                head.z = -10.0f;
+                rightArm.xRot = (float) Math.toRadians(-85);
+                rightArm.zRot = (float) Math.toRadians(18);
+                rightArm.z = -8.0f;
+                leftArm.xRot = (float) Math.toRadians(-85);
+                leftArm.zRot = (float) Math.toRadians(-18);
+                leftArm.z = -8.0f;
+                rightLeg.xRot = (float) Math.toRadians(-90);
+                rightLeg.z = 4.0f;
+                rightLeg.yRot = (float) Math.toRadians(10);
+                leftLeg.xRot = (float) Math.toRadians(-90);
+                leftLeg.z = 4.0f;
+                leftLeg.yRot = (float) Math.toRadians(-10);
                 break;
             }
             case "squat": {
                 float cycle = (float) ((Math.sin(timeSec * 3.5f) + 1.0f) / 2.0f);
-                float dip = cycle * 6.0f;
+                float dip = cycle * 8.0f;
                 body.y += dip;
                 head.y += dip;
                 rightArm.y += dip;
                 leftArm.y += dip;
                 rightLeg.y += dip;
                 leftLeg.y += dip;
-                rightLeg.xRot = -cycle * 0.9f;
-                leftLeg.xRot = -cycle * 0.9f;
+                rightLeg.xRot = -cycle * 0.95f;
+                leftLeg.xRot = -cycle * 0.95f;
+                rightLeg.zRot = cycle * 0.22f;
+                leftLeg.zRot = -cycle * 0.22f;
+                rightLeg.yRot = cycle * 0.15f;
+                leftLeg.yRot = -cycle * 0.15f;
+                body.xRot = cycle * 0.35f;
+                head.xRot = -cycle * 0.25f;
                 rightArm.xRot = (float) Math.toRadians(-75);
                 leftArm.xRot = (float) Math.toRadians(-75);
                 break;
@@ -135,6 +170,10 @@ public class Emote {
                 leftArm.zRot = (float) Math.toRadians(-90);
                 head.xRot = 0.0f;
                 head.yRot = 0.0f;
+                rightLeg.xRot = 0.0f;
+                leftLeg.xRot = 0.0f;
+                rightLeg.zRot = 0.05f;
+                leftLeg.zRot = -0.05f;
                 break;
             }
             case "floss": {
@@ -148,6 +187,10 @@ public class Emote {
                 leftArm.xRot = (float) Math.toRadians(-25) - swing * 0.4f;
                 leftArm.zRot = (float) Math.toRadians(-20) + swing * 0.6f;
                 head.yRot = -body.yRot * 0.8f;
+                rightLeg.zRot = -hip * 0.7f;
+                leftLeg.zRot = -hip * 0.7f;
+                rightLeg.xRot = (float) Math.sin(beat) * 0.12f;
+                leftLeg.xRot = -(float) Math.sin(beat) * 0.12f;
                 break;
             }
             case "meditate": {
@@ -180,8 +223,10 @@ public class Emote {
                 rightArm.zRot = (float) Math.toRadians(-25);
                 leftArm.xRot = (float) Math.toRadians(-20) + kick * 0.3f;
                 leftArm.zRot = (float) Math.toRadians(-20);
-                rightLeg.xRot = kick * 0.5f;
-                leftLeg.xRot = -kick * 0.5f;
+                rightLeg.xRot = kick * 0.65f;
+                leftLeg.xRot = -kick * 0.65f;
+                rightLeg.zRot = (float) Math.toRadians(12);
+                leftLeg.zRot = (float) Math.toRadians(-12);
                 head.zRot = (float) Math.sin(timeSec * 3.5f) * 0.15f;
                 break;
             }
@@ -195,55 +240,101 @@ public class Emote {
                 rightArm.zRot = (float) Math.toRadians(-15) + rock * 0.25f;
                 head.xRot = (float) Math.abs(Math.sin(timeSec * 8.0f)) * 0.3f;
                 body.xRot = 0.12f;
+                rightLeg.xRot = (float) Math.toRadians(-22) + rock * 0.12f;
+                leftLeg.xRot = (float) Math.toRadians(20) - rock * 0.12f;
+                rightLeg.zRot = (float) Math.toRadians(14);
+                leftLeg.zRot = (float) Math.toRadians(-14);
                 break;
             }
             case "breakdance": {
-                float rot = timeSec * 5.0f;
-                body.y += 12.0f;
-                head.y += 12.0f;
-                rightArm.y += 12.0f;
-                leftArm.y += 12.0f;
-                rightLeg.y += 12.0f;
-                leftLeg.y += 12.0f;
+                float rot = timeSec * 6.0f;
+                float floorY = 16.0f;
+                body.y = floorY;
+                head.y = floorY - 2.0f;
+                rightArm.y = floorY + 2.0f;
+                leftArm.y = floorY + 2.0f;
+                rightLeg.y = floorY + 2.0f;
+                leftLeg.y = floorY + 2.0f;
+                body.xRot = (float) Math.toRadians(40);
                 body.yRot = rot;
+                head.xRot = (float) Math.toRadians(30);
                 head.yRot = rot;
-                rightArm.xRot = (float) Math.toRadians(-80);
-                leftArm.xRot = (float) Math.toRadians(-80);
-                rightLeg.zRot = (float) Math.toRadians(45) + (float) Math.sin(rot * 2.0f) * 0.4f;
-                leftLeg.zRot = (float) Math.toRadians(-45) - (float) Math.sin(rot * 2.0f) * 0.4f;
+                float legSpread = (float) Math.toRadians(55) + (float) Math.sin(rot * 2.0f) * 0.35f;
+                float legKick = (float) Math.cos(rot) * 0.6f;
+                rightLeg.yRot = rot;
+                leftLeg.yRot = rot;
+                rightLeg.xRot = (float) Math.toRadians(35) + legKick;
+                leftLeg.xRot = (float) Math.toRadians(35) - legKick;
+                rightLeg.zRot = legSpread;
+                leftLeg.zRot = -legSpread;
+                float cos = (float) Math.cos(rot);
+                float sin = (float) Math.sin(rot);
+                rightLeg.x = -1.9f * cos;
+                rightLeg.z = 1.9f * sin;
+                leftLeg.x = 1.9f * cos;
+                leftLeg.z = -1.9f * sin;
+                rightArm.yRot = rot;
+                leftArm.yRot = rot;
+                rightArm.xRot = (float) Math.toRadians(-75);
+                leftArm.xRot = (float) Math.toRadians(-75);
+                rightArm.x = -5.0f * cos;
+                rightArm.z = 5.0f * sin;
+                leftArm.x = 5.0f * cos;
+                leftArm.z = -5.0f * sin;
                 break;
             }
             case "backflip": {
                 float p = Math.min(1.0f, timeSec / 1.5f);
-                float jump = (float) Math.sin(p * Math.PI) * 14.0f;
-                body.y -= jump;
-                head.y -= jump;
-                rightArm.y -= jump;
-                leftArm.y -= jump;
-                rightLeg.y -= jump;
-                leftLeg.y -= jump;
+                float jump = (float) Math.sin(p * Math.PI) * 16.0f;
                 float flip = (float) (-p * Math.PI * 2.0);
+                float cy = 10.0f;
+                float cosF = (float) Math.cos(flip);
+                float sinF = (float) Math.sin(flip);
+                float tuck = (float) Math.sin(p * Math.PI) * 0.9f;
+
+                float headDy = -10.0f;
+                head.y = cy + headDy * cosF - jump;
+                head.z = headDy * sinF;
+                head.xRot = flip + (float) Math.toRadians(-20) * (float) Math.sin(p * Math.PI);
+
+                float bodyDy = -5.0f;
+                body.y = cy + bodyDy * cosF - jump;
+                body.z = bodyDy * sinF;
                 body.xRot = flip;
-                head.xRot = flip * 0.8f;
-                rightLeg.xRot = (float) Math.toRadians(-30);
-                leftLeg.xRot = (float) Math.toRadians(-30);
-                rightArm.xRot = (float) Math.toRadians(-150);
-                leftArm.xRot = (float) Math.toRadians(-150);
+
+                float armDy = -8.0f;
+                rightArm.y = cy + armDy * cosF - jump;
+                rightArm.z = armDy * sinF;
+                rightArm.xRot = flip + (float) Math.toRadians(-120) * (float) Math.sin(p * Math.PI);
+                leftArm.y = cy + armDy * cosF - jump;
+                leftArm.z = armDy * sinF;
+                leftArm.xRot = flip + (float) Math.toRadians(-120) * (float) Math.sin(p * Math.PI);
+
+                float legDy = 2.0f;
+                rightLeg.y = cy + legDy * cosF - jump;
+                rightLeg.z = legDy * sinF;
+                rightLeg.xRot = flip - tuck;
+                leftLeg.y = cy + legDy * cosF - jump;
+                leftLeg.z = legDy * sinF;
+                leftLeg.xRot = flip - tuck;
                 break;
             }
             case "jumpingjacks": {
-                float cycle = (float) Math.sin(timeSec * 5.0f);
+                float cycle = (float) Math.sin(timeSec * 6.0f);
                 float open = (float) Math.max(0.0, cycle);
-                body.y -= open * 3.5f;
-                head.y -= open * 3.5f;
-                rightArm.y -= open * 3.5f;
-                leftArm.y -= open * 3.5f;
-                rightLeg.y -= open * 3.5f;
-                leftLeg.y -= open * 3.5f;
+                float dip = open * 3.5f;
+                body.y -= dip;
+                head.y -= dip;
+                rightArm.y -= dip;
+                leftArm.y -= dip;
+                rightLeg.y -= dip;
+                leftLeg.y -= dip;
                 rightArm.zRot = open * (float) Math.toRadians(120);
                 leftArm.zRot = -open * (float) Math.toRadians(120);
                 rightLeg.zRot = open * (float) Math.toRadians(30);
                 leftLeg.zRot = -open * (float) Math.toRadians(30);
+                rightLeg.xRot = open * 0.08f;
+                leftLeg.xRot = open * 0.08f;
                 break;
             }
             case "robot": {
@@ -252,18 +343,26 @@ public class Emote {
                     rightArm.xRot = (float) Math.toRadians(-90);
                     leftArm.xRot = 0.0f;
                     head.yRot = (float) Math.toRadians(30);
+                    rightLeg.xRot = (float) Math.toRadians(-25);
+                    leftLeg.xRot = 0.0f;
                 } else if (step == 1) {
                     rightArm.xRot = (float) Math.toRadians(-90);
                     leftArm.xRot = (float) Math.toRadians(-90);
                     head.yRot = 0.0f;
+                    rightLeg.xRot = 0.0f;
+                    leftLeg.xRot = 0.0f;
                 } else if (step == 2) {
                     rightArm.xRot = 0.0f;
                     leftArm.xRot = (float) Math.toRadians(-90);
                     head.yRot = (float) Math.toRadians(-30);
+                    rightLeg.xRot = 0.0f;
+                    leftLeg.xRot = (float) Math.toRadians(-25);
                 } else {
                     rightArm.xRot = 0.0f;
                     leftArm.xRot = 0.0f;
                     head.yRot = 0.0f;
+                    rightLeg.xRot = 0.0f;
+                    leftLeg.xRot = 0.0f;
                 }
                 break;
             }
