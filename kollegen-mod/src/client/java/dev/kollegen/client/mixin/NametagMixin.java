@@ -2,6 +2,7 @@ package dev.kollegen.client.mixin;
 
 import com.mojang.authlib.GameProfile;
 import com.mojang.blaze3d.vertex.PoseStack;
+import dev.kollegen.client.menu.SkinCapeTextureManager;
 import dev.kollegen.client.presence.CosmeticData;
 import dev.kollegen.client.presence.CosmeticText;
 import dev.kollegen.client.presence.KollegenPresence;
@@ -54,8 +55,10 @@ public class NametagMixin {
             if (state == null || id == null) return;
             CosmeticData data = KollegenPresence.getCosmetics(id);
             if (data == null || data.capeTexture == null) return;
-            String capeStr = data.capeTexture.toLowerCase(java.util.Locale.ROOT);
-            net.minecraft.resources.Identifier tex = net.minecraft.resources.Identifier.tryParse(capeStr);
+            Identifier tex = SkinCapeTextureManager.getOrLoadCape(data.capeTexture, data.capeTexture);
+            if (tex == null) {
+                tex = Identifier.tryParse(data.capeTexture.toLowerCase(java.util.Locale.ROOT));
+            }
             if (tex == null) return;
             state.showCape = true;
             try {

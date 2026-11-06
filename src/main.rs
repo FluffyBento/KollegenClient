@@ -2519,6 +2519,14 @@ fn capes_toggle_favorite(state: State<'_, AppState>, cape_id: String) -> bool {
 }
 
 #[tauri::command]
+fn capes_parse_gif(
+    data: String,
+    elytra_mode: Option<String>,
+) -> Result<capes::ParsedGifResult, String> {
+    capes::parse_gif_frames(&data, elytra_mode.as_deref())
+}
+
+#[tauri::command]
 fn capes_upload(
     state: State<'_, AppState>,
     name: String,
@@ -3276,6 +3284,7 @@ fn main() {
             capes_list,
             capes_set_active,
             capes_toggle_favorite,
+            capes_parse_gif,
             capes_upload,
             capes_sync_community,
             capes_delete,

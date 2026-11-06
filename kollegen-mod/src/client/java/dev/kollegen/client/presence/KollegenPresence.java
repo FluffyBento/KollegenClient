@@ -4,6 +4,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import dev.kollegen.client.menu.SkinCapeTextureManager;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
@@ -320,20 +321,43 @@ public final class KollegenPresence {
             }
             if (Files.exists(p)) {
                 JsonObject o = JsonParser.parseString(Files.readString(p)).getAsJsonObject();
+                if (o.has("all_capes") && o.get("all_capes").isJsonArray()) {
+                    for (JsonElement el : o.getAsJsonArray("all_capes")) {
+                        if (el.isJsonObject()) {
+                            JsonObject ac = el.getAsJsonObject();
+                            if (ac.has("frames") && ac.get("frames").isJsonArray() && ac.getAsJsonArray("frames").size() > 0) {
+                                String cid = ac.has("id") && !ac.get("id").isJsonNull() ? ac.get("id").getAsString() : "";
+                                if (!cid.isEmpty()) {
+                                    java.util.List<String> fl = new java.util.ArrayList<>();
+                                    for (JsonElement fe : ac.getAsJsonArray("frames")) {
+                                        if (fe.isJsonPrimitive()) fl.add(fe.getAsString());
+                                    }
+                                    int fps = ac.has("fps") && !ac.get("fps").isJsonNull() ? ac.get("fps").getAsInt() : 10;
+                                    SkinCapeTextureManager.registerAnimatedCape(cid, fl, fps);
+                                }
+                            }
+                        }
+                    }
+                }
                 if (o.has("active") && !o.get("active").isJsonNull()) {
                     String activeId = o.get("active").getAsString();
                     if ("none".equalsIgnoreCase(activeId) || activeId.isEmpty()) {
                         setLocalCape(null, null);
                     } else if (o.has("cape") && o.get("cape").isJsonObject()) {
                         JsonObject c = o.getAsJsonObject("cape");
-                        String tex = "";
-                        if (c.has("texture") && !c.get("texture").isJsonNull()) tex = c.get("texture").getAsString();
-                        if (tex.isEmpty() && c.has("preview") && !c.get("preview").isJsonNull()) tex = c.get("preview").getAsString();
-                        if (tex.isEmpty() && c.has("frames") && c.get("frames").isJsonArray() && c.getAsJsonArray("frames").size() > 0) {
-                            tex = c.getAsJsonArray("frames").get(0).getAsString();
+                        String capeId = c.has("id") && !c.get("id").isJsonNull() ? c.get("id").getAsString() : activeId;
+                        if (c.has("frames") && c.get("frames").isJsonArray() && c.getAsJsonArray("frames").size() > 0) {
+                            java.util.List<String> fl = new java.util.ArrayList<>();
+                            for (JsonElement fe : c.getAsJsonArray("frames")) {
+                                if (fe.isJsonPrimitive()) fl.add(fe.getAsString());
+                            }
+                            int fps = c.has("fps") && !c.get("fps").isJsonNull() ? c.get("fps").getAsInt() : 10;
+                            SkinCapeTextureManager.registerAnimatedCape(capeId, fl, fps);
                         }
+                        String tex = capeId;
                         String model = c.has("model") && !c.get("model").isJsonNull() ? c.get("model").getAsString() : null;
-                        setLocalCape(tex.isEmpty() ? activeId : tex, model);
+                        String author = c.has("creator") && !c.get("creator").isJsonNull() ? c.get("creator").getAsString() : (c.has("author") && !c.get("author").isJsonNull() ? c.get("author").getAsString() : null);
+                        setLocalCape(tex, model, author);
                     } else {
                         setLocalCape(activeId, null);
                     }

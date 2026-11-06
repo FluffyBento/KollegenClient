@@ -4901,16 +4901,15 @@ async function loadCapesView() {
             } catch (_) {}
           });
 
-          // Animation support in 3D
           if (c.animated && c.frames && c.frames.length > 1) {
             let fIdx = 0;
             const interval = Math.max(33, Math.round(1000 / (c.fps || 10)));
-            const timer = setInterval(async () => {
+            const timer = setInterval(() => {
               if (viewer.renderPaused) return;
               fIdx = (fIdx + 1) % c.frames.length;
-              const nextUrl = await ensureCapeTextureUrl(c.frames[fIdx]);
-              if (nextUrl) {
-                try { viewer.loadCape(nextUrl); } catch (_) {}
+              const frameUrl = c.frames[fIdx];
+              if (frameUrl) {
+                try { viewer.loadCape(frameUrl); } catch (_) {}
               }
             }, interval);
             capeAnimTimers.push(timer);
@@ -5067,6 +5066,11 @@ if ($("capeTemplateBtn")) {
   };
 }
 
+function isGifData(str) {
+  if (typeof str !== "string") return false;
+  return str.startsWith("data:image/gif") || str.includes(";base64,R0lGOD");
+}
+
 let rawUploadedCapeImages = [];
 
 const elytraModeSelect = $("capeElytraModeSelect");
@@ -5074,6 +5078,18 @@ if (elytraModeSelect) {
   elytraModeSelect.onchange = async () => {
     if (!rawUploadedCapeImages.length) return;
     const mode = elytraModeSelect.value || "normal";
+    if (rawUploadedCapeImages.length === 1 && isGifData(rawUploadedCapeImages[0])) {
+      try {
+        const parsed = await invoke("capes_parse_gif", { data: rawUploadedCapeImages[0], elytra_mode: mode });
+        if (parsed && parsed.frames && parsed.frames.length > 0) {
+          uploadedCapeFrames = parsed.frames;
+          renderFrameManager();
+          return;
+        }
+      } catch (err) {
+        console.error("capes_parse_gif error:", err);
+      }
+    }
     const formatted = await Promise.all(rawUploadedCapeImages.map(raw => ensureCapeTextureUrl(raw, mode)));
     uploadedCapeFrames = formatted.filter(Boolean);
     renderFrameManager();
@@ -5095,7 +5111,24 @@ if ($("capeFilesPicker")) {
     const rawResults = await Promise.all(readPromises);
     rawUploadedCapeImages = rawResults;
     const mode = $("capeElytraModeSelect") ? $("capeElytraModeSelect").value : "normal";
-    // Convert normal images or templates into proper HD Minecraft Cape & Elytra UV layout
+
+    if (rawResults.length === 1 && (isGifData(rawResults[0]) || (files[0] && files[0].name && files[0].name.toLowerCase().endsWith(".gif")))) {
+      try {
+        const parsed = await invoke("capes_parse_gif", { data: rawResults[0], elytra_mode: mode });
+        if (parsed && parsed.frames && parsed.frames.length > 0) {
+          uploadedCapeFrames = parsed.frames;
+          if (parsed.fps && $("capeFpsSlider")) {
+            $("capeFpsSlider").value = parsed.fps;
+            if ($("capeFpsVal")) $("capeFpsVal").textContent = parsed.fps + " FPS";
+          }
+          renderFrameManager();
+          return;
+        }
+      } catch (err) {
+        console.error("capes_parse_gif failed:", err);
+      }
+    }
+
     const formatted = await Promise.all(rawResults.map(raw => ensureCapeTextureUrl(raw, mode)));
     uploadedCapeFrames = formatted.filter(Boolean);
     renderFrameManager();

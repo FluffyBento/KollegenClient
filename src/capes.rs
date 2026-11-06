@@ -256,34 +256,57 @@ fn ensure_minecraft_cape_format(dyn_img: &image::DynamicImage, elytra_mode: Opti
     out
 }
 
-pub fn upload_cape(
-    data_dir: &Path,
-    name: &str,
-    images: Vec<String>, // Base64 data URLs or raw base64
-    fps: u32,
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct ParsedGifResult {
+    pub frames: Vec<String>,
+    pub fps: u32,
+}
+
+pub fn parse_gif_frames(
+    data_url_or_b64: &str,
     elytra_mode: Option<&str>,
-) -> Result<CapeEntry, String> {
-    if images.is_empty() {
-        return Err("Keine Bilddaten übergeben".to_string());
+) -> Result<ParsedGifResult, String> {
+    let raw_bytes = decode_b64(data_url_or_b64)?;
+    if !raw_bytes.starts_with(b"GIF87a") && !raw_bytes.starts_with(b"GIF89a") {
+        return Err("Ungültiges GIF-Format".to_string());
     }
 
+    let decoder = GifDecoder::new(Cursor::new(&raw_bytes))
+        .map_err(|e| format!("GIF-Dekodierung fehlgeschlagen: {}", e))?;
+    let frames = decoder.into_frames();
+    let collected_frames = frames
+        .collect_frames()
+        .map_err(|e| format!("GIF-Frames konnten nicht gelesen werden: {}", e))?;
+
+    if collected_frames.is_empty() {
+        return Err("GIF enthält keine Frames".to_string());
+    }
+
+    let total = collected_frames.len();
+    let max_frames = 60usize;
+    let step = if total > max_frames {
+        (total + max_frames - 1) / max_frames
+    } else {
+        1
+    };
+
+    let mut total_delay_ms = 0u64;
+    let mut sampled_count = 0u64;
     let mut parsed_frames: Vec<String> = Vec::new();
-    let animated;
-    let effective_fps = if fps == 0 { 10 } else { fps };
 
-    // Check if the first image is a GIF
-    let first = &images[0];
-    let raw_bytes = decode_b64(first)?;
-    if raw_bytes.starts_with(b"GIF87a") || raw_bytes.starts_with(b"GIF89a") {
-        // Decode GIF frames
-        let decoder = GifDecoder::new(Cursor::new(&raw_bytes))
-            .map_err(|e| format!("GIF-Dekodierung fehlgeschlagen: {}", e))?;
-        let frames = decoder.into_frames();
-        let collected_frames = frames
-            .collect_frames()
-            .map_err(|e| format!("GIF-Frames konnten nicht gelesen werden: {}", e))?;
+    for (idx, f) in collected_frames.into_iter().enumerate() {
+        let (numer, denom) = f.delay().numer_denom_ms();
+        let delay_ms = if denom > 0 {
+            (numer as u64) / (denom as u64)
+        } else {
+            100
+        };
+        let frame_delay = if delay_ms == 0 { 100 } else { delay_ms };
 
-        for f in collected_frames {
+        if idx % step == 0 {
+            total_delay_ms += frame_delay * (step as u64);
+            sampled_count += 1;
+
             let buffer = f.into_buffer();
             let dyn_img = image::DynamicImage::ImageRgba8(buffer);
             let cape_img = ensure_minecraft_cape_format(&dyn_img, elytra_mode);
@@ -299,9 +322,50 @@ pub fn upload_cape(
             .map_err(|e| format!("Frame-Konvertierung: {}", e))?;
             parsed_frames.push(format_data_url(&out));
         }
-        animated = parsed_frames.len() > 1;
+    }
+
+    let avg_delay_ms = if sampled_count > 0 {
+        total_delay_ms / sampled_count
     } else {
-        // Non-GIF: could be multiple images for an animated cape or single PNG/JPG
+        100
+    };
+    let raw_fps = if avg_delay_ms > 0 {
+        (1000 / avg_delay_ms).clamp(1, 30) as u32
+    } else {
+        10
+    };
+
+    Ok(ParsedGifResult {
+        frames: parsed_frames,
+        fps: raw_fps,
+    })
+}
+
+pub fn upload_cape(
+    data_dir: &Path,
+    name: &str,
+    images: Vec<String>,
+    fps: u32,
+    elytra_mode: Option<&str>,
+) -> Result<CapeEntry, String> {
+    if images.is_empty() {
+        return Err("Keine Bilddaten übergeben".to_string());
+    }
+
+    let mut parsed_frames: Vec<String> = Vec::new();
+    let animated;
+    let mut effective_fps = if fps == 0 { 10 } else { fps };
+
+    let first = &images[0];
+    let raw_bytes = decode_b64(first)?;
+    if raw_bytes.starts_with(b"GIF87a") || raw_bytes.starts_with(b"GIF89a") {
+        let parsed = parse_gif_frames(first, elytra_mode)?;
+        parsed_frames = parsed.frames;
+        animated = parsed_frames.len() > 1;
+        if fps == 0 {
+            effective_fps = parsed.fps;
+        }
+    } else {
         for img in &images {
             let b = decode_b64(img)?;
             let dyn_img = image::load_from_memory(&b)

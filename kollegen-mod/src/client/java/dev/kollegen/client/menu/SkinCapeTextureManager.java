@@ -24,6 +24,87 @@ public final class SkinCapeTextureManager {
     public static final Map<String, int[]> DIMS = new ConcurrentHashMap<>();
     private static final Set<String> PENDING = ConcurrentHashMap.newKeySet();
 
+    public static final class AnimatedCape {
+        public final java.util.List<Identifier> frames;
+        public final int fps;
+
+        public AnimatedCape(java.util.List<Identifier> frames, int fps) {
+            this.frames = frames;
+            this.fps = Math.max(1, fps);
+        }
+
+        public Identifier getCurrentFrame() {
+            if (frames.isEmpty()) return null;
+            if (frames.size() == 1) return frames.get(0);
+            long now = System.currentTimeMillis();
+            long frameMs = 1000L / fps;
+            int idx = (int) ((now / frameMs) % frames.size());
+            return frames.get(idx);
+        }
+    }
+
+    private static final Map<String, AnimatedCape> ANIMATED_CAPES = new ConcurrentHashMap<>();
+
+    public static void registerAnimatedCape(String capeId, java.util.List<String> frameDataUrls, int fps) {
+        if (capeId == null || capeId.isEmpty() || frameDataUrls == null || frameDataUrls.isEmpty()) return;
+        String safeId = capeId.toLowerCase(java.util.Locale.ROOT).replaceAll("[^a-z0-9_.-]", "_");
+        java.util.List<Identifier> ids = new java.util.ArrayList<>();
+        Minecraft mc = Minecraft.getInstance();
+
+        for (int i = 0; i < frameDataUrls.size(); i++) {
+            String raw = frameDataUrls.get(i);
+            String frameKey = "cape_" + safeId + "_f" + i;
+            Identifier existing = CACHE.get(frameKey);
+            if (existing != null) {
+                ids.add(existing);
+                continue;
+            }
+
+            try {
+                byte[] bytes = null;
+                if (raw != null && raw.startsWith("data:image/")) {
+                    int comma = raw.indexOf(',');
+                    if (comma > 0) {
+                        bytes = Base64.getDecoder().decode(raw.substring(comma + 1));
+                    }
+                } else if (raw != null && !raw.isEmpty()) {
+                    Path p = Path.of(raw);
+                    if (Files.exists(p)) bytes = Files.readAllBytes(p);
+                }
+
+                if (bytes != null && bytes.length > 0) {
+                    NativeImage img = NativeImage.read(bytes);
+                    int[] dims = new int[]{img.getWidth(), img.getHeight()};
+                    DIMS.put(frameKey, dims);
+                    DIMS.put("cape_" + safeId, dims);
+                    int frameIndex = i;
+                    Identifier id = Identifier.tryParse("kollegen:cape_" + safeId + "_f" + frameIndex);
+                    DynamicTexture tex = new DynamicTexture(() -> "cape_" + safeId + "_f" + frameIndex, img);
+                    if (mc != null && mc.getTextureManager() != null) {
+                        mc.getTextureManager().register(id, tex);
+                    }
+                    CACHE.put(frameKey, id);
+                    ids.add(id);
+                }
+            } catch (Throwable ignored) {
+            }
+        }
+
+        if (!ids.isEmpty()) {
+            AnimatedCape anim = new AnimatedCape(ids, fps);
+            ANIMATED_CAPES.put(safeId, anim);
+            ANIMATED_CAPES.put(capeId, anim);
+            CACHE.put("cape_" + safeId, ids.get(0));
+            CACHE.put("cape_" + capeId, ids.get(0));
+        }
+    }
+
+    public static boolean isAnimatedCape(String capeId) {
+        if (capeId == null) return false;
+        String safeId = capeId.toLowerCase(java.util.Locale.ROOT).replaceAll("[^a-z0-9_.-]", "_");
+        return ANIMATED_CAPES.containsKey(safeId) || ANIMATED_CAPES.containsKey(capeId);
+    }
+
     public static int[] getDimensions(String capeId) {
         if (capeId == null) return null;
         return DIMS.get("cape_" + capeId);
@@ -53,7 +134,6 @@ public final class SkinCapeTextureManager {
                 }
             }
             if ((p == null || !Files.exists(p)) && Files.exists(skinsDir)) {
-                // Try to find file containing skinName in skins directory
                 try (DirectoryStream<Path> ds = Files.newDirectoryStream(skinsDir, "*.png")) {
                     for (Path entry : ds) {
                         String fn = entry.getFileName().toString().toLowerCase();
@@ -85,13 +165,21 @@ public final class SkinCapeTextureManager {
         if (capeId == null || capeId.isEmpty() || "none".equalsIgnoreCase(capeId)) {
             return null;
         }
+        String safeId = capeId.toLowerCase(java.util.Locale.ROOT).replaceAll("[^a-z0-9_.-]", "_");
+        AnimatedCape anim = ANIMATED_CAPES.get(safeId);
+        if (anim == null) {
+            anim = ANIMATED_CAPES.get(capeId);
+        }
+        if (anim != null) {
+            return anim.getCurrentFrame();
+        }
+
         String key = "cape_" + capeId;
         Identifier hit = CACHE.get(key);
         if (hit != null) {
             return hit;
         }
 
-        // 1. Data URLs (Base64) - Eigene Custom Capes immer zuerst prüfen, damit keine Namenskonflikte entstehen
         try {
             byte[] bytes = null;
             if (rawData != null && rawData.startsWith("data:image/")) {
@@ -108,7 +196,6 @@ public final class SkinCapeTextureManager {
             if (bytes != null && bytes.length > 0) {
                 NativeImage img = NativeImage.read(bytes);
                 DIMS.put(key, new int[]{img.getWidth(), img.getHeight()});
-                String safeId = capeId.toLowerCase(java.util.Locale.ROOT).replaceAll("[^a-z0-9_.-]", "_");
                 Identifier id = Identifier.tryParse("kollegen:cape_" + safeId);
                 DynamicTexture tex = new DynamicTexture(() -> "cape_" + capeId, img);
                 Minecraft.getInstance().getTextureManager().register(id, tex);
@@ -120,7 +207,6 @@ public final class SkinCapeTextureManager {
 
         // 2. HTTP/HTTPS Mojang Vanilla or Community Cape URL
         if (rawData != null && (rawData.startsWith("http://") || rawData.startsWith("https://"))) {
-            String safeId = capeId.toLowerCase(java.util.Locale.ROOT).replaceAll("[^a-z0-9_.-]", "_");
             String home = System.getProperty("user.home", "");
             Path cacheDir = Path.of(home, ".local", "share", "kollegenclient", "capes", "cache");
             Path cachedFile = cacheDir.resolve(safeId + ".png");
@@ -213,7 +299,6 @@ public final class SkinCapeTextureManager {
                         try (InputStream is = in) {
                             NativeImage img = NativeImage.read(is);
                             DIMS.put(key, new int[]{img.getWidth(), img.getHeight()});
-                            String safeId = capeId.toLowerCase(java.util.Locale.ROOT).replaceAll("[^a-z0-9_.-]", "_");
                             Identifier dynId = Identifier.tryParse("kollegen:cape_asset_" + safeId);
                             DynamicTexture tex = new DynamicTexture(() -> "cape_asset_" + capeId, img);
                             if (mc != null && mc.getTextureManager() != null) {

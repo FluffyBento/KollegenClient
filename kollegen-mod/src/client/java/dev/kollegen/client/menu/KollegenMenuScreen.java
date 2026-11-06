@@ -2682,7 +2682,15 @@ public class KollegenMenuScreen extends Screen {
         } else {
             this.inGameActiveCape = capeId;
             String capeAuthor = str(d, "author", null);
-            KollegenPresence.setLocalCape(capeTex != null && !capeTex.isEmpty() ? capeTex : capeId, capeModel, capeAuthor);
+            if (d.has("frames") && d.get("frames").isJsonArray()) {
+                java.util.List<String> fl = new java.util.ArrayList<>();
+                for (JsonElement fe : d.getAsJsonArray("frames")) {
+                    if (fe.isJsonPrimitive()) fl.add(fe.getAsString());
+                }
+                int fps = d.has("fps") && !d.get("fps").isJsonNull() ? d.get("fps").getAsInt() : 10;
+                SkinCapeTextureManager.registerAnimatedCape(capeId, fl, fps);
+            }
+            KollegenPresence.setLocalCape(capeId, capeModel, capeAuthor);
             if ("gekauft".equalsIgnoreCase(cat) || "store".equalsIgnoreCase(cat)) {
                 this.runStoreAction("Cape ausgewählt", () -> StoreClient.equipItem(capeId));
             } else {
@@ -2766,11 +2774,39 @@ public class KollegenMenuScreen extends Screen {
                 }
                 if (o.has("all_capes") && o.get("all_capes").isJsonArray()) {
                     for (JsonElement el : o.getAsJsonArray("all_capes")) {
-                        if (el.isJsonObject()) list.add(el.getAsJsonObject());
+                        if (el.isJsonObject()) {
+                            JsonObject ac = el.getAsJsonObject();
+                            list.add(ac);
+                            if (ac.has("frames") && ac.get("frames").isJsonArray() && ac.getAsJsonArray("frames").size() > 0) {
+                                String cid = str(ac, "id", "");
+                                if (!cid.isEmpty()) {
+                                    java.util.List<String> fl = new java.util.ArrayList<>();
+                                    for (JsonElement fe : ac.getAsJsonArray("frames")) {
+                                        if (fe.isJsonPrimitive()) fl.add(fe.getAsString());
+                                    }
+                                    int fps = ac.has("fps") && !ac.get("fps").isJsonNull() ? ac.get("fps").getAsInt() : 10;
+                                    SkinCapeTextureManager.registerAnimatedCape(cid, fl, fps);
+                                }
+                            }
+                        }
                     }
                 } else if (o.has("capes") && o.get("capes").isJsonArray()) {
                     for (JsonElement el : o.getAsJsonArray("capes")) {
-                        if (el.isJsonObject()) list.add(el.getAsJsonObject());
+                        if (el.isJsonObject()) {
+                            JsonObject ac = el.getAsJsonObject();
+                            list.add(ac);
+                            if (ac.has("frames") && ac.get("frames").isJsonArray() && ac.getAsJsonArray("frames").size() > 0) {
+                                String cid = str(ac, "id", "");
+                                if (!cid.isEmpty()) {
+                                    java.util.List<String> fl = new java.util.ArrayList<>();
+                                    for (JsonElement fe : ac.getAsJsonArray("frames")) {
+                                        if (fe.isJsonPrimitive()) fl.add(fe.getAsString());
+                                    }
+                                    int fps = ac.has("fps") && !ac.get("fps").isJsonNull() ? ac.get("fps").getAsInt() : 10;
+                                    SkinCapeTextureManager.registerAnimatedCape(cid, fl, fps);
+                                }
+                            }
+                        }
                     }
                 }
                 if (o.has("vanilla_capes") && o.get("vanilla_capes").isJsonArray()) {
