@@ -22,6 +22,8 @@ public class EmoteWheelScreen extends Screen {
     private final Map<String, Float> anims = new HashMap<>();
     private float openAnim = 0.0f;
     private int lastHoveredSlot = -2;
+    private int selectedSlot = -1;
+    private boolean selectedCenter = false;
 
     public EmoteWheelScreen() {
         super(Component.literal("Emote Wheel"));
@@ -34,6 +36,43 @@ public class EmoteWheelScreen extends Screen {
         return nxt;
     }
 
+    private void updateHover(double mx, double my) {
+        float cx = this.width / 2.0f;
+        float cy = this.height / 2.0f;
+        float rInner = 36.0f;
+        float rOuter = 135.0f;
+        float rSlot = 88.0f;
+
+        float dx = (float) (mx - cx);
+        float dy = (float) (my - cy);
+        float dist = (float) Math.hypot(dx, dy);
+
+        this.selectedCenter = (dist < rInner);
+        this.selectedSlot = -1;
+
+        if (!this.selectedCenter && dist <= rOuter + 45.0f) {
+            float angle = (float) Math.toDegrees(Math.atan2(dy, dx));
+            float adjusted = (angle + 90.0f + 22.5f);
+            while (adjusted < 0.0f) adjusted += 360.0f;
+            adjusted = adjusted % 360.0f;
+            this.selectedSlot = (int) (adjusted / 45.0f) % 8;
+        }
+
+        for (int i = 0; i < 8; i++) {
+            float theta = (float) Math.toRadians(i * 45.0f - 90.0f);
+            float sx = cx + (float) Math.cos(theta) * rSlot;
+            float sy = cy + (float) Math.sin(theta) * rSlot;
+            float cardW = 66.0f;
+            float cardH = 44.0f;
+            if (mx >= sx - cardW / 2.0f && mx <= sx + cardW / 2.0f && my >= sy - cardH / 2.0f && my <= sy + cardH / 2.0f) {
+                this.selectedSlot = i;
+                this.selectedCenter = false;
+                break;
+            }
+        }
+    }
+
+    @Override
     public void extractRenderState(GuiGraphicsExtractor g, int mx, int my, float pt) {
         Glass.frame();
         this.openAnim = Math.min(1.0f, this.openAnim + Glass.dt * 6.0f);
@@ -49,20 +88,9 @@ public class EmoteWheelScreen extends Screen {
         float rOuter = 135.0f;
         float rSlot = 88.0f;
 
-        float dx = mx - cx;
-        float dy = my - cy;
-        float dist = (float) Math.hypot(dx, dy);
-
-        boolean inCenter = dist < rInner;
-        int hoveredSlot = -1;
-
-        if (!inCenter && dist <= rOuter + 35.0f) {
-            float angle = (float) Math.toDegrees(Math.atan2(dy, dx));
-            float adjusted = (angle + 90.0f + 22.5f);
-            while (adjusted < 0.0f) adjusted += 360.0f;
-            adjusted = adjusted % 360.0f;
-            hoveredSlot = (int) (adjusted / 45.0f) % 8;
-        }
+        updateHover(mx, my);
+        int hoveredSlot = this.selectedSlot;
+        boolean inCenter = this.selectedCenter;
 
         if (hoveredSlot != this.lastHoveredSlot) {
             if (hoveredSlot >= 0 || inCenter) {
@@ -91,7 +119,7 @@ public class EmoteWheelScreen extends Screen {
             float hAnim = hv("slot:" + i, isHov);
 
             String id = (i < wheel.length) ? wheel[i] : null;
-            Emote emote = (id != null) ? EmoteManager.getById(id) : null;
+            Emote emote = (id != null && !id.isEmpty()) ? EmoteManager.getById(id) : null;
             boolean isActive = (emote != null && (EmoteManager.getActiveBaseEmote() == emote || EmoteManager.getActiveActionEmote() == emote));
 
             int bgCol = isActive ? Glass.a(Palette.ACCENT, 0.35f) : Glass.a(Palette.PANEL, 0.85f);
@@ -130,7 +158,7 @@ public class EmoteWheelScreen extends Screen {
         float infoY = cy + rOuter + 26.0f;
         if (hoveredSlot >= 0 && hoveredSlot < wheel.length) {
             String id = wheel[hoveredSlot];
-            Emote e = EmoteManager.getById(id);
+            Emote e = (id != null && !id.isEmpty()) ? EmoteManager.getById(id) : null;
             if (e != null) {
                 String title = e.icon + " " + e.name + "  " + e.type.symbol;
                 Glass.textC(g, this.font, title, Math.round(cx), Math.round(infoY), 0xFFFFFFFF, true);
@@ -147,6 +175,20 @@ public class EmoteWheelScreen extends Screen {
         super.extractRenderState(g, mx, my, pt);
     }
 
+    private void triggerSlot(int slot) {
+        String[] wheel = EmoteManager.getWheel();
+        if (slot >= 0 && slot < wheel.length) {
+            String id = wheel[slot];
+            if (id != null && !id.isEmpty()) {
+                Emote e = EmoteManager.getById(id);
+                if (e != null) {
+                    EmoteManager.playEmote(e);
+                }
+            }
+        }
+    }
+
+    @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean bl) {
         if (event.button() == 1) {
             this.onClose();
@@ -154,55 +196,17 @@ public class EmoteWheelScreen extends Screen {
         }
 
         if (event.button() == 0) {
-            double mx = event.x();
-            double my = event.y();
-            float cx = this.width / 2.0f;
-            float cy = this.height / 2.0f;
-            float dist = (float) Math.hypot(mx - cx, my - cy);
-
-            if (dist < 36.0f) {
+            updateHover(event.x(), event.y());
+            if (this.selectedCenter) {
                 EmoteManager.stopAllEmotes();
                 this.onClose();
                 return true;
             }
-
-            String[] wheel = EmoteManager.getWheel();
-            for (int i = 0; i < 8; i++) {
-                float theta = (float) Math.toRadians(i * 45.0f - 90.0f);
-                float sx = cx + (float) Math.cos(theta) * 88.0f;
-                float sy = cy + (float) Math.sin(theta) * 88.0f;
-                float cardW = 66.0f;
-                float cardH = 44.0f;
-                if (mx >= sx - cardW / 2.0f && mx <= sx + cardW / 2.0f && my >= sy - cardH / 2.0f && my <= sy + cardH / 2.0f) {
-                    if (i < wheel.length && wheel[i] != null && !wheel[i].isEmpty()) {
-                        Emote e = EmoteManager.getById(wheel[i]);
-                        if (e != null) {
-                            EmoteManager.playEmote(e);
-                        }
-                    }
-                    this.onClose();
-                    return true;
-                }
-            }
-
-            if (dist <= 170.0f) {
-                float angle = (float) Math.toDegrees(Math.atan2(my - cy, mx - cx));
-                float adjusted = (angle + 90.0f + 22.5f);
-                while (adjusted < 0.0f) adjusted += 360.0f;
-                adjusted = adjusted % 360.0f;
-                int slot = (int) (adjusted / 45.0f) % 8;
-
-                if (slot >= 0 && slot < wheel.length) {
-                    String id = wheel[slot];
-                    Emote e = EmoteManager.getById(id);
-                    if (e != null) {
-                        EmoteManager.playEmote(e);
-                    }
-                }
+            if (this.selectedSlot >= 0) {
+                triggerSlot(this.selectedSlot);
                 this.onClose();
                 return true;
             }
-
             this.onClose();
             return true;
         }
@@ -210,36 +214,75 @@ public class EmoteWheelScreen extends Screen {
         return super.mouseClicked(event, bl);
     }
 
+    @Override
+    public boolean mouseReleased(MouseButtonEvent event) {
+        if (event.button() == 0) {
+            updateHover(event.x(), event.y());
+            if (this.selectedCenter) {
+                EmoteManager.stopAllEmotes();
+                this.onClose();
+                return true;
+            }
+            if (this.selectedSlot >= 0) {
+                triggerSlot(this.selectedSlot);
+                this.onClose();
+                return true;
+            }
+        }
+        return super.mouseReleased(event);
+    }
+
+    @Override
     public boolean keyPressed(KeyEvent event) {
         if (event.key() == InputConstants.KEY_ESCAPE || event.isEscape()) {
             this.onClose();
             return true;
         }
 
-        if (dev.kollegen.client.mods.modules.Emotes.INSTANCE != null) {
-            int targetKey = dev.kollegen.client.mods.modules.Emotes.INSTANCE.hotkey.value;
-            if (targetKey > 0 && event.key() == targetKey) {
-                this.onClose();
-                return true;
+        int targetKey = dev.kollegen.client.mods.modules.Emotes.INSTANCE != null ? dev.kollegen.client.mods.modules.Emotes.INSTANCE.hotkey.value : -1;
+        if (targetKey > 0 && event.key() == targetKey) {
+            if (this.selectedSlot >= 0) {
+                triggerSlot(this.selectedSlot);
+            } else if (this.selectedCenter) {
+                EmoteManager.stopAllEmotes();
             }
+            this.onClose();
+            return true;
         }
 
         int code = event.key();
         if (code >= InputConstants.KEY_1 && code <= InputConstants.KEY_8) {
-            int slot = code - InputConstants.KEY_1;
-            String[] wheel = EmoteManager.getWheel();
-            if (slot >= 0 && slot < wheel.length) {
-                String id = wheel[slot];
-                Emote e = EmoteManager.getById(id);
-                if (e != null) {
-                    EmoteManager.playEmote(e);
-                }
+            triggerSlot(code - InputConstants.KEY_1);
+            this.onClose();
+            return true;
+        }
+
+        if (code == InputConstants.KEY_RETURN || code == InputConstants.KEY_SPACE) {
+            if (this.selectedSlot >= 0) {
+                triggerSlot(this.selectedSlot);
+            } else if (this.selectedCenter) {
+                EmoteManager.stopAllEmotes();
             }
             this.onClose();
             return true;
         }
 
         return super.keyPressed(event);
+    }
+
+    @Override
+    public boolean keyReleased(KeyEvent event) {
+        int targetKey = dev.kollegen.client.mods.modules.Emotes.INSTANCE != null ? dev.kollegen.client.mods.modules.Emotes.INSTANCE.hotkey.value : -1;
+        if (targetKey > 0 && event.key() == targetKey) {
+            if (this.selectedSlot >= 0) {
+                triggerSlot(this.selectedSlot);
+            } else if (this.selectedCenter) {
+                EmoteManager.stopAllEmotes();
+            }
+            this.onClose();
+            return true;
+        }
+        return super.keyReleased(event);
     }
 
     private void playTickSound() {
@@ -249,6 +292,7 @@ public class EmoteWheelScreen extends Screen {
         }
     }
 
+    @Override
     public boolean isPauseScreen() {
         return false;
     }

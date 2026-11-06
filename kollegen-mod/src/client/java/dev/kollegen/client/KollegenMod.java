@@ -28,7 +28,6 @@ public class KollegenMod implements ClientModInitializer {
     private static final Set<Integer> pressedKeys = new HashSet<>();
     private static boolean wasConnected = false;
     private static boolean perfApplied = false;
-    private static boolean emoteKeyWasHeld = false;
 
     @Override
     public void onInitializeClient() {
@@ -122,7 +121,7 @@ public class KollegenMod implements ClientModInitializer {
                 }
             }
         } else {
-            pressedKeys.clear();
+            pressedKeys.removeIf(id -> !isKeyDown(id & 0xFFFF));
         }
 
         
@@ -141,26 +140,6 @@ public class KollegenMod implements ClientModInitializer {
         if (mc == null || mc.player == null || mc.level == null) return;
         dev.kollegen.client.input.GamepadInput.onFrame(mc);
         dev.kollegen.client.mods.modules.Visual.onFrame();
-
-        if (dev.kollegen.client.mods.modules.Emotes.INSTANCE != null && dev.kollegen.client.mods.modules.Emotes.INSTANCE.enabled) {
-            KeybindSetting hk = dev.kollegen.client.mods.modules.Emotes.INSTANCE.hotkey;
-            if (hk != null && hk.value > 0) {
-                boolean isCtrl = isCtrlDown();
-                boolean isShift = isShiftDown();
-                boolean isAlt = isAltDown();
-                boolean down = isKeyDown(hk.value);
-                if (hk.ctrl && !isCtrl) down = false;
-                if (hk.shift && !isShift) down = false;
-                if (hk.alt && !isAlt) down = false;
-
-                if (down && !emoteKeyWasHeld) {
-                    if (mc.gui != null && mc.gui.screen() == null) {
-                        dev.kollegen.client.mods.modules.Emotes.INSTANCE.onKey();
-                    }
-                }
-                emoteKeyWasHeld = down;
-            }
-        }
     }
 
     public static boolean isCtrlDown() {

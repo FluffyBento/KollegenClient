@@ -158,7 +158,7 @@ public final class EmoteManager {
     }
 
     public static void onPlayerMove() {
-        if (activeBaseEmote != null && activeBaseEmote.type == EmoteType.IDLE) {
+        if (activeBaseEmote != null && activeBaseEmote.type == EmoteType.IDLE && (System.currentTimeMillis() - baseEmoteStartTime > 600)) {
             stopBaseEmote();
         }
     }
