@@ -18,7 +18,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public final class WaveyCapeRenderer {
     private static final Map<Identifier, RenderType> TYPE_CACHE = new ConcurrentHashMap<>();
-    private static final int SEGMENTS = 8;
+    private static final int SEGMENTS = 16;
     private static final float CAPE_WIDTH = 10.0F / 16.0F;
     private static final float CAPE_THICKNESS = 1.0F / 16.0F;
     private static final float SEGMENT_HEIGHT = 1.0F / 16.0F;
@@ -42,14 +42,14 @@ public final class WaveyCapeRenderer {
             model.body.translateAndRotate(poseStack);
         }
 
-        float zOffset = hasArmor ? 0.165F : 0.125F;
-        float yOffset = hasArmor ? -0.02F : 0.0F;
+        float zOffset = hasArmor ? 0.19375F : 0.125F;
+        float yOffset = hasArmor ? -0.053125F : 0.0F;
         poseStack.translate(0.0F, yOffset, zOffset);
 
         float leanX = (6.0F + state.capeLean / 2.0F + state.capeFlap) * (float) (Math.PI / 180.0);
         float leanZ = (state.capeLean2 / 2.0F) * (float) (Math.PI / 180.0);
-        leanX *= 0.75F;
-        leanZ *= 0.75F;
+        leanX *= 0.85F;
+        leanZ *= 0.85F;
 
         Quaternionf baseRot = new Quaternionf().rotateZ(leanZ).rotateX(leanX);
         poseStack.rotate(baseRot);
@@ -76,8 +76,8 @@ public final class WaveyCapeRenderer {
             float runFactor = Math.min(2.5F, state.capeLean / 20.0F);
 
             for (int i = 0; i < SEGMENTS; i++) {
-                float wave = (float) Math.sin(time * 3.8 - i * 0.42) * 0.012F * waveStrength * (1.0F + runFactor);
-                float sag = (i * 0.004F) * (1.0F - Math.min(1.0F, state.capeLean / 40.0F));
+                float wave = (float) Math.sin(time * 3.8 - i * 0.21) * 0.008F * waveStrength * (1.0F + runFactor);
+                float sag = (i * 0.002F) * (1.0F - Math.min(1.0F, state.capeLean / 40.0F));
                 float segmentAngle = (wave + sag);
 
                 curY += SEGMENT_HEIGHT * (float) Math.cos(segmentAngle);

@@ -69,7 +69,7 @@ public abstract class CapeLayerMixin {
                 this.model.setupAnim(state);
             }
 
-            if (Visual.WaveyCapes.enabled) {
+            if (Visual.WaveyCapes.isWavey()) {
                 WaveyCapeRenderer.renderWaveyCape(poseStack, collector, capeTexture, packedLight, state, hasArmor, this.model);
                 ci.cancel();
             } else if (this.model instanceof PlayerCapeModel capeModel) {

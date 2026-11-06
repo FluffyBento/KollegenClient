@@ -100,6 +100,9 @@ public abstract class Module {
         if (enabled) {
             onEnable();
             initialized = true;
+        } else {
+            onDisable();
+            initialized = true;
         }
     }
 }

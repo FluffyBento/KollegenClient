@@ -115,7 +115,8 @@ public final class Visual {
     }
 
     public static class WaveyCapes extends Module {
-        public static boolean enabled = true;
+        public static WaveyCapes INSTANCE;
+        public static boolean enabled = false;
         public static float waveStrength = 1.0f;
 
         private final BooleanSetting physics = new BooleanSetting("Wellen-Physik", "Aktiviert fließende Stoff-Simulation für Umhänge.", true);
@@ -123,8 +124,14 @@ public final class Visual {
 
         public WaveyCapes() {
             super("waveycapes", "Wavey Capes", "Physikalische Wellen- und Stoffbewegung für Umhänge.", Category.VISUAL);
+            INSTANCE = this;
+            enabled = false;
             add(physics);
             add(strength);
+        }
+
+        public static boolean isWavey() {
+            return INSTANCE != null && INSTANCE.enabled && INSTANCE.physics.value;
         }
 
         @Override
