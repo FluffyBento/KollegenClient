@@ -175,6 +175,10 @@ public final class GLFW {
             else if (key == GLFW_KEY_RIGHT_CONTROL || key == InputConstants.KEY_RCONTROL) k = InputConstants.KEY_RCONTROL;
             else if (key == GLFW_KEY_LEFT_CONTROL || key == InputConstants.KEY_LCONTROL) k = InputConstants.KEY_LCONTROL;
             else if (key == GLFW_KEY_SPACE || key == InputConstants.KEY_SPACE) k = InputConstants.KEY_SPACE;
+            else if (key >= GLFW_KEY_F1 && key <= GLFW_KEY_F1 + 11) k = InputConstants.KEY_F1 + (key - GLFW_KEY_F1);
+            else if (key >= GLFW_KEY_A && key <= GLFW_KEY_Z) k = InputConstants.KEY_A + (key - GLFW_KEY_A);
+            else if (key >= GLFW_KEY_0 + 1 && key <= GLFW_KEY_9) k = InputConstants.KEY_1 + (key - (GLFW_KEY_0 + 1));
+            else if (key == GLFW_KEY_0) k = InputConstants.KEY_0;
             return InputConstants.isKeyDown(k) ? GLFW_PRESS : GLFW_RELEASE;
         } catch (Throwable t) {
             return GLFW_RELEASE;

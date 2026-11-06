@@ -95,14 +95,21 @@ public class KollegenMod implements ClientModInitializer {
         }
 
         if (mc.gui != null && mc.gui.screen() == null) {
+            boolean isCtrl = isCtrlDown();
+            boolean isShift = isShiftDown();
+            boolean isAlt = isAltDown();
             for (Module m : ModuleManager.modules()) {
                 for (dev.kollegen.client.mods.Setting s : m.settings()) {
                     if (s instanceof KeybindSetting ks && ks.value >= 0) {
                         boolean down = isKeyDown(ks.value);
-                        boolean was = pressedKeys.contains(ks.value);
+                        if (ks.ctrl && !isCtrl) down = false;
+                        if (ks.shift && !isShift) down = false;
+                        if (ks.alt && !isAlt) down = false;
+                        int id = ks.getCompositeId();
+                        boolean was = pressedKeys.contains(id);
                         if (down && !was) m.onKey();
-                        if (down) pressedKeys.add(ks.value);
-                        else pressedKeys.remove(ks.value);
+                        if (down) pressedKeys.add(id);
+                        else pressedKeys.remove(id);
                     }
                 }
                 if (m.key >= 0) {
@@ -133,6 +140,18 @@ public class KollegenMod implements ClientModInitializer {
         if (mc == null || mc.player == null || mc.level == null) return;
         dev.kollegen.client.input.GamepadInput.onFrame(mc);
         dev.kollegen.client.mods.modules.Visual.onFrame();
+    }
+
+    public static boolean isCtrlDown() {
+        return isKeyDown(GLFW.GLFW_KEY_LEFT_CONTROL) || isKeyDown(GLFW.GLFW_KEY_RIGHT_CONTROL);
+    }
+
+    public static boolean isShiftDown() {
+        return isKeyDown(GLFW.GLFW_KEY_LEFT_SHIFT) || isKeyDown(GLFW.GLFW_KEY_RIGHT_SHIFT);
+    }
+
+    public static boolean isAltDown() {
+        return isKeyDown(GLFW.GLFW_KEY_LEFT_ALT) || isKeyDown(GLFW.GLFW_KEY_RIGHT_ALT);
     }
 
     private static boolean isKeyDown(int key) {

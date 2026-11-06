@@ -105,6 +105,17 @@ public class ChatMixin {
         if (TwitchChat.isFilterActive() && TwitchChat.getFilterMode() == 1) {
             if (message != null && !message.getString().contains("[Twitch]")) {
                 ci.cancel();
+                return;
+            }
+        }
+        if (kollegen$busy) return;
+        if (TwitchChat.is7tvActive() && message != null && TwitchChat.containsEmote(message.getString())) {
+            ci.cancel();
+            kollegen$busy = true;
+            try {
+                ((ChatComponent) (Object) this).addClientSystemMessage(TwitchChat.formatComponent(message));
+            } finally {
+                kollegen$busy = false;
             }
         }
     }

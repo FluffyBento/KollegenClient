@@ -210,6 +210,7 @@ public final class SevenTvEmoteManager {
     }
 
     private static final Map<String, EmoteData> EMOTES_BY_NAME = new ConcurrentHashMap<>();
+    private static final Map<String, EmoteData> EMOTES_BY_LOWER = new ConcurrentHashMap<>();
     private static final Map<String, String> NAME_TO_KEY = new ConcurrentHashMap<>();
     private static final Map<String, EmoteData> KEY_TO_EMOTE = new ConcurrentHashMap<>();
     private static final Map<String, Identifier> TEXTURES_BY_KEY = new ConcurrentHashMap<>();
@@ -253,6 +254,7 @@ public final class SevenTvEmoteManager {
     private static void seedPopular(String name, String id, boolean animated, int w, int h) {
         EmoteData data = new EmoteData(name, id, animated, w, h);
         EMOTES_BY_NAME.put(name, data);
+        EMOTES_BY_LOWER.putIfAbsent(name.toLowerCase(Locale.ROOT), data);
         String key = getSafeKey(name);
         KEY_TO_EMOTE.put(key, data);
     }
@@ -273,6 +275,7 @@ public final class SevenTvEmoteManager {
         if (name == null || name.isEmpty() || id == null || id.isEmpty()) return;
         EmoteData data = new EmoteData(name, id, animated, width, height);
         EMOTES_BY_NAME.put(name, data);
+        EMOTES_BY_LOWER.putIfAbsent(name.toLowerCase(Locale.ROOT), data);
         String key = getSafeKey(name);
         KEY_TO_EMOTE.put(key, data);
     }
@@ -321,7 +324,11 @@ public final class SevenTvEmoteManager {
 
     public static boolean isEmote(String name) {
         if (name == null || name.isEmpty()) return false;
-        return EMOTES_BY_NAME.containsKey(name);
+        String clean = name;
+        if (clean.length() > 2 && clean.startsWith(":") && clean.endsWith(":")) {
+            clean = clean.substring(1, clean.length() - 1);
+        }
+        return EMOTES_BY_NAME.containsKey(clean) || EMOTES_BY_LOWER.containsKey(clean.toLowerCase(Locale.ROOT));
     }
 
     public static boolean containsEmote(String text) {
@@ -336,7 +343,7 @@ public final class SevenTvEmoteManager {
             String w = text.substring(start, end);
             if (isEmote(w)) return true;
             int p = w.length();
-            while (p > 0 && ",.!?~:;".indexOf(w.charAt(p - 1)) >= 0) p--;
+            while (p > 0 && ",.!?~;".indexOf(w.charAt(p - 1)) >= 0) p--;
             if (p > 0 && p < w.length() && isEmote(w.substring(0, p))) return true;
             start = end;
         }
@@ -345,7 +352,24 @@ public final class SevenTvEmoteManager {
 
     public static EmoteData getEmote(String name) {
         if (name == null) return null;
-        return EMOTES_BY_NAME.get(name);
+        String clean = name;
+        if (clean.length() > 2 && clean.startsWith(":") && clean.endsWith(":")) {
+            clean = clean.substring(1, clean.length() - 1);
+        }
+        EmoteData d = EMOTES_BY_NAME.get(clean);
+        if (d != null) return d;
+        return EMOTES_BY_LOWER.get(clean.toLowerCase(Locale.ROOT));
+    }
+
+    public static String resolveCanonicalName(String name) {
+        if (name == null) return null;
+        String clean = name;
+        if (clean.length() > 2 && clean.startsWith(":") && clean.endsWith(":")) {
+            clean = clean.substring(1, clean.length() - 1);
+        }
+        if (EMOTES_BY_NAME.containsKey(clean)) return clean;
+        EmoteData d = EMOTES_BY_LOWER.get(clean.toLowerCase(Locale.ROOT));
+        return d != null ? d.name : clean;
     }
 
     public static Identifier getTexture(String name) {
@@ -650,12 +674,14 @@ public final class SevenTvEmoteManager {
         if (preferGif) {
             urls = new String[]{
                     "https://cdn.7tv.app/emote/" + data.id + "/1x.gif",
-                    "https://cdn.7tv.app/emote/" + data.id + "/1x.png"
+                    "https://cdn.7tv.app/emote/" + data.id + "/1x.png",
+                    "https://cdn.7tv.app/emote/" + data.id + "/1x.webp"
             };
         } else {
             urls = new String[]{
                     "https://cdn.7tv.app/emote/" + data.id + "/1x.png",
-                    "https://cdn.7tv.app/emote/" + data.id + "/1x.gif"
+                    "https://cdn.7tv.app/emote/" + data.id + "/1x.gif",
+                    "https://cdn.7tv.app/emote/" + data.id + "/1x.webp"
             };
         }
 

@@ -2510,21 +2510,47 @@ async function deleteInstance(name, id) {
     overlay.style.display = "flex";
     overlay.style.zIndex = "99999";
     overlay.innerHTML = `
-      <div class="modal-content" style="max-width: 420px; text-align: center;">
+      <div class="modal-content" style="max-width: 440px; text-align: center;">
         <h3 style="color: var(--danger, #ff4d4d); margin-bottom: 0.8rem;">Instanz löschen?</h3>
-        <p style="margin-bottom: 1.2rem; color: var(--muted, #aaa);">Möchtest du die Instanz <b>"${name}"</b> wirklich endgültig löschen? Alle Welten und Mods gehen verloren!</p>
+        <p style="margin-bottom: 0.8rem; color: var(--muted, #aaa);">Möchtest du die Instanz <b>"${name}"</b> wirklich endgültig löschen? Alle Welten, Einstellungen und Mods gehen unwiderruflich verloren!</p>
+        <p style="font-size: 0.85rem; color: #fff; margin-bottom: 0.5rem;">Tippe zur Bestätigung <b>"${name}"</b> ein:</p>
+        <input id="delConfirmInput" type="text" autocomplete="off" spellcheck="false" placeholder="${name}" style="width: 100%; padding: 0.6rem 0.8rem; margin-bottom: 1.2rem; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; color: #fff; text-align: center; font-size: 0.95rem;" />
         <div style="display: flex; gap: 10px; justify-content: center;">
           <button id="delCancel" class="btn-secondary" style="padding: 0.6rem 1.2rem;">Abbrechen</button>
-          <button id="delConfirm" class="btn-primary" style="background: var(--danger, #ff4d4d); color: #fff; padding: 0.6rem 1.2rem;">Endgültig löschen</button>
+          <button id="delConfirm" class="btn-primary" disabled style="background: var(--danger, #ff4d4d); color: #fff; padding: 0.6rem 1.2rem; opacity: 0.4; cursor: not-allowed;">Endgültig löschen</button>
         </div>
       </div>
     `;
     document.body.appendChild(overlay);
-    overlay.querySelector("#delCancel").onclick = () => {
+
+    const input = overlay.querySelector("#delConfirmInput");
+    const confirmBtn = overlay.querySelector("#delConfirm");
+    const cancelBtn = overlay.querySelector("#delCancel");
+
+    setTimeout(() => input.focus(), 50);
+
+    input.oninput = () => {
+      const match = input.value.trim().toLowerCase() === name.trim().toLowerCase();
+      confirmBtn.disabled = !match;
+      confirmBtn.style.opacity = match ? "1.0" : "0.4";
+      confirmBtn.style.cursor = match ? "pointer" : "not-allowed";
+    };
+
+    input.onkeydown = (e) => {
+      if (e.key === "Enter" && !confirmBtn.disabled) {
+        confirmBtn.click();
+      } else if (e.key === "Escape") {
+        cancelBtn.click();
+      }
+    };
+
+    cancelBtn.onclick = () => {
       overlay.remove();
       resolve(false);
     };
-    overlay.querySelector("#delConfirm").onclick = async () => {
+
+    confirmBtn.onclick = async () => {
+      if (input.value.trim().toLowerCase() !== name.trim().toLowerCase()) return;
       overlay.remove();
       try {
         await invoke("delete_instance", { name, id: id || null });
@@ -2794,10 +2820,12 @@ function showSettingsTab(t) {
   $("settingsImport").style.display = t === "import" ? "" : "none";
   $("settingsUpdates").style.display = t === "updates" ? "" : "none";
   $("settingsSteamDeck").style.display = t === "steamdeck" ? "" : "none";
+  $("settingsFeatures").style.display = t === "features" ? "" : "none";
   if (t === "themes") { renderThemeList(); renderLayoutOptions(); }
   if (t === "connections") { refreshSettingsAccounts(); }
   if (t === "servers") { renderHiddenServers(); }
   if (t === "steamdeck") { initSteamDeckTab(); }
+  if (t === "features") { initFeaturesTab(); }
 }
 
 const settingsModalEl = $("settingsModal");
@@ -3058,6 +3086,306 @@ if (steamdeckToggle) {
     await applyConsoleMode();
   };
 }
+
+let currentClipsConfig = null;
+let clipsCurrentSubTab = "programs";
+let clipsProgramsList = [];
+let clipsScreensList = [];
+let clipsRecordingHotkey = false;
+
+async function initFeaturesTab() {
+  try {
+    currentClipsConfig = await invoke("clips_get_config");
+  } catch (e) {
+    currentClipsConfig = {
+      enabled: true,
+      also_record_mode: "none",
+      also_record_target: "",
+      also_record_title: "None",
+      record_other_audio: true,
+      hotkey: "F8",
+      duration_seconds: 60,
+      quality: "1080p60",
+      output_dir: "~/Videos/KollegenClips",
+    };
+  }
+
+  const recToggle = $("clipsRecordToggle");
+  if (recToggle) {
+    recToggle.checked = !!currentClipsConfig.enabled;
+    recToggle.onchange = async () => {
+      currentClipsConfig.enabled = recToggle.checked;
+      await invoke("clips_save_config", { config: currentClipsConfig });
+    };
+  }
+
+  const audioToggle = $("clipsAudioToggle");
+  if (audioToggle) {
+    audioToggle.checked = !!currentClipsConfig.record_other_audio;
+    audioToggle.onchange = async () => {
+      currentClipsConfig.record_other_audio = audioToggle.checked;
+      await invoke("clips_save_config", { config: currentClipsConfig });
+    };
+  }
+
+  const durationSelect = $("clipsDurationSelect");
+  if (durationSelect) {
+    durationSelect.value = String(currentClipsConfig.duration_seconds || 60);
+    durationSelect.onchange = async () => {
+      currentClipsConfig.duration_seconds = parseInt(durationSelect.value, 10) || 60;
+      await invoke("clips_save_config", { config: currentClipsConfig });
+    };
+  }
+
+  const hotkeyBtn = $("clipsHotkeyBtn");
+  if (hotkeyBtn) {
+    hotkeyBtn.textContent = currentClipsConfig.hotkey || "F8";
+    hotkeyBtn.onclick = () => {
+      if (clipsRecordingHotkey) return;
+      clipsRecordingHotkey = true;
+      hotkeyBtn.classList.add("recording");
+      hotkeyBtn.textContent = "Drücke Taste...";
+
+      function onKey(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (e.key === "Control" || e.key === "Shift" || e.key === "Alt" || e.key === "Meta") {
+          let modStr = (e.ctrlKey ? "Strg + " : "") + (e.shiftKey ? "Shift + " : "") + (e.altKey ? "Alt + " : "");
+          hotkeyBtn.textContent = modStr + "...";
+          return;
+        }
+        if (e.key === "Escape") {
+          hotkeyBtn.textContent = currentClipsConfig.hotkey || "F8";
+          hotkeyBtn.classList.remove("recording");
+          clipsRecordingHotkey = false;
+          window.removeEventListener("keydown", onKey, true);
+          return;
+        }
+        let k = e.key;
+        if (k.length === 1) k = k.toUpperCase();
+        else if (k.startsWith("f") || k.startsWith("F")) k = k.toUpperCase();
+        let parts = [];
+        if (e.ctrlKey) parts.push("CTRL");
+        if (e.shiftKey) parts.push("SHIFT");
+        if (e.altKey) parts.push("ALT");
+        parts.push(k);
+        let finalHotkey = parts.join("+");
+        currentClipsConfig.hotkey = finalHotkey;
+        hotkeyBtn.textContent = finalHotkey;
+        hotkeyBtn.classList.remove("recording");
+        clipsRecordingHotkey = false;
+        window.removeEventListener("keydown", onKey, true);
+        invoke("clips_save_config", { config: currentClipsConfig });
+        toast("Clip-Hotkey auf " + finalHotkey + " gesetzt", "ok");
+      }
+      window.addEventListener("keydown", onKey, true);
+    };
+  }
+
+  const outDirText = $("clipsOutputDirText");
+  if (outDirText) {
+    outDirText.textContent = currentClipsConfig.output_dir || "~/Videos/KollegenClips";
+  }
+
+  const openFolderBtn = $("clipsOpenFolderBtn");
+  if (openFolderBtn) {
+    openFolderBtn.onclick = async () => {
+      try {
+        await invoke("clips_open_folder");
+      } catch (e) {
+        toast("Fehler beim Öffnen: " + e, "err");
+      }
+    };
+  }
+
+  const saveNowBtn = $("clipsSaveNowBtn");
+  const saveStatus = $("clipsSaveStatus");
+  if (saveNowBtn) {
+    saveNowBtn.onclick = async () => {
+      if (saveStatus) saveStatus.textContent = "Speichere Clip...";
+      try {
+        const path = await invoke("clips_save_now");
+        if (saveStatus) saveStatus.textContent = "Clip gespeichert: " + path;
+        toast("Clip gespeichert! ✓", "ok");
+      } catch (e) {
+        if (saveStatus) saveStatus.textContent = "Fehler: " + e;
+        toast("Fehler beim Speichern: " + e, "err");
+      }
+    };
+  }
+
+  const tabProg = $("clipsTabPrograms");
+  const tabScreens = $("clipsTabScreens");
+  if (tabProg && tabScreens) {
+    tabProg.onclick = () => {
+      clipsCurrentSubTab = "programs";
+      tabProg.classList.add("active");
+      tabScreens.classList.remove("active");
+      renderClipsTargets();
+    };
+    tabScreens.onclick = () => {
+      clipsCurrentSubTab = "screens";
+      tabScreens.classList.add("active");
+      tabProg.classList.remove("active");
+      renderClipsTargets();
+    };
+  }
+
+  const reloadBtn = $("clipsReloadTargetsBtn");
+  if (reloadBtn) {
+    reloadBtn.onclick = async () => {
+      await loadClipsTargets();
+    };
+  }
+
+  updateClipsSummary();
+  await loadClipsTargets();
+}
+
+function updateClipsSummary() {
+  const sumEl = $("clipsAlsoRecordSummary");
+  if (sumEl && currentClipsConfig) {
+    sumEl.textContent = currentClipsConfig.also_record_title || "None";
+  }
+}
+
+async function loadClipsTargets() {
+  try {
+    clipsProgramsList = await invoke("clips_list_programs");
+  } catch (e) {
+    clipsProgramsList = [{ id: "none", name: "None", exe: "Record Minecraft only.", is_none: true }];
+  }
+  try {
+    clipsScreensList = await invoke("clips_list_screens");
+  } catch (e) {
+    clipsScreensList = [{ id: "screen:0", name: "Screen 1 (Primary)", resolution: "1920x1080", is_primary: true }];
+  }
+
+  const progLabel = $("clipsProgramsTabLabel");
+  if (progLabel) progLabel.textContent = "PROGRAMS (" + (Math.max(0, clipsProgramsList.length - 1)) + ")";
+  const screenLabel = $("clipsScreensTabLabel");
+  if (screenLabel) screenLabel.textContent = "SCREENS (" + clipsScreensList.length + ")";
+
+  renderClipsTargets();
+}
+
+function renderClipsTargets() {
+  const box = $("clipsTargetsList");
+  if (!box || !currentClipsConfig) return;
+  box.innerHTML = "";
+
+  if (clipsCurrentSubTab === "programs") {
+    clipsProgramsList.forEach((item) => {
+      const isSelected = (item.is_none && currentClipsConfig.also_record_mode === "none") ||
+        (!item.is_none && currentClipsConfig.also_record_mode === "program" && currentClipsConfig.also_record_target === item.id);
+
+      const el = document.createElement("div");
+      el.className = "clips-target-item" + (isSelected ? " selected" : "");
+
+      const radio = document.createElement("div");
+      radio.className = "clips-radio-indicator";
+      if (isSelected) {
+        radio.innerHTML = `<svg viewBox="0 0 24 24" width="10" height="10" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>`;
+      }
+      el.appendChild(radio);
+
+      const icon = document.createElement("div");
+      icon.className = "clips-target-icon";
+      if (item.is_none) {
+        icon.innerHTML = `<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.42 0-8-3.58-8-8 0-1.85.63-3.55 1.69-4.9L16.9 18.31C15.55 19.37 13.85 20 12 20zm6.31-3.1L7.1 5.69C8.45 4.63 10.15 4 12 4c4.42 0 8 3.58 8 8 0 1.85-.63 3.55-1.69 4.9z"/></svg>`;
+      } else {
+        icon.innerHTML = `<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M21 6H3c-1.1 0-2 .9-2 2v8c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-10 7H8v3H6v-3H3v-2h3V8h2v3h3v2zm4.5 2c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm4-3c-.83 0-1.5-.67-1.5-1.5S18.67 9 19.5 9s1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/></svg>`;
+      }
+      el.appendChild(icon);
+
+      const info = document.createElement("div");
+      info.className = "clips-target-info";
+
+      const name = document.createElement("div");
+      name.className = "clips-target-name";
+      name.textContent = item.name;
+      info.appendChild(name);
+
+      const exe = document.createElement("div");
+      exe.className = "clips-target-exe";
+      exe.textContent = item.exe;
+      info.appendChild(exe);
+
+      el.appendChild(info);
+
+      el.onclick = async () => {
+        if (item.is_none) {
+          currentClipsConfig.also_record_mode = "none";
+          currentClipsConfig.also_record_target = "";
+          currentClipsConfig.also_record_title = "None";
+        } else {
+          currentClipsConfig.also_record_mode = "program";
+          currentClipsConfig.also_record_target = item.id;
+          currentClipsConfig.also_record_title = item.name;
+        }
+        updateClipsSummary();
+        renderClipsTargets();
+        await invoke("clips_save_config", { config: currentClipsConfig });
+      };
+
+      box.appendChild(el);
+    });
+  } else {
+    clipsScreensList.forEach((item) => {
+      const isSelected = currentClipsConfig.also_record_mode === "screen" && currentClipsConfig.also_record_target === item.id;
+
+      const el = document.createElement("div");
+      el.className = "clips-target-item" + (isSelected ? " selected" : "");
+
+      const radio = document.createElement("div");
+      radio.className = "clips-radio-indicator";
+      if (isSelected) {
+        radio.innerHTML = `<svg viewBox="0 0 24 24" width="10" height="10" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>`;
+      }
+      el.appendChild(radio);
+
+      const icon = document.createElement("div");
+      icon.className = "clips-target-icon";
+      icon.innerHTML = `<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M21 3H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h7v2H8v2h8v-2h-2v-2h7c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 14H3V5h18v12z"/></svg>`;
+      el.appendChild(icon);
+
+      const info = document.createElement("div");
+      info.className = "clips-target-info";
+
+      const name = document.createElement("div");
+      name.className = "clips-target-name";
+      name.textContent = item.name;
+      info.appendChild(name);
+
+      const res = document.createElement("div");
+      res.className = "clips-target-exe";
+      res.textContent = item.resolution;
+      info.appendChild(res);
+
+      el.appendChild(info);
+
+      el.onclick = async () => {
+        currentClipsConfig.also_record_mode = "screen";
+        currentClipsConfig.also_record_target = item.id;
+        currentClipsConfig.also_record_title = item.name;
+        updateClipsSummary();
+        renderClipsTargets();
+        await invoke("clips_save_config", { config: currentClipsConfig });
+      };
+
+      box.appendChild(el);
+    });
+  }
+}
+
+setInterval(async () => {
+  try {
+    const triggered = await invoke("clips_poll_trigger");
+    if (triggered) {
+      toast("Clip-Aufnahme gestartet! 🎬", "info");
+    }
+  } catch (e) {}
+}, 500);
 $("pickClose").onclick = () => closeConsolePicker();
 
 $("settingsClose").onclick = () => {
@@ -3695,30 +4023,108 @@ function toast(msg, kind) {
   toastTimer = setTimeout(() => { el.className = "toast"; }, 3200);
 }
 
-// ─── TWITCH LINKING (Image 1) ───
+let twitchPollInterval = null;
+let refreshTwitch = async () => {};
 async function initTwitch() {
   const btn = $("twitchLinkBtn");
   const txt = $("twitchLinkText");
   const hint = $("twitchStatusHint");
   if (!btn || !txt) return;
 
+  function stopTwitchPolling() {
+    if (twitchPollInterval) {
+      clearInterval(twitchPollInterval);
+      twitchPollInterval = null;
+    }
+  }
+
   async function refreshTwitch() {
     try {
       const acct = await invoke("twitch_get_account");
       if (acct && acct.connected) {
+        stopTwitchPolling();
         txt.textContent = "VERBUNDEN: " + (acct.display_name || acct.username || "Twitch");
         btn.classList.add("linked");
         btn.title = "Klicken zum Trennen";
-        if (hint) hint.textContent = "Twitch ist verknüpft – Alerts & Streams sind im Spiel aktiv.";
+        if (hint) hint.innerHTML = "Twitch ist verknüpft als <strong style=\"color:#bf94ff;\">" + (acct.display_name || acct.username) + "</strong> – Chat & Alerts sind im Spiel aktiv.";
       } else {
-        txt.textContent = "LINK";
-        btn.classList.remove("linked");
-        btn.title = "Mit Twitch verbinden";
-        if (hint) hint.textContent = "";
+        const st = await invoke("twitch_device_status");
+        if (st && st.state === "waiting" && st.user_code) {
+          txt.textContent = "WARTE AUF LOGIN...";
+          btn.classList.remove("linked");
+          renderWaiting(st.user_code, st.verification_uri);
+        } else {
+          stopTwitchPolling();
+          txt.textContent = "LINK";
+          btn.classList.remove("linked");
+          btn.title = "Mit Twitch verbinden";
+          if (hint) hint.innerHTML = "";
+        }
       }
     } catch (e) {
       console.error("Twitch get account failed:", e);
     }
+  }
+
+  function renderWaiting(code, url) {
+    if (!hint) return;
+    hint.innerHTML = "";
+    const wrap = document.createElement("div");
+    wrap.style.display = "flex";
+    wrap.style.alignItems = "center";
+    wrap.style.flexWrap = "wrap";
+    wrap.style.gap = "8px";
+    wrap.style.marginTop = "4px";
+
+    const label = document.createElement("span");
+    label.textContent = "Browser geöffnet. Bestätige den Code:";
+    wrap.appendChild(label);
+
+    const codeSpan = document.createElement("strong");
+    codeSpan.style.color = "#bf94ff";
+    codeSpan.style.fontSize = "1.15em";
+    codeSpan.style.letterSpacing = "1.5px";
+    codeSpan.textContent = code;
+    wrap.appendChild(codeSpan);
+
+    const copyBtn = document.createElement("button");
+    copyBtn.className = "btn-secondary";
+    copyBtn.style.padding = "2px 8px";
+    copyBtn.style.fontSize = "12px";
+    copyBtn.textContent = "Code kopieren";
+    copyBtn.onclick = async () => {
+      try {
+        await navigator.clipboard.writeText(code);
+        copyBtn.textContent = "Kopiert ✓";
+      } catch (e) {
+        prompt("Code kopieren:", code);
+      }
+    };
+    wrap.appendChild(copyBtn);
+
+    const linkBtn = document.createElement("button");
+    linkBtn.className = "btn-secondary";
+    linkBtn.style.padding = "2px 8px";
+    linkBtn.style.fontSize = "12px";
+    linkBtn.textContent = "Link öffnen";
+    linkBtn.onclick = () => {
+      if (url) window.open(url, "_blank");
+    };
+    wrap.appendChild(linkBtn);
+
+    const cancelBtn = document.createElement("button");
+    cancelBtn.className = "btn-secondary";
+    cancelBtn.style.padding = "2px 8px";
+    cancelBtn.style.fontSize = "12px";
+    cancelBtn.textContent = "Abbrechen";
+    cancelBtn.onclick = async () => {
+      stopTwitchPolling();
+      await invoke("twitch_device_cancel");
+      refreshTwitch();
+    };
+    wrap.appendChild(cancelBtn);
+
+    hint.appendChild(wrap);
   }
 
   btn.onclick = async () => {
@@ -3726,17 +4132,32 @@ async function initTwitch() {
       const acct = await invoke("twitch_get_account");
       if (acct && acct.connected) {
         if (confirm("Möchtest du die Twitch-Verknüpfung wirklich trennen?")) {
+          stopTwitchPolling();
           await invoke("twitch_unlink");
           toast("Twitch-Verknüpfung getrennt", "ok");
           refreshTwitch();
         }
       } else {
-        const user = prompt("Gib deinen Twitch-Benutzernamen ein:", "");
-        if (user && user.trim()) {
-          await invoke("twitch_link", { username: user.trim(), token: null });
-          toast("Twitch erfolgreich verbunden!", "ok");
-          refreshTwitch();
-        }
+        const resp = await invoke("twitch_device_start");
+        renderWaiting(resp.user_code, resp.verification_uri);
+        txt.textContent = "WARTE AUF LOGIN...";
+        stopTwitchPolling();
+        twitchPollInterval = setInterval(async () => {
+          try {
+            const st = await invoke("twitch_device_status");
+            if (st.state === "success") {
+              stopTwitchPolling();
+              toast("Twitch erfolgreich verbunden!", "ok");
+              refreshTwitch();
+            } else if (st.state === "error") {
+              stopTwitchPolling();
+              toast("Twitch-Fehler: " + (st.error || "Unbekannt"), "error");
+              refreshTwitch();
+            }
+          } catch (e) {
+            console.error("Twitch poll status error:", e);
+          }
+        }, 2000);
       }
     } catch (e) {
       toast("Twitch-Fehler: " + e, "error");
@@ -5750,6 +6171,7 @@ function startBackgroundIntervals() {
   bgIntervals.push(setInterval(refreshAuth, 5000));
   bgIntervals.push(setInterval(refreshDiscord, 5000));
   bgIntervals.push(setInterval(refreshDiscordLogin, 5000));
+  bgIntervals.push(setInterval(() => refreshTwitch(), 5000));
 }
 function stopBackgroundIntervals() {
   bgIntervals.forEach((id) => clearInterval(id));

@@ -11,6 +11,7 @@ public enum Category {
     MISC("Verschiedenes", "⚙"),
     STORE("Store", "🛍"),
     COSMETICS("Cosmetics", "✨"),
+    EMOTES("Emotes", "💃"),
     SKIN_CAPE("Skin & Cape", "👤"),
     PETS("Pets", "🐾"),
     EXTRAS("Extras", "🕹");

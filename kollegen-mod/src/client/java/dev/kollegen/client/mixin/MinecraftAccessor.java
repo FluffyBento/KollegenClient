@@ -23,4 +23,15 @@ public interface MinecraftAccessor {
 
     @Accessor("gameRenderer")
     net.minecraft.client.renderer.GameRenderer kollegen$getGameRenderer();
+
+    @Accessor("user")
+    @org.spongepowered.asm.mixin.Mutable
+    void kollegen$setUser(net.minecraft.client.User user);
+
+    @Accessor("userApiService")
+    com.mojang.authlib.minecraft.UserApiService kollegen$getUserApiService();
+
+    @Accessor("profileKeyPairManager")
+    @org.spongepowered.asm.mixin.Mutable
+    void kollegen$setProfileKeyPairManager(net.minecraft.client.multiplayer.ProfileKeyPairManager manager);
 }

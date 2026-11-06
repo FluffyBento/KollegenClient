@@ -38,6 +38,8 @@ public final class Misc {
         SOUND_CONTROLLER = new SoundController();
         SMOOTH_SCROLL = new SmoothScroll();
         ModuleManager.register(new ControllerSupport());
+        ModuleManager.register(new Clips());
+        ModuleManager.register(new Emotes());
         ModuleManager.register(SOUND_CONTROLLER);
         ModuleManager.register(SMOOTH_SCROLL);
     }

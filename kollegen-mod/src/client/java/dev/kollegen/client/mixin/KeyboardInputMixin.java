@@ -33,6 +33,7 @@ public class KeyboardInputMixin {
         KeyboardInput self = (KeyboardInput) (Object) this;
         if (self.keyPresses.forward() || self.keyPresses.backward() || self.keyPresses.left() || self.keyPresses.right() || self.keyPresses.jump() || self.keyPresses.shift()) {
             dev.kollegen.client.mods.modules.Visual.resetAfkTimer();
+            dev.kollegen.client.emotes.EmoteManager.onPlayerMove();
         }
     }
 }

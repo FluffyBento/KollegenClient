@@ -28,6 +28,7 @@ public final class Icons {
     public static final int WARN = 22;
     public static final int CHEVRON_DOWN = 23;
     public static final int PLUS = 24;
+    public static final int DANCE = 25;
     public static final int SNAKE = 30;
 
     private Icons() {
@@ -190,6 +191,13 @@ public final class Icons {
                 Glass.disc(g, x + 5 * u, y + 14 * u, 2.2f * u, c);
                 Glass.disc(g, x + 21 * u, y + 8 * u, 2.2f * u, c);
                 break;
+            case DANCE:
+                Glass.disc(g, x + 12 * u, y + 5 * u, 2.5f * u, c);
+                Glass.line(g, x + 12 * u, y + 8 * u, x + 12 * u, y + 16 * u, t, c);
+                Glass.line(g, x + 5 * u, y + 10 * u, x + 19 * u, y + 10 * u, t, c);
+                Glass.line(g, x + 12 * u, y + 16 * u, x + 7 * u, y + 22 * u, t, c);
+                Glass.line(g, x + 12 * u, y + 16 * u, x + 17 * u, y + 22 * u, t, c);
+                break;
             default:
                 break;
         }
@@ -215,6 +223,8 @@ public final class Icons {
                 return BAG;
             case "COSMETICS":
                 return SPARKLE;
+            case "EMOTES":
+                return DANCE;
             case "SKIN_CAPE":
                 return USER;
             case "PETS":

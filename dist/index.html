@@ -512,6 +512,7 @@
       </header>
       <div class="settings-tabs" role="tablist">
         <button class="settings-tab active" data-tab="connections" role="tab" aria-selected="true">Verbindungen</button>
+        <button class="settings-tab" data-tab="features" role="tab" aria-selected="false">Features</button>
         <button class="settings-tab" data-tab="themes" role="tab" aria-selected="false">Themes</button>
         <button class="settings-tab" data-tab="servers" role="tab" aria-selected="false">Server</button>
         <button class="settings-tab" data-tab="import" role="tab" aria-selected="false">Importieren</button>
@@ -580,6 +581,107 @@
             <span>Automatische Mod-Konflikt-Auflösung aktivieren</span>
           </label>
           <p class="socials-hint">Bei inkompatiblen Mods werden diese automatisch entfernt und der Launcher neu gestartet. Standardmäßig deaktiviert, da dies Mods entfernen kann.</p>
+        </section>
+        <section id="settingsFeatures" class="settings-section" role="tabpanel" hidden="">
+          <div class="clips-header">
+            <div class="clips-title-row">
+              <svg class="clips-cam-icon" viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
+                <path d="M15 8v8l5 4V4l-5 4zM4 6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2H4z"></path>
+              </svg>
+              <span class="clips-heading">CLIPS</span>
+            </div>
+            <p class="clips-subtitle">Keep the last few minutes of play in memory and save the good bits with one key.</p>
+          </div>
+
+          <div class="clips-card">
+            <div class="clips-card-left">
+              <div class="clips-item-title">Record clips</div>
+              <div class="clips-item-desc">Starts with the game and keeps recording quietly in the background.</div>
+            </div>
+            <div class="clips-card-right">
+              <label class="clips-switch">
+                <input type="checkbox" id="clipsRecordToggle">
+                <span class="clips-slider"></span>
+              </label>
+            </div>
+          </div>
+
+          <div class="clips-card" style="flex-direction: column; align-items: stretch; gap: 8px;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <div class="clips-item-title">Also record</div>
+              <div id="clipsAlsoRecordSummary" class="clips-summary-badge">None</div>
+            </div>
+            <div class="clips-item-desc">Besides Minecraft, record another program whenever it is in front, or pick a whole screen to record instead.</div>
+
+            <div class="clips-picker-tabs">
+              <div class="clips-sub-tabs">
+                <button id="clipsTabPrograms" class="clips-sub-tab active" type="button">
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M4 4h4v4H4V4zm6 0h4v4h-4V4zm6 0h4v4h-4V4zM4 10h4v4H4v-4zm6 0h4v4h-4v-4zm6 0h4v4h-4v-4zM4 16h4v4H4v-4zm6 0h4v4h-4v-4zm6 0h4v4h-4v-4z"></path></svg>
+                  <span id="clipsProgramsTabLabel">PROGRAMS (0)</span>
+                </button>
+                <button id="clipsTabScreens" class="clips-sub-tab" type="button">
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M21 3H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h7v2H8v2h8v-2h-2v-2h7c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 14H3V5h18v12z"></path></svg>
+                  <span id="clipsScreensTabLabel">SCREENS (0)</span>
+                </button>
+              </div>
+              <button id="clipsReloadTargetsBtn" class="clips-reload-btn" type="button" title="Liste aktualisieren">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M23 4v6h-6M1 20v-6h6"></path><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+                <span>RELOAD</span>
+              </button>
+            </div>
+
+            <div id="clipsTargetsList" class="clips-targets-box"></div>
+          </div>
+
+          <div class="clips-card">
+            <div class="clips-card-left">
+              <div class="clips-item-title">Ton anderer Programme aufnehmen</div>
+              <div class="clips-item-desc">Nimmt zusätzlich zu Minecraft auch den Ton von Discord, Spotify, Browsern und anderen Programmen auf.</div>
+            </div>
+            <div class="clips-card-right">
+              <label class="clips-switch">
+                <input type="checkbox" id="clipsAudioToggle" checked>
+                <span class="clips-slider"></span>
+              </label>
+            </div>
+          </div>
+
+          <div class="clips-card">
+            <div class="clips-card-left">
+              <div class="clips-item-title">Clip-Hotkey</div>
+              <div class="clips-item-desc">Drücke diese Taste im Spiel, um die letzten Minuten sofort als Videodatei zu speichern.</div>
+            </div>
+            <div class="clips-card-right">
+              <button id="clipsHotkeyBtn" class="clips-key-btn" type="button">F8</button>
+            </div>
+          </div>
+
+          <div class="clips-card">
+            <div class="clips-card-left">
+              <div class="clips-item-title">Clip-Länge (Puffer)</div>
+              <div class="clips-item-desc">Wie viel Spielzeit rückwirkend im Speicher gehalten wird.</div>
+            </div>
+            <div class="clips-card-right">
+              <select id="clipsDurationSelect" class="input-text" style="width: 150px; padding: 4px 8px;">
+                <option value="30">30 Sekunden</option>
+                <option value="60" selected>60 Sekunden (1 Min)</option>
+                <option value="120">2 Minuten</option>
+                <option value="300">5 Minuten</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="clips-card">
+            <div class="clips-card-left">
+              <div class="clips-item-title">Gespeicherte Clips</div>
+              <div id="clipsOutputDirText" class="clips-item-desc">~/Videos/KollegenClips</div>
+            </div>
+            <div class="clips-card-right" style="display:flex; gap:8px;">
+              <button id="clipsSaveNowBtn" class="btn-primary" style="padding: 5px 12px; font-size: 12px;">Clip jetzt speichern</button>
+              <button id="clipsOpenFolderBtn" class="btn-secondary" style="padding: 5px 12px; font-size: 12px;">Ordner öffnen</button>
+            </div>
+          </div>
+          <div id="clipsSaveStatus" class="socials-hint" style="margin-top: 2px;"></div>
         </section>
         <section id="settingsThemes" class="settings-section" role="tabpanel" hidden="">
           <h3>Theme (Farbschema)</h3>

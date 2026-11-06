@@ -8,11 +8,13 @@ import dev.kollegen.client.mods.BooleanSetting;
 import dev.kollegen.client.mods.Category;
 import dev.kollegen.client.mods.HudModule;
 import dev.kollegen.client.mods.ModeSetting;
+import dev.kollegen.client.mods.ModuleManager;
 import dev.kollegen.client.mods.Palette;
 import dev.kollegen.client.mods.SliderSetting;
 import dev.kollegen.client.mods.StringSetting;
 import dev.kollegen.client.ui.Glass;
 import net.fabricmc.loader.api.FabricLoader;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.HoverEvent;
@@ -81,6 +83,42 @@ public class TwitchChat extends HudModule {
     private boolean globalEmotesLoaded = false;
     private final Set<String> loadedChannelEmotes = ConcurrentHashMap.newKeySet();
 
+    private String oauthToken = null;
+    private String accountUsername = "";
+    private String accountDisplayName = "";
+    private String accountUserId = "";
+
+    private static final Set<String> COMMON_WORDS = Set.of(
+            "hallo", "hey", "hi", "moin", "servus", "guten", "yo", "what", "how", "warum", "wieso", "weshalb",
+            "der", "die", "das", "ein", "eine", "einer", "eines", "einem", "einen", "den", "dem", "des",
+            "ich", "du", "er", "sie", "es", "wir", "ihr", "mein", "meine", "meinen", "meinem", "meines", "meiner",
+            "dein", "deine", "deinen", "deinem", "deines", "deiner", "sein", "seine", "seinen", "seinem", "seines", "seiner",
+            "ihre", "ihren", "ihrem", "ihres", "ihrer", "unser", "unsere", "unseren", "unserem", "unseres", "unserer",
+            "euer", "eure", "euren", "eurem", "eures", "eurer", "mich", "dich", "sich", "uns", "euch", "ihm", "ihn", "ihnen",
+            "kann", "kannst", "können", "könnt", "konnte", "konnten", "könnte", "könnten",
+            "wer", "wie", "wo", "was", "wann", "wohin", "woher", "womit", "worüber", "wodurch",
+            "ist", "bist", "sind", "seid", "war", "waren", "wäre", "wären", "bin",
+            "hat", "habe", "hast", "haben", "habt", "hatte", "hatten", "hätte", "hätten",
+            "nicht", "auch", "so", "aber", "und", "oder", "wenn", "dann", "ja", "nein", "bitte", "danke",
+            "gg", "lol", "omg", "bruh", "pog", "kekw", "catjam", "lmao", "rofl", "rip", "ggs", "nice", "cool",
+            "why", "who", "when", "where", "can", "could", "would", "the", "is", "are", "am", "you",
+            "we", "they", "this", "that", "my", "your", "his", "her", "our", "their", "just", "now", "here", "there",
+            "good", "bad", "yes", "no", "not", "have", "has", "had", "do", "did", "does", "will", "shall", "schau",
+            "guck", "mach", "komm", "geh", "sieh", "help", "hilfe", "alles", "immer", "wieder", "heute",
+            "morgen", "gestern", "gleich", "noch", "schon", "sehr", "viel", "mehr", "nur", "mal", "etwas", "nichts",
+            "auf", "in", "an", "bei", "mit", "nach", "von", "zu", "aus", "um", "durch", "für", "ohne", "gegen",
+            "über", "unter", "vor", "hinter", "neben", "zwischen", "ab", "bis", "seit",
+            "geht", "ging", "gehe", "kommst", "kommt", "kam", "machst", "macht", "machte", "gemacht",
+            "sag", "sage", "sagst", "sagt", "sagte", "gesagt", "glaub", "glaube", "glaubst", "glaubt",
+            "denk", "denke", "denkst", "denkt", "dachte", "gedacht", "weiß", "weißt", "wissen", "wisst",
+            "willst", "wollen", "wollt", "wollte", "wollten",
+            "muss", "musst", "müssen", "müsst", "musste", "mussten",
+            "lass", "lasse", "lässt", "lassen", "lasst",
+            "echt", "wirklich", "genau", "richtig", "falsch", "toll", "super", "krass", "mega",
+            "man", "jemand", "niemand", "kein", "keine", "keinen", "keinem", "keiner", "keines",
+            "alle", "allem", "allen", "aller", "jedes", "jeder", "jedem", "jeden", "jede"
+    );
+
     public TwitchChat() {
         super("twitchchat", "Twitch Chat", "Zeigt Live-Twitch-Chat mit 7TV-Unterstützung im Spielchat oder HUD an.", Category.CHAT);
         INSTANCE = this;
@@ -146,15 +184,31 @@ public class TwitchChat extends HudModule {
     }
 
     public static boolean isEmote(String word) {
-        if (INSTANCE == null || !INSTANCE.enabled || !INSTANCE.show7tv.value) return false;
-        return SevenTvEmoteManager.isEmote(word) || INSTANCE.emotes7tv.contains(word);
+        if (INSTANCE == null || !INSTANCE.enabled || !INSTANCE.show7tv.value || word == null || word.isEmpty()) return false;
+        String clean = word;
+        if (clean.length() > 2 && clean.startsWith(":") && clean.endsWith(":")) {
+            clean = clean.substring(1, clean.length() - 1);
+        }
+        if (SevenTvEmoteManager.isEmote(clean)) return true;
+        if (INSTANCE.emotes7tv.contains(clean)) return true;
+        for (String e : INSTANCE.emotes7tv) {
+            if (e.equalsIgnoreCase(clean)) return true;
+        }
+        return false;
     }
 
     public static boolean containsEmote(String text) {
         if (text == null || text.isEmpty() || INSTANCE == null || !INSTANCE.enabled || !INSTANCE.show7tv.value) {
             return false;
         }
-        return SevenTvEmoteManager.containsEmote(text);
+        if (SevenTvEmoteManager.containsEmote(text)) return true;
+        for (String w : text.split("\\s+")) {
+            if (isEmote(w)) return true;
+            int p = w.length();
+            while (p > 0 && ",.!?~;".indexOf(w.charAt(p - 1)) >= 0) p--;
+            if (p > 0 && p < w.length() && isEmote(w.substring(0, p))) return true;
+        }
+        return false;
     }
 
     public static String format7tv(String text) {
@@ -191,15 +245,19 @@ public class TwitchChat extends HudModule {
                 String clean = token;
                 String punct = "";
                 int end = token.length();
-                while (end > 0 && ",.!?~:;".indexOf(token.charAt(end - 1)) >= 0) {
+                while (end > 0 && ",.!?~;".indexOf(token.charAt(end - 1)) >= 0) {
                     end--;
                 }
                 if (end > 0 && end < token.length()) {
                     clean = token.substring(0, end);
                     punct = token.substring(end);
                 }
-                final String emoteName = clean;
-                if (isEmote(emoteName)) {
+                if (clean.length() > 2 && clean.startsWith(":") && clean.endsWith(":")) {
+                    clean = clean.substring(1, clean.length() - 1);
+                }
+                final String rawEmoteName = clean;
+                if (isEmote(rawEmoteName)) {
+                    final String emoteName = SevenTvEmoteManager.resolveCanonicalName(rawEmoteName);
                     SevenTvEmoteManager.ensureLoaded(emoteName);
                     String key = SevenTvEmoteManager.getSafeKey(emoteName);
                     Identifier atlasId = Identifier.tryParse("kollegen:7tv");
@@ -293,9 +351,19 @@ public class TwitchChat extends HudModule {
                     JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
                     if (obj.has("connected") && obj.get("connected").getAsBoolean()) {
                         String user = obj.has("username") ? obj.get("username").getAsString() : "";
+                        String display = obj.has("display_name") ? obj.get("display_name").getAsString() : user;
+                        String tok = obj.has("access_token") && !obj.get("access_token").isJsonNull() ? obj.get("access_token").getAsString() : null;
+                        String uid = obj.has("user_id") && !obj.get("user_id").isJsonNull() ? obj.get("user_id").getAsString() : null;
                         if (!user.isEmpty()) {
+                            this.accountUsername = user.trim().toLowerCase();
+                            this.accountDisplayName = display.trim().isEmpty() ? this.accountUsername : display.trim();
+                            this.oauthToken = (tok != null && !tok.trim().isEmpty()) ? tok.trim() : null;
+                            if (uid != null && !uid.trim().isEmpty()) {
+                                this.accountUserId = uid.trim();
+                                fetch7tvByTwitchId(this.accountUserId);
+                            }
                             if (channel.value.isEmpty()) {
-                                channel.value = user;
+                                channel.value = this.accountUsername;
                             }
                             this.enabled = true;
                             break;
@@ -370,8 +438,14 @@ public class TwitchChat extends HudModule {
                         @Override
                         public void onOpen(WebSocket ws) {
                             ws.sendText("CAP REQ :twitch.tv/tags twitch.tv/commands", true);
-                            ws.sendText("PASS oauth:justinfan" + (10000 + new Random().nextInt(89999)), true);
-                            ws.sendText("NICK justinfan" + (10000 + new Random().nextInt(89999)), true);
+                            if (oauthToken != null && !oauthToken.isEmpty() && !accountUsername.isEmpty()) {
+                                String pass = oauthToken.startsWith("oauth:") ? oauthToken : ("oauth:" + oauthToken);
+                                ws.sendText("PASS " + pass, true);
+                                ws.sendText("NICK " + accountUsername, true);
+                            } else {
+                                ws.sendText("PASS oauth:justinfan" + (10000 + new Random().nextInt(89999)), true);
+                                ws.sendText("NICK justinfan" + (10000 + new Random().nextInt(89999)), true);
+                            }
                             ws.sendText("JOIN #" + target, true);
                             ws.request(1);
                         }
@@ -458,6 +532,10 @@ public class TwitchChat extends HudModule {
             if (privIdx < 0) return;
             int colonIdx = messagePart.indexOf(" :", privIdx);
             if (colonIdx < 0) return;
+            String msgChan = messagePart.substring(privIdx + 9, colonIdx).trim().toLowerCase();
+            if (!activeChannel.isEmpty() && !msgChan.equalsIgnoreCase(activeChannel)) {
+                return;
+            }
             String text = messagePart.substring(colonIdx + 2).trim();
 
             String displayName = "";
@@ -553,6 +631,11 @@ public class TwitchChat extends HudModule {
 
     private void resolveAndLoadChannel7tv(String chan) {
         if (chan.isEmpty() || loadedChannelEmotes.contains(chan)) return;
+        if (chan.equalsIgnoreCase(this.accountUsername) && this.accountUserId != null && !this.accountUserId.isEmpty()) {
+            fetch7tvByTwitchId(this.accountUserId);
+            loadedChannelEmotes.add(chan);
+            return;
+        }
         CompletableFuture.runAsync(() -> {
             try {
                 String uid = null;
@@ -761,5 +844,231 @@ public class TwitchChat extends HudModule {
         }
 
         p.popMatrix();
+    }
+
+    public String getActiveOrOwnChannel() {
+        if (activeChannel != null && !activeChannel.isEmpty()) return activeChannel;
+        if (channel.value != null && !channel.value.trim().isEmpty()) return channel.value.trim().toLowerCase();
+        if (accountUsername != null && !accountUsername.isEmpty()) return accountUsername;
+        return "";
+    }
+
+    public static void sendFeedback(Component component) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc != null && mc.gui != null && mc.gui.hud != null && mc.gui.hud.getChat() != null) {
+            try {
+                mc.gui.hud.getChat().addClientSystemMessage(component);
+            } catch (Throwable ignored) {}
+        }
+    }
+
+    public static void sendFeedback(String text) {
+        sendFeedback(Component.literal(text));
+    }
+
+    public void setChannelPermanently(String newChan) {
+        String clean = newChan.toLowerCase().replace("#", "").replace("@", "").trim();
+        if (clean.isEmpty()) return;
+        channel.value = clean;
+        this.enabled = true;
+        try {
+            ModuleManager.save();
+        } catch (Throwable ignored) {}
+        activeChannel = clean;
+        connect();
+        resolveAndLoadChannel7tv(clean);
+        MutableComponent fb = Component.empty();
+        fb.append(TwitchBadges.logo());
+        fb.append(Component.literal(" §aTwitch-Kanal dauerhaft auf §b#" + clean + " §agewechselt."));
+        sendFeedback(fb);
+    }
+
+    public void sendMessageToChannel(String targetChannel, String message) {
+        if (message == null || message.trim().isEmpty()) return;
+        if (oauthToken == null || oauthToken.isEmpty()) {
+            loadDefaultChannel();
+        }
+        if (oauthToken == null || oauthToken.isEmpty()) {
+            sendFeedback("§c[Twitch] Du bist nicht mit Twitch angemeldet! Bitte melde dich im Launcher unter Einstellungen -> Verbindungen bei Twitch an.");
+            return;
+        }
+        String cleanChan = targetChannel == null ? "" : targetChannel.toLowerCase().replace("#", "").replace("@", "").trim();
+        if (cleanChan.isEmpty()) {
+            cleanChan = getActiveOrOwnChannel();
+        }
+        if (cleanChan.isEmpty()) {
+            sendFeedback("§c[Twitch] Kein aktiver Kanal verbunden. Verwende '/ttvc <Kanal>' um einen Kanal festzulegen.");
+            return;
+        }
+        if (webSocket == null) {
+            connect();
+        }
+        if (webSocket != null) {
+            if (!cleanChan.equalsIgnoreCase(activeChannel)) {
+                webSocket.sendText("JOIN #" + cleanChan, true);
+            }
+            webSocket.sendText("PRIVMSG #" + cleanChan + " :" + message, true);
+            String sender = !accountDisplayName.isEmpty() ? accountDisplayName : (!accountUsername.isEmpty() ? accountUsername : "Du");
+            MutableComponent fb = Component.empty();
+            fb.append(TwitchBadges.logo());
+            fb.append(Component.literal(" §7[#" + cleanChan + "] §d" + sender + "§7: "));
+            fb.append(formatTextToComponent(message, Style.EMPTY.withColor(0xFFFFFF)));
+            sendFeedback(fb);
+            ChatMessage cm = new ChatMessage(sender, 0xFF9146FF, message, System.currentTimeMillis(), show7tv.value && containsEmote(message), List.of());
+            messages.add(cm);
+            while (messages.size() > 50) messages.remove(0);
+        } else {
+            sendFeedback("§c[Twitch] Verbindung zu Twitch konnte nicht hergestellt werden.");
+        }
+    }
+
+    public void sendOneOffMessage(String targetChannel, String message) {
+        if (message == null || message.trim().isEmpty()) return;
+        if (oauthToken == null || oauthToken.isEmpty()) {
+            loadDefaultChannel();
+        }
+        if (oauthToken == null || oauthToken.isEmpty()) {
+            sendFeedback("§c[Twitch] Du bist nicht mit Twitch angemeldet! Bitte melde dich im Launcher unter Einstellungen -> Verbindungen bei Twitch an.");
+            return;
+        }
+        String cleanChan = targetChannel == null ? "" : targetChannel.toLowerCase().replace("#", "").replace("@", "").trim();
+        if (cleanChan.isEmpty() || cleanChan.equalsIgnoreCase(activeChannel)) {
+            sendMessageToChannel(activeChannel, message);
+            return;
+        }
+        if (webSocket == null) {
+            connect();
+        }
+        if (webSocket != null) {
+            webSocket.sendText("JOIN #" + cleanChan, true);
+            webSocket.sendText("PRIVMSG #" + cleanChan + " :" + message, true);
+            webSocket.sendText("PART #" + cleanChan, true);
+            String sender = !accountDisplayName.isEmpty() ? accountDisplayName : (!accountUsername.isEmpty() ? accountUsername : "Du");
+            MutableComponent fb = Component.empty();
+            fb.append(TwitchBadges.logo());
+            fb.append(Component.literal(" §7[#" + cleanChan + "] §e(Einmalig) §d" + sender + "§7: "));
+            fb.append(formatTextToComponent(message, Style.EMPTY.withColor(0xFFFFFF)));
+            sendFeedback(fb);
+        } else {
+            sendFeedback("§c[Twitch] Verbindung zu Twitch konnte nicht hergestellt werden.");
+        }
+    }
+
+    public void disconnectAll() {
+        disconnect();
+        channel.value = "";
+        this.enabled = false;
+        try {
+            ModuleManager.save();
+        } catch (Throwable ignored) {}
+        MutableComponent fb = Component.empty();
+        fb.append(TwitchBadges.logo());
+        fb.append(Component.literal(" §eVerbindung zu allen Twitch-Kanälen getrennt."));
+        sendFeedback(fb);
+    }
+
+    public void printHelp() {
+        sendFeedback("§d[Twitch] §fTwitch Chat Integration:");
+        String cur = getActiveOrOwnChannel();
+        String curDisplay = cur.isEmpty() ? "keiner" : "#" + cur;
+        String user = (!accountDisplayName.isEmpty()) ? accountDisplayName : ((!accountUsername.isEmpty()) ? accountUsername : null);
+        if (user != null) {
+            sendFeedback("§7Angemeldet als: §a" + user + " §7(Kanal: §b" + curDisplay + "§7)");
+        } else {
+            sendFeedback("§7Aktiver Kanal: §b" + curDisplay + " §c(Nicht angemeldet)");
+        }
+        sendFeedback("§7Befehle:");
+        sendFeedback("  §b/ttv <Nachricht> §7- Schreibt in den aktuellen Kanal (" + curDisplay + ")");
+        sendFeedback("  §b/ttvc <Kanal> §7- Wechselt den Kanal dauerhaft");
+        sendFeedback("  §b/ttv <Kanal> <Nachricht> §7- Sendet Nachricht nur an diesen Kanal (einmalig)");
+        sendFeedback("  §b/ttv disconnect §7- Trennt die Verbindung zu allen Kanälen");
+    }
+
+    public static void handleTtvcCommand(String rawArgs) {
+        if (INSTANCE == null) return;
+        if (rawArgs == null || rawArgs.trim().isEmpty()) {
+            String cur = INSTANCE.getActiveOrOwnChannel();
+            String curDisplay = cur.isEmpty() ? "keiner" : "#" + cur;
+            INSTANCE.sendFeedback("§d[Twitch] §fVerwendung: §b/ttvc <Kanal> §7- Wechselt den Twitch-Kanal dauerhaft");
+            INSTANCE.sendFeedback("§7Aktueller Kanal: §b" + curDisplay);
+            return;
+        }
+        String args = rawArgs.trim();
+        if (args.equalsIgnoreCase("disconnect") || args.equalsIgnoreCase("dc")) {
+            INSTANCE.disconnectAll();
+            return;
+        }
+        if (!INSTANCE.enabled) {
+            INSTANCE.enabled = true;
+            INSTANCE.onEnable();
+        }
+        String cleanChan = args.replace("#", "").replace("@", "").trim();
+        int sp = cleanChan.indexOf(' ');
+        if (sp > 0) {
+            cleanChan = cleanChan.substring(0, sp).trim();
+        }
+        if (cleanChan.isEmpty() || !cleanChan.matches("^[a-zA-Z0-9_]{3,25}$")) {
+            INSTANCE.sendFeedback("§c[Twitch] Ungültiger Kanalname: '" + args + "'.");
+            return;
+        }
+        INSTANCE.setChannelPermanently(cleanChan);
+    }
+
+    public static void handleTtvCommand(String rawArgs) {
+        if (INSTANCE == null) return;
+        if (rawArgs == null || rawArgs.trim().isEmpty()) {
+            INSTANCE.printHelp();
+            return;
+        }
+        String args = rawArgs.trim();
+        if (args.equalsIgnoreCase("disconnect") || args.equalsIgnoreCase("dc")) {
+            INSTANCE.disconnectAll();
+            return;
+        }
+        if (args.equalsIgnoreCase("help") || args.equals("?")) {
+            INSTANCE.printHelp();
+            return;
+        }
+
+        if (!INSTANCE.enabled) {
+            INSTANCE.enabled = true;
+            INSTANCE.onEnable();
+        }
+
+        int firstSpace = args.indexOf(' ');
+        if (firstSpace < 0) {
+            INSTANCE.sendMessageToChannel(INSTANCE.getActiveOrOwnChannel(), args);
+            return;
+        }
+
+        String first = args.substring(0, firstSpace).trim();
+        String remainder = args.substring(firstSpace + 1).trim();
+
+        if (first.startsWith("#") || first.startsWith("@")) {
+            INSTANCE.sendOneOffMessage(first.substring(1), remainder);
+            return;
+        }
+        if (first.equalsIgnoreCase("to") || first.equalsIgnoreCase("send")) {
+            int secondSpace = remainder.indexOf(' ');
+            if (secondSpace > 0) {
+                String target = remainder.substring(0, secondSpace).trim();
+                String msg = remainder.substring(secondSpace + 1).trim();
+                INSTANCE.sendOneOffMessage(target, msg);
+            } else {
+                INSTANCE.sendOneOffMessage(remainder, "");
+            }
+            return;
+        }
+        if (first.equalsIgnoreCase("msg") || first.equalsIgnoreCase("say")) {
+            INSTANCE.sendMessageToChannel(INSTANCE.getActiveOrOwnChannel(), remainder);
+            return;
+        }
+
+        if (!first.matches("^[a-zA-Z0-9_]{3,25}$") || COMMON_WORDS.contains(first.toLowerCase()) || isEmote(first)) {
+            INSTANCE.sendMessageToChannel(INSTANCE.getActiveOrOwnChannel(), args);
+            return;
+        }
+
+        INSTANCE.sendOneOffMessage(first, remainder);
     }
 }

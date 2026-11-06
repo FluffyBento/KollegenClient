@@ -21,6 +21,7 @@ mod modrinth;
 mod servers;
 mod types;
 mod utils;
+mod clipping;
 
 use anyhow::Result;
 use base64::Engine;
@@ -2161,73 +2162,73 @@ async fn kollegen_me(app: tauri::AppHandle) -> Result<serde_json::Value, String>
 }
 
 #[tauri::command]
-async fn kollegen_friends(app: tauri::AppHandle) -> Result<serde_json::Value, String> {
+fn kollegen_friends(app: tauri::AppHandle) -> Result<serde_json::Value, String> {
     let data_dir = app.state::<AppState>().data_dir.clone();
     Ok(crate::presence::kollegen_friends(&data_dir))
 }
 
 #[tauri::command]
-async fn kollegen_friend_add(app: tauri::AppHandle, target_id: String) -> Result<serde_json::Value, String> {
+fn kollegen_friend_add(app: tauri::AppHandle, target_id: String) -> Result<serde_json::Value, String> {
     let data_dir = app.state::<AppState>().data_dir.clone();
     Ok(crate::presence::kollegen_friend_add(&data_dir, &target_id))
 }
 
 #[tauri::command]
-async fn kollegen_friend_remove(app: tauri::AppHandle, target_id: String) -> Result<serde_json::Value, String> {
+fn kollegen_friend_remove(app: tauri::AppHandle, target_id: String) -> Result<serde_json::Value, String> {
     let data_dir = app.state::<AppState>().data_dir.clone();
     Ok(crate::presence::kollegen_friend_remove(&data_dir, &target_id))
 }
 
 #[tauri::command]
-async fn kollegen_friend_requests(app: tauri::AppHandle) -> Result<serde_json::Value, String> {
+fn kollegen_friend_requests(app: tauri::AppHandle) -> Result<serde_json::Value, String> {
     let data_dir = app.state::<AppState>().data_dir.clone();
     Ok(crate::presence::kollegen_friend_requests(&data_dir))
 }
 
 #[tauri::command]
-async fn kollegen_friend_accept(app: tauri::AppHandle, from_id: String) -> Result<serde_json::Value, String> {
+fn kollegen_friend_accept(app: tauri::AppHandle, from_id: String) -> Result<serde_json::Value, String> {
     let data_dir = app.state::<AppState>().data_dir.clone();
     Ok(crate::presence::kollegen_friend_accept(&data_dir, &from_id))
 }
 
 #[tauri::command]
-async fn kollegen_friend_decline(app: tauri::AppHandle, from_id: String) -> Result<serde_json::Value, String> {
+fn kollegen_friend_decline(app: tauri::AppHandle, from_id: String) -> Result<serde_json::Value, String> {
     let data_dir = app.state::<AppState>().data_dir.clone();
     Ok(crate::presence::kollegen_friend_decline(&data_dir, &from_id))
 }
 
 #[tauri::command]
-async fn kollegen_browse_profiles(app: tauri::AppHandle, search: Option<String>) -> Result<serde_json::Value, String> {
+fn kollegen_browse_profiles(app: tauri::AppHandle, search: Option<String>) -> Result<serde_json::Value, String> {
     let data_dir = app.state::<AppState>().data_dir.clone();
     Ok(crate::presence::browse_profiles(&data_dir, search.unwrap_or_default().as_str()))
 }
 
 #[tauri::command]
-async fn kollegen_publish_profile(app: tauri::AppHandle, profile: serde_json::Value) -> Result<serde_json::Value, String> {
+fn kollegen_publish_profile(app: tauri::AppHandle, profile: serde_json::Value) -> Result<serde_json::Value, String> {
     let data_dir = app.state::<AppState>().data_dir.clone();
     Ok(crate::presence::publish_profile(&data_dir, &profile))
 }
 
 #[tauri::command]
-async fn kollegen_profile_view(app: tauri::AppHandle, code: String) -> Result<serde_json::Value, String> {
+fn kollegen_profile_view(app: tauri::AppHandle, code: String) -> Result<serde_json::Value, String> {
     let data_dir = app.state::<AppState>().data_dir.clone();
     Ok(crate::presence::kollegen_profile_view(&data_dir, &code))
 }
 
 #[tauri::command]
-async fn kollegen_dm_conversations(app: tauri::AppHandle) -> Result<serde_json::Value, String> {
+fn kollegen_dm_conversations(app: tauri::AppHandle) -> Result<serde_json::Value, String> {
     let data_dir = app.state::<AppState>().data_dir.clone();
     Ok(crate::presence::kollegen_dm_conversations(&data_dir))
 }
 
 #[tauri::command]
-async fn kollegen_dm_messages(app: tauri::AppHandle, other: String) -> Result<serde_json::Value, String> {
+fn kollegen_dm_messages(app: tauri::AppHandle, other: String) -> Result<serde_json::Value, String> {
     let data_dir = app.state::<AppState>().data_dir.clone();
     Ok(crate::presence::kollegen_dm_messages(&data_dir, &other))
 }
 
 #[tauri::command]
-async fn kollegen_dm_send(app: tauri::AppHandle, to_id: String, text: String) -> Result<serde_json::Value, String> {
+fn kollegen_dm_send(app: tauri::AppHandle, to_id: String, text: String) -> Result<serde_json::Value, String> {
     let data_dir = app.state::<AppState>().data_dir.clone();
     Ok(crate::presence::kollegen_dm_send(&data_dir, &to_id, &text))
 }
@@ -2265,91 +2266,91 @@ async fn kollegen_pet_config(app: tauri::AppHandle, pet: Option<String>, mode: O
 }
 
 #[tauri::command]
-async fn kollegen_groups(app: tauri::AppHandle) -> Result<serde_json::Value, String> {
+fn kollegen_groups(app: tauri::AppHandle) -> Result<serde_json::Value, String> {
     let data_dir = app.state::<AppState>().data_dir.clone();
     Ok(crate::presence::kollegen_groups(&data_dir))
 }
 
 #[tauri::command]
-async fn kollegen_group_create(app: tauri::AppHandle, name: String, member_ids: Vec<String>) -> Result<serde_json::Value, String> {
+fn kollegen_group_create(app: tauri::AppHandle, name: String, member_ids: Vec<String>) -> Result<serde_json::Value, String> {
     let data_dir = app.state::<AppState>().data_dir.clone();
     Ok(crate::presence::kollegen_group_create(&data_dir, &name, member_ids))
 }
 
 #[tauri::command]
-async fn kollegen_group_view(app: tauri::AppHandle, group_id: String) -> Result<serde_json::Value, String> {
+fn kollegen_group_view(app: tauri::AppHandle, group_id: String) -> Result<serde_json::Value, String> {
     let data_dir = app.state::<AppState>().data_dir.clone();
     Ok(crate::presence::kollegen_group_view(&data_dir, &group_id))
 }
 
 #[tauri::command]
-async fn kollegen_group_add_member(app: tauri::AppHandle, group_id: String, member_id: String) -> Result<serde_json::Value, String> {
+fn kollegen_group_add_member(app: tauri::AppHandle, group_id: String, member_id: String) -> Result<serde_json::Value, String> {
     let data_dir = app.state::<AppState>().data_dir.clone();
     Ok(crate::presence::kollegen_group_add_member(&data_dir, &group_id, &member_id))
 }
 
 #[tauri::command]
-async fn kollegen_group_leave(app: tauri::AppHandle, group_id: String) -> Result<serde_json::Value, String> {
+fn kollegen_group_leave(app: tauri::AppHandle, group_id: String) -> Result<serde_json::Value, String> {
     let data_dir = app.state::<AppState>().data_dir.clone();
     Ok(crate::presence::kollegen_group_leave(&data_dir, &group_id))
 }
 
 #[tauri::command]
-async fn kollegen_group_delete(app: tauri::AppHandle, group_id: String) -> Result<serde_json::Value, String> {
+fn kollegen_group_delete(app: tauri::AppHandle, group_id: String) -> Result<serde_json::Value, String> {
     let data_dir = app.state::<AppState>().data_dir.clone();
     Ok(crate::presence::kollegen_group_delete(&data_dir, &group_id))
 }
 
 #[tauri::command]
-async fn kollegen_group_poll(app: tauri::AppHandle, group_id: String, since_msg: u64, since_sig: u64) -> Result<serde_json::Value, String> {
+fn kollegen_group_poll(app: tauri::AppHandle, group_id: String, since_msg: u64, since_sig: u64) -> Result<serde_json::Value, String> {
     let data_dir = app.state::<AppState>().data_dir.clone();
     Ok(crate::presence::kollegen_group_poll(&data_dir, &group_id, since_msg, since_sig))
 }
 
 #[tauri::command]
-async fn kollegen_group_send(app: tauri::AppHandle, group_id: String, text: String) -> Result<serde_json::Value, String> {
+fn kollegen_group_send(app: tauri::AppHandle, group_id: String, text: String) -> Result<serde_json::Value, String> {
     let data_dir = app.state::<AppState>().data_dir.clone();
     Ok(crate::presence::kollegen_group_send(&data_dir, &group_id, &text))
 }
 
 #[tauri::command]
-async fn kollegen_call_open(app: tauri::AppHandle, group_id: String) -> Result<serde_json::Value, String> {
+fn kollegen_call_open(app: tauri::AppHandle, group_id: String) -> Result<serde_json::Value, String> {
     let data_dir = app.state::<AppState>().data_dir.clone();
     Ok(crate::presence::kollegen_call_open(&data_dir, &group_id))
 }
 
 #[tauri::command]
-async fn kollegen_call_join(app: tauri::AppHandle, call_id: String) -> Result<serde_json::Value, String> {
+fn kollegen_call_join(app: tauri::AppHandle, call_id: String) -> Result<serde_json::Value, String> {
     let data_dir = app.state::<AppState>().data_dir.clone();
     Ok(crate::presence::kollegen_call_join(&data_dir, &call_id))
 }
 
 #[tauri::command]
-async fn kollegen_call_leave(app: tauri::AppHandle, call_id: String) -> Result<serde_json::Value, String> {
+fn kollegen_call_leave(app: tauri::AppHandle, call_id: String) -> Result<serde_json::Value, String> {
     let data_dir = app.state::<AppState>().data_dir.clone();
     Ok(crate::presence::kollegen_call_leave(&data_dir, &call_id))
 }
 
 #[tauri::command]
-async fn kollegen_call_signal(app: tauri::AppHandle, call_id: String, to_id: String, kind: String, data: serde_json::Value) -> Result<serde_json::Value, String> {
+fn kollegen_call_signal(app: tauri::AppHandle, call_id: String, to_id: String, kind: String, data: serde_json::Value) -> Result<serde_json::Value, String> {
     let data_dir = app.state::<AppState>().data_dir.clone();
     Ok(crate::presence::kollegen_call_signal(&data_dir, &call_id, &to_id, &kind, data))
 }
 
 #[tauri::command]
-async fn kollegen_call_direct_open(app: tauri::AppHandle, peer_id: String) -> Result<serde_json::Value, String> {
+fn kollegen_call_direct_open(app: tauri::AppHandle, peer_id: String) -> Result<serde_json::Value, String> {
     let data_dir = app.state::<AppState>().data_dir.clone();
     Ok(crate::presence::kollegen_call_direct_open(&data_dir, &peer_id))
 }
 
 #[tauri::command]
-async fn kollegen_call_direct_poll(app: tauri::AppHandle, call_id: String, since_sig: u64) -> Result<serde_json::Value, String> {
+fn kollegen_call_direct_poll(app: tauri::AppHandle, call_id: String, since_sig: u64) -> Result<serde_json::Value, String> {
     let data_dir = app.state::<AppState>().data_dir.clone();
     Ok(crate::presence::kollegen_call_direct_poll(&data_dir, &call_id, since_sig))
 }
 
 #[tauri::command]
-async fn kollegen_call_direct_active(app: tauri::AppHandle) -> Result<serde_json::Value, String> {
+fn kollegen_call_direct_active(app: tauri::AppHandle) -> Result<serde_json::Value, String> {
     let data_dir = app.state::<AppState>().data_dir.clone();
     Ok(crate::presence::kollegen_call_direct_active(&data_dir))
 }
@@ -2445,6 +2446,23 @@ fn cape_equip(state: State<'_, AppState>, cape_id: String) -> Value {
 #[tauri::command]
 fn twitch_get_account(state: State<'_, AppState>) -> twitch_auth::TwitchAccount {
     twitch_auth::load(&state.data_dir)
+}
+
+#[tauri::command]
+fn twitch_device_start(
+    state: State<'_, AppState>,
+) -> Result<twitch_auth::TwitchDeviceStartResponse, String> {
+    twitch_auth::start_device_flow(state.data_dir.clone())
+}
+
+#[tauri::command]
+fn twitch_device_status(state: State<'_, AppState>) -> twitch_auth::TwitchFlowStatus {
+    twitch_auth::device_status(&state.data_dir)
+}
+
+#[tauri::command]
+fn twitch_device_cancel() {
+    twitch_auth::cancel_device_flow();
 }
 
 #[tauri::command]
@@ -3248,6 +3266,9 @@ fn main() {
             skin_mc_profile,
             cape_equip,
             twitch_get_account,
+            twitch_device_start,
+            twitch_device_status,
+            twitch_device_cancel,
             twitch_link,
             twitch_unlink,
             skin_edit,
@@ -3266,6 +3287,13 @@ fn main() {
             set_instance_image,
             clear_instance_image,
             import_content_file,
+            clipping::clips_get_config,
+            clipping::clips_save_config,
+            clipping::clips_list_programs,
+            clipping::clips_list_screens,
+            clipping::clips_open_folder,
+            clipping::clips_save_now,
+            clipping::clips_poll_trigger,
         ])
         .run(tauri::generate_context!())
         .unwrap_or_else(|e| {

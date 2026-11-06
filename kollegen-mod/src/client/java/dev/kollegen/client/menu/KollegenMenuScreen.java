@@ -8,6 +8,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import net.fabricmc.loader.api.FabricLoader;
 import dev.kollegen.client.Version;
+import dev.kollegen.client.emotes.Emote;
+import dev.kollegen.client.emotes.EmoteManager;
 import dev.kollegen.client.mods.Category;
 import dev.kollegen.client.mods.BooleanSetting;
 import dev.kollegen.client.mods.HudModule;
@@ -24,6 +26,7 @@ import dev.kollegen.client.presence.StoreClient;
 import dev.kollegen.client.ui.Glass;
 import dev.kollegen.client.ui.GlassToggle;
 import dev.kollegen.client.ui.Icons;
+import dev.kollegen.client.ui.SkinFaceRenderer;
 import dev.kollegen.client.ui.LogoDraw;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -31,6 +34,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.util.function.Supplier;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.Minecraft;
@@ -69,6 +73,8 @@ public class KollegenMenuScreen extends Screen {
     private static final int K_COS_PREVIEW = 18;
     private static final int K_SKIN_CAPE_TOP_TAB = 19;
     private static final int K_MODULE_TAB = 20;
+    private static final int K_EMOTE = 21;
+    private static final int K_EMOTE_WHEEL_PREVIEW = 22;
     private static final int GAP = 6;
     private static final int PET_ACTIVE_H = 92;
 
@@ -355,7 +361,7 @@ public class KollegenMenuScreen extends Screen {
     }
 
     private static boolean isStorePage(Category c) {
-        return c == Category.STORE || c == Category.COSMETICS || c == Category.PETS || c == Category.SKIN_CAPE;
+        return c == Category.STORE || c == Category.COSMETICS || c == Category.PETS || c == Category.SKIN_CAPE || c == Category.EMOTES;
     }
 
     private void ensureStore() {
@@ -674,6 +680,8 @@ public class KollegenMenuScreen extends Screen {
             this.layoutDetail();
         } else if (cat == Category.EXTRAS && q.isEmpty()) {
             this.layoutExtras();
+        } else if (cat == Category.EMOTES) {
+            this.layoutEmotes(q);
         } else if (cat == Category.SKIN_CAPE) {
             this.layoutSkinAndCape(q);
         } else if (!q.isEmpty() || !isStorePage(cat)) {
@@ -1394,6 +1402,58 @@ public class KollegenMenuScreen extends Screen {
                     }
                     return false;
                 }
+                case K_EMOTE_WHEEL_PREVIEW: {
+                    float slotW = (c.w - 7 * 4.0f - 12.0f) / 8.0f;
+                    for (int i = 0; i < 8; i++) {
+                        float sx = X + 6.0f + i * (slotW + 4.0f);
+                        if (hit(mx, my, sx, Y + 4.0f, slotW, c.h - 8.0f)) {
+                            EmoteManager.setWheelSlot(i, "");
+                            this.relayout();
+                            return true;
+                        }
+                    }
+                    return false;
+                }
+                case K_EMOTE: {
+                    Emote e = EmoteManager.getById(c.itemId);
+                    if (e == null) return false;
+                    float b1w = 46.0f;
+                    float b2w = c.owned ? 56.0f : 68.0f;
+                    float b2x = X + c.w - 8.0f - b2w;
+                    float b1x = b2x - 4.0f - b1w;
+                    float by = Y + (c.h - 22.0f) / 2.0f;
+
+                    if (hit(mx, my, b1x, by, b1w, 22.0f)) {
+                        EmoteManager.playEmote(e);
+                        return true;
+                    }
+
+                    if (hit(mx, my, b2x, by, b2w, 22.0f)) {
+                        if (!c.owned) {
+                            EmoteManager.unlock(e.id);
+                            c.owned = true;
+                            this.relayout();
+                            return true;
+                        }
+                        String[] wh = EmoteManager.getWheel();
+                        int found = -1;
+                        for (int i = 0; i < 8; i++) {
+                            if (e.id.equals(wh[i])) { found = i; break; }
+                        }
+                        if (found >= 0) {
+                            EmoteManager.setWheelSlot(found, "");
+                        } else {
+                            int emptySlot = 0;
+                            for (int i = 0; i < 8; i++) {
+                                if (wh[i] == null || wh[i].isEmpty()) { emptySlot = i; break; }
+                            }
+                            EmoteManager.setWheelSlot(emptySlot, e.id);
+                        }
+                        this.relayout();
+                        return true;
+                    }
+                    return false;
+                }
                 default:
                     break;
             }
@@ -1411,7 +1471,24 @@ public class KollegenMenuScreen extends Screen {
         }
         if (KeybindSetting.capturing != null) {
             KeybindSetting cap = KeybindSetting.capturing;
-            cap.value = (key == InputConstants.KEY_ESCAPE || ki.isEscape()) ? -1 : key;
+            if (key == InputConstants.KEY_ESCAPE || ki.isEscape()) {
+                cap.value = -1;
+                cap.ctrl = false;
+                cap.shift = false;
+                cap.alt = false;
+                KeybindSetting.capturing = null;
+                this.buildWidgets();
+                return true;
+            }
+            if (key == InputConstants.KEY_LCONTROL || key == InputConstants.KEY_RCONTROL
+                    || key == InputConstants.KEY_LSHIFT || key == InputConstants.KEY_RSHIFT
+                    || key == InputConstants.KEY_LALT || key == InputConstants.KEY_RALT) {
+                return true;
+            }
+            cap.ctrl = ki.hasControlDown();
+            cap.shift = ki.hasShiftDown();
+            cap.alt = ki.hasAltDown();
+            cap.value = key;
             KeybindSetting.capturing = null;
             this.buildWidgets();
             return true;
@@ -1689,6 +1766,12 @@ public class KollegenMenuScreen extends Screen {
             case K_MODULE_TAB:
                 this.drawModuleTabs(g, c, X, Y, mx, my);
                 break;
+            case K_EMOTE_WHEEL_PREVIEW:
+                this.drawEmoteWheelPreview(g, c, X, Y, mx, my);
+                break;
+            case K_EMOTE:
+                this.drawEmoteCard(g, c, X, Y, mx, my, hov);
+                break;
             default:
                 break;
         }
@@ -1940,6 +2023,122 @@ public class KollegenMenuScreen extends Screen {
             } else {
                 Glass.textC(g, this.font, Glass.trunc(this.font, labels[i], (int) chipW - 8), Math.round(chipX + chipW / 2), Math.round(chipY + 6), i == 3 ? Palette.DANGER : Palette.TEXT, false);
             }
+        }
+    }
+
+    private void layoutEmotes(String q) {
+        this.ensureStore();
+        Cell tWheel = this.addFull(K_TITLE, 20.0f);
+        tWheel.text = "Emote-Rad (8 Slots)";
+        tWheel.data = new JsonObject();
+        tWheel.data.addProperty("sub", "Wähle Emotes für die 8 Slots deines Schnellzugriffs-Rads.");
+
+        this.addFull(K_EMOTE_WHEEL_PREVIEW, 54.0f);
+
+        Cell tAll = this.addFull(K_TITLE, 20.0f);
+        tAll.text = "Alle Emotes";
+        tAll.data = new JsonObject();
+        tAll.data.addProperty("sub", "Standard-Emotes und Store-Tänze.");
+
+        int cols = this.compact ? 1 : 2;
+        for (Emote e : EmoteManager.getAllEmotes()) {
+            if (!q.isEmpty()) {
+                String n = e.name.toLowerCase();
+                String d = e.description.toLowerCase();
+                if (!n.contains(q) && !d.contains(q)) continue;
+            }
+            Cell c = this.addGrid(K_EMOTE, cols, 54.0f);
+            c.itemId = e.id;
+            c.text = e.name;
+            c.price = e.price;
+            c.owned = EmoteManager.isUnlocked(e.id);
+        }
+    }
+
+    private void drawEmoteWheelPreview(GuiGraphicsExtractor g, Cell c, float X, float Y, int mx, int my) {
+        Glass.glassCard(g, X, Y, c.w, c.h, 10, Glass.a(Palette.PANEL, 0.75f), Glass.opacity * 0.85f, 0.0f);
+        String[] wh = EmoteManager.getWheel();
+        float slotW = (c.w - 7 * 4.0f - 12.0f) / 8.0f;
+        for (int i = 0; i < 8; i++) {
+            float sx = X + 6.0f + i * (slotW + 4.0f);
+            float sy = Y + 4.0f;
+            float sh = c.h - 8.0f;
+            boolean hov = hit(mx, my, sx, sy, slotW, sh);
+            String id = (i < wh.length) ? wh[i] : null;
+            Emote e = (id != null && !id.isEmpty()) ? EmoteManager.getById(id) : null;
+            boolean isActive = (e != null && (EmoteManager.getActiveBaseEmote() == e || EmoteManager.getActiveActionEmote() == e));
+
+            int bg = isActive ? Glass.a(Palette.ACCENT, 0.25f) : (hov ? 0x33FFFFFF : 0x18FFFFFF);
+            Glass.glassCard(g, sx, sy, slotW, sh, 6, bg, 0.8f, 0.0f);
+            if (isActive) Glass.ring(g, sx, sy, slotW, sh, 6, 1.0f, Palette.ACCENT);
+
+            Glass.textC(g, this.font, "#" + (i + 1), Math.round(sx + slotW / 2.0f), Math.round(sy + 3.0f), Palette.MUTED, false);
+            if (e != null) {
+                Glass.textC(g, this.font, e.icon, Math.round(sx + slotW / 2.0f), Math.round(sy + 13.0f), 0xFFFFFFFF, false);
+                Glass.textC(g, this.font, e.type.symbol, Math.round(sx + slotW / 2.0f), Math.round(sy + 25.0f), Palette.ACCENT, false);
+                String nm = Glass.trunc(this.font, e.name, (int) slotW - 4);
+                Glass.textC(g, this.font, nm, Math.round(sx + slotW / 2.0f), Math.round(sy + 35.0f), hov ? 0xFFFFFFFF : Palette.TEXT, false);
+            } else {
+                Glass.textC(g, this.font, "+", Math.round(sx + slotW / 2.0f), Math.round(sy + 22.0f), Palette.MUTED, false);
+            }
+        }
+    }
+
+    private void drawEmoteCard(GuiGraphicsExtractor g, Cell c, float X, float Y, int mx, int my, boolean hov) {
+        Emote e = EmoteManager.getById(c.itemId);
+        if (e == null) return;
+        c.hoverAnim = Glass.step(c.hoverAnim, hov ? 1.0f : 0.0f, 14.0f);
+        float h = c.hoverAnim;
+
+        String[] wh = EmoteManager.getWheel();
+        int wheelSlot = -1;
+        for (int i = 0; i < 8; i++) {
+            if (e.id.equals(wh[i])) { wheelSlot = i; break; }
+        }
+        boolean isCurrent = (EmoteManager.getActiveBaseEmote() == e || EmoteManager.getActiveActionEmote() == e);
+
+        int bg = isCurrent ? Glass.a(Palette.ACCENT, 0.2f) : Glass.mix(Palette.PANEL, Palette.ACCENT, 0.04f * h);
+        int border = isCurrent ? Glass.a(Palette.ACCENT, 0.85f) : (h > 0.01f ? Glass.a(0xFFFFFFFF, 0.25f * h) : 0x28FFFFFF);
+        Glass.glassCard(g, X, Y, c.w, c.h, 9, bg, Glass.opacity * (0.85f + 0.15f * h), 0.0f, border);
+
+        float iconBox = 34.0f;
+        float iconX = X + 8.0f;
+        float iconY = Y + (c.h - iconBox) / 2.0f;
+        Glass.glassCard(g, iconX, iconY, iconBox, iconBox, 7, Glass.a(Palette.ACCENT, 0.15f), 0.9f, 0.0f);
+        Glass.textC(g, this.font, e.icon, Math.round(iconX + iconBox / 2.0f), Math.round(iconY + 9.0f), 0xFFFFFFFF, false);
+
+        float textX = iconX + iconBox + 8.0f;
+        Glass.textBold(g, this.font, e.name, Math.round(textX), Math.round(Y + 10.0f), 0xFFFFFFFF, true);
+
+        int badgeX = Math.round(textX + this.font.width(e.name) + 6);
+        Glass.badge(g, badgeX, Math.round(Y + 9.0f), 16, 13, 6, Glass.a(Palette.ACCENT, 0.25f), 0xFFFFFFFF, this.font, e.type.symbol);
+
+        if (wheelSlot >= 0) {
+            int wBadgeX = badgeX + 20;
+            Glass.badge(g, wBadgeX, Math.round(Y + 9.0f), 42, 13, 6, 0x334ADE80, 0xFF4ADE80, this.font, "Rad #" + (wheelSlot + 1));
+        }
+
+        String desc = Glass.trunc(this.font, e.description, (int) (c.w - 180));
+        Glass.text(g, this.font, desc, Math.round(textX), Math.round(Y + 28.0f), Palette.MUTED, false);
+
+        float b1w = 46.0f;
+        float b2w = c.owned ? 56.0f : 68.0f;
+        float b2x = X + c.w - 8.0f - b2w;
+        float b1x = b2x - 4.0f - b1w;
+        float by = Y + (c.h - 22.0f) / 2.0f;
+
+        boolean h1 = hit(mx, my, b1x, by, b1w, 22.0f);
+        Glass.pill(g, b1x, by, b1w, 22.0f, h1 ? 1.0f : 0.0f, false, false);
+        Glass.textC(g, this.font, isCurrent ? "Stopp" : "Testen", Math.round(b1x + b1w / 2.0f), Math.round(by + 7.0f), h1 ? 0xFFFFFFFF : Palette.TEXT, false);
+
+        boolean h2 = hit(mx, my, b2x, by, b2w, 22.0f);
+        if (c.owned) {
+            String label = (wheelSlot >= 0) ? ("Rad #" + (wheelSlot + 1)) : "+ Rad";
+            Glass.pill(g, b2x, by, b2w, 22.0f, h2 ? 1.0f : 0.0f, wheelSlot >= 0, false);
+            Glass.textC(g, this.font, label, Math.round(b2x + b2w / 2.0f), Math.round(by + 7.0f), 0xFFFFFFFF, true);
+        } else {
+            Glass.pill(g, b2x, by, b2w, 22.0f, h2 ? 1.0f : 0.0f, true, false);
+            Glass.textC(g, this.font, e.price + " 🪙", Math.round(b2x + b2w / 2.0f), Math.round(by + 7.0f), 0xFFFFFFFF, true);
         }
     }
 
@@ -2198,13 +2397,9 @@ public class KollegenMenuScreen extends Screen {
                 } catch (Throwable ignored) {
                 }
             } else {
-                Identifier skinTex = SkinCapeTextureManager.getOrLoadSkin(mc.getUser() != null ? mc.getUser().getName() : "Player", null);
-                if (skinTex != null) {
-                    try {
-                        PlayerFaceExtractor.extractRenderState(g, skinTex, Math.round(X + 22), Math.round(Y + 30), 56, true, false, -1);
-                    } catch (Throwable ignored) {
-                    }
-                }
+                String uName = mc.getUser() != null ? mc.getUser().getName() : "Player";
+                UUID uUuid = mc.getUser() != null ? mc.getUser().getProfileId() : null;
+                SkinFaceRenderer.drawFace(g, uName, uUuid, Math.round(X + 22), Math.round(Y + 30), 56);
             }
 
             float infoX = X + 104;

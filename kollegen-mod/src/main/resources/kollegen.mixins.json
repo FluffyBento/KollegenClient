@@ -72,7 +72,9 @@
     "DisconnectedScreenMixin",
     "EntityHitboxDebugRendererMixin",
     "DebugRendererMixin",
-    "MultiPlayerGameModeMixin"
+    "MultiPlayerGameModeMixin",
+    "TitleScreenMixin",
+    "PlayerModelMixin"
   ],
   "injectors": {
     "defaultRequire": 1
