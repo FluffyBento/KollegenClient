@@ -6,12 +6,14 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.mojang.blaze3d.platform.InputConstants;
 import dev.kollegen.client.mods.Palette;
+import dev.kollegen.client.party.PartyManager;
 import dev.kollegen.client.presence.PrivacySettings;
 import dev.kollegen.client.ui.Glass;
 import dev.kollegen.client.ui.GlassButton;
+import dev.kollegen.client.ui.Icons;
+import dev.kollegen.client.ui.UiStyleManager;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
-import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.ConnectScreen;
 import net.minecraft.client.gui.screens.Screen;
@@ -36,10 +38,16 @@ import java.util.List;
 public class ServerSwitcherScreen extends Screen {
 
     private final Screen parent;
-    private static final int ROW_H = 40;
+    private static final int ROW_H = 46;
     private static final int GAP = 6;
     private static final String[] TABS = {"👥 Freunde auf Servern", "🌐 Gespeicherte Server", "⚡ Direktverbindung"};
-    private static final String[] PRESET_SERVERS = {"gommehd.net", "hypixel.net", "pika-network.net", "play.cubecraft.net", "rewinside.tv"};
+    private static final String[][] PRESETS = {
+            {"GOMMEHD.NET", "gommehd.net", "Deutschlands größtes Minigames-Netzwerk", "1.8 - 1.21"},
+            {"HYPIXEL.NET", "hypixel.net", "BedWars, SkyBlock & Duels", "1.8 - 1.21"},
+            {"PIKA-NETWORK.NET", "pika-network.net", "BedWars, Practice & Survival", "1.8 - 1.21"},
+            {"PLAY.CUBECRAFT.NET", "play.cubecraft.net", "SkyWars, EggWars & Parkour", "1.12 - 1.21"},
+            {"REWINSIDE.TV", "rewinside.tv", "BedWars & Community Server", "1.8 - 1.21"}
+    };
 
     private int tab = 0;
     private int px, py, pw, ph, cx, cw, listTop, listBottom;
@@ -50,7 +58,8 @@ public class ServerSwitcherScreen extends Screen {
     private final List<ActionRect> actionRects = new ArrayList<>();
 
     private EditBox directInput;
-    private Button privacyBtn;
+    private GlassButton directJoinBtn;
+    private GlassButton privacyBtn;
 
     private final HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(4)).build();
     private String statusMsg = "Lade Server…";
@@ -61,18 +70,22 @@ public class ServerSwitcherScreen extends Screen {
         final String ip;
         final boolean joinable;
         final String actionLabel;
+        final String badge;
+        final String friendName;
 
-        ServerEntry(String title, String subtitle, String ip, boolean joinable, String actionLabel) {
+        ServerEntry(String title, String subtitle, String ip, boolean joinable, String actionLabel, String badge, String friendName) {
             this.title = title;
             this.subtitle = subtitle;
             this.ip = ip;
             this.joinable = joinable;
             this.actionLabel = actionLabel;
+            this.badge = badge;
+            this.friendName = friendName;
         }
     }
 
     private static final class ActionRect {
-        int x, y, w, h;
+        final int x, y, w, h;
         final Runnable action;
 
         ActionRect(int x, int y, int w, int h, Runnable action) {
@@ -95,16 +108,16 @@ public class ServerSwitcherScreen extends Screen {
 
     @Override
     protected void init() {
-        int w = Math.min(this.width - 40, 720);
-        int h = Math.min(this.height - 40, 500);
+        int w = Math.min(this.width - 24, 760);
+        int h = Math.min(this.height - 24, 520);
         this.px = (this.width - w) / 2;
         this.py = (this.height - h) / 2;
         this.pw = w;
         this.ph = h;
-        this.cx = px + 16;
-        this.cw = pw - 32;
-        this.listTop = py + 92;
-        this.listBottom = py + ph - 20;
+        this.cx = px + 18;
+        this.cw = pw - 36;
+        this.listTop = py + 98;
+        this.listBottom = py + ph - 16;
 
         buildWidgets();
         loadData();
@@ -117,7 +130,7 @@ public class ServerSwitcherScreen extends Screen {
 
         boolean hidden = PrivacySettings.isHideServer();
         String privText = hidden ? "🔒 Server: Verborgen" : "👁 Server: Öffentlich";
-        privacyBtn = new GlassButton(px + pw - 240, topY, 150, 24, Component.literal(privText), btn -> {
+        privacyBtn = new GlassButton(px + pw - 270, topY, 150, 24, Component.literal(privText), btn -> {
             PrivacySettings.toggleHideServer();
             boolean nowHidden = PrivacySettings.isHideServer();
             privacyBtn.setMessage(Component.literal(nowHidden ? "🔒 Server: Verborgen" : "👁 Server: Öffentlich"));
@@ -125,30 +138,36 @@ public class ServerSwitcherScreen extends Screen {
         });
         addRenderableWidget(privacyBtn);
 
-        GlassButton refresh = new GlassButton(px + pw - 84, topY, 24, 24, Component.literal("⟳"), btn -> {
+        GlassButton refresh = new GlassButton(px + pw - 108, topY, 26, 24, Component.literal("⟳"), btn -> {
             statusMsg = "Aktualisiere…";
             loadData();
         });
         addRenderableWidget(refresh);
 
-        GlassButton close = new GlassButton(px + pw - 54, topY, 24, 24, Component.literal("✕"), btn ->
+        GlassButton close = new GlassButton(px + pw - 74, topY, 26, 24, Component.literal("✕"), btn ->
                 Minecraft.getInstance().setScreenAndShow(parent));
         addRenderableWidget(close);
 
         if (tab == 2) {
-            int inpY = listTop + 36;
-            directInput = new EditBox(this.font, cx + 8, inpY, cw - 128, 26, Component.literal("Server-IP"));
+            int cardY = listTop + 4;
+            int cardH = 68;
+            int inpY = cardY + 30;
+            int btnW = 104;
+            directInput = new EditBox(this.font, cx + 16, inpY, cw - btnW - 44, 26, Component.literal("Server-IP"));
             directInput.setMaxLength(128);
-            directInput.setHint(Component.literal("Server-Adresse eingeben (z.B. gommehd.net)…"));
+            directInput.setHint(Component.literal("z.B. play.hypixel.net oder 127.0.0.1:25565…"));
             addRenderableWidget(directInput);
 
-            GlassButton connect = new GlassButton(cx + cw - 112, inpY, 104, 26, Component.literal("🚀 Beitreten"), btn -> {
+            directJoinBtn = new GlassButton(cx + cw - btnW - 16, inpY, btnW, 26, Component.literal("🚀 Beitreten"), btn -> {
                 String ip = directInput.getValue().trim();
                 if (!ip.isEmpty()) {
                     switchServer(Minecraft.getInstance(), ip, ip);
                 }
             });
-            addRenderableWidget(connect);
+            addRenderableWidget(directJoinBtn);
+        } else {
+            directInput = null;
+            directJoinBtn = null;
         }
     }
 
@@ -206,9 +225,9 @@ public class ServerSwitcherScreen extends Screen {
                         boolean hasHidden = "hidden".equalsIgnoreCase(server) || server.isEmpty();
 
                         if (online && !hasHidden) {
-                            loaded.add(new ServerEntry(name, "Spielt auf: " + server, server, true, "🚀 Beitreten"));
+                            loaded.add(new ServerEntry(name, "Spielt auf: " + server, server, true, "🚀 Beitreten", "Online", name));
                         } else if (online) {
-                            loaded.add(new ServerEntry(name, "Online \u00b7 Server ausgeblendet 🔒", "", false, "Privat"));
+                            loaded.add(new ServerEntry(name, "Online \u00b7 Server verborgen 🔒", "", false, "Privat", "Verborgen", name));
                         }
                     }
                 }
@@ -242,13 +261,13 @@ public class ServerSwitcherScreen extends Screen {
                     if (data.status != null && !data.status.getString().isEmpty()) {
                         sub += " \u00b7 " + data.status.getString();
                     }
-                    entries.add(new ServerEntry(data.name != null ? data.name : data.ip, sub, data.ip, true, "Beitreten"));
+                    entries.add(new ServerEntry(data.name != null ? data.name : data.ip, sub, data.ip, true, "🚀 Beitreten", "Gespeichert", null));
                 }
             }
             if (entries.isEmpty()) {
-                statusMsg = "Keine gespeicherten Server in deiner Serverliste vorhanden.";
+                statusMsg = "Keine Server in deiner Minecraft-Serverliste vorhanden.";
             } else {
-                statusMsg = entries.size() + " gespeicherte Server.";
+                statusMsg = entries.size() + " gespeicherte Server gefunden.";
             }
         } catch (Throwable ignored) {
             statusMsg = "Fehler beim Laden der Serverliste.";
@@ -256,15 +275,16 @@ public class ServerSwitcherScreen extends Screen {
     }
 
     private void loadPresets() {
-        for (String preset : PRESET_SERVERS) {
-            entries.add(new ServerEntry(preset.toUpperCase(java.util.Locale.ROOT), preset, preset, true, "Verbinden"));
+        for (String[] preset : PRESETS) {
+            entries.add(new ServerEntry(preset[0], preset[2], preset[1], true, "Verbinden", preset[3], null));
         }
-        statusMsg = "Beliebte Multiplayer-Server:";
+        statusMsg = "Beliebte Multiplayer-Netzwerke:";
     }
 
     private void computeScroll() {
         int need = entries.size() * (ROW_H + GAP);
-        int visible = (listBottom - 4) - listTop;
+        int topOffset = tab == 2 ? 88 : 0;
+        int visible = (listBottom - 4) - (listTop + topOffset);
         maxScroll = Math.max(0, need - visible);
         if (scroll > maxScroll) scroll = maxScroll;
         if (scroll < 0) scroll = 0;
@@ -277,15 +297,17 @@ public class ServerSwitcherScreen extends Screen {
         if (event.button() != InputConstants.MOUSE_BUTTON_LEFT) return super.mouseClicked(event, bl);
 
         int tabY = py + 48;
-        int tabW = cw / TABS.length;
-        if (my >= tabY && my <= tabY + 28 && mx >= cx && mx <= cx + cw) {
-            int clickedTab = (int) ((mx - cx) / tabW);
-            if (clickedTab >= 0 && clickedTab < TABS.length && clickedTab != tab) {
-                tab = clickedTab;
-                scroll = 0;
-                buildWidgets();
-                loadData();
-                return true;
+        int tabW = (cw - 8) / TABS.length;
+        for (int i = 0; i < TABS.length; i++) {
+            int tx = cx + i * (tabW + 4);
+            if (my >= tabY && my <= tabY + 28 && mx >= tx && mx <= tx + tabW) {
+                if (tab != i) {
+                    tab = i;
+                    scroll = 0;
+                    buildWidgets();
+                    loadData();
+                    return true;
+                }
             }
         }
 
@@ -302,7 +324,7 @@ public class ServerSwitcherScreen extends Screen {
     @Override
     public boolean mouseScrolled(double mx, double my, double horizontal, double vertical) {
         if (maxScroll > 0 && mx >= cx && mx <= cx + cw && my >= listTop && my <= listBottom) {
-            scroll = Math.max(0, Math.min(maxScroll, scroll - (int) (vertical * 24)));
+            scroll = Math.max(0, Math.min(maxScroll, scroll - (int) (vertical * 26)));
             return true;
         }
         return super.mouseScrolled(mx, my, horizontal, vertical);
@@ -328,34 +350,47 @@ public class ServerSwitcherScreen extends Screen {
 
     @Override
     public void extractRenderState(GuiGraphicsExtractor g, int mx, int my, float pt) {
-        g.fill(0, 0, this.width, this.height, Palette.tint(Palette.BG, 0xCC));
+        g.fill(0, 0, this.width, this.height, Palette.tint(Palette.BG, 0xDC));
 
-        Glass.dropShadow(g, px, py, pw, ph, 16, 6, 12);
-        Glass.panelDark(g, px, py, pw, ph, 16);
+        UiStyleManager.drawPanel(g, px, py, pw, ph, Palette.BG);
 
-        Glass.fillRound(g, px + 12, py + 10, 4, 28, 2, Palette.ACCENT);
-        g.text(this.font, "SERVER WECHSELN", px + 24, py + 14, Palette.ACCENT, false);
-        g.text(this.font, "In-Game Server-Switcher ohne Menü-Umweg", px + 24, py + 26, Palette.MUTED, false);
+        Icons.draw(g, Icons.GLOBE, px + 18, py + 16, 16, Palette.ACCENT);
+        g.text(this.font, "SERVER-SWITCHER", px + 40, py + 14, Palette.ACCENT, true);
+        g.text(this.font, "Nahtlos zwischen Servern wechseln & Freunde begleiten", px + 40, py + 26, Palette.MUTED, false);
 
         int tabY = py + 48;
-        int tabW = cw / TABS.length;
+        int tabW = (cw - 8) / TABS.length;
         for (int i = 0; i < TABS.length; i++) {
-            int tx = cx + i * tabW;
+            int tx = cx + i * (tabW + 4);
             boolean sel = i == tab;
-            boolean hov = mx >= tx && mx <= tx + tabW - 4 && my >= tabY && my <= tabY + 28;
+            boolean hov = mx >= tx && mx <= tx + tabW && my >= tabY && my <= tabY + 28;
             int fill = sel ? Palette.ACCENT : (hov ? Palette.PANEL2 : Palette.PANEL);
-            Glass.fillRound(g, tx, tabY, tabW - 4, 28, 6, fill);
+            Glass.fillRound(g, tx, tabY, tabW, 28, 7, fill);
+            if (sel) {
+                Glass.ring(g, tx, tabY, tabW, 28, 7, 1.2f, 0xFFFFFFFF);
+            }
             int txtCol = sel ? 0xFFFFFFFF : (hov ? Palette.TEXT : Palette.MUTED);
             int labelW = this.font.width(TABS[i]);
-            g.text(this.font, TABS[i], tx + (tabW - 4 - labelW) / 2, tabY + 9, txtCol, false);
+            g.text(this.font, TABS[i], tx + (tabW - labelW) / 2, tabY + 9, txtCol, false);
         }
 
-        g.text(this.font, statusMsg, cx + 8, py + 80, Palette.MUTED, false);
+        actionRects.clear();
 
         int startY = listTop;
-        if (tab == 2) startY += 40;
 
-        actionRects.clear();
+        if (tab == 2) {
+            int cardY = listTop;
+            int cardH = 74;
+            UiStyleManager.drawCard(g, cx, cardY, cw, cardH, 8, Palette.PANEL, 0.0f, null);
+            Icons.draw(g, Icons.BOLT, cx + 16, cardY + 12, 14, Palette.ACCENT);
+            g.text(this.font, "Direktverbindung per IP oder Domain", cx + 36, cardY + 13, Palette.TEXT, true);
+            startY = cardY + cardH + 14;
+            g.text(this.font, "⭐ Beliebte Multiplayer-Netzwerke:", cx + 4, startY - 10, Palette.MUTED, false);
+            startY += 4;
+        } else {
+            g.text(this.font, statusMsg, cx + 4, py + 84, Palette.MUTED, false);
+        }
+
         g.enableScissor(cx, startY, cx + cw, listBottom);
 
         int ey = startY + 2 - scroll;
@@ -363,34 +398,71 @@ public class ServerSwitcherScreen extends Screen {
             boolean vis = ey + ROW_H > startY && ey < listBottom;
             if (vis) {
                 boolean hov = mx >= cx && mx <= cx + cw && my >= ey && my <= ey + ROW_H;
-                int borderCol = hov ? Palette.ACCENT : Palette.BORDER;
-                Glass.fillRound(g, cx, ey, cw, ROW_H, 8, borderCol);
-                Glass.fillRound(g, cx + 1, ey + 1, cw - 2, ROW_H - 2, 7,
-                        hov ? Palette.tint(Palette.PANEL2, 0x88) : Palette.tint(Palette.PANEL2, 0x66));
+                float h = hov ? 1.0f : 0.0f;
+                UiStyleManager.drawCard(g, cx, ey, cw, ROW_H, 8, Palette.PANEL, h, null);
 
-                g.text(this.font, e.title, cx + 12, ey + 7, Palette.TEXT, false);
-                g.text(this.font, e.subtitle, cx + 12, ey + 22, Palette.MUTED, false);
+                int iconX = cx + 10;
+                int iconY = ey + (ROW_H - 28) / 2;
+                int iconCol = e.joinable ? Palette.ACCENT : Palette.MUTED;
+                Glass.fillRound(g, iconX, iconY, 28, 28, 6, Palette.tint(iconCol, 0x44));
+                Glass.ring(g, iconX, iconY, 28, 28, 6, 1.0f, iconCol);
+
+                String initial = e.title.isEmpty() ? "?" : e.title.substring(0, 1).toUpperCase(java.util.Locale.ROOT);
+                int initW = this.font.width(initial);
+                g.text(this.font, initial, iconX + (28 - initW) / 2, iconY + 9, iconCol, true);
+
+                int textX = iconX + 36;
+                g.text(this.font, Glass.trunc(this.font, e.title, cw - 240), textX, ey + 9, Palette.TEXT, true);
+                g.text(this.font, Glass.trunc(this.font, e.subtitle, cw - 240), textX, ey + 24, Palette.MUTED, false);
+
+                if (e.badge != null && !e.badge.isEmpty()) {
+                    int bw = this.font.width(e.badge) + 12;
+                    int bx = cx + cw - (e.joinable ? 180 : 80);
+                    int by = ey + (ROW_H - 16) / 2;
+                    Glass.badge(g, bx, by, bw, 16, 5, Palette.PANEL2, Palette.MUTED, this.font, e.badge);
+                }
 
                 if (e.joinable) {
-                    int btnW = 90;
-                    int btnH = 24;
+                    if (e.friendName != null && !e.friendName.isEmpty()) {
+                        int pBtnW = 68;
+                        int pBtnH = 24;
+                        int pbx = cx + cw - pBtnW - 98;
+                        int pby = ey + (ROW_H - pBtnH) / 2;
+                        boolean pHov = mx >= pbx && mx <= pbx + pBtnW && my >= pby && my <= pby + pBtnH;
+                        Glass.fillRound(g, pbx, pby, pBtnW, pBtnH, 6, pHov ? Palette.ACCENT2 : Palette.PANEL2);
+                        int ptw = this.font.width("🎉 Party");
+                        g.text(this.font, "🎉 Party", pbx + (pBtnW - ptw) / 2, pby + (pBtnH - this.font.lineHeight) / 2, pHov ? 0xFFFFFFFF : Palette.TEXT, false);
+
+                        String targetFriend = e.friendName;
+                        actionRects.add(new ActionRect(pbx, pby, pBtnW, pBtnH, () ->
+                                PartyManager.invite(targetFriend)));
+                    }
+
+                    int btnW = 86;
+                    int btnH = 26;
                     int bx = cx + cw - btnW - 8;
                     int by = ey + (ROW_H - btnH) / 2;
                     boolean bHov = mx >= bx && mx <= bx + btnW && my >= by && my <= by + btnH;
-                    Glass.fillRound(g, bx, by, btnW, btnH, 6, bHov ? Palette.GREEN : Palette.ACCENT);
+                    int btnCol = bHov ? Palette.GREEN : Palette.ACCENT;
+                    Glass.fillRound(g, bx, by, btnW, btnH, 6, btnCol);
+                    if (bHov) {
+                        Glass.ring(g, bx, by, btnW, btnH, 6, 1.0f, 0xFFFFFFFF);
+                    }
                     int tw = this.font.width(e.actionLabel);
                     g.text(this.font, e.actionLabel, bx + (btnW - tw) / 2, by + (btnH - this.font.lineHeight) / 2, 0xFFFFFFFF, false);
 
+                    String targetIp = e.ip;
+                    String targetName = e.title;
                     actionRects.add(new ActionRect(bx, by, btnW, btnH, () ->
-                            switchServer(Minecraft.getInstance(), e.ip, e.title)));
+                            switchServer(Minecraft.getInstance(), targetIp, targetName)));
                 } else {
-                    int btnW = 70;
+                    int btnW = 64;
                     int btnH = 22;
                     int bx = cx + cw - btnW - 8;
                     int by = ey + (ROW_H - btnH) / 2;
-                    Glass.fillRound(g, bx, by, btnW, btnH, 6, Palette.MUTED);
+                    Glass.fillRound(g, bx, by, btnW, btnH, 6, Palette.PANEL);
                     int tw = this.font.width(e.actionLabel);
-                    g.text(this.font, e.actionLabel, bx + (btnW - tw) / 2, by + (btnH - this.font.lineHeight) / 2, 0xFF888888, false);
+                    g.text(this.font, e.actionLabel, bx + (btnW - tw) / 2, by + (btnH - this.font.lineHeight) / 2, Palette.MUTED, false);
                 }
             }
             ey += ROW_H + GAP;
@@ -412,6 +484,7 @@ public class ServerSwitcherScreen extends Screen {
     public static void switchServer(Minecraft mc, String ip, String name) {
         if (ip == null || ip.trim().isEmpty()) return;
         String target = ip.trim();
+        PartyManager.onLeaderSwitchServer(target);
         ServerData data = new ServerData(name != null && !name.isEmpty() ? name : target, target, ServerData.Type.OTHER);
         ServerAddress address = ServerAddress.parseString(target);
         if (mc.level != null) {

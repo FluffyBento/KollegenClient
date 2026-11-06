@@ -69,6 +69,7 @@ public final class Hud {
         ModuleManager.register(new ToggleSprintDisplay());
         ModuleManager.register(new TotemCounter());
         ModuleManager.register(new GearTiers());
+        ModuleManager.register(new ItemChangesHudModule());
     }
 
     private static class Coordinates extends HudModule {

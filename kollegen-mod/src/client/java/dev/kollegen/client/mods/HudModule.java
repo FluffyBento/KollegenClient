@@ -13,6 +13,7 @@ public abstract class HudModule extends Module {
     protected final ColorSetting backgroundColor = new ColorSetting("Hintergrundfarbe", "", Palette.tint(Palette.PANEL, 204));
     protected final SliderSetting glassOpacity = new SliderSetting("Deckkraft", "Wie durchsichtig das Glas ist.", 0.55, 0.0, 1.0, 0.05, v -> Math.round(v * 100.0) + "%", null);
     protected final SliderSetting scale = new SliderSetting("Skalierung", "Größe des Elements.", 1.0, 0.5, 2.5, 0.05, v -> Math.round(v * 100.0) + "%", null);
+    protected final ModeSetting style = new ModeSetting("Stil", "Erscheinungsbild dieses HUD-Elements.", new String[]{"Global", "Liquid Glass", "Minecraft Vanilla", "Modern Flat", "Neon Cyber"}, 0);
     protected final BooleanSetting accentBar = new BooleanSetting("Akzentleiste", "Farbige Leiste am linken Rand.", true);
     public final SliderSetting offsetX = new SliderSetting("X-Versatz", "Verschiebt das HUD horizontal.", 0.0, -2000.0, 2000.0, 1.0);
     public final SliderSetting offsetY = new SliderSetting("Y-Versatz", "Verschiebt das HUD vertikal.", 0.0, -2000.0, 2000.0, 1.0);
@@ -40,6 +41,7 @@ public abstract class HudModule extends Module {
         this.add(this.backgroundColor);
         this.add(this.glassOpacity);
         this.add(this.scale);
+        this.add(this.style);
         this.add(this.accentBar);
         this.add(this.offsetX);
         this.add(this.offsetY);
@@ -135,15 +137,14 @@ public abstract class HudModule extends Module {
     protected void card(GuiGraphicsExtractor g, float x, float y, float w, float h) {
         int tint = 0xFF000000 | this.backgroundColor.value;
         float op = (float) this.glassOpacity.value;
-        float r = Math.min(7.0f, h / 2.0f);
-        // PERF: HUD läuft jeden Frame im Spiel — solides Panel statt Verlauf+
-        // Ring+Schatten (spart ~75% Fills pro Element). Glas-Look bleibt über
-        // Deckkraft + Akzentleiste erhalten (wie in der alten UI).
-        Glass.rr(g, x, y, w, h, r, Glass.tint(tint, (int) (255 * Math.min(1.0f, op))));
-        if (this.accentBar.value) {
-            float bh = Math.max(4.0f, h - 10.0f);
-            Glass.rrGrad(g, x + 3.0f, y + (h - bh) / 2.0f, 2.0f, bh, 1.0f, Palette.ACCENT, Palette.ACCENT2);
-        }
+        dev.kollegen.client.ui.UiStyle s = switch (this.style.index) {
+            case 1 -> dev.kollegen.client.ui.UiStyle.LIQUID_GLASS;
+            case 2 -> dev.kollegen.client.ui.UiStyle.MINECRAFT_VANILLA;
+            case 3 -> dev.kollegen.client.ui.UiStyle.MODERN_FLAT;
+            case 4 -> dev.kollegen.client.ui.UiStyle.NEON_CYBER;
+            default -> dev.kollegen.client.ui.UiStyleManager.getGlobalStyle();
+        };
+        dev.kollegen.client.ui.UiStyleManager.drawHudCard(g, x, y, w, h, tint, op, this.accentBar.value, s);
     }
 
     protected void text(GuiGraphicsExtractor g, String s, int x, int y) {

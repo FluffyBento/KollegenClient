@@ -75,7 +75,8 @@
     "MultiPlayerGameModeMixin",
     "TitleScreenMixin",
     "PauseScreenMixin",
-    "PlayerModelMixin"
+    "PlayerModelMixin",
+    "LocalPlayerMixin"
   ],
   "injectors": {
     "defaultRequire": 1

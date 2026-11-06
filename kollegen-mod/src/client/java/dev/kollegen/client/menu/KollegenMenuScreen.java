@@ -1619,8 +1619,7 @@ public class KollegenMenuScreen extends Screen {
     }
 
     private void drawPanel(GuiGraphicsExtractor g, int mx, int my) {
-        Glass.glassCard(g, this.px, this.py, this.pw, this.ph, 14, Palette.BG, Math.min(0.92f, Glass.opacity + 0.12f), 1.0f);
-        Glass.rrGrad(g, this.px + 1, this.py + 1, this.pw - 2, 120, 13, Glass.a(Palette.ACCENT, 0.10f), 0x00000000);
+        dev.kollegen.client.ui.UiStyleManager.drawPanel(g, this.px, this.py, this.pw, this.ph, Palette.BG);
         Glass.separator(g, this.px + 10, this.py + this.headH, this.pw - 20, 0x22FFFFFF);
     }
 

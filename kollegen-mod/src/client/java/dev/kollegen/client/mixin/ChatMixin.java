@@ -50,6 +50,25 @@ public class ChatMixin {
     @Inject(method = "addPlayerMessage(Lnet/minecraft/network/chat/Component;Lnet/minecraft/network/chat/MessageSignature;Lnet/minecraft/client/multiplayer/chat/GuiMessageTag;)V",
             at = @At("HEAD"), cancellable = true)
     private void kollegen$chat(Component message, MessageSignature signature, GuiMessageTag tag, CallbackInfo ci) {
+        if (message != null) {
+            String raw = message.getString();
+            if (raw.contains("[KOLLEGEN_PARTY_")) {
+                int start = raw.indexOf("[KOLLEGEN_PARTY_");
+                int end = raw.indexOf("]", start);
+                if (end > start) {
+                    String payload = raw.substring(start, end + 1);
+                    String sender = "";
+                    int colon = raw.indexOf(":");
+                    if (colon > 0 && colon < start) {
+                        sender = raw.substring(0, colon).replaceAll("[^a-zA-Z0-9_]", "").trim();
+                    }
+                    if (dev.kollegen.client.party.PartyManager.handleIncomingMessage(sender, payload)) {
+                        ci.cancel();
+                        return;
+                    }
+                }
+            }
+        }
         if (TwitchChat.isFilterActive()) {
             int mode = TwitchChat.getFilterMode();
             if (mode == 1 || mode == 2) {
