@@ -140,6 +140,7 @@ public class KollegenMenuScreen extends Screen {
     private String petNamePetId = "";
     private String petNameValue = "";
     private boolean hasPetActive = false;
+    private boolean hasSettingsCells = false;
     private String skinCapeMode = "skins";
     private String capeCatFilter = "community";
     private String cosSubTab = "name";
@@ -702,10 +703,13 @@ public class KollegenMenuScreen extends Screen {
         this.scrollT = Math.max(0.0f, Math.min(this.scrollT, this.maxScroll));
         this.scrollV = Math.max(0.0f, Math.min(this.scrollV, this.maxScroll));
         this.hasPetActive = false;
+        this.hasSettingsCells = false;
         for (Cell c : this.cells) {
             if (c.kind == K_PET_ACTIVE) {
                 this.hasPetActive = true;
-                break;
+            }
+            if (c.kind == K_SETTING) {
+                this.hasSettingsCells = true;
             }
         }
         this.buildWidgets();
@@ -1543,7 +1547,7 @@ public class KollegenMenuScreen extends Screen {
         this.openAnim = Math.min(1.0f, this.openAnim + Glass.dt * 4.5f);
         this.pageAnim = Math.min(1.0f, this.pageAnim + Glass.dt * 6.0f);
         this.scrollV = Glass.step(this.scrollV, this.scrollT, 20.0f);
-        if (Math.round(this.scrollV) != this.builtScroll && (this.detail != null || this.hasPetActive)) {
+        if (Math.round(this.scrollV) != this.builtScroll && (this.detail != null || this.hasPetActive || this.hasSettingsCells)) {
             this.buildWidgets();
         }
         float open = Glass.ease(this.openAnim);

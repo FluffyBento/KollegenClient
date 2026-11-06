@@ -190,12 +190,12 @@ public class EmoteWheelScreen extends Screen {
 
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean bl) {
-        if (event.button() == 1) {
+        if (event.button() == InputConstants.MOUSE_BUTTON_RIGHT) {
             this.onClose();
             return true;
         }
 
-        if (event.button() == 0) {
+        if (event.button() == InputConstants.MOUSE_BUTTON_LEFT || event.button() == 0) {
             updateHover(event.x(), event.y());
             if (this.selectedCenter) {
                 EmoteManager.stopAllEmotes();
@@ -216,7 +216,7 @@ public class EmoteWheelScreen extends Screen {
 
     @Override
     public boolean mouseReleased(MouseButtonEvent event) {
-        if (event.button() == 0) {
+        if (event.button() == InputConstants.MOUSE_BUTTON_LEFT || event.button() == 0) {
             updateHover(event.x(), event.y());
             if (this.selectedCenter) {
                 EmoteManager.stopAllEmotes();

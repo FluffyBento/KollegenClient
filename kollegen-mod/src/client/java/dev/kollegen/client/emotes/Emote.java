@@ -255,41 +255,51 @@ public class Emote {
                 break;
             }
             case "breakdance": {
-                float rot = timeSec * 6.0f;
-                float floorY = 14.0f;
-                body.y = floorY;
-                body.xRot = (float) Math.toRadians(45);
-                body.yRot = rot;
-                head.y = floorY - 2.0f;
-                head.xRot = (float) Math.toRadians(30);
-                head.yRot = rot;
-                float sinR = (float) Math.sin(rot);
-                float cosR = (float) Math.cos(rot);
-                float waistY = floorY + 8.5f;
-                float waistZ = 8.5f * cosR;
-                float waistX = 8.5f * sinR;
+                float spin = timeSec * 7.5f;
+                float floorY = 21.0f;
+                float bounce = (float) Math.abs(Math.sin(spin)) * 0.8f;
+                body.y = floorY - bounce;
+                body.xRot = (float) Math.toRadians(-80);
+                body.yRot = spin;
+                body.zRot = (float) Math.sin(spin * 2.0f) * 0.15f;
+
+                head.y = floorY - 1.0f - bounce;
+                head.xRot = (float) Math.toRadians(-65);
+                head.yRot = spin;
+
+                float sinS = (float) Math.sin(spin);
+                float cosS = (float) Math.cos(spin);
+                float waistY = floorY + 2.08f - bounce;
+                float waistZ = -11.82f * cosS;
+                float waistX = -11.82f * sinS;
+
                 rightLeg.y = waistY;
-                rightLeg.x = waistX - 1.9f * cosR;
-                rightLeg.z = waistZ + 1.9f * sinR;
-                rightLeg.yRot = rot;
-                rightLeg.xRot = (float) Math.toRadians(45) + (float) Math.sin(rot) * 0.4f;
-                rightLeg.zRot = (float) Math.toRadians(40);
+                rightLeg.x = waistX - 1.9f * cosS;
+                rightLeg.z = waistZ + 1.9f * sinS;
+                rightLeg.yRot = spin;
+                rightLeg.xRot = (float) Math.toRadians(-75) + (float) Math.sin(spin * 2.0f) * 0.55f;
+                rightLeg.zRot = (float) Math.toRadians(45) + (float) Math.cos(spin * 2.0f) * 0.2f;
+
                 leftLeg.y = waistY;
-                leftLeg.x = waistX + 1.9f * cosR;
-                leftLeg.z = waistZ - 1.9f * sinR;
-                leftLeg.yRot = rot;
-                leftLeg.xRot = (float) Math.toRadians(45) - (float) Math.sin(rot) * 0.4f;
-                leftLeg.zRot = (float) Math.toRadians(-40);
-                rightArm.y = floorY + 2.0f;
-                rightArm.x = -5.0f * cosR;
-                rightArm.z = 5.0f * sinR;
-                rightArm.yRot = rot;
-                rightArm.xRot = (float) Math.toRadians(-75);
-                leftArm.y = floorY + 2.0f;
-                leftArm.x = 5.0f * cosR;
-                leftArm.z = -5.0f * sinR;
-                leftArm.yRot = rot;
-                leftArm.xRot = (float) Math.toRadians(-75);
+                leftLeg.x = waistX + 1.9f * cosS;
+                leftLeg.z = waistZ - 1.9f * sinS;
+                leftLeg.yRot = spin;
+                leftLeg.xRot = (float) Math.toRadians(-75) - (float) Math.sin(spin * 2.0f) * 0.55f;
+                leftLeg.zRot = (float) Math.toRadians(-45) - (float) Math.cos(spin * 2.0f) * 0.2f;
+
+                rightArm.y = floorY - bounce;
+                rightArm.x = -5.0f * cosS;
+                rightArm.z = 5.0f * sinS;
+                rightArm.yRot = spin;
+                rightArm.xRot = (float) Math.toRadians(-90) + (float) Math.sin(spin) * 0.35f;
+                rightArm.zRot = (float) Math.toRadians(25);
+
+                leftArm.y = floorY - bounce;
+                leftArm.x = 5.0f * cosS;
+                leftArm.z = -5.0f * sinS;
+                leftArm.yRot = spin;
+                leftArm.xRot = (float) Math.toRadians(-90) - (float) Math.sin(spin) * 0.35f;
+                leftArm.zRot = (float) Math.toRadians(-25);
                 break;
             }
             case "backflip": {

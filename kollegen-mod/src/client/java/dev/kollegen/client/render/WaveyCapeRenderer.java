@@ -29,13 +29,18 @@ public final class WaveyCapeRenderer {
     }
 
     public static void renderWaveyCape(PoseStack poseStack, SubmitNodeCollector collector, Identifier texture,
-                                      int packedLight, AvatarRenderState state, boolean hasArmor) {
+                                      int packedLight, AvatarRenderState state, boolean hasArmor,
+                                      net.minecraft.client.model.HumanoidModel<?> model) {
         if (texture == null || state == null || collector == null) return;
-        if (state.distanceToCameraSq > 1024.0) return; // > 32 Blöcke: Wavey Cape nicht mehr animieren
+        if (state.distanceToCameraSq > 1024.0) return;
         RenderType renderType = getRenderType(texture);
         if (renderType == null) return;
 
         poseStack.pushPose();
+
+        if (model != null && model.body != null) {
+            model.body.translateAndRotate(poseStack);
+        }
 
         float zOffset = hasArmor ? 0.165F : 0.125F;
         float yOffset = hasArmor ? -0.02F : 0.0F;
