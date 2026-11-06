@@ -205,11 +205,13 @@ public final class KollegenPresence {
         }
         String cleanName = name.replace("\"", "");
         String cleanMod = mod.replace("\"", "");
+        syncServerPresence(dev.kollegen.client.rpc.KollegenRPC.currentServerIp(mc), cleanName);
         thread(() -> {
             while (registered) {
                 String dbg = String.valueOf(dbgRender).replace("\"", "");
                 if (dbg.length() > 48) dbg = dbg.substring(0, 48);
                 post(url, "{\"name\":\"" + cleanName + "\",\"mod\":\"" + cleanMod + "\",\"dbg\":\"" + dbg + "\",\"cos\":" + COSMETICS.size() + "}");
+                syncServerPresence(dev.kollegen.client.rpc.KollegenRPC.currentServerIp(mc), cleanName);
                 fetch();
                 try {
                     Thread.sleep(30000);
@@ -222,12 +224,12 @@ public final class KollegenPresence {
         });
     }
 
-    
     public static void leave() {
         if (!registered) return;
         registered = false;
         selfId = null;
         selfName = null;
+        syncServerPresence(null, null);
         Minecraft mc = Minecraft.getInstance();
         UUID id = mc.player != null ? mc.player.getUUID() : null;
         if (id != null) {
@@ -361,6 +363,42 @@ public final class KollegenPresence {
             HTTP.send(req, HttpResponse.BodyHandlers.ofString());
         } catch (Throwable ignored) {
         }
+    }
+
+    public static void syncServerPresence(String currentServer, String playerName) {
+        thread(() -> {
+            try {
+                Path p = Path.of(System.getProperty("user.home"), ".kollegen", "client.json");
+                if (!Files.exists(p)) return;
+                JsonObject o = JsonParser.parseString(Files.readString(p)).getAsJsonObject();
+                String backend = o.has("backend") ? o.get("backend").getAsString() : "";
+                String session = o.has("session") ? o.get("session").getAsString() : "";
+                if (backend.isEmpty() || session.isEmpty()) return;
+
+                if (currentServer == null || currentServer.isEmpty() || PrivacySettings.isHideServer()) {
+                    HttpRequest req = HttpRequest.newBuilder(URI.create(backend + "/presence"))
+                            .timeout(Duration.ofSeconds(5))
+                            .header("Authorization", "Bearer " + session)
+                            .DELETE().build();
+                    HTTP.send(req, HttpResponse.BodyHandlers.discarding());
+                    return;
+                }
+
+                JsonObject body = new JsonObject();
+                body.addProperty("server", currentServer);
+                body.addProperty("name", playerName != null ? playerName : "Player");
+                body.addProperty("timestamp", System.currentTimeMillis());
+
+                HttpRequest req = HttpRequest.newBuilder(URI.create(backend + "/presence"))
+                        .timeout(Duration.ofSeconds(5))
+                        .header("Authorization", "Bearer " + session)
+                        .header("Content-Type", "application/json")
+                        .PUT(HttpRequest.BodyPublishers.ofString(body.toString()))
+                        .build();
+                HTTP.send(req, HttpResponse.BodyHandlers.discarding());
+            } catch (Throwable ignored) {
+            }
+        });
     }
 
     private static void thread(Runnable r) {

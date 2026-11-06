@@ -4,7 +4,9 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import dev.kollegen.client.game.*;
 import dev.kollegen.client.mods.Palette;
+import dev.kollegen.client.presence.PrivacySettings;
 import dev.kollegen.client.ui.Glass;
 import dev.kollegen.client.ui.GlassButton;
 import net.minecraft.client.Minecraft;
@@ -37,7 +39,7 @@ public class KollegenSocialScreen extends Screen {
     private static final int SW = 200;
     private static final int ROW_H = 36;
     private static final int GAP = 6;
-    private static final String[] TABS = { "👥 Freunde", "📩 Anfragen", "🗂 Gruppen", "💬 Chats" };
+    private static final String[] TABS = { "👥 Freunde", "📩 Anfragen", "🎮 Spiele", "🗂 Gruppen", "💬 Chats" };
 
     private final HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(6)).build();
 
@@ -125,7 +127,7 @@ public class KollegenSocialScreen extends Screen {
         sidebarBottom = py + ph - 14;
         contentTop = py + 48;
         contentBottom = py + ph - 28;
-        tabItemH = Math.max(34, (sidebarBottom - sidebarTop - 3 * GAP) / 4);
+        tabItemH = Math.max(28, (sidebarBottom - sidebarTop - (TABS.length - 1) * GAP) / TABS.length);
         buildWidgets();
         loadClient();
     }
@@ -134,11 +136,27 @@ public class KollegenSocialScreen extends Screen {
         clearWidgets();
         int bh = 28;
         int by = py + 10;
-        refreshBtn = new GlassButton(px + pw - 60, by, 26, bh, Component.literal("⟳"), btn -> {
+
+        boolean hidden = PrivacySettings.isHideServer();
+        String privText = hidden ? "🔒 Server: Verborgen" : "👁 Server: Öffentlich";
+        GlassButton privBtn = new GlassButton(px + pw - 380, by, 140, bh, Component.literal(privText), btn -> {
+            PrivacySettings.toggleHideServer();
+            boolean nowHidden = PrivacySettings.isHideServer();
+            btn.setMessage(Component.literal(nowHidden ? "🔒 Server: Verborgen" : "👁 Server: Öffentlich"));
+            status = nowHidden ? "Server für Freunde verborgen ✓" : "Server für Freunde sichtbar ✓";
+            rebuildEntries();
+        });
+        addRenderableWidget(privBtn);
+
+        GlassButton swBtn = new GlassButton(px + pw - 230, by, 130, bh, Component.literal("🌐 Server wechseln"), btn ->
+                Minecraft.getInstance().setScreenAndShow(new ServerSwitcherScreen(this)));
+        addRenderableWidget(swBtn);
+
+        refreshBtn = new GlassButton(px + pw - 94, by, 26, bh, Component.literal("⟳"), btn -> {
             status = "Lade…";
             loadAll();
         });
-        backBtn = new GlassButton(px + pw - 94, by, 26, bh, Component.literal("←"), btn -> {
+        backBtn = new GlassButton(px + pw - 128, by, 26, bh, Component.literal("←"), btn -> {
             inThread = false;
             threadId = "";
             groupSinceMsg = 0;
@@ -146,7 +164,7 @@ public class KollegenSocialScreen extends Screen {
             buildWidgets();
         });
         backBtn.visible = inThread;
-        GlassButton closeBtn = new GlassButton(px + pw - 30, by, 26, bh, Component.literal("✕"), btn ->
+        GlassButton closeBtn = new GlassButton(px + pw - 60, by, 26, bh, Component.literal("✕"), btn ->
                 Minecraft.getInstance().setScreenAndShow(parent));
         addRenderableWidget(refreshBtn);
         addRenderableWidget(backBtn);
@@ -162,14 +180,14 @@ public class KollegenSocialScreen extends Screen {
             chatInp.setHint(Component.literal("Nachricht…"));
             addRenderableWidget(chatInp);
             chatInp.setFocused(true);
-        } else if (tab == 0) {
+        } else if (tab == 0 || tab == 1) {
             codeInp = new EditBox(this.font, cx + 10, inpY, cw - btnW - 18, 26, Component.literal("Freundes-Code"));
             codeInp.setMaxLength(16);
             codeInp.setHint(Component.literal("Freundes-Code…"));
             addRenderableWidget(codeInp);
             GlassButton b = new GlassButton(cx + cw - btnW, inpY, btnW - 2, 28, Component.literal("Hinzufügen"), btn -> apiAddFriend());
             addRenderableWidget(b);
-        } else if (tab == 2) {
+        } else if (tab == 3) {
             groupInp = new EditBox(this.font, cx + 10, inpY, cw - btnW - 18, 26, Component.literal("Gruppenname"));
             groupInp.setMaxLength(40);
             groupInp.setHint(Component.literal("Gruppenname…"));
@@ -193,7 +211,6 @@ private void computeScroll() {
         double my = event.y();
         if (event.button() != InputConstants.MOUSE_BUTTON_LEFT) return super.mouseClicked(event, bl);
         
-        // Tab click in sidebar - with safe hitbox
         if (mx >= px && mx <= px + SW && my >= sidebarTop && my <= sidebarBottom) {
             int idx = (int) ((my - sidebarTop) / (tabItemH + GAP));
             if (idx >= 0 && idx < TABS.length) {
@@ -210,7 +227,6 @@ private void computeScroll() {
             }
         }
         
-        // Entry clicks - check before scrollbar drag
         for (Rect r : entryRects) {
             if (r.hit(mx, my) && r.act != null) {
                 r.act.run();
@@ -223,7 +239,6 @@ private void computeScroll() {
 
     @Override
     public boolean mouseScrolled(double mx, double my, double horizontal, double vertical) {
-        // Only scroll if mouse is over the entries area, not the right sidebar
         if (maxScroll > 0 && mx >= cx && mx <= cx + cw) {
             scroll = Math.max(0, Math.min(maxScroll, scroll - (int) (vertical * 24)));
             return true;
@@ -245,37 +260,31 @@ private void computeScroll() {
     public void extractRenderState(GuiGraphicsExtractor g, int mx, int my, float pt) {
         g.fill(0, 0, this.width, this.height, Palette.tint(Palette.BG, 0xCC));
 
-        // Main panel with Minecraft-style design
         Glass.dropShadow(g, px, py, pw, ph, 16, 6, 12);
         Glass.panelDark(g, px, py, pw, ph, 16);
 
         int headerH = 54;
-        // Header background with accent line
         Glass.fillRound(g, px + 8, py + 8, SW, ph - 16, 12, Palette.tint(Palette.PANEL2, 0xBB));
         Glass.fillRound(g, px + 8, py + 8, SW, 4, 3, Palette.tint(Palette.ACCENT, 0xDD));
 
         g.text(this.font, "SOZIALES", px + 22, py + 24, Palette.ACCENT, false);
         g.text(this.font, "in-game", px + 22 + this.font.width("SOZIALES") + 6, py + 26, Palette.MUTED, false);
 
-        // Tab selection in sidebar
         g.text(this.font, inThread ? threadTitle : TABS[tab], cx + 14, py + 22, Palette.TEXT, false);
 
-        // Status bar
         int statusBarY = py + headerH;
         Glass.fillRound(g, cx + 8, statusBarY + 2, cw - 16, 32, 6, Palette.tint(Palette.PANEL2, 0xAA));
         g.text(this.font, trunc(status, cw - 32), cx + 12, statusBarY + 13, authed ? Palette.GREEN : Palette.MUTED, false);
 
-        // Sidebar tabs
         int sidebarTop = py + headerH + 44;
         int sidebarBottom = py + ph - 14;
-        int tabItemH = Math.max(34, (sidebarBottom - sidebarTop - 3 * GAP) / 4);
+        int tabItemH = Math.max(28, (sidebarBottom - sidebarTop - (TABS.length - 1) * GAP) / TABS.length);
 
         g.enableScissor(px + 8, sidebarTop, px + SW - 8, sidebarBottom);
         for (int i = 0; i < TABS.length; i++) {
             int by = sidebarTop + i * (tabItemH + GAP);
             boolean sel = i == tab;
             boolean hov = mx >= px + 10 && mx <= px + SW - 10 && my >= by && my <= by + tabItemH;
-            // Minecraft-style tab: gold background when selected, border when hovered
             int fill = sel ? Palette.ACCENT : (hov ? Palette.ACCENT : Palette.PANEL2);
             Glass.fillRound(g, px + 10, by, SW - 20, tabItemH, 8, fill);
             int ty = by + (tabItemH - this.font.lineHeight) / 2;
@@ -283,7 +292,6 @@ private void computeScroll() {
         }
         g.disableScissor();
 
-        // Entries list area
         int listTop = py + headerH + 52;
         int listBottom = py + ph - 18;
         g.enableScissor(cx, listTop, cx + cw, listBottom);
@@ -295,7 +303,6 @@ private void computeScroll() {
             boolean vis = ey + ROW_H > listTop && ey < listBottom;
             if (vis) {
                 boolean hov = mx >= ex && mx <= ex + ew && my >= ey && my <= ey + ROW_H;
-                // Minecraft-style entry: gold border when hovered
                 int borderCol = hov ? Palette.ACCENT : Palette.BORDER;
                 Glass.fillRound(g, ex, ey, ew, ROW_H, 8, borderCol);
                 Glass.fillRound(g, ex + 1, ey + 1, ew - 2, ROW_H - 2, 7,
@@ -310,12 +317,10 @@ private void computeScroll() {
         }
         g.disableScissor();
 
-        // Scrollbar
         if (maxScroll > 0) {
             int trackH = listBottom - listTop;
             int thumbH = Math.max(32, (int) ((double) trackH * trackH / (trackH + maxScroll)));
             int thumbY = listTop + (int) ((trackH - thumbH) * (scroll / (double) maxScroll));
-            // Minecraft-style scrollbar
             Glass.scrollbarTrack(g, cx + cw - 4, listTop, 4, trackH, 2);
             Glass.scrollbarThumb(g, cx + cw - 4, thumbY, 4, thumbH, 2, false);
         }
@@ -337,10 +342,26 @@ private void computeScroll() {
         switch (tab) {
             case 0 -> rebuildFriends();
             case 1 -> rebuildRequests();
-            case 2 -> rebuildGroups();
+            case 2 -> rebuildGames();
+            case 3 -> rebuildGroups();
             default -> rebuildConvs();
         }
         computeScroll();
+    }
+
+    private void rebuildGames() {
+        entries.add(new Entry("🔴 Vier Gewinnt (Connect 4)", "Klassisches 4-in-einer-Reihe Duell gegen Freunde", Palette.ACCENT, () ->
+                Minecraft.getInstance().setScreenAndShow(new Connect4Screen(this))));
+        entries.add(new Entry("❌ Tic-Tac-Toe", "Schnelles 3x3 Duell gegen Freunde oder KI", Palette.TEXT, () ->
+                Minecraft.getInstance().setScreenAndShow(new TicTacToeScreen(this))));
+        entries.add(new Entry("♟ Schach (Chess)", "Strategisches Schachbrett-Spiel", Palette.BLUE, () ->
+                Minecraft.getInstance().setScreenAndShow(new ChessScreen(this))));
+        entries.add(new Entry("🎲 Mensch ärgere dich nicht", "Brettspiel-Klassiker für 2-4 Spieler", Palette.ACCENT, () ->
+                Minecraft.getInstance().setScreenAndShow(new MenschAergereDichNichtScreen(this))));
+        entries.add(new Entry("🐍 Snake", "Klassisches Schlangen-Minispiel", Palette.GREEN, () ->
+                Minecraft.getInstance().setScreenAndShow(new SnakeScreen(this))));
+        entries.add(new Entry("🧱 Tetris", "Blöcke stapeln & Highscore knacken", Palette.ACCENT, () ->
+                Minecraft.getInstance().setScreenAndShow(new TetrisScreen(this))));
     }
 
     private void rebuildFriends() {
@@ -352,7 +373,7 @@ private void computeScroll() {
             if (name.isEmpty()) name = str(f, "mc_name");
             if (name.isEmpty()) name = "User " + str(f, "id");
             boolean online = f.has("online") && f.get("online").getAsBoolean();
-            String server = f.has("server") && !f.get("server").isJsonNull() ? f.get("server").getAsString() : "";
+            String server = f.has("server") && !f.get("server").isJsonNull() ? f.get("server").getAsString().trim() : "";
             String otherId = str(f, "discordId");
             boolean inCall = false;
             for (JsonElement ce : calls) {
@@ -365,14 +386,23 @@ private void computeScroll() {
                     break;
                 }
             }
+            String friendServer = server;
+            String friendName = name;
+            String otherDid = otherId;
+            boolean hasJoinableServer = online && !friendServer.isEmpty() && !"hidden".equalsIgnoreCase(friendServer);
+
             String sub = online
-                    ? ("\u25CF Online" + (server.isEmpty() ? "" : " \u00b7 " + server))
+                    ? ("\u25CF Online" + (hasJoinableServer ? " \u00b7 🚀 Auf " + friendServer + " (Klick: Beitreten)" : " \u00b7 Server verborgen 🔒"))
                     : ("\u25CB Offline" + (server.isEmpty() ? "" : " \u00b7 " + server)) + (inCall ? " \u00b7 \uD83D\uDCDE" : "");
             if (inCall) name = "\uD83D\uDCDE " + name;
-            String friendName = name;
             int color = friendColor(f, online ? Palette.GREEN : Palette.MUTED);
-            entries.add(new Entry(name, sub, color,
-                    () -> openDm(otherId, friendName)));
+            entries.add(new Entry(name, sub, color, () -> {
+                if (hasJoinableServer && !dev.kollegen.client.KollegenMod.isShiftDown()) {
+                    ServerSwitcherScreen.switchServer(mc(), friendServer, friendName + "'s Server");
+                } else {
+                    openDm(otherDid, friendName);
+                }
+            }));
         }
         if (list.size() == 0) {
             entries.add(new Entry("Keine Freunde", "Füge unten einen Freundes-Code hinzu", Palette.MUTED, null));

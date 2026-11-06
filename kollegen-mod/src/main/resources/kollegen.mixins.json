@@ -74,6 +74,7 @@
     "DebugRendererMixin",
     "MultiPlayerGameModeMixin",
     "TitleScreenMixin",
+    "PauseScreenMixin",
     "PlayerModelMixin"
   ],
   "injectors": {

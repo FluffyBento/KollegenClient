@@ -25,6 +25,7 @@ public class Emote {
     }
 
     public void animate(ModelPart head, ModelPart body, ModelPart rightArm, ModelPart leftArm, ModelPart rightLeg, ModelPart leftLeg, float timeSec) {
+        boolean hasBase = EmoteManager.getActiveBaseEmote() != null && EmoteManager.getActiveBaseEmote() != this;
         switch (this.id) {
             case "wave": {
                 rightArm.xRot = (float) Math.toRadians(-140);
@@ -45,10 +46,12 @@ public class Emote {
                 head.zRot = (float) Math.toRadians(-15 * p);
                 body.yRot = (float) Math.toRadians(-15 * p);
                 body.zRot = (float) Math.toRadians(-5 * p);
-                rightLeg.xRot = (float) Math.toRadians(10 * p);
-                rightLeg.zRot = (float) Math.toRadians(5 * p);
-                leftLeg.xRot = (float) Math.toRadians(-10 * p);
-                leftLeg.zRot = (float) Math.toRadians(-5 * p);
+                if (!hasBase) {
+                    rightLeg.xRot = (float) Math.toRadians(10 * p);
+                    rightLeg.zRot = (float) Math.toRadians(5 * p);
+                    leftLeg.xRot = (float) Math.toRadians(-10 * p);
+                    leftLeg.zRot = (float) Math.toRadians(-5 * p);
+                }
                 break;
             }
             case "clap": {
@@ -59,9 +62,11 @@ public class Emote {
                 leftArm.xRot = (float) Math.toRadians(-75);
                 leftArm.yRot = (float) Math.toRadians(25) + clap * 0.25f;
                 leftArm.zRot = (float) Math.toRadians(35) - clap * 0.2f;
-                float bounce = clap * 0.06f;
-                rightLeg.xRot = bounce;
-                leftLeg.xRot = -bounce;
+                float bounce = clap * 0.2f;
+                body.y += bounce;
+                head.y += bounce;
+                rightArm.y += bounce;
+                leftArm.y += bounce;
                 break;
             }
             case "bow": {
@@ -72,8 +77,10 @@ public class Emote {
                 rightArm.zRot = (float) Math.toRadians(15 * p);
                 leftArm.xRot = (float) Math.toRadians(-25 * p);
                 leftArm.zRot = (float) Math.toRadians(-15 * p);
-                rightLeg.xRot = (float) Math.toRadians(-10 * p);
-                leftLeg.xRot = (float) Math.toRadians(-10 * p);
+                if (!hasBase) {
+                    rightLeg.xRot = (float) Math.toRadians(-10 * p);
+                    leftLeg.xRot = (float) Math.toRadians(-10 * p);
+                }
                 body.y += 2.0f * p;
                 break;
             }
@@ -82,8 +89,10 @@ public class Emote {
                 rightArm.xRot = (float) Math.toRadians(-90 * p);
                 rightArm.yRot = (float) Math.toRadians(-10 * p);
                 head.xRot = (float) Math.toRadians(-5 * p);
-                rightLeg.zRot = 0.08f * p;
-                leftLeg.zRot = -0.08f * p;
+                if (!hasBase) {
+                    rightLeg.zRot = 0.08f * p;
+                    leftLeg.zRot = -0.08f * p;
+                }
                 break;
             }
             case "facepalm": {
@@ -94,7 +103,9 @@ public class Emote {
                 head.xRot = (float) Math.toRadians(25 * p);
                 head.yRot = (float) Math.toRadians(8 * p);
                 body.xRot = (float) Math.toRadians(8 * p);
-                rightLeg.xRot = (float) Math.toRadians(4 * p);
+                if (!hasBase) {
+                    rightLeg.xRot = (float) Math.toRadians(4 * p);
+                }
                 break;
             }
             case "sit": {

@@ -224,10 +224,7 @@ public class KollegenMenuScreen extends Screen {
     }
 
     private int rightButtonsX() {
-        int x = this.px + this.pw - 10 - 22;
-        x -= 4 + 22;
-        x -= 4 + (this.compact ? 22 : 24 + this.font.width("HUD"));
-        return x;
+        return (int) this.serverX();
     }
 
     private void createSearch() {
@@ -976,6 +973,13 @@ public class KollegenMenuScreen extends Screen {
         Cell tt = this.addFull(K_GAME, 64.0f);
         tt.data = new JsonObject();
         tt.data.addProperty("game", dev.kollegen.client.game.TicTacToeScreen.ID);
+        this.addHead("Multiplayer & Freunde");
+        Cell sw = this.addFull(K_GAME, 64.0f);
+        sw.data = new JsonObject();
+        sw.data.addProperty("game", "serverswitcher");
+        Cell soc = this.addFull(K_GAME, 64.0f);
+        soc.data = new JsonObject();
+        soc.data.addProperty("game", "social");
     }
 
     private void addHead(String text) {
@@ -1126,6 +1130,14 @@ public class KollegenMenuScreen extends Screen {
         return this.themeX() - 4 - this.hudBtnW();
     }
 
+    private float socialX() {
+        return this.hudX() - 4 - 22;
+    }
+
+    private float serverX() {
+        return this.socialX() - 4 - 22;
+    }
+
     public boolean mouseClicked(MouseButtonEvent event, boolean bl) {
         double mx = event.x();
         double my = event.y();
@@ -1142,6 +1154,14 @@ public class KollegenMenuScreen extends Screen {
             if (hit(mx, my, this.hudX(), by, this.hudBtnW(), 22)) {
                 HudModule.editMode = true;
                 Minecraft.getInstance().setScreenAndShow((Screen) new HudEditScreen(this));
+                return true;
+            }
+            if (hit(mx, my, this.socialX(), by, 22, 22)) {
+                Minecraft.getInstance().setScreenAndShow(new dev.kollegen.client.menu.KollegenSocialScreen(this));
+                return true;
+            }
+            if (hit(mx, my, this.serverX(), by, 22, 22)) {
+                Minecraft.getInstance().setScreenAndShow(new dev.kollegen.client.menu.ServerSwitcherScreen(this));
                 return true;
             }
             int sx = this.searchX();
@@ -1335,6 +1355,14 @@ public class KollegenMenuScreen extends Screen {
                         }
                         if (dev.kollegen.client.game.TicTacToeScreen.ID.equals(game)) {
                             Minecraft.getInstance().setScreenAndShow(new dev.kollegen.client.game.TicTacToeScreen(this));
+                            return true;
+                        }
+                        if ("serverswitcher".equals(game)) {
+                            Minecraft.getInstance().setScreenAndShow(new dev.kollegen.client.menu.ServerSwitcherScreen(this));
+                            return true;
+                        }
+                        if ("social".equals(game)) {
+                            Minecraft.getInstance().setScreenAndShow(new dev.kollegen.client.menu.KollegenSocialScreen(this));
                             return true;
                         }
                     } catch (Throwable ignored) {
@@ -1606,6 +1634,8 @@ public class KollegenMenuScreen extends Screen {
         Glass.ring(g, sx, this.py + 8, sw, 20, 10, 0.5f, Glass.mixA(0x28FFFFFF, Glass.a(Palette.ACCENT, 0.9f), focus));
         Icons.draw(g, Icons.SEARCH, sx + 6, this.py + 12, 12, Palette.MUTED);
         float by = this.py + 6;
+        this.headerButton(g, mx, my, this.serverX(), by, 22, Icons.GLOBE, null, "server");
+        this.headerButton(g, mx, my, this.socialX(), by, 22, Icons.USER, null, "social");
         this.headerButton(g, mx, my, this.hudX(), by, this.hudBtnW(), Icons.MOVE, this.compact ? null : "HUD", "hud");
         this.headerButton(g, mx, my, this.themeX(), by, 22, Icons.PALETTE, null, "theme");
         this.headerButton(g, mx, my, this.closeX(), by, 22, Icons.CLOSE, null, "close");
@@ -1943,6 +1973,14 @@ public class KollegenMenuScreen extends Screen {
                 title = "Snake";
                 desc = "Fressen und wachsen - nicht an die Wand laufen";
                 icon = Icons.SNAKE;
+            } else if ("serverswitcher".equals(game)) {
+                title = "Server wechseln";
+                desc = "In-Game Server-Switcher & Freunde-Server";
+                icon = Icons.GLOBE;
+            } else if ("social".equals(game)) {
+                title = "Freunde & Chat";
+                desc = "Freundesliste, Gruppen, Minispiele & Chat";
+                icon = Icons.USER;
             } else {
                 title = "Tetris";
                 desc = "Spielen und Kollegen-Punkte verdienen (100:1)";

@@ -105,7 +105,7 @@ public class KollegenRPC {
     }
 
     
-    private static String currentServerIp(Minecraft mc) {
+    public static String currentServerIp(Minecraft mc) {
         try {
             ServerData serverData = ((MinecraftAccessor) mc).kollegen$getCurrentServer();
             if (serverData == null) return null;
