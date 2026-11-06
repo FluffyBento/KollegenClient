@@ -48,6 +48,9 @@ public final class SkinCapeTextureManager {
     public static void registerAnimatedCape(String capeId, java.util.List<String> frameDataUrls, int fps) {
         if (capeId == null || capeId.isEmpty() || frameDataUrls == null || frameDataUrls.isEmpty()) return;
         String safeId = capeId.toLowerCase(java.util.Locale.ROOT).replaceAll("[^a-z0-9_.-]", "_");
+        if (ANIMATED_CAPES.containsKey(safeId)) {
+            return;
+        }
         java.util.List<Identifier> ids = new java.util.ArrayList<>();
         Minecraft mc = Minecraft.getInstance();
 
@@ -80,8 +83,12 @@ public final class SkinCapeTextureManager {
                     int frameIndex = i;
                     Identifier id = Identifier.tryParse("kollegen:cape_" + safeId + "_f" + frameIndex);
                     DynamicTexture tex = new DynamicTexture(() -> "cape_" + safeId + "_f" + frameIndex, img);
-                    if (mc != null && mc.getTextureManager() != null) {
-                        mc.getTextureManager().register(id, tex);
+                    if (mc != null) {
+                        mc.execute(() -> {
+                            if (mc.getTextureManager() != null) {
+                                mc.getTextureManager().register(id, tex);
+                            }
+                        });
                     }
                     CACHE.put(frameKey, id);
                     ids.add(id);

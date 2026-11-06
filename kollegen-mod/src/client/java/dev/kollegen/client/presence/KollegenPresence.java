@@ -99,8 +99,6 @@ public final class KollegenPresence {
         String resolvedModel = model;
         if ((resolvedModel == null || resolvedModel.isEmpty()) && texture != null) {
             String lower = texture.toLowerCase(java.util.Locale.ROOT);
-            // 3D-BbModel nur inferieren wenn es sich tatsächlich um ein internes Mod-Kosmetik-Asset handelt,
-            // niemals bei beliebigen Custom-Cape-Daten oder Base64-URLs!
             if (lower.startsWith("kollegen:cosmetics/") || lower.startsWith("cape_")) {
                 if (lower.contains("fluffybento")) {
                     resolvedModel = "kollegen:cosmetics/fluffybento/fluffybento_cape.bbmodel";
@@ -308,6 +306,8 @@ public final class KollegenPresence {
         }
     }
 
+    private static long lastCapeConfigModified = -1L;
+
     public static void loadLocalCapeConfig() {
         try {
             Minecraft mc = Minecraft.getInstance();
@@ -320,6 +320,12 @@ public final class KollegenPresence {
                 if (Files.exists(lp)) p = lp;
             }
             if (Files.exists(p)) {
+                try {
+                    long mtime = Files.getLastModifiedTime(p).toMillis();
+                    if (mtime == lastCapeConfigModified) return;
+                    lastCapeConfigModified = mtime;
+                } catch (Throwable ignored) {
+                }
                 JsonObject o = JsonParser.parseString(Files.readString(p)).getAsJsonObject();
                 if (o.has("all_capes") && o.get("all_capes").isJsonArray()) {
                     for (JsonElement el : o.getAsJsonArray("all_capes")) {

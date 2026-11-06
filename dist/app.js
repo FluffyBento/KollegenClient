@@ -5068,7 +5068,7 @@ if ($("capeTemplateBtn")) {
 
 function isGifData(str) {
   if (typeof str !== "string") return false;
-  return str.startsWith("data:image/gif") || str.includes(";base64,R0lGOD");
+  return str.startsWith("data:image/gif") || str.includes(";base64,R0lGOD") || str.startsWith("R0lGOD");
 }
 
 let rawUploadedCapeImages = [];
@@ -5149,7 +5149,6 @@ function renderFrameManager() {
     if (count) count.textContent = uploadedCapeFrames.length;
     list.innerHTML = "";
 
-    // 3D Rotating Preview in Upload Modal
     if (canvas3d && window.skinview3d && window.skinview3d.SkinViewer) {
       if (!uploadCapeViewer || uploadCapeViewer.disposed) {
         uploadCapeViewer = new window.skinview3d.SkinViewer({
@@ -5164,8 +5163,8 @@ function renderFrameManager() {
           uploadCapeViewer.playerObject.elytra.visible = false;
           uploadCapeViewer.playerObject.elytra.resetJoints();
         }
-        uploadCapeViewer.playerWrapper.rotation.y = Math.PI; // Face the back of cape towards user
-        uploadCapeViewer.autoRotate = true; // Auto rotates!
+        uploadCapeViewer.playerWrapper.rotation.y = Math.PI;
+        uploadCapeViewer.autoRotate = true;
         uploadCapeViewer.autoRotateSpeed = 2.2;
       }
       uploadCapeViewer.loadCape(uploadedCapeFrames[0]);
@@ -5173,12 +5172,14 @@ function renderFrameManager() {
       uploadCapeViewer.renderPaused = false;
     }
 
-    uploadedCapeFrames.forEach((frame, idx) => {
+    const maxListItems = Math.min(uploadedCapeFrames.length, 24);
+    for (let idx = 0; idx < maxListItems; idx++) {
+      const frame = uploadedCapeFrames[idx];
       const row = document.createElement("div");
       row.className = "cape-frame-item";
       row.innerHTML = `
         <div style="display:flex; align-items:center; gap:10px;">
-          <img src="${frame}" alt="Frame ${idx + 1}" />
+          <img src="${frame}" alt="Frame ${idx + 1}" style="width:36px; height:18px; image-rendering:pixelated; object-fit:contain;" />
           <span style="font-size:12px; font-weight:700;">Frame ${idx + 1}</span>
         </div>
         <div style="display:flex; gap:6px;">
@@ -5212,7 +5213,7 @@ function renderFrameManager() {
       };
 
       list.appendChild(row);
-    });
+    }
 
     restartAnimPreview();
   } else {
@@ -5230,26 +5231,37 @@ function restartAnimPreview() {
   const fps = $("capeFpsSlider") ? parseInt($("capeFpsSlider").value, 10) || 10 : 10;
   let idx = 0;
 
+  const preloaded = uploadedCapeFrames.map((f) => {
+    const im = new Image();
+    im.src = f;
+    return im;
+  });
+
   function drawCurrent() {
-    const frame = uploadedCapeFrames[idx];
-    if (uploadCapeViewer && !uploadCapeViewer.disposed) {
-      try { uploadCapeViewer.loadCape(frame); } catch (_) {}
-    }
-    const img = new Image();
-    img.onload = () => {
+    const imgObj = preloaded[idx];
+    if (imgObj && imgObj.complete && imgObj.naturalWidth > 0) {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.imageSmoothingEnabled = false;
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-    };
-    img.src = frame;
+      ctx.drawImage(imgObj, 0, 0, canvas.width, canvas.height);
+    }
+    if (uploadCapeViewer && !uploadCapeViewer.disposed && uploadCapeViewer.playerObject && uploadCapeViewer.playerObject.cape) {
+      try {
+        const capeMat = uploadCapeViewer.playerObject.cape.material;
+        if (capeMat && capeMat.map && imgObj && imgObj.complete && imgObj.naturalWidth > 0) {
+          capeMat.map.image = imgObj;
+          capeMat.map.needsUpdate = true;
+        }
+      } catch (_) {}
+    }
   }
 
   drawCurrent();
   if (uploadedCapeFrames.length > 1) {
+    const intervalMs = Math.max(33, Math.round(1000 / fps));
     animPreviewTimer = setInterval(() => {
       idx = (idx + 1) % uploadedCapeFrames.length;
       drawCurrent();
-    }, Math.max(33, Math.round(1000 / fps)));
+    }, intervalMs);
   }
 }
 

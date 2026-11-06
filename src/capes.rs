@@ -128,49 +128,49 @@ pub fn delete_custom_cape(data_dir: &Path, cape_id: &str) -> Result<(), String> 
     Ok(())
 }
 
-fn ensure_minecraft_cape_format(dyn_img: &image::DynamicImage, elytra_mode: Option<&str>) -> image::RgbaImage {
+fn ensure_minecraft_cape_format(
+    dyn_img: &image::DynamicImage,
+    elytra_mode: Option<&str>,
+    max_resolution: Option<u32>,
+) -> image::RgbaImage {
     let (w, h) = (dyn_img.width(), dyn_img.height());
-    // If already 2:1 aspect ratio (standard cape dimensions 64x32, 128x64, 256x128, etc.)
+    let cap_res = max_resolution.unwrap_or(1024);
     if w == h * 2 && w >= 64 {
-        if w <= 2048 {
+        if w <= cap_res {
             return dyn_img.to_rgba8();
         } else {
-            return dyn_img.resize_exact(2048, 1024, image::imageops::FilterType::Lanczos3).to_rgba8();
+            return dyn_img.resize_exact(cap_res, cap_res / 2, image::imageops::FilterType::Triangle).to_rgba8();
         }
     }
     if w == 22 && h == 17 {
         return dyn_img.to_rgba8();
     }
 
-    // Determine target HD cape resolution without downscaling
-    let cape_w = if w >= 1000 || h >= 800 {
-        2048u32
+    let cape_w = if cap_res <= 128 {
+        128u32
+    } else if w >= 1000 || h >= 800 {
+        cap_res.min(1024)
     } else if w >= 400 || h >= 300 {
-        1024u32
+        cap_res.min(512)
     } else {
-        512u32
+        cap_res.min(256)
     };
     let cape_h = cape_w / 2;
     let mut out = image::RgbaImage::new(cape_w, cape_h);
 
-    let scale = cape_w / 64; // e.g. 32, 16, or 8
+    let scale = cape_w / 64;
 
-    // Standard Minecraft cape UV layout:
-    // Back face (outwards visible behind player): x = 12 * scale, y = 1 * scale, w = 10 * scale, h = 16 * scale
-    // Front face (inwards towards player spine): x = 1 * scale, y = 1 * scale, w = 10 * scale, h = 16 * scale
     let back_x = 12 * scale;
     let back_y = 1 * scale;
     let cape_part_w = 10 * scale;
     let cape_part_h = 16 * scale;
 
     let resized_back = dyn_img
-        .resize_to_fill(cape_part_w, cape_part_h, image::imageops::FilterType::Lanczos3)
+        .resize_to_fill(cape_part_w, cape_part_h, image::imageops::FilterType::Triangle)
         .to_rgba8();
 
-    // Cape Back (visible behind player)
     image::imageops::overlay(&mut out, &resized_back, back_x as i64, back_y as i64);
 
-    // Cape Front (facing body), slightly darkened
     let mut front = resized_back.clone();
     for p in front.pixels_mut() {
         p.0[0] = (p.0[0] as f32 * 0.75) as u8;
@@ -179,7 +179,6 @@ fn ensure_minecraft_cape_format(dyn_img: &image::DynamicImage, elytra_mode: Opti
     }
     image::imageops::overlay(&mut out, &front, (1 * scale) as i64, (1 * scale) as i64);
 
-    // Fill edges/borders (top, bottom, left, right)
     for x in 0..cape_part_w {
         let top_col = *resized_back.get_pixel(x, 0);
         let bot_col = *resized_back.get_pixel(x, cape_part_h - 1);
@@ -197,9 +196,6 @@ fn ensure_minecraft_cape_format(dyn_img: &image::DynamicImage, elytra_mode: Opti
         }
     }
 
-    // Map Elytra wings:
-    // Left wing outside: x = 36 * scale, y = 2 * scale, w = 10 * scale, h = 20 * scale
-    // Left wing inside:  x = 24 * scale, y = 2 * scale, w = 10 * scale, h = 20 * scale
     let el_w = 10 * scale;
     let el_h = 20 * scale;
 
@@ -221,13 +217,11 @@ fn ensure_minecraft_cape_format(dyn_img: &image::DynamicImage, elytra_mode: Opti
     };
 
     let el_img = el_source
-        .resize_to_fill(el_w, el_h, image::imageops::FilterType::Lanczos3)
+        .resize_to_fill(el_w, el_h, image::imageops::FilterType::Triangle)
         .to_rgba8();
 
-    // Outside face of left wing (x: 36*scale, y: 2*scale)
     image::imageops::overlay(&mut out, &el_img, (36 * scale) as i64, (2 * scale) as i64);
 
-    // Inside face of left wing (x: 24*scale, y: 2*scale) slightly dimmed
     let mut el_inside = el_img.clone();
     for p in el_inside.pixels_mut() {
         p.0[0] = (p.0[0] as f32 * 0.75) as u8;
@@ -236,7 +230,6 @@ fn ensure_minecraft_cape_format(dyn_img: &image::DynamicImage, elytra_mode: Opti
     }
     image::imageops::overlay(&mut out, &el_inside, (24 * scale) as i64, (2 * scale) as i64);
 
-    // Elytra borders
     for x in 0..el_w {
         let top_col = *el_img.get_pixel(x, 0);
         let bot_col = *el_img.get_pixel(x, el_h - 1);
@@ -283,7 +276,7 @@ pub fn parse_gif_frames(
     }
 
     let total = collected_frames.len();
-    let max_frames = 60usize;
+    let max_frames = 24usize;
     let step = if total > max_frames {
         (total + max_frames - 1) / max_frames
     } else {
@@ -309,7 +302,7 @@ pub fn parse_gif_frames(
 
             let buffer = f.into_buffer();
             let dyn_img = image::DynamicImage::ImageRgba8(buffer);
-            let cape_img = ensure_minecraft_cape_format(&dyn_img, elytra_mode);
+            let cape_img = ensure_minecraft_cape_format(&dyn_img, elytra_mode, Some(128));
             let mut out = Vec::new();
             let encoder = PngEncoder::new(&mut out);
             image::ImageEncoder::write_image(
@@ -365,25 +358,25 @@ pub fn upload_cape(
         if fps == 0 {
             effective_fps = parsed.fps;
         }
+    } else if images.len() > 1 {
+        parsed_frames = images;
+        animated = true;
     } else {
-        for img in &images {
-            let b = decode_b64(img)?;
-            let dyn_img = image::load_from_memory(&b)
-                .map_err(|e| format!("Bildformat konnte nicht erkannt werden: {}", e))?;
-            let cape_img = ensure_minecraft_cape_format(&dyn_img, elytra_mode);
-            let mut out = Vec::new();
-            let encoder = PngEncoder::new(&mut out);
-            image::ImageEncoder::write_image(
-                encoder,
-                cape_img.as_raw(),
-                cape_img.width(),
-                cape_img.height(),
-                image::ExtendedColorType::Rgba8,
-            )
-            .map_err(|e| format!("PNG-Kodierung: {}", e))?;
-            parsed_frames.push(format_data_url(&out));
-        }
-        animated = parsed_frames.len() > 1;
+        let dyn_img = image::load_from_memory(&raw_bytes)
+            .map_err(|e| format!("Bildformat konnte nicht erkannt werden: {}", e))?;
+        let cape_img = ensure_minecraft_cape_format(&dyn_img, elytra_mode, None);
+        let mut out = Vec::new();
+        let encoder = PngEncoder::new(&mut out);
+        image::ImageEncoder::write_image(
+            encoder,
+            cape_img.as_raw(),
+            cape_img.width(),
+            cape_img.height(),
+            image::ExtendedColorType::Rgba8,
+        )
+        .map_err(|e| format!("PNG-Kodierung: {}", e))?;
+        parsed_frames.push(format_data_url(&out));
+        animated = false;
     }
 
     if parsed_frames.is_empty() {
@@ -415,7 +408,13 @@ pub fn upload_cape(
     save_capes(data_dir, &data);
 
     sync_active_cape_to_instances(data_dir, &data, data.active_cape.as_deref());
-    let _ = share_cape(data_dir, &entry);
+
+    let share_dir = data_dir.to_path_buf();
+    let share_entry = entry.clone();
+    std::thread::spawn(move || {
+        let _ = share_cape(&share_dir, &share_entry);
+    });
+
     Ok(entry)
 }
 
@@ -463,25 +462,28 @@ pub fn fetch_community_capes(data_dir: &Path) -> Result<usize, String> {
 
 fn share_cape(data_dir: &Path, entry: &CapeEntry) -> Result<(), String> {
     let dd = data_dir.to_path_buf();
-    let (_client, backend, session) = crate::presence::authed_request(&dd)
-        .ok_or_else(|| "Nicht angemeldet".to_string())?;
+    let (_client, backend, session) = match crate::presence::authed_request(&dd) {
+        Some(v) => v,
+        None => return Ok(()),
+    };
     let url = format!("{}/community-capes", backend);
+    let frames_to_share: Vec<String> = if entry.frames.len() > 24 {
+        entry.frames.iter().take(24).cloned().collect()
+    } else {
+        entry.frames.clone()
+    };
     let body = serde_json::json!({
         "name": entry.name,
-        "frames": entry.frames,
+        "frames": frames_to_share,
         "preview": entry.preview,
         "animated": entry.animated,
         "fps": entry.fps,
     });
-    let resp = community_client()
+    let _ = community_client()
         .post(&url)
         .header("Authorization", format!("Bearer {}", session))
         .json(&body)
-        .send()
-        .map_err(|e| e.to_string())?;
-    if !resp.status().is_success() {
-        return Err(format!("Serverantwort {}", resp.status()));
-    }
+        .send();
     Ok(())
 }
 
