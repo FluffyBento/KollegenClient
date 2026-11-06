@@ -328,11 +328,12 @@ public class KollegenSocialScreen extends Screen {
                     Glass.ring(g, ex + 8, ey + 9, 28, 28, 5, 0.5f, 0x44FFFFFF);
 
                     int dotCol = e.online ? Palette.GREEN : Palette.MUTED;
-                    Glass.disc(g, ex + 44, ey + 15, 3.5f, dotCol);
+                    Glass.disc(g, ex + 33, ey + 33, 4.5f, Palette.BG);
+                    Glass.disc(g, ex + 33, ey + 33, 3.5f, dotCol);
                     if (e.online) {
-                        Glass.ring(g, ex + 44 - 4, ey + 15 - 4, 8, 8, 4, 0.5f, Palette.GREEN);
+                        Glass.ring(g, ex + 33 - 4, ey + 33 - 4, 8, 8, 4, 0.5f, Palette.GREEN);
                     }
-                    textStartX = ex + 54;
+                    textStartX = ex + 46;
                 }
 
                 g.text(this.font, e.title, textStartX, ey + 9, e.color, true);

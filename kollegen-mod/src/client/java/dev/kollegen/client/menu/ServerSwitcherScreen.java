@@ -11,6 +11,7 @@ import dev.kollegen.client.presence.PrivacySettings;
 import dev.kollegen.client.ui.Glass;
 import dev.kollegen.client.ui.GlassButton;
 import dev.kollegen.client.ui.Icons;
+import dev.kollegen.client.ui.SkinFaceRenderer;
 import dev.kollegen.client.ui.UiStyleManager;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -149,9 +150,9 @@ public class ServerSwitcherScreen extends Screen {
         addRenderableWidget(close);
 
         if (tab == 2) {
-            int cardY = listTop + 4;
-            int cardH = 68;
-            int inpY = cardY + 30;
+            int cardY = listTop;
+            int cardH = 74;
+            int inpY = cardY + 32;
             int btnW = 104;
             directInput = new EditBox(this.font, cx + 16, inpY, cw - btnW - 44, 26, Component.literal("Server-IP"));
             directInput.setMaxLength(128);
@@ -283,7 +284,7 @@ public class ServerSwitcherScreen extends Screen {
 
     private void computeScroll() {
         int need = entries.size() * (ROW_H + GAP);
-        int topOffset = tab == 2 ? 88 : 0;
+        int topOffset = tab == 2 ? 98 : 0;
         int visible = (listBottom - 4) - (listTop + topOffset);
         maxScroll = Math.max(0, need - visible);
         if (scroll > maxScroll) scroll = maxScroll;
@@ -323,7 +324,8 @@ public class ServerSwitcherScreen extends Screen {
 
     @Override
     public boolean mouseScrolled(double mx, double my, double horizontal, double vertical) {
-        if (maxScroll > 0 && mx >= cx && mx <= cx + cw && my >= listTop && my <= listBottom) {
+        int checkTop = listTop + (tab == 2 ? 98 : 0);
+        if (maxScroll > 0 && mx >= cx && mx <= cx + cw && my >= checkTop && my <= listBottom) {
             scroll = Math.max(0, Math.min(maxScroll, scroll - (int) (vertical * 26)));
             return true;
         }
@@ -404,20 +406,35 @@ public class ServerSwitcherScreen extends Screen {
                 int iconX = cx + 10;
                 int iconY = ey + (ROW_H - 28) / 2;
                 int iconCol = e.joinable ? Palette.ACCENT : Palette.MUTED;
-                Glass.fillRound(g, iconX, iconY, 28, 28, 6, Palette.tint(iconCol, 0x44));
-                Glass.ring(g, iconX, iconY, 28, 28, 6, 1.0f, iconCol);
 
-                String initial = e.title.isEmpty() ? "?" : e.title.substring(0, 1).toUpperCase(java.util.Locale.ROOT);
-                int initW = this.font.width(initial);
-                g.text(this.font, initial, iconX + (28 - initW) / 2, iconY + 9, iconCol, true);
+                if (e.friendName != null && !e.friendName.isEmpty()) {
+                    SkinFaceRenderer.drawFace(g, e.friendName, null, iconX, iconY, 28);
+                    Glass.ring(g, iconX, iconY, 28, 28, 6, 1.0f, Palette.ACCENT);
+                } else {
+                    Glass.fillRound(g, iconX, iconY, 28, 28, 6, Palette.tint(iconCol, 0x44));
+                    Glass.ring(g, iconX, iconY, 28, 28, 6, 1.0f, iconCol);
+                    String initial = e.title.isEmpty() ? "?" : e.title.substring(0, 1).toUpperCase(java.util.Locale.ROOT);
+                    int initW = this.font.width(initial);
+                    g.text(this.font, initial, iconX + (28 - initW) / 2, iconY + 9, iconCol, true);
+                }
 
                 int textX = iconX + 36;
                 g.text(this.font, Glass.trunc(this.font, e.title, cw - 240), textX, ey + 9, Palette.TEXT, true);
                 g.text(this.font, Glass.trunc(this.font, e.subtitle, cw - 240), textX, ey + 24, Palette.MUTED, false);
 
+                int pingX = cx + cw - (e.joinable ? (e.friendName != null ? 210 : 130) : 60);
+                int pingBaseY = ey + (ROW_H / 2) + 6;
+                int[] barH = { 4, 7, 10, 13 };
+                for (int b = 0; b < 4; b++) {
+                    int bx = pingX + b * 4;
+                    int bh = barH[b];
+                    int col = e.joinable ? Palette.GREEN : Palette.MUTED;
+                    Glass.fillRound(g, bx, pingBaseY - bh, 2, bh, 1, col);
+                }
+
                 if (e.badge != null && !e.badge.isEmpty()) {
                     int bw = this.font.width(e.badge) + 12;
-                    int bx = cx + cw - (e.joinable ? 180 : 80);
+                    int bx = pingX - bw - 8;
                     int by = ey + (ROW_H - 16) / 2;
                     Glass.badge(g, bx, by, bw, 16, 5, Palette.PANEL2, Palette.MUTED, this.font, e.badge);
                 }

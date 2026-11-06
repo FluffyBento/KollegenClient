@@ -9,6 +9,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.input.KeyEvent;
+import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.core.NonNullList;
 import net.minecraft.core.component.DataComponents;
@@ -64,7 +65,7 @@ public class ContainerScreenMixin {
     }
 
     @Inject(method = "slotClicked", at = @At("HEAD"), cancellable = true)
-    private void kollegen$protectLockedSlot(Slot slot, int slotId, int mouseButton, ContainerInput clickType, CallbackInfo ci) {
+    private void kollegen$protectLockedSlot(Slot slot, int slotId, MouseButtonEvent buttonEvent, ContainerInput clickType, CallbackInfo ci) {
         if (slot == null || !(slot.container instanceof Inventory)) return;
         if (!ItemLockManager.isLocked(slot)) return;
 
