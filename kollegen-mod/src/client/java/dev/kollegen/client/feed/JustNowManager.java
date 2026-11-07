@@ -218,9 +218,9 @@ public final class JustNowManager {
                     mc.gui.hud.getChat().addClientSystemMessage(Component.literal("§d§l[JustNow] §a✓ Pünktlich gepostet! §e+" + coins + " Coins §fverdient. Streak: §6" + currentStreak + " Tage§f! 🔥"));
                 }
             } else {
-                mc.gui.hud.setOverlayMessage(Component.literal("§e⚠️ JustNow zu spät gepostet (0 Coins · Streak: " + currentStreak + " Tage)"), false);
+                mc.gui.hud.setOverlayMessage(Component.literal("§e⚠ JustNow zu spät gepostet (0 Coins · Streak: " + currentStreak + " Tage)"), false);
                 if (mc.gui.hud.getChat() != null) {
-                    mc.gui.hud.getChat().addClientSystemMessage(Component.literal("§d§l[JustNow] §e⚠️ Zu spät gepostet! Keine Coins erhalten, aber deine Streak von §6" + currentStreak + " Tagen §fwurde gerettet."));
+                    mc.gui.hud.getChat().addClientSystemMessage(Component.literal("§d§l[JustNow] §e⚠ Zu spät gepostet! Keine Coins erhalten, aber deine Streak von §6" + currentStreak + " Tagen §fwurde gerettet."));
                 }
             }
         }

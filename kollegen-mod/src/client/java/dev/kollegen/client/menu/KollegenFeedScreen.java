@@ -375,7 +375,7 @@ public class KollegenFeedScreen extends Screen {
             int potCoins = JustNowManager.getCoinsForStreak(streak + 1);
             g.text(this.font, "Poste jetzt für +" + potCoins + " Coins! Streak steigt auf " + (streak + 1) + " Tage.", textX, by + 23, Palette.TEXT, false);
         } else if (late) {
-            g.text(this.font, "⚠️ Heutiges JustNow abgelaufen!", textX, by + 10, Palette.ACCENT2, true);
+            g.text(this.font, "⚠ Heutiges JustNow abgelaufen!", textX, by + 10, Palette.ACCENT2, true);
             g.text(this.font, "Spät posten rettet deine Streak (" + streak + " Tage)! Keine Coins für verspätete Posts.", textX, by + 23, Palette.TEXT, false);
         } else if (posted) {
             g.text(this.font, "✓ Heutiges JustNow abgeschlossen!", textX, by + 10, Palette.GREEN, true);
@@ -401,7 +401,7 @@ public class KollegenFeedScreen extends Screen {
         } else if (late) {
             Glass.fillRound(g, actBtnX, actBtnY, actBtnW, actBtnH, 6, actHover ? Palette.ACCENT2 : 0xFF78350F);
             Glass.ring(g, actBtnX, actBtnY, actBtnW, actBtnH, 6, 1.0f, 0xFFFFFFFF);
-            Glass.textC(g, this.font, "⚠️ Spät nachholen", actBtnX + actBtnW / 2, actBtnY + 8, 0xFFFFFFFF, true);
+            Glass.textC(g, this.font, "⚠ Spät nachholen", actBtnX + actBtnW / 2, actBtnY + 8, 0xFFFFFFFF, true);
             clickables.add(new ClickableRect(actBtnX, actBtnY, actBtnW, actBtnH, () -> openCreateModal(true)));
         } else if (!posted) {
             Glass.fillRound(g, actBtnX, actBtnY, actBtnW, actBtnH, 6, actHover ? Palette.PANEL : Palette.PANEL2);
@@ -499,7 +499,7 @@ public class KollegenFeedScreen extends Screen {
             Glass.badge(g, badgeX, cy + 9, 64, 14, 4, 0x44A855F7, Palette.ACCENT, this.font, "⚡ JustNow");
             badgeX += 70;
             if (p.isLate) {
-                Glass.badge(g, badgeX, cy + 9, 88, 14, 4, 0x44EAB308, Palette.ACCENT2, this.font, "⚠️ Zu spät (0🪙)");
+                Glass.badge(g, badgeX, cy + 9, 88, 14, 4, 0x44EAB308, Palette.ACCENT2, this.font, "⚠ Zu spät (0🪙)");
                 badgeX += 94;
             } else {
                 String coinBadge = "✓ +" + p.coinsEarned + "🪙";
@@ -542,7 +542,7 @@ public class KollegenFeedScreen extends Screen {
         int likeBg = p.likedByMe ? 0x44EF4444 : (hovLike ? Palette.PANEL2 : Palette.BG);
         Glass.fillRound(g, likeBtnX, likeBtnY, likeBtnW, likeBtnH, 4, likeBg);
         Glass.ring(g, likeBtnX, likeBtnY, likeBtnW, likeBtnH, 4, 0.8f, p.likedByMe ? 0xFFEF4444 : 0x33FFFFFF);
-        String likeTxt = (p.likedByMe ? "❤️ " : "🤍 ") + p.likes;
+        String likeTxt = (p.likedByMe ? "❤ " : "♡ ") + p.likes;
         Glass.textC(g, this.font, likeTxt, likeBtnX + likeBtnW / 2, likeBtnY + 6, p.likedByMe ? 0xFFEF4444 : Palette.TEXT, false);
 
         clickables.add(new ClickableRect(likeBtnX, likeBtnY, likeBtnW, likeBtnH, () -> {

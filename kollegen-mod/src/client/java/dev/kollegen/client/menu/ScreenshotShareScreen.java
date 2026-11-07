@@ -173,7 +173,7 @@ public class ScreenshotShareScreen extends Screen {
         if (jnActive) {
             g.text(this.font, "⚡ JustNow aktiv! +" + JustNowManager.getCoinsForStreak(JustNowManager.getStreak() + 1) + " Coins", textX, topY + 27, Palette.GREEN, false);
         } else if (JustNowManager.canPostLate()) {
-            g.text(this.font, "⚠️ 5 Min. vorbei – spät posten rettet Streak!", textX, topY + 27, Palette.ACCENT2, false);
+            g.text(this.font, "⚠ 5 Min. vorbei – spät posten rettet Streak!", textX, topY + 27, Palette.ACCENT2, false);
         } else if (JustNowManager.hasPostedToday()) {
             g.text(this.font, "✓ Heutiges JustNow erledigt (Streak: " + JustNowManager.getStreak() + ")", textX, topY + 27, Palette.ACCENT, false);
         } else {
