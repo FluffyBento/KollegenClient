@@ -372,14 +372,20 @@ public class ServerSwitcherScreen extends Screen {
             int tx = cx + i * (tabW + 4);
             boolean sel = i == tab;
             boolean hov = mx >= tx && mx <= tx + tabW && my >= tabY && my <= tabY + 28;
-            int fill = sel ? Palette.ACCENT : (hov ? Palette.PANEL2 : Palette.PANEL);
-            Glass.fillRound(g, tx, tabY, tabW, 28, 7, fill);
-            if (sel) {
-                Glass.ring(g, tx, tabY, tabW, 28, 7, 1.2f, 0xFFFFFFFF);
+            if (UiStyleManager.isMinecraftStyle()) {
+                Glass.drawMinecraftButton(g, tx, tabY, tabW, 28, hov ? 1.0f : 0.0f, sel, false);
+                int txtCol = hov ? 0xFFFFFFA0 : (sel ? 0xFFFFFFFF : Palette.TEXT);
+                Glass.textC(g, this.font, TABS[i], tx + tabW / 2, tabY + 10, txtCol, true);
+            } else {
+                int fill = sel ? Palette.ACCENT : (hov ? Palette.PANEL2 : Palette.PANEL);
+                Glass.fillRound(g, tx, tabY, tabW, 28, 7, fill);
+                if (sel) {
+                    Glass.ring(g, tx, tabY, tabW, 28, 7, 1.2f, 0xFFFFFFFF);
+                }
+                int txtCol = sel ? 0xFFFFFFFF : (hov ? Palette.TEXT : Palette.MUTED);
+                int labelW = this.font.width(TABS[i]);
+                g.text(this.font, TABS[i], tx + (tabW - labelW) / 2, tabY + 9, txtCol, false);
             }
-            int txtCol = sel ? 0xFFFFFFFF : (hov ? Palette.TEXT : Palette.MUTED);
-            int labelW = this.font.width(TABS[i]);
-            g.text(this.font, TABS[i], tx + (tabW - labelW) / 2, tabY + 9, txtCol, false);
         }
 
         actionRects.clear();

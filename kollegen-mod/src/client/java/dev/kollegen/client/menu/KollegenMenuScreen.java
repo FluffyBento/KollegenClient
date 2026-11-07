@@ -27,6 +27,7 @@ import dev.kollegen.client.ui.Glass;
 import dev.kollegen.client.ui.GlassToggle;
 import dev.kollegen.client.ui.Icons;
 import dev.kollegen.client.ui.SkinFaceRenderer;
+import dev.kollegen.client.ui.UiStyleManager;
 import dev.kollegen.client.ui.LogoDraw;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -1644,8 +1645,17 @@ public class KollegenMenuScreen extends Screen {
         int sx = this.searchX();
         int sw = Math.max(50, (int) this.rightButtonsX() - 8 - sx);
         float focus = this.hv("search", this.search.isFocused(), 14.0f);
-        Glass.rr(g, sx, this.py + 8, sw, 20, 10, Glass.a(0x000000, 0.28f));
-        Glass.ring(g, sx, this.py + 8, sw, 20, 10, 0.5f, Glass.mixA(0x28FFFFFF, Glass.a(Palette.ACCENT, 0.9f), focus));
+        if (UiStyleManager.isMinecraftStyle()) {
+            g.fill(sx, this.py + 8, sx + sw, this.py + 28, 0xFF000000);
+            int borderCol = this.search.isFocused() ? 0xFFFFFFFF : 0xFF707070;
+            g.fill(sx, this.py + 8, sx + sw, this.py + 9, borderCol);
+            g.fill(sx, this.py + 27, sx + sw, this.py + 28, borderCol);
+            g.fill(sx, this.py + 8, sx + 1, this.py + 28, borderCol);
+            g.fill(sx + sw - 1, this.py + 8, sx + sw, this.py + 28, borderCol);
+        } else {
+            Glass.rr(g, sx, this.py + 8, sw, 20, 10, Glass.a(0x000000, 0.28f));
+            Glass.ring(g, sx, this.py + 8, sw, 20, 10, 0.5f, Glass.mixA(0x28FFFFFF, Glass.a(Palette.ACCENT, 0.9f), focus));
+        }
         Icons.draw(g, Icons.SEARCH, sx + 6, this.py + 12, 12, Palette.MUTED);
         float by = this.py + 6;
         float ax = this.accountX();
@@ -1674,7 +1684,15 @@ public class KollegenMenuScreen extends Screen {
     }
 
     private void drawSidebar(GuiGraphicsExtractor g, int mx, int my) {
-        Glass.rr(g, this.sbX - 3, this.sbY - 1, this.sideW + 6, this.sbH + 2, 10, 0x1E000000);
+        if (UiStyleManager.isMinecraftStyle()) {
+            g.fill((int) (this.sbX - 3), (int) (this.sbY - 1), (int) (this.sbX + this.sideW + 3), (int) (this.sbY + this.sbH + 1), 0xFF141414);
+            g.fill((int) (this.sbX - 3), (int) (this.sbY - 1), (int) (this.sbX + this.sideW + 3), (int) this.sbY, 0xFF000000);
+            g.fill((int) (this.sbX - 3), (int) (this.sbY + this.sbH), (int) (this.sbX + this.sideW + 3), (int) (this.sbY + this.sbH + 1), 0xFF000000);
+            g.fill((int) (this.sbX - 3), (int) (this.sbY - 1), (int) (this.sbX - 2), (int) (this.sbY + this.sbH + 1), 0xFF000000);
+            g.fill((int) (this.sbX + this.sideW + 2), (int) (this.sbY - 1), (int) (this.sbX + this.sideW + 3), (int) (this.sbY + this.sbH + 1), 0xFF000000);
+        } else {
+            Glass.rr(g, this.sbX - 3, this.sbY - 1, this.sideW + 6, this.sbH + 2, 10, 0x1E000000);
+        }
         int ih = this.sideItemH();
         for (int i = 0; i < this.cats.length; i++) {
             Category c = this.cats[i];
@@ -1683,18 +1701,27 @@ public class KollegenMenuScreen extends Screen {
             boolean hov = hit(mx, my, this.sbX, y, this.sideW, ih);
             float hs = this.hv("sb:" + i, hov, 14.0f);
             float ss = this.hv("ss:" + i, sel, 12.0f);
-            if (ss > 0.01f) {
+            if (UiStyleManager.isMinecraftStyle()) {
+                if (sel || hov) {
+                    Glass.drawMinecraftButton(g, (int) this.sbX, (int) y, (int) this.sideW, ih, hov ? 1.0f : 0.0f, sel, false);
+                }
+            } else if (ss > 0.01f) {
                 Glass.rrGrad(g, this.sbX, y, this.sideW, ih, 7, Glass.a(Palette.ACCENT, 0.85f * ss), Glass.a(Palette.ACCENT2, 0.85f * ss));
                 Glass.ring(g, this.sbX, y, this.sideW, ih, 7, 0.5f, Glass.a(0xFFFFFFFF, 0.3f * ss));
             } else if (hs > 0.01f) {
                 Glass.rr(g, this.sbX, y, this.sideW, ih, 7, Glass.a(0xFFFFFFFF, 0.10f * hs));
             }
-            int col = Glass.mix(Glass.mix(Palette.MUTED, Palette.TEXT, hs), 0xFFFFFFFF, ss);
+            int col;
+            if (UiStyleManager.isMinecraftStyle()) {
+                col = hov ? 0xFFFFFFA0 : (sel ? 0xFFFFFFFF : Palette.MUTED);
+            } else {
+                col = Glass.mix(Glass.mix(Palette.MUTED, Palette.TEXT, hs), 0xFFFFFFFF, ss);
+            }
             float isz = Math.min(14.0f, ih - 6.0f);
             float ix = this.compact ? this.sbX + (this.sideW - isz) / 2.0f : this.sbX + 7;
             Icons.draw(g, Icons.forCategory(c.name()), ix, y + (ih - isz) / 2.0f, isz, col);
             if (!this.compact) {
-                Glass.text(g, this.font, c.display, Math.round(this.sbX + 7 + isz + 6), Math.round(y + (ih - 8) / 2.0f), col, false);
+                Glass.text(g, this.font, c.display, Math.round(this.sbX + 7 + isz + 6), Math.round(y + (ih - 8) / 2.0f), col, UiStyleManager.isMinecraftStyle());
             }
         }
     }

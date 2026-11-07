@@ -288,14 +288,28 @@ public class KollegenSocialScreen extends Screen {
         UiStyleManager.drawPanel(g, px, py, pw, ph, Palette.BG);
 
         int headerH = 54;
-        Glass.fillRound(g, px + 8, py + 8, SW, ph - 16, 10, Palette.tint(Palette.PANEL2, 0xAA));
-        Glass.fillRound(g, px + 8, py + 8, SW, 3, 2, Palette.ACCENT);
+        if (UiStyleManager.isMinecraftStyle()) {
+            g.fill(px + 8, py + 8, px + 8 + SW, py + ph - 8, 0xFF181818);
+            g.fill(px + 8, py + 8, px + 8 + SW, py + 9, 0xFF000000);
+            g.fill(px + 8, py + ph - 9, px + 8 + SW, py + ph - 8, 0xFF000000);
+            g.fill(px + 8, py + 8, px + 9, py + ph - 8, 0xFF000000);
+            g.fill(px + 7 + SW, py + 8, px + 8 + SW, py + ph - 8, 0xFF000000);
+        } else {
+            Glass.fillRound(g, px + 8, py + 8, SW, ph - 16, 10, Palette.tint(Palette.PANEL2, 0xAA));
+            Glass.fillRound(g, px + 8, py + 8, SW, 3, 2, Palette.ACCENT);
+        }
 
         g.text(this.font, "FREUNDE & SOCIAL", px + 18, py + 22, Palette.ACCENT, true);
         g.text(this.font, inThread ? threadTitle : TABS[tab], cx + 12, py + 22, Palette.TEXT, true);
 
         int statusBarY = py + headerH;
-        Glass.fillRound(g, cx + 8, statusBarY + 2, cw - 16, 28, 6, Palette.tint(Palette.PANEL2, 0xAA));
+        if (UiStyleManager.isMinecraftStyle()) {
+            g.fill(cx + 8, statusBarY + 2, cx + cw - 8, statusBarY + 30, 0xFF141414);
+            g.fill(cx + 8, statusBarY + 2, cx + cw - 8, statusBarY + 3, 0xFF0E0E0E);
+            g.fill(cx + 8, statusBarY + 29, cx + cw - 8, statusBarY + 30, 0xFF2A2A2A);
+        } else {
+            Glass.fillRound(g, cx + 8, statusBarY + 2, cw - 16, 28, 6, Palette.tint(Palette.PANEL2, 0xAA));
+        }
         g.text(this.font, trunc(status, cw - 32), cx + 14, statusBarY + 11, authed ? Palette.GREEN : Palette.MUTED, false);
 
         int tabItemH = 34;
@@ -304,13 +318,19 @@ public class KollegenSocialScreen extends Screen {
             int by = sidebarTop + i * (tabItemH + 4);
             boolean sel = i == tab;
             boolean hov = mx >= px + 10 && mx <= px + SW - 10 && my >= by && my <= by + tabItemH;
-            int fill = sel ? Palette.ACCENT : (hov ? Palette.PANEL : Palette.PANEL2);
-            Glass.fillRound(g, px + 10, by, SW - 20, tabItemH, 7, fill);
-            if (sel) {
-                Glass.ring(g, px + 10, by, SW - 20, tabItemH, 7, 1.2f, 0xFFFFFFFF);
+            if (UiStyleManager.isMinecraftStyle()) {
+                Glass.drawMinecraftButton(g, px + 10, by, SW - 20, tabItemH, hov ? 1.0f : 0.0f, sel, false);
+                int ty = by + (tabItemH - this.font.lineHeight) / 2;
+                g.text(this.font, TABS[i], px + 22, ty, hov ? 0xFFFFFFA0 : (sel ? 0xFFFFFFFF : Palette.TEXT), true);
+            } else {
+                int fill = sel ? Palette.ACCENT : (hov ? Palette.PANEL : Palette.PANEL2);
+                Glass.fillRound(g, px + 10, by, SW - 20, tabItemH, 7, fill);
+                if (sel) {
+                    Glass.ring(g, px + 10, by, SW - 20, tabItemH, 7, 1.2f, 0xFFFFFFFF);
+                }
+                int ty = by + (tabItemH - this.font.lineHeight) / 2;
+                g.text(this.font, TABS[i], px + 22, ty, sel ? 0xFFFFFFFF : (hov ? Palette.TEXT : Palette.MUTED), false);
             }
-            int ty = by + (tabItemH - this.font.lineHeight) / 2;
-            g.text(this.font, TABS[i], px + 22, ty, sel ? 0xFFFFFFFF : (hov ? Palette.TEXT : Palette.MUTED), false);
         }
         g.disableScissor();
 

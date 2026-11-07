@@ -136,6 +136,9 @@ public class ThemeSelectorScreen extends Screen {
                         float y = this.cy + (i / this.cols) * (CARD_H + GAP) - this.scrollV;
                         if (hit(mx, my, x, y, this.cardW, CARD_H)) {
                             Palette.setTheme(this.themes.get(i).id);
+                            if ("minecraft".equalsIgnoreCase(this.themes.get(i).id)) {
+                                UiStyleManager.setGlobalStyle(UiStyle.MINECRAFT_VANILLA);
+                            }
                             return true;
                         }
                     }
@@ -220,11 +223,18 @@ public class ThemeSelectorScreen extends Screen {
             int tx = this.px + 14 + t * 130;
             boolean sel = currentTab == t;
             boolean hov = hit(mx, my, tx, tabY, 122, 24);
-            int bg = sel ? Palette.ACCENT : (hov ? Palette.PANEL2 : Palette.PANEL);
-            Glass.fillRound(g, tx, tabY, 122, 24, 6, bg);
-            int tc = sel ? 0xFFFFFFFF : (hov ? Palette.TEXT : Palette.MUTED);
-            int tw = this.font.width(TABS[t]);
-            Glass.text(g, this.font, TABS[t], tx + (122 - tw) / 2, tabY + 7, tc, false);
+            if (UiStyleManager.isMinecraftStyle()) {
+                Glass.drawMinecraftButton(g, tx, tabY, 122, 24, hov ? 1.0f : 0.0f, sel, false);
+                int tc = hov ? 0xFFFFFFA0 : (sel ? 0xFFFFFFFF : Palette.TEXT);
+                int tw = this.font.width(TABS[t]);
+                Glass.text(g, this.font, TABS[t], tx + (122 - tw) / 2, tabY + 7, tc, true);
+            } else {
+                int bg = sel ? Palette.ACCENT : (hov ? Palette.PANEL2 : Palette.PANEL);
+                Glass.fillRound(g, tx, tabY, 122, 24, 6, bg);
+                int tc = sel ? 0xFFFFFFFF : (hov ? Palette.TEXT : Palette.MUTED);
+                int tw = this.font.width(TABS[t]);
+                Glass.text(g, this.font, TABS[t], tx + (122 - tw) / 2, tabY + 7, tc, false);
+            }
         }
 
         Glass.text(g, this.font, "Deckkraft", Math.round(this.sliderX() - this.font.width("Deckkraft") - 6), this.py + 48, Palette.MUTED, false);

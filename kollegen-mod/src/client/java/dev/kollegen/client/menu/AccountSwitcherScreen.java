@@ -6,6 +6,7 @@ import dev.kollegen.client.account.AccountManager;
 import dev.kollegen.client.mods.Palette;
 import dev.kollegen.client.ui.Glass;
 import dev.kollegen.client.ui.SkinFaceRenderer;
+import dev.kollegen.client.ui.UiStyleManager;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.EditBox;
@@ -110,8 +111,12 @@ public class AccountSwitcherScreen extends Screen {
         g.fill(0, 0, this.width, this.height, Glass.tint(Palette.BG, (int) (155 * open)));
         Glass.alpha = open;
 
-        Glass.glassCard(g, this.px, this.py, this.pw, this.ph, 14, Palette.BG, Math.min(0.94f, Glass.opacity + 0.14f), 1.0f);
-        Glass.rrGrad(g, this.px + 1, this.py + 1, this.pw - 2, 70, 13, Glass.a(Palette.ACCENT, 0.12f), 0x00000000);
+        if (UiStyleManager.isMinecraftStyle()) {
+            UiStyleManager.drawPanel(g, this.px, this.py, this.pw, this.ph, Palette.BG);
+        } else {
+            Glass.glassCard(g, this.px, this.py, this.pw, this.ph, 14, Palette.BG, Math.min(0.94f, Glass.opacity + 0.14f), 1.0f);
+            Glass.rrGrad(g, this.px + 1, this.py + 1, this.pw - 2, 70, 13, Glass.a(Palette.ACCENT, 0.12f), 0x00000000);
+        }
 
         boolean hClose = hit(mx, my, this.px + this.pw - 32, this.py + 12, 20, 20);
         Glass.pill(g, this.px + this.pw - 32, this.py + 12, 20, 20, hv("close", hClose), false, false);
@@ -158,11 +163,21 @@ public class AccountSwitcherScreen extends Screen {
             int bgCol = active ? Glass.a(Palette.ACCENT, 0.12f) : Glass.a(Palette.PANEL, 0.85f);
             if (hAnim > 0.01f) bgCol = Glass.mix(bgCol, 0xFFFFFFFF, 0.06f * hAnim);
 
-            Glass.glassCard(g, cardX, cardY, this.cw, CARD_H, 8, bgCol, Glass.opacity + 0.1f, 0.0f);
-            if (active) {
-                Glass.ring(g, cardX, cardY, this.cw, CARD_H, 8, 1.0f, Glass.a(Palette.ACCENT, 0.85f));
-            } else if (hAnim > 0.01f) {
-                Glass.ring(g, cardX, cardY, this.cw, CARD_H, 8, 0.8f, Glass.a(0xFFFFFFFF, 0.25f * hAnim));
+            if (UiStyleManager.isMinecraftStyle()) {
+                UiStyleManager.drawCard(g, cardX, cardY, this.cw, CARD_H, 0, bgCol, hAnim, null);
+                if (active) {
+                    g.fill((int) cardX + 1, (int) cardY + 1, (int) (cardX + this.cw - 1), (int) cardY + 2, 0xFF55FF55);
+                    g.fill((int) cardX + 1, (int) (cardY + CARD_H - 2), (int) (cardX + this.cw - 1), (int) (cardY + CARD_H - 1), 0xFF55FF55);
+                    g.fill((int) cardX + 1, (int) cardY + 1, (int) cardX + 2, (int) (cardY + CARD_H - 1), 0xFF55FF55);
+                    g.fill((int) (cardX + this.cw - 2), (int) cardY + 1, (int) (cardX + this.cw - 1), (int) (cardY + CARD_H - 1), 0xFF55FF55);
+                }
+            } else {
+                Glass.glassCard(g, cardX, cardY, this.cw, CARD_H, 8, bgCol, Glass.opacity + 0.1f, 0.0f);
+                if (active) {
+                    Glass.ring(g, cardX, cardY, this.cw, CARD_H, 8, 1.0f, Glass.a(Palette.ACCENT, 0.85f));
+                } else if (hAnim > 0.01f) {
+                    Glass.ring(g, cardX, cardY, this.cw, CARD_H, 8, 0.8f, Glass.a(0xFFFFFFFF, 0.25f * hAnim));
+                }
             }
 
             int faceX = Math.round(cardX + 8);

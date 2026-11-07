@@ -50,9 +50,11 @@ public class AccountButton extends Button {
 
         int textX = faceX + 19;
         int textY = this.getY() + (this.height - 8) / 2;
-        Glass.text(g, font, name, textX, textY, hovered ? 0xFFFFFFFF : Palette.TEXT, true);
+        int nameCol = hovered ? (UiStyleManager.isMinecraftStyle() ? 0xFFFFFFA0 : 0xFFFFFFFF) : Palette.TEXT;
+        Glass.text(g, font, name, textX, textY, nameCol, true);
 
         int arrowX = this.getX() + this.width - 10;
-        Glass.text(g, font, "▾", arrowX, textY, hovered ? Palette.ACCENT : Palette.MUTED, false);
+        int arrCol = hovered ? (UiStyleManager.isMinecraftStyle() ? 0xFFFFFFA0 : Palette.ACCENT) : Palette.MUTED;
+        Glass.text(g, font, "▾", arrowX, textY, arrCol, true);
     }
 }

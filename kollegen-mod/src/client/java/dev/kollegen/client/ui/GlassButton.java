@@ -32,6 +32,16 @@ public class GlassButton extends Button {
         if (tw > this.width - 8) {
             shown = Glass.trunc(Minecraft.getInstance().font, label, this.width - 8);
         }
-        Glass.textC(g, Minecraft.getInstance().font, shown, this.getX() + this.width / 2, this.getY() + (this.height - 8) / 2, !this.active ? dev.kollegen.client.mods.Palette.MUTED : (primary ? 0xFFFFFFFF : dev.kollegen.client.mods.Palette.TEXT), false);
+        int textCol;
+        if (!this.active) {
+            textCol = dev.kollegen.client.mods.Palette.MUTED;
+        } else if (UiStyleManager.isMinecraftStyle() && hovered) {
+            textCol = 0xFFFFFFA0;
+        } else if (primary) {
+            textCol = 0xFFFFFFFF;
+        } else {
+            textCol = hovered ? 0xFFFFFFFF : dev.kollegen.client.mods.Palette.TEXT;
+        }
+        Glass.textC(g, Minecraft.getInstance().font, shown, this.getX() + this.width / 2, this.getY() + (this.height - 8) / 2, textCol, true);
     }
 }

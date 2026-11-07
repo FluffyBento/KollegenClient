@@ -172,7 +172,7 @@ public final class Palette {
         THEMES.put("tokyo-night", new Theme("Tokyo Night", "Dark Tokyo night theme", -15066330, -14407621, -13683638, -12893599, -8740105, -4482313, -4142347, -5656106, -559474, -6369686, -13974562));
         THEMES.put("catppuccin-mocha", new Theme("Catppuccin Mocha", "Soothing pastel theme", -14803410, -13553084, -12236966, -10986640, -671001, -400721, -3287308, -4537634, -816216, -5839967, -7752454));
         THEMES.put("high-contrast", new Theme("High Contrast", "Accessibility-focused theme", -16777216, -15066598, -13421773, -1, -256, -22016, -1, -3355444, -65536, -16711936, -16711681));
-        THEMES.put("minecraft", new Theme("Minecraft", "Vanilla Minecraft style", -15724528, -14671840, -13619152, -11184811, -11141121, -11141291, -1, -5592406, -43691, -11141291, -11184641));
+        THEMES.put("minecraft", new Theme("Minecraft", "Vanilla Minecraft UI-Look", -15461356, -14540254, -15198184, -11842742, -11141121, -13730510, -1, -5592406, -43691, -11141121, -11140865));
     }
 
     public static class Theme {
@@ -228,6 +228,9 @@ public final class Palette {
             SCROLL_THUMB = Palette.tint(ACCENT, 128);
             SCROLL_THUMB_HOVER = Palette.tint(ACCENT, 160);
             DISABLED_OVERLAY = Palette.tint(BG, 96);
+            if ("minecraft".equalsIgnoreCase(this.id)) {
+                dev.kollegen.client.ui.UiStyleManager.setGlobalStyle(dev.kollegen.client.ui.UiStyle.MINECRAFT_VANILLA);
+            }
         }
     }
 }

@@ -57,6 +57,10 @@ public final class UiStyleManager {
         }
     }
 
+    public static boolean isMinecraftStyle() {
+        return getGlobalStyle() == UiStyle.MINECRAFT_VANILLA || "minecraft".equalsIgnoreCase(Palette.getCurrentTheme());
+    }
+
     public static void drawPanel(GuiGraphicsExtractor g, float x, float y, float w, float h, int bgTint) {
         drawPanel(g, x, y, w, h, bgTint, getGlobalStyle());
     }
@@ -69,11 +73,21 @@ public final class UiStyleManager {
                 int iy = (int) y;
                 int iw = (int) w;
                 int ih = (int) h;
-                g.fill(ix, iy, ix + iw, iy + ih, 0xF0101010);
-                g.fill(ix, iy, ix + iw, iy + 2, 0xFF373737);
-                g.fill(ix, iy, ix + 2, iy + ih, 0xFF373737);
-                g.fill(ix, iy + ih - 2, ix + iw, iy + ih, 0xFF000000);
-                g.fill(ix + iw - 2, iy, ix + iw, iy + ih, 0xFF000000);
+                g.fill(ix, iy, ix + iw, iy + ih, 0xF6141414);
+                g.fill(ix, iy, ix + iw, iy + 1, 0xFF000000);
+                g.fill(ix, iy + ih - 1, ix + iw, iy + ih, 0xFF000000);
+                g.fill(ix, iy, ix + 1, iy + ih, 0xFF000000);
+                g.fill(ix + iw - 1, iy, ix + iw, iy + ih, 0xFF000000);
+
+                g.fill(ix + 1, iy + 1, ix + iw - 1, iy + 3, 0xFF6B6B6B);
+                g.fill(ix + 1, iy + 1, ix + 3, iy + ih - 1, 0xFF6B6B6B);
+                g.fill(ix + 1, iy + ih - 3, ix + iw - 1, iy + ih - 1, 0xFF1B1B1B);
+                g.fill(ix + iw - 3, iy + 1, ix + iw - 1, iy + ih - 1, 0xFF1B1B1B);
+
+                g.fill(ix + 3, iy + 3, ix + iw - 3, iy + 4, 0xFF373737);
+                g.fill(ix + 3, iy + 3, ix + 4, iy + ih - 3, 0xFF373737);
+                g.fill(ix + 3, iy + ih - 4, ix + iw - 3, iy + ih - 3, 0xFF2A2A2A);
+                g.fill(ix + iw - 4, iy + 3, ix + iw - 3, iy + ih - 3, 0xFF2A2A2A);
             }
             case MODERN_FLAT -> {
                 Glass.fillRound(g, (int) x, (int) y, (int) w, (int) h, 3, 0xF218181B);
@@ -99,13 +113,25 @@ public final class UiStyleManager {
                 int iy = (int) y;
                 int iw = (int) w;
                 int ih = (int) h;
-                int base = hover > 0.05f ? 0xFF222222 : 0xFF181818;
+                int base = hover > 0.05f ? 0xFF282828 : 0xFF181818;
                 g.fill(ix, iy, ix + iw, iy + ih, base);
-                int border = hover > 0.05f ? Palette.ACCENT : 0xFF3A3A3A;
-                g.fill(ix, iy, ix + iw, iy + 1, border);
-                g.fill(ix, iy, ix + 1, iy + ih, border);
+
+                g.fill(ix, iy, ix + iw, iy + 1, 0xFF000000);
                 g.fill(ix, iy + ih - 1, ix + iw, iy + ih, 0xFF000000);
+                g.fill(ix, iy, ix + 1, iy + ih, 0xFF000000);
                 g.fill(ix + iw - 1, iy, ix + iw, iy + ih, 0xFF000000);
+
+                if (hover > 0.05f) {
+                    g.fill(ix + 1, iy + 1, ix + iw - 1, iy + 2, 0xFFFFFFFF);
+                    g.fill(ix + 1, iy + ih - 2, ix + iw - 1, iy + ih - 1, 0xFFFFFFFF);
+                    g.fill(ix + 1, iy + 1, ix + 2, iy + ih - 1, 0xFFFFFFFF);
+                    g.fill(ix + iw - 2, iy + 1, ix + iw - 1, iy + ih - 1, 0xFFFFFFFF);
+                } else {
+                    g.fill(ix + 1, iy + 1, ix + iw - 1, iy + 2, 0xFF0E0E0E);
+                    g.fill(ix + 1, iy + 1, ix + 2, iy + ih - 1, 0xFF0E0E0E);
+                    g.fill(ix + 1, iy + ih - 2, ix + iw - 1, iy + ih - 1, 0xFF2C2C2C);
+                    g.fill(ix + iw - 2, iy + 1, ix + iw - 1, iy + ih - 1, 0xFF2C2C2C);
+                }
             }
             case MODERN_FLAT -> {
                 int base = hover > 0.05f ? Glass.mix(0xFF222226, Palette.ACCENT, 0.08f) : 0xFF1C1C20;
@@ -140,10 +166,19 @@ public final class UiStyleManager {
                 int ih = (int) h;
                 int fill = Glass.tint(0xFF101010, (int) (255 * Math.min(1.0f, op)));
                 g.fill(ix, iy, ix + iw, iy + ih, fill);
-                g.fill(ix, iy, ix + iw, iy + 1, 0xFF4A4A4A);
-                g.fill(ix, iy, ix + 1, iy + ih, 0xFF4A4A4A);
+                g.fill(ix, iy, ix + iw, iy + 1, 0xFF000000);
                 g.fill(ix, iy + ih - 1, ix + iw, iy + ih, 0xFF000000);
+                g.fill(ix, iy, ix + 1, iy + ih, 0xFF000000);
                 g.fill(ix + iw - 1, iy, ix + iw, iy + ih, 0xFF000000);
+
+                g.fill(ix + 1, iy + 1, ix + iw - 1, iy + 2, 0xFF4A4A4A);
+                g.fill(ix + 1, iy + 1, ix + 2, iy + ih - 1, 0xFF4A4A4A);
+                g.fill(ix + 1, iy + ih - 2, ix + iw - 1, iy + ih - 1, 0xFF222222);
+                g.fill(ix + iw - 2, iy + 1, ix + iw - 1, iy + ih - 1, 0xFF222222);
+
+                if (accentBar) {
+                    g.fill(ix + 2, iy + 2, ix + 4, iy + ih - 2, Palette.ACCENT);
+                }
             }
             case MODERN_FLAT -> {
                 int fill = Glass.tint(0xFF141416, (int) (255 * Math.min(1.0f, op)));

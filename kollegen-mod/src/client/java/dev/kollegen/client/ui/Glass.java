@@ -551,7 +551,88 @@ public final class Glass {
         textC(g, font, label, x + w / 2, y + (h - 8) / 2, text, false);
     }
 
+    public static void drawMinecraftButton(GuiGraphicsExtractor g, int x, int y, int w, int h, float hov, boolean primary, boolean disabled) {
+        g.fill(x, y, x + w, y + h, 0xFF000000);
+        int topHigh;
+        int botShadow;
+        int fill;
+        if (disabled) {
+            topHigh = 0xFF404040;
+            botShadow = 0xFF141414;
+            fill = 0xFF2A2A2A;
+        } else if (hov > 0.05f) {
+            topHigh = 0xFFFFFFFF;
+            botShadow = 0xFF2E2E2E;
+            fill = primary ? 0xFF3E8E3E : 0xFF8A8A8A;
+        } else if (primary) {
+            topHigh = 0xFF66CC66;
+            botShadow = 0xFF184418;
+            fill = 0xFF2E6B2E;
+        } else {
+            topHigh = 0xFFB8B8B8;
+            botShadow = 0xFF282828;
+            fill = 0xFF656565;
+        }
+        g.fill(x + 1, y + 1, x + w - 1, y + 2, topHigh);
+        g.fill(x + 1, y + 1, x + 2, y + h - 1, topHigh);
+        g.fill(x + 1, y + h - 2, x + w - 1, y + h, botShadow);
+        g.fill(x + w - 2, y + 1, x + w, y + h, botShadow);
+        g.fill(x + 2, y + 2, x + w - 2, y + h - 2, fill);
+    }
+
+    public static void drawMinecraftSwitch(GuiGraphicsExtractor g, int x, int y, int w, int h, float t, float hov) {
+        g.fill(x, y, x + w, y + h, 0xFF000000);
+        int trackFill = mix(0xFF141414, 0xFF1E6B1E, t);
+        g.fill(x + 1, y + 1, x + w - 1, y + h - 1, trackFill);
+        int borderCol = hov > 0.05f ? 0xFFFFFFFF : 0xFF4A4A4A;
+        g.fill(x + 1, y + 1, x + w - 1, y + 2, borderCol);
+        g.fill(x + 1, y + 1, x + 2, y + h - 1, borderCol);
+        g.fill(x + 1, y + h - 2, x + w - 1, y + h - 1, 0xFF2A2A2A);
+        g.fill(x + w - 2, y + 1, x + w - 1, y + h - 1, 0xFF2A2A2A);
+
+        int kw = h - 4;
+        int kx = (int) (x + 2 + (w - kw - 4) * t);
+        int ky = y + 2;
+        drawMinecraftButton(g, kx, ky, kw, kw, hov, false, false);
+    }
+
+    public static void drawMinecraftSlider(GuiGraphicsExtractor g, int x, int y, int w, int h, float value, boolean hovered, boolean dragging) {
+        g.fill(x, y, x + w, y + h, 0xFF000000);
+        g.fill(x + 1, y + 1, x + w - 1, y + 2, 0xFF101010);
+        g.fill(x + 1, y + 1, x + 2, y + h - 1, 0xFF101010);
+        g.fill(x + 1, y + h - 2, x + w - 1, y + h - 1, 0xFF2E2E2E);
+        g.fill(x + w - 2, y + 1, x + w - 1, y + h - 1, 0xFF2E2E2E);
+        g.fill(x + 2, y + 2, x + w - 2, y + h - 2, 0xFF181818);
+
+        float v = Math.max(0.0f, Math.min(1.0f, value));
+        int vProg = (int) ((w - 4) * v);
+        if (vProg > 0) {
+            g.fill(x + 2, y + 2, x + 2 + vProg, y + h - 2, 0xFF2E6B2E);
+        }
+        int kw = 8;
+        int kx = (int) (x + 2 + (w - kw - 4) * v);
+        drawMinecraftButton(g, kx, y, kw, h, hovered || dragging ? 1.0f : 0.0f, false, false);
+    }
+
+    public static void drawMinecraftCheckbox(GuiGraphicsExtractor g, int x, int y, int size, boolean checked, boolean hovered, boolean focused) {
+        g.fill(x, y, x + size, y + size, 0xFF000000);
+        int border = hovered || focused ? 0xFFFFFFFF : 0xFF4A4A4A;
+        g.fill(x + 1, y + 1, x + size - 1, y + 2, border);
+        g.fill(x + 1, y + 1, x + 2, y + size - 1, border);
+        g.fill(x + 1, y + size - 2, x + size - 1, y + size - 1, 0xFF282828);
+        g.fill(x + size - 2, y + 1, x + size - 1, y + size - 1, 0xFF282828);
+        g.fill(x + 2, y + 2, x + size - 2, y + size - 2, 0xFF141414);
+        if (checked) {
+            g.fill(x + 3, y + 3, x + size - 3, y + size - 3, 0xFF55FF55);
+            g.fill(x + 4, y + 4, x + size - 4, y + size - 4, 0xFFFFFFFF);
+        }
+    }
+
     public static void pill(GuiGraphicsExtractor g, float x, float y, float w, float h, float hov, boolean primary, boolean disabled) {
+        if (UiStyleManager.isMinecraftStyle()) {
+            drawMinecraftButton(g, (int) x, (int) y, (int) w, (int) h, hov, primary, disabled);
+            return;
+        }
         float r = Math.min(w, h) / 2.0f;
         if (primary) {
             int c1 = Palette.ACCENT;
@@ -622,6 +703,11 @@ public final class Glass {
     }
 
     public static void separator(GuiGraphicsExtractor g, int x, int y, int w, int color) {
+        if (UiStyleManager.isMinecraftStyle()) {
+            g.fill(x, y, x + w, y + 1, 0xFF101010);
+            g.fill(x, y + 1, x + w, y + 2, 0xFF3C3C3C);
+            return;
+        }
         color = fa(color);
         if ((color >>> 24) == 0 || w <= 0) {
             return;
@@ -633,6 +719,10 @@ public final class Glass {
     }
 
     public static void vanillaSlider(GuiGraphicsExtractor g, int x, int y, int w, int h, float value, boolean hovered, boolean dragging) {
+        if (UiStyleManager.isMinecraftStyle()) {
+            drawMinecraftSlider(g, x, y, w, h, value, hovered, dragging);
+            return;
+        }
         float th = 4.0f;
         float ty = y + (h - th) / 2.0f;
         rr(g, x, ty, w, th, th / 2, 0x33FFFFFF);
@@ -649,6 +739,10 @@ public final class Glass {
     }
 
     public static void vanillaCheckbox(GuiGraphicsExtractor g, int x, int y, int size, boolean checked, boolean hovered, boolean focused) {
+        if (UiStyleManager.isMinecraftStyle()) {
+            drawMinecraftCheckbox(g, x, y, size, checked, hovered, focused);
+            return;
+        }
         float r = Math.max(3.0f, size / 4.0f);
         if (checked) {
             rrGrad(g, x, y, size, size, r, Palette.ACCENT, Palette.ACCENT2);
@@ -661,6 +755,16 @@ public final class Glass {
     }
 
     public static void vanillaScrollbar(GuiGraphicsExtractor g, int x, int y, int w, int h, float scroll, float maxScroll, boolean hovered, boolean dragging) {
+        if (UiStyleManager.isMinecraftStyle()) {
+            g.fill(x, y, x + w, y + h, 0xFF000000);
+            if (maxScroll <= 0) {
+                return;
+            }
+            float thumbH = Math.max(18.0f, h * h / (h + maxScroll));
+            float ty = y + (h - thumbH) * (scroll / maxScroll);
+            drawMinecraftButton(g, x, (int) ty, w, (int) thumbH, hovered || dragging ? 1.0f : 0.0f, false, false);
+            return;
+        }
         rr(g, x, y, w, h, w / 2.0f, 0x1CFFFFFF);
         if (maxScroll <= 0) {
             return;

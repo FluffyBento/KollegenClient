@@ -33,6 +33,10 @@ public class GlassToggle extends AbstractWidget {
     }
 
     public static void drawSwitch(GuiGraphicsExtractor g, float x, float y, float w, float h, float t, float hov) {
+        if (UiStyleManager.isMinecraftStyle()) {
+            Glass.drawMinecraftSwitch(g, (int) x, (int) y, (int) w, (int) h, t, hov);
+            return;
+        }
         float r = h / 2.0f;
         int off = Glass.a(Palette.PANEL2, 0.9f);
         int offTop = Glass.mix(off, 0xFFFFFFFF, 0.08f);
@@ -40,7 +44,6 @@ public class GlassToggle extends AbstractWidget {
         Glass.ring(g, x, y, w, h, r, 0.5f, Glass.mixA(0x38FFFFFF, 0x66FFFFFF, t));
         float kr = r - 2.0f;
         float kx = x + 2.0f + kr + (w - 4.0f - kr * 2) * t;
-        // PERF: Knopf-Schatten weggelassen (4 weiche Layer pro Switch pro Frame).
         Glass.disc(g, kx, y + r, kr + hov * 0.6f, 0xFFFFFFFF);
     }
 
