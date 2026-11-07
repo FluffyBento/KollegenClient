@@ -23,6 +23,18 @@ public final class SkinCapeTextureManager {
     private static final Map<String, Identifier> CACHE = new ConcurrentHashMap<>();
     public static final Map<String, int[]> DIMS = new ConcurrentHashMap<>();
     private static final Set<String> PENDING = ConcurrentHashMap.newKeySet();
+    private static final Map<Identifier, DynamicTexture> PENDING_REGISTRATIONS = new ConcurrentHashMap<>();
+
+    public static void ensureRegistered(Identifier id) {
+        if (id == null) return;
+        DynamicTexture dt = PENDING_REGISTRATIONS.remove(id);
+        if (dt != null) {
+            Minecraft mc = Minecraft.getInstance();
+            if (mc != null && mc.getTextureManager() != null) {
+                mc.getTextureManager().register(id, dt);
+            }
+        }
+    }
 
     public static final class AnimatedCape {
         public final java.util.List<Identifier> frames;
@@ -35,11 +47,17 @@ public final class SkinCapeTextureManager {
 
         public Identifier getCurrentFrame() {
             if (frames.isEmpty()) return null;
-            if (frames.size() == 1) return frames.get(0);
-            long now = System.currentTimeMillis();
-            long frameMs = 1000L / fps;
-            int idx = (int) ((now / frameMs) % frames.size());
-            return frames.get(idx);
+            Identifier id;
+            if (frames.size() == 1) {
+                id = frames.get(0);
+            } else {
+                long now = System.currentTimeMillis();
+                long frameMs = 1000L / fps;
+                int idx = (int) ((now / frameMs) % frames.size());
+                id = frames.get(idx);
+            }
+            ensureRegistered(id);
+            return id;
         }
     }
 
@@ -83,10 +101,14 @@ public final class SkinCapeTextureManager {
                     int frameIndex = i;
                     Identifier id = Identifier.tryParse("kollegen:cape_" + safeId + "_f" + frameIndex);
                     DynamicTexture tex = new DynamicTexture(() -> "cape_" + safeId + "_f" + frameIndex, img);
+                    PENDING_REGISTRATIONS.put(id, tex);
                     if (mc != null) {
                         mc.execute(() -> {
                             if (mc.getTextureManager() != null) {
-                                mc.getTextureManager().register(id, tex);
+                                DynamicTexture t = PENDING_REGISTRATIONS.remove(id);
+                                if (t != null) {
+                                    mc.getTextureManager().register(id, t);
+                                }
                             }
                         });
                     }
@@ -103,7 +125,65 @@ public final class SkinCapeTextureManager {
             ANIMATED_CAPES.put(capeId, anim);
             CACHE.put("cape_" + safeId, ids.get(0));
             CACHE.put("cape_" + capeId, ids.get(0));
+            CACHE.put(safeId, ids.get(0));
+            CACHE.put(capeId, ids.get(0));
         }
+    }
+
+    public static Identifier registerStaticCape(String capeId, String rawData) {
+        if (capeId == null || capeId.isEmpty() || "none".equalsIgnoreCase(capeId) || rawData == null || rawData.isEmpty()) {
+            return null;
+        }
+        String safeId = capeId.toLowerCase(java.util.Locale.ROOT).replaceAll("[^a-z0-9_.-]", "_");
+        Identifier existing = CACHE.get("cape_" + safeId);
+        if (existing == null) existing = CACHE.get("cape_" + capeId);
+        if (existing == null) existing = CACHE.get(safeId);
+        if (existing == null) existing = CACHE.get(capeId);
+        if (existing != null) {
+            ensureRegistered(existing);
+            return existing;
+        }
+        try {
+            byte[] bytes = null;
+            if (rawData.startsWith("data:image/")) {
+                int comma = rawData.indexOf(',');
+                if (comma > 0) {
+                    bytes = Base64.getDecoder().decode(rawData.substring(comma + 1));
+                }
+            } else if (!rawData.startsWith("http") && !rawData.startsWith("kollegen:")) {
+                Path p = Path.of(rawData);
+                if (Files.exists(p)) {
+                    bytes = Files.readAllBytes(p);
+                }
+            }
+            if (bytes != null && bytes.length > 0) {
+                NativeImage img = NativeImage.read(bytes);
+                int[] dims = new int[]{img.getWidth(), img.getHeight()};
+                DIMS.put("cape_" + safeId, dims);
+                DIMS.put("cape_" + capeId, dims);
+                Identifier id = Identifier.tryParse("kollegen:cape_" + safeId);
+                DynamicTexture tex = new DynamicTexture(() -> "cape_" + safeId, img);
+                PENDING_REGISTRATIONS.put(id, tex);
+                Minecraft mc = Minecraft.getInstance();
+                if (mc != null) {
+                    mc.execute(() -> {
+                        if (mc.getTextureManager() != null) {
+                            DynamicTexture t = PENDING_REGISTRATIONS.remove(id);
+                            if (t != null) {
+                                mc.getTextureManager().register(id, t);
+                            }
+                        }
+                    });
+                }
+                CACHE.put("cape_" + safeId, id);
+                CACHE.put("cape_" + capeId, id);
+                CACHE.put(safeId, id);
+                CACHE.put(capeId, id);
+                return id;
+            }
+        } catch (Throwable ignored) {
+        }
+        return getOrLoadCape(capeId, rawData);
     }
 
     public static boolean isAnimatedCape(String capeId) {
@@ -181,11 +261,16 @@ public final class SkinCapeTextureManager {
             return anim.getCurrentFrame();
         }
 
-        String key = "cape_" + capeId;
-        Identifier hit = CACHE.get(key);
+        Identifier hit = CACHE.get("cape_" + safeId);
+        if (hit == null) hit = CACHE.get("cape_" + capeId);
+        if (hit == null) hit = CACHE.get(safeId);
+        if (hit == null) hit = CACHE.get(capeId);
         if (hit != null) {
+            ensureRegistered(hit);
             return hit;
         }
+
+        String key = "cape_" + capeId;
 
         try {
             byte[] bytes = null;
@@ -205,8 +290,16 @@ public final class SkinCapeTextureManager {
                 DIMS.put(key, new int[]{img.getWidth(), img.getHeight()});
                 Identifier id = Identifier.tryParse("kollegen:cape_" + safeId);
                 DynamicTexture tex = new DynamicTexture(() -> "cape_" + capeId, img);
-                Minecraft.getInstance().getTextureManager().register(id, tex);
+                PENDING_REGISTRATIONS.put(id, tex);
+                Minecraft mc = Minecraft.getInstance();
+                if (mc != null && mc.getTextureManager() != null) {
+                    mc.getTextureManager().register(id, tex);
+                    PENDING_REGISTRATIONS.remove(id);
+                }
                 CACHE.put(key, id);
+                CACHE.put("cape_" + safeId, id);
+                CACHE.put(safeId, id);
+                CACHE.put(capeId, id);
                 return id;
             }
         } catch (Throwable ignored) {

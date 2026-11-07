@@ -2767,13 +2767,19 @@ public class KollegenMenuScreen extends Screen {
         } else {
             this.inGameActiveCape = capeId;
             String capeAuthor = str(d, "author", null);
-            if (d.has("frames") && d.get("frames").isJsonArray()) {
+            if (d.has("frames") && d.get("frames").isJsonArray() && d.getAsJsonArray("frames").size() > 0) {
                 java.util.List<String> fl = new java.util.ArrayList<>();
                 for (JsonElement fe : d.getAsJsonArray("frames")) {
                     if (fe.isJsonPrimitive()) fl.add(fe.getAsString());
                 }
                 int fps = d.has("fps") && !d.get("fps").isJsonNull() ? d.get("fps").getAsInt() : 10;
                 SkinCapeTextureManager.registerAnimatedCape(capeId, fl, fps);
+            } else {
+                String raw = capeTex;
+                if (raw.isEmpty()) raw = str(d, "preview", "");
+                if (!raw.isEmpty()) {
+                    SkinCapeTextureManager.registerStaticCape(capeId, raw);
+                }
             }
             KollegenPresence.setLocalCape(capeId, capeModel, capeAuthor);
             if ("gekauft".equalsIgnoreCase(cat) || "store".equalsIgnoreCase(cat)) {

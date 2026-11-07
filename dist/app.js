@@ -628,9 +628,9 @@ function bindHomeControls() {
   const create = $("homeCreateBtn");
   if (create) create.onclick = () => switchTab("create");
   const skinBtn = $("homeSkinOpen");
-  if (skinBtn) skinBtn.onclick = () => switchTab("skins");
+  if (skinBtn) skinBtn.onclick = () => { switchAppearanceSubTab("skins"); switchTab("appearance"); };
   const capeBtn = $("homeCapeOpen");
-  if (capeBtn) capeBtn.onclick = () => switchTab("capes");
+  if (capeBtn) capeBtn.onclick = () => { switchAppearanceSubTab("capes"); switchTab("appearance"); };
   const inviteBtn = $("homeInviteBtn");
   if (inviteBtn) {
     inviteBtn.onclick = async () => {
@@ -3869,24 +3869,22 @@ applySavedTheme()
       else p.setAttribute("hidden", "");
     });
     if (document.body.classList.contains("console-mode")) kcSyncTabs(name);
-    if (name === "skins") {
-      loadSkinsLibrary();
+    if (name === "appearance") {
+      const activeApt = document.querySelector(".appearance-tab.active");
+      const activeSubName = activeApt ? activeApt.dataset.apt : "skins";
+      if (activeSubName === "skins") loadSkinsLibrary();
+      if (activeSubName === "capes") loadCapesView();
     }
-    if (name === "capes") {
-      loadCapesView();
-    }
-    if (name !== "skins" && typeof disposeAllSkinViewers === "function") {
+    if (name !== "appearance" && typeof disposeAllSkinViewers === "function") {
       disposeAllSkinViewers();
     }
-    if (name !== "capes" && typeof clearCapeAnimTimers === "function") {
+    if (name !== "appearance" && typeof clearCapeAnimTimers === "function") {
       clearCapeAnimTimers();
     }
-    if (name !== "capes" && typeof disposeAllCapeViewers === "function") {
+    if (name !== "appearance" && typeof disposeAllCapeViewers === "function") {
       disposeAllCapeViewers();
     }
     if (name === "home") {
-      // Der Skin-Viewer wird beim Start ggf. erzeugt, bevor das Panel sichtbar
-      // ist. Beim Tabwechsel nachladen, damit WebGL-Kontext und Canvas stimmen.
       loadHomeSkin(true);
     }
     if (name === "socials") {
@@ -3896,7 +3894,10 @@ applySavedTheme()
     if (name === "store" && window.renderKollegenStore) {
       try { window.renderKollegenStore(); } catch (e) {}
     }
-    if (name === "cosmetics") {
+    if (name === "appearance") {
+      const activeApt2 = document.querySelector(".appearance-tab.active");
+      const activeSubName2 = activeApt2 ? activeApt2.dataset.apt : "cosmetics";
+      if (activeSubName2 === "cosmetics") {
       try {
         const p = window.renderCosmetics();
         if (p && p.catch) p.catch((e) => {
@@ -3907,6 +3908,7 @@ applySavedTheme()
         const bx3 = $("cosmOwned");
         if (bx3) bx3.innerHTML = '<div class="store-msg">Fehler: ' + String((e && e.message) || e) + '</div>';
       }
+      }
     }
     if (name === "home" && document.body.classList.contains("console-mode")) {
       renderConsoleHome();
@@ -3914,7 +3916,7 @@ applySavedTheme()
     if (name === "support" && typeof renderConsoleSupport === "function") {
       try { renderConsoleSupport(); } catch (e) { console.error(e); }
     }
-    if (name !== "cosmetics" && typeof disposeCosmSkinViewer === "function") {
+    if (name !== "appearance" && typeof disposeCosmSkinViewer === "function") {
       disposeCosmSkinViewer();
     }
     if (name !== "profile" && typeof disposeProfileSkinViewer === "function") {
@@ -3928,6 +3930,35 @@ applySavedTheme()
       switchTab(l.dataset.tab);
     });
   });
+
+function switchAppearanceSubTab(aptName) {
+  document.querySelectorAll(".appearance-tab[data-apt]").forEach((btn) => {
+    const on = btn.dataset.apt === aptName;
+    btn.classList.toggle("active", on);
+    btn.setAttribute("aria-selected", String(on));
+  });
+  document.querySelectorAll(".appearance-subpanel[data-apt]").forEach((panel) => {
+    const on = panel.dataset.apt === aptName;
+    panel.classList.toggle("active", on);
+    if (on) panel.removeAttribute("hidden");
+    else panel.setAttribute("hidden", "");
+  });
+  if (aptName === "skins") loadSkinsLibrary();
+  if (aptName === "capes") loadCapesView();
+  if (aptName === "cosmetics") {
+    try {
+      const p = window.renderCosmetics();
+      if (p && p.catch) p.catch(() => {});
+    } catch (_) {}
+  }
+  if (aptName !== "skins" && typeof disposeAllSkinViewers === "function") disposeAllSkinViewers();
+  if (aptName !== "capes" && typeof clearCapeAnimTimers === "function") clearCapeAnimTimers();
+  if (aptName !== "capes" && typeof disposeAllCapeViewers === "function") disposeAllCapeViewers();
+  if (aptName !== "cosmetics" && typeof disposeCosmSkinViewer === "function") disposeCosmSkinViewer();
+}
+document.querySelectorAll(".appearance-tab[data-apt]").forEach((btn) => {
+  btn.addEventListener("click", () => switchAppearanceSubTab(btn.dataset.apt));
+});
 $("profileWidget").onclick = () => openProfileModal();
 const openProfileBtn = $("openProfileBtn");
 if (openProfileBtn) openProfileBtn.onclick = () => openProfileModal();

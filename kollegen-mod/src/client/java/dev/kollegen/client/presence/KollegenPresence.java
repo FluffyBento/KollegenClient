@@ -31,12 +31,31 @@ public final class KollegenPresence {
     private static volatile boolean registered = false;
     private static volatile UUID selfId = null;
     private static volatile String selfName = null;
+    private static volatile CosmeticData localCapeData = null;
+    private static volatile boolean localCapeLoaded = false;
+    private static long lastCapeConfigModified = -1L;
     public static volatile String dbgRender = "init";
     private static final HttpClient HTTP = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(5))
             .build();
 
     private KollegenPresence() {
+    }
+
+    public static UUID getSelfId() {
+        if (selfId != null) return selfId;
+        Minecraft mc = Minecraft.getInstance();
+        if (mc != null) {
+            if (mc.player != null) {
+                selfId = mc.player.getUUID();
+                return selfId;
+            }
+            if (mc.getUser() != null) {
+                selfId = mc.getUser().getProfileId();
+                return selfId;
+            }
+        }
+        return null;
     }
 
     private static long lastSignalSeen = 0;
@@ -46,11 +65,26 @@ public final class KollegenPresence {
         try {
             if ((signalTickCounter++ % 20) != 0) return;
             Path p = FabricLoader.getInstance().getConfigDir().resolve("kollegen-refresh.txt");
-            if (!Files.exists(p)) return;
-            long m = Files.getLastModifiedTime(p).toMillis();
-            if (m > lastSignalSeen) {
-                lastSignalSeen = m;
-                refreshAsync();
+            if (Files.exists(p)) {
+                long m = Files.getLastModifiedTime(p).toMillis();
+                if (m > lastSignalSeen) {
+                    lastSignalSeen = m;
+                    refreshAsync();
+                }
+            }
+            Path cp = FabricLoader.getInstance().getConfigDir().resolve("kollegen-cape.json");
+            if (!Files.exists(cp)) {
+                String home = System.getProperty("user.home", "");
+                Path lp = Path.of(home, ".local", "share", "kollegenclient", "capes", "kollegen-cape.json");
+                if (Files.exists(lp)) cp = lp;
+            }
+            if (Files.exists(cp)) {
+                long cm = Files.getLastModifiedTime(cp).toMillis();
+                UUID self = getSelfId();
+                boolean hasCape = (self != null && COSMETICS.containsKey(self) && COSMETICS.get(self).capeTexture != null);
+                if (cm != lastCapeConfigModified || !hasCape) {
+                    loadLocalCapeConfig();
+                }
             }
         } catch (Throwable ignored) {
         }
@@ -79,7 +113,43 @@ public final class KollegenPresence {
     }
 
     public static CosmeticData getCosmetics(UUID id) {
-        return id == null ? null : COSMETICS.get(id);
+        if (id == null) return null;
+        UUID self = getSelfId();
+        if (self != null && id.equals(self)) {
+            if (!localCapeLoaded) {
+                loadLocalCapeConfig();
+            }
+            CosmeticData cur = COSMETICS.get(id);
+            if (cur != null && cur.capeTexture != null) {
+                return cur;
+            }
+            if (localCapeData != null) {
+                if (cur != null) {
+                    CosmeticData merged = new CosmeticData(
+                        cur.level, cur.titleText, cur.titleColor, cur.nameColor,
+                        cur.badgeIcon, cur.badgeColor, cur.stickerIcon, cur.stickerColor,
+                        cur.font, cur.petKind, cur.petScale, cur.petMode,
+                        cur.petName, cur.petNameColor, cur.petVariant,
+                        localCapeData.capeTexture, localCapeData.capeModel, localCapeData.capeOwner,
+                        cur.backAccessoryTexture, cur.backAccessoryModel,
+                        cur.headAccessoryTexture, cur.headAccessoryModel,
+                        cur.shieldTexture, cur.shieldModel,
+                        cur.faceAccessoryTexture, cur.faceAccessoryModel,
+                        cur.auraTexture, cur.auraModel,
+                        cur.shoulderAccessoryTexture, cur.shoulderAccessoryModel,
+                        cur.torsoAccessoryTexture, cur.torsoAccessoryModel,
+                        cur.legsAccessoryTexture, cur.legsAccessoryModel,
+                        cur.glovesTexture, cur.glovesModel,
+                        cur.maceTexture, cur.maceModel
+                    );
+                    COSMETICS.put(id, merged);
+                    return merged;
+                }
+                COSMETICS.put(id, localCapeData);
+                return localCapeData;
+            }
+        }
+        return COSMETICS.get(id);
     }
 
     public static void setLocalCape(String texture) {
@@ -91,11 +161,8 @@ public final class KollegenPresence {
     }
 
     public static void setLocalCape(String texture, String model, String capeOwner) {
-        Minecraft mc = Minecraft.getInstance();
-        UUID id = selfId != null ? selfId : (mc.player != null ? mc.player.getUUID() : null);
-        if (id == null) return;
-        selfId = id;
-        CosmeticData old = COSMETICS.get(id);
+        UUID id = getSelfId();
+        CosmeticData old = (id != null) ? COSMETICS.get(id) : localCapeData;
         String resolvedModel = model;
         if ((resolvedModel == null || resolvedModel.isEmpty()) && texture != null) {
             String lower = texture.toLowerCase(java.util.Locale.ROOT);
@@ -160,8 +227,11 @@ public final class KollegenPresence {
             old != null ? old.maceTexture : null,
             old != null ? old.maceModel : null
         );
-        COSMETICS.put(id, updated);
-        USERS.add(id);
+        localCapeData = updated;
+        if (id != null) {
+            COSMETICS.put(id, updated);
+            USERS.add(id);
+        }
     }
 
     
@@ -226,8 +296,6 @@ public final class KollegenPresence {
     public static void leave() {
         if (!registered) return;
         registered = false;
-        selfId = null;
-        selfName = null;
         syncServerPresence(null, null);
         Minecraft mc = Minecraft.getInstance();
         UUID id = mc.player != null ? mc.player.getUUID() : null;
@@ -247,6 +315,7 @@ public final class KollegenPresence {
         } catch (Throwable ignored) {
         }
         dbgRender = "init";
+        loadLocalCapeConfig();
     }
 
     private static UUID parseUuid(String s) {
@@ -277,6 +346,10 @@ public final class KollegenPresence {
             JsonElement e = JsonParser.parseString(res.body());
             if (!e.isJsonArray()) return;
             JsonArray arr = e.getAsJsonArray();
+            UUID self = getSelfId();
+            CosmeticData localBefore = (self != null) ? COSMETICS.get(self) : localCapeData;
+            if (localBefore == null) localBefore = localCapeData;
+
             USERS.clear();
             COSMETICS.clear();
             Minecraft mc = Minecraft.getInstance();
@@ -301,72 +374,116 @@ public final class KollegenPresence {
                     }
                 }
             }
+            if (self != null && localBefore != null) {
+                CosmeticData serverCos = COSMETICS.get(self);
+                if (serverCos != null) {
+                    CosmeticData merged = new CosmeticData(
+                        serverCos.level, serverCos.titleText, serverCos.titleColor, serverCos.nameColor,
+                        serverCos.badgeIcon, serverCos.badgeColor, serverCos.stickerIcon, serverCos.stickerColor,
+                        serverCos.font, serverCos.petKind, serverCos.petScale, serverCos.petMode,
+                        serverCos.petName, serverCos.petNameColor, serverCos.petVariant,
+                        localBefore.capeTexture != null ? localBefore.capeTexture : serverCos.capeTexture,
+                        localBefore.capeModel != null ? localBefore.capeModel : serverCos.capeModel,
+                        localBefore.capeOwner != null ? localBefore.capeOwner : serverCos.capeOwner,
+                        serverCos.backAccessoryTexture, serverCos.backAccessoryModel,
+                        serverCos.headAccessoryTexture, serverCos.headAccessoryModel,
+                        serverCos.shieldTexture, serverCos.shieldModel,
+                        serverCos.faceAccessoryTexture, serverCos.faceAccessoryModel,
+                        serverCos.auraTexture, serverCos.auraModel,
+                        serverCos.shoulderAccessoryTexture, serverCos.shoulderAccessoryModel,
+                        serverCos.torsoAccessoryTexture, serverCos.torsoAccessoryModel,
+                        serverCos.legsAccessoryTexture, serverCos.legsAccessoryModel,
+                        serverCos.glovesTexture, serverCos.glovesModel,
+                        serverCos.maceTexture, serverCos.maceModel
+                    );
+                    COSMETICS.put(self, merged);
+                } else {
+                    COSMETICS.put(self, localBefore);
+                }
+                USERS.add(self);
+            }
             loadLocalCapeConfig();
         } catch (Throwable ignored) {
         }
     }
 
-    private static long lastCapeConfigModified = -1L;
-
     public static void loadLocalCapeConfig() {
         try {
-            Minecraft mc = Minecraft.getInstance();
-            UUID id = selfId != null ? selfId : (mc.player != null ? mc.player.getUUID() : null);
-            if (id == null) return;
             Path p = FabricLoader.getInstance().getConfigDir().resolve("kollegen-cape.json");
             if (!Files.exists(p)) {
                 String home = System.getProperty("user.home", "");
                 Path lp = Path.of(home, ".local", "share", "kollegenclient", "capes", "kollegen-cape.json");
                 if (Files.exists(lp)) p = lp;
             }
-            if (Files.exists(p)) {
-                try {
-                    long mtime = Files.getLastModifiedTime(p).toMillis();
-                    if (mtime == lastCapeConfigModified) return;
-                    lastCapeConfigModified = mtime;
-                } catch (Throwable ignored) {
-                }
-                JsonObject o = JsonParser.parseString(Files.readString(p)).getAsJsonObject();
-                if (o.has("all_capes") && o.get("all_capes").isJsonArray()) {
-                    for (JsonElement el : o.getAsJsonArray("all_capes")) {
-                        if (el.isJsonObject()) {
-                            JsonObject ac = el.getAsJsonObject();
+            if (!Files.exists(p)) return;
+
+            long mtime = -1L;
+            try {
+                mtime = Files.getLastModifiedTime(p).toMillis();
+            } catch (Throwable ignored) {
+            }
+
+            UUID self = getSelfId();
+            boolean hasCapeInCosmetics = (self != null && COSMETICS.containsKey(self) && COSMETICS.get(self).capeTexture != null);
+
+            if (mtime == lastCapeConfigModified && localCapeLoaded && hasCapeInCosmetics) {
+                return;
+            }
+
+            String s = Files.readString(p);
+            JsonObject o = JsonParser.parseString(s).getAsJsonObject();
+            lastCapeConfigModified = mtime;
+            localCapeLoaded = true;
+
+            if (o.has("all_capes") && o.get("all_capes").isJsonArray()) {
+                for (JsonElement el : o.getAsJsonArray("all_capes")) {
+                    if (el.isJsonObject()) {
+                        JsonObject ac = el.getAsJsonObject();
+                        String cid = ac.has("id") && !ac.get("id").isJsonNull() ? ac.get("id").getAsString() : "";
+                        if (!cid.isEmpty()) {
                             if (ac.has("frames") && ac.get("frames").isJsonArray() && ac.getAsJsonArray("frames").size() > 0) {
-                                String cid = ac.has("id") && !ac.get("id").isJsonNull() ? ac.get("id").getAsString() : "";
-                                if (!cid.isEmpty()) {
-                                    java.util.List<String> fl = new java.util.ArrayList<>();
-                                    for (JsonElement fe : ac.getAsJsonArray("frames")) {
-                                        if (fe.isJsonPrimitive()) fl.add(fe.getAsString());
-                                    }
-                                    int fps = ac.has("fps") && !ac.get("fps").isJsonNull() ? ac.get("fps").getAsInt() : 10;
-                                    SkinCapeTextureManager.registerAnimatedCape(cid, fl, fps);
+                                java.util.List<String> fl = new java.util.ArrayList<>();
+                                for (JsonElement fe : ac.getAsJsonArray("frames")) {
+                                    if (fe.isJsonPrimitive()) fl.add(fe.getAsString());
+                                }
+                                int fps = ac.has("fps") && !ac.get("fps").isJsonNull() ? ac.get("fps").getAsInt() : 10;
+                                SkinCapeTextureManager.registerAnimatedCape(cid, fl, fps);
+                            } else {
+                                String raw = ac.has("texture") && !ac.get("texture").isJsonNull() ? ac.get("texture").getAsString() : (ac.has("preview") && !ac.get("preview").isJsonNull() ? ac.get("preview").getAsString() : null);
+                                if (raw != null && !raw.isEmpty()) {
+                                    SkinCapeTextureManager.registerStaticCape(cid, raw);
                                 }
                             }
                         }
                     }
                 }
-                if (o.has("active") && !o.get("active").isJsonNull()) {
-                    String activeId = o.get("active").getAsString();
-                    if ("none".equalsIgnoreCase(activeId) || activeId.isEmpty()) {
-                        setLocalCape(null, null);
-                    } else if (o.has("cape") && o.get("cape").isJsonObject()) {
-                        JsonObject c = o.getAsJsonObject("cape");
-                        String capeId = c.has("id") && !c.get("id").isJsonNull() ? c.get("id").getAsString() : activeId;
-                        if (c.has("frames") && c.get("frames").isJsonArray() && c.getAsJsonArray("frames").size() > 0) {
-                            java.util.List<String> fl = new java.util.ArrayList<>();
-                            for (JsonElement fe : c.getAsJsonArray("frames")) {
-                                if (fe.isJsonPrimitive()) fl.add(fe.getAsString());
-                            }
-                            int fps = c.has("fps") && !c.get("fps").isJsonNull() ? c.get("fps").getAsInt() : 10;
-                            SkinCapeTextureManager.registerAnimatedCape(capeId, fl, fps);
+            }
+            if (o.has("active") && !o.get("active").isJsonNull()) {
+                String activeId = o.get("active").getAsString();
+                if ("none".equalsIgnoreCase(activeId) || activeId.isEmpty()) {
+                    setLocalCape(null, null, null);
+                } else if (o.has("cape") && o.get("cape").isJsonObject()) {
+                    JsonObject c = o.getAsJsonObject("cape");
+                    String capeId = c.has("id") && !c.get("id").isJsonNull() ? c.get("id").getAsString() : activeId;
+                    if (c.has("frames") && c.get("frames").isJsonArray() && c.getAsJsonArray("frames").size() > 0) {
+                        java.util.List<String> fl = new java.util.ArrayList<>();
+                        for (JsonElement fe : c.getAsJsonArray("frames")) {
+                            if (fe.isJsonPrimitive()) fl.add(fe.getAsString());
                         }
-                        String tex = capeId;
-                        String model = c.has("model") && !c.get("model").isJsonNull() ? c.get("model").getAsString() : null;
-                        String author = c.has("creator") && !c.get("creator").isJsonNull() ? c.get("creator").getAsString() : (c.has("author") && !c.get("author").isJsonNull() ? c.get("author").getAsString() : null);
-                        setLocalCape(tex, model, author);
+                        int fps = c.has("fps") && !c.get("fps").isJsonNull() ? c.get("fps").getAsInt() : 10;
+                        SkinCapeTextureManager.registerAnimatedCape(capeId, fl, fps);
                     } else {
-                        setLocalCape(activeId, null);
+                        String raw = c.has("texture") && !c.get("texture").isJsonNull() ? c.get("texture").getAsString() : (c.has("preview") && !c.get("preview").isJsonNull() ? c.get("preview").getAsString() : null);
+                        if (raw != null && !raw.isEmpty()) {
+                            SkinCapeTextureManager.registerStaticCape(capeId, raw);
+                        }
                     }
+                    String tex = capeId;
+                    String model = c.has("model") && !c.get("model").isJsonNull() ? c.get("model").getAsString() : null;
+                    String author = c.has("creator") && !c.get("creator").isJsonNull() ? c.get("creator").getAsString() : (c.has("author") && !c.get("author").isJsonNull() ? c.get("author").getAsString() : null);
+                    setLocalCape(tex, model, author);
+                } else {
+                    setLocalCape(activeId, null, null);
                 }
             }
         } catch (Throwable ignored) {

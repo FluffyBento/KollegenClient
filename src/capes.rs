@@ -595,6 +595,7 @@ pub fn sync_active_cape_to_instances(data_dir: &Path, store: &CapeStoreData, act
         let cfg = inst_dir.join("config");
         let _ = std::fs::create_dir_all(&cfg);
         let _ = std::fs::write(cfg.join("kollegen-cape.json"), &json_str);
+        let _ = std::fs::write(cfg.join("kollegen-refresh.txt"), now_millis().to_string());
     }
 }
 

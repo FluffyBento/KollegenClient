@@ -22,8 +22,6 @@
         </div>
       </div>
       <button id="authBtn" class="btn-secondary">Mit Microsoft anmelden</button>
-      <img id="accountHead" class="account-head" alt="" hidden="">
-      <span id="authStatus" class="auth-status">nicht angemeldet</span>
       <button id="settingsBtn" class="icon-btn" title="Einstellungen" aria-label="Einstellungen"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"></path><circle cx="15" cy="6" r="2"></circle><circle cx="9" cy="12" r="2"></circle><circle cx="17" cy="18" r="2"></circle></svg></button>
     </div>
   </header>
@@ -52,18 +50,12 @@
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path><path d="M3 6h18"></path><path d="M16 10a4 4 0 0 1-8 0"></path></svg>
         <span class="side-label">Store</span>
       </button>
-      <button class="sidebar-link" data-tab="skins" title="Skins" id="skinsBtn">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="M8 14s1.5 2 4 2 4-2 4-2"></path><line x1="9" y1="9" x2="9.01" y2="9"></line><line x1="15" y1="9" x2="15.01" y2="9"></line><path d="M12 16v1.5a1.5 1.5 0 0 0 3 0V16"></path></svg>
-        <span class="side-label">Skins</span>
-      </button>
-      <button class="sidebar-link" data-tab="capes" title="Capes" id="capesBtn">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path><path d="M3 6h18"></path><path d="M12 9v9"></path></svg>
-        <span class="side-label">Capes</span>
-      </button>
-      <button class="sidebar-link" data-tab="cosmetics" title="Kosmetika">
+      <div class="sidebar-group">Anpassen</div>
+      <button class="sidebar-link" data-tab="appearance" title="Aussehen" id="appearanceBtn">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"></path><path d="M19 15l.9 2.1L22 18l-2.1.9L19 21l-.9-2.1L16 18l2.1-.9z"></path></svg>
-        <span class="side-label">Kosmetika</span>
+        <span class="side-label">Aussehen</span>
       </button>
+      <div class="sidebar-group">System</div>
       <button class="sidebar-link" data-tab="logs" title="Logs" id="logsBtn">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"></path></svg>
         <span class="side-label">Logs</span>
@@ -308,98 +300,110 @@
       </div>
     </section>
 
-    <!-- SKINS LIBRARY PANEL (Image 2) -->
-    <section id="skinsPanel" class="tab-panel sx-page" data-tab="skins" aria-labelledby="skinsTitle" hidden="">
-      <div class="skins-header-bar">
-        <div class="skins-search-wrap">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-          <input type="text" id="skinsSearchInput" placeholder="Skins durchsuchen..." autocomplete="off">
-        </div>
-        <button id="addSkinTopBtn" class="add-skin-top-btn">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="9"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>
-          <span>SKIN HINZUFÜGEN</span>
+    <section id="appearancePanel" class="tab-panel sx-page" data-tab="appearance" aria-labelledby="appearanceTitle" hidden="">
+      <div class="sx-head">
+        <h2 id="appearanceTitle">Aussehen</h2>
+      </div>
+      <div class="appearance-tabs-nav" role="tablist">
+        <button class="appearance-tab active" data-apt="skins" role="tab" aria-selected="true">
+          <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="M8 14s1.5 2 4 2 4-2 4-2"></path><line x1="9" y1="9" x2="9.01" y2="9"></line><line x1="15" y1="9" x2="15.01" y2="9"></line></svg>
+          Skins
+        </button>
+        <button class="appearance-tab" data-apt="capes" role="tab" aria-selected="false">
+          <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path><path d="M3 6h18"></path><path d="M12 9v9"></path></svg>
+          Capes
+        </button>
+        <button class="appearance-tab" data-apt="cosmetics" role="tab" aria-selected="false">
+          <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"></path></svg>
+          Kosmetika
         </button>
       </div>
 
-      <div class="skins-grid-container" id="skinsGrid">
-        <div class="skin-card skin-card-add" id="cardAddNewSkin">
-          <div class="skin-card-silhouette">
-            <div class="skin-add-plus">
-              <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="3"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+      <div class="appearance-subpanel active" id="ap-skins" data-apt="skins">
+        <div class="skins-header-bar">
+          <div class="skins-search-wrap">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            <input type="text" id="skinsSearchInput" placeholder="Skins durchsuchen..." autocomplete="off">
+          </div>
+          <button id="addSkinTopBtn" class="add-skin-top-btn">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="9"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>
+            <span>SKIN HINZUFÜGEN</span>
+          </button>
+        </div>
+        <div class="skins-grid-container" id="skinsGrid">
+          <div class="skin-card skin-card-add" id="cardAddNewSkin">
+            <div class="skin-card-silhouette">
+              <div class="skin-add-plus">
+                <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="3"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+              </div>
+            </div>
+            <div class="skin-card-title">Neuen Skin hinzufügen</div>
+            <div class="skin-card-sub">
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+              Skin hochladen oder importieren
             </div>
           </div>
-          <div class="skin-card-title">Neuen Skin hinzufügen</div>
-          <div class="skin-card-sub">
-            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-            Skin hochladen oder importieren
+        </div>
+      </div>
+
+      <div class="appearance-subpanel" id="ap-capes" data-apt="capes" hidden="">
+        <div class="capes-category-tabs" role="tablist">
+          <button class="cape-cat-tab active" data-cat="community">COMMUNITY</button>
+          <button class="cape-cat-tab" data-cat="all">ALLE</button>
+          <button class="cape-cat-tab" data-cat="my_capes">MEINE CAPES</button>
+          <button class="cape-cat-tab" data-cat="gekauft">GEKAUFT</button>
+          <button class="cape-cat-tab" data-cat="vanilla">VANILLA</button>
+          <button id="capeFavToggleBtn" class="cape-cat-tab cape-fav-star-tab" title="Nur Favoriten anzeigen" style="margin-left: auto;">
+            <svg id="capeFavStarIco" class="star-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+            </svg>
+            <span id="capeFavLabel">FAVORITEN</span>
+          </button>
+        </div>
+        <div class="capes-toolbar">
+          <div class="capes-search-wrap">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            <input type="text" id="capesSearchInput" placeholder="Nach Name oder Ersteller suchen..." autocomplete="off">
+          </div>
+          <div class="capes-tool-right">
+            <button id="capeTemplateBtn" class="cape-action-btn">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+              <span>VORLAGE ▾</span>
+            </button>
+            <button id="capeUploadOpenBtn" class="cape-action-btn cape-upload-highlight">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+              <span>HOCHLADEN</span>
+            </button>
+          </div>
+        </div>
+        <div class="capes-grid" id="capesGrid">
+          <div class="cape-card cape-card-none" id="capeCardNone">
+            <div class="cape-none-icon">✕</div>
+            <div class="cape-card-name">Kein Umhang</div>
           </div>
         </div>
       </div>
-    </section>
 
-    <section id="capesPanel" class="tab-panel sx-page" data-tab="capes" aria-labelledby="capesTitle" hidden="">
-      <div class="capes-category-tabs" role="tablist">
-        <button class="cape-cat-tab active" data-cat="community">COMMUNITY</button>
-        <button class="cape-cat-tab" data-cat="all">ALLE</button>
-        <button class="cape-cat-tab" data-cat="my_capes">MEINE CAPES</button>
-        <button class="cape-cat-tab" data-cat="gekauft">GEKAUFT</button>
-        <button class="cape-cat-tab" data-cat="vanilla">VANILLA</button>
-        <button id="capeFavToggleBtn" class="cape-cat-tab cape-fav-star-tab" title="Nur Favoriten anzeigen" style="margin-left: auto;">
-          <svg id="capeFavStarIco" class="star-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
-          </svg>
-          <span id="capeFavLabel">FAVORITEN</span>
-        </button>
-      </div>
-
-      <div class="capes-toolbar">
-        <div class="capes-search-wrap">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-          <input type="text" id="capesSearchInput" placeholder="Nach Name oder Ersteller suchen..." autocomplete="off">
-        </div>
-        <div class="capes-tool-right">
-          <button id="capeTemplateBtn" class="cape-action-btn">
-            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-            <span>VORLAGE ▾</span>
-          </button>
-          <button id="capeUploadOpenBtn" class="cape-action-btn cape-upload-highlight">
-            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-            <span>HOCHLADEN</span>
-          </button>
-        </div>
-      </div>
-
-      <div class="capes-grid" id="capesGrid">
-        <div class="cape-card cape-card-none" id="capeCardNone">
-          <div class="cape-none-icon">✕</div>
-          <div class="cape-card-name">Kein Umhang</div>
-        </div>
-      </div>
-    </section>
-
-    <section id="cosmeticsPanel" class="tab-panel sx-page" data-tab="cosmetics" aria-labelledby="cosmeticsTitle" hidden="">
-      <div class="sx-head">
-        <h2 id="cosmeticsTitle">Kosmetika</h2>
-        <span class="sx-head-sub">Rüste aus, was du dir im Store geholt hast</span>
-      </div>
-      <div class="cosm-layout">
-        <div class="cosm-list">
-          <section class="sx-card" aria-label="Ausgerüstet im Spiel">
-            <div class="sx-card-head"><h3 class="sx-title">Ausgerüstet im Spiel</h3></div>
-            <div id="cosmEquipped" class="cosm-owned"><div class="store-msg">Lade …</div></div>
-          </section>
-          <section class="sx-card" aria-label="Deine Gegenstände">
-            <div class="sx-card-head"><h3 class="sx-title">Deine Gegenstände</h3></div>
-            <div id="cosmOwned" class="cosm-owned"><div class="store-msg">Lade …</div></div>
-          </section>
-          <section id="cosmPetBox" class="cosm-petbox sx-card" style="display:none;" aria-label="Haustiere">
-            <div class="pet-headrow"><h3 class="sx-title">Haustiere</h3><button id="cosmPetNone" class="pet-nonebtn" title="Kein Haustier ausrüsten">Keins</button></div>
-            <div id="cosmPetCards" class="cosm-petcards"></div>
-          </section>
-        </div>
-        <div class="cosm-preview">
-          <canvas id="cosmSkinCanvas" width="220" height="440"></canvas>
-          <div id="cosmNamePreview" class="cosm-namepreview">—</div>
+      <div class="appearance-subpanel" id="ap-cosmetics" data-apt="cosmetics" hidden="">
+        <div class="cosm-layout">
+          <div class="cosm-list">
+            <section class="sx-card" aria-label="Ausgerüstet im Spiel">
+              <div class="sx-card-head"><h3 class="sx-title">Ausgerüstet im Spiel</h3></div>
+              <div id="cosmEquipped" class="cosm-owned"><div class="store-msg">Lade …</div></div>
+            </section>
+            <section class="sx-card" aria-label="Deine Gegenstände">
+              <div class="sx-card-head"><h3 class="sx-title">Deine Gegenstände</h3></div>
+              <div id="cosmOwned" class="cosm-owned"><div class="store-msg">Lade …</div></div>
+            </section>
+            <section id="cosmPetBox" class="cosm-petbox sx-card" style="display:none;" aria-label="Haustiere">
+              <div class="pet-headrow"><h3 class="sx-title">Haustiere</h3><button id="cosmPetNone" class="pet-nonebtn" title="Kein Haustier ausrüsten">Keins</button></div>
+              <div id="cosmPetCards" class="cosm-petcards"></div>
+            </section>
+          </div>
+          <div class="cosm-preview">
+            <canvas id="cosmSkinCanvas" width="220" height="440"></canvas>
+            <div id="cosmNamePreview" class="cosm-namepreview">—</div>
+          </div>
         </div>
       </div>
     </section>
@@ -409,12 +413,6 @@
         <h2 id="profileTitle">Profil</h2>
       </header>
       <button id="openProfileModalBtn" class="btn-primary" style="width:100%; max-width:300px;">Profil öffnen &amp; bearbeiten</button>
-    </section>
-
-    <section id="supportPanel" class="panel tab-panel" data-tab="support" aria-labelledby="supportTitle" hidden="">
-      <header class="panel-header">
-        <h2 id="supportTitle">Support</h2>
-      </header>
     </section>
 
     <section id="logsPanel" class="panel tab-panel" data-tab="logs" aria-labelledby="logsTitle" hidden="">

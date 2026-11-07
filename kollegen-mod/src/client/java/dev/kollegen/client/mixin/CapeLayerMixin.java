@@ -7,6 +7,7 @@ import dev.kollegen.client.presence.CosmeticData;
 import dev.kollegen.client.presence.KollegenPresence;
 import dev.kollegen.client.presence.RenderStateIds;
 import dev.kollegen.client.render.WaveyCapeRenderer;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.model.HumanoidModel;
 import net.minecraft.client.model.player.PlayerCapeModel;
 import net.minecraft.client.renderer.SubmitNodeCollector;
@@ -47,6 +48,14 @@ public abstract class CapeLayerMixin {
             boolean hasArmor = chest != null && !chest.isEmpty() && chest.getItem() != Items.AIR;
 
             UUID id = RenderStateIds.get(state);
+            if (id == null) {
+                Minecraft mc = Minecraft.getInstance();
+                if (mc != null && mc.player != null) {
+                    id = mc.player.getUUID();
+                } else {
+                    id = KollegenPresence.getSelfId();
+                }
+            }
             CosmeticData data = id != null ? KollegenPresence.getCosmetics(id) : null;
             Identifier capeTexture = null;
 

@@ -2503,3 +2503,62 @@ body:not(.console-mode) .store-cats .tab.active::before {
   color: var(--accent);
 }
 
+
+.appearance-tabs-nav {
+  display: flex;
+  gap: 0.25rem;
+  margin-bottom: 1.25rem;
+  padding: 3px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  width: fit-content;
+}
+
+.appearance-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 1rem;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+  box-shadow: none;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.appearance-tab:hover:not(:disabled) {
+  background: var(--panel);
+  color: var(--text-primary);
+  transform: none;
+  box-shadow: none;
+}
+
+.appearance-tab.active {
+  background: var(--panel-elevated);
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.appearance-tab svg {
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.appearance-subpanel {
+  display: block;
+  animation: fadeIn var(--transition-fast);
+}
+
+.appearance-subpanel[hidden] {
+  display: none;
+}

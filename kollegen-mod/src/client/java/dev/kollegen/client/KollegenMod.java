@@ -39,6 +39,7 @@ public class KollegenMod implements ClientModInitializer {
         dev.kollegen.client.mods.modules.        RendererManager.apply();
         dev.kollegen.client.input.ControllerMode.init(); 
         KollegenRPC.start(); 
+        dev.kollegen.client.presence.KollegenPresence.loadLocalCapeConfig(); 
         
         LOGGER.info("Kollegen Client Mod initialisiert (Rechts-Shift = Menü).");
     }
