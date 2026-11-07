@@ -348,6 +348,14 @@ if (is262) {
                          .replace('com.mojang.renderpearl.api.commands.CommandEncoder', 'com.mojang.blaze3d.systems.CommandEncoder')
                          .replace('com.mojang.renderpearl.api.pipeline.RenderPipeline', 'com.mojang.blaze3d.pipeline.RenderPipeline')
                          .replace('com.mojang.renderpearl.api.textures.GpuTextureView', 'com.mojang.blaze3d.textures.GpuTextureView')
+                         .replace('server.publishServer(MinecraftServer.MultiplayerScope.LAN, allowCommands, port)', 'server.publishServer(MinecraftServer.MultiplayerScope.LAN, null, allowCommands, port)')
+                         .replace('bundle.itemCopies().toList()', 'bundle.itemCopyStream().toList()')
+                         .replace('InputConstants.isKeyDown(key)', 'InputConstants.isKeyDown(net.minecraft.client.Minecraft.getInstance().getWindow(), key)')
+                         .replace('InputConstants.isKeyDown(sdlKey)', 'InputConstants.isKeyDown(net.minecraft.client.Minecraft.getInstance().getWindow(), sdlKey)')
+                         .replace('InputConstants.isKeyDown(glfwKey)', 'InputConstants.isKeyDown(net.minecraft.client.Minecraft.getInstance().getWindow(), glfwKey)')
+                         .replace('poseStack.rotateDegrees(com.mojang.math.Axis.XP, rx)', 'poseStack.mulPose(com.mojang.math.Axis.XP.rotationDegrees(rx))')
+                         .replace('poseStack.rotateDegrees(com.mojang.math.Axis.YP, ry)', 'poseStack.mulPose(com.mojang.math.Axis.YP.rotationDegrees(ry))')
+                         .replace('poseStack.rotateDegrees(com.mojang.math.Axis.ZP, rz)', 'poseStack.mulPose(com.mojang.math.Axis.ZP.rotationDegrees(rz))')
                 }
                 if (project.minecraft_version.startsWith('26.3')) {
                     t = t.replace('import org.lwjgl.glfw.GLFW;', 'import dev.kollegen.client.input.sdl.GLFW;')
@@ -392,15 +400,13 @@ if (is262) {
                     exclude '**/EquipmentLayerRendererMixin.java'
                     exclude '**/PostShaderMixin.java'
                     exclude '**/SkyRendererMixin.java'
-                    exclude '**/ShieldSettings.java'
-                    exclude '**/CosmeticRenderLayer.java'
+                                        exclude '**/CosmeticRenderLayer.java'
                     exclude '**/WaveyCapeRenderer.java'
                     exclude '**/PlayerCosmeticsMixin.java'
                     exclude '**/ShieldLayerMixin.java'
                     exclude '**/ShieldSpecialRendererMixin.java'
                     exclude '**/ShieldStatusContext.java'
-                    exclude '**/Visual.java'
-                    exclude '**/FogRendererMixin.java'
+                                        exclude '**/FogRendererMixin.java'
                     exclude '**/GameRendererMixin.java'
                     exclude '**/MouseHandlerMixin.java'
                     exclude '**/ParticleEngineMixin.java'
@@ -517,7 +523,8 @@ def vendorModResource(String resourceRel, String slug, String urlOverride = null
 
 
 
-def sodiumTask = vendorModResource('dev/kollegen/client/sodium.bin', 'sodium')
+def sodiumUrl = project.minecraft_version == "26.3" ? 'https://cdn.modrinth.com/data/AANobbMI/versions/g6ju16VJ/sodium-fabric-0.9.3-beta.1%2Bmc26.3.jar' : null
+def sodiumTask = vendorModResource('dev/kollegen/client/sodium.bin', 'sodium', sodiumUrl)
 def irisTask = vendorModResource('dev/kollegen/client/iris.bin', 'iris')
 def berylTask = vendorModResource('dev/kollegen/client/beryl.bin', 'beryl')
 

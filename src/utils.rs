@@ -161,6 +161,12 @@ pub fn ensure_modrinth_mod(
     };
 
     let matching_version = versions.iter().find(|v| {
+        if slug == "sodium" && mc_version == "26.3" {
+            let ver_num = v.get("version_number").and_then(|vn| vn.as_str()).unwrap_or("");
+            if !ver_num.contains("0.9.3-beta.1") {
+                return false;
+            }
+        }
         v.get("game_versions")
             .and_then(|g| g.as_array())
             .map(|g| g.iter().any(|ver| ver.as_str() == Some(mc_version)))
