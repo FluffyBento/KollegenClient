@@ -11,10 +11,10 @@ import net.minecraft.network.chat.Component;
 public class TicTacToeScreen extends GameScreen {
     public static final String ID = "tictactoe";
 
-    private final int[] board = new int[9]; // 0 = leer, 1 = X (Spieler), 2 = O (KI/Gegner)
+    private final int[] board = new int[9];
     private int turn = 1;
-    private int winner = 0; // 0 = läuft, 1 = X gewinnt, 2 = O gewinnt, 3 = Unentschieden
-    private int[] winLine = null; // Indizes der 3 Gewinnfelder
+    private int winner = 0;
+    private int[] winLine = null;
 
     private int wins = 0;
     private int losses = 0;
@@ -42,9 +42,9 @@ public class TicTacToeScreen extends GameScreen {
 
     private void checkWin() {
         int[][] lines = {
-                {0, 1, 2}, {3, 4, 5}, {6, 7, 8}, // Horizontal
-                {0, 3, 6}, {1, 4, 7}, {2, 5, 8}, // Vertikal
-                {0, 4, 8}, {2, 4, 6}             // Diagonal
+                {0, 1, 2}, {3, 4, 5}, {6, 7, 8},
+                {0, 3, 6}, {1, 4, 7}, {2, 5, 8},
+                {0, 4, 8}, {2, 4, 6}
         };
 
         for (int[] l : lines) {
@@ -79,7 +79,6 @@ public class TicTacToeScreen extends GameScreen {
     private void aiMove() {
         if (winner != 0) return;
 
-        // 1. Kann die KI gewinnen?
         for (int i = 0; i < 9; i++) {
             if (board[i] == 0) {
                 board[i] = 2;
@@ -93,7 +92,6 @@ public class TicTacToeScreen extends GameScreen {
             }
         }
 
-        // 2. Muss die KI blocken?
         for (int i = 0; i < 9; i++) {
             if (board[i] == 0) {
                 board[i] = 1;
@@ -108,7 +106,6 @@ public class TicTacToeScreen extends GameScreen {
             }
         }
 
-        // 3. Mitte bevorzugen
         if (board[4] == 0 && Math.random() < 0.75) {
             board[4] = 2;
             turn = 1;
@@ -117,7 +114,6 @@ public class TicTacToeScreen extends GameScreen {
             return;
         }
 
-        // 4. Beliebiges freies Eckfeld
         int[] corners = {0, 2, 6, 8};
         for (int c : corners) {
             if (board[c] == 0 && Math.random() < 0.6) {
@@ -163,11 +159,9 @@ public class TicTacToeScreen extends GameScreen {
             float startX = this.px + (this.pw - gridW) / 2.0f;
             float startY = this.py + 44;
 
-            // Scoreboard
             String stats = String.format("§a%d Siege §8| §c%d Niederlagen §8| §7%d Remis", wins, losses, draws);
             Glass.textC(g, this.font, stats, Math.round(this.px + this.pw / 2.0f), Math.round(this.py + 32), Palette.MUTED, false);
 
-            // 3x3 Spielfeld
             for (int r = 0; r < 3; r++) {
                 for (int c = 0; c < 3; c++) {
                     int idx = r * 3 + c;
@@ -198,14 +192,14 @@ public class TicTacToeScreen extends GameScreen {
                     float midX = bx + pad + cw / 2.0f;
                     float midY = by + pad + ch / 2.0f;
 
-                    if (val == 1) { // X
+                    if (val == 1) {
                         float s = cw * 0.28f;
                         Glass.line(g, midX - s, midY - s, midX + s, midY + s, 3.5f, Palette.ACCENT);
                         Glass.line(g, midX + s, midY - s, midX - s, midY + s, 3.5f, Palette.ACCENT);
-                    } else if (val == 2) { // O
+                    } else if (val == 2) {
                         float rSize = cw * 0.56f;
                         Glass.ring(g, midX - rSize / 2.0f, midY - rSize / 2.0f, rSize, rSize, rSize / 2.0f, 3.5f, 0xFFE08238);
-                    } else if (hov && winner == 0) { // Vorschau
+                    } else if (hov && winner == 0) {
                         float s = cw * 0.20f;
                         int prevCol = Glass.a(Palette.ACCENT, 0.35f);
                         Glass.line(g, midX - s, midY - s, midX + s, midY + s, 2.0f, prevCol);
@@ -214,16 +208,13 @@ public class TicTacToeScreen extends GameScreen {
                 }
             }
 
-            // Steuerungs-Buttons unten
             float btnY = startY + gridW + 12;
             float btnW = (gridW - 10) / 2.0f;
 
-            // Button 1: Neues Spiel
             boolean hovNew = mx >= startX && mx <= startX + btnW && my >= btnY && my <= btnY + 24;
             Glass.pill(g, startX, btnY, btnW, 24, hovNew ? 1.0f : 0.0f, true, false);
             Glass.textC(g, this.font, "Neues Spiel", Math.round(startX + btnW / 2.0f), Math.round(btnY + 8), 0xFFFFFFFF, false);
 
-            // Button 2: Modus KI / 2-Spieler
             float btn2X = startX + btnW + 10;
             boolean hovMode = mx >= btn2X && mx <= btn2X + btnW && my >= btnY && my <= btnY + 24;
             Glass.pill(g, btn2X, btnY, btnW, 24, hovMode ? 1.0f : 0.0f, false, false);
@@ -251,7 +242,6 @@ public class TicTacToeScreen extends GameScreen {
             float startX = this.px + (this.pw - gridW) / 2.0f;
             float startY = this.py + 44;
 
-            // Klick auf Spielfeld
             if (winner == 0) {
                 for (int r = 0; r < 3; r++) {
                     for (int c = 0; c < 3; c++) {
@@ -280,7 +270,6 @@ public class TicTacToeScreen extends GameScreen {
                 }
             }
 
-            // Klick auf Buttons
             float btnY = startY + gridW + 12;
             float btnW = (gridW - 10) / 2.0f;
 
@@ -299,3 +288,4 @@ public class TicTacToeScreen extends GameScreen {
         return super.mouseClicked(event, bl);
     }
 }
+

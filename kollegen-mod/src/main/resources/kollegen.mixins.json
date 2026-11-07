@@ -76,7 +76,8 @@
     "TitleScreenMixin",
     "PauseScreenMixin",
     "PlayerModelMixin",
-    "LocalPlayerMixin"
+    "LocalPlayerMixin",
+    "ScreenshotMixin"
   ],
   "injectors": {
     "defaultRequire": 1

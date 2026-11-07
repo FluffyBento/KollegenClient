@@ -7,27 +7,14 @@ import net.minecraft.client.multiplayer.PlayerInfo;
 
 import java.util.function.Consumer;
 
-/**
- * Spiel-Kommunikation zwischen Kollegen auf demselben Server.
- *
- * Transport ist der Minecraft-Chat: die Zugehove tragen ein kurzes JSON mit
- * Prefix, das der Server ganz normal an alle Spieler weiterleitet. Damit
- * funktioniert der Austausch auf jedem Vanilla-Server ohne Server-Mod.
- * Die Nachrichten werden clientseitig aus dem Chat gefiltert (siehe GameNet.consume),
- * tauchen also nicht als Spam auf.
- *
- * Achtung: Chat laesst sich von jedem Spieler faelschen. Das ist fuer den
- * Freundeskreis-Acceptabel, aber kein sicherer Kanal.
- */
 public final class GameNet {
     public static final String PREFIX = "[KLG]";
-    /** Maximale Chatlaenge - wir halten die Nutzlast bewusst klein. */
+
     private static final int MAX_PAYLOAD = 180;
 
     private GameNet() {
     }
 
-    /** Aktueller Raum eines Spiels: nur Spieler auf demselben Server teilen ihn. */
     public static String room(String gameId) {
         String server = "?";
         try {
@@ -46,7 +33,6 @@ public final class GameNet {
         return gameId + "-" + Integer.toHexString(h & 0x7fffffff);
     }
 
-    /** Eigene Kurz-ID (UUID-Anfang), damit Zuege einem Spieler zugeordnet werden. */
     public static String meId() {
         try {
             Minecraft mc = Minecraft.getInstance();
@@ -68,7 +54,6 @@ public final class GameNet {
         }
     }
 
-    /** UUID eines Chat-Absenders ueber die Spielerliste (null = unbekannt). */
     public static String idOf(String name) {
         try {
             Minecraft mc = Minecraft.getInstance();
@@ -85,7 +70,6 @@ public final class GameNet {
         return null;
     }
 
-    /** Sendet eine Spiel-Nachricht. Gibt false zurueck, wenn sie nicht abging. */
     public static boolean send(JsonObject msg) {
         try {
             String payload = msg.toString();
@@ -112,12 +96,6 @@ public final class GameNet {
         return o;
     }
 
-    /**
-     * Prueft eine Chat-Nachricht auf Spiel-Nutzwert.
-     *
-     * @return true, wenn die Nachricht eine Spielnachricht war (und aus dem Chat
-     *         entfernt werden soll). Die Nutzlast wird an {@code sink} gereicht.
-     */
     public static boolean consume(String senderName, String text, Consumer<JsonObject> sink) {
         if (text == null || !text.startsWith(PREFIX)) {
             return false;
@@ -128,8 +106,7 @@ public final class GameNet {
                 return true;
             }
             JsonObject o = JsonParser.parseString(json).getAsJsonObject();
-            // Absender muss zu seiner behaupteten ID passen (grob, aber filtert
-            // die meisten faelschungen durch Zufall).
+
             String real = idOf(senderName);
             if (o.has("p") && real != null && !real.equals(o.get("p").getAsString())) {
                 return true;
@@ -140,24 +117,16 @@ public final class GameNet {
         return true;
     }
 
-    /** Entfernt unser Prefix, damit fremde Clients nichts Anzeigen. */
     public static String stripPrefix(String text) {
         return text.startsWith(PREFIX) ? text.substring(PREFIX.length()).trim() : text;
     }
 
-    /** Aktuell offene Multiplayer-Partie (empfaengt Netzwerk-Nachrichten). */
     private static volatile java.util.function.Consumer<JsonObject> sink = null;
 
     public static void setSink(java.util.function.Consumer<JsonObject> s) {
         sink = s;
     }
 
-    /**
-     * Zentrale Verteilung eingehender Chat-Nachrichten. Wird vom ChatMixin fuer
-     * jede Spielernachricht aufgerufen.
-     *
-     * @return true, wenn es eine Spielnachricht war (dann aus dem Chat entfernen)
-     */
     public static boolean handleChat(String senderName, Object[] args) {
         if (args == null) {
             return false;

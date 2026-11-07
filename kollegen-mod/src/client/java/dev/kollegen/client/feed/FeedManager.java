@@ -22,17 +22,29 @@ public final class FeedManager {
         public final String authorUuid;
         public final String caption;
         public final String serverTag;
+        public final String imagePath;
+        public final boolean isJustNow;
+        public final boolean isLate;
+        public final int coinsEarned;
+        public final int streakDay;
         public final long timestamp;
         public int likes;
         public boolean likedByMe;
         public final List<String> comments = new ArrayList<>();
 
-        public FeedPost(String id, String authorName, String authorUuid, String caption, String serverTag, long timestamp, int likes, boolean likedByMe) {
+        public FeedPost(String id, String authorName, String authorUuid, String caption, String serverTag,
+                        String imagePath, boolean isJustNow, boolean isLate, int coinsEarned, int streakDay,
+                        long timestamp, int likes, boolean likedByMe) {
             this.id = id;
             this.authorName = authorName;
             this.authorUuid = authorUuid;
             this.caption = caption;
             this.serverTag = serverTag;
+            this.imagePath = imagePath;
+            this.isJustNow = isJustNow;
+            this.isLate = isLate;
+            this.coinsEarned = coinsEarned;
+            this.streakDay = streakDay;
             this.timestamp = timestamp;
             this.likes = likes;
             this.likedByMe = likedByMe;
@@ -71,6 +83,15 @@ public final class FeedManager {
         return Collections.unmodifiableList(POSTS);
     }
 
+    public static synchronized List<FeedPost> getJustNowPosts() {
+        ensureLoaded();
+        List<FeedPost> list = new ArrayList<>();
+        for (FeedPost p : POSTS) {
+            if (p.isJustNow) list.add(p);
+        }
+        return list;
+    }
+
     public static synchronized void ensureLoaded() {
         if (loaded) return;
         loaded = true;
@@ -86,12 +107,18 @@ public final class FeedManager {
                     String id = o.get("id").getAsString();
                     String author = o.get("author").getAsString();
                     String uuid = o.has("uuid") ? o.get("uuid").getAsString() : "";
-                    String cap = o.get("caption").getAsString();
+                    String cap = o.has("caption") ? o.get("caption").getAsString() : "";
                     String srv = o.has("server") ? o.get("server").getAsString() : "Minecraft";
+                    String img = o.has("image") && !o.get("image").isJsonNull() ? o.get("image").getAsString() : null;
+                    boolean jn = o.has("isJustNow") && o.get("isJustNow").getAsBoolean();
+                    boolean late = o.has("isLate") && o.get("isLate").getAsBoolean();
+                    int coins = o.has("coins") ? o.get("coins").getAsInt() : 0;
+                    int streak = o.has("streak") ? o.get("streak").getAsInt() : 0;
                     long time = o.has("time") ? o.get("time").getAsLong() : System.currentTimeMillis();
                     int likes = o.has("likes") ? o.get("likes").getAsInt() : 0;
                     boolean liked = o.has("liked") && o.get("liked").getAsBoolean();
-                    FeedPost post = new FeedPost(id, author, uuid, cap, srv, time, likes, liked);
+
+                    FeedPost post = new FeedPost(id, author, uuid, cap, srv, img, jn, late, coins, streak, time, likes, liked);
                     if (o.has("comments") && o.get("comments").isJsonArray()) {
                         for (JsonElement c : o.getAsJsonArray("comments")) {
                             post.comments.add(c.getAsString());
@@ -102,55 +129,35 @@ public final class FeedManager {
             }
         } catch (Throwable ignored) {
         }
-
-        if (POSTS.isEmpty()) {
-            initDefaultCommunityPosts();
-            save();
-        }
-    }
-
-    private static void initDefaultCommunityPosts() {
-        long now = System.currentTimeMillis();
-        POSTS.add(new FeedPost(
-                UUID.randomUUID().toString(),
-                "FluffyBento",
-                "",
-                "Endlich die Netherite-Rüstung voll verzaubert! 🔥 Bereit für den Enderdrachen.",
-                "GommeHD.net",
-                now - 12 * 60_000L,
-                38,
-                false
-        ));
-        POSTS.add(new FeedPost(
-                UUID.randomUUID().toString(),
-                "Iz4nLeAstra",
-                "",
-                "Bedwars Win-Streak auf 12 gebracht mit den Kollegen! 🏆🎮",
-                "Hypixel.net",
-                now - 45 * 60_000L,
-                52,
-                false
-        ));
-        POSTS.add(new FeedPost(
-                UUID.randomUUID().toString(),
-                "akkuniizu",
-                "",
-                "Neues Schloss-Tor im Survival gebaut – sieht ultra episch aus 🏰✨",
-                "Singleplayer",
-                now - 140 * 60_000L,
-                64,
-                false
-        ));
     }
 
     public static synchronized FeedPost addPost(String caption, String serverTag) {
+        return addFeedPost(caption, null, serverTag);
+    }
+
+    public static synchronized FeedPost addFeedPost(String caption, String imagePath, String serverTag) {
         ensureLoaded();
         String name = AccountManager.getActiveUsername();
         String uuid = AccountManager.getActiveProfile() != null && AccountManager.getActiveProfile().id() != null
                 ? AccountManager.getActiveProfile().id().toString()
                 : "";
         String srv = (serverTag != null && !serverTag.trim().isEmpty()) ? serverTag.trim() : "Minecraft";
-        FeedPost p = new FeedPost(UUID.randomUUID().toString(), name, uuid, caption.trim(), srv, System.currentTimeMillis(), 1, true);
+        FeedPost p = new FeedPost(UUID.randomUUID().toString(), name, uuid, caption != null ? caption.trim() : "", srv,
+                imagePath, false, false, 0, 0, System.currentTimeMillis(), 0, false);
+        POSTS.add(0, p);
+        save();
+        return p;
+    }
+
+    public static synchronized FeedPost addJustNowPost(String caption, String imagePath, boolean onTime, int streak, int coins) {
+        ensureLoaded();
+        String name = AccountManager.getActiveUsername();
+        String uuid = AccountManager.getActiveProfile() != null && AccountManager.getActiveProfile().id() != null
+                ? AccountManager.getActiveProfile().id().toString()
+                : "";
+        String srv = "JustNow";
+        FeedPost p = new FeedPost(UUID.randomUUID().toString(), name, uuid, caption != null ? caption.trim() : "", srv,
+                imagePath, true, !onTime, coins, streak, System.currentTimeMillis(), 0, false);
         POSTS.add(0, p);
         save();
         return p;
@@ -171,6 +178,12 @@ public final class FeedManager {
                 break;
             }
         }
+    }
+
+    public static synchronized void deletePost(String postId) {
+        ensureLoaded();
+        POSTS.removeIf(p -> p.id.equals(postId));
+        save();
     }
 
     public static synchronized void addComment(String postId, String comment) {
@@ -198,6 +211,13 @@ public final class FeedManager {
                 o.addProperty("uuid", post.authorUuid);
                 o.addProperty("caption", post.caption);
                 o.addProperty("server", post.serverTag);
+                if (post.imagePath != null) {
+                    o.addProperty("image", post.imagePath);
+                }
+                o.addProperty("isJustNow", post.isJustNow);
+                o.addProperty("isLate", post.isLate);
+                o.addProperty("coins", post.coinsEarned);
+                o.addProperty("streak", post.streakDay);
                 o.addProperty("time", post.timestamp);
                 o.addProperty("likes", post.likes);
                 o.addProperty("liked", post.likedByMe);

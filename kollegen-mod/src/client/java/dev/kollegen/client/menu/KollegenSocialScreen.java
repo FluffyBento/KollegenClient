@@ -5,7 +5,6 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.mojang.blaze3d.platform.InputConstants;
-import dev.kollegen.client.feed.FeedManager;
 import dev.kollegen.client.mods.Palette;
 import dev.kollegen.client.party.PartyManager;
 import dev.kollegen.client.presence.PrivacySettings;
@@ -41,7 +40,7 @@ public class KollegenSocialScreen extends Screen {
     private static final int SW = 180;
     private static final int ROW_H = 48;
     private static final int GAP = 6;
-    private static final String[] TABS = { "👥 Freunde", "📸 Kollegen Feed", "🎉 Party", "🎮 Spiele", "📩 Anfragen", "🗂 Gruppen", "💬 Chats" };
+    private static final String[] TABS = { "👥 Freunde", "🎉 Party", "🎮 Spiele", "📩 Anfragen", "🗂 Gruppen", "💬 Chats" };
 
     private final HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(6)).build();
 
@@ -62,8 +61,6 @@ public class KollegenSocialScreen extends Screen {
     private boolean pollBusy = false;
     private long lastPoll = 0;
 
-    private boolean showNewPostModal = false;
-    private EditBox feedCaptionInput = null;
     private EditBox friendSearchInput = null;
 
     private final List<Entry> entries = new ArrayList<>();
@@ -93,20 +90,13 @@ public class KollegenSocialScreen extends Screen {
         final Runnable joinAct;
         final String joinServer;
         final Runnable removeAct;
-        final boolean isFeedPost;
-        final FeedManager.FeedPost feedPost;
 
         Entry(String title, String sub, int color, Runnable act) {
-            this(title, sub, color, act, null, null, false, false, null, null, null, null, null, false, null);
+            this(title, sub, color, act, null, null, false, false, null, null, null, null, null);
         }
 
         Entry(String title, String sub, int color, Runnable act, String playerHead, UUID playerUuid, boolean online, boolean isFriendCard,
               Runnable partyAct, Runnable chatAct, Runnable joinAct, String joinServer, Runnable removeAct) {
-            this(title, sub, color, act, playerHead, playerUuid, online, isFriendCard, partyAct, chatAct, joinAct, joinServer, removeAct, false, null);
-        }
-
-        Entry(String title, String sub, int color, Runnable act, String playerHead, UUID playerUuid, boolean online, boolean isFriendCard,
-              Runnable partyAct, Runnable chatAct, Runnable joinAct, String joinServer, Runnable removeAct, boolean isFeedPost, FeedManager.FeedPost feedPost) {
             this.title = title;
             this.sub = sub;
             this.color = color;
@@ -120,8 +110,6 @@ public class KollegenSocialScreen extends Screen {
             this.joinAct = joinAct;
             this.joinServer = joinServer;
             this.removeAct = removeAct;
-            this.isFeedPost = isFeedPost;
-            this.feedPost = feedPost;
         }
     }
 
@@ -189,6 +177,10 @@ public class KollegenSocialScreen extends Screen {
         });
         addRenderableWidget(privBtn);
 
+        GlassButton feedBtn = new GlassButton(px + pw - 278, topY, 88, 24, Component.literal("📸 Feed"), btn ->
+                Minecraft.getInstance().setScreenAndShow(new dev.kollegen.client.menu.KollegenFeedScreen(this)));
+        addRenderableWidget(feedBtn);
+
         GlassButton switcherBtn = new GlassButton(px + pw - 184, topY, 110, 24, Component.literal("🌐 Server wechseln"), btn ->
                 Minecraft.getInstance().setScreenAndShow(new ServerSwitcherScreen(this)));
         addRenderableWidget(switcherBtn);
@@ -227,33 +219,7 @@ public class KollegenSocialScreen extends Screen {
             addRenderableWidget(codeInp);
 
             addRenderableWidget(new GlassButton(cx + cw - btnW - 6, inpY, btnW, 24, Component.literal("+ Hinzufügen"), btn -> apiAddFriend()));
-        } else if (tab == 1 && !inThread) {
-            friendSearchInput = null;
-            codeInp = null;
-            groupInp = null;
-            chatInp = null;
-            if (showNewPostModal) {
-                int modalY = py + 76;
-                int modalW = cw - 16;
-                feedCaptionInput = new EditBox(this.font, cx + 16, modalY + 36, modalW - 110, 26, Component.literal("Caption"));
-                feedCaptionInput.setMaxLength(140);
-                feedCaptionInput.setHint(Component.literal("Was passiert gerade in deiner Welt?"));
-                addRenderableWidget(feedCaptionInput);
-
-                addRenderableWidget(new GlassButton(cx + 16 + modalW - 100, modalY + 36, 96, 26, Component.literal("📸 Posten"), btn -> {
-                    String text = feedCaptionInput.getValue().trim();
-                    if (!text.isEmpty()) {
-                        String srv = getCurrentServerName();
-                        FeedManager.addPost(text, srv);
-                        showNewPostModal = false;
-                        buildWidgets();
-                        rebuildEntries();
-                    }
-                }));
-            } else {
-                feedCaptionInput = null;
-            }
-        } else if (tab == 5 && !inThread) {
+        } else if (tab == 4 && !inThread) {
             friendSearchInput = null;
             int inpY = py + ph - 42;
             int btnW = 100;
@@ -278,7 +244,6 @@ public class KollegenSocialScreen extends Screen {
             codeInp = null;
             groupInp = null;
             chatInp = null;
-            feedCaptionInput = null;
         }
     }
 
@@ -310,21 +275,10 @@ public class KollegenSocialScreen extends Screen {
                     tab = i;
                     inThread = false;
                     scroll = 0;
-                    showNewPostModal = false;
                     buildWidgets();
                     rebuildEntries();
                     return true;
                 }
-            }
-        }
-
-        if (tab == 1 && !inThread) {
-            int newBtnX = cx + cw - 120;
-            int newBtnY = py + 48;
-            if (mx >= newBtnX && mx <= newBtnX + 112 && my >= newBtnY && my <= newBtnY + 24) {
-                showNewPostModal = !showNewPostModal;
-                buildWidgets();
-                return true;
             }
         }
 
@@ -340,7 +294,7 @@ public class KollegenSocialScreen extends Screen {
 
     @Override
     public boolean mouseScrolled(double mx, double my, double horizontal, double vertical) {
-        int listTop = py + 74 + (showNewPostModal && tab == 1 ? 84 : 0);
+        int listTop = py + 74;
         if (maxScroll > 0 && mx >= cx && mx <= cx + cw && my >= listTop && my <= contentBottom) {
             scroll = Math.max(0, Math.min(maxScroll, scroll - (int) (vertical * 26)));
             return true;
@@ -351,11 +305,6 @@ public class KollegenSocialScreen extends Screen {
     @Override
     public boolean keyPressed(KeyEvent ki) {
         if (ki.key() == InputConstants.KEY_ESCAPE || ki.isEscape()) {
-            if (showNewPostModal) {
-                showNewPostModal = false;
-                buildWidgets();
-                return true;
-            }
             if (inThread) {
                 inThread = false;
                 rebuildEntries();
@@ -377,16 +326,6 @@ public class KollegenSocialScreen extends Screen {
                 apiCreateGroup();
                 return true;
             }
-            if (feedCaptionInput != null && feedCaptionInput.isFocused()) {
-                String text = feedCaptionInput.getValue().trim();
-                if (!text.isEmpty()) {
-                    FeedManager.addPost(text, getCurrentServerName());
-                    showNewPostModal = false;
-                    buildWidgets();
-                    rebuildEntries();
-                    return true;
-                }
-            }
         }
         return super.keyPressed(ki);
     }
@@ -406,20 +345,11 @@ public class KollegenSocialScreen extends Screen {
         }
 
         g.text(this.font, "FREUNDE & SOCIAL", px + 18, py + 20, Palette.ACCENT, true);
-        g.text(this.font, inThread ? threadTitle : (tab == 1 ? "📸 KOLLEGEN FEED" : TABS[tab]), cx + 12, py + 20, Palette.TEXT, true);
+        g.text(this.font, inThread ? threadTitle : TABS[tab], cx + 12, py + 20, Palette.TEXT, true);
 
         if (status != null && !status.isEmpty()) {
             int statX = cx + 130;
             g.text(this.font, trunc(status, cw - 260), statX, py + 21, authed ? Palette.GREEN : Palette.MUTED, false);
-        }
-
-        if (tab == 1 && !inThread) {
-            int newBtnX = cx + cw - 120;
-            int newBtnY = py + 48;
-            boolean hovNew = mx >= newBtnX && mx <= newBtnX + 112 && my >= newBtnY && my <= newBtnY + 24;
-            Glass.fillRound(g, newBtnX, newBtnY, 112, 24, 6, hovNew ? Palette.GREEN : Palette.ACCENT);
-            if (hovNew) Glass.ring(g, newBtnX, newBtnY, 112, 24, 6, 1.0f, 0xFFFFFFFF);
-            Glass.textC(g, this.font, showNewPostModal ? "✕ Abbrechen" : "📸 Neuer Beitrag", newBtnX + 56, newBtnY + 8, 0xFFFFFFFF, true);
         }
 
         entryRects.clear();
@@ -464,83 +394,36 @@ public class KollegenSocialScreen extends Screen {
         }
         g.disableScissor();
 
-        if (showNewPostModal && tab == 1) {
-            int modalY = py + 76;
-            int modalW = cw - 16;
-            UiStyleManager.drawCard(g, cx + 8, modalY, modalW, 76, 8, Palette.PANEL, 0.0f, null);
-            g.text(this.font, "📸 Was gibt's Neues in deiner Minecraft-Welt?", cx + 16, modalY + 12, Palette.TEXT, true);
-        }
-
-        int listTop = py + 76 + (showNewPostModal && tab == 1 ? 84 : 0);
-        int listBottom = tab == 0 || tab == 5 || inThread ? (py + ph - 50) : (py + ph - 16);
+        int listTop = py + 76;
+        int listBottom = tab == 0 || tab == 4 || inThread ? (py + ph - 50) : (py + ph - 16);
         g.enableScissor(cx, listTop, cx + cw, listBottom);
         int ex = cx + 8;
         int ew = cw - 16;
         int ey = listTop + 2 - scroll;
         for (Entry e : entries) {
-            int itemH = e.isFeedPost ? 72 : ROW_H;
+            int itemH = ROW_H;
             boolean vis = ey + itemH > listTop && ey < listBottom;
             if (vis) {
                 boolean hov = mx >= ex && mx <= ex + ew && my >= ey && my <= ey + itemH;
                 float h = hov ? 1.0f : 0.0f;
                 UiStyleManager.drawCard(g, ex, ey, ew, itemH, 8, Palette.PANEL, h, null);
-                if (hov && !e.isFeedPost) {
+                if (hov) {
                     Glass.ring(g, ex, ey, ew, itemH, 8, 1.0f, Palette.tint(Palette.ACCENT, 0x88));
                 }
 
-                if (e.isFeedPost && e.feedPost != null) {
-                    FeedManager.FeedPost p = e.feedPost;
-                    int avatarX = ex + 10;
-                    int avatarY = ey + 10;
-                    SkinFaceRenderer.drawFace(g, p.authorName, null, avatarX, avatarY, 32);
-                    Glass.ring(g, avatarX, avatarY, 32, 32, 6, 1.0f, Palette.ACCENT);
+                int textStartX = ex + 14;
+                if (e.playerHead != null) {
+                    SkinFaceRenderer.drawFace(g, e.playerHead, e.playerUuid, ex + 8, ey + 8, 32);
+                    Glass.ring(g, ex + 8, ey + 8, 32, 32, 6, 0.8f, 0x44FFFFFF);
 
-                    int headerTextX = avatarX + 40;
-                    g.text(this.font, p.authorName, headerTextX, ey + 10, Palette.TEXT, true);
-
-                    int nameW = this.font.width(p.authorName);
-                    int badgeX = headerTextX + nameW + 8;
-                    int srvW = this.font.width(p.serverTag) + 10;
-                    Glass.badge(g, badgeX, ey + 9, srvW, 14, 4, Palette.PANEL2, Palette.ACCENT, this.font, p.serverTag);
-
-                    String timeStr = p.getTimeAgo();
-                    int timeW = this.font.width(timeStr);
-                    g.text(this.font, timeStr, ex + ew - timeW - 14, ey + 10, Palette.MUTED, false);
-
-                    g.text(this.font, trunc(p.caption, ew - 180), headerTextX, ey + 28, Palette.TEXT, false);
-
-                    int likeBtnW = 60;
-                    int likeBtnH = 22;
-                    int likeBtnX = ex + ew - likeBtnW - 12;
-                    int likeBtnY = ey + 42;
-                    boolean hovLike = mx >= likeBtnX && mx <= likeBtnX + likeBtnW && my >= likeBtnY && my <= likeBtnY + likeBtnH;
-                    int likeBg = p.likedByMe ? 0x44EF4444 : (hovLike ? Palette.PANEL2 : Palette.BG);
-                    Glass.fillRound(g, likeBtnX, likeBtnY, likeBtnW, likeBtnH, 5, likeBg);
-                    Glass.ring(g, likeBtnX, likeBtnY, likeBtnW, likeBtnH, 5, 0.8f, p.likedByMe ? 0xFFEF4444 : 0x33FFFFFF);
-                    String heartStr = (p.likedByMe ? "❤️ " : "🤍 ") + p.likes;
-                    Glass.textC(g, this.font, heartStr, likeBtnX + likeBtnW / 2, likeBtnY + 7, p.likedByMe ? 0xFFEF4444 : Palette.TEXT, false);
-
-                    entryRects.add(new Rect(likeBtnX, likeBtnY, likeBtnW, likeBtnH, () -> {
-                        FeedManager.toggleLike(p.id);
-                        rebuildEntries();
-                    }));
-
-                    g.text(this.font, "💬 " + p.comments.size() + " Kommentare", headerTextX, ey + 48, Palette.MUTED, false);
-
-                } else {
-                    int textStartX = ex + 14;
-                    if (e.playerHead != null) {
-                        SkinFaceRenderer.drawFace(g, e.playerHead, e.playerUuid, ex + 8, ey + 8, 32);
-                        Glass.ring(g, ex + 8, ey + 8, 32, 32, 6, 0.8f, 0x44FFFFFF);
-
-                        int dotCol = e.online ? Palette.GREEN : Palette.MUTED;
-                        Glass.disc(g, ex + 36, ey + 36, 4.5f, Palette.BG);
-                        Glass.disc(g, ex + 36, ey + 36, 3.5f, dotCol);
-                        if (e.online) {
-                            Glass.ring(g, ex + 36 - 4, ey + 36 - 4, 8, 8, 4, 0.6f, Palette.GREEN);
-                        }
-                        textStartX = ex + 48;
+                    int dotCol = e.online ? Palette.GREEN : Palette.MUTED;
+                    Glass.disc(g, ex + 36, ey + 36, 4.5f, Palette.BG);
+                    Glass.disc(g, ex + 36, ey + 36, 3.5f, dotCol);
+                    if (e.online) {
+                        Glass.ring(g, ex + 36 - 4, ey + 36 - 4, 8, 8, 4, 0.6f, Palette.GREEN);
                     }
+                    textStartX = ex + 48;
+                }
 
                     g.text(this.font, e.title, textStartX, ey + 10, e.color, true);
                     if (e.sub != null && !e.sub.isEmpty()) {
@@ -601,7 +484,6 @@ public class KollegenSocialScreen extends Screen {
                     } else if (e.act != null) {
                         entryRects.add(new Rect(ex, ey, ew, ROW_H, e.act));
                     }
-                }
             }
             ey += itemH + GAP;
         }
@@ -628,25 +510,13 @@ public class KollegenSocialScreen extends Screen {
         }
         switch (tab) {
             case 0 -> rebuildFriends();
-            case 1 -> rebuildFeed();
-            case 2 -> rebuildParty();
-            case 3 -> rebuildGames();
-            case 4 -> rebuildRequests();
-            case 5 -> rebuildGroups();
+            case 1 -> rebuildParty();
+            case 2 -> rebuildGames();
+            case 3 -> rebuildRequests();
+            case 4 -> rebuildGroups();
             default -> rebuildConvs();
         }
         computeScroll();
-    }
-
-    private void rebuildFeed() {
-        List<FeedManager.FeedPost> posts = FeedManager.getPosts();
-        if (posts.isEmpty()) {
-            entries.add(new Entry("Keine Momente vorhanden", "Erstelle oben den ersten Moment!", Palette.MUTED, null));
-        } else {
-            for (FeedManager.FeedPost p : posts) {
-                entries.add(new Entry(p.authorName, p.caption, Palette.TEXT, null, p.authorName, null, true, false, null, null, null, null, null, true, p));
-            }
-        }
     }
 
     private void rebuildGames() {
@@ -831,10 +701,10 @@ public class KollegenSocialScreen extends Screen {
     private void computeScroll() {
         int need = 0;
         for (Entry e : entries) {
-            need += (e.isFeedPost ? 72 : ROW_H) + GAP;
+            need += ROW_H + GAP;
         }
-        int listTop = py + 76 + (showNewPostModal && tab == 1 ? 84 : 0);
-        int listBottom = tab == 0 || tab == 5 || inThread ? (py + ph - 50) : (py + ph - 16);
+        int listTop = py + 76;
+        int listBottom = tab == 0 || tab == 4 || inThread ? (py + ph - 50) : (py + ph - 16);
         int visible = (listBottom - 4) - listTop;
         maxScroll = Math.max(0, need - visible);
         if (scroll > maxScroll) scroll = maxScroll;

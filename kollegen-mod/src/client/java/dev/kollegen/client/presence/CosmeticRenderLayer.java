@@ -72,9 +72,9 @@ public final class CosmeticRenderLayer extends RenderLayer<AvatarRenderState, Pl
             if (model == null) return;
 
             double distSq = state.distanceToCameraSq;
-            if (distSq > 2304.0) return; // > 48 Blöcke: 3D-Cosmetics nicht mehr rendern (Performance)
+            if (distSq > 2304.0) return;
             double timeSec = animTime();
-            if (distSq > 1024.0) { // > 32 Blöcke: 20-Hz Animation quantization für maximale Performance
+            if (distSq > 1024.0) {
                 timeSec = Math.floor(timeSec * 20.0) / 20.0;
             }
 
@@ -234,15 +234,12 @@ public final class CosmeticRenderLayer extends RenderLayer<AvatarRenderState, Pl
             poseStack.pushPose();
             arm.translateAndRotate(poseStack);
 
-            // Move to forearm holding position on outside of arm:
             float armSide = useLeft ? 1.0F : -1.0F;
             poseStack.translate(armSide * 0.16F, 0.40F, -0.04F);
 
-            // Rotate around grip position so shield outer face is outward/forward and top points upward:
             float yawDeg = useLeft ? -90.0F : 90.0F;
             poseStack.rotate(ROT_SCRATCH.get().identity().rotateY((float) Math.toRadians(ywDegSafe(yawDeg))));
 
-            // Find model grip point:
             float[] grip = bb.findGrip();
             poseStack.translate(-grip[0], -grip[1], -grip[2]);
 
@@ -481,3 +478,4 @@ public final class CosmeticRenderLayer extends RenderLayer<AvatarRenderState, Pl
         }
     }
 }
+

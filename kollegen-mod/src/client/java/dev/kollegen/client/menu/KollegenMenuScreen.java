@@ -171,7 +171,7 @@ public class KollegenMenuScreen extends Screen {
     private boolean draggingBar = false;
     private float openAnim = 0.0f;
     private float pageAnim = 1.0f;
-    // PERF-DEBUG: Frame-Zeitmessung (avg/max über je 300 Frames im MC-Log).
+
     private long perfAcc = 0L;
     private int perfN = 0;
     private long perfMax = 0L;
@@ -187,7 +187,7 @@ public class KollegenMenuScreen extends Screen {
     private volatile boolean storeLoading;
     private volatile String storeMsg = "";
     private volatile boolean pendingRebuild;
-    // Ausfallsicherung: Cache anzeigen, Fehlertext, Retry-Backoff
+
     private boolean storeFromCache = false;
     private volatile long storeFailUntil = 0L;
     private volatile int storeFailCount = 0;
@@ -371,14 +371,12 @@ public class KollegenMenuScreen extends Screen {
         if (this.storeLoading) {
             return;
         }
-        // Backoff nach Fehlschlag: nicht alle 20s erneut versuchen (Server evtl.
-        // länger offline). Nach Erfolg wieder normales Intervall.
+
         if (this.storeFailUntil > now) {
             return;
         }
         if (this.storeCache == null) {
-            // Letzte bekannte Daten von Platte laden, damit bei Backend-Ausfall
-            // die Cosmetics trotzdem sichtbar bleiben.
+
             JsonObject cached = StoreClient.cachedCatalog();
             if (cached != null) {
                 this.storeCache = cached;
@@ -403,7 +401,7 @@ public class KollegenMenuScreen extends Screen {
             }
             if (!ok) {
                 this.storeMsg = StoreClient.lastError() == null ? "Store nicht erreichbar" : StoreClient.lastError();
-                // 30s / 60s / 120s (max. 5 min) ausgesetztes Wiederholen
+
                 this.storeFailCount = Math.min(this.storeFailCount + 1, 5);
                 this.storeFailUntil = now + (30L << (this.storeFailCount - 1));
             }
@@ -612,9 +610,7 @@ public class KollegenMenuScreen extends Screen {
                 return true;
             }
         }
-        // Sicherheitsnetz: Kategorien, die der Server neu hinzugefügt hat und die
-        // noch nicht in SLOT_ORDER stehen, dürfen NICHT stillschweigend aus dem
-        // Cosmetics-Tab verschwinden. Nur Pet-Zubehör (eigener Tab) aussortieren.
+
         return c != null && !c.isEmpty() && !c.startsWith("pet");
     }
 
@@ -776,7 +772,7 @@ public class KollegenMenuScreen extends Screen {
         boolean failed = this.storeMsg != null && !this.storeMsg.isEmpty();
         String info;
         if (failed) {
-            // Bei Ausfall: Grund nennen und kennzeichnen, dass evtl. alte Daten shown.
+
             info = this.storeFromCache
                     ? this.storeMsg + " - zeige letzte bekannte Daten"
                     : this.storeMsg;
@@ -794,7 +790,7 @@ public class KollegenMenuScreen extends Screen {
         i.data = new JsonObject();
         i.data.addProperty("points", failed ? -1 : num(this.storeCache, "points", -1));
         if (failed) {
-            // Deutlich sichtbarer Hinweis statt eines scheinbar leeren Tabs.
+
             Cell w = this.addFull(K_WARN, 34.0f);
             w.text = (this.storeMsg == null ? "Store nicht erreichbar" : this.storeMsg)
                     + (this.storeFromCache ? " - zeige letzte bekannte Daten" : "")
@@ -833,10 +829,9 @@ public class KollegenMenuScreen extends Screen {
             return;
         }
         if (cat == Category.COSMETICS) {
-            // Tabs: Name Cosmetics vs Skin Cosmetics
+
             this.addFull(K_COS_TAB, 22.0f);
 
-            // Live Preview Card
             this.addFull(K_COS_PREVIEW, "name".equalsIgnoreCase(this.cosSubTab) ? 68.0f : 138.0f);
 
             Set<String> pkgOwned = new HashSet<String>();
@@ -1284,7 +1279,7 @@ public class KollegenMenuScreen extends Screen {
                     if (id.isEmpty()) {
                         return false;
                     }
-                    // Delete button for owned capes
+
                     if ("cape".equalsIgnoreCase(itemCat) && bool(c.data, "owned")) {
                         float delX = X + c.w - 8 - 122;
                         float delY = Y + (c.h - 18) / 2.0f;
@@ -1732,7 +1727,7 @@ public class KollegenMenuScreen extends Screen {
         float stickyH = (cat == Category.COSMETICS) ? (("name".equalsIgnoreCase(this.cosSubTab) ? 68.0f : 108.0f) + 22.0f + GAP) : 0.0f;
 
         if (cat == Category.COSMETICS) {
-            // 1. Draw scrollable cells strictly clipped below sticky preview
+
             g.enableScissor(this.cx - 2, Math.round(this.cy + stickyH), this.cx + this.cw + 2, this.cy + this.ch);
             for (Cell c : this.cells) {
                 if (c.kind == K_COS_TAB || c.kind == K_COS_PREVIEW) {
@@ -1748,7 +1743,6 @@ public class KollegenMenuScreen extends Screen {
             }
             g.disableScissor();
 
-            // 2. Draw sticky tabs and preview pinned at top
             for (Cell c : this.cells) {
                 if (c.kind == K_COS_TAB || c.kind == K_COS_PREVIEW) {
                     float X = this.cx + c.x;
@@ -2253,7 +2247,6 @@ public class KollegenMenuScreen extends Screen {
         t.data = new JsonObject();
         t.data.addProperty("sub", "Skins & Capes direkt im Spiel auswählen");
 
-        // Top Tabs: Skins vs Capes
         this.addFull(K_SKIN_CAPE_TOP_TAB, 24.0f);
         int cols = this.compact ? 1 : 2;
 
@@ -2271,7 +2264,7 @@ public class KollegenMenuScreen extends Screen {
                 sc.data = skin;
             }
         } else {
-            // Capes subtabs
+
             this.addFull(K_CAPE_TAB, 22.0f);
             Cell inf = this.addFull(K_INFO, 18.0f);
             if ("my_capes".equalsIgnoreCase(this.capeCatFilter)) {
@@ -2458,17 +2451,15 @@ public class KollegenMenuScreen extends Screen {
                 }
             }
 
-            // Line 1: Title (centered, bold)
             if (!title.isEmpty()) {
                 int tw = this.font.width(title);
                 Glass.textBold(g, this.font, title, Math.round(X + (c.w - tw) / 2.0f), Math.round(Y + 17), titleColor, false);
             }
 
-            // Line 2: Dark pill with Logo + Badge + Name + Sticker (centered)
             int nw = this.font.width(pName);
             int badgeW = badge.isEmpty() ? 0 : this.font.width(badge + " ");
             int stickerW = sticker.isEmpty() ? 0 : this.font.width(" " + sticker);
-            int midContentW = 12 + badgeW + nw + stickerW; // 12 for sparkle logo
+            int midContentW = 12 + badgeW + nw + stickerW;
             float midX = X + (c.w - midContentW) / 2.0f;
             float midY = Y + (title.isEmpty() ? 24.0f : 31.0f);
             Glass.rr(g, midX - 6, midY - 2, midContentW + 12, 16, 4, Glass.a(0x000000, 0.55f));
@@ -2485,7 +2476,6 @@ public class KollegenMenuScreen extends Screen {
                 Glass.text(g, this.font, " " + sticker, Math.round(curX), Math.round(midY + 2), Palette.TEXT, false);
             }
 
-            // Line 3: Level [lv X] (centered)
             int lvl = this.storeCache != null ? num(this.storeCache, "level", 1) : 1;
             String lvlText = "[lv " + lvl + "]";
             int lw = this.font.width(lvlText);
@@ -2924,7 +2914,6 @@ public class KollegenMenuScreen extends Screen {
         } catch (Throwable ignored) {
         }
 
-        // Store capes including package items
         JsonObject sc = this.storeCache != null ? this.storeCache : StoreClient.cachedCatalog();
         if (sc != null && sc.has("catalog") && sc.get("catalog").isJsonArray()) {
             Set<String> pkgOwned = new HashSet<String>();
@@ -3004,3 +2993,4 @@ public class KollegenMenuScreen extends Screen {
         return defs;
     }
 }
+

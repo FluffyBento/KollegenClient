@@ -212,7 +212,6 @@ public final class SkinCapeTextureManager {
         } catch (Throwable ignored) {
         }
 
-        // 2. HTTP/HTTPS Mojang Vanilla or Community Cape URL
         if (rawData != null && (rawData.startsWith("http://") || rawData.startsWith("https://"))) {
             String home = System.getProperty("user.home", "");
             Path cacheDir = Path.of(home, ".local", "share", "kollegenclient", "capes", "cache");
@@ -260,7 +259,6 @@ public final class SkinCapeTextureManager {
             return null;
         }
 
-        // 3. Mod Asset Identifiers & Store Cape Shortcuts
         String assetPath = null;
         if (rawData != null && rawData.toLowerCase(java.util.Locale.ROOT).startsWith("kollegen:")) {
             assetPath = rawData.toLowerCase(java.util.Locale.ROOT);
@@ -290,7 +288,6 @@ public final class SkinCapeTextureManager {
         if (assetPath != null) {
             Identifier resId = Identifier.tryParse(assetPath);
             if (resId != null) {
-                // In Minecraft TextureManager als DynamicTexture registrieren, damit GUI-Renderpipelines es sauber anzeigen
                 try {
                     InputStream in = null;
                     try {

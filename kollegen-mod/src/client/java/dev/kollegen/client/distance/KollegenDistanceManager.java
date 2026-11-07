@@ -88,7 +88,6 @@ public final class KollegenDistanceManager {
         int pz = mc.player.chunkPosition().z();
         long now = System.currentTimeMillis();
 
-        // Nur berechnen, wenn der Spieler den Chunk gewechselt hat oder mindestens 5 Sekunden vergangen sind
         if (px == lastPlayerChunkX && pz == lastPlayerChunkZ && now - lastPurgeTime < 5000L) {
             return;
         }
@@ -208,3 +207,4 @@ public final class KollegenDistanceManager {
         } catch (Throwable ignored) {}
     }
 }
+

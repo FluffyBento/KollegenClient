@@ -48,11 +48,6 @@ public final class StoreClient {
         return FabricLoader.getInstance().getConfigDir().resolve("kollegen-store-cache.json");
     }
 
-    /**
-     * Letzter erfolgreich geladener Katalog. Bei Backend-Ausfall (Netzwerk,
-     * Server down, Timeout) zeigt das Menü weiterhin die letzten bekannten
-     * Cosmetics, statt komplett leer zu wirken.
-     */
     public static JsonObject cachedCatalog() {
         try {
             Path p = cacheFile();
@@ -107,7 +102,6 @@ public final class StoreClient {
         }
     }
 
-    /** Kurztext zum letzten Katalog-Fehler (null = Erfolg). */
     public static String lastError() {
         return lastError;
     }
@@ -205,3 +199,4 @@ public final class StoreClient {
         }
     }
 }
+

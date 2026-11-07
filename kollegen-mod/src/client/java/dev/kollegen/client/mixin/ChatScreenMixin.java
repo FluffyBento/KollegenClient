@@ -71,6 +71,29 @@ public class ChatScreenMixin {
                         dev.kollegen.client.mods.modules.Emotes.openWheel();
                     }
                 }
+            } else if (lower.equals("/feed") || lower.startsWith("/feed ") || lower.equals("/kollegenfeed")) {
+                ci.cancel();
+                Minecraft mc = Minecraft.getInstance();
+                if (addToHistory && mc != null && mc.gui != null && mc.gui.hud != null && mc.gui.hud.getChat() != null) {
+                    mc.gui.hud.getChat().addRecentChat(message);
+                }
+                if (mc != null) {
+                    mc.setScreenAndShow(new dev.kollegen.client.menu.KollegenFeedScreen(mc.gui.screen()));
+                }
+            } else if (lower.equals("/justnow") || lower.startsWith("/justnow ")) {
+                ci.cancel();
+                Minecraft mc = Minecraft.getInstance();
+                if (addToHistory && mc != null && mc.gui != null && mc.gui.hud != null && mc.gui.hud.getChat() != null) {
+                    mc.gui.hud.getChat().addRecentChat(message);
+                }
+                if (mc != null) {
+                    java.io.File latest = dev.kollegen.client.feed.FeedImageManager.getLatestScreenshot();
+                    if (latest != null) {
+                        mc.setScreenAndShow(new dev.kollegen.client.menu.ScreenshotShareScreen(mc.gui.screen(), latest));
+                    } else {
+                        mc.setScreenAndShow(new dev.kollegen.client.menu.KollegenFeedScreen(mc.gui.screen()));
+                    }
+                }
             }
         }
     }

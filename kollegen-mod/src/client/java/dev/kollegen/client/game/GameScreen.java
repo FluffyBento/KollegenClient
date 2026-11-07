@@ -10,10 +10,6 @@ import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 
-/**
- * Gemeinsames Grundgeruest fuer die Kollegen-Spiele: Glas-Panel, Titel,
- * Statuszeile, Schliessen-Knopf und die gewoehnte Animation.
- */
 public abstract class GameScreen extends Screen {
 
     protected final Screen parent;
@@ -55,7 +51,6 @@ public abstract class GameScreen extends Screen {
         return mx >= x && mx < x + w && my >= y && my < y + h;
     }
 
-    /** Pill-Knopf; liefert zurueck, ob die Maus darauf liegt. */
     protected boolean drawButton(GuiGraphicsExtractor g, double mx, double my, float x, float y, float w, float h,
                                  String label, boolean primary) {
         boolean hov = hit(mx, my, x, y, w, h);
@@ -80,7 +75,6 @@ public abstract class GameScreen extends Screen {
         }
     }
 
-    /** X-Knopf oben rechts. */
     protected boolean closeClicked(MouseButtonEvent event) {
         return event.button() == InputConstants.MOUSE_BUTTON_LEFT && hit(event.x(), event.y(), this.px + this.pw - 34, this.py + 12, 22, 22);
     }
@@ -110,11 +104,9 @@ public abstract class GameScreen extends Screen {
         }
     }
 
-    /** Wird beim Verlassen aufgerufen, um Netzwerk-Teilnahme zu beenden. */
     protected void closeGame() {
     }
 
-    /** Rahmen mit Animation zeichnen und Zeichenflaeche fuer das Spielfeld liefern. */
     protected void beginFrame(GuiGraphicsExtractor g, int mx, int my, float pt) {
         layout();
         Glass.frame();

@@ -12,7 +12,6 @@ import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-
 public final class ControllerMode {
 
     private static boolean active = false;
@@ -20,7 +19,6 @@ public final class ControllerMode {
     private static double cursorX = 0, cursorY = 0;
     private static boolean firstTick = true;
 
-    
     private static long lastScrollAt = 0;
     private static final long SCROLL_INTERVAL_MS = 55;
     private static boolean screenWasOpen = false;
@@ -31,8 +29,6 @@ public final class ControllerMode {
     private static boolean guideDiagDone = false;
     private static boolean prevCombo = false;
 
-    
-    
     private static boolean clickQueued = false;
     private static long releaseAfter = 0;
 
@@ -41,7 +37,6 @@ public final class ControllerMode {
     private ControllerMode() {
     }
 
-    
     public static void init() {
         GamepadDetect.ensureMappings();
         try {
@@ -68,7 +63,6 @@ public final class ControllerMode {
         }
     }
 
-    
     public static void tick(Minecraft mc) {
         if (!active) return;
         if (mc == null || mc.getWindow() == null) return;
@@ -90,10 +84,8 @@ public final class ControllerMode {
         }
         screenWasOpen = screenOpen;
 
-        // Immer scannen, damit GAMEPAD-State aktuell ist (auch im Spiel, ohne Screen).
         try { GamepadDetect.scan(GAMEPAD); } catch (Throwable ignored) {}
 
-        // Kombi D-Pad-Unten + Start oeffnet das Kollegen-Menue.
         boolean comboNow = false;
         try {
             comboNow = (GAMEPAD.buttons(GLFW.GLFW_GAMEPAD_BUTTON_DPAD_DOWN) == GLFW.GLFW_PRESS)
@@ -108,7 +100,6 @@ public final class ControllerMode {
         }
         prevCombo = comboNow;
 
-        // PS-Taste (raw button 8) oeffnet das Kollegen-Menue.
         boolean guideNow = false;
         try {
             for (int jid = GLFW.GLFW_JOYSTICK_1; jid <= GLFW.GLFW_JOYSTICK_LAST; jid++) {
@@ -119,7 +110,7 @@ public final class ControllerMode {
             }
         } catch (Throwable ignored) {
         }
-        // Launcher-Forward als Fallback
+
         if (!guideNow) guideNow = readGuideButton();
         if (guideNow && !prevGuide && mc.gui.screen() == null) {
             try {
@@ -230,8 +221,7 @@ public final class ControllerMode {
         if (!clickQueued) return;
         long now = System.currentTimeMillis();
         if (!clickPressed) {
-            
-            
+
             try {
                 GLFW.glfwSetCursorPos(window, cursorX, cursorY);
             } catch (Throwable ignored) {
@@ -255,7 +245,7 @@ public final class ControllerMode {
     }
 
     private static boolean readGuideButton() {
-        // 1) Launcher-Forward (.kollegen-gamepad)
+
         try {
             Path p = FabricLoader.getInstance().getGameDir().resolve("mods").resolve(".kollegen-gamepad");
             if (java.nio.file.Files.exists(p)) {
@@ -268,14 +258,14 @@ public final class ControllerMode {
             }
         } catch (Throwable ignored) {
         }
-        // 2) Roh-GLFW: Guide-Button ist bei vielen Controllern der letzte Button.
+
         try {
             for (int jid = GLFW.GLFW_JOYSTICK_1; jid <= GLFW.GLFW_JOYSTICK_LAST; jid++) {
                 if (!GLFW.glfwJoystickPresent(jid)) continue;
                 ByteBuffer btns = GLFW.glfwGetJoystickButtons(jid);
                 if (btns == null) continue;
                 int n = btns.limit();
-                // Diagnose: raw button state (throttled via kollegen guide diag)
+
                 if (n > 0 && !guideDiagDone) {
                     StringBuilder sb = new StringBuilder("[kollegen-guide] jid=").append(jid)
                             .append(" rawButtons=").append(n).append(" pressed=[");
@@ -292,8 +282,7 @@ public final class ControllerMode {
                     if (any) guideDiagDone = true;
                 }
                 if (n <= 15) continue;
-                // Kandidaten-Indizes fuer Guide/Home (variieren je nach Treiber)
-                // PS4: raw button 8 = PS-Taste (laut Diagnose)
+
                 for (int idx : new int[] { 8, n - 1, n - 2, 10, 11, 12, 13, 14, 15, 16, 17 }) {
                     if (idx < 0 || idx >= n) continue;
                     if (btns.get(idx) == GLFW.GLFW_PRESS) return true;
@@ -304,3 +293,4 @@ public final class ControllerMode {
         return false;
     }
 }
+

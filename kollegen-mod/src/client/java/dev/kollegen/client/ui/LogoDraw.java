@@ -69,8 +69,7 @@ public final class LogoDraw {
         if (id == null) {
             return false;
         }
-        // PERF: Wird pro Frame für Pet-Previews aufgerufen — Resource-Lookup cachen
-        // (gleiche Semantik wie dims-CACHE; F3+T-Reloads werden wie dort toleriert).
+
         String key = id.toString();
         Boolean hit = EXISTS_CACHE.get(key);
         if (hit != null) {
@@ -108,3 +107,4 @@ public final class LogoDraw {
         }
     }
 }
+

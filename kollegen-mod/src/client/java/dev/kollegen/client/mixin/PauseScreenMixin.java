@@ -53,7 +53,7 @@ public abstract class PauseScreenMixin extends Screen {
         this.addRenderableWidget(new GlassButton(this.width - switchW - friendW - feedW - 22, topY, feedW, btnH,
                 Component.literal("📸 Feed"), btn -> {
             if (this.minecraft != null) {
-                this.minecraft.setScreenAndShow(new KollegenSocialScreen(this, 1));
+                this.minecraft.setScreenAndShow(new dev.kollegen.client.menu.KollegenFeedScreen(this));
             }
         }));
 

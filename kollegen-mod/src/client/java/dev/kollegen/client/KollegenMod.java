@@ -69,6 +69,7 @@ public class KollegenMod implements ClientModInitializer {
         
         dev.kollegen.client.presence.PetRenderer.onTick(mc);
         dev.kollegen.client.presence.KollegenPresence.checkRefreshSignal();
+        dev.kollegen.client.feed.JustNowManager.tick(mc);
 
         
         boolean shiftDown = dev.kollegen.client.input.KollegenKeybind.isRightShiftHeld();
