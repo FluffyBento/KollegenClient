@@ -38,7 +38,7 @@ const KC_ICONS = {
 const KC_TABS = [
   { id: "home", label: "Spielen", icon: "play" },
   { id: "store", label: "Store", icon: "store" },
-  { id: "cosmetics", label: "Cosmetics", icon: "cosmetics" },
+  { id: "cosmetics", label: "Kosmetika", icon: "cosmetics" },
   { id: "socials", label: "Sozial", icon: "socials" },
   { id: "support", label: "Support", icon: "support" }
 ];
@@ -456,7 +456,7 @@ function kcBuildCommunityRow() {
   const track = kcEl("div", "kc-track");
   track.append(
     kcLinkTile("go-discord", "discord", "Discord", "Community beitreten", () => kcOpenUrl(KC_DISCORD_URL)),
-    kcLinkTile("go-cosmetics", "cosmetics", "Cosmetics", "Ausrüsten und ansehen", () => switchTab("cosmetics")),
+    kcLinkTile("go-cosmetics", "cosmetics", "Kosmetika", "Ausrüsten und ansehen", () => switchTab("cosmetics")),
     kcLinkTile("go-socials", "socials", "Sozial", "Freunde und Gruppen", () => switchTab("socials")),
     kcLinkTile("go-support", "support", "Support", "Hilfe und Anleitungen", () => switchTab("support")),
     kcLinkTile("go-site", "globe", "Website", "kollegen.me/minecraft", () => kcOpenUrl(KC_SITE_URL))

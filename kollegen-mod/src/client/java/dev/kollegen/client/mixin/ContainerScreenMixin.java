@@ -7,12 +7,18 @@ import dev.kollegen.client.mods.modules.InventoryEnhancements;
 import dev.kollegen.client.ui.Glass;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.gui.components.Renderable;
+import net.minecraft.client.gui.components.events.GuiEventListener;
+import net.minecraft.client.gui.narration.NarratableEntry;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.core.NonNullList;
 import net.minecraft.core.component.DataComponents;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ContainerInput;
@@ -24,6 +30,7 @@ import net.minecraft.world.item.component.BundleContents;
 import net.minecraft.world.item.component.ItemContainerContents;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
@@ -32,7 +39,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import java.util.List;
 
 @Mixin(AbstractContainerScreen.class)
-public class ContainerScreenMixin {
+public abstract class ContainerScreenMixin {
 
     @Shadow
     protected int leftPos;
@@ -41,13 +48,57 @@ public class ContainerScreenMixin {
     protected int topPos;
 
     @Shadow
+    protected int imageWidth;
+
+    @Shadow
+    protected int imageHeight;
+
+    @Shadow
     protected Slot hoveredSlot;
 
     @Shadow
     protected AbstractContainerMenu menu;
 
+    @Shadow
+    protected abstract <T extends GuiEventListener & Renderable & NarratableEntry> T addRenderableWidget(T widget);
+
+    @Unique
+    private EditBox kollegen$searchBox = null;
+
+    @Inject(method = "init", at = @At("RETURN"))
+    private void kollegen$initSearch(CallbackInfo ci) {
+        if (InventoryEnhancements.isSearchEnabled()) {
+            Minecraft mc = Minecraft.getInstance();
+            int bw = 78;
+            int bh = 13;
+            int bx = this.leftPos + this.imageWidth - bw - 8;
+            int by = this.topPos + 5;
+            this.kollegen$searchBox = new EditBox(mc.font, bx, by, bw, bh, Component.literal(""));
+            this.kollegen$searchBox.setHint(Component.literal("Suchen..."));
+            this.kollegen$searchBox.setMaxLength(32);
+            this.kollegen$searchBox.setBordered(false);
+            this.addRenderableWidget(this.kollegen$searchBox);
+        } else {
+            this.kollegen$searchBox = null;
+        }
+    }
+
     @Inject(method = "keyPressed", at = @At("HEAD"), cancellable = true)
     private void kollegen$handleItemLockKey(KeyEvent event, CallbackInfoReturnable<Boolean> cir) {
+        if (this.kollegen$searchBox != null && this.kollegen$searchBox.isFocused()) {
+            if (event.key() == InputConstants.KEY_ESCAPE) {
+                this.kollegen$searchBox.setFocused(false);
+                cir.setReturnValue(true);
+                return;
+            }
+            if (this.kollegen$searchBox.keyPressed(event)) {
+                cir.setReturnValue(true);
+                return;
+            }
+            cir.setReturnValue(true);
+            return;
+        }
+
         if (this.hoveredSlot != null && this.hoveredSlot.container instanceof Inventory) {
             if (event.key() == InputConstants.KEY_L) {
                 ItemLockManager.toggleLock(this.hoveredSlot);
@@ -104,6 +155,41 @@ public class ContainerScreenMixin {
                     }
                     Glass.fillRound(gui, sx + 9, sy + 1, 7, 7, 2, 0xCCFFB300);
                     Glass.ring(gui, sx + 9, sy + 1, 7, 7, 2, 0.5f, 0xFFFFFFFF);
+                }
+            }
+
+            if (InventoryEnhancements.isSearchEnabled() && this.kollegen$searchBox != null) {
+                int bw = 78;
+                int bh = 13;
+                int bx = this.leftPos + this.imageWidth - bw - 8;
+                int by = this.topPos + 5;
+                boolean focused = this.kollegen$searchBox.isFocused();
+                Glass.fillRound(gui, bx - 3, by - 2, bw + 6, bh + 4, 4, focused ? 0xDD181B26 : 0x8810121C);
+                Glass.ring(gui, bx - 3, by - 2, bw + 6, bh + 4, 4, 1.0f, focused ? 0xFF8A5CF6 : 0x33FFFFFF);
+                this.kollegen$searchBox.extractWidgetRenderState(gui, mouseX, mouseY, partialTick);
+
+                String query = this.kollegen$searchBox.getValue().trim().toLowerCase();
+                if (!query.isEmpty()) {
+                    for (Slot s : this.menu.slots) {
+                        if (s == null) continue;
+                        int sx = this.leftPos + s.x;
+                        int sy = this.topPos + s.y;
+                        boolean match = false;
+                        if (s.hasItem()) {
+                            ItemStack is = s.getItem();
+                            String name = is.getHoverName().getString().toLowerCase();
+                            String key = BuiltInRegistries.ITEM.getKey(is.getItem()).toString().toLowerCase();
+                            if (name.contains(query) || key.contains(query)) {
+                                match = true;
+                            }
+                        }
+                        if (!match) {
+                            gui.fill(RenderPipelines.GUI, sx, sy, sx + 16, sy + 16, 0xC4000000);
+                        } else {
+                            Glass.fillRound(gui, sx - 1, sy - 1, 18, 18, 2, 0x3555FF55);
+                            Glass.ring(gui, sx - 1, sy - 1, 18, 18, 2, 1.2f, 0xFF55FF55);
+                        }
+                    }
                 }
             }
         }

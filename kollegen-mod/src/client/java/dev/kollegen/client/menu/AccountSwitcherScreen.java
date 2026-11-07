@@ -203,13 +203,17 @@ public class AccountSwitcherScreen extends Screen {
             Glass.text(g, this.font, sub, textX, Math.round(cardY + 25), subCol, false);
 
             if (active) {
-                Glass.badge(g, Math.round(cardX + this.cw - 64), Math.round(cardY + (CARD_H - 18) / 2.0f), 52, 18, 9, Palette.ACCENT, 0xFFFFFFFF, this.font, "Aktiv ✓");
+                Glass.badge(g, Math.round(cardX + this.cw - 68), Math.round(cardY + (CARD_H - 18) / 2.0f), 56, 18, 9, Palette.ACCENT, 0xFFFFFFFF, this.font, "Aktiv ✓");
             } else if (this.switchingAccount == acc) {
-                Glass.badge(g, Math.round(cardX + this.cw - 64), Math.round(cardY + (CARD_H - 18) / 2.0f), 52, 18, 9, 0xFF3B82F6, 0xFFFFFFFF, this.font, "Laden...");
+                Glass.badge(g, Math.round(cardX + this.cw - 68), Math.round(cardY + (CARD_H - 18) / 2.0f), 56, 18, 9, 0xFF3B82F6, 0xFFFFFFFF, this.font, "Laden...");
             } else {
-                boolean hBtn = inBounds && hit(mx, my, cardX + this.cw - 68, cardY + (CARD_H - 20) / 2.0f, 56, 20);
-                Glass.pill(g, cardX + this.cw - 68, cardY + (CARD_H - 20) / 2.0f, 56, 20, hv("sw:" + i, hBtn || hCard), false, false);
-                Glass.textC(g, this.font, "Wählen", Math.round(cardX + this.cw - 40), Math.round(cardY + (CARD_H - 8) / 2.0f), (hBtn || hCard) ? 0xFFFFFFFF : Palette.TEXT, false);
+                boolean hDel = inBounds && hit(mx, my, cardX + this.cw - 30, cardY + (CARD_H - 20) / 2.0f, 22, 20);
+                Glass.pill(g, cardX + this.cw - 30, cardY + (CARD_H - 20) / 2.0f, 22, 20, hv("del:" + i, hDel), false, false);
+                Glass.textC(g, this.font, "✕", Math.round(cardX + this.cw - 19), Math.round(cardY + (CARD_H - 8) / 2.0f), hDel ? 0xFFEF4444 : Palette.MUTED, false);
+
+                boolean hBtn = inBounds && hit(mx, my, cardX + this.cw - 92, cardY + (CARD_H - 20) / 2.0f, 58, 20);
+                Glass.pill(g, cardX + this.cw - 92, cardY + (CARD_H - 20) / 2.0f, 58, 20, hv("sw:" + i, hBtn || hCard), false, false);
+                Glass.textC(g, this.font, "Wählen", Math.round(cardX + this.cw - 63), Math.round(cardY + (CARD_H - 8) / 2.0f), (hBtn || hCard) ? 0xFFFFFFFF : Palette.TEXT, false);
             }
         }
 
@@ -429,6 +433,13 @@ public class AccountSwitcherScreen extends Screen {
                 AccountManager.Account acc = list.get(i);
                 float cardX = this.cx;
                 float cardY = this.cy + i * (CARD_H + GAP) - this.scrollV;
+
+                if (!AccountManager.isActive(acc) && hit(mx, my, cardX + this.cw - 30, cardY + (CARD_H - 20) / 2.0f, 22, 20)) {
+                    AccountManager.removeAccount(acc);
+                    AccountManager.loadAccounts();
+                    playClickSound();
+                    return true;
+                }
 
                 if (hit(mx, my, cardX, cardY, this.cw, CARD_H)) {
                     if (AccountManager.isActive(acc)) {

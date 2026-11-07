@@ -60,9 +60,9 @@
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path><path d="M3 6h18"></path><path d="M12 9v9"></path></svg>
         <span class="side-label">Capes</span>
       </button>
-      <button class="sidebar-link" data-tab="cosmetics" title="Cosmetics">
+      <button class="sidebar-link" data-tab="cosmetics" title="Kosmetika">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"></path><path d="M19 15l.9 2.1L22 18l-2.1.9L19 21l-.9-2.1L16 18l2.1-.9z"></path></svg>
-        <span class="side-label">Cosmetics</span>
+        <span class="side-label">Kosmetika</span>
       </button>
       <button class="sidebar-link" data-tab="logs" title="Logs" id="logsBtn">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"></path></svg>
@@ -313,37 +313,35 @@
       <div class="skins-header-bar">
         <div class="skins-search-wrap">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-          <input type="text" id="skinsSearchInput" placeholder="Search skins..." autocomplete="off">
+          <input type="text" id="skinsSearchInput" placeholder="Skins durchsuchen..." autocomplete="off">
         </div>
         <button id="addSkinTopBtn" class="add-skin-top-btn">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="9"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>
-          <span>ADD SKIN</span>
+          <span>SKIN HINZUFÜGEN</span>
         </button>
       </div>
 
       <div class="skins-grid-container" id="skinsGrid">
-        <!-- Add New Skin Card -->
         <div class="skin-card skin-card-add" id="cardAddNewSkin">
           <div class="skin-card-silhouette">
             <div class="skin-add-plus">
               <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="3"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
             </div>
           </div>
-          <div class="skin-card-title">Add New Skin</div>
+          <div class="skin-card-title">Neuen Skin hinzufügen</div>
           <div class="skin-card-sub">
             <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-            Upload or import a skin
+            Skin hochladen oder importieren
           </div>
         </div>
       </div>
     </section>
 
-    <!-- COMMUNITY CAPES PANEL (Image 3 & Image 4) -->
     <section id="capesPanel" class="tab-panel sx-page" data-tab="capes" aria-labelledby="capesTitle" hidden="">
       <div class="capes-category-tabs" role="tablist">
         <button class="cape-cat-tab active" data-cat="community">COMMUNITY</button>
-        <button class="cape-cat-tab" data-cat="all">ALL</button>
-        <button class="cape-cat-tab" data-cat="my_capes">MY CAPES</button>
+        <button class="cape-cat-tab" data-cat="all">ALLE</button>
+        <button class="cape-cat-tab" data-cat="my_capes">MEINE CAPES</button>
         <button class="cape-cat-tab" data-cat="gekauft">GEKAUFT</button>
         <button class="cape-cat-tab" data-cat="vanilla">VANILLA</button>
         <button id="capeFavToggleBtn" class="cape-cat-tab cape-fav-star-tab" title="Nur Favoriten anzeigen" style="margin-left: auto;">
@@ -357,16 +355,16 @@
       <div class="capes-toolbar">
         <div class="capes-search-wrap">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-          <input type="text" id="capesSearchInput" placeholder="Search by name or creator..." autocomplete="off">
+          <input type="text" id="capesSearchInput" placeholder="Nach Name oder Ersteller suchen..." autocomplete="off">
         </div>
         <div class="capes-tool-right">
           <button id="capeTemplateBtn" class="cape-action-btn">
             <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-            <span>TEMPLATE ▾</span>
+            <span>VORLAGE ▾</span>
           </button>
           <button id="capeUploadOpenBtn" class="cape-action-btn cape-upload-highlight">
             <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-            <span>UPLOAD</span>
+            <span>HOCHLADEN</span>
           </button>
         </div>
       </div>
@@ -374,14 +372,14 @@
       <div class="capes-grid" id="capesGrid">
         <div class="cape-card cape-card-none" id="capeCardNone">
           <div class="cape-none-icon">✕</div>
-          <div class="cape-card-name">No Cape</div>
+          <div class="cape-card-name">Kein Umhang</div>
         </div>
       </div>
     </section>
 
     <section id="cosmeticsPanel" class="tab-panel sx-page" data-tab="cosmetics" aria-labelledby="cosmeticsTitle" hidden="">
       <div class="sx-head">
-        <h2 id="cosmeticsTitle">Cosmetics</h2>
+        <h2 id="cosmeticsTitle">Kosmetika</h2>
         <span class="sx-head-sub">Rüste aus, was du dir im Store geholt hast</span>
       </div>
       <div class="cosm-layout">
@@ -462,7 +460,7 @@
         </div>
         <div class="manage-actions" id="manageModActions">
           <button id="manageImportBtn" class="btn-secondary">Importieren</button>
-          <button id="manageBrowseBtn" class="btn-primary">Browse</button>
+          <button id="manageBrowseBtn" class="btn-primary">Durchsuchen</button>
         </div>
         <div id="manageSettings" hidden="">
           <div class="manage-actions">
@@ -512,8 +510,8 @@
       </header>
       <div class="settings-tabs" role="tablist">
         <button class="settings-tab active" data-tab="connections" role="tab" aria-selected="true">Verbindungen</button>
-        <button class="settings-tab" data-tab="features" role="tab" aria-selected="false">Features</button>
-        <button class="settings-tab" data-tab="themes" role="tab" aria-selected="false">Themes</button>
+        <button class="settings-tab" data-tab="features" role="tab" aria-selected="false">Funktionen</button>
+        <button class="settings-tab" data-tab="themes" role="tab" aria-selected="false">Farbschemata</button>
         <button class="settings-tab" data-tab="servers" role="tab" aria-selected="false">Server</button>
         <button class="settings-tab" data-tab="import" role="tab" aria-selected="false">Importieren</button>
         <button class="settings-tab" data-tab="updates" role="tab" aria-selected="false">Updates</button>
@@ -608,25 +606,25 @@
 
           <div class="clips-card" style="flex-direction: column; align-items: stretch; gap: 8px;">
             <div style="display: flex; justify-content: space-between; align-items: center;">
-              <div class="clips-item-title">Also record</div>
-              <div id="clipsAlsoRecordSummary" class="clips-summary-badge">None</div>
+              <div class="clips-item-title">Zusätzlich aufnehmen</div>
+              <div id="clipsAlsoRecordSummary" class="clips-summary-badge">Keins</div>
             </div>
-            <div class="clips-item-desc">Besides Minecraft, record another program whenever it is in front, or pick a whole screen to record instead.</div>
+            <div class="clips-item-desc">Neben Minecraft ein anderes Programm im Vordergrund oder einen ganzen Bildschirm aufnehmen.</div>
 
             <div class="clips-picker-tabs">
               <div class="clips-sub-tabs">
                 <button id="clipsTabPrograms" class="clips-sub-tab active" type="button">
                   <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M4 4h4v4H4V4zm6 0h4v4h-4V4zm6 0h4v4h-4V4zM4 10h4v4H4v-4zm6 0h4v4h-4v-4zm6 0h4v4h-4v-4zM4 16h4v4H4v-4zm6 0h4v4h-4v-4zm6 0h4v4h-4v-4z"></path></svg>
-                  <span id="clipsProgramsTabLabel">PROGRAMS (0)</span>
+                  <span id="clipsProgramsTabLabel">PROGRAMME (0)</span>
                 </button>
                 <button id="clipsTabScreens" class="clips-sub-tab" type="button">
                   <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M21 3H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h7v2H8v2h8v-2h-2v-2h7c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 14H3V5h18v12z"></path></svg>
-                  <span id="clipsScreensTabLabel">SCREENS (0)</span>
+                  <span id="clipsScreensTabLabel">BILDSCHIRME (0)</span>
                 </button>
               </div>
               <button id="clipsReloadTargetsBtn" class="clips-reload-btn" type="button" title="Liste aktualisieren">
                 <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M23 4v6h-6M1 20v-6h6"></path><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
-                <span>RELOAD</span>
+                <span>AKTUALISIEREN</span>
               </button>
             </div>
 
@@ -893,8 +891,8 @@
         <div class="skin-changer pm-pane" id="skinChanger" data-pane="skin">
           <h4>Skin wechseln</h4>
           <div class="skin-actions">
-            <button id="skinDownloadBtn" class="btn-secondary">Download</button>
-            <button id="skinUploadBtn" class="btn-secondary">Upload</button>
+            <button id="skinDownloadBtn" class="btn-secondary">Herunterladen</button>
+            <button id="skinUploadBtn" class="btn-secondary">Hochladen</button>
             <input id="skinFileInput" type="file" accept="image/png" hidden="">
           </div>
           <div id="skinLibrary" class="skin-library" role="list"></div>

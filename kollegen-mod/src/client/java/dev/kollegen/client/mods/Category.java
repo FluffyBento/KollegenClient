@@ -1,19 +1,18 @@
 package dev.kollegen.client.mods;
 
-
 public enum Category {
-    VISUAL("Visual", "🎨"),
+    VISUAL("Grafik", "🎨"),
     HUD("HUD", "📊"),
     GAMEPLAY("Gameplay", "🎮"),
     WORLD("Welt", "🌍"),
     CHAT("Chat", "💬"),
-    PERFORMANCE("Performance", "⚡"),
+    PERFORMANCE("Leistung", "⚡"),
     MISC("Verschiedenes", "⚙"),
-    STORE("Store", "🛍"),
-    COSMETICS("Cosmetics", "✨"),
+    STORE("Shop", "🛍"),
+    COSMETICS("Kosmetika", "✨"),
     EMOTES("Emotes", "💃"),
     SKIN_CAPE("Skin & Cape", "👤"),
-    PETS("Pets", "🐾"),
+    PETS("Haustiere", "🐾"),
     EXTRAS("Extras", "🕹");
 
     public final String display;

@@ -5,7 +5,9 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.mojang.blaze3d.platform.InputConstants;
+import dev.kollegen.client.account.AccountManager;
 import dev.kollegen.client.game.*;
+import dev.kollegen.client.mcreal.McRealManager;
 import dev.kollegen.client.mods.Palette;
 import dev.kollegen.client.party.PartyManager;
 import dev.kollegen.client.presence.PrivacySettings;
@@ -38,10 +40,10 @@ import java.util.List;
 public class KollegenSocialScreen extends Screen {
 
     private final Screen parent;
-    private static final int SW = 210;
-    private static final int ROW_H = 46;
+    private static final int SW = 200;
+    private static final int ROW_H = 50;
     private static final int GAP = 6;
-    private static final String[] TABS = { "👥 Freunde", "📩 Anfragen", "🎮 Spiele", "🎉 Party", "🗂 Gruppen", "💬 Chats" };
+    private static final String[] TABS = { "👥 Freunde", "📸 McReal", "🎉 Party", "🎮 Spiele", "📩 Anfragen", "🗂 Gruppen", "💬 Chats" };
 
     private final HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(6)).build();
 
@@ -59,6 +61,10 @@ public class KollegenSocialScreen extends Screen {
     private long groupSinceMsg = 0;
     private boolean pollBusy = false;
     private long lastPoll = 0;
+
+    private boolean showNewPostModal = false;
+    private EditBox mcrealCaptionInput = null;
+    private EditBox friendSearchInput = null;
 
     private final List<Entry> entries = new ArrayList<>();
     private final List<Rect> entryRects = new ArrayList<>();
@@ -85,13 +91,20 @@ public class KollegenSocialScreen extends Screen {
         final Runnable chatAct;
         final Runnable joinAct;
         final String joinServer;
+        final boolean isMcReal;
+        final McRealManager.McRealPost mcRealPost;
 
         Entry(String title, String sub, int color, Runnable act) {
-            this(title, sub, color, act, null, false, false, null, null, null, null);
+            this(title, sub, color, act, null, false, false, null, null, null, null, false, null);
         }
 
         Entry(String title, String sub, int color, Runnable act, String playerHead, boolean online, boolean isFriendCard,
               Runnable partyAct, Runnable chatAct, Runnable joinAct, String joinServer) {
+            this(title, sub, color, act, playerHead, online, isFriendCard, partyAct, chatAct, joinAct, joinServer, false, null);
+        }
+
+        Entry(String title, String sub, int color, Runnable act, String playerHead, boolean online, boolean isFriendCard,
+              Runnable partyAct, Runnable chatAct, Runnable joinAct, String joinServer, boolean isMcReal, McRealManager.McRealPost mcRealPost) {
             this.title = title;
             this.sub = sub;
             this.color = color;
@@ -103,6 +116,8 @@ public class KollegenSocialScreen extends Screen {
             this.chatAct = chatAct;
             this.joinAct = joinAct;
             this.joinServer = joinServer;
+            this.isMcReal = isMcReal;
+            this.mcRealPost = mcRealPost;
         }
     }
 
@@ -138,95 +153,125 @@ public class KollegenSocialScreen extends Screen {
         py = y;
         pw = w;
         ph = h;
-        cx = px + SW + 14;
-        cw = pw - SW - 30;
-        sidebarTop = py + 58;
-        sidebarBottom = py + ph - 14;
-        contentTop = py + 48;
-        contentBottom = py + ph - 28;
+
+        cx = px + SW + 8;
+        cw = pw - SW - 16;
+        contentTop = py + 72;
+        contentBottom = py + ph - 56;
+        sidebarTop = py + 62;
+        sidebarBottom = py + ph - 16;
+
         buildWidgets();
         loadClient();
     }
 
     private void buildWidgets() {
         clearWidgets();
-        int bh = 26;
-        int by = py + 12;
+
+        int topY = py + 14;
 
         boolean hidden = PrivacySettings.isHideServer();
         String privText = hidden ? "🔒 Server: Verborgen" : "👁 Server: Öffentlich";
-        if (pw >= 760) {
-            addRenderableWidget(new AccountButton(px + pw - 396, by + 2, true, btn ->
-                    Minecraft.getInstance().setScreenAndShow(new AccountSwitcherScreen(this))));
-        }
-
-        GlassButton privBtn = new GlassButton(px + pw - 386, by, 140, bh, Component.literal(privText), btn -> {
+        GlassButton privBtn = new GlassButton(px + pw - 340, topY, 150, 24, Component.literal(privText), btn -> {
             PrivacySettings.toggleHideServer();
             boolean nowHidden = PrivacySettings.isHideServer();
             btn.setMessage(Component.literal(nowHidden ? "🔒 Server: Verborgen" : "👁 Server: Öffentlich"));
-            status = nowHidden ? "Server für Freunde verborgen ✓" : "Server für Freunde sichtbar ✓";
-            rebuildEntries();
+            status = nowHidden ? "Server für Freunde verborgen." : "Server für Freunde sichtbar.";
         });
         addRenderableWidget(privBtn);
 
-        GlassButton swBtn = new GlassButton(px + pw - 236, by, 130, bh, Component.literal("🌐 Server wechseln"), btn ->
+        GlassButton switcherBtn = new GlassButton(px + pw - 184, topY, 110, 24, Component.literal("🌐 Server wechseln"), btn ->
                 Minecraft.getInstance().setScreenAndShow(new ServerSwitcherScreen(this)));
-        addRenderableWidget(swBtn);
+        addRenderableWidget(switcherBtn);
 
-        backBtn = new GlassButton(px + pw - 98, by, 26, bh, Component.literal("←"), btn -> {
-            inThread = false;
-            threadId = "";
-            groupSinceMsg = 0;
-            rebuildEntries();
-            buildWidgets();
-        });
-        backBtn.visible = inThread;
-
-        refreshBtn = new GlassButton(px + pw - 68, by, 26, bh, Component.literal("⟳"), btn -> {
-            status = "Lade…";
+        refreshBtn = new GlassButton(px + pw - 68, topY, 26, 24, Component.literal("⟳"), btn -> {
+            status = "Aktualisiere…";
             loadAll();
         });
-
-        GlassButton closeBtn = new GlassButton(px + pw - 38, by, 26, bh, Component.literal("✕"), btn ->
-                Minecraft.getInstance().setScreenAndShow(parent));
-
-        addRenderableWidget(backBtn);
         addRenderableWidget(refreshBtn);
-        addRenderableWidget(closeBtn);
 
-        int inpY = py + ph - 38;
-        int btnW = 130;
-        if (inThread) {
-            GlassButton send = new GlassButton(cx + cw - btnW, inpY, btnW, 26, Component.literal("Senden"), btn -> sendThread());
-            addRenderableWidget(send);
-            chatInp = new EditBox(this.font, cx + 8, inpY, cw - btnW - 16, 26, Component.literal("Nachricht"));
-            chatInp.setMaxLength(2000);
-            chatInp.setHint(Component.literal("Nachricht eingeben…"));
-            addRenderableWidget(chatInp);
-            chatInp.setFocused(true);
-        } else if (tab == 0 || tab == 1) {
+        backBtn = new GlassButton(px + pw - 38, topY, 26, 24, Component.literal("✕"), btn -> {
+            if (inThread) {
+                inThread = false;
+                rebuildEntries();
+            } else {
+                Minecraft.getInstance().setScreenAndShow(parent);
+            }
+        });
+        addRenderableWidget(backBtn);
+
+        if (tab == 0 && !inThread) {
+            int inpY = py + ph - 44;
+            int btnW = 100;
             codeInp = new EditBox(this.font, cx + 8, inpY, cw - btnW - 16, 26, Component.literal("Freundes-Code"));
-            codeInp.setMaxLength(16);
+            codeInp.setMaxLength(10);
             codeInp.setHint(Component.literal("Freundes-Code eingeben…"));
             addRenderableWidget(codeInp);
-            GlassButton b = new GlassButton(cx + cw - btnW, inpY, btnW, 26, Component.literal("Hinzufügen"), btn -> apiAddFriend());
-            addRenderableWidget(b);
-        } else if (tab == 4) {
+
+            addRenderableWidget(new GlassButton(cx + cw - btnW - 6, inpY, btnW, 26, Component.literal("Hinzufügen"), btn -> apiAddFriend()));
+        } else if (tab == 1 && !inThread) {
+            codeInp = null;
+            groupInp = null;
+            chatInp = null;
+            if (showNewPostModal) {
+                int modalY = py + 80;
+                int modalW = cw - 32;
+                mcrealCaptionInput = new EditBox(this.font, cx + 16, modalY + 36, modalW - 110, 26, Component.literal("Caption"));
+                mcrealCaptionInput.setMaxLength(140);
+                mcrealCaptionInput.setHint(Component.literal("Was passiert gerade in deiner Welt?"));
+                addRenderableWidget(mcrealCaptionInput);
+
+                addRenderableWidget(new GlassButton(cx + 16 + modalW - 100, modalY + 36, 96, 26, Component.literal("📸 Posten"), btn -> {
+                    String text = mcrealCaptionInput.getValue().trim();
+                    if (!text.isEmpty()) {
+                        String srv = getCurrentServerName();
+                        McRealManager.addPost(text, srv);
+                        showNewPostModal = false;
+                        buildWidgets();
+                        rebuildEntries();
+                    }
+                }));
+            } else {
+                mcrealCaptionInput = null;
+            }
+        } else if (tab == 5 && !inThread) {
+            int inpY = py + ph - 44;
+            int btnW = 100;
             groupInp = new EditBox(this.font, cx + 8, inpY, cw - btnW - 16, 26, Component.literal("Gruppenname"));
-            groupInp.setMaxLength(40);
-            groupInp.setHint(Component.literal("Neuer Gruppenname…"));
+            groupInp.setMaxLength(30);
+            groupInp.setHint(Component.literal("Name der neuen Gruppe…"));
             addRenderableWidget(groupInp);
-            GlassButton b = new GlassButton(cx + cw - btnW, inpY, btnW, 26, Component.literal("Gruppe erstellen"), btn -> apiCreateGroup());
-            addRenderableWidget(b);
+
+            addRenderableWidget(new GlassButton(cx + cw - btnW - 6, inpY, btnW, 26, Component.literal("Erstellen"), btn -> apiCreateGroup()));
+        } else if (inThread) {
+            int inpY = py + ph - 44;
+            int btnW = 80;
+            chatInp = new EditBox(this.font, cx + 8, inpY, cw - btnW - 16, 26, Component.literal("Nachricht"));
+            chatInp.setMaxLength(300);
+            chatInp.setHint(Component.literal("Nachricht eingeben…"));
+            addRenderableWidget(chatInp);
+
+            addRenderableWidget(new GlassButton(cx + cw - btnW - 6, inpY, btnW, 26, Component.literal("Senden"), btn -> sendThread()));
+        } else {
+            codeInp = null;
+            groupInp = null;
+            chatInp = null;
+            mcrealCaptionInput = null;
         }
     }
 
-    private void computeScroll() {
-        int visible = (contentBottom - 4) - (contentTop + 56);
-        int need = entries.size() * (ROW_H + GAP);
-        maxScroll = Math.max(0, need - visible);
-        if (scroll > maxScroll) scroll = maxScroll;
-        if (scroll < 0) scroll = 0;
+    private String getCurrentServerName() {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.getCurrentServer() != null && mc.getCurrentServer().name != null) {
+            return mc.getCurrentServer().name;
+        }
+        if (mc.getCurrentServer() != null && mc.getCurrentServer().ip != null) {
+            return mc.getCurrentServer().ip;
+        }
+        if (mc.hasSingleplayerServer()) {
+            return "Singleplayer";
+        }
+        return "Minecraft";
     }
 
     @Override
@@ -236,25 +281,34 @@ public class KollegenSocialScreen extends Screen {
         if (event.button() != InputConstants.MOUSE_BUTTON_LEFT) return super.mouseClicked(event, bl);
 
         int tabItemH = 34;
-        if (mx >= px && mx <= px + SW && my >= sidebarTop && my <= sidebarBottom) {
-            int idx = (int) ((my - sidebarTop) / (tabItemH + 4));
-            if (idx >= 0 && idx < TABS.length) {
-                if (idx != tab) {
-                    tab = idx;
+        for (int i = 0; i < TABS.length; i++) {
+            int by = sidebarTop + i * (tabItemH + 4);
+            if (mx >= px + 10 && mx <= px + SW - 10 && my >= by && my <= by + tabItemH) {
+                if (tab != i || inThread) {
+                    tab = i;
                     inThread = false;
-                    threadId = "";
-                    groupSinceMsg = 0;
                     scroll = 0;
-                    rebuildEntries();
+                    showNewPostModal = false;
                     buildWidgets();
+                    rebuildEntries();
+                    return true;
                 }
+            }
+        }
+
+        if (tab == 1 && !inThread) {
+            int newBtnX = cx + cw - 120;
+            int newBtnY = py + 48;
+            if (mx >= newBtnX && mx <= newBtnX + 112 && my >= newBtnY && my <= newBtnY + 24) {
+                showNewPostModal = !showNewPostModal;
+                buildWidgets();
                 return true;
             }
         }
 
         for (Rect r : entryRects) {
-            if (r.hit(mx, my) && r.act != null) {
-                r.act.run();
+            if (r.hit(mx, my)) {
+                if (r.act != null) r.act.run();
                 return true;
             }
         }
@@ -264,7 +318,8 @@ public class KollegenSocialScreen extends Screen {
 
     @Override
     public boolean mouseScrolled(double mx, double my, double horizontal, double vertical) {
-        if (maxScroll > 0 && mx >= cx && mx <= cx + cw) {
+        int listTop = py + 72 + (showNewPostModal && tab == 1 ? 84 : 0);
+        if (maxScroll > 0 && mx >= cx && mx <= cx + cw && my >= listTop && my <= contentBottom) {
             scroll = Math.max(0, Math.min(maxScroll, scroll - (int) (vertical * 26)));
             return true;
         }
@@ -273,10 +328,43 @@ public class KollegenSocialScreen extends Screen {
 
     @Override
     public boolean keyPressed(KeyEvent ki) {
+        if (ki.key() == InputConstants.KEY_ESCAPE || ki.isEscape()) {
+            if (showNewPostModal) {
+                showNewPostModal = false;
+                buildWidgets();
+                return true;
+            }
+            if (inThread) {
+                inThread = false;
+                rebuildEntries();
+                return true;
+            }
+            Minecraft.getInstance().setScreenAndShow(this.parent);
+            return true;
+        }
         if (ki.key() == InputConstants.KEY_RETURN || ki.key() == InputConstants.KEY_NUMPADENTER || ki.isConfirmation()) {
-            if (codeInp != null && codeInp.isFocused()) { apiAddFriend(); return true; }
-            if (groupInp != null && groupInp.isFocused()) { apiCreateGroup(); return true; }
-            if (chatInp != null && chatInp.isFocused()) { sendThread(); return true; }
+            if (chatInp != null && chatInp.isFocused()) {
+                sendThread();
+                return true;
+            }
+            if (codeInp != null && codeInp.isFocused()) {
+                apiAddFriend();
+                return true;
+            }
+            if (groupInp != null && groupInp.isFocused()) {
+                apiCreateGroup();
+                return true;
+            }
+            if (mcrealCaptionInput != null && mcrealCaptionInput.isFocused()) {
+                String text = mcrealCaptionInput.getValue().trim();
+                if (!text.isEmpty()) {
+                    McRealManager.addPost(text, getCurrentServerName());
+                    showNewPostModal = false;
+                    buildWidgets();
+                    rebuildEntries();
+                    return true;
+                }
+            }
         }
         return super.keyPressed(ki);
     }
@@ -287,36 +375,37 @@ public class KollegenSocialScreen extends Screen {
 
         UiStyleManager.drawPanel(g, px, py, pw, ph, Palette.BG);
 
-        int headerH = 54;
+        int sepX = px + SW;
         if (UiStyleManager.isMinecraftStyle()) {
-            g.fill(px + 8, py + 8, px + 8 + SW, py + ph - 8, 0xFF181818);
-            g.fill(px + 8, py + 8, px + 8 + SW, py + 9, 0xFF000000);
-            g.fill(px + 8, py + ph - 9, px + 8 + SW, py + ph - 8, 0xFF000000);
-            g.fill(px + 8, py + 8, px + 9, py + ph - 8, 0xFF000000);
-            g.fill(px + 7 + SW, py + 8, px + 8 + SW, py + ph - 8, 0xFF000000);
+            g.fill(sepX, py + 10, sepX + 2, py + ph - 10, 0xFF2B2B2B);
+            g.fill(sepX, py + 10, sepX + 1, py + ph - 10, 0xFF141414);
         } else {
-            Glass.fillRound(g, px + 8, py + 8, SW, ph - 16, 10, Palette.tint(Palette.PANEL2, 0xAA));
-            Glass.fillRound(g, px + 8, py + 8, SW, 3, 2, Palette.ACCENT);
+            g.fill(sepX, py + 10, sepX + 1, py + ph - 10, Palette.tint(Palette.PANEL2, 0x88));
         }
 
-        g.text(this.font, "FREUNDE & SOCIAL", px + 18, py + 22, Palette.ACCENT, true);
-        g.text(this.font, inThread ? threadTitle : TABS[tab], cx + 12, py + 22, Palette.TEXT, true);
+        g.text(this.font, "FREUNDE & SOCIAL", px + 18, py + 20, Palette.ACCENT, true);
+        g.text(this.font, inThread ? threadTitle : TABS[tab], cx + 12, py + 20, Palette.TEXT, true);
 
-        int statusBarY = py + headerH;
-        if (UiStyleManager.isMinecraftStyle()) {
-            g.fill(cx + 8, statusBarY + 2, cx + cw - 8, statusBarY + 30, 0xFF141414);
-            g.fill(cx + 8, statusBarY + 2, cx + cw - 8, statusBarY + 3, 0xFF0E0E0E);
-            g.fill(cx + 8, statusBarY + 29, cx + cw - 8, statusBarY + 30, 0xFF2A2A2A);
-        } else {
-            Glass.fillRound(g, cx + 8, statusBarY + 2, cw - 16, 28, 6, Palette.tint(Palette.PANEL2, 0xAA));
+        if (tab == 1 && !inThread) {
+            int newBtnX = cx + cw - 120;
+            int newBtnY = py + 48;
+            boolean hovNew = mx >= newBtnX && mx <= newBtnX + 112 && my >= newBtnY && my <= newBtnY + 24;
+            Glass.fillRound(g, newBtnX, newBtnY, 112, 24, 6, hovNew ? Palette.GREEN : Palette.ACCENT);
+            if (hovNew) Glass.ring(g, newBtnX, newBtnY, 112, 24, 6, 1.0f, 0xFFFFFFFF);
+            Glass.textC(g, this.font, showNewPostModal ? "✕ Abbrechen" : "📸 Neuer Post", newBtnX + 56, newBtnY + 8, 0xFFFFFFFF, true);
         }
-        g.text(this.font, trunc(status, cw - 32), cx + 14, statusBarY + 11, authed ? Palette.GREEN : Palette.MUTED, false);
+
+        int statusBarY = py + 46;
+        if (tab != 1) {
+            Glass.fillRound(g, cx + 8, statusBarY, cw - 16, 22, 5, Palette.tint(Palette.PANEL2, 0x88));
+            g.text(this.font, trunc(status, cw - 32), cx + 16, statusBarY + 7, authed ? Palette.GREEN : Palette.MUTED, false);
+        }
 
         int tabItemH = 34;
         g.enableScissor(px + 8, sidebarTop, px + SW - 8, sidebarBottom);
         for (int i = 0; i < TABS.length; i++) {
             int by = sidebarTop + i * (tabItemH + 4);
-            boolean sel = i == tab;
+            boolean sel = i == tab && !inThread;
             boolean hov = mx >= px + 10 && mx <= px + SW - 10 && my >= by && my <= by + tabItemH;
             if (UiStyleManager.isMinecraftStyle()) {
                 Glass.drawMinecraftButton(g, px + 10, by, SW - 20, tabItemH, hov ? 1.0f : 0.0f, sel, false);
@@ -334,7 +423,14 @@ public class KollegenSocialScreen extends Screen {
         }
         g.disableScissor();
 
-        int listTop = py + headerH + 44;
+        if (showNewPostModal && tab == 1) {
+            int modalY = py + 80;
+            int modalW = cw - 32;
+            UiStyleManager.drawCard(g, cx + 16, modalY, modalW, 76, 8, Palette.PANEL, 0.0f, null);
+            g.text(this.font, "📸 Was gibt's Neues?", cx + 24, modalY + 12, Palette.TEXT, true);
+        }
+
+        int listTop = py + 74 + (showNewPostModal && tab == 1 ? 84 : 0);
         int listBottom = py + ph - 48;
         g.enableScissor(cx, listTop, cx + cw, listBottom);
         entryRects.clear();
@@ -342,74 +438,118 @@ public class KollegenSocialScreen extends Screen {
         int ew = cw - 16;
         int ey = listTop + 2 - scroll;
         for (Entry e : entries) {
-            boolean vis = ey + ROW_H > listTop && ey < listBottom;
+            int itemH = e.isMcReal ? 72 : ROW_H;
+            boolean vis = ey + itemH > listTop && ey < listBottom;
             if (vis) {
-                boolean hov = mx >= ex && mx <= ex + ew && my >= ey && my <= ey + ROW_H;
+                boolean hov = mx >= ex && mx <= ex + ew && my >= ey && my <= ey + itemH;
                 float h = hov ? 1.0f : 0.0f;
-                UiStyleManager.drawCard(g, ex, ey, ew, ROW_H, 8, Palette.PANEL, h, null);
+                UiStyleManager.drawCard(g, ex, ey, ew, itemH, 8, Palette.PANEL, h, null);
 
-                int textStartX = ex + 14;
-                if (e.playerHead != null) {
-                    SkinFaceRenderer.drawFace(g, e.playerHead, null, ex + 8, ey + 9, 28);
-                    Glass.ring(g, ex + 8, ey + 9, 28, 28, 5, 0.5f, 0x44FFFFFF);
+                if (e.isMcReal && e.mcRealPost != null) {
+                    McRealManager.McRealPost p = e.mcRealPost;
+                    int avatarX = ex + 10;
+                    int avatarY = ey + 10;
+                    SkinFaceRenderer.drawFace(g, p.authorName, null, avatarX, avatarY, 32);
+                    Glass.ring(g, avatarX, avatarY, 32, 32, 6, 1.0f, Palette.ACCENT);
 
-                    int dotCol = e.online ? Palette.GREEN : Palette.MUTED;
-                    Glass.disc(g, ex + 33, ey + 33, 4.5f, Palette.BG);
-                    Glass.disc(g, ex + 33, ey + 33, 3.5f, dotCol);
-                    if (e.online) {
-                        Glass.ring(g, ex + 33 - 4, ey + 33 - 4, 8, 8, 4, 0.5f, Palette.GREEN);
+                    int headerTextX = avatarX + 40;
+                    g.text(this.font, p.authorName, headerTextX, ey + 10, Palette.TEXT, true);
+
+                    int nameW = this.font.width(p.authorName);
+                    int badgeX = headerTextX + nameW + 8;
+                    int srvW = this.font.width(p.serverTag) + 10;
+                    Glass.badge(g, badgeX, ey + 9, srvW, 14, 4, Palette.PANEL2, Palette.ACCENT, this.font, p.serverTag);
+
+                    String timeStr = p.getTimeAgo();
+                    int timeW = this.font.width(timeStr);
+                    g.text(this.font, timeStr, ex + ew - timeW - 14, ey + 10, Palette.MUTED, false);
+
+                    g.text(this.font, trunc(p.caption, ew - 180), headerTextX, ey + 28, Palette.TEXT, false);
+
+                    int likeBtnW = 60;
+                    int likeBtnH = 22;
+                    int likeBtnX = ex + ew - likeBtnW - 12;
+                    int likeBtnY = ey + 42;
+                    boolean hovLike = mx >= likeBtnX && mx <= likeBtnX + likeBtnW && my >= likeBtnY && my <= likeBtnY + likeBtnH;
+                    int likeBg = p.likedByMe ? 0x44EF4444 : (hovLike ? Palette.PANEL2 : Palette.BG);
+                    Glass.fillRound(g, likeBtnX, likeBtnY, likeBtnW, likeBtnH, 5, likeBg);
+                    Glass.ring(g, likeBtnX, likeBtnY, likeBtnW, likeBtnH, 5, 0.8f, p.likedByMe ? 0xFFEF4444 : 0x33FFFFFF);
+                    String heartStr = (p.likedByMe ? "❤️ " : "🤍 ") + p.likes;
+                    Glass.textC(g, this.font, heartStr, likeBtnX + likeBtnW / 2, likeBtnY + 7, p.likedByMe ? 0xFFEF4444 : Palette.TEXT, false);
+
+                    entryRects.add(new Rect(likeBtnX, likeBtnY, likeBtnW, likeBtnH, () -> {
+                        McRealManager.toggleLike(p.id);
+                        rebuildEntries();
+                    }));
+
+                    int commW = this.font.width("💬 " + p.comments.size());
+                    g.text(this.font, "💬 " + p.comments.size() + " Kommentare", headerTextX, ey + 48, Palette.MUTED, false);
+
+                } else {
+                    int textStartX = ex + 14;
+                    if (e.playerHead != null) {
+                        SkinFaceRenderer.drawFace(g, e.playerHead, null, ex + 8, ey + 9, 32);
+                        Glass.ring(g, ex + 8, ey + 9, 32, 32, 6, 0.8f, 0x44FFFFFF);
+
+                        int dotCol = e.online ? Palette.GREEN : Palette.MUTED;
+                        Glass.disc(g, ex + 37, ey + 37, 4.5f, Palette.BG);
+                        Glass.disc(g, ex + 37, ey + 37, 3.5f, dotCol);
+                        if (e.online) {
+                            Glass.ring(g, ex + 37 - 4, ey + 37 - 4, 8, 8, 4, 0.6f, Palette.GREEN);
+                        }
+                        textStartX = ex + 48;
                     }
-                    textStartX = ex + 46;
-                }
 
-                g.text(this.font, e.title, textStartX, ey + 9, e.color, true);
-                if (e.sub != null && !e.sub.isEmpty()) {
-                    g.text(this.font, trunc(e.sub, ew - 240), textStartX, ey + 24, Palette.MUTED, false);
-                }
-
-                if (e.isFriendCard) {
-                    int btnH = 24;
-                    int curBx = ex + ew - 8;
-
-                    if (e.chatAct != null) {
-                        int cwBtn = 48;
-                        curBx -= cwBtn;
-                        int cby = ey + (ROW_H - btnH) / 2;
-                        boolean cHov = mx >= curBx && mx <= curBx + cwBtn && my >= cby && my <= cby + btnH;
-                        Glass.fillRound(g, curBx, cby, cwBtn, btnH, 6, cHov ? Palette.ACCENT : Palette.PANEL2);
-                        int tw = this.font.width("💬 Chat");
-                        g.text(this.font, "💬 Chat", curBx + (cwBtn - tw) / 2, cby + 7, cHov ? 0xFFFFFFFF : Palette.TEXT, false);
-                        entryRects.add(new Rect(curBx, cby, cwBtn, btnH, e.chatAct));
-                        curBx -= 6;
+                    g.text(this.font, e.title, textStartX, ey + 11, e.color, true);
+                    if (e.sub != null && !e.sub.isEmpty()) {
+                        g.text(this.font, trunc(e.sub, ew - 240), textStartX, ey + 27, Palette.MUTED, false);
                     }
 
-                    if (e.partyAct != null) {
-                        int pwBtn = 58;
-                        curBx -= pwBtn;
-                        int pby = ey + (ROW_H - btnH) / 2;
-                        boolean pHov = mx >= curBx && mx <= curBx + pwBtn && my >= pby && my <= pby + btnH;
-                        Glass.fillRound(g, curBx, pby, pwBtn, btnH, 6, pHov ? Palette.ACCENT2 : Palette.PANEL2);
-                        int tw = this.font.width("🎉 Party");
-                        g.text(this.font, "🎉 Party", curBx + (pwBtn - tw) / 2, pby + 7, pHov ? 0xFFFFFFFF : Palette.TEXT, false);
-                        entryRects.add(new Rect(curBx, pby, pwBtn, btnH, e.partyAct));
-                        curBx -= 6;
-                    }
+                    if (e.isFriendCard) {
+                        int btnH = 24;
+                        int curBx = ex + ew - 8;
 
-                    if (e.joinAct != null) {
-                        int jw = 76;
-                        curBx -= jw;
-                        int jby = ey + (ROW_H - btnH) / 2;
-                        boolean jHov = mx >= curBx && mx <= curBx + jw && my >= jby && my <= jby + btnH;
-                        Glass.fillRound(g, curBx, jby, jw, btnH, 6, jHov ? Palette.GREEN : Palette.ACCENT);
-                        int tw = this.font.width("🚀 Beitreten");
-                        g.text(this.font, "🚀 Beitreten", curBx + (jw - tw) / 2, jby + 7, 0xFFFFFFFF, false);
-                        entryRects.add(new Rect(curBx, jby, jw, btnH, e.joinAct));
+                        if (e.chatAct != null) {
+                            int cwBtn = 52;
+                            curBx -= cwBtn;
+                            int cby = ey + (ROW_H - btnH) / 2;
+                            boolean cHov = mx >= curBx && mx <= curBx + cwBtn && my >= cby && my <= cby + btnH;
+                            Glass.fillRound(g, curBx, cby, cwBtn, btnH, 6, cHov ? Palette.ACCENT : Palette.PANEL2);
+                            int tw = this.font.width("💬 Chat");
+                            g.text(this.font, "💬 Chat", curBx + (cwBtn - tw) / 2, cby + 7, cHov ? 0xFFFFFFFF : Palette.TEXT, false);
+                            entryRects.add(new Rect(curBx, cby, cwBtn, btnH, e.chatAct));
+                            curBx -= 6;
+                        }
+
+                        if (e.partyAct != null) {
+                            int pwBtn = 62;
+                            curBx -= pwBtn;
+                            int pby = ey + (ROW_H - btnH) / 2;
+                            boolean pHov = mx >= curBx && mx <= curBx + pwBtn && my >= pby && my <= pby + btnH;
+                            Glass.fillRound(g, curBx, pby, pwBtn, btnH, 6, pHov ? Palette.ACCENT2 : Palette.PANEL2);
+                            int tw = this.font.width("🎉 Party");
+                            g.text(this.font, "🎉 Party", curBx + (pwBtn - tw) / 2, pby + 7, pHov ? 0xFFFFFFFF : Palette.TEXT, false);
+                            entryRects.add(new Rect(curBx, pby, pwBtn, btnH, e.partyAct));
+                            curBx -= 6;
+                        }
+
+                        if (e.joinAct != null) {
+                            int jw = 82;
+                            curBx -= jw;
+                            int jby = ey + (ROW_H - btnH) / 2;
+                            boolean jHov = mx >= curBx && mx <= curBx + jw && my >= jby && my <= jby + btnH;
+                            Glass.fillRound(g, curBx, jby, jw, btnH, 6, jHov ? Palette.GREEN : Palette.ACCENT);
+                            if (jHov) Glass.ring(g, curBx, jby, jw, btnH, 6, 1.0f, 0xFFFFFFFF);
+                            int tw = this.font.width("🚀 Beitreten");
+                            g.text(this.font, "🚀 Beitreten", curBx + (jw - tw) / 2, jby + 7, 0xFFFFFFFF, true);
+                            entryRects.add(new Rect(curBx, jby, jw, btnH, e.joinAct));
+                        }
+                    } else if (e.act != null) {
+                        entryRects.add(new Rect(ex, ey, ew, ROW_H, e.act));
                     }
-                } else if (e.act != null) {
-                    entryRects.add(new Rect(ex, ey, ew, ROW_H, e.act));
                 }
             }
-            ey += ROW_H + GAP;
+            ey += itemH + GAP;
         }
         g.disableScissor();
 
@@ -428,24 +568,31 @@ public class KollegenSocialScreen extends Screen {
 
     private void rebuildEntries() {
         entries.clear();
-        if (!authed) {
-            entries.add(new Entry(status, "client.json aus ~/.kollegen lesen", Palette.MUTED, null));
-            computeScroll();
-            return;
-        }
         if (inThread) {
             loadThread();
             return;
         }
         switch (tab) {
             case 0 -> rebuildFriends();
-            case 1 -> rebuildRequests();
-            case 2 -> rebuildGames();
-            case 3 -> rebuildParty();
-            case 4 -> rebuildGroups();
+            case 1 -> rebuildMcReal();
+            case 2 -> rebuildParty();
+            case 3 -> rebuildGames();
+            case 4 -> rebuildRequests();
+            case 5 -> rebuildGroups();
             default -> rebuildConvs();
         }
         computeScroll();
+    }
+
+    private void rebuildMcReal() {
+        List<McRealManager.McRealPost> posts = McRealManager.getPosts();
+        if (posts.isEmpty()) {
+            entries.add(new Entry("Keine Beiträge vorhanden", "Erstelle oben den ersten McReal-Post!", Palette.MUTED, null));
+        } else {
+            for (McRealManager.McRealPost p : posts) {
+                entries.add(new Entry(p.authorName, p.caption, Palette.TEXT, null, p.authorName, true, false, null, null, null, null, true, p));
+            }
+        }
     }
 
     private void rebuildGames() {
@@ -538,117 +685,101 @@ public class KollegenSocialScreen extends Screen {
     }
 
     private static int friendColor(JsonObject f, int fallback) {
-        try {
-            JsonElement eq = f.get("equipped");
-            if (eq == null || !eq.isJsonObject() || !eq.getAsJsonObject().has("name_color")) return fallback;
-            JsonObject nc = eq.getAsJsonObject().get("name_color").getAsJsonObject();
-            if (!nc.has("data")) return fallback;
-            JsonObject data = nc.get("data").getAsJsonObject();
-            if (!data.has("accent")) return fallback;
-            String h = data.get("accent").getAsString();
-            if (h.startsWith("#")) h = h.substring(1);
-            if (h.startsWith("0x") || h.startsWith("0X")) h = h.substring(2);
-            if (h.length() == 6) h = "FF" + h;
-            return (int) Long.parseLong(h, 16);
-        } catch (Throwable t) {
-            return fallback;
+        String hex = str(f, "name_color");
+        if (hex.startsWith("#") && hex.length() >= 7) {
+            try {
+                return 0xFF000000 | Integer.parseInt(hex.substring(1, 7), 16);
+            } catch (Throwable ignored) {
+            }
         }
+        return fallback;
     }
 
     private void rebuildRequests() {
         JsonArray list = arr(state.get("requests"));
         for (int i = 0; i < list.size(); i++) {
-            JsonObject it = list.get(i).getAsJsonObject();
-            JsonObject uq = it.has("user") && it.get("user").isJsonObject() ? it.get("user").getAsJsonObject() : null;
-            JsonObject rq = it.has("request") && it.get("request").isJsonObject() ? it.get("request").getAsJsonObject() : null;
-            String who = str(uq, "name");
-            if (who.isEmpty()) who = str(uq, "mc_name");
-            if (who.isEmpty()) who = "Unbekannt";
-            String fromId = str(rq, "from");
-            String code = str(uq, "code");
-            String sub = code.isEmpty() ? "Anfrage offen" : "Code " + code;
-            String f = fromId;
-            entries.add(new Entry(who, sub, Palette.TEXT, () -> apiAccept(f)));
+            JsonObject r = list.get(i).getAsJsonObject();
+            String id = str(r, "fromId");
+            String name = str(r, "fromName");
+            if (name.isEmpty()) name = "User " + id;
+            entries.add(new Entry("✉ " + name, "Klicke zum Annehmen", Palette.GREEN, () -> apiAccept(id), name, false, false, null, null, null, null));
         }
         if (list.size() == 0) {
-            entries.add(new Entry("Keine offenen Anfragen", null, Palette.MUTED, null));
+            entries.add(new Entry("Keine Anfragen", "Aktuell liegen keine Freundschaftsanfragen vor", Palette.MUTED, null));
         }
     }
 
     private void rebuildGroups() {
-        JsonArray groupList = arr(state.get("groups"));
-        for (int i = 0; i < groupList.size(); i++) {
-            JsonObject g0 = groupList.get(i).getAsJsonObject();
-            String id = str(g0, "id");
-            String name = str(g0, "name");
-            if (name.isEmpty()) name = "Gruppe";
-            int mcount = g0.has("memberCount") ? g0.get("memberCount").getAsInt() : 0;
-            String last = "";
-            if (g0.has("last") && g0.get("last").isJsonObject()) {
-                last = str(g0.get("last").getAsJsonObject(), "text");
-            }
-            String gid = id;
-            String gname = name;
-            entries.add(new Entry(name, (mcount == 0 ? "" : mcount + " Mitglieder \u00b7 ") + last, Palette.TEXT,
-                    () -> openGroup(gid, gname)));
+        JsonArray list = arr(state.get("groups"));
+        for (int i = 0; i < list.size(); i++) {
+            JsonObject g = list.get(i).getAsJsonObject();
+            String id = str(g, "id");
+            String name = str(g, "name");
+            int mc = arr(g.get("members")).size();
+            entries.add(new Entry("⛺ " + name, mc + " Mitglieder", Palette.TEXT, () -> openGroup(id, name)));
         }
-        if (groupList.size() == 0) {
+        if (list.size() == 0) {
             entries.add(new Entry("Keine Gruppen", "Erstelle unten eine neue Gruppe", Palette.MUTED, null));
         }
     }
 
     private void rebuildConvs() {
-        JsonArray convList = arr(state.get("convs"));
-        for (int i = 0; i < convList.size(); i++) {
-            JsonObject c = convList.get(i).getAsJsonObject();
+        JsonArray list = arr(state.get("convs"));
+        for (int i = 0; i < list.size(); i++) {
+            JsonObject c = list.get(i).getAsJsonObject();
             String otherId = str(c, "otherId");
-            String name = str(c, "otherName");
-            if (name.isEmpty()) name = "User " + otherId;
-            String last = "";
-            if (c.has("last") && c.get("last").isJsonObject()) {
-                last = str(c.get("last").getAsJsonObject(), "text");
-            }
-            int unread = c.has("unread") ? c.get("unread").getAsInt() : 0;
-            String title = (unread > 0 ? "[" + unread + "] " : "") + name;
-            String oid = otherId;
-            String oname = name;
-            entries.add(new Entry(title, last, unread > 0 ? Palette.ACCENT : Palette.TEXT,
-                    () -> openDm(oid, oname)));
+            String otherName = str(c, "otherName");
+            if (otherName.isEmpty()) otherName = "User " + otherId;
+            String last = str(c, "lastMessage");
+            String fName = otherName;
+            entries.add(new Entry("💬 " + otherName, last.isEmpty() ? "Keine Nachrichten" : last, Palette.TEXT, () -> openDm(otherId, fName), otherName, false, false, null, null, null, null));
         }
-        if (convList.size() == 0) {
-            entries.add(new Entry("Keine aktiven Chats", "Klicke auf einen Freund, um zu schreiben", Palette.MUTED, null));
+        if (list.size() == 0) {
+            entries.add(new Entry("Keine Chats", "Starte einen Chat über die Freundesliste", Palette.MUTED, null));
         }
     }
 
-    private void openDm(String otherId, String name) {
-        if (otherId.isEmpty()) { status = "Kein DM-Kontakt verfügbar."; return; }
-        tab = 5;
+    private void computeScroll() {
+        int need = 0;
+        for (Entry e : entries) {
+            need += (e.isMcReal ? 72 : ROW_H) + GAP;
+        }
+        int visible = contentBottom - (contentTop + (showNewPostModal && tab == 1 ? 84 : 0));
+        maxScroll = Math.max(0, need - visible);
+        if (scroll > maxScroll) scroll = maxScroll;
+        if (scroll < 0) scroll = 0;
+    }
+
+    private void openDm(String otherId, String title) {
+        if (otherId.isEmpty()) return;
         inThread = true;
         threadType = "dm";
         threadId = otherId;
-        threadTitle = name;
-        loadThread();
+        threadTitle = "💬 " + title;
+        scroll = 0;
         buildWidgets();
+        rebuildEntries();
     }
 
-    private void openGroup(String gid, String name) {
+    private void openGroup(String groupId, String title) {
         inThread = true;
         threadType = "group";
-        threadId = gid;
-        threadTitle = name;
+        threadId = groupId;
+        threadTitle = "⛺ " + title;
         groupSinceMsg = 0;
-        loadThread();
+        scroll = 0;
         buildWidgets();
+        rebuildEntries();
     }
 
     private void loadThread() {
-        List<String[]> lines = new ArrayList<>();
         thread(() -> {
+            List<String[]> lines = new ArrayList<>();
             if (threadType.equals("group")) {
                 JsonObject v = getObj("/group/view?groupId=" + enc(threadId));
-                if (v != null && v.has("members")) {
+                if (v != null) {
                     int mcount = arr(v.get("members")).size();
-                    lines.add(new String[]{ "⛺ " + threadTitle, (mcount == 0 ? "" : mcount + " Mitglieder"), "0" });
+                    lines.add(new String[]{ "⛺ " + threadTitle, (mcount == 0 ? "" : mcount + " Mitglieder") });
                 }
             }
             if (threadType.equals("group")) {
@@ -658,7 +789,9 @@ public class KollegenSocialScreen extends Screen {
                 }
             } else {
                 JsonArray msgs = getArr("/dm/messages?otherId=" + enc(threadId) + "&limit=40");
-                buildLines(lines, msgs);
+                if (msgs != null) {
+                    buildLines(lines, msgs);
+                }
             }
             mc().execute(() -> {
                 entries.clear();

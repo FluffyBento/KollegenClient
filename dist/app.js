@@ -3101,7 +3101,7 @@ async function initFeaturesTab() {
       enabled: true,
       also_record_mode: "none",
       also_record_target: "",
-      also_record_title: "None",
+      also_record_title: "Keins",
       record_other_audio: true,
       hotkey: "F8",
       duration_seconds: 60,
@@ -3245,7 +3245,7 @@ async function initFeaturesTab() {
 function updateClipsSummary() {
   const sumEl = $("clipsAlsoRecordSummary");
   if (sumEl && currentClipsConfig) {
-    sumEl.textContent = currentClipsConfig.also_record_title || "None";
+    sumEl.textContent = (currentClipsConfig.also_record_title === "None" ? "Keins" : currentClipsConfig.also_record_title) || "Keins";
   }
 }
 
@@ -3253,18 +3253,18 @@ async function loadClipsTargets() {
   try {
     clipsProgramsList = await invoke("clips_list_programs");
   } catch (e) {
-    clipsProgramsList = [{ id: "none", name: "None", exe: "Record Minecraft only.", is_none: true }];
+    clipsProgramsList = [{ id: "none", name: "Keins", exe: "Nur Minecraft aufnehmen.", is_none: true }];
   }
   try {
     clipsScreensList = await invoke("clips_list_screens");
   } catch (e) {
-    clipsScreensList = [{ id: "screen:0", name: "Screen 1 (Primary)", resolution: "1920x1080", is_primary: true }];
+    clipsScreensList = [{ id: "screen:0", name: "Bildschirm 1 (Hauptbildschirm)", resolution: "1920x1080", is_primary: true }];
   }
 
   const progLabel = $("clipsProgramsTabLabel");
-  if (progLabel) progLabel.textContent = "PROGRAMS (" + (Math.max(0, clipsProgramsList.length - 1)) + ")";
+  if (progLabel) progLabel.textContent = "PROGRAMME (" + (Math.max(0, clipsProgramsList.length - 1)) + ")";
   const screenLabel = $("clipsScreensTabLabel");
-  if (screenLabel) screenLabel.textContent = "SCREENS (" + clipsScreensList.length + ")";
+  if (screenLabel) screenLabel.textContent = "BILDSCHIRME (" + clipsScreensList.length + ")";
 
   renderClipsTargets();
 }
