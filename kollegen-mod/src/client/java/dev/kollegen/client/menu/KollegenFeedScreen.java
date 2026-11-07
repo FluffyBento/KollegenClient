@@ -5,6 +5,7 @@ import dev.kollegen.client.account.AccountManager;
 import dev.kollegen.client.feed.FeedImageManager;
 import dev.kollegen.client.feed.FeedManager;
 import dev.kollegen.client.feed.JustNowManager;
+import dev.kollegen.client.friend.FriendManager;
 import dev.kollegen.client.mods.Palette;
 import dev.kollegen.client.ui.Glass;
 import dev.kollegen.client.ui.GlassButton;
@@ -187,12 +188,24 @@ public class KollegenFeedScreen extends Screen {
         List<FeedManager.FeedPost> all = FeedManager.getPosts();
 
         for (FeedManager.FeedPost p : all) {
-            if (tab == 0 && p.isJustNow) {
-                displayedPosts.add(p);
+            boolean isFriendOrMe = dev.kollegen.client.friend.FriendManager.isFriend(p.authorName)
+                    || dev.kollegen.client.friend.FriendManager.isFriendByUuid(p.authorUuid)
+                    || p.authorName.equalsIgnoreCase(myName);
+
+            if (tab == 0) {
+                if (p.isJustNow && isFriendOrMe) {
+                    displayedPosts.add(p);
+                }
             } else if (tab == 1) {
+                if (!p.isJustNow && isFriendOrMe) {
+                    displayedPosts.add(p);
+                }
+            } else if (tab == 2) {
                 displayedPosts.add(p);
-            } else if (tab == 2 && p.authorName.equalsIgnoreCase(myName)) {
-                displayedPosts.add(p);
+            } else if (tab == 3) {
+                if (p.authorName.equalsIgnoreCase(myName)) {
+                    displayedPosts.add(p);
+                }
             }
         }
         computeScroll();
@@ -208,9 +221,10 @@ public class KollegenFeedScreen extends Screen {
         int listTop = py + 48 + bannerH + 8 + tabsH + 8;
         int listBottom = py + ph - (replyingPostId != null ? 46 : 14);
 
+        int cardW = pw - 32;
         int totalH = 0;
         for (FeedManager.FeedPost p : displayedPosts) {
-            totalH += getCardHeight(p) + 8;
+            totalH += getCardHeight(p, cardW) + 8;
         }
 
         int visibleH = Math.max(10, listBottom - listTop);
@@ -219,13 +233,15 @@ public class KollegenFeedScreen extends Screen {
         if (scroll < 0) scroll = 0;
     }
 
-    private int getCardHeight(FeedManager.FeedPost p) {
+    private int getCardHeight(FeedManager.FeedPost p, int cardW) {
         int h = 54;
         if (p.caption != null && !p.caption.isEmpty()) {
             h += 16;
         }
         if (p.imagePath != null && !p.imagePath.isEmpty()) {
-            h += 146;
+            int imgW = cardW - 24;
+            int imgH = FeedImageManager.getDisplayHeight(p.imagePath, imgW, 320);
+            h += imgH + 8;
         }
         if (!p.comments.isEmpty()) {
             h += Math.min(3, p.comments.size()) * 14 + 6;
@@ -396,11 +412,11 @@ public class KollegenFeedScreen extends Screen {
     }
 
     private void renderTabs(GuiGraphicsExtractor g, int tx, int ty, int tw, int th, int mx, int my) {
-        String[] titles = { "⚡ JustNow", "📸 Alle Beiträge", "👤 Meine Beiträge" };
-        int tabW = 120;
+        String[] titles = { "⚡ JustNow", "📸 Feed", "🌐 Alle Beiträge", "👤 Meine Beiträge" };
+        int tabW = 104;
 
         for (int i = 0; i < titles.length; i++) {
-            int bx = tx + i * (tabW + 8);
+            int bx = tx + i * (tabW + 6);
             boolean sel = (this.tab == i);
             boolean hov = mx >= bx && mx <= bx + tabW && my >= ty && my <= ty + th;
 
@@ -424,8 +440,21 @@ public class KollegenFeedScreen extends Screen {
 
         if (displayedPosts.isEmpty()) {
             int msgY = ly + 40;
-            String emptyTitle = tab == 0 ? "Noch keine JustNow Posts vorhanden" : (tab == 2 ? "Du hast noch keine Beiträge gepostet" : "Der Feed ist noch leer");
-            String emptySub = tab == 0 ? "Sei der Erste, wenn der tägliche JustNow Alert ertönt!" : "Drücke F2 im Spiel oder klicke oben auf 'Neuer Post'!";
+            String emptyTitle;
+            String emptySub;
+            if (tab == 0) {
+                emptyTitle = "Keine JustNows von Freunden vorhanden";
+                emptySub = "Warte auf den täglichen Alert oder poste selbst ein JustNow!";
+            } else if (tab == 1) {
+                emptyTitle = "Keine Feed-Beiträge von Freunden vorhanden";
+                emptySub = "Deine Freunde haben noch keine Screenshots geteilt.";
+            } else if (tab == 2) {
+                emptyTitle = "Der Feed ist noch leer";
+                emptySub = "Sei der Erste und teile deinen schönsten Moment!";
+            } else {
+                emptyTitle = "Du hast noch keine Beiträge gepostet";
+                emptySub = "Drücke [F2] im Spiel oder klicke oben auf '📸 Neuer Post'!";
+            }
             Glass.textC(g, this.font, emptyTitle, lx + lw / 2, msgY, Palette.TEXT, true);
             Glass.textC(g, this.font, emptySub, lx + lw / 2, msgY + 16, Palette.MUTED, false);
             g.disableScissor();
@@ -436,7 +465,7 @@ public class KollegenFeedScreen extends Screen {
         int curY = ly + 2 - scroll;
 
         for (FeedManager.FeedPost post : displayedPosts) {
-            int cardH = getCardHeight(post);
+            int cardH = getCardHeight(post, lw);
             boolean vis = curY + cardH > ly && curY < lbottom;
 
             if (vis) {
@@ -500,7 +529,7 @@ public class KollegenFeedScreen extends Screen {
 
         if (p.imagePath != null && !p.imagePath.isEmpty()) {
             int imgW = cw - 24;
-            int imgH = 138;
+            int imgH = FeedImageManager.getDisplayHeight(p.imagePath, imgW, 320);
             FeedImageManager.drawImage(g, p.imagePath, cx + 12, contentY, imgW, imgH, 6.0f);
             contentY += imgH + 8;
         }

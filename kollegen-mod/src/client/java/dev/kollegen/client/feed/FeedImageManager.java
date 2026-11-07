@@ -111,6 +111,49 @@ public final class FeedImageManager {
         return null;
     }
 
+    public static int[] getDimensions(String path) {
+        if (path == null || path.trim().isEmpty()) return new int[]{16, 9};
+        String clean = path.trim();
+        int[] cached = DIMS_CACHE.get(clean);
+        if (cached != null && cached[0] > 0 && cached[1] > 0) return cached;
+
+        File f = new File(clean);
+        if (!f.exists() || !f.isFile()) {
+            File inScreenshots = new File(getScreenshotsDir(), clean);
+            if (inScreenshots.exists() && inScreenshots.isFile()) {
+                f = inScreenshots;
+            }
+        }
+
+        if (f.exists() && f.isFile()) {
+            try (InputStream in = new FileInputStream(f)) {
+                byte[] header = new byte[24];
+                if (in.read(header) == 24) {
+                    if ((header[0] & 0xFF) == 0x89 && header[1] == 'P' && header[2] == 'N' && header[3] == 'G') {
+                        int w = ((header[16] & 0xFF) << 24) | ((header[17] & 0xFF) << 16) | ((header[18] & 0xFF) << 8) | (header[19] & 0xFF);
+                        int h = ((header[20] & 0xFF) << 24) | ((header[21] & 0xFF) << 16) | ((header[22] & 0xFF) << 8) | (header[23] & 0xFF);
+                        if (w > 0 && h > 0) {
+                            int[] res = new int[]{w, h};
+                            DIMS_CACHE.put(clean, res);
+                            return res;
+                        }
+                    }
+                }
+            } catch (Throwable ignored) {
+            }
+        }
+        return new int[]{16, 9};
+    }
+
+    public static int getDisplayHeight(String path, int availableW, int maxH) {
+        int[] dims = getDimensions(path);
+        int w = dims[0];
+        int h = dims[1];
+        if (w <= 0 || h <= 0) return Math.min(maxH, availableW * 9 / 16);
+        int calcH = (int) Math.round((double) availableW * h / (double) w);
+        return Math.min(maxH, Math.max(60, calcH));
+    }
+
     public static void drawImage(GuiGraphicsExtractor gui, String path, int x, int y, int targetW, int targetH, float radius) {
         if (path == null || path.trim().isEmpty()) return;
         Identifier id = getOrLoadTexture(path);
@@ -118,16 +161,20 @@ public final class FeedImageManager {
         Glass.fillRound(gui, x, y, targetW, targetH, (int) radius, 0xFF0D0E15);
 
         if (id != null) {
-            int[] dims = DIMS_CACHE.getOrDefault(path.trim(), new int[]{targetW, targetH});
+            int[] dims = getDimensions(path);
             int origW = Math.max(1, dims[0]);
             int origH = Math.max(1, dims[1]);
 
+            float scale = Math.min((float) targetW / (float) origW, (float) targetH / (float) origH);
+            int drawW = Math.max(1, (int) (origW * scale));
+            int drawH = Math.max(1, (int) (origH * scale));
+            int drawX = x + (targetW - drawW) / 2;
+            int drawY = y + (targetH - drawH) / 2;
+
             Matrix3x2fStack pose = gui.pose();
             pose.pushMatrix();
-            pose.translate((float) x, (float) y);
-            float scaleX = (float) targetW / (float) origW;
-            float scaleY = (float) targetH / (float) origH;
-            pose.scale(scaleX, scaleY);
+            pose.translate((float) drawX, (float) drawY);
+            pose.scale(scale, scale);
             gui.blit(RenderPipelines.GUI_TEXTURED, id, 0, 0, 0.0f, 0.0f, origW, origH, origW, origH);
             pose.popMatrix();
 

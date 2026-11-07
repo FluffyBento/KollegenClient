@@ -906,6 +906,7 @@ public class KollegenSocialScreen extends Screen {
             s.add("convs", convs != null ? convs : new JsonArray());
             mc().execute(() -> {
                 state = s;
+                dev.kollegen.client.friend.FriendManager.ensureLoaded(true);
                 if (meProfile != null) {
                     if (meProfile.has("code")) myCode = str(meProfile, "code");
                     if (meProfile.has("name")) myName = str(meProfile, "name");

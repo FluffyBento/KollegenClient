@@ -96,6 +96,7 @@ public final class FeedManager {
         if (loaded) return;
         loaded = true;
         POSTS.clear();
+        boolean modified = false;
         try {
             Path p = getFilePath();
             if (Files.isRegularFile(p)) {
@@ -106,6 +107,10 @@ public final class FeedManager {
                     JsonObject o = el.getAsJsonObject();
                     String id = o.get("id").getAsString();
                     String author = o.get("author").getAsString();
+                    if (author.equalsIgnoreCase("Iz4nLeAstra") || author.equalsIgnoreCase("akkuniizu")) {
+                        modified = true;
+                        continue;
+                    }
                     String uuid = o.has("uuid") ? o.get("uuid").getAsString() : "";
                     String cap = o.has("caption") ? o.get("caption").getAsString() : "";
                     String srv = o.has("server") ? o.get("server").getAsString() : "Minecraft";
@@ -128,6 +133,9 @@ public final class FeedManager {
                 }
             }
         } catch (Throwable ignored) {
+        }
+        if (modified) {
+            save();
         }
     }
 
