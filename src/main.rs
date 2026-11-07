@@ -2548,6 +2548,11 @@ fn capes_delete(state: State<'_, AppState>, cape_id: String) -> Result<(), Strin
 }
 
 #[tauri::command]
+fn capes_rename(state: State<'_, AppState>, cape_id: String, new_name: String) -> Result<(), String> {
+    capes::rename_custom_cape(&state.data_dir, &cape_id, &new_name)
+}
+
+#[tauri::command]
 fn ensure_java_25(state: State<'_, AppState>) -> Result<String, String> {
     if let Ok(p) = java::find_java(&state.data_dir, 25) {
         return Ok(p);
@@ -3288,6 +3293,7 @@ fn main() {
             capes_upload,
             capes_sync_community,
             capes_delete,
+            capes_rename,
             ensure_java_25,
             get_minecraft_profile_by_name,
             open_logs_folder,

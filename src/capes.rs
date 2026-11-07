@@ -125,7 +125,24 @@ pub fn delete_custom_cape(data_dir: &Path, cape_id: &str) -> Result<(), String> 
         data.active_cape = None;
     }
     save_capes(data_dir, &data);
+    sync_active_cape_to_instances(data_dir, &data, data.active_cape.as_deref());
     Ok(())
+}
+
+pub fn rename_custom_cape(data_dir: &Path, cape_id: &str, new_name: &str) -> Result<(), String> {
+    let trimmed = new_name.trim();
+    if trimmed.is_empty() {
+        return Err("Name darf nicht leer sein".to_string());
+    }
+    let mut data = load_capes(data_dir);
+    if let Some(c) = data.capes.iter_mut().find(|c| c.id == cape_id && c.category == "my_capes") {
+        c.name = trimmed.to_string();
+        save_capes(data_dir, &data);
+        sync_active_cape_to_instances(data_dir, &data, data.active_cape.as_deref());
+        Ok(())
+    } else {
+        Err("Cape nicht gefunden".to_string())
+    }
 }
 
 fn ensure_minecraft_cape_format(

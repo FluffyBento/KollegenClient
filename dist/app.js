@@ -4743,11 +4743,13 @@ async function loadCapesView() {
         <div class="cape-card-uses"><span>Aktuell ausgerüstet</span></div>
       `;
     } else {
+      const eqCreator = activeCape.creator || activeCape.author || (activeCape.category === "my_capes" ? "Du" : (activeCape.category === "vanilla" || activeCape.isVanilla ? "Mojang" : "Unbekannt"));
       eqCard.innerHTML = `
         <div class="cape-card-preview-wrap">
           <img src="${activeCape.preview || (activeCape.frames && activeCape.frames[0]) || ''}" alt="${activeCape.name}" style="max-height:100%; object-fit:contain;" />
         </div>
         <div class="cape-card-name">${activeCape.name}</div>
+        <div class="cape-card-author">von ${eqCreator}</div>
         <div class="cape-card-uses"><span>✓ Ausgerüstet (Klicken zum Ablegen)</span></div>
         <span class="cape-badge-tag" style="background:var(--accent); color:#000; font-weight:700;">Aktiv</span>
       `;
@@ -4929,10 +4931,51 @@ async function loadCapesView() {
     name.className = "cape-card-name";
     name.textContent = c.name;
 
+    const author = document.createElement("div");
+    author.className = "cape-card-author";
+    const creatorName = c.creator || c.author || (c.category === "my_capes" ? "Du" : (c.category === "vanilla" || c.isVanilla ? "Mojang" : "Unbekannt"));
+    author.textContent = `von ${creatorName}`;
+
     card.appendChild(prevWrap);
     card.appendChild(name);
+    card.appendChild(author);
 
-    // NUR Community-Capes sollen Download-Zahlen anzeigen (Points 1 & 7)
+    if (c.category === "my_capes") {
+      const actions = document.createElement("div");
+      actions.className = "cape-card-actions";
+
+      const renameBtn = document.createElement("button");
+      renameBtn.className = "cape-card-action-btn";
+      renameBtn.title = "Cape umbenennen";
+      renameBtn.innerHTML = `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
+      renameBtn.onclick = (e) => {
+        e.stopPropagation();
+        openCapeRenameModal(c);
+      };
+
+      const delBtn = document.createElement("button");
+      delBtn.className = "cape-card-action-btn btn-del";
+      delBtn.title = "Cape löschen";
+      delBtn.innerHTML = `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>`;
+      delBtn.onclick = async (e) => {
+        e.stopPropagation();
+        if (confirm(`Möchtest du dein Cape "${c.name}" wirklich löschen?`)) {
+          try {
+            await invoke("capes_delete", { capeId: c.id });
+            toast(`Cape "${c.name}" gelöscht`, "ok");
+            loadCapesView();
+            loadHomeSkin(true);
+          } catch (err) {
+            toast("Löschen fehlgeschlagen: " + err, "error");
+          }
+        }
+      };
+
+      actions.appendChild(renameBtn);
+      actions.appendChild(delBtn);
+      prevWrap.appendChild(actions);
+    }
+
     if (c.category === "community") {
       const uses = document.createElement("div");
       uses.className = "cape-card-uses";
@@ -5039,6 +5082,59 @@ function closeCapeUploadModal() {
 if ($("capeUploadOpenBtn")) $("capeUploadOpenBtn").onclick = openCapeUploadModal;
 if ($("capeUploadClose")) $("capeUploadClose").onclick = closeCapeUploadModal;
 if ($("capeUploadCancelBtn")) $("capeUploadCancelBtn").onclick = closeCapeUploadModal;
+
+let renamingCapeId = null;
+
+function openCapeRenameModal(cape) {
+  if (!cape) return;
+  renamingCapeId = cape.id;
+  const modal = $("capeRenameModal");
+  const input = $("capeRenameInput");
+  if (!modal || !input) return;
+  input.value = cape.name || "";
+  modal.removeAttribute("hidden");
+  modal.style.display = "flex";
+  setTimeout(() => input.focus(), 50);
+}
+
+function closeCapeRenameModal() {
+  const modal = $("capeRenameModal");
+  if (modal) {
+    modal.setAttribute("hidden", "");
+    modal.style.display = "none";
+  }
+  renamingCapeId = null;
+}
+
+if ($("capeRenameClose")) $("capeRenameClose").onclick = closeCapeRenameModal;
+if ($("capeRenameCancelBtn")) $("capeRenameCancelBtn").onclick = closeCapeRenameModal;
+
+async function submitCapeRename() {
+  if (!renamingCapeId) return;
+  const input = $("capeRenameInput");
+  const newName = input ? input.value.trim() : "";
+  if (!newName) {
+    toast("Bitte gib einen Namen für das Cape ein", "error");
+    return;
+  }
+  try {
+    await invoke("capes_rename", { capeId: renamingCapeId, newName: newName });
+    toast(`Cape erfolgreich in "${newName}" umbenannt!`, "ok");
+    closeCapeRenameModal();
+    loadCapesView();
+    loadHomeSkin(true);
+  } catch (err) {
+    toast("Umbenennen fehlgeschlagen: " + err, "error");
+  }
+}
+
+if ($("capeRenameSaveBtn")) $("capeRenameSaveBtn").onclick = submitCapeRename;
+if ($("capeRenameInput")) {
+  $("capeRenameInput").onkeydown = (e) => {
+    if (e.key === "Enter") submitCapeRename();
+    if (e.key === "Escape") closeCapeRenameModal();
+  };
+}
 
 if ($("capeFpsSlider")) {
   $("capeFpsSlider").oninput = (e) => {

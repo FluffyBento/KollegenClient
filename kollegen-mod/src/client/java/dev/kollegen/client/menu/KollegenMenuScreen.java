@@ -1378,7 +1378,14 @@ public class KollegenMenuScreen extends Screen {
                 }
                 case K_CAPE_ITEM: {
                     if (c.data != null) {
-                        this.equipCapeInGame(c.data);
+                        float pillX = X + c.w - 8 - 122;
+                        float pillY = Y + (c.h - 18) / 2.0f;
+                        String capeCat = str(c.data, "category", "");
+                        if (("my_capes".equalsIgnoreCase(capeCat) || (bool(c.data, "owned") && "cape".equalsIgnoreCase(capeCat))) && hit(mx, my, pillX, pillY, 46, 18)) {
+                            this.deleteCapeInGame(c.data);
+                        } else {
+                            this.equipCapeInGame(c.data);
+                        }
                     }
                     return true;
                 }
@@ -2543,7 +2550,7 @@ public class KollegenMenuScreen extends Screen {
         JsonObject d = c.data;
         String id = str(d, "id", "");
         String name = str(d, "name", id);
-        String author = str(d, "author", "Community");
+        String author = str(d, "creator", str(d, "author", "Community"));
         String cat = str(d, "category", "community");
         String texRaw = str(d, "texture", "");
         if (texRaw.isEmpty() && d.has("preview") && !d.get("preview").isJsonNull()) {
@@ -2642,10 +2649,58 @@ public class KollegenMenuScreen extends Screen {
         } else {
             this.drawPill(g, c, X + c.w - 8 - 66, Y + (c.h - 18) / 2.0f, 66, 18, isNone ? "Ablegen" : "Auswählen", true, hov);
         }
-        // Delete button for owned capes
-        if (bool(d, "owned") && "cape".equalsIgnoreCase(cat) && !isNone && !isUpload) {
+        if (("my_capes".equalsIgnoreCase(cat) || (bool(d, "owned") && "cape".equalsIgnoreCase(cat))) && !isNone && !isUpload) {
             this.drawPill(g, c, X + c.w - 8 - 122, Y + (c.h - 18) / 2.0f, 46, 18, "Löschen", true, hov && hit(mx, my, X + c.w - 8 - 122, Y + (c.h - 18) / 2.0f, 46, 18));
         }
+    }
+
+    private void deleteCapeInGame(JsonObject d) {
+        String capeId = str(d, "id", "");
+        if (capeId.isEmpty()) return;
+        if (capeId.equalsIgnoreCase(this.inGameActiveCape)) {
+            this.inGameActiveCape = null;
+            KollegenPresence.setLocalCape(null, null, null);
+        }
+        try {
+            Path p = FabricLoader.getInstance().getConfigDir().resolve("kollegen-cape.json");
+            if (Files.exists(p)) {
+                JsonObject o = JsonParser.parseString(Files.readString(p)).getAsJsonObject();
+                if (o.has("all_capes") && o.get("all_capes").isJsonArray()) {
+                    JsonArray arr = o.getAsJsonArray("all_capes");
+                    JsonArray newArr = new JsonArray();
+                    for (JsonElement el : arr) {
+                        if (el.isJsonObject() && capeId.equals(str(el.getAsJsonObject(), "id", ""))) continue;
+                        newArr.add(el);
+                    }
+                    o.add("all_capes", newArr);
+                }
+                if (capeId.equals(str(o, "active", ""))) {
+                    o.add("active", com.google.gson.JsonNull.INSTANCE);
+                    o.add("cape", com.google.gson.JsonNull.INSTANCE);
+                }
+                Files.writeString(p, o.toString());
+            }
+            String home = System.getProperty("user.home", "");
+            Path lp = Path.of(home, ".local", "share", "kollegenclient", "capes", "capes.json");
+            if (Files.exists(lp)) {
+                JsonObject o = JsonParser.parseString(Files.readString(lp)).getAsJsonObject();
+                if (o.has("capes") && o.get("capes").isJsonArray()) {
+                    JsonArray arr = o.getAsJsonArray("capes");
+                    JsonArray newArr = new JsonArray();
+                    for (JsonElement el : arr) {
+                        if (el.isJsonObject() && capeId.equals(str(el.getAsJsonObject(), "id", ""))) continue;
+                        newArr.add(el);
+                    }
+                    o.add("capes", newArr);
+                }
+                if (capeId.equals(str(o, "active_cape", ""))) {
+                    o.add("active_cape", com.google.gson.JsonNull.INSTANCE);
+                }
+                Files.writeString(lp, o.toString());
+            }
+        } catch (Throwable ignored) {
+        }
+        this.relayout();
     }
 
     private void activateSkinInGame(String skinName) {

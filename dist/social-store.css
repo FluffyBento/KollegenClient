@@ -2346,6 +2346,60 @@ body:not(.console-mode) .store-cats .tab.active::before {
   text-overflow: ellipsis;
   max-width: 160px;
 }
+.cape-card-author {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-align: center;
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 160px;
+  opacity: 0.85;
+}
+.cape-card-actions {
+  position: absolute;
+  top: 44px;
+  right: 8px;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  opacity: 0.85;
+  transition: opacity 0.15s ease;
+}
+.cape-card:hover .cape-card-actions {
+  opacity: 1;
+}
+.cape-card-action-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-sm);
+  background: rgba(20, 24, 34, 0.85);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--border-primary);
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+  padding: 0;
+}
+.cape-card-action-btn:hover {
+  background: var(--panel-elevated);
+  border-color: var(--accent);
+  color: var(--accent);
+  transform: scale(1.1);
+}
+.cape-card-action-btn.btn-del:hover {
+  background: rgba(255, 68, 68, 0.2);
+  border-color: #ff4444;
+  color: #ff4444;
+  transform: scale(1.1);
+}
 .cape-card-uses {
   font-size: 0.75rem;
   color: var(--text-secondary);
