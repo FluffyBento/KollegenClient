@@ -10,6 +10,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.PlayerFaceExtractor;
+import net.minecraft.client.gui.screens.PauseScreen;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.TitleScreen;
 import net.minecraft.client.input.KeyEvent;
@@ -494,13 +495,18 @@ public class AccountSwitcherScreen extends Screen {
         if (this.minecraft != null) {
             if (this.parent instanceof TitleScreen) {
                 this.minecraft.setScreenAndShow(new TitleScreen());
-            } else {
+            } else if (this.parent != null) {
                 this.minecraft.setScreenAndShow(this.parent);
+            } else if (this.minecraft.level != null) {
+                this.minecraft.setScreenAndShow(new PauseScreen(true));
+            } else {
+                this.minecraft.setScreenAndShow(new TitleScreen());
             }
         }
     }
 
+    @Override
     public boolean isPauseScreen() {
-        return false;
+        return true;
     }
 }

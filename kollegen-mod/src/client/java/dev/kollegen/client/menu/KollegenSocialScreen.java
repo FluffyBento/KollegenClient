@@ -9,6 +9,7 @@ import dev.kollegen.client.game.*;
 import dev.kollegen.client.mods.Palette;
 import dev.kollegen.client.party.PartyManager;
 import dev.kollegen.client.presence.PrivacySettings;
+import dev.kollegen.client.ui.AccountButton;
 import dev.kollegen.client.ui.Glass;
 import dev.kollegen.client.ui.GlassButton;
 import dev.kollegen.client.ui.SkinFaceRenderer;
@@ -154,6 +155,11 @@ public class KollegenSocialScreen extends Screen {
 
         boolean hidden = PrivacySettings.isHideServer();
         String privText = hidden ? "🔒 Server: Verborgen" : "👁 Server: Öffentlich";
+        if (pw >= 760) {
+            addRenderableWidget(new AccountButton(px + pw - 396, by + 2, true, btn ->
+                    Minecraft.getInstance().setScreenAndShow(new AccountSwitcherScreen(this))));
+        }
+
         GlassButton privBtn = new GlassButton(px + pw - 386, by, 140, bh, Component.literal(privText), btn -> {
             PrivacySettings.toggleHideServer();
             boolean nowHidden = PrivacySettings.isHideServer();

@@ -224,7 +224,7 @@ public class KollegenMenuScreen extends Screen {
     }
 
     private int rightButtonsX() {
-        return (int) this.serverX();
+        return (int) this.accountX();
     }
 
     private void createSearch() {
@@ -1138,6 +1138,10 @@ public class KollegenMenuScreen extends Screen {
         return this.socialX() - 4 - 22;
     }
 
+    private float accountX() {
+        return this.serverX() - 4 - 22;
+    }
+
     public boolean mouseClicked(MouseButtonEvent event, boolean bl) {
         double mx = event.x();
         double my = event.y();
@@ -1162,6 +1166,10 @@ public class KollegenMenuScreen extends Screen {
             }
             if (hit(mx, my, this.serverX(), by, 22, 22)) {
                 Minecraft.getInstance().setScreenAndShow(new dev.kollegen.client.menu.ServerSwitcherScreen(this));
+                return true;
+            }
+            if (hit(mx, my, this.accountX(), by, 22, 22)) {
+                Minecraft.getInstance().setScreenAndShow(new dev.kollegen.client.menu.AccountSwitcherScreen(this));
                 return true;
             }
             int sx = this.searchX();
@@ -1640,6 +1648,11 @@ public class KollegenMenuScreen extends Screen {
         Glass.ring(g, sx, this.py + 8, sw, 20, 10, 0.5f, Glass.mixA(0x28FFFFFF, Glass.a(Palette.ACCENT, 0.9f), focus));
         Icons.draw(g, Icons.SEARCH, sx + 6, this.py + 12, 12, Palette.MUTED);
         float by = this.py + 6;
+        float ax = this.accountX();
+        boolean aHov = hit(mx, my, ax, by, 22, 22);
+        float aH = this.hv("hb:acc", aHov, 14.0f);
+        Glass.pill(g, ax, by, 22, 22, aH, false, false);
+        SkinFaceRenderer.drawFace(g, dev.kollegen.client.account.AccountManager.getActiveUsername(), dev.kollegen.client.account.AccountManager.getActiveProfile() != null ? dev.kollegen.client.account.AccountManager.getActiveProfile().id() : null, (int) ax + 3, (int) by + 3, 16);
         this.headerButton(g, mx, my, this.serverX(), by, 22, Icons.GLOBE, null, "server");
         this.headerButton(g, mx, my, this.socialX(), by, 22, Icons.USER, null, "social");
         this.headerButton(g, mx, my, this.hudX(), by, this.hudBtnW(), Icons.MOVE, this.compact ? null : "HUD", "hud");

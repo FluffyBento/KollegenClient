@@ -1,8 +1,10 @@
 package dev.kollegen.client.mixin;
 
+import dev.kollegen.client.menu.AccountSwitcherScreen;
 import dev.kollegen.client.menu.HostWorldScreen;
 import dev.kollegen.client.menu.KollegenSocialScreen;
 import dev.kollegen.client.menu.ServerSwitcherScreen;
+import dev.kollegen.client.ui.AccountButton;
 import dev.kollegen.client.ui.GlassButton;
 import net.minecraft.client.gui.screens.PauseScreen;
 import net.minecraft.client.gui.screens.Screen;
@@ -26,6 +28,12 @@ public abstract class PauseScreenMixin extends Screen {
         int switchW = 128;
         int friendW = 96;
         int hostW = 110;
+
+        this.addRenderableWidget(new AccountButton(10, topY, false, btn -> {
+            if (this.minecraft != null) {
+                this.minecraft.setScreenAndShow(new AccountSwitcherScreen(this));
+            }
+        }));
 
         this.addRenderableWidget(new GlassButton(this.width - switchW - 10, topY, switchW, btnH,
                 Component.literal("🌐 Server wechseln"), btn -> {

@@ -8,6 +8,7 @@ import com.mojang.blaze3d.platform.InputConstants;
 import dev.kollegen.client.mods.Palette;
 import dev.kollegen.client.party.PartyManager;
 import dev.kollegen.client.presence.PrivacySettings;
+import dev.kollegen.client.ui.AccountButton;
 import dev.kollegen.client.ui.Glass;
 import dev.kollegen.client.ui.GlassButton;
 import dev.kollegen.client.ui.Icons;
@@ -138,6 +139,11 @@ public class ServerSwitcherScreen extends Screen {
             statusMsg = nowHidden ? "Dein Server ist jetzt für Freunde unsichtbar." : "Dein Server ist für Freunde sichtbar.";
         });
         addRenderableWidget(privacyBtn);
+
+        if (pw >= 640) {
+            addRenderableWidget(new AccountButton(px + pw - 278, topY + 1, true, btn ->
+                    Minecraft.getInstance().setScreenAndShow(new AccountSwitcherScreen(this))));
+        }
 
         GlassButton refresh = new GlassButton(px + pw - 108, topY, 26, 24, Component.literal("⟳"), btn -> {
             statusMsg = "Aktualisiere…";

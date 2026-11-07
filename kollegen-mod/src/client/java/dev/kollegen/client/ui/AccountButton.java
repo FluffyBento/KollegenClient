@@ -10,12 +10,18 @@ import net.minecraft.client.gui.components.Button;
 import net.minecraft.network.chat.Component;
 
 public class AccountButton extends Button {
-    private final int screenW;
+    private final int anchorX;
+    private final boolean alignRight;
     private float hov = 0.0f;
 
     public AccountButton(int screenWidth, int y, Button.OnPress onPress) {
-        super(screenWidth - 120, y, 110, 22, Component.literal("Account"), onPress, DEFAULT_NARRATION);
-        this.screenW = screenWidth;
+        this(screenWidth - 12, y, true, onPress);
+    }
+
+    public AccountButton(int anchorX, int y, boolean alignRight, Button.OnPress onPress) {
+        super(alignRight ? anchorX - 110 : anchorX, y, 110, 22, Component.literal("Account"), onPress, DEFAULT_NARRATION);
+        this.anchorX = anchorX;
+        this.alignRight = alignRight;
     }
 
     protected void extractContents(GuiGraphicsExtractor g, int mx, int my, float pt) {
@@ -26,7 +32,11 @@ public class AccountButton extends Button {
         int tw = font.width(name);
         int targetW = Math.max(90, tw + 36);
         this.width = targetW;
-        this.setX(this.screenW - targetW - 12);
+        if (this.alignRight) {
+            this.setX(this.anchorX - targetW);
+        } else {
+            this.setX(this.anchorX);
+        }
 
         boolean hovered = this.isMouseOver(mx, my) && this.active;
         this.hov = Glass.step(this.hov, hovered ? 1.0f : 0.0f, 14.0f);
