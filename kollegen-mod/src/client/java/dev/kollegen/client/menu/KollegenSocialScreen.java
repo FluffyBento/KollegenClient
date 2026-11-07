@@ -5,13 +5,10 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.mojang.blaze3d.platform.InputConstants;
-import dev.kollegen.client.account.AccountManager;
 import dev.kollegen.client.feed.FeedManager;
-import dev.kollegen.client.game.*;
 import dev.kollegen.client.mods.Palette;
 import dev.kollegen.client.party.PartyManager;
 import dev.kollegen.client.presence.PrivacySettings;
-import dev.kollegen.client.ui.AccountButton;
 import dev.kollegen.client.ui.Glass;
 import dev.kollegen.client.ui.GlassButton;
 import dev.kollegen.client.ui.SkinFaceRenderer;
@@ -36,19 +33,22 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 public class KollegenSocialScreen extends Screen {
 
     private final Screen parent;
-    private static final int SW = 200;
-    private static final int ROW_H = 50;
+    private static final int SW = 180;
+    private static final int ROW_H = 48;
     private static final int GAP = 6;
-    private static final String[] TABS = { "👥 Freunde", "📸 Momente", "🎉 Party", "🎮 Spiele", "📩 Anfragen", "🗂 Gruppen", "💬 Chats" };
+    private static final String[] TABS = { "👥 Freunde", "📸 Kollegen Feed", "🎉 Party", "🎮 Spiele", "📩 Anfragen", "🗂 Gruppen", "💬 Chats" };
 
     private final HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(6)).build();
 
     private String backend = "";
     private String session = "";
+    private String myCode = "";
+    private String myName = "";
     private boolean authed = false;
     private JsonObject state = new JsonObject();
     private String status = "Lade…";
@@ -85,37 +85,41 @@ public class KollegenSocialScreen extends Screen {
         final int color;
         final Runnable act;
         final String playerHead;
+        final UUID playerUuid;
         final boolean online;
         final boolean isFriendCard;
         final Runnable partyAct;
         final Runnable chatAct;
         final Runnable joinAct;
         final String joinServer;
+        final Runnable removeAct;
         final boolean isFeedPost;
         final FeedManager.FeedPost feedPost;
 
         Entry(String title, String sub, int color, Runnable act) {
-            this(title, sub, color, act, null, false, false, null, null, null, null, false, null);
+            this(title, sub, color, act, null, null, false, false, null, null, null, null, null, false, null);
         }
 
-        Entry(String title, String sub, int color, Runnable act, String playerHead, boolean online, boolean isFriendCard,
-              Runnable partyAct, Runnable chatAct, Runnable joinAct, String joinServer) {
-            this(title, sub, color, act, playerHead, online, isFriendCard, partyAct, chatAct, joinAct, joinServer, false, null);
+        Entry(String title, String sub, int color, Runnable act, String playerHead, UUID playerUuid, boolean online, boolean isFriendCard,
+              Runnable partyAct, Runnable chatAct, Runnable joinAct, String joinServer, Runnable removeAct) {
+            this(title, sub, color, act, playerHead, playerUuid, online, isFriendCard, partyAct, chatAct, joinAct, joinServer, removeAct, false, null);
         }
 
-        Entry(String title, String sub, int color, Runnable act, String playerHead, boolean online, boolean isFriendCard,
-              Runnable partyAct, Runnable chatAct, Runnable joinAct, String joinServer, boolean isFeedPost, FeedManager.FeedPost feedPost) {
+        Entry(String title, String sub, int color, Runnable act, String playerHead, UUID playerUuid, boolean online, boolean isFriendCard,
+              Runnable partyAct, Runnable chatAct, Runnable joinAct, String joinServer, Runnable removeAct, boolean isFeedPost, FeedManager.FeedPost feedPost) {
             this.title = title;
             this.sub = sub;
             this.color = color;
             this.act = act;
             this.playerHead = playerHead;
+            this.playerUuid = playerUuid;
             this.online = online;
             this.isFriendCard = isFriendCard;
             this.partyAct = partyAct;
             this.chatAct = chatAct;
             this.joinAct = joinAct;
             this.joinServer = joinServer;
+            this.removeAct = removeAct;
             this.isFeedPost = isFeedPost;
             this.feedPost = feedPost;
         }
@@ -139,14 +143,19 @@ public class KollegenSocialScreen extends Screen {
     }
 
     public KollegenSocialScreen(Screen parent) {
+        this(parent, 0);
+    }
+
+    public KollegenSocialScreen(Screen parent, int initialTab) {
         super(Component.literal("Kollegen Client – Soziales"));
         this.parent = parent;
+        this.tab = Math.max(0, Math.min(TABS.length - 1, initialTab));
     }
 
     @Override
     protected void init() {
-        int w = Math.min(this.width - 40, 980);
-        int h = Math.min(this.height - 40, 680);
+        int w = Math.min(this.width - 32, 940);
+        int h = Math.min(this.height - 32, 620);
         int y = (this.height - h) / 2;
         if (y < 12) y = 12;
         px = (this.width - w) / 2;
@@ -156,9 +165,9 @@ public class KollegenSocialScreen extends Screen {
 
         cx = px + SW + 8;
         cw = pw - SW - 16;
-        contentTop = py + 72;
-        contentBottom = py + ph - 56;
-        sidebarTop = py + 62;
+        contentTop = py + 74;
+        contentBottom = py + ph - 52;
+        sidebarTop = py + 56;
         sidebarBottom = py + ph - 16;
 
         buildWidgets();
@@ -201,21 +210,31 @@ public class KollegenSocialScreen extends Screen {
         addRenderableWidget(backBtn);
 
         if (tab == 0 && !inThread) {
-            int inpY = py + ph - 44;
+            int searchY = py + 46;
+            int codeBtnW = 180;
+            int searchW = cw - codeBtnW - 20;
+            friendSearchInput = new EditBox(this.font, cx + 8, searchY, searchW, 24, Component.literal("Freunde durchsuchen"));
+            friendSearchInput.setMaxLength(32);
+            friendSearchInput.setHint(Component.literal("🔍 Freunde durchsuchen…"));
+            friendSearchInput.setResponder(s -> rebuildEntries());
+            addRenderableWidget(friendSearchInput);
+
+            int inpY = py + ph - 42;
             int btnW = 100;
-            codeInp = new EditBox(this.font, cx + 8, inpY, cw - btnW - 16, 26, Component.literal("Freundes-Code"));
-            codeInp.setMaxLength(10);
-            codeInp.setHint(Component.literal("Freundes-Code eingeben…"));
+            codeInp = new EditBox(this.font, cx + 8, inpY, cw - btnW - 16, 24, Component.literal("Freundes-Code"));
+            codeInp.setMaxLength(12);
+            codeInp.setHint(Component.literal("Freundes-Code eingeben (z. B. #ABC123)…"));
             addRenderableWidget(codeInp);
 
-            addRenderableWidget(new GlassButton(cx + cw - btnW - 6, inpY, btnW, 26, Component.literal("Hinzufügen"), btn -> apiAddFriend()));
+            addRenderableWidget(new GlassButton(cx + cw - btnW - 6, inpY, btnW, 24, Component.literal("+ Hinzufügen"), btn -> apiAddFriend()));
         } else if (tab == 1 && !inThread) {
+            friendSearchInput = null;
             codeInp = null;
             groupInp = null;
             chatInp = null;
             if (showNewPostModal) {
-                int modalY = py + 80;
-                int modalW = cw - 32;
+                int modalY = py + 76;
+                int modalW = cw - 16;
                 feedCaptionInput = new EditBox(this.font, cx + 16, modalY + 36, modalW - 110, 26, Component.literal("Caption"));
                 feedCaptionInput.setMaxLength(140);
                 feedCaptionInput.setHint(Component.literal("Was passiert gerade in deiner Welt?"));
@@ -235,24 +254,27 @@ public class KollegenSocialScreen extends Screen {
                 feedCaptionInput = null;
             }
         } else if (tab == 5 && !inThread) {
-            int inpY = py + ph - 44;
+            friendSearchInput = null;
+            int inpY = py + ph - 42;
             int btnW = 100;
-            groupInp = new EditBox(this.font, cx + 8, inpY, cw - btnW - 16, 26, Component.literal("Gruppenname"));
+            groupInp = new EditBox(this.font, cx + 8, inpY, cw - btnW - 16, 24, Component.literal("Gruppenname"));
             groupInp.setMaxLength(30);
             groupInp.setHint(Component.literal("Name der neuen Gruppe…"));
             addRenderableWidget(groupInp);
 
-            addRenderableWidget(new GlassButton(cx + cw - btnW - 6, inpY, btnW, 26, Component.literal("Erstellen"), btn -> apiCreateGroup()));
+            addRenderableWidget(new GlassButton(cx + cw - btnW - 6, inpY, btnW, 24, Component.literal("Erstellen"), btn -> apiCreateGroup()));
         } else if (inThread) {
-            int inpY = py + ph - 44;
+            friendSearchInput = null;
+            int inpY = py + ph - 42;
             int btnW = 80;
-            chatInp = new EditBox(this.font, cx + 8, inpY, cw - btnW - 16, 26, Component.literal("Nachricht"));
+            chatInp = new EditBox(this.font, cx + 8, inpY, cw - btnW - 16, 24, Component.literal("Nachricht"));
             chatInp.setMaxLength(300);
             chatInp.setHint(Component.literal("Nachricht eingeben…"));
             addRenderableWidget(chatInp);
 
-            addRenderableWidget(new GlassButton(cx + cw - btnW - 6, inpY, btnW, 26, Component.literal("Senden"), btn -> sendThread()));
+            addRenderableWidget(new GlassButton(cx + cw - btnW - 6, inpY, btnW, 24, Component.literal("Senden"), btn -> sendThread()));
         } else {
+            friendSearchInput = null;
             codeInp = null;
             groupInp = null;
             chatInp = null;
@@ -318,7 +340,7 @@ public class KollegenSocialScreen extends Screen {
 
     @Override
     public boolean mouseScrolled(double mx, double my, double horizontal, double vertical) {
-        int listTop = py + 72 + (showNewPostModal && tab == 1 ? 84 : 0);
+        int listTop = py + 74 + (showNewPostModal && tab == 1 ? 84 : 0);
         if (maxScroll > 0 && mx >= cx && mx <= cx + cw && my >= listTop && my <= contentBottom) {
             scroll = Math.max(0, Math.min(maxScroll, scroll - (int) (vertical * 26)));
             return true;
@@ -384,7 +406,12 @@ public class KollegenSocialScreen extends Screen {
         }
 
         g.text(this.font, "FREUNDE & SOCIAL", px + 18, py + 20, Palette.ACCENT, true);
-        g.text(this.font, inThread ? threadTitle : TABS[tab], cx + 12, py + 20, Palette.TEXT, true);
+        g.text(this.font, inThread ? threadTitle : (tab == 1 ? "📸 KOLLEGEN FEED" : TABS[tab]), cx + 12, py + 20, Palette.TEXT, true);
+
+        if (status != null && !status.isEmpty()) {
+            int statX = cx + 130;
+            g.text(this.font, trunc(status, cw - 260), statX, py + 21, authed ? Palette.GREEN : Palette.MUTED, false);
+        }
 
         if (tab == 1 && !inThread) {
             int newBtnX = cx + cw - 120;
@@ -392,13 +419,27 @@ public class KollegenSocialScreen extends Screen {
             boolean hovNew = mx >= newBtnX && mx <= newBtnX + 112 && my >= newBtnY && my <= newBtnY + 24;
             Glass.fillRound(g, newBtnX, newBtnY, 112, 24, 6, hovNew ? Palette.GREEN : Palette.ACCENT);
             if (hovNew) Glass.ring(g, newBtnX, newBtnY, 112, 24, 6, 1.0f, 0xFFFFFFFF);
-            Glass.textC(g, this.font, showNewPostModal ? "✕ Abbrechen" : "📸 Neuer Moment", newBtnX + 56, newBtnY + 8, 0xFFFFFFFF, true);
+            Glass.textC(g, this.font, showNewPostModal ? "✕ Abbrechen" : "📸 Neuer Beitrag", newBtnX + 56, newBtnY + 8, 0xFFFFFFFF, true);
         }
 
-        int statusBarY = py + 46;
-        if (tab != 1) {
-            Glass.fillRound(g, cx + 8, statusBarY, cw - 16, 22, 5, Palette.tint(Palette.PANEL2, 0x88));
-            g.text(this.font, trunc(status, cw - 32), cx + 16, statusBarY + 7, authed ? Palette.GREEN : Palette.MUTED, false);
+        entryRects.clear();
+
+        if (tab == 0 && !inThread) {
+            int codeBtnW = 180;
+            int codeBtnX = cx + cw - codeBtnW - 8;
+            int codeBtnY = py + 46;
+            boolean hovCode = mx >= codeBtnX && mx <= codeBtnX + codeBtnW && my >= codeBtnY && my <= codeBtnY + 24;
+            Glass.fillRound(g, codeBtnX, codeBtnY, codeBtnW, 24, 6, hovCode ? Palette.PANEL : Palette.PANEL2);
+            Glass.ring(g, codeBtnX, codeBtnY, codeBtnW, 24, 6, 1.0f, hovCode ? Palette.ACCENT : 0x33FFFFFF);
+            String displayCode = myCode.isEmpty() ? "---" : ("#" + myCode);
+            Glass.textC(g, this.font, "Dein Code: " + displayCode + " 📋", codeBtnX + codeBtnW / 2, codeBtnY + 8, hovCode ? Palette.ACCENT : Palette.TEXT, false);
+
+            entryRects.add(new Rect(codeBtnX, codeBtnY, codeBtnW, 24, () -> {
+                if (!myCode.isEmpty()) {
+                    Minecraft.getInstance().keyboardHandler.setClipboard(myCode);
+                    status = "✓ Dein Code #" + myCode + " in Zwischenablage kopiert!";
+                }
+            }));
         }
 
         int tabItemH = 34;
@@ -410,7 +451,7 @@ public class KollegenSocialScreen extends Screen {
             if (UiStyleManager.isMinecraftStyle()) {
                 Glass.drawMinecraftButton(g, px + 10, by, SW - 20, tabItemH, hov ? 1.0f : 0.0f, sel, false);
                 int ty = by + (tabItemH - this.font.lineHeight) / 2;
-                g.text(this.font, TABS[i], px + 22, ty, hov ? 0xFFFFFFA0 : (sel ? 0xFFFFFFFF : Palette.TEXT), true);
+                g.text(this.font, TABS[i], px + 18, ty, hov ? 0xFFFFFFA0 : (sel ? 0xFFFFFFFF : Palette.TEXT), true);
             } else {
                 int fill = sel ? Palette.ACCENT : (hov ? Palette.PANEL : Palette.PANEL2);
                 Glass.fillRound(g, px + 10, by, SW - 20, tabItemH, 7, fill);
@@ -418,22 +459,21 @@ public class KollegenSocialScreen extends Screen {
                     Glass.ring(g, px + 10, by, SW - 20, tabItemH, 7, 1.2f, 0xFFFFFFFF);
                 }
                 int ty = by + (tabItemH - this.font.lineHeight) / 2;
-                g.text(this.font, TABS[i], px + 22, ty, sel ? 0xFFFFFFFF : (hov ? Palette.TEXT : Palette.MUTED), false);
+                g.text(this.font, TABS[i], px + 18, ty, sel ? 0xFFFFFFFF : (hov ? Palette.TEXT : Palette.MUTED), false);
             }
         }
         g.disableScissor();
 
         if (showNewPostModal && tab == 1) {
-            int modalY = py + 80;
-            int modalW = cw - 32;
-            UiStyleManager.drawCard(g, cx + 16, modalY, modalW, 76, 8, Palette.PANEL, 0.0f, null);
-            g.text(this.font, "📸 Was gibt's Neues?", cx + 24, modalY + 12, Palette.TEXT, true);
+            int modalY = py + 76;
+            int modalW = cw - 16;
+            UiStyleManager.drawCard(g, cx + 8, modalY, modalW, 76, 8, Palette.PANEL, 0.0f, null);
+            g.text(this.font, "📸 Was gibt's Neues in deiner Minecraft-Welt?", cx + 16, modalY + 12, Palette.TEXT, true);
         }
 
-        int listTop = py + 74 + (showNewPostModal && tab == 1 ? 84 : 0);
-        int listBottom = py + ph - 48;
+        int listTop = py + 76 + (showNewPostModal && tab == 1 ? 84 : 0);
+        int listBottom = tab == 0 || tab == 5 || inThread ? (py + ph - 50) : (py + ph - 16);
         g.enableScissor(cx, listTop, cx + cw, listBottom);
-        entryRects.clear();
         int ex = cx + 8;
         int ew = cw - 16;
         int ey = listTop + 2 - scroll;
@@ -444,6 +484,9 @@ public class KollegenSocialScreen extends Screen {
                 boolean hov = mx >= ex && mx <= ex + ew && my >= ey && my <= ey + itemH;
                 float h = hov ? 1.0f : 0.0f;
                 UiStyleManager.drawCard(g, ex, ey, ew, itemH, 8, Palette.PANEL, h, null);
+                if (hov && !e.isFeedPost) {
+                    Glass.ring(g, ex, ey, ew, itemH, 8, 1.0f, Palette.tint(Palette.ACCENT, 0x88));
+                }
 
                 if (e.isFeedPost && e.feedPost != null) {
                     FeedManager.FeedPost p = e.feedPost;
@@ -482,32 +525,43 @@ public class KollegenSocialScreen extends Screen {
                         rebuildEntries();
                     }));
 
-                    int commW = this.font.width("💬 " + p.comments.size());
                     g.text(this.font, "💬 " + p.comments.size() + " Kommentare", headerTextX, ey + 48, Palette.MUTED, false);
 
                 } else {
                     int textStartX = ex + 14;
                     if (e.playerHead != null) {
-                        SkinFaceRenderer.drawFace(g, e.playerHead, null, ex + 8, ey + 9, 32);
-                        Glass.ring(g, ex + 8, ey + 9, 32, 32, 6, 0.8f, 0x44FFFFFF);
+                        SkinFaceRenderer.drawFace(g, e.playerHead, e.playerUuid, ex + 8, ey + 8, 32);
+                        Glass.ring(g, ex + 8, ey + 8, 32, 32, 6, 0.8f, 0x44FFFFFF);
 
                         int dotCol = e.online ? Palette.GREEN : Palette.MUTED;
-                        Glass.disc(g, ex + 37, ey + 37, 4.5f, Palette.BG);
-                        Glass.disc(g, ex + 37, ey + 37, 3.5f, dotCol);
+                        Glass.disc(g, ex + 36, ey + 36, 4.5f, Palette.BG);
+                        Glass.disc(g, ex + 36, ey + 36, 3.5f, dotCol);
                         if (e.online) {
-                            Glass.ring(g, ex + 37 - 4, ey + 37 - 4, 8, 8, 4, 0.6f, Palette.GREEN);
+                            Glass.ring(g, ex + 36 - 4, ey + 36 - 4, 8, 8, 4, 0.6f, Palette.GREEN);
                         }
                         textStartX = ex + 48;
                     }
 
-                    g.text(this.font, e.title, textStartX, ey + 11, e.color, true);
+                    g.text(this.font, e.title, textStartX, ey + 10, e.color, true);
                     if (e.sub != null && !e.sub.isEmpty()) {
-                        g.text(this.font, trunc(e.sub, ew - 240), textStartX, ey + 27, Palette.MUTED, false);
+                        int subCol = e.online ? (e.joinServer != null ? Palette.GREEN : Palette.ACCENT) : Palette.MUTED;
+                        g.text(this.font, trunc(e.sub, ew - 240), textStartX, ey + 25, subCol, false);
                     }
 
                     if (e.isFriendCard) {
                         int btnH = 24;
                         int curBx = ex + ew - 8;
+
+                        if (e.removeAct != null) {
+                            int rwBtn = 22;
+                            curBx -= rwBtn;
+                            int rby = ey + (ROW_H - btnH) / 2;
+                            boolean rHov = mx >= curBx && mx <= curBx + rwBtn && my >= rby && my <= rby + btnH;
+                            Glass.fillRound(g, curBx, rby, rwBtn, btnH, 5, rHov ? Palette.DANGER : Palette.PANEL2);
+                            Glass.textC(g, this.font, "✕", curBx + rwBtn / 2, rby + 7, rHov ? 0xFFFFFFFF : Palette.MUTED, false);
+                            entryRects.add(new Rect(curBx, rby, rwBtn, btnH, e.removeAct));
+                            curBx -= 6;
+                        }
 
                         if (e.chatAct != null) {
                             int cwBtn = 52;
@@ -590,55 +644,62 @@ public class KollegenSocialScreen extends Screen {
             entries.add(new Entry("Keine Momente vorhanden", "Erstelle oben den ersten Moment!", Palette.MUTED, null));
         } else {
             for (FeedManager.FeedPost p : posts) {
-                entries.add(new Entry(p.authorName, p.caption, Palette.TEXT, null, p.authorName, true, false, null, null, null, null, true, p));
+                entries.add(new Entry(p.authorName, p.caption, Palette.TEXT, null, p.authorName, null, true, false, null, null, null, null, null, true, p));
             }
         }
     }
 
     private void rebuildGames() {
-        entries.add(new Entry("🔴 Vier Gewinnt (Connect 4)", "Klassisches 4-in-einer-Reihe Duell gegen Freunde", Palette.ACCENT, () ->
-                Minecraft.getInstance().setScreenAndShow(new Connect4Screen(this))));
-        entries.add(new Entry("❌ Tic-Tac-Toe", "Schnelles 3x3 Duell gegen Freunde oder KI", Palette.TEXT, () ->
-                Minecraft.getInstance().setScreenAndShow(new TicTacToeScreen(this))));
-        entries.add(new Entry("♟ Schach (Chess)", "Strategisches Schachbrett-Spiel", Palette.BLUE, () ->
-                Minecraft.getInstance().setScreenAndShow(new ChessScreen(this))));
-        entries.add(new Entry("🎲 Mensch ärgere dich nicht", "Brettspiel-Klassiker für 2-4 Spieler", Palette.ACCENT, () ->
-                Minecraft.getInstance().setScreenAndShow(new MenschAergereDichNichtScreen(this))));
-        entries.add(new Entry("🐍 Snake", "Klassisches Schlangen-Minispiel", Palette.GREEN, () ->
-                Minecraft.getInstance().setScreenAndShow(new SnakeScreen(this))));
-        entries.add(new Entry("🧱 Tetris", "Blöcke stapeln & Highscore knacken", Palette.ACCENT, () ->
-                Minecraft.getInstance().setScreenAndShow(new TetrisScreen(this))));
+        String[] titles = { "BedWars", "SkyWars", "Duels", "Build Battle", "Murder Mystery" };
+        String[] descs = {
+                "Zerstöre das gegnerische Bett & besiege deine Kontrahenten",
+                "Schneller Kampf auf schwebenden Inseln im Himmel",
+                "1v1 & 2v2 PvP-Duelle mit verschiedenen Kits",
+                "Zeige dein Können beim kreativen Bauen nach Vorgabe",
+                "Finde den Mörder oder eliminiere alle unauffällig"
+        };
+        for (int i = 0; i < titles.length; i++) {
+            String title = titles[i];
+            entries.add(new Entry("🎮 " + title, descs[i], Palette.TEXT, () ->
+                    Minecraft.getInstance().setScreenAndShow(new ServerSwitcherScreen(this))));
+        }
     }
 
     private void rebuildParty() {
-        if (!PartyManager.inParty()) {
-            entries.add(new Entry("Keine aktive Party", "Erstelle eine Party und lade Freunde ein, um gemeinsam auf Server zu springen!", Palette.MUTED, null));
-            entries.add(new Entry("🎉 Neue Party erstellen", "Klicke hier, um eine eigene Party zu gründen", Palette.ACCENT, () -> {
-                PartyManager.createParty();
+        List<String> invites = PartyManager.getPendingInvites();
+        for (String inviter : invites) {
+            entries.add(new Entry("✉ Einladung von " + inviter, "Klicken, um der Party beizutreten", Palette.ACCENT, () -> {
+                PartyManager.acceptInvite(inviter);
                 rebuildEntries();
             }));
+        }
 
-            List<String> invites = PartyManager.getPendingInvites();
-            if (!invites.isEmpty()) {
-                entries.add(new Entry("Offene Party-Einladungen:", "", Palette.ACCENT2, null));
-                for (String inv : invites) {
-                    entries.add(new Entry("✉ Einladung von: " + inv, "Klicke zum Beitreten", Palette.GREEN, () -> {
-                        PartyManager.acceptInvite(inv);
-                        rebuildEntries();
-                    }));
-                }
-            }
+        boolean inParty = PartyManager.inParty();
+        if (!inParty && invites.isEmpty()) {
+            entries.add(new Entry("Keine aktive Party", "Lade Freunde über die Freundesliste in deine Party ein!", Palette.MUTED, null));
+            return;
+        }
+        if (!inParty) return;
+
+        boolean isLeader = PartyManager.isLeader();
+        String leaderName = PartyManager.getLeader();
+        entries.add(new Entry("👑 Gruppenleiter: " + (leaderName == null || leaderName.isEmpty() ? "Du" : leaderName),
+                "Alle Party-Mitglieder folgen dem Leiter automatisch auf neue Server.", Palette.ACCENT, null));
+
+        List<String> members = PartyManager.getMembers();
+        for (String m : members) {
+            boolean isL = m.equalsIgnoreCase(leaderName);
+            String role = isL ? " (Leiter)" : "";
+            entries.add(new Entry(m + role, "● In deiner Party", Palette.TEXT, null, m, null, true, false, null, null, null, null, null));
+        }
+
+        if (isLeader) {
+            entries.add(new Entry("❌ Party auflösen", "Klicke hier, um die Party für alle zu beenden", Palette.DANGER, () -> {
+                PartyManager.leaveParty();
+                rebuildEntries();
+            }));
         } else {
-            String lead = PartyManager.getLeader();
-            boolean isLead = PartyManager.isLeader();
-            entries.add(new Entry("⭐ Party-Anführer: " + lead, isLead ? "Du bist der Party-Anführer" : "Mitglied", Palette.ACCENT, null));
-
-            for (String m : PartyManager.getMembers()) {
-                boolean isL = m.equalsIgnoreCase(lead);
-                entries.add(new Entry((isL ? "⭐ " : "👤 ") + m, isL ? "Anführer" : "Mitglied", Palette.TEXT, null, m, true, false, null, null, null, null));
-            }
-
-            entries.add(new Entry("🚪 Party verlassen", "Klicke hier, um die Party zu verlassen", Palette.DANGER, () -> {
+            entries.add(new Entry("🚪 Party verlassen", "Klicke hier, um die aktuelle Party zu verlassen", Palette.DANGER, () -> {
                 PartyManager.leaveParty();
                 rebuildEntries();
             }));
@@ -647,14 +708,28 @@ public class KollegenSocialScreen extends Screen {
 
     private void rebuildFriends() {
         JsonArray list = arr(state.get("friends"));
+        String searchFilter = friendSearchInput != null ? friendSearchInput.getValue().trim().toLowerCase() : "";
         for (int i = 0; i < list.size(); i++) {
             JsonObject f = list.get(i).getAsJsonObject();
             String name = str(f, "name");
             if (name.isEmpty()) name = str(f, "mc_name");
             if (name.isEmpty()) name = "User " + str(f, "id");
+            if (!searchFilter.isEmpty() && !name.toLowerCase().contains(searchFilter)) {
+                continue;
+            }
             boolean online = f.has("online") && f.get("online").getAsBoolean();
             String server = f.has("server") && !f.get("server").isJsonNull() ? f.get("server").getAsString().trim() : "";
             String otherId = str(f, "discordId");
+            String friendId = str(f, "id");
+            String uuidStr = str(f, "uuid");
+            UUID friendUuid = null;
+            if (!uuidStr.isEmpty()) {
+                try {
+                    String formatted = uuidStr.contains("-") ? uuidStr : uuidStr.replaceFirst("(\\p{XDigit}{8})(\\p{XDigit}{4})(\\p{XDigit}{4})(\\p{XDigit}{4})(\\p{XDigit}+)", "$1-$2-$3-$4-$5");
+                    friendUuid = UUID.fromString(formatted);
+                } catch (Throwable ignored) {
+                }
+            }
             boolean hasJoinableServer = online && !server.isEmpty() && !"hidden".equalsIgnoreCase(server);
 
             String friendName = name;
@@ -662,7 +737,7 @@ public class KollegenSocialScreen extends Screen {
             String otherDid = otherId;
 
             String sub = online
-                    ? (hasJoinableServer ? "🚀 Spielt auf: " + server : "● Online")
+                    ? (hasJoinableServer ? "🚀 Spielt auf: " + server : "● Online (Menü)")
                     : "○ Offline";
 
             int color = friendColor(f, online ? Palette.TEXT : Palette.MUTED);
@@ -670,6 +745,7 @@ public class KollegenSocialScreen extends Screen {
             Runnable joinAction = hasJoinableServer ? () -> ServerSwitcherScreen.switchServer(mc(), friendServer, friendName + "'s Server") : null;
             Runnable partyAction = () -> PartyManager.invite(friendName);
             Runnable chatAction = () -> openDm(otherDid, friendName);
+            Runnable removeAction = () -> apiRemoveFriend(friendId, friendName);
 
             entries.add(new Entry(friendName, sub, color, () -> {
                 if (hasJoinableServer && !dev.kollegen.client.KollegenMod.isShiftDown()) {
@@ -677,35 +753,48 @@ public class KollegenSocialScreen extends Screen {
                 } else {
                     chatAction.run();
                 }
-            }, friendName, online, true, partyAction, chatAction, joinAction, hasJoinableServer ? friendServer : null));
+            }, friendName, friendUuid, online, true, partyAction, chatAction, joinAction, hasJoinableServer ? friendServer : null, removeAction));
         }
-        if (list.size() == 0) {
-            entries.add(new Entry("Keine Freunde", "Füge unten einen Freundes-Code hinzu", Palette.MUTED, null));
+        if (entries.isEmpty()) {
+            if (!searchFilter.isEmpty()) {
+                entries.add(new Entry("Keine Freunde gefunden", "Kein Freund stimmt mit '" + searchFilter + "' überein.", Palette.MUTED, null));
+            } else {
+                entries.add(new Entry("Keine Freunde vorhanden", "Füge unten einen Freundes-Code hinzu oder teile deinen Code!", Palette.MUTED, null));
+            }
         }
     }
 
     private static int friendColor(JsonObject f, int fallback) {
         String hex = str(f, "name_color");
-        if (hex.startsWith("#") && hex.length() >= 7) {
-            try {
-                return 0xFF000000 | Integer.parseInt(hex.substring(1, 7), 16);
-            } catch (Throwable ignored) {
+        if (hex.isEmpty() && f.has("equipped") && f.get("equipped").isJsonObject()) {
+            JsonObject eq = f.getAsJsonObject("equipped");
+            if (eq.has("name_color") && eq.get("name_color").isJsonObject()) {
+                JsonObject nc = eq.getAsJsonObject("name_color");
+                if (nc.has("data") && nc.get("data").isJsonObject()) {
+                    hex = str(nc.getAsJsonObject("data"), "accent");
+                }
             }
         }
-        return fallback;
+        if (hex.isEmpty()) return fallback;
+        if (hex.startsWith("#")) hex = hex.substring(1);
+        try {
+            return 0xFF000000 | (int) Long.parseLong(hex, 16);
+        } catch (Throwable ignored) {
+            return fallback;
+        }
     }
 
     private void rebuildRequests() {
         JsonArray list = arr(state.get("requests"));
         for (int i = 0; i < list.size(); i++) {
             JsonObject r = list.get(i).getAsJsonObject();
-            String id = str(r, "fromId");
-            String name = str(r, "fromName");
-            if (name.isEmpty()) name = "User " + id;
-            entries.add(new Entry("✉ " + name, "Klicke zum Annehmen", Palette.GREEN, () -> apiAccept(id), name, false, false, null, null, null, null));
+            String from = str(r, "fromName");
+            if (from.isEmpty()) from = str(r, "fromId");
+            String fromId = str(r, "fromId");
+            entries.add(new Entry("Anfrage von " + from, "Klicken zum Annehmen", Palette.ACCENT, () -> apiAccept(fromId)));
         }
         if (list.size() == 0) {
-            entries.add(new Entry("Keine Anfragen", "Aktuell liegen keine Freundschaftsanfragen vor", Palette.MUTED, null));
+            entries.add(new Entry("Keine offenen Anfragen", "Du hast alle Freundschaftsanfragen beantwortet.", Palette.MUTED, null));
         }
     }
 
@@ -715,11 +804,11 @@ public class KollegenSocialScreen extends Screen {
             JsonObject g = list.get(i).getAsJsonObject();
             String id = str(g, "id");
             String name = str(g, "name");
-            int mc = arr(g.get("members")).size();
-            entries.add(new Entry("⛺ " + name, mc + " Mitglieder", Palette.TEXT, () -> openGroup(id, name)));
+            int members = arr(g.get("memberIds")).size();
+            entries.add(new Entry(name.isEmpty() ? "Gruppe #" + id : name, members + " Mitglieder · Klicken zum Öffnen", Palette.TEXT, () -> openGroup(id, name)));
         }
         if (list.size() == 0) {
-            entries.add(new Entry("Keine Gruppen", "Erstelle unten eine neue Gruppe", Palette.MUTED, null));
+            entries.add(new Entry("Keine Gruppen", "Erstelle unten eine neue Gruppe!", Palette.MUTED, null));
         }
     }
 
@@ -731,11 +820,11 @@ public class KollegenSocialScreen extends Screen {
             String otherName = str(c, "otherName");
             if (otherName.isEmpty()) otherName = "User " + otherId;
             String last = str(c, "lastMessage");
-            String fName = otherName;
-            entries.add(new Entry("💬 " + otherName, last.isEmpty() ? "Keine Nachrichten" : last, Palette.TEXT, () -> openDm(otherId, fName), otherName, false, false, null, null, null, null));
+            String displayTitle = otherName;
+            entries.add(new Entry(otherName, last.isEmpty() ? "Keine Nachrichten" : last, Palette.TEXT, () -> openDm(otherId, displayTitle)));
         }
         if (list.size() == 0) {
-            entries.add(new Entry("Keine Chats", "Starte einen Chat über die Freundesliste", Palette.MUTED, null));
+            entries.add(new Entry("Keine Chats", "Starte einen Chat in der Freundesliste!", Palette.MUTED, null));
         }
     }
 
@@ -744,19 +833,20 @@ public class KollegenSocialScreen extends Screen {
         for (Entry e : entries) {
             need += (e.isFeedPost ? 72 : ROW_H) + GAP;
         }
-        int visible = contentBottom - (contentTop + (showNewPostModal && tab == 1 ? 84 : 0));
+        int listTop = py + 76 + (showNewPostModal && tab == 1 ? 84 : 0);
+        int listBottom = tab == 0 || tab == 5 || inThread ? (py + ph - 50) : (py + ph - 16);
+        int visible = (listBottom - 4) - listTop;
         maxScroll = Math.max(0, need - visible);
         if (scroll > maxScroll) scroll = maxScroll;
         if (scroll < 0) scroll = 0;
     }
 
     private void openDm(String otherId, String title) {
-        if (otherId.isEmpty()) return;
+        if (otherId == null || otherId.isEmpty()) return;
         inThread = true;
         threadType = "dm";
         threadId = otherId;
-        threadTitle = "💬 " + title;
-        scroll = 0;
+        threadTitle = "Chat mit " + title;
         buildWidgets();
         rebuildEntries();
     }
@@ -765,38 +855,31 @@ public class KollegenSocialScreen extends Screen {
         inThread = true;
         threadType = "group";
         threadId = groupId;
-        threadTitle = "⛺ " + title;
+        threadTitle = "Gruppe: " + title;
         groupSinceMsg = 0;
-        scroll = 0;
         buildWidgets();
         rebuildEntries();
     }
 
     private void loadThread() {
+        if (!authed) return;
         thread(() -> {
             List<String[]> lines = new ArrayList<>();
-            if (threadType.equals("group")) {
-                JsonObject v = getObj("/group/view?groupId=" + enc(threadId));
-                if (v != null) {
-                    int mcount = arr(v.get("members")).size();
-                    lines.add(new String[]{ "⛺ " + threadTitle, (mcount == 0 ? "" : mcount + " Mitglieder") });
-                }
-            }
-            if (threadType.equals("group")) {
-                JsonObject poll = getObj("/group/poll?groupId=" + enc(threadId) + "&sinceMsg=0&sinceSig=0");
-                if (poll != null && poll.has("messages")) {
-                    buildLines(lines, poll.get("messages").getAsJsonArray());
-                }
-            } else {
-                JsonArray msgs = getArr("/dm/messages?otherId=" + enc(threadId) + "&limit=40");
-                if (msgs != null) {
-                    buildLines(lines, msgs);
-                }
+            if ("dm".equals(threadType)) {
+                JsonArray msgs = getArr("/dm/history?otherId=" + enc(threadId));
+                buildLines(lines, msgs);
+            } else if ("group".equals(threadType)) {
+                JsonArray msgs = getArr("/group/" + enc(threadId) + "/messages");
+                buildLines(lines, msgs);
             }
             mc().execute(() -> {
                 entries.clear();
-                for (String[] l : lines) {
-                    entries.add(new Entry(l[0], l[1], Palette.TEXT, null));
+                if (lines.isEmpty()) {
+                    entries.add(new Entry("Noch keine Nachrichten", "Schreibe die erste Nachricht unten!", Palette.MUTED, null));
+                } else {
+                    for (String[] line : lines) {
+                        entries.add(new Entry(line[0], line[1], Palette.TEXT, null));
+                    }
                 }
                 computeScroll();
             });
@@ -804,55 +887,51 @@ public class KollegenSocialScreen extends Screen {
     }
 
     private void buildLines(List<String[]> out, JsonArray msgs) {
-        for (JsonElement e : msgs) {
-            if (!e.isJsonObject()) continue;
-            JsonObject o = e.getAsJsonObject();
-            String from = str(o, "fromName");
-            if (from.isEmpty()) from = str(o, "from");
-            String text = str(o, "text");
-            out.add(new String[]{ from, text });
+        if (msgs == null) return;
+        for (int i = 0; i < msgs.size(); i++) {
+            JsonObject m = msgs.get(i).getAsJsonObject();
+            String sender = str(m, "senderName");
+            if (sender.isEmpty()) sender = str(m, "senderId");
+            String text = str(m, "text");
+            out.add(new String[]{ sender, text });
         }
     }
 
     private void sendThread() {
         if (chatInp == null) return;
-        String t = chatInp.getValue().trim();
-        if (t.isEmpty()) return;
+        String text = chatInp.getValue().trim();
+        if (text.isEmpty()) return;
         chatInp.setValue("");
         JsonObject body = new JsonObject();
-        body.addProperty("text", t);
-        if (threadType.equals("group")) body.addProperty("groupId", threadId);
-        else body.addProperty("otherId", threadId);
-
-        String path = threadType.equals("group") ? "/group/send" : "/dm/send";
+        body.addProperty("text", text);
         thread(() -> {
-            post(path, body);
-            loadThread();
+            if ("dm".equals(threadType)) {
+                body.addProperty("toId", threadId);
+                post("/dm/send", body);
+            } else if ("group".equals(threadType)) {
+                post("/group/" + enc(threadId) + "/message", body);
+            }
+            mc().execute(this::rebuildEntries);
         });
     }
 
     private void pollGroupIfNeeded() {
-        if (!threadType.equals("group") || pollBusy) return;
+        if (!"group".equals(threadType) || !authed) return;
         long now = System.currentTimeMillis();
-        if (now - lastPoll < 1500) return;
-        lastPoll = now;
+        if (now - lastPoll < 2000 || pollBusy) return;
         pollBusy = true;
+        lastPoll = now;
         thread(() -> {
             try {
-                JsonObject r = getObj("/group/poll?groupId=" + enc(threadId) + "&sinceMsg=" + groupSinceMsg + "&sinceSig=0");
-                mc().execute(() -> {
-                    if (r != null && r.has("messages")) {
-                        List<String[]> adds = new ArrayList<>();
-                        buildLines(adds, r.get("messages").getAsJsonArray());
-                        for (JsonElement e2 : r.get("messages").getAsJsonArray()) {
-                            if (e2.isJsonObject() && e2.getAsJsonObject().has("ts")) {
-                                groupSinceMsg = Math.max(groupSinceMsg, e2.getAsJsonObject().get("ts").getAsLong());
-                            }
-                        }
-                        for (String[] l : adds) entries.add(new Entry(l[0], l[1], Palette.TEXT, null));
-                        computeScroll();
+                JsonArray delta = getArr("/group/" + enc(threadId) + "/poll?since=" + groupSinceMsg);
+                if (delta != null && delta.size() > 0) {
+                    for (int i = 0; i < delta.size(); i++) {
+                        long id = delta.get(i).getAsJsonObject().get("id").getAsLong();
+                        if (id > groupSinceMsg) groupSinceMsg = id;
                     }
-                });
+                    mc().execute(this::rebuildEntries);
+                }
+            } catch (Throwable ignored) {
             } finally {
                 pollBusy = false;
             }
@@ -869,6 +948,20 @@ public class KollegenSocialScreen extends Screen {
             JsonObject r = post("/friends", body);
             mc().execute(() -> {
                 status = r != null && !r.has("error") ? "Anfrage gesendet ✓" : "Anfrage fehlgeschlagen";
+                loadAll();
+            });
+        });
+    }
+
+    private void apiRemoveFriend(String friendId, String friendName) {
+        if (friendId == null || friendId.isEmpty()) return;
+        JsonObject body = new JsonObject();
+        body.addProperty("id", friendId);
+        body.addProperty("friendId", friendId);
+        thread(() -> {
+            post("/friends/remove", body);
+            mc().execute(() -> {
+                status = friendName + " aus Freundesliste entfernt.";
                 loadAll();
             });
         });
@@ -907,10 +1000,18 @@ public class KollegenSocialScreen extends Screen {
                     JsonObject o = JsonParser.parseString(Files.readString(p)).getAsJsonObject();
                     backend = str(o, "backend");
                     session = str(o, "session");
+                    if (o.has("me") && o.get("me").isJsonObject()) {
+                        JsonObject meObj = o.getAsJsonObject("me");
+                        myCode = str(meObj, "code");
+                        myName = str(meObj, "name");
+                    }
+                    if (myCode.isEmpty() && o.has("code")) {
+                        myCode = str(o, "code");
+                    }
                 }
             } catch (Throwable ignored) {
             }
-            if (backend.isEmpty()) backend = "https://kollegen.app";
+            if (backend.isEmpty()) backend = "https://kollegen.me";
             authed = !session.isEmpty();
             mc().execute(this::loadAll);
         });
@@ -918,7 +1019,7 @@ public class KollegenSocialScreen extends Screen {
 
     private void loadAll() {
         if (!authed) {
-            status = "Nicht eingeloggt (bitte im Launcher anmelden)";
+            status = "Nicht angemeldet (bitte im Launcher einloggen)";
             rebuildEntries();
             return;
         }
@@ -928,13 +1029,20 @@ public class KollegenSocialScreen extends Screen {
             JsonArray reqs = getArr("/friends/requests");
             JsonArray groups = getArr("/groups");
             JsonArray convs = getArr("/dm/conversations");
+            JsonObject meProfile = getObj("/me");
             s.add("friends", friends != null ? friends : new JsonArray());
             s.add("requests", reqs != null ? reqs : new JsonArray());
             s.add("groups", groups != null ? groups : new JsonArray());
             s.add("convs", convs != null ? convs : new JsonArray());
             mc().execute(() -> {
                 state = s;
-                status = "Aktualisiert ✓";
+                if (meProfile != null) {
+                    if (meProfile.has("code")) myCode = str(meProfile, "code");
+                    if (meProfile.has("name")) myName = str(meProfile, "name");
+                }
+                int count = friends != null ? friends.size() : 0;
+                status = count + " Freunde synchronisiert ✓";
+                buildWidgets();
                 rebuildEntries();
             });
         });

@@ -69,12 +69,12 @@ public abstract class ContainerScreenMixin {
     private void kollegen$initSearch(CallbackInfo ci) {
         if (InventoryEnhancements.isSearchEnabled()) {
             Minecraft mc = Minecraft.getInstance();
-            int bw = 78;
-            int bh = 13;
-            int bx = this.leftPos + this.imageWidth - bw - 8;
-            int by = this.topPos + 5;
+            int bw = 85;
+            int bh = 14;
+            int bx = this.leftPos + this.imageWidth - bw - 4;
+            int by = this.topPos > 20 ? this.topPos - 18 : this.topPos + 4;
             this.kollegen$searchBox = new EditBox(mc.font, bx, by, bw, bh, Component.literal(""));
-            this.kollegen$searchBox.setHint(Component.literal("Suchen..."));
+            this.kollegen$searchBox.setHint(Component.literal("🔍 Suchen..."));
             this.kollegen$searchBox.setMaxLength(32);
             this.kollegen$searchBox.setBordered(false);
             this.addRenderableWidget(this.kollegen$searchBox);
@@ -100,7 +100,8 @@ public abstract class ContainerScreenMixin {
         }
 
         if (this.hoveredSlot != null && this.hoveredSlot.container instanceof Inventory) {
-            if (event.key() == InputConstants.KEY_L) {
+            int lockKey = InventoryEnhancements.getLockKeyCode();
+            if (event.key() == lockKey || event.key() == InputConstants.KEY_L || event.key() == 76) {
                 ItemLockManager.toggleLock(this.hoveredSlot);
                 cir.setReturnValue(true);
                 return;
@@ -143,11 +144,11 @@ public abstract class ContainerScreenMixin {
         if (this.menu != null && this.menu.slots != null) {
             Minecraft mc = Minecraft.getInstance();
             for (Slot s : this.menu.slots) {
-                if (s != null && s.container instanceof Inventory && ItemLockManager.isLocked(s.index)) {
+                if (s != null && s.container instanceof Inventory && ItemLockManager.isLocked(s.getContainerSlot())) {
                     int sx = this.leftPos + s.x;
                     int sy = this.topPos + s.y;
                     if (!s.hasItem()) {
-                        Item reserved = ItemLockManager.getLockedItemType(s.index);
+                        Item reserved = ItemLockManager.getLockedItemType(s.getContainerSlot());
                         if (reserved != Items.AIR) {
                             gui.item(new ItemStack(reserved), sx, sy);
                             gui.fill(RenderPipelines.GUI, sx, sy, sx + 16, sy + 16, 0x50FF3333);
@@ -159,13 +160,13 @@ public abstract class ContainerScreenMixin {
             }
 
             if (InventoryEnhancements.isSearchEnabled() && this.kollegen$searchBox != null) {
-                int bw = 78;
-                int bh = 13;
-                int bx = this.leftPos + this.imageWidth - bw - 8;
-                int by = this.topPos + 5;
+                int bw = 85;
+                int bh = 14;
+                int bx = this.leftPos + this.imageWidth - bw - 4;
+                int by = this.topPos > 20 ? this.topPos - 18 : this.topPos + 4;
                 boolean focused = this.kollegen$searchBox.isFocused();
-                Glass.fillRound(gui, bx - 3, by - 2, bw + 6, bh + 4, 4, focused ? 0xDD181B26 : 0x8810121C);
-                Glass.ring(gui, bx - 3, by - 2, bw + 6, bh + 4, 4, 1.0f, focused ? 0xFF8A5CF6 : 0x33FFFFFF);
+                Glass.fillRound(gui, bx - 3, by - 2, bw + 6, bh + 4, 4, focused ? 0xDD181B26 : 0x9910121C);
+                Glass.ring(gui, bx - 3, by - 2, bw + 6, bh + 4, 4, 1.0f, focused ? 0xFF8A5CF6 : 0x55FFFFFF);
                 this.kollegen$searchBox.extractWidgetRenderState(gui, mouseX, mouseY, partialTick);
 
                 String query = this.kollegen$searchBox.getValue().trim().toLowerCase();

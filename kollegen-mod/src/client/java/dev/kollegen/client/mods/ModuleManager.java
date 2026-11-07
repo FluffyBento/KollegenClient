@@ -51,6 +51,7 @@ public final class ModuleManager {
         dev.kollegen.client.mods.modules.Vulkan.register();
         dev.kollegen.client.mods.modules.Misc.register();
         dev.kollegen.client.mods.modules.InventoryTweaks.register();
+        register(new dev.kollegen.client.mods.modules.InventoryEnhancements());
         load();
     }
 
@@ -113,7 +114,6 @@ public final class ModuleManager {
             }
         } catch (Exception ignored) {
         }
-        // Ensure onEnable is called for all modules that are enabled but haven't been initialized
         for (Module m : MODULES) {
             if (m.enabled && !m.initialized && m.mc.options != null) {
                 try {

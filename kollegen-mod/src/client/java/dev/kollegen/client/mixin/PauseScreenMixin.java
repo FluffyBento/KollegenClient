@@ -25,9 +25,10 @@ public abstract class PauseScreenMixin extends Screen {
     private void kollegen$addPauseMenuButtons(CallbackInfo ci) {
         int btnH = 22;
         int topY = 10;
-        int switchW = 128;
-        int friendW = 96;
-        int hostW = 110;
+        int switchW = 120;
+        int friendW = 86;
+        int feedW = 80;
+        int hostW = 106;
 
         this.addRenderableWidget(new AccountButton(10, topY, false, btn -> {
             if (this.minecraft != null) {
@@ -42,17 +43,24 @@ public abstract class PauseScreenMixin extends Screen {
             }
         }));
 
-        this.addRenderableWidget(new GlassButton(this.width - switchW - friendW - 18, topY, friendW, btnH,
+        this.addRenderableWidget(new GlassButton(this.width - switchW - friendW - 16, topY, friendW, btnH,
                 Component.literal("👥 Freunde"), btn -> {
             if (this.minecraft != null) {
-                this.minecraft.setScreenAndShow(new KollegenSocialScreen(this));
+                this.minecraft.setScreenAndShow(new KollegenSocialScreen(this, 0));
+            }
+        }));
+
+        this.addRenderableWidget(new GlassButton(this.width - switchW - friendW - feedW - 22, topY, feedW, btnH,
+                Component.literal("📸 Feed"), btn -> {
+            if (this.minecraft != null) {
+                this.minecraft.setScreenAndShow(new KollegenSocialScreen(this, 1));
             }
         }));
 
         if (this.minecraft != null && this.minecraft.hasSingleplayerServer()) {
             boolean active = this.minecraft.getSingleplayerServer() != null && this.minecraft.getSingleplayerServer().isPublished();
             String hostText = active ? "🌍 Welt (Aktiv)" : "🌍 Welt hosten";
-            this.addRenderableWidget(new GlassButton(this.width - switchW - friendW - hostW - 26, topY, hostW, btnH,
+            this.addRenderableWidget(new GlassButton(this.width - switchW - friendW - feedW - hostW - 28, topY, hostW, btnH,
                     Component.literal(hostText), btn -> {
                 if (this.minecraft != null) {
                     this.minecraft.setScreenAndShow(new HostWorldScreen(this));

@@ -40,7 +40,7 @@ import java.util.List;
 public class ServerSwitcherScreen extends Screen {
 
     private final Screen parent;
-    private static final int ROW_H = 48;
+    private static final int ROW_H = 50;
     private static final int GAP = 6;
     private static final String[] TABS = {"👥 Freunde auf Servern", "🌐 Gespeicherte Server", "⚡ Direktverbindung"};
     private static final String[][] PRESETS = {
@@ -56,12 +56,17 @@ public class ServerSwitcherScreen extends Screen {
     private int scroll = 0;
     private int maxScroll = 0;
 
+    private final List<ServerEntry> allSavedServers = new ArrayList<>();
     private final List<ServerEntry> entries = new ArrayList<>();
     private final List<ActionRect> actionRects = new ArrayList<>();
 
+    private EditBox searchBox;
     private EditBox directInput;
     private GlassButton directJoinBtn;
     private GlassButton privacyBtn;
+
+    private long lastClickTime = 0;
+    private String lastClickedIp = null;
 
     private final HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(4)).build();
     private String statusMsg = "Lade Server…";
@@ -112,16 +117,14 @@ public class ServerSwitcherScreen extends Screen {
 
     @Override
     protected void init() {
-        int w = Math.min(this.width - 24, 800);
-        int h = Math.min(this.height - 24, 540);
+        int w = Math.min(this.width - 28, 820);
+        int h = Math.min(this.height - 28, 550);
         this.px = (this.width - w) / 2;
         this.py = (this.height - h) / 2;
         this.pw = w;
         this.ph = h;
         this.cx = px + 18;
         this.cw = pw - 36;
-        this.listTop = py + 92;
-        this.listBottom = py + ph - 16;
 
         buildWidgets();
         loadData();
@@ -157,14 +160,24 @@ public class ServerSwitcherScreen extends Screen {
                 Minecraft.getInstance().setScreenAndShow(parent));
         addRenderableWidget(close);
 
-        if (tab == 2) {
-            int cardY = listTop;
-            int inpY = cardY + 34;
+        if (tab == 1) {
+            int searchY = py + 84;
+            searchBox = new EditBox(this.font, cx + 8, searchY, cw - 16, 24, Component.literal("Server-Suche"));
+            searchBox.setMaxLength(64);
+            searchBox.setHint(Component.literal("🔍 Server durchsuchen (z. B. GommeHD, Hypixel, IP)…"));
+            searchBox.setResponder(query -> filterSavedServers(query));
+            addRenderableWidget(searchBox);
+            listTop = py + 116;
+            listBottom = py + ph - 16;
+        } else if (tab == 2) {
+            searchBox = null;
+            int cardY = py + 84;
+            int inpY = cardY + 30;
             int btnW = 110;
             int inpW = cw - btnW - 36;
             directInput = new EditBox(this.font, cx + 16, inpY, inpW, 26, Component.literal("Server-IP"));
             directInput.setMaxLength(128);
-            directInput.setHint(Component.literal("z. B. gommehd.net oder hypixel.net…"));
+            directInput.setHint(Component.literal("z. B. gommehd.net oder play.hypixel.net:25565…"));
             addRenderableWidget(directInput);
 
             directJoinBtn = new GlassButton(cx + cw - btnW - 14, inpY, btnW, 26, Component.literal("🚀 Beitreten"), btn -> {
@@ -174,10 +187,31 @@ public class ServerSwitcherScreen extends Screen {
                 }
             });
             addRenderableWidget(directJoinBtn);
+            listTop = py + 188;
+            listBottom = py + ph - 16;
         } else {
+            searchBox = null;
             directInput = null;
             directJoinBtn = null;
+            listTop = py + 106;
+            listBottom = py + ph - 16;
         }
+    }
+
+    private void filterSavedServers(String query) {
+        entries.clear();
+        String q = query == null ? "" : query.trim().toLowerCase();
+        if (q.isEmpty()) {
+            entries.addAll(allSavedServers);
+        } else {
+            for (ServerEntry e : allSavedServers) {
+                if (e.title.toLowerCase().contains(q) || e.ip.toLowerCase().contains(q) || e.subtitle.toLowerCase().contains(q)) {
+                    entries.add(e);
+                }
+            }
+        }
+        statusMsg = entries.size() + " von " + allSavedServers.size() + " Servern gefunden.";
+        computeScroll();
     }
 
     private void loadData() {
@@ -205,9 +239,9 @@ public class ServerSwitcherScreen extends Screen {
                     if (!backend.isEmpty() && !session.isEmpty()) {
                         try {
                             HttpRequest req = HttpRequest.newBuilder(URI.create(backend + "/friends"))
-                                     .timeout(Duration.ofSeconds(4))
-                                     .header("Authorization", "Bearer " + session)
-                                     .GET().build();
+                                    .timeout(Duration.ofSeconds(4))
+                                    .header("Authorization", "Bearer " + session)
+                                    .GET().build();
                             HttpResponse<String> res = http.send(req, HttpResponse.BodyHandlers.ofString());
                             if (res.statusCode() == 200 && res.body() != null) {
                                 JsonElement el = JsonParser.parseString(res.body());
@@ -259,6 +293,7 @@ public class ServerSwitcherScreen extends Screen {
     }
 
     private void loadSavedServers() {
+        allSavedServers.clear();
         try {
             ServerList list = new ServerList(Minecraft.getInstance());
             list.load();
@@ -270,13 +305,19 @@ public class ServerSwitcherScreen extends Screen {
                     if (data.status != null && !data.status.getString().isEmpty()) {
                         sub += " \u00b7 " + data.status.getString();
                     }
-                    entries.add(new ServerEntry(data.name != null ? data.name : data.ip, sub, data.ip, true, "🚀 Beitreten", "Gespeichert", null, 24));
+                    allSavedServers.add(new ServerEntry(data.name != null ? data.name : data.ip, sub, data.ip, true, "🚀 Beitreten", "Gespeichert", null, 24));
                 }
             }
-            if (entries.isEmpty()) {
-                statusMsg = "Keine Server in deiner Minecraft-Serverliste vorhanden.";
+            if (searchBox != null && !searchBox.getValue().trim().isEmpty()) {
+                filterSavedServers(searchBox.getValue());
             } else {
-                statusMsg = entries.size() + " gespeicherte Server gefunden.";
+                entries.clear();
+                entries.addAll(allSavedServers);
+                if (entries.isEmpty()) {
+                    statusMsg = "Keine Server in deiner Minecraft-Serverliste vorhanden.";
+                } else {
+                    statusMsg = entries.size() + " gespeicherte Server gefunden.";
+                }
             }
         } catch (Throwable ignored) {
             statusMsg = "Fehler beim Laden der Serverliste.";
@@ -292,8 +333,7 @@ public class ServerSwitcherScreen extends Screen {
 
     private void computeScroll() {
         int need = entries.size() * (ROW_H + GAP);
-        int topOffset = tab == 2 ? 104 : 0;
-        int visible = (listBottom - 4) - (listTop + topOffset);
+        int visible = (listBottom - 4) - listTop;
         maxScroll = Math.max(0, need - visible);
         if (scroll > maxScroll) scroll = maxScroll;
         if (scroll < 0) scroll = 0;
@@ -327,13 +367,29 @@ public class ServerSwitcherScreen extends Screen {
             }
         }
 
+        int ey = listTop + 2 - scroll;
+        for (ServerEntry e : entries) {
+            if (my >= ey && my <= ey + ROW_H && mx >= cx && mx <= cx + cw) {
+                long now = System.currentTimeMillis();
+                if (e.ip.equals(lastClickedIp) && (now - lastClickTime) < 350) {
+                    if (e.joinable) {
+                        switchServer(Minecraft.getInstance(), e.ip, e.title);
+                        return true;
+                    }
+                }
+                lastClickedIp = e.ip;
+                lastClickTime = now;
+                break;
+            }
+            ey += ROW_H + GAP;
+        }
+
         return super.mouseClicked(event, bl);
     }
 
     @Override
     public boolean mouseScrolled(double mx, double my, double horizontal, double vertical) {
-        int checkTop = listTop + (tab == 2 ? 104 : 0);
-        if (maxScroll > 0 && mx >= cx && mx <= cx + cw && my >= checkTop && my <= listBottom) {
+        if (maxScroll > 0 && mx >= cx && mx <= cx + cw && my >= listTop && my <= listBottom) {
             scroll = Math.max(0, Math.min(maxScroll, scroll - (int) (vertical * 26)));
             return true;
         }
@@ -392,49 +448,52 @@ public class ServerSwitcherScreen extends Screen {
 
         actionRects.clear();
 
-        int startY = listTop;
-
         if (tab == 2) {
-            int cardY = listTop;
-            int cardH = 74;
+            int cardY = py + 84;
+            int cardH = 68;
             UiStyleManager.drawCard(g, cx, cardY, cw, cardH, 8, Palette.PANEL, 0.0f, null);
-            Icons.draw(g, Icons.BOLT, cx + 16, cardY + 12, 14, Palette.ACCENT);
-            g.text(this.font, "Direktverbindung per IP oder Domain", cx + 36, cardY + 13, Palette.TEXT, true);
-            startY = cardY + cardH + 16;
-            g.text(this.font, "⭐ Beliebte Multiplayer-Netzwerke:", cx + 4, startY - 10, Palette.MUTED, false);
-            startY += 4;
-        } else {
-            g.text(this.font, statusMsg, cx + 4, py + 80, Palette.MUTED, false);
+            Icons.draw(g, Icons.BOLT, cx + 16, cardY + 10, 14, Palette.ACCENT);
+            g.text(this.font, "DIREKTVERBINDUNG", cx + 36, cardY + 11, Palette.TEXT, true);
+            g.text(this.font, "Gib eine Server-Adresse oder IP-Adresse ein:", cx + 160, cardY + 11, Palette.MUTED, false);
+
+            int bannerY = cardY + cardH + 12;
+            Icons.draw(g, Icons.SPARKLE, cx + 4, bannerY + 1, 12, Palette.ACCENT);
+            g.text(this.font, "BELIEBTE MULTIPLAYER-NETZWERKE", cx + 22, bannerY + 2, Palette.ACCENT, true);
+        } else if (tab == 0) {
+            g.text(this.font, statusMsg, cx + 4, py + 86, Palette.MUTED, false);
         }
 
-        g.enableScissor(cx, startY, cx + cw, listBottom);
+        g.enableScissor(cx, listTop, cx + cw, listBottom);
 
-        int ey = startY + 2 - scroll;
+        int ey = listTop + 2 - scroll;
         for (ServerEntry e : entries) {
-            boolean vis = ey + ROW_H > startY && ey < listBottom;
+            boolean vis = ey + ROW_H > listTop && ey < listBottom;
             if (vis) {
                 boolean hov = mx >= cx && mx <= cx + cw && my >= ey && my <= ey + ROW_H;
                 float h = hov ? 1.0f : 0.0f;
                 UiStyleManager.drawCard(g, cx, ey, cw, ROW_H, 8, Palette.PANEL, h, null);
+                if (hov) {
+                    Glass.ring(g, cx, ey, cw, ROW_H, 8, 1.0f, Palette.tint(Palette.ACCENT, 0x88));
+                }
 
                 int iconX = cx + 10;
-                int iconY = ey + (ROW_H - 30) / 2;
+                int iconY = ey + (ROW_H - 32) / 2;
                 int iconCol = e.joinable ? Palette.ACCENT : Palette.MUTED;
 
                 if (e.friendName != null && !e.friendName.isEmpty()) {
-                    SkinFaceRenderer.drawFace(g, e.friendName, null, iconX, iconY, 30);
-                    Glass.ring(g, iconX, iconY, 30, 30, 6, 1.0f, Palette.ACCENT);
+                    SkinFaceRenderer.drawFace(g, e.friendName, null, iconX, iconY, 32);
+                    Glass.ring(g, iconX, iconY, 32, 32, 6, 1.0f, Palette.ACCENT);
                 } else {
-                    Glass.fillRound(g, iconX, iconY, 30, 30, 6, Palette.tint(iconCol, 0x44));
-                    Glass.ring(g, iconX, iconY, 30, 30, 6, 1.0f, iconCol);
-                    String initial = e.title.isEmpty() ? "?" : e.title.substring(0, 1).toUpperCase(java.util.Locale.ROOT);
-                    int initW = this.font.width(initial);
-                    g.text(this.font, initial, iconX + (30 - initW) / 2, iconY + 10, iconCol, true);
+                    Glass.fillRound(g, iconX, iconY, 32, 32, 6, Palette.tint(iconCol, 0x33));
+                    Glass.ring(g, iconX, iconY, 32, 32, 6, 1.0f, iconCol);
+                    String monogram = e.title.length() >= 2 ? e.title.substring(0, 2).toUpperCase() : (e.title.isEmpty() ? "?" : e.title.toUpperCase());
+                    int initW = this.font.width(monogram);
+                    g.text(this.font, monogram, iconX + (32 - initW) / 2, iconY + 11, iconCol, true);
                 }
 
-                int textX = iconX + 38;
-                g.text(this.font, Glass.trunc(this.font, e.title, cw - 250), textX, ey + 10, Palette.TEXT, true);
-                g.text(this.font, Glass.trunc(this.font, e.subtitle, cw - 250), textX, ey + 25, Palette.MUTED, false);
+                int textX = iconX + 42;
+                g.text(this.font, Glass.trunc(this.font, e.title, cw - 260), textX, ey + 10, Palette.TEXT, true);
+                g.text(this.font, Glass.trunc(this.font, e.subtitle, cw - 260), textX, ey + 26, Palette.MUTED, false);
 
                 int rightBoundary = cx + cw - 12;
 
@@ -493,15 +552,20 @@ public class ServerSwitcherScreen extends Screen {
             ey += ROW_H + GAP;
         }
 
+        if (entries.isEmpty() && tab == 0) {
+            int emptyY = py + ph / 2 - 20;
+            Icons.draw(g, Icons.USER, cx + cw / 2 - 14, emptyY - 24, 28, Palette.MUTED);
+            Glass.textC(g, this.font, "Aktuell spielt kein Freund auf einem sichtbaren Server", cx + cw / 2, emptyY + 12, Palette.TEXT, true);
+            Glass.textC(g, this.font, "Freunde können ihren Server im Freunde-Menü teilen.", cx + cw / 2, emptyY + 26, Palette.MUTED, false);
+        }
+
         g.disableScissor();
 
         if (maxScroll > 0) {
-            int topOffset = tab == 2 ? 104 : 0;
-            int trackH = listBottom - (listTop + topOffset);
-            int trackY = listTop + topOffset;
+            int trackH = listBottom - listTop;
             int thumbH = Math.max(28, (int) ((double) trackH * trackH / (trackH + maxScroll)));
-            int thumbY = trackY + (int) ((trackH - thumbH) * (scroll / (double) maxScroll));
-            Glass.scrollbarTrack(g, cx + cw - 4, trackY, 4, trackH, 2);
+            int thumbY = listTop + (int) ((trackH - thumbH) * (scroll / (double) maxScroll));
+            Glass.scrollbarTrack(g, cx + cw - 4, listTop, 4, trackH, 2);
             Glass.scrollbarThumb(g, cx + cw - 4, thumbY, 4, thumbH, 2, false);
         }
 

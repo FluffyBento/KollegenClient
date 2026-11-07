@@ -159,11 +159,11 @@ public class InventoryEnhancements extends Module {
     }
 
     public static boolean isSearchEnabled() {
-        return INSTANCE != null && INSTANCE.enabled && INSTANCE.searchBar.value;
+        return INSTANCE == null || (INSTANCE.enabled && INSTANCE.searchBar.value);
     }
 
     public static boolean isLockEnabled() {
-        return INSTANCE != null && INSTANCE.enabled && INSTANCE.itemLock.value;
+        return INSTANCE == null || (INSTANCE.enabled && INSTANCE.itemLock.value);
     }
 
     public static int getLockKeyCode() {

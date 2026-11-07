@@ -38,7 +38,7 @@ public final class ItemLockManager {
 
     public static boolean isLocked(Slot slot) {
         if (slot == null || !(slot.container instanceof Inventory)) return false;
-        return isLocked(slot.index);
+        return isLocked(slot.getContainerSlot());
     }
 
     public static String getLockedItem(int slotIndex) {
@@ -58,7 +58,7 @@ public final class ItemLockManager {
 
     public static boolean matches(Slot slot, ItemStack stack) {
         if (slot == null || !(slot.container instanceof Inventory)) return true;
-        return matches(slot.index, stack);
+        return matches(slot.getContainerSlot(), stack);
     }
 
     public static boolean matches(int slotIndex, ItemStack stack) {
@@ -72,8 +72,8 @@ public final class ItemLockManager {
 
     public static void toggleLock(Slot slot) {
         if (slot == null || !(slot.container instanceof Inventory)) return;
-        int idx = slot.index;
-        if (idx < 0 || idx >= 36) return;
+        int idx = slot.getContainerSlot();
+        if (idx < 0 || idx > 40) return;
         ensureLoaded();
 
         Minecraft mc = Minecraft.getInstance();
@@ -83,13 +83,19 @@ public final class ItemLockManager {
             if (mc.player != null) {
                 mc.player.playSound(SoundEvents.UI_BUTTON_CLICK.value(), 0.7f, 0.8f);
             }
-            if (mc.gui != null && mc.gui.hud != null && mc.gui.hud.getChat() != null) {
-                mc.gui.hud.getChat().addClientSystemMessage(Component.literal("§7[Kollegen] §a🔓 Slot " + (idx < 9 ? (idx + 1) : idx) + " entsperrt"));
+            if (mc.gui != null && mc.gui.hud != null) {
+                mc.gui.hud.setOverlayMessage(Component.literal("§a🔓 Slot " + (idx < 9 ? (idx + 1) : idx) + " entsperrt"), false);
+                if (mc.gui.hud.getChat() != null) {
+                    mc.gui.hud.getChat().addClientSystemMessage(Component.literal("§7[Kollegen] §a🔓 Slot " + (idx < 9 ? (idx + 1) : idx) + " entsperrt"));
+                }
             }
         } else {
             if (!slot.hasItem()) {
-                if (mc.gui != null && mc.gui.hud != null && mc.gui.hud.getChat() != null) {
-                    mc.gui.hud.getChat().addClientSystemMessage(Component.literal("§7[Kollegen] §cSlot ist leer. Lege zuerst ein Item hinein, um es zu sperren."));
+                if (mc.gui != null && mc.gui.hud != null) {
+                    mc.gui.hud.setOverlayMessage(Component.literal("§cSlot ist leer. Lege zuerst ein Item hinein."), false);
+                    if (mc.gui.hud.getChat() != null) {
+                        mc.gui.hud.getChat().addClientSystemMessage(Component.literal("§7[Kollegen] §cSlot ist leer. Lege zuerst ein Item hinein, um es zu sperren."));
+                    }
                 }
                 return;
             }
@@ -97,12 +103,15 @@ public final class ItemLockManager {
             String idStr = BuiltInRegistries.ITEM.getKey(stack.getItem()).toString();
             lockedSlots.put(idx, idStr);
             save();
+            String itemName = stack.getHoverName().getString();
             if (mc.player != null) {
                 mc.player.playSound(SoundEvents.UI_BUTTON_CLICK.value(), 0.8f, 1.2f);
             }
-            if (mc.gui != null && mc.gui.hud != null && mc.gui.hud.getChat() != null) {
-                String itemName = stack.getHoverName().getString();
-                mc.gui.hud.getChat().addClientSystemMessage(Component.literal("§7[Kollegen] §6🔒 Slot gesperrt & reserviert für: §e" + itemName));
+            if (mc.gui != null && mc.gui.hud != null) {
+                mc.gui.hud.setOverlayMessage(Component.literal("§6🔒 Slot gesperrt für: §e" + itemName), false);
+                if (mc.gui.hud.getChat() != null) {
+                    mc.gui.hud.getChat().addClientSystemMessage(Component.literal("§7[Kollegen] §6🔒 Slot gesperrt & reserviert für: §e" + itemName));
+                }
             }
         }
     }
