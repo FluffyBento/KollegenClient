@@ -6,8 +6,8 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.mojang.blaze3d.platform.InputConstants;
 import dev.kollegen.client.account.AccountManager;
+import dev.kollegen.client.feed.FeedManager;
 import dev.kollegen.client.game.*;
-import dev.kollegen.client.mcreal.McRealManager;
 import dev.kollegen.client.mods.Palette;
 import dev.kollegen.client.party.PartyManager;
 import dev.kollegen.client.presence.PrivacySettings;
@@ -43,7 +43,7 @@ public class KollegenSocialScreen extends Screen {
     private static final int SW = 200;
     private static final int ROW_H = 50;
     private static final int GAP = 6;
-    private static final String[] TABS = { "👥 Freunde", "📸 McReal", "🎉 Party", "🎮 Spiele", "📩 Anfragen", "🗂 Gruppen", "💬 Chats" };
+    private static final String[] TABS = { "👥 Freunde", "📸 Momente", "🎉 Party", "🎮 Spiele", "📩 Anfragen", "🗂 Gruppen", "💬 Chats" };
 
     private final HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(6)).build();
 
@@ -63,7 +63,7 @@ public class KollegenSocialScreen extends Screen {
     private long lastPoll = 0;
 
     private boolean showNewPostModal = false;
-    private EditBox mcrealCaptionInput = null;
+    private EditBox feedCaptionInput = null;
     private EditBox friendSearchInput = null;
 
     private final List<Entry> entries = new ArrayList<>();
@@ -91,8 +91,8 @@ public class KollegenSocialScreen extends Screen {
         final Runnable chatAct;
         final Runnable joinAct;
         final String joinServer;
-        final boolean isMcReal;
-        final McRealManager.McRealPost mcRealPost;
+        final boolean isFeedPost;
+        final FeedManager.FeedPost feedPost;
 
         Entry(String title, String sub, int color, Runnable act) {
             this(title, sub, color, act, null, false, false, null, null, null, null, false, null);
@@ -104,7 +104,7 @@ public class KollegenSocialScreen extends Screen {
         }
 
         Entry(String title, String sub, int color, Runnable act, String playerHead, boolean online, boolean isFriendCard,
-              Runnable partyAct, Runnable chatAct, Runnable joinAct, String joinServer, boolean isMcReal, McRealManager.McRealPost mcRealPost) {
+              Runnable partyAct, Runnable chatAct, Runnable joinAct, String joinServer, boolean isFeedPost, FeedManager.FeedPost feedPost) {
             this.title = title;
             this.sub = sub;
             this.color = color;
@@ -116,8 +116,8 @@ public class KollegenSocialScreen extends Screen {
             this.chatAct = chatAct;
             this.joinAct = joinAct;
             this.joinServer = joinServer;
-            this.isMcReal = isMcReal;
-            this.mcRealPost = mcRealPost;
+            this.isFeedPost = isFeedPost;
+            this.feedPost = feedPost;
         }
     }
 
@@ -216,23 +216,23 @@ public class KollegenSocialScreen extends Screen {
             if (showNewPostModal) {
                 int modalY = py + 80;
                 int modalW = cw - 32;
-                mcrealCaptionInput = new EditBox(this.font, cx + 16, modalY + 36, modalW - 110, 26, Component.literal("Caption"));
-                mcrealCaptionInput.setMaxLength(140);
-                mcrealCaptionInput.setHint(Component.literal("Was passiert gerade in deiner Welt?"));
-                addRenderableWidget(mcrealCaptionInput);
+                feedCaptionInput = new EditBox(this.font, cx + 16, modalY + 36, modalW - 110, 26, Component.literal("Caption"));
+                feedCaptionInput.setMaxLength(140);
+                feedCaptionInput.setHint(Component.literal("Was passiert gerade in deiner Welt?"));
+                addRenderableWidget(feedCaptionInput);
 
                 addRenderableWidget(new GlassButton(cx + 16 + modalW - 100, modalY + 36, 96, 26, Component.literal("📸 Posten"), btn -> {
-                    String text = mcrealCaptionInput.getValue().trim();
+                    String text = feedCaptionInput.getValue().trim();
                     if (!text.isEmpty()) {
                         String srv = getCurrentServerName();
-                        McRealManager.addPost(text, srv);
+                        FeedManager.addPost(text, srv);
                         showNewPostModal = false;
                         buildWidgets();
                         rebuildEntries();
                     }
                 }));
             } else {
-                mcrealCaptionInput = null;
+                feedCaptionInput = null;
             }
         } else if (tab == 5 && !inThread) {
             int inpY = py + ph - 44;
@@ -256,7 +256,7 @@ public class KollegenSocialScreen extends Screen {
             codeInp = null;
             groupInp = null;
             chatInp = null;
-            mcrealCaptionInput = null;
+            feedCaptionInput = null;
         }
     }
 
@@ -355,10 +355,10 @@ public class KollegenSocialScreen extends Screen {
                 apiCreateGroup();
                 return true;
             }
-            if (mcrealCaptionInput != null && mcrealCaptionInput.isFocused()) {
-                String text = mcrealCaptionInput.getValue().trim();
+            if (feedCaptionInput != null && feedCaptionInput.isFocused()) {
+                String text = feedCaptionInput.getValue().trim();
                 if (!text.isEmpty()) {
-                    McRealManager.addPost(text, getCurrentServerName());
+                    FeedManager.addPost(text, getCurrentServerName());
                     showNewPostModal = false;
                     buildWidgets();
                     rebuildEntries();
@@ -392,7 +392,7 @@ public class KollegenSocialScreen extends Screen {
             boolean hovNew = mx >= newBtnX && mx <= newBtnX + 112 && my >= newBtnY && my <= newBtnY + 24;
             Glass.fillRound(g, newBtnX, newBtnY, 112, 24, 6, hovNew ? Palette.GREEN : Palette.ACCENT);
             if (hovNew) Glass.ring(g, newBtnX, newBtnY, 112, 24, 6, 1.0f, 0xFFFFFFFF);
-            Glass.textC(g, this.font, showNewPostModal ? "✕ Abbrechen" : "📸 Neuer Post", newBtnX + 56, newBtnY + 8, 0xFFFFFFFF, true);
+            Glass.textC(g, this.font, showNewPostModal ? "✕ Abbrechen" : "📸 Neuer Moment", newBtnX + 56, newBtnY + 8, 0xFFFFFFFF, true);
         }
 
         int statusBarY = py + 46;
@@ -438,15 +438,15 @@ public class KollegenSocialScreen extends Screen {
         int ew = cw - 16;
         int ey = listTop + 2 - scroll;
         for (Entry e : entries) {
-            int itemH = e.isMcReal ? 72 : ROW_H;
+            int itemH = e.isFeedPost ? 72 : ROW_H;
             boolean vis = ey + itemH > listTop && ey < listBottom;
             if (vis) {
                 boolean hov = mx >= ex && mx <= ex + ew && my >= ey && my <= ey + itemH;
                 float h = hov ? 1.0f : 0.0f;
                 UiStyleManager.drawCard(g, ex, ey, ew, itemH, 8, Palette.PANEL, h, null);
 
-                if (e.isMcReal && e.mcRealPost != null) {
-                    McRealManager.McRealPost p = e.mcRealPost;
+                if (e.isFeedPost && e.feedPost != null) {
+                    FeedManager.FeedPost p = e.feedPost;
                     int avatarX = ex + 10;
                     int avatarY = ey + 10;
                     SkinFaceRenderer.drawFace(g, p.authorName, null, avatarX, avatarY, 32);
@@ -478,7 +478,7 @@ public class KollegenSocialScreen extends Screen {
                     Glass.textC(g, this.font, heartStr, likeBtnX + likeBtnW / 2, likeBtnY + 7, p.likedByMe ? 0xFFEF4444 : Palette.TEXT, false);
 
                     entryRects.add(new Rect(likeBtnX, likeBtnY, likeBtnW, likeBtnH, () -> {
-                        McRealManager.toggleLike(p.id);
+                        FeedManager.toggleLike(p.id);
                         rebuildEntries();
                     }));
 
@@ -574,7 +574,7 @@ public class KollegenSocialScreen extends Screen {
         }
         switch (tab) {
             case 0 -> rebuildFriends();
-            case 1 -> rebuildMcReal();
+            case 1 -> rebuildFeed();
             case 2 -> rebuildParty();
             case 3 -> rebuildGames();
             case 4 -> rebuildRequests();
@@ -584,12 +584,12 @@ public class KollegenSocialScreen extends Screen {
         computeScroll();
     }
 
-    private void rebuildMcReal() {
-        List<McRealManager.McRealPost> posts = McRealManager.getPosts();
+    private void rebuildFeed() {
+        List<FeedManager.FeedPost> posts = FeedManager.getPosts();
         if (posts.isEmpty()) {
-            entries.add(new Entry("Keine Beiträge vorhanden", "Erstelle oben den ersten McReal-Post!", Palette.MUTED, null));
+            entries.add(new Entry("Keine Momente vorhanden", "Erstelle oben den ersten Moment!", Palette.MUTED, null));
         } else {
-            for (McRealManager.McRealPost p : posts) {
+            for (FeedManager.FeedPost p : posts) {
                 entries.add(new Entry(p.authorName, p.caption, Palette.TEXT, null, p.authorName, true, false, null, null, null, null, true, p));
             }
         }
@@ -742,7 +742,7 @@ public class KollegenSocialScreen extends Screen {
     private void computeScroll() {
         int need = 0;
         for (Entry e : entries) {
-            need += (e.isMcReal ? 72 : ROW_H) + GAP;
+            need += (e.isFeedPost ? 72 : ROW_H) + GAP;
         }
         int visible = contentBottom - (contentTop + (showNewPostModal && tab == 1 ? 84 : 0));
         maxScroll = Math.max(0, need - visible);

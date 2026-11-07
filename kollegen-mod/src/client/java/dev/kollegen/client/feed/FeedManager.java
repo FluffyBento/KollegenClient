@@ -1,4 +1,4 @@
-package dev.kollegen.client.mcreal;
+package dev.kollegen.client.feed;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -14,9 +14,9 @@ import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
-public final class McRealManager {
+public final class FeedManager {
 
-    public static final class McRealPost {
+    public static final class FeedPost {
         public final String id;
         public final String authorName;
         public final String authorUuid;
@@ -27,7 +27,7 @@ public final class McRealManager {
         public boolean likedByMe;
         public final List<String> comments = new ArrayList<>();
 
-        public McRealPost(String id, String authorName, String authorUuid, String caption, String serverTag, long timestamp, int likes, boolean likedByMe) {
+        public FeedPost(String id, String authorName, String authorUuid, String caption, String serverTag, long timestamp, int likes, boolean likedByMe) {
             this.id = id;
             this.authorName = authorName;
             this.authorUuid = authorUuid;
@@ -56,17 +56,17 @@ public final class McRealManager {
         }
     }
 
-    private static final List<McRealPost> POSTS = new ArrayList<>();
+    private static final List<FeedPost> POSTS = new ArrayList<>();
     private static boolean loaded = false;
 
-    private McRealManager() {
+    private FeedManager() {
     }
 
     private static Path getFilePath() {
-        return FabricLoader.getInstance().getConfigDir().resolve("kollegen-mcreal.json");
+        return FabricLoader.getInstance().getConfigDir().resolve("kollegen-feed.json");
     }
 
-    public static synchronized List<McRealPost> getPosts() {
+    public static synchronized List<FeedPost> getPosts() {
         ensureLoaded();
         return Collections.unmodifiableList(POSTS);
     }
@@ -91,7 +91,7 @@ public final class McRealManager {
                     long time = o.has("time") ? o.get("time").getAsLong() : System.currentTimeMillis();
                     int likes = o.has("likes") ? o.get("likes").getAsInt() : 0;
                     boolean liked = o.has("liked") && o.get("liked").getAsBoolean();
-                    McRealPost post = new McRealPost(id, author, uuid, cap, srv, time, likes, liked);
+                    FeedPost post = new FeedPost(id, author, uuid, cap, srv, time, likes, liked);
                     if (o.has("comments") && o.get("comments").isJsonArray()) {
                         for (JsonElement c : o.getAsJsonArray("comments")) {
                             post.comments.add(c.getAsString());
@@ -111,7 +111,7 @@ public final class McRealManager {
 
     private static void initDefaultCommunityPosts() {
         long now = System.currentTimeMillis();
-        POSTS.add(new McRealPost(
+        POSTS.add(new FeedPost(
                 UUID.randomUUID().toString(),
                 "FluffyBento",
                 "",
@@ -121,7 +121,7 @@ public final class McRealManager {
                 38,
                 false
         ));
-        POSTS.add(new McRealPost(
+        POSTS.add(new FeedPost(
                 UUID.randomUUID().toString(),
                 "Iz4nLeAstra",
                 "",
@@ -131,7 +131,7 @@ public final class McRealManager {
                 52,
                 false
         ));
-        POSTS.add(new McRealPost(
+        POSTS.add(new FeedPost(
                 UUID.randomUUID().toString(),
                 "akkuniizu",
                 "",
@@ -143,14 +143,14 @@ public final class McRealManager {
         ));
     }
 
-    public static synchronized McRealPost addPost(String caption, String serverTag) {
+    public static synchronized FeedPost addPost(String caption, String serverTag) {
         ensureLoaded();
         String name = AccountManager.getActiveUsername();
         String uuid = AccountManager.getActiveProfile() != null && AccountManager.getActiveProfile().id() != null
                 ? AccountManager.getActiveProfile().id().toString()
                 : "";
         String srv = (serverTag != null && !serverTag.trim().isEmpty()) ? serverTag.trim() : "Minecraft";
-        McRealPost p = new McRealPost(UUID.randomUUID().toString(), name, uuid, caption.trim(), srv, System.currentTimeMillis(), 1, true);
+        FeedPost p = new FeedPost(UUID.randomUUID().toString(), name, uuid, caption.trim(), srv, System.currentTimeMillis(), 1, true);
         POSTS.add(0, p);
         save();
         return p;
@@ -158,7 +158,7 @@ public final class McRealManager {
 
     public static synchronized void toggleLike(String postId) {
         ensureLoaded();
-        for (McRealPost p : POSTS) {
+        for (FeedPost p : POSTS) {
             if (p.id.equals(postId)) {
                 if (p.likedByMe) {
                     p.likedByMe = false;
@@ -176,7 +176,7 @@ public final class McRealManager {
     public static synchronized void addComment(String postId, String comment) {
         if (comment == null || comment.trim().isEmpty()) return;
         ensureLoaded();
-        for (McRealPost p : POSTS) {
+        for (FeedPost p : POSTS) {
             if (p.id.equals(postId)) {
                 String author = AccountManager.getActiveUsername();
                 p.comments.add(author + ": " + comment.trim());
@@ -191,7 +191,7 @@ public final class McRealManager {
             Path p = getFilePath();
             if (p.getParent() != null) Files.createDirectories(p.getParent());
             JsonArray arr = new JsonArray();
-            for (McRealPost post : POSTS) {
+            for (FeedPost post : POSTS) {
                 JsonObject o = new JsonObject();
                 o.addProperty("id", post.id);
                 o.addProperty("author", post.authorName);
