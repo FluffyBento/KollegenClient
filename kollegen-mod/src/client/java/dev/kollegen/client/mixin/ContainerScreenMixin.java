@@ -8,9 +8,7 @@ import dev.kollegen.client.ui.Glass;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.EditBox;
-import net.minecraft.client.gui.components.Renderable;
-import net.minecraft.client.gui.components.events.GuiEventListener;
-import net.minecraft.client.gui.narration.NarratableEntry;
+import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
@@ -39,7 +37,11 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import java.util.List;
 
 @Mixin(AbstractContainerScreen.class)
-public abstract class ContainerScreenMixin {
+public abstract class ContainerScreenMixin extends Screen {
+
+    protected ContainerScreenMixin(Component title) {
+        super(title);
+    }
 
     @Shadow
     protected int leftPos;
@@ -58,9 +60,6 @@ public abstract class ContainerScreenMixin {
 
     @Shadow
     protected AbstractContainerMenu menu;
-
-    @Shadow
-    protected abstract <T extends GuiEventListener & Renderable & NarratableEntry> T addRenderableWidget(T widget);
 
     @Unique
     private EditBox kollegen$searchBox = null;
