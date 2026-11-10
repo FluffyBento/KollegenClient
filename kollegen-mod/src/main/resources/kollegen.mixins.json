@@ -79,7 +79,9 @@
     "LocalPlayerMixin",
     "ScreenshotMixin",
     "ScreenEffectRendererMixin",
-    "ViewAreaMixin"
+    "ViewAreaMixin",
+    "PetFakeChunkManagerMixin",
+    "ModsScreenMixin"
   ],
   "injectors": {
     "defaultRequire": 1

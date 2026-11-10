@@ -314,9 +314,9 @@ public final class Performance {
                 if (!configDir.exists()) configDir.mkdirs();
                 java.io.File conf = new java.io.File(configDir, "bobby.conf");
                 boolean enabled = isDistanceEnabled();
-                int limit = getDistanceLimit();
-                int actual = getActualDistance();
-                int bobbyLimit = Math.max(2048, limit);
+                int limit = enabled ? getDistanceLimit() : 32;
+                int actual = enabled ? getActualDistance() : 0;
+                int bobbyLimit = enabled ? ((limit >= 1000) ? 1024 : Math.max(16, limit)) : 32;
                 String content = "delete-unused-regions-after-days=-1\n" +
                         "dynamic-multi-world=false\n" +
                         "enabled=" + enabled + "\n" +
@@ -326,7 +326,7 @@ public final class Performance {
                         "unload-delay-secs=86400\n" +
                         "view-distance-overwrite=" + actual + "\n";
                 java.nio.file.Files.writeString(conf.toPath(), content, java.nio.charset.StandardCharsets.UTF_8);
-                if (client.options != null && enabled) {
+                if (client.options != null) {
                     try {
                         net.minecraft.client.OptionInstance<Integer> rd = client.options.renderDistance();
                         Object vs = rd.values();
@@ -342,6 +342,15 @@ public final class Performance {
                             } catch (Throwable ignored) {
                             }
                         }
+                        if (!enabled && rd.get() > 32) {
+                            rd.set(32);
+                        }
+                    } catch (Throwable ignored) {}
+                }
+                if (!enabled && client.getSingleplayerServer() != null && client.getSingleplayerServer().getPlayerList() != null) {
+                    try {
+                        int normDist = Math.min(client.options.renderDistance().get(), 32);
+                        client.getSingleplayerServer().getPlayerList().setViewDistance(normDist);
                     } catch (Throwable ignored) {}
                 }
             } catch (Throwable ignored) {

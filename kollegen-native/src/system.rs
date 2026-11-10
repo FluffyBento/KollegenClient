@@ -77,5 +77,5 @@ pub fn feature_string() -> String {
     {
         features.push("POSIX-SCHED");
     }
-    format!("Kollegen Native Rust Engine v1.26.1 [{}]", features.join("+"))
+    format!("Kollegen Native Rust Engine v1.26.2 [{}]", features.join("+"))
 }

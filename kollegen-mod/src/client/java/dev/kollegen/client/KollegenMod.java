@@ -63,10 +63,22 @@ public class KollegenMod implements ClientModInitializer {
             Object pmapObj = mmClass.getField("PARENT_MAP").get(null);
 
             if (modsObj instanceof java.util.Map<?, ?> modsMap) {
-                for (String id : internalIds) {
-                    Object m = modsMap.remove(id);
+                java.util.List<Object> toRemoveKeys = new java.util.ArrayList<>();
+                for (Object k : modsMap.keySet()) {
+                    if (k != null) {
+                        String s = k.toString().toLowerCase(java.util.Locale.ROOT);
+                        for (String id : internalIds) {
+                            if (s.equals(id) || s.startsWith(id)) {
+                                toRemoveKeys.add(k);
+                                break;
+                            }
+                        }
+                    }
+                }
+                for (Object k : toRemoveKeys) {
+                    Object m = modsMap.remove(k);
                     if (rootModsObj instanceof java.util.Map<?, ?> rootMap) {
-                        rootMap.remove(id);
+                        rootMap.remove(k);
                     }
                     if (pmapObj instanceof com.google.common.collect.Multimap<?, ?> mm && m != null) {
                         mm.removeAll(m);

@@ -29,7 +29,7 @@ pub extern "system" fn Java_dev_kollegen_client_nativebridge_KollegenNative_nati
     env: JNIEnv<'local>,
     _class: JClass<'local>,
 ) -> JString<'local> {
-    env.new_string("1.26.1").unwrap_or_else(|_| JString::default())
+    env.new_string("1.26.2").unwrap_or_else(|_| JString::default())
 }
 
 #[no_mangle]
