@@ -17,7 +17,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-@Mixin(ClientChunkCache.class)
+@Mixin(value = ClientChunkCache.class, priority = 2000)
 public abstract class ClientChunkCacheMixin {
 
     @Shadow @Final private LevelChunk emptyChunk;
@@ -53,7 +53,16 @@ public abstract class ClientChunkCacheMixin {
                 Class<?> holder = Class.forName("net.caffeinemc.mods.sodium.client.render.chunk.map.ChunkTrackerHolder");
                 Object tracker = holder.getMethod("get", ClientLevel.class).invoke(null, this.level);
                 if (tracker != null) {
-                    tracker.getClass().getMethod("onChunkStatusAdded", int.class, int.class, int.class).invoke(tracker, pos.x(), pos.z(), 3);
+                    java.lang.reflect.Method addMethod = tracker.getClass().getMethod("onChunkStatusAdded", int.class, int.class, int.class);
+                    for (int dx = -1; dx <= 1; dx++) {
+                        for (int dz = -1; dz <= 1; dz++) {
+                            int nx = pos.x() + dx;
+                            int nz = pos.z() + dz;
+                            if (this.getChunk(nx, nz, ChunkStatus.FULL, false) != null) {
+                                addMethod.invoke(tracker, nx, nz, 3);
+                            }
+                        }
+                    }
                 }
             } catch (Throwable ignored) {
             }
@@ -74,6 +83,23 @@ public abstract class ClientChunkCacheMixin {
                     addedEmpty.remove(node);
                     removedEmpty.add(node);
                 }
+            }
+            try {
+                Class<?> holder = Class.forName("net.caffeinemc.mods.sodium.client.render.chunk.map.ChunkTrackerHolder");
+                Object tracker = holder.getMethod("get", ClientLevel.class).invoke(null, this.level);
+                if (tracker != null) {
+                    java.lang.reflect.Method addMethod = tracker.getClass().getMethod("onChunkStatusAdded", int.class, int.class, int.class);
+                    for (int dx = -1; dx <= 1; dx++) {
+                        for (int dz = -1; dz <= 1; dz++) {
+                            int nx = x + dx;
+                            int nz = z + dz;
+                            if (this.getChunk(nx, nz, ChunkStatus.FULL, false) != null) {
+                                addMethod.invoke(tracker, nx, nz, 3);
+                            }
+                        }
+                    }
+                }
+            } catch (Throwable ignored) {
             }
         }
     }

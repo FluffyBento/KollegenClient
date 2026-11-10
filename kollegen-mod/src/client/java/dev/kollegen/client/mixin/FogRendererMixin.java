@@ -46,10 +46,13 @@ public class FogRendererMixin {
                 if (mc != null && mc.options != null) {
                     renderDist = Math.max(renderDist, mc.options.renderDistance().get());
                 }
-                float extendedDistance = Math.min(Math.max(renderDist, 16), 64) * 16.0f;
+                float extendedDistance = Math.min(Math.max(renderDist, 16), 2048) * 16.0f;
                 if (data.renderDistanceEnd < extendedDistance) {
                     data.renderDistanceEnd = extendedDistance;
                     data.renderDistanceStart = extendedDistance * 0.75f;
+                }
+                if (data.environmentalEnd < extendedDistance) {
+                    data.environmentalEnd = extendedDistance;
                 }
             }
 

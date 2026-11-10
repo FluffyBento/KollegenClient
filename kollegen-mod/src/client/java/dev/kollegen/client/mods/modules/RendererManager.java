@@ -108,42 +108,24 @@ public final class RendererManager {
         Path jar = mods.resolve(fileName);
         Path disabled = mods.resolve(fileName + ".disabled");
         if (active) {
+            try {
+                Files.deleteIfExists(disabled);
+            } catch (IOException ignored) {
+            }
+            if (Files.exists(jar) && isIntactJar(jar)) {
+                return;
+            }
             try (InputStream in = RendererManager.class.getResourceAsStream(resource)) {
                 if (in == null) {
                     KollegenMod.LOGGER.warn("Kollegen: eingebettete Mod '{}' fehlt.", resource);
                     removeIfBroken(jar, fileName);
                 } else {
                     byte[] payload = in.readAllBytes();
-                    boolean needsCopy = true;
-                    if (Files.exists(jar) && Files.isRegularFile(jar)) {
-                        try {
-                            if (Files.size(jar) == payload.length) {
-                                byte[] existing = Files.readAllBytes(jar);
-                                if (java.util.Arrays.equals(existing, payload)) {
-                                    needsCopy = false;
-                                }
-                            }
-                        } catch (IOException ignored) {
-                        }
-                    }
-                    if (needsCopy) {
-                        Files.write(jar, payload);
-                        removeIfBroken(jar, fileName);
-                    }
+                    Files.write(jar, payload);
+                    removeIfBroken(jar, fileName);
                 }
             } catch (IOException e) {
                 KollegenMod.LOGGER.warn("Kollegen: Mod '{}' konnte nicht deployt werden: {}", fileName, e.getMessage());
-            }
-            try {
-                Files.deleteIfExists(disabled);
-            } catch (IOException ignored) {
-            }
-        } else {
-            if (Files.exists(jar)) {
-                try {
-                    Files.move(jar, disabled);
-                } catch (IOException ignored) {
-                }
             }
         }
     }
