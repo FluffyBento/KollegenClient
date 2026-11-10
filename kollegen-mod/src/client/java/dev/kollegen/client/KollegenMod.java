@@ -50,7 +50,7 @@ public class KollegenMod implements ClientModInitializer {
 
     public static void cleanModMenu() {
         String[] internalIds = {
-            "bobby", "kollegen-distance", "cloth-config", "clothconfig", "cloth-basic-math",
+            "cloth-config", "clothconfig", "cloth-basic-math",
             "chat_heads", "chatheads", "placeholder-api", "placeholder_api",
             "silk-all", "silk", "silk-commands", "silk-core", "silk-game", "silk-igui",
             "silk-nbt", "silk-network", "silk-persistence",

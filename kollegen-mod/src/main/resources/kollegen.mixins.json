@@ -81,7 +81,9 @@
     "ScreenEffectRendererMixin",
     "ViewAreaMixin",
     "PetFakeChunkManagerMixin",
-    "ModsScreenMixin"
+    "ModsScreenMixin",
+    "OptionInstanceIntRangeMixin",
+    "SectionOcclusionGraphMixin"
   ],
   "injectors": {
     "defaultRequire": 1

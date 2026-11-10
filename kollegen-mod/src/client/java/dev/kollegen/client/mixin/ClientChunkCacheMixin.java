@@ -49,6 +49,14 @@ public abstract class ClientChunkCacheMixin {
             for (int y = this.level.getMinSectionY(); y < this.level.getMaxSectionY(); y++) {
                 this.level.setSectionDirtyWithNeighbors(pos.x(), y, pos.z());
             }
+            try {
+                Class<?> holder = Class.forName("net.caffeinemc.mods.sodium.client.render.chunk.map.ChunkTrackerHolder");
+                Object tracker = holder.getMethod("get", ClientLevel.class).invoke(null, this.level);
+                if (tracker != null) {
+                    tracker.getClass().getMethod("onChunkStatusAdded", int.class, int.class, int.class).invoke(tracker, pos.x(), pos.z(), 3);
+                }
+            } catch (Throwable ignored) {
+            }
         }
     }
 

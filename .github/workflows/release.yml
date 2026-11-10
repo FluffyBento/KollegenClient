@@ -127,8 +127,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          rm -rf resources
           mkdir -p resources
+          rm -f resources/*.jar
           for pattern in kollegen-client-mod-26.3.jar; do
             for attempt in 1 2 3 4 5; do
               if gh release download "${{ github.ref_name }}" --repo "${{ github.repository }}" --pattern "$pattern" --dir resources --clobber; then
@@ -271,8 +271,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          rm -rf resources
           mkdir -p resources
+          rm -f resources/*.jar
           for pattern in kollegen-client-mod-26.3.jar; do
             for attempt in 1 2 3 4 5; do
               if gh release download "${{ github.ref_name }}" --repo "${{ github.repository }}" --pattern "$pattern" --dir resources --clobber; then
@@ -386,8 +386,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          rm -rf resources
           mkdir -p resources
+          rm -f resources/*.jar
           for pattern in kollegen-client-mod-26.3.jar; do
             for attempt in 1 2 3 4 5; do
               if gh release download "${{ github.ref_name }}" --repo "${{ github.repository }}" --pattern "$pattern" --dir resources --clobber; then

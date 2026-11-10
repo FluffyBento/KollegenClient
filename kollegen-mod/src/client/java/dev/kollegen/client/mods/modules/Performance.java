@@ -246,18 +246,18 @@ public final class Performance {
         private int tickCounter = 0;
 
         public static final SliderSetting distanceLimit = new SliderSetting(
-                "Sichtweiten-Limit",
-                "Maximales Distanz-Limit für gespeicherte Fake-Chunks (bis zu Unbegrenzt / Uncapped).",
+                "Fake-Chunks (Sichtweite über Server-Limit)",
+                "Erweiterte Sichtweite für Fake-Chunks über das Server-Limit hinaus (bis zu 1024 / Unbegrenzt).",
                 128.0, 32.0, 1024.0, 16.0,
                 v -> v >= 1000.0 ? "Unbegrenzt (Uncapped)" : (int) Math.round(v) + " Chunks",
                 v -> syncDistance()
         );
 
         public static final SliderSetting actualDistance = new SliderSetting(
-                "Echte Server-Distanz",
+                "Normale Chunks (Server-Sichtweite)",
                 "Distanz für echte, aktive Server-Chunks. Der restliche Bereich bis zur Sichtweite wird mit Fake-Chunks gefüllt.",
-                16.0, 8.0, 32.0, 2.0,
-                v -> (int) Math.round(v) + " Chunks (Server)",
+                12.0, 2.0, 32.0, 1.0,
+                v -> (int) Math.round(v) + " Chunks",
                 v -> syncDistance()
         );
 
@@ -265,8 +265,29 @@ public final class Performance {
             super("kollegendistance", "Kollegen Distance", "Erweiterte Sichtweite: Speichert geladene Chunks dauerhaft auf der Festplatte und rendert sie 1:1 wie echte Chunks ohne Server-Limit.", Category.PERFORMANCE);
             this.enabled = true;
             instance = this;
-            add(distanceLimit);
             add(actualDistance);
+            add(distanceLimit);
+        }
+
+        @Override
+        public void load(com.google.gson.JsonObject o) {
+            super.load(o);
+            if (o.has("settings")) {
+                com.google.gson.JsonObject s = o.getAsJsonObject("settings");
+                if (s.has("Fake-Chunks (Sichtweite über Server-Limit)")) {
+                    distanceLimit.load(s.getAsJsonObject("Fake-Chunks (Sichtweite über Server-Limit)"));
+                } else if (s.has("Sichtweiten-Limit")) {
+                    distanceLimit.load(s.getAsJsonObject("Sichtweiten-Limit"));
+                } else if (s.has("Max. Sichtweite")) {
+                    distanceLimit.load(s.getAsJsonObject("Max. Sichtweite"));
+                }
+                if (s.has("Normale Chunks (Server-Sichtweite)")) {
+                    actualDistance.load(s.getAsJsonObject("Normale Chunks (Server-Sichtweite)"));
+                } else if (s.has("Echte Server-Distanz")) {
+                    actualDistance.load(s.getAsJsonObject("Echte Server-Distanz"));
+                }
+            }
+            syncDistance();
         }
 
         public static boolean isDistanceEnabled() {
@@ -285,7 +306,7 @@ public final class Performance {
         }
 
         public static int getActualDistance() {
-            if (instance == null) return 16;
+            if (instance == null) return 12;
             return (int) Math.round(actualDistance.value);
         }
 
@@ -326,19 +347,44 @@ public final class Performance {
                         "unload-delay-secs=86400\n" +
                         "view-distance-overwrite=" + actual + "\n";
                 java.nio.file.Files.writeString(conf.toPath(), content, java.nio.charset.StandardCharsets.UTF_8);
-                if (client.options != null) {
+                try {
+                    Class<?> bobbyClass = Class.forName("de.johni0702.minecraft.bobby.Bobby");
+                    Object bobbyInst = bobbyClass.getMethod("getInstance").invoke(null);
+                    if (bobbyInst != null) {
+                        java.lang.reflect.Field cfgRefField = bobbyClass.getDeclaredField("configReference");
+                        cfgRefField.setAccessible(true);
+                        Object cfgRef = cfgRefField.get(bobbyInst);
+                        if (cfgRef != null) {
+                            Class<?> cfgClass = Class.forName("de.johni0702.minecraft.bobby.BobbyConfig");
+                            java.lang.reflect.Constructor<?> ctor = cfgClass.getConstructor(
+                                    boolean.class, boolean.class, boolean.class, boolean.class,
+                                    int.class, int.class, int.class, int.class
+                            );
+                            Object newCfg = ctor.newInstance(enabled, false, true, false, 86400, -1, bobbyLimit, actual);
+                            cfgRef.getClass().getMethod("setAndSave", Object.class).invoke(cfgRef, newCfg);
+                        }
+                    }
+                } catch (Throwable ignored) {
+                }
+                if (client.options != null && client.options.renderDistance() != null) {
                     try {
                         net.minecraft.client.OptionInstance<Integer> rd = client.options.renderDistance();
                         Object vs = rd.values();
                         if (vs instanceof net.minecraft.client.OptionInstance.IntRange ir) {
                             try {
-                                java.lang.reflect.Method m = ir.getClass().getMethod("setMaxInclusive", int.class);
-                                m.invoke(ir, bobbyLimit);
+                                Class<?> accessorClass = Class.forName("de.johni0702.minecraft.bobby.mixin.OptionInstanceIntRangeAccessor");
+                                if (accessorClass.isInstance(ir)) {
+                                    java.lang.reflect.Method m = accessorClass.getMethod("setMaxInclusive", int.class);
+                                    m.invoke(ir, bobbyLimit);
+                                }
                             } catch (Throwable ignored) {
                             }
                             try {
-                                java.lang.reflect.Method mCodec = rd.getClass().getMethod("setCodec", com.mojang.serialization.Codec.class);
-                                mCodec.invoke(rd, ir.codec());
+                                Class<?> optAccessorClass = Class.forName("de.johni0702.minecraft.bobby.mixin.OptionInstanceAccessor");
+                                if (optAccessorClass.isInstance(rd)) {
+                                    java.lang.reflect.Method mCodec = optAccessorClass.getMethod("setCodec", com.mojang.serialization.Codec.class);
+                                    mCodec.invoke(rd, ir.codec());
+                                }
                             } catch (Throwable ignored) {
                             }
                         }
