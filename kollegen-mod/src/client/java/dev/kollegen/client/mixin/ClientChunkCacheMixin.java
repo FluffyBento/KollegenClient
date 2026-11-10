@@ -26,36 +26,9 @@ public abstract class ClientChunkCacheMixin {
 
     @Inject(method = "drop", at = @At("HEAD"))
     private void kollegen$onDropChunk(ChunkPos pos, CallbackInfo ci) {
-        if (!Performance.KollegenDistance.isDistanceEnabled()) return;
-
-        try {
-            LevelChunk chunk = this.getChunk(pos.x(), pos.z(), ChunkStatus.FULL, false);
-            if (chunk != null) {
-                KollegenDistanceManager.onChunkDrop(chunk, this.level);
-            }
-        } catch (Throwable ignored) {
-        }
     }
 
-    @Inject(
-            method = "getChunk(IILnet/minecraft/world/level/chunk/status/ChunkStatus;Z)Lnet/minecraft/world/level/chunk/LevelChunk;",
-            at = @At("RETURN"),
-            cancellable = true
-    )
-    private void kollegen$getFakeChunk(int x, int z, ChunkStatus status, boolean require, CallbackInfoReturnable<LevelChunk> cir) {
-        if (!Performance.KollegenDistance.isDistanceEnabled()) return;
-
-        LevelChunk ret = cir.getReturnValue();
-        if (ret == null || ret == this.emptyChunk) {
-            LevelChunk fake = KollegenDistanceManager.getChunk(x, z);
-            if (fake != null) {
-                cir.setReturnValue(fake);
-            }
-        }
-    }
-
-    @Inject(method = "replaceWithPacketData", at = @At("HEAD"))
+    @Inject(method = "replaceWithPacketData", at = @At("RETURN"))
     private void kollegen$onPacketData(int x, int z, ClientboundLevelChunkPacketData data, CallbackInfoReturnable<LevelChunk> cir) {
-        KollegenDistanceManager.onRealChunkLoaded(x, z);
     }
 }

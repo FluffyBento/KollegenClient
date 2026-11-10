@@ -28,6 +28,12 @@ public final class Performance {
     public static class KollegenTricks extends Module {
         public static volatile KollegenTricks instance;
 
+        public static final BooleanSetting rustRuntime = new BooleanSetting(
+                "Rust Native Engine",
+                "Aktiviert die native Rust-Runtime (AVX2/SIMD Culling, Thread-Scheduler, Horizon-Vektormathematik).",
+                true
+        );
+
         public static final BooleanSetting cullBlockEntities = new BooleanSetting(
                 "Sichtfeld- & Wand-Culling (Blöcke)",
                 "Berechnet und rendert Kisten, Schilder, Banner etc. nur im Kamerasichtfeld und blendet sie hinter Mauern aus.",
@@ -151,6 +157,7 @@ public final class Performance {
             add(cullPets);
             add(bedrockMath);
             add(bedrockCache);
+            add(rustRuntime);
         }
 
         public static boolean isEnabled() {
@@ -225,8 +232,8 @@ public final class Performance {
             return isEnabled() && cullSounds.value;
         }
 
-        public static boolean shouldUseBobby() {
-            return KollegenDistance.isDistanceEnabled();
+        public static boolean shouldUseRustRuntime() {
+            return isEnabled() && rustRuntime.value && dev.kollegen.client.nativebridge.KollegenNative.isAvailable();
         }
 
         public static boolean shouldUseDistance() {
@@ -236,28 +243,109 @@ public final class Performance {
 
     public static class KollegenDistance extends Module {
         public static volatile KollegenDistance instance;
+        private int tickCounter = 0;
 
-        public static final SliderSetting maxChunks = new SliderSetting(
-                "Max. Sichtweite",
-                "Maximale Chunk-Distanz, die im Client-Speicher gehalten und gerendert wird.",
+        public static final SliderSetting distanceLimit = new SliderSetting(
+                "Sichtweiten-Limit",
+                "Maximales Distanz-Limit für gespeicherte Fake-Chunks (bis zu Unbegrenzt / Uncapped).",
+                128.0, 32.0, 1024.0, 16.0,
+                v -> v >= 1000.0 ? "Unbegrenzt (Uncapped)" : (int) Math.round(v) + " Chunks",
+                v -> syncDistance()
+        );
+
+        public static final SliderSetting actualDistance = new SliderSetting(
+                "Echte Server-Distanz",
+                "Distanz für echte, aktive Server-Chunks. Der restliche Bereich bis zur Sichtweite wird mit Fake-Chunks gefüllt.",
                 16.0, 8.0, 32.0, 2.0,
-                v -> (int) Math.round(v) + " Chunks",
-                null
+                v -> (int) Math.round(v) + " Chunks (Server)",
+                v -> syncDistance()
         );
 
         public KollegenDistance() {
-            super("kollegendistance", "Kollegen Distance", "Erweiterte Sichtweite: Hält bereits besuchte Chunks im Client-Speicher über das Server-Limit hinaus sichtbar (bis zu 64 Chunks Sichtweite auf jedem Server).", Category.PERFORMANCE);
-            this.enabled = false;
+            super("kollegendistance", "Kollegen Distance", "Erweiterte Sichtweite: Speichert geladene Chunks dauerhaft auf der Festplatte und rendert sie 1:1 wie echte Chunks ohne Server-Limit.", Category.PERFORMANCE);
+            this.enabled = true;
             instance = this;
-            add(maxChunks);
+            add(distanceLimit);
+            add(actualDistance);
         }
 
         public static boolean isDistanceEnabled() {
             return instance != null && instance.enabled;
         }
 
+        public static int getDistanceLimit() {
+            if (instance == null) return 128;
+            double v = distanceLimit.value;
+            if (v >= 1000.0) return 2048;
+            return (int) Math.round(v);
+        }
+
         public static int getMaxChunkDistance() {
-            return instance != null ? (int) Math.round(maxChunks.value) : 32;
+            return getDistanceLimit();
+        }
+
+        public static int getActualDistance() {
+            if (instance == null) return 16;
+            return (int) Math.round(actualDistance.value);
+        }
+
+        @Override
+        public void onEnable() {
+            syncDistance();
+        }
+
+        @Override
+        public void onDisable() {
+            syncDistance();
+        }
+
+        @Override
+        public void onTick() {
+            if (++tickCounter % 40 == 0) {
+                syncDistance();
+            }
+        }
+
+        public static void syncDistance() {
+            try {
+                net.minecraft.client.Minecraft client = net.minecraft.client.Minecraft.getInstance();
+                if (client == null || client.gameDirectory == null) return;
+                java.io.File configDir = new java.io.File(client.gameDirectory, "config");
+                if (!configDir.exists()) configDir.mkdirs();
+                java.io.File conf = new java.io.File(configDir, "bobby.conf");
+                boolean enabled = isDistanceEnabled();
+                int limit = getDistanceLimit();
+                int actual = getActualDistance();
+                int bobbyLimit = Math.max(2048, limit);
+                String content = "delete-unused-regions-after-days=-1\n" +
+                        "dynamic-multi-world=false\n" +
+                        "enabled=" + enabled + "\n" +
+                        "max-render-distance=" + bobbyLimit + "\n" +
+                        "no-block-entities=true\n" +
+                        "taint-fake-chunks=false\n" +
+                        "unload-delay-secs=86400\n" +
+                        "view-distance-overwrite=" + actual + "\n";
+                java.nio.file.Files.writeString(conf.toPath(), content, java.nio.charset.StandardCharsets.UTF_8);
+                if (client.options != null && enabled) {
+                    try {
+                        net.minecraft.client.OptionInstance<Integer> rd = client.options.renderDistance();
+                        Object vs = rd.values();
+                        if (vs instanceof net.minecraft.client.OptionInstance.IntRange ir) {
+                            try {
+                                java.lang.reflect.Method m = ir.getClass().getMethod("setMaxInclusive", int.class);
+                                m.invoke(ir, bobbyLimit);
+                            } catch (Throwable ignored) {
+                            }
+                            try {
+                                java.lang.reflect.Method mCodec = rd.getClass().getMethod("setCodec", com.mojang.serialization.Codec.class);
+                                mCodec.invoke(rd, ir.codec());
+                            } catch (Throwable ignored) {
+                            }
+                        }
+                    } catch (Throwable ignored) {}
+                }
+            } catch (Throwable ignored) {
+            }
         }
     }
 

@@ -5,6 +5,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.mojang.blaze3d.platform.InputConstants;
+import com.mojang.blaze3d.platform.NativeImage;
 import dev.kollegen.client.mods.Palette;
 import dev.kollegen.client.party.PartyManager;
 import dev.kollegen.client.presence.PrivacySettings;
@@ -18,14 +19,20 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.ConnectScreen;
+import net.minecraft.client.gui.screens.FaviconTexture;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.TitleScreen;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.multiplayer.ServerData;
 import net.minecraft.client.multiplayer.ServerList;
+import net.minecraft.client.multiplayer.ServerStatusPinger;
 import net.minecraft.client.multiplayer.resolver.ServerAddress;
+import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.Identifier;
+import net.minecraft.server.network.EventLoopGroupHolder;
+import net.minecraft.util.FormattedCharSequence;
 
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -35,12 +42,15 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class ServerSwitcherScreen extends Screen {
 
     private final Screen parent;
-    private static final int ROW_H = 50;
+    private static final int ROW_H = 54;
     private static final int GAP = 6;
     private static final String[] TABS = {"👥 Freunde auf Servern", "🌐 Gespeicherte Server", "⚡ Direktverbindung"};
     private static final String[][] PRESETS = {
@@ -51,6 +61,12 @@ public class ServerSwitcherScreen extends Screen {
             {"Rewinside.tv", "rewinside.tv", "BedWars & Community Server", "1.8 - 1.21"}
     };
 
+    private static final ExecutorService PING_POOL = Executors.newFixedThreadPool(3, r -> {
+        Thread t = new Thread(r, "kollegen-pinger");
+        t.setDaemon(true);
+        return t;
+    });
+
     private int tab = 0;
     private int px, py, pw, ph, cx, cw, listTop, listBottom;
     private int scroll = 0;
@@ -59,6 +75,7 @@ public class ServerSwitcherScreen extends Screen {
     private final List<ServerEntry> allSavedServers = new ArrayList<>();
     private final List<ServerEntry> entries = new ArrayList<>();
     private final List<ActionRect> actionRects = new ArrayList<>();
+    private final ServerStatusPinger pinger = new ServerStatusPinger();
 
     private EditBox searchBox;
     private EditBox directInput;
@@ -72,6 +89,7 @@ public class ServerSwitcherScreen extends Screen {
     private String statusMsg = "Lade Server…";
 
     private static final class ServerEntry {
+        final ServerData serverData;
         final String title;
         final String subtitle;
         final String ip;
@@ -79,17 +97,89 @@ public class ServerSwitcherScreen extends Screen {
         final String actionLabel;
         final String badge;
         final String friendName;
-        final int ping;
+        final boolean hidden;
+        FaviconTexture iconTexture;
+        byte[] lastIconBytes;
 
-        ServerEntry(String title, String subtitle, String ip, boolean joinable, String actionLabel, String badge, String friendName, int ping) {
-            this.title = title;
-            this.subtitle = subtitle;
-            this.ip = ip;
+        ServerEntry(ServerData serverData, String title, String subtitle, String ip, boolean joinable, String actionLabel, String badge, String friendName) {
+            this.serverData = serverData;
+            this.ip = ip != null ? ip.trim() : "";
+            this.hidden = PrivacySettings.isServerIpHidden(this.ip);
+            if (this.hidden) {
+                if (title != null && (title.equalsIgnoreCase(this.ip) || PrivacySettings.isServerIpHidden(title))) {
+                    this.title = "••••••••";
+                } else {
+                    this.title = title != null ? PrivacySettings.censorIps(title) : "••••••••";
+                }
+                this.subtitle = subtitle != null ? PrivacySettings.censorIps(subtitle) : "••••••••";
+            } else {
+                this.title = title != null ? title : "";
+                this.subtitle = subtitle != null ? subtitle : "";
+            }
             this.joinable = joinable;
             this.actionLabel = actionLabel;
             this.badge = badge;
             this.friendName = friendName;
-            this.ping = ping;
+
+            if (this.serverData != null && !this.ip.isEmpty()) {
+                try {
+                    this.iconTexture = FaviconTexture.forServer(Minecraft.getInstance().getTextureManager(), this.ip);
+                } catch (Throwable ignored) {
+                    this.iconTexture = null;
+                }
+                byte[] icon = this.serverData.getIconBytes();
+                if (icon != null && icon.length > 0) {
+                    applyIcon(icon);
+                }
+            }
+        }
+
+        void applyIcon(byte[] bytes) {
+            if (this.iconTexture == null) {
+                try {
+                    this.iconTexture = FaviconTexture.forServer(Minecraft.getInstance().getTextureManager(), this.ip);
+                } catch (Throwable ignored) {
+                    return;
+                }
+            }
+            if (Arrays.equals(bytes, this.lastIconBytes)) return;
+            if (bytes == null || bytes.length == 0) {
+                try {
+                    this.iconTexture.clear();
+                } catch (Throwable ignored) {
+                }
+                this.lastIconBytes = null;
+                return;
+            }
+            NativeImage img = null;
+            try {
+                img = NativeImage.read(bytes);
+                if (img != null) {
+                    if (img.getWidth() == 64 && img.getHeight() == 64) {
+                        this.iconTexture.upload(img);
+                        this.lastIconBytes = bytes;
+                    } else {
+                        img.close();
+                    }
+                }
+            } catch (Throwable t) {
+                if (img != null) {
+                    try {
+                        img.close();
+                    } catch (Throwable ignored) {
+                    }
+                }
+            }
+        }
+
+        void close() {
+            if (this.iconTexture != null) {
+                try {
+                    this.iconTexture.close();
+                } catch (Throwable ignored) {
+                }
+                this.iconTexture = null;
+            }
         }
     }
 
@@ -117,8 +207,8 @@ public class ServerSwitcherScreen extends Screen {
 
     @Override
     protected void init() {
-        int w = Math.min(this.width - 28, 820);
-        int h = Math.min(this.height - 28, 550);
+        int w = Math.min(this.width - 28, 840);
+        int h = Math.min(this.height - 28, 560);
         this.px = (this.width - w) / 2;
         this.py = (this.height - h) / 2;
         this.pw = w;
@@ -137,7 +227,7 @@ public class ServerSwitcherScreen extends Screen {
 
         boolean hidden = PrivacySettings.isHideServer();
         String privText = hidden ? "🔒 Server: Verborgen" : "👁 Server: Öffentlich";
-        privacyBtn = new GlassButton(px + pw - 270, topY, 150, 24, Component.literal(privText), btn -> {
+        privacyBtn = new GlassButton(px + pw - 230, topY, 150, 24, Component.literal(privText), btn -> {
             PrivacySettings.toggleHideServer();
             boolean nowHidden = PrivacySettings.isHideServer();
             privacyBtn.setMessage(Component.literal(nowHidden ? "🔒 Server: Verborgen" : "👁 Server: Öffentlich"));
@@ -146,17 +236,17 @@ public class ServerSwitcherScreen extends Screen {
         addRenderableWidget(privacyBtn);
 
         if (pw >= 640) {
-            addRenderableWidget(new AccountButton(px + pw - 278, topY + 1, true, btn ->
+            addRenderableWidget(new AccountButton(px + pw - 360, topY + 1, true, btn ->
                     Minecraft.getInstance().setScreenAndShow(new AccountSwitcherScreen(this))));
         }
 
-        GlassButton refresh = new GlassButton(px + pw - 108, topY, 26, 24, Component.literal("⟳"), btn -> {
+        GlassButton refresh = new GlassButton(px + pw - 74, topY, 26, 24, Component.literal("⟳"), btn -> {
             statusMsg = "Aktualisiere…";
             loadData();
         });
         addRenderableWidget(refresh);
 
-        GlassButton close = new GlassButton(px + pw - 74, topY, 26, 24, Component.literal("✕"), btn ->
+        GlassButton close = new GlassButton(px + pw - 42, topY, 26, 24, Component.literal("✕"), btn ->
                 Minecraft.getInstance().setScreenAndShow(parent));
         addRenderableWidget(close);
 
@@ -165,7 +255,7 @@ public class ServerSwitcherScreen extends Screen {
             searchBox = new EditBox(this.font, cx + 8, searchY, cw - 16, 24, Component.literal("Server-Suche"));
             searchBox.setMaxLength(64);
             searchBox.setHint(Component.literal("🔍 Server durchsuchen (z. B. GommeHD, Hypixel, IP)…"));
-            searchBox.setResponder(query -> filterSavedServers(query));
+            searchBox.setResponder(this::filterSavedServers);
             addRenderableWidget(searchBox);
             listTop = py + 116;
             listBottom = py + ph - 16;
@@ -205,7 +295,11 @@ public class ServerSwitcherScreen extends Screen {
             entries.addAll(allSavedServers);
         } else {
             for (ServerEntry e : allSavedServers) {
-                if (e.title.toLowerCase().contains(q) || e.ip.toLowerCase().contains(q) || e.subtitle.toLowerCase().contains(q)) {
+                boolean matchTitle = e.title.toLowerCase().contains(q);
+                boolean matchIp = !e.hidden && e.ip.toLowerCase().contains(q);
+                boolean matchSub = e.subtitle.toLowerCase().contains(q);
+                boolean matchMotd = e.serverData != null && e.serverData.motd != null && e.serverData.motd.getString().toLowerCase().contains(q);
+                if (matchTitle || matchIp || matchSub || matchMotd) {
                     entries.add(e);
                 }
             }
@@ -268,9 +362,12 @@ public class ServerSwitcherScreen extends Screen {
                         boolean hasHidden = "hidden".equalsIgnoreCase(server) || server.isEmpty();
 
                         if (online && !hasHidden) {
-                            loaded.add(new ServerEntry(name, "Spielt auf: " + server, server, true, "🚀 Beitreten", "Online", name, 18));
+                            ServerData sd = new ServerData(name + "'s Server", server, ServerData.Type.OTHER);
+                            ServerEntry entry = new ServerEntry(sd, name, "Spielt auf: " + server, server, true, "🚀 Beitreten", "Online", name);
+                            pingServerSafely(entry);
+                            loaded.add(entry);
                         } else if (online) {
-                            loaded.add(new ServerEntry(name, "Online \u00b7 Server verborgen 🔒", "", false, "Privat", "Verborgen", name, 0));
+                            loaded.add(new ServerEntry(null, name, "Online \u00b7 Server verborgen 🔒", "", false, "Privat", "Verborgen", name));
                         }
                     }
                 }
@@ -292,7 +389,14 @@ public class ServerSwitcherScreen extends Screen {
         t.start();
     }
 
+    private void closeSavedServers() {
+        for (ServerEntry e : allSavedServers) {
+            e.close();
+        }
+    }
+
     private void loadSavedServers() {
+        closeSavedServers();
         allSavedServers.clear();
         try {
             ServerList list = new ServerList(Minecraft.getInstance());
@@ -301,11 +405,11 @@ public class ServerSwitcherScreen extends Screen {
             for (int i = 0; i < count; i++) {
                 ServerData data = list.get(i);
                 if (data != null && data.ip != null && !data.ip.isEmpty()) {
-                    String sub = data.ip;
-                    if (data.status != null && !data.status.getString().isEmpty()) {
-                        sub += " \u00b7 " + data.status.getString();
-                    }
-                    allSavedServers.add(new ServerEntry(data.name != null ? data.name : data.ip, sub, data.ip, true, "🚀 Beitreten", "Gespeichert", null, 24));
+                    String name = data.name != null && !data.name.isEmpty() ? data.name : data.ip;
+                    String sub = (data.status != null && !data.status.getString().isEmpty()) ? data.status.getString() : "Gespeicherter Server";
+                    ServerEntry entry = new ServerEntry(data, name, sub, data.ip, true, "🚀 Beitreten", "Gespeichert", null);
+                    pingServerSafely(entry);
+                    allSavedServers.add(entry);
                 }
             }
             if (searchBox != null && !searchBox.getValue().trim().isEmpty()) {
@@ -325,10 +429,46 @@ public class ServerSwitcherScreen extends Screen {
     }
 
     private void loadPresets() {
+        for (ServerEntry e : entries) {
+            if (!allSavedServers.contains(e)) {
+                e.close();
+            }
+        }
+        entries.clear();
         for (String[] preset : PRESETS) {
-            entries.add(new ServerEntry(preset[0], preset[2], preset[1], true, "🚀 Beitreten", preset[3], null, 16));
+            ServerData sd = new ServerData(preset[0], preset[1], ServerData.Type.OTHER);
+            ServerEntry entry = new ServerEntry(sd, preset[0], preset[2], preset[1], true, "🚀 Beitreten", preset[3], null);
+            pingServerSafely(entry);
+            entries.add(entry);
         }
         statusMsg = "Beliebte Multiplayer-Netzwerke:";
+    }
+
+    private void pingServerSafely(ServerEntry entry) {
+        if (entry == null || entry.serverData == null || entry.ip.isEmpty()) return;
+        PING_POOL.submit(() -> {
+            try {
+                boolean nativeTransport = Minecraft.getInstance().options.useNativeTransport();
+                pinger.pingServer(entry.serverData, () -> {
+                    Minecraft.getInstance().execute(() -> {
+                        byte[] bytes = entry.serverData.getIconBytes();
+                        if (bytes != null && bytes.length > 0) {
+                            entry.applyIcon(bytes);
+                        }
+                        computeScroll();
+                    });
+                }, () -> {
+                    Minecraft.getInstance().execute(() -> {
+                        byte[] bytes = entry.serverData.getIconBytes();
+                        if (bytes != null && bytes.length > 0) {
+                            entry.applyIcon(bytes);
+                        }
+                        computeScroll();
+                    });
+                }, EventLoopGroupHolder.remote(nativeTransport));
+            } catch (Throwable ignored) {
+            }
+        });
     }
 
     private void computeScroll() {
@@ -337,6 +477,29 @@ public class ServerSwitcherScreen extends Screen {
         maxScroll = Math.max(0, need - visible);
         if (scroll > maxScroll) scroll = maxScroll;
         if (scroll < 0) scroll = 0;
+    }
+
+    @Override
+    public void tick() {
+        super.tick();
+        try {
+            pinger.tick();
+        } catch (Throwable ignored) {
+        }
+    }
+
+    @Override
+    public void removed() {
+        super.removed();
+        try {
+            pinger.removeAll();
+        } catch (Throwable ignored) {
+        }
+        closeSavedServers();
+        for (ServerEntry e : entries) {
+            e.close();
+        }
+        entries.clear();
     }
 
     @Override
@@ -416,6 +579,10 @@ public class ServerSwitcherScreen extends Screen {
 
     @Override
     public void extractRenderState(GuiGraphicsExtractor g, int mx, int my, float pt) {
+        try {
+            pinger.tick();
+        } catch (Throwable ignored) {
+        }
         g.fill(0, 0, this.width, this.height, Palette.tint(Palette.BG, 0xDC));
 
         UiStyleManager.drawPanel(g, px, py, pw, ph, Palette.BG);
@@ -472,28 +639,41 @@ public class ServerSwitcherScreen extends Screen {
                 boolean hov = mx >= cx && mx <= cx + cw && my >= ey && my <= ey + ROW_H;
                 float h = hov ? 1.0f : 0.0f;
                 UiStyleManager.drawCard(g, cx, ey, cw, ROW_H, 8, Palette.PANEL, h, null);
-                if (hov) {
+                if (hov && !UiStyleManager.isMinecraftStyle()) {
                     Glass.ring(g, cx, ey, cw, ROW_H, 8, 1.0f, Palette.tint(Palette.ACCENT, 0x88));
                 }
 
-                int iconX = cx + 10;
-                int iconY = ey + (ROW_H - 32) / 2;
-                int iconCol = e.joinable ? Palette.ACCENT : Palette.MUTED;
+                int iconBox = 36;
+                int iconX = cx + 9;
+                int iconY = ey + (ROW_H - iconBox) / 2;
 
-                if (e.friendName != null && !e.friendName.isEmpty()) {
-                    SkinFaceRenderer.drawFace(g, e.friendName, null, iconX, iconY, 32);
-                    Glass.ring(g, iconX, iconY, 32, 32, 6, 1.0f, Palette.ACCENT);
+                if (UiStyleManager.isMinecraftStyle()) {
+                    g.fill(iconX - 1, iconY - 1, iconX + iconBox + 1, iconY + iconBox + 1, 0xFF000000);
+                    g.fill(iconX, iconY, iconX + iconBox, iconY + iconBox, 0xFF141414);
                 } else {
-                    Glass.fillRound(g, iconX, iconY, 32, 32, 6, Palette.tint(iconCol, 0x33));
-                    Glass.ring(g, iconX, iconY, 32, 32, 6, 1.0f, iconCol);
-                    String monogram = e.title.length() >= 2 ? e.title.substring(0, 2).toUpperCase() : (e.title.isEmpty() ? "?" : e.title.toUpperCase());
-                    int initW = this.font.width(monogram);
-                    g.text(this.font, monogram, iconX + (32 - initW) / 2, iconY + 11, iconCol, true);
+                    Glass.fillRound(g, iconX - 1, iconY - 1, iconBox + 2, iconBox + 2, 6, 0x33000000);
+                    Glass.ring(g, iconX - 1, iconY - 1, iconBox + 2, iconBox + 2, 6, 1.0f, Palette.tint(Palette.ACCENT, 0x55));
                 }
 
-                int textX = iconX + 42;
-                g.text(this.font, Glass.trunc(this.font, e.title, cw - 260), textX, ey + 10, Palette.TEXT, true);
-                g.text(this.font, Glass.trunc(this.font, e.subtitle, cw - 260), textX, ey + 26, Palette.MUTED, false);
+                if (e.friendName != null && !e.friendName.isEmpty()) {
+                    SkinFaceRenderer.drawFace(g, e.friendName, null, iconX + 2, iconY + 2, 32);
+                } else {
+                    if (e.serverData != null) {
+                        byte[] currentBytes = e.serverData.getIconBytes();
+                        if (currentBytes != null && currentBytes.length > 0 && !Arrays.equals(currentBytes, e.lastIconBytes)) {
+                            e.applyIcon(currentBytes);
+                        }
+                    }
+                    Identifier loc = e.iconTexture != null ? e.iconTexture.textureLocation() : null;
+                    if (loc == null) {
+                        loc = Identifier.withDefaultNamespace("textures/misc/unknown_server.png");
+                    }
+                    try {
+                        g.blit(RenderPipelines.GUI_TEXTURED, loc, iconX + 2, iconY + 2, 0.0f, 0.0f, 32, 32, 32, 32);
+                    } catch (Throwable ignored) {
+                        drawFallbackMonogram(g, e, iconX + 2, iconY + 2);
+                    }
+                }
 
                 int rightBoundary = cx + cw - 12;
 
@@ -503,13 +683,20 @@ public class ServerSwitcherScreen extends Screen {
                     int bx = rightBoundary - btnW;
                     int by = ey + (ROW_H - btnH) / 2;
                     boolean bHov = mx >= bx && mx <= bx + btnW && my >= by && my <= by + btnH;
-                    int btnCol = bHov ? Palette.GREEN : Palette.ACCENT;
-                    Glass.fillRound(g, bx, by, btnW, btnH, 6, btnCol);
-                    if (bHov) {
-                        Glass.ring(g, bx, by, btnW, btnH, 6, 1.0f, 0xFFFFFFFF);
+                    if (UiStyleManager.isMinecraftStyle()) {
+                        Glass.drawMinecraftButton(g, bx, by, btnW, btnH, bHov ? 1.0f : 0.0f, true, false);
+                        int tw = this.font.width(e.actionLabel);
+                        int tcol = bHov ? 0xFFFFFFA0 : 0xFFFFFFFF;
+                        g.text(this.font, e.actionLabel, bx + (btnW - tw) / 2, by + (btnH - 8) / 2, tcol, true);
+                    } else {
+                        int btnCol = bHov ? Palette.GREEN : Palette.ACCENT;
+                        Glass.fillRound(g, bx, by, btnW, btnH, 6, btnCol);
+                        if (bHov) {
+                            Glass.ring(g, bx, by, btnW, btnH, 6, 1.0f, 0xFFFFFFFF);
+                        }
+                        int tw = this.font.width(e.actionLabel);
+                        g.text(this.font, e.actionLabel, bx + (btnW - tw) / 2, by + 8, 0xFFFFFFFF, true);
                     }
-                    int tw = this.font.width(e.actionLabel);
-                    g.text(this.font, e.actionLabel, bx + (btnW - tw) / 2, by + 8, 0xFFFFFFFF, true);
 
                     actionRects.add(new ActionRect(bx, by, btnW, btnH, () ->
                             switchServer(Minecraft.getInstance(), e.ip, e.title)));
@@ -522,9 +709,16 @@ public class ServerSwitcherScreen extends Screen {
                         int pbx = rightBoundary - pBtnW;
                         int pby = ey + (ROW_H - pBtnH) / 2;
                         boolean pHov = mx >= pbx && mx <= pbx + pBtnW && my >= pby && my <= pby + pBtnH;
-                        Glass.fillRound(g, pbx, pby, pBtnW, pBtnH, 6, pHov ? Palette.ACCENT2 : Palette.PANEL2);
-                        int ptw = this.font.width("🎉 Party");
-                        g.text(this.font, "🎉 Party", pbx + (pBtnW - ptw) / 2, pby + 8, pHov ? 0xFFFFFFFF : Palette.TEXT, false);
+                        if (UiStyleManager.isMinecraftStyle()) {
+                            Glass.drawMinecraftButton(g, pbx, pby, pBtnW, pBtnH, pHov ? 1.0f : 0.0f, false, false);
+                            int ptw = this.font.width("Party");
+                            int ptcol = pHov ? 0xFFFFFFA0 : 0xFFFFFFFF;
+                            g.text(this.font, "Party", pbx + (pBtnW - ptw) / 2, pby + (pBtnH - 8) / 2, ptcol, true);
+                        } else {
+                            Glass.fillRound(g, pbx, pby, pBtnW, pBtnH, 6, pHov ? Palette.ACCENT2 : Palette.PANEL2);
+                            int ptw = this.font.width("🎉 Party");
+                            g.text(this.font, "🎉 Party", pbx + (pBtnW - ptw) / 2, pby + 8, pHov ? 0xFFFFFFFF : Palette.TEXT, false);
+                        }
 
                         String targetFriend = e.friendName;
                         actionRects.add(new ActionRect(pbx, pby, pBtnW, pBtnH, () ->
@@ -534,19 +728,62 @@ public class ServerSwitcherScreen extends Screen {
                     }
                 }
 
-                if (e.badge != null && !e.badge.isEmpty()) {
-                    int bw = this.font.width(e.badge) + 12;
-                    int bx = rightBoundary - bw;
-                    int by = ey + (ROW_H - 18) / 2;
-                    Glass.badge(g, bx, by, bw, 18, 5, Palette.PANEL2, Palette.MUTED, this.font, e.badge);
-                    rightBoundary = bx - 8;
+                int textX = iconX + iconBox + 10;
+                int maxTextW = rightBoundary - textX - 8;
+
+                String titleStr = Glass.trunc(this.font, e.title, Math.max(50, maxTextW - 120));
+                int titleCol = UiStyleManager.isMinecraftStyle() ? 0xFFFFFFFF : Palette.TEXT;
+                g.text(this.font, titleStr, textX, ey + 6, titleCol, true);
+
+                int badgeX = textX + this.font.width(titleStr) + 8;
+
+                if (e.hidden) {
+                    g.text(this.font, "🔒 Zensiert", badgeX, ey + 6, 0xFFFF7777, true);
+                    badgeX += this.font.width("🔒 Zensiert") + 8;
                 }
 
-                if (e.ping > 0) {
-                    int pingDotX = rightBoundary - 10;
-                    int pingDotY = ey + ROW_H / 2;
-                    Glass.disc(g, pingDotX, pingDotY, 3.5f, Palette.GREEN);
-                    Glass.ring(g, pingDotX - 4, pingDotY - 4, 8, 8, 4, 0.5f, Palette.GREEN);
+                if (e.serverData != null) {
+                    if (e.serverData.ping > 0) {
+                        int pingCol = e.serverData.ping < 80 ? 0xFF55FF55 : (e.serverData.ping < 160 ? 0xFFFFFF55 : 0xFFFF5555);
+                        String pingStr = e.serverData.ping + " ms";
+                        g.text(this.font, pingStr, badgeX, ey + 6, pingCol, false);
+                        badgeX += this.font.width(pingStr) + 8;
+                    } else if (e.serverData.ping < 0) {
+                        g.text(this.font, "🔴 Offline", badgeX, ey + 6, 0xFFFF5555, false);
+                        badgeX += this.font.width("🔴 Offline") + 8;
+                    }
+
+                    if (e.serverData.players != null) {
+                        String plyStr = "👥 " + e.serverData.players.online() + "/" + e.serverData.players.max();
+                        g.text(this.font, plyStr, badgeX, ey + 6, Palette.MUTED, false);
+                    } else if (e.serverData.status != null && !e.serverData.status.getString().isEmpty()) {
+                        String statStr = Glass.trunc(this.font, e.serverData.status.getString(), Math.max(20, rightBoundary - badgeX - 4));
+                        g.text(this.font, statStr, badgeX, ey + 6, Palette.MUTED, false);
+                    }
+                } else if (e.badge != null && !e.badge.isEmpty()) {
+                    g.text(this.font, e.badge, badgeX, ey + 6, Palette.MUTED, false);
+                }
+
+                int safeW = Math.max(40, maxTextW);
+                if (e.serverData != null && e.serverData.motd != null && !e.serverData.motd.getString().isEmpty() && !e.serverData.motd.getString().equals("Pinge Server…")) {
+                    List<FormattedCharSequence> lines = null;
+                    try {
+                        lines = this.font.split(e.serverData.motd, safeW);
+                    } catch (Throwable ignored) {
+                    }
+                    if (lines != null && !lines.isEmpty()) {
+                        g.text(this.font, lines.get(0), textX, ey + 21, 0xFFE0E0E0, false);
+                        if (lines.size() > 1) {
+                            g.text(this.font, lines.get(1), textX, ey + 35, 0xFFAAAAAA, false);
+                        } else {
+                            String subInfo = e.hidden ? "🔒 IP geschützt" : e.ip;
+                            g.text(this.font, subInfo, textX, ey + 35, Palette.MUTED, false);
+                        }
+                    } else {
+                        renderFallbackLines(g, e, textX, ey, safeW);
+                    }
+                } else {
+                    renderFallbackLines(g, e, textX, ey, safeW);
                 }
             }
             ey += ROW_H + GAP;
@@ -572,20 +809,36 @@ public class ServerSwitcherScreen extends Screen {
         super.extractRenderState(g, mx, my, pt);
     }
 
+    private void renderFallbackLines(GuiGraphicsExtractor g, ServerEntry e, int textX, int ey, int maxTextW) {
+        String sub = e.hidden ? "••••••••" : (e.subtitle != null && !e.subtitle.equalsIgnoreCase(e.ip) ? e.subtitle : "Bereit zum Beitreten");
+        g.text(this.font, Glass.trunc(this.font, sub, maxTextW), textX, ey + 21, Palette.MUTED, false);
+        String ipDisplay = e.hidden ? "🔒 IP geschützt" : e.ip;
+        g.text(this.font, ipDisplay, textX, ey + 35, Palette.MUTED, false);
+    }
+
+    private void drawFallbackMonogram(GuiGraphicsExtractor g, ServerEntry e, int x, int y) {
+        int iconCol = e.joinable ? Palette.ACCENT : Palette.MUTED;
+        if (UiStyleManager.isMinecraftStyle()) {
+            g.fill(x, y, x + 32, y + 32, 0xFF1E1E1E);
+            g.fill(x, y, x + 32, y + 1, 0xFF353535);
+            g.fill(x, y, x + 1, y + 32, 0xFF353535);
+            g.fill(x, y + 31, x + 32, y + 32, 0xFF101010);
+            g.fill(x + 31, y, x + 32, y + 32, 0xFF101010);
+        } else {
+            Glass.fillRound(g, x, y, 32, 32, 6, Palette.tint(iconCol, 0x33));
+            Glass.ring(g, x, y, 32, 32, 6, 1.0f, iconCol);
+        }
+        String monogram = e.title.length() >= 2 ? e.title.substring(0, 2).toUpperCase() : (e.title.isEmpty() ? "?" : e.title.toUpperCase());
+        int initW = this.font.width(monogram);
+        g.text(this.font, monogram, x + (32 - initW) / 2, y + 11, iconCol, true);
+    }
+
     public static void switchServer(Minecraft mc, String serverAddress, String serverName) {
         if (serverAddress == null || serverAddress.trim().isEmpty()) return;
         String cleanAddr = serverAddress.trim();
-
-        if (PartyManager.isLeader()) {
-            PartyManager.onLeaderSwitchServer(cleanAddr);
-        }
-
-        if (mc.level != null) {
-            mc.disconnect(new TitleScreen(), false);
-        }
-
-        ServerData targetData = new ServerData(serverName != null ? serverName : cleanAddr, cleanAddr, ServerData.Type.OTHER);
-        ServerAddress address = ServerAddress.parseString(cleanAddr);
-        ConnectScreen.startConnecting(new TitleScreen(), mc, address, targetData, false, null);
+        ServerData target = new ServerData(serverName != null ? serverName : cleanAddr, cleanAddr, ServerData.Type.OTHER);
+        TitleScreen title = new TitleScreen();
+        ServerAddress parsed = ServerAddress.parseString(cleanAddr);
+        ConnectScreen.startConnecting(title, mc, parsed, target, false, null);
     }
 }

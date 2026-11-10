@@ -17,6 +17,16 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(LevelRenderer.class)
 public class PetLevelRendererMixin {
 
+    @org.spongepowered.asm.mixin.Shadow
+    private net.minecraft.client.renderer.ViewArea viewArea;
+
+    @Inject(method = "repositionCamera(Lnet/minecraft/client/renderer/state/level/CameraRenderState;)V", at = @At("HEAD"), cancellable = true)
+    private void kollegen$guardRepositionCamera(net.minecraft.client.renderer.state.level.CameraRenderState state, CallbackInfo ci) {
+        if (this.viewArea == null) {
+            ci.cancel();
+        }
+    }
+
     @Inject(method = "extractVisibleEntities(Lnet/minecraft/client/Camera;Lnet/minecraft/client/renderer/culling/Frustum;Lnet/minecraft/client/DeltaTracker;Lnet/minecraft/client/renderer/state/LevelRenderState;)V", at = @At("TAIL"))
     private void kollegen$addPets(Camera camera, Frustum frustum, DeltaTracker tracker, LevelRenderState state, CallbackInfo ci) {
         try {

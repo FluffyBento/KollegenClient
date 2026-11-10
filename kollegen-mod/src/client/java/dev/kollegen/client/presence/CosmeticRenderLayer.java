@@ -14,8 +14,10 @@ import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.HumanoidArm;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import org.joml.Matrix4f;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
@@ -122,9 +124,7 @@ public final class CosmeticRenderLayer extends RenderLayer<AvatarRenderState, Pl
             if (data.maceTexture != null) {
                 try {
                     Player player = cachedPlayer != null ? cachedPlayer : resolvePlayer(mc, id);
-                    if (player != null) {
-                        renderMace(poseStack, collector, model, player, data.maceTexture, data.maceModel, packedLight, timeSec);
-                    }
+                    renderMace(poseStack, collector, model, state, player, data.maceTexture, data.maceModel, packedLight, timeSec);
                 } catch (Throwable ignored) {
                 }
             }
@@ -199,25 +199,21 @@ public final class CosmeticRenderLayer extends RenderLayer<AvatarRenderState, Pl
         }
     }
 
-    private static void renderMace(PoseStack poseStack, SubmitNodeCollector collector, PlayerModel parent, Player player, String texture, String modelPath, int packedLight, double timeSec) {
+    private static void renderMace(PoseStack poseStack, SubmitNodeCollector collector, PlayerModel parent, AvatarRenderState state, Player player, String texture, String modelPath, int packedLight, double timeSec) {
         try {
-            if (player == null || texture == null) return;
-            ItemStack main = player.getItemBySlot(EquipmentSlot.MAINHAND);
-            ItemStack off = player.getItemBySlot(EquipmentSlot.OFFHAND);
-            boolean mainMace = main != null && main.getItem() == net.minecraft.world.item.Items.MACE;
-            boolean offMace = off != null && off.getItem() == net.minecraft.world.item.Items.MACE;
-            if (!mainMace && !offMace) return;
-            boolean useLeft = false;
-            try {
-                if (mainMace) {
-                    useLeft = player.getMainArm() == net.minecraft.world.entity.HumanoidArm.LEFT;
-                } else {
-                    useLeft = player.getMainArm() == net.minecraft.world.entity.HumanoidArm.RIGHT;
-                }
-            } catch (Throwable ignored) {
+            if (texture == null) return;
+            boolean rightMace = state != null && state.rightHandItemStack != null && state.rightHandItemStack.getItem() == Items.MACE;
+            boolean leftMace = state != null && state.leftHandItemStack != null && state.leftHandItemStack.getItem() == Items.MACE;
+            if (!rightMace && !leftMace && player != null) {
+                ItemStack main = player.getItemBySlot(EquipmentSlot.MAINHAND);
+                ItemStack off = player.getItemBySlot(EquipmentSlot.OFFHAND);
+                rightMace = (player.getMainArm() == HumanoidArm.RIGHT && main != null && main.getItem() == Items.MACE)
+                         || (player.getMainArm() == HumanoidArm.LEFT && off != null && off.getItem() == Items.MACE);
+                leftMace = (player.getMainArm() == HumanoidArm.LEFT && main != null && main.getItem() == Items.MACE)
+                        || (player.getMainArm() == HumanoidArm.RIGHT && off != null && off.getItem() == Items.MACE);
             }
-            ModelPart arm = useLeft ? parent.leftArm : parent.rightArm;
-            if (arm == null) return;
+            if (!rightMace && !leftMace) return;
+
             Identifier tex = getId(texture);
             if (tex == null) return;
             BbModel bb = null;
@@ -230,28 +226,105 @@ public final class CosmeticRenderLayer extends RenderLayer<AvatarRenderState, Pl
             }
             if (bb == null) return;
 
+            if (rightMace && parent.rightArm != null) {
+                renderMaceArm(poseStack, collector, parent.rightArm, false, tex, bb, packedLight, timeSec, player);
+            }
+            if (leftMace && parent.leftArm != null) {
+                renderMaceArm(poseStack, collector, parent.leftArm, true, tex, bb, packedLight, timeSec, player);
+            }
+        } catch (Throwable ignored) {
+        }
+    }
+
+    private static void renderMaceArm(PoseStack poseStack, SubmitNodeCollector collector, ModelPart arm, boolean isLeft, Identifier tex, BbModel bb, int packedLight, double timeSec, Player player) {
+        RenderType type = getRenderType(tex);
+        if (type == null) return;
+        poseStack.pushPose();
+        arm.translateAndRotate(poseStack);
+
+        float armSide = isLeft ? 1.0F : -1.0F;
+        poseStack.translate(armSide * 0.16F, 0.40F, -0.04F);
+
+        float yawDeg = isLeft ? -90.0F : 90.0F;
+        poseStack.rotate(ROT_SCRATCH.get().identity().rotateY((float) Math.toRadians(ywDegSafe(yawDeg))));
+        poseStack.scale(0.85F, 0.85F, 0.85F);
+
+        float[] grip = bb.findGrip();
+        poseStack.translate(-grip[0], -grip[1], -grip[2]);
+
+        int tintColor = -1;
+        if (player != null && dev.kollegen.client.mods.modules.ShieldSettings.isStatusTintEnabled()) {
+            int sc = dev.kollegen.client.mods.modules.ShieldSettings.getStatusColor(player);
+            if (sc != 0) tintColor = sc;
+        }
+
+        renderModelContents(poseStack, collector, type, bb, packedLight, timeSec, null, 0, 1.0F, tintColor);
+        poseStack.popPose();
+    }
+
+    public static boolean renderFirstPersonMace(PoseStack poseStack, SubmitNodeCollector collector, net.minecraft.world.InteractionHand hand, int packedLight) {
+        try {
+            UUID self = dev.kollegen.client.presence.KollegenPresence.getSelfId();
+            CosmeticData data = self != null ? dev.kollegen.client.presence.KollegenPresence.getCosmetics(self) : null;
+            if (data == null || data.maceTexture == null) return false;
+            String texture = data.maceTexture;
+            String modelPath = data.maceModel;
+            Identifier tex = getId(texture);
+            if (tex == null) return false;
+            BbModel bb = null;
+            if (modelPath != null) {
+                Identifier modelId = getId(modelPath);
+                if (modelId != null) {
+                    Minecraft mc = Minecraft.getInstance();
+                    if (mc != null) bb = BbModel.load(mc.getResourceManager(), modelId);
+                }
+            }
+            if (bb == null) return false;
+
+            Minecraft mc = Minecraft.getInstance();
+            boolean isLeft = false;
+            if (mc != null && mc.player != null) {
+                boolean mainLeft = mc.player.getMainArm() == HumanoidArm.LEFT;
+                isLeft = (hand == net.minecraft.world.InteractionHand.MAIN_HAND) ? mainLeft : !mainLeft;
+            }
+
             RenderType type = getRenderType(tex);
+            if (type == null) return false;
             poseStack.pushPose();
-            arm.translateAndRotate(poseStack);
 
-            float armSide = useLeft ? 1.0F : -1.0F;
-            poseStack.translate(armSide * 0.16F, 0.40F, -0.04F);
-
-            float yawDeg = useLeft ? -90.0F : 90.0F;
-            poseStack.rotate(ROT_SCRATCH.get().identity().rotateY((float) Math.toRadians(ywDegSafe(yawDeg))));
+            float tx = 0.0F;
+            float ty = 3.0F / 16.0F;
+            float tz = 0.8F / 16.0F;
+            float rx = -85.0F;
+            float ry = 80.0F;
+            float rz = 25.0F;
+            if (isLeft) {
+                tx = -tx;
+                ry = -ry;
+                rz = -rz;
+            }
+            poseStack.translate(tx, ty, tz);
+            poseStack.rotate(new Quaternionf().rotationXYZ(
+                    (float) Math.toRadians(rx),
+                    (float) Math.toRadians(ry),
+                    (float) Math.toRadians(rz)
+            ));
+            poseStack.scale(0.42F, 0.42F, 0.42F);
 
             float[] grip = bb.findGrip();
             poseStack.translate(-grip[0], -grip[1], -grip[2]);
 
             int tintColor = -1;
-            if (dev.kollegen.client.mods.modules.ShieldSettings.isStatusTintEnabled()) {
-                int sc = dev.kollegen.client.mods.modules.ShieldSettings.getStatusColor(player);
+            if (mc != null && mc.player != null && dev.kollegen.client.mods.modules.ShieldSettings.isStatusTintEnabled()) {
+                int sc = dev.kollegen.client.mods.modules.ShieldSettings.getStatusColor(mc.player);
                 if (sc != 0) tintColor = sc;
             }
 
-            renderModelContents(poseStack, collector, type, bb, packedLight, timeSec, null, 0, 1.0F, tintColor);
+            renderModelContents(poseStack, collector, type, bb, packedLight, animTime(), null, 0, 1.0F, tintColor);
             poseStack.popPose();
+            return true;
         } catch (Throwable ignored) {
+            return false;
         }
     }
 

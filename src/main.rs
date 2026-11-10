@@ -3087,6 +3087,57 @@ fn libc_o_nonblock() -> i32 {
 #[cfg(not(target_os = "linux"))]
 fn poll_evdev_guide() {}
 
+fn ensure_default_instance(data_dir: &Path) {
+    let marker = data_dir.join(".default_instance_created");
+    if marker.is_file() {
+        return;
+    }
+    let _ = std::fs::write(&marker, b"1");
+
+    let path = utils::instances_file(data_dir);
+    let mut instances = utils::load_json::<Vec<types::Instance>>(&path, vec![]);
+    if instances.iter().any(|i| i.name == "26.3 Kollegen") {
+        return;
+    }
+
+    let default_inst = types::Instance {
+        id: uuid::Uuid::new_v4().to_string(),
+        name: "26.3 Kollegen".to_string(),
+        version: "26.3".to_string(),
+        loader: "fabric".to_string(),
+        loader_version: None,
+        description: "Standard-Instanz mit Kollegen Client Companion Mod".to_string(),
+        mods: vec![],
+        vulkan_enabled: true,
+        memory_min: DEFAULT_MEMORY_MIN.to_string(),
+        memory_max: DEFAULT_MEMORY_MAX.to_string(),
+        created_at: chrono::Utc::now().to_rfc3339(),
+        last_played: None,
+        java_args: None,
+        server: None,
+    };
+
+    let dir = utils::instance_dir(data_dir, &default_inst.name);
+    let _ = std::fs::create_dir_all(&dir);
+    let mods_dir = dir.join("mods");
+    let _ = std::fs::create_dir_all(&mods_dir);
+    crate::instance::apply_instance_performance_patch(&dir, true, default_inst.vulkan_enabled);
+    crate::companion::install_companion_mod(data_dir, &default_inst.name, &default_inst.version, &default_inst.loader);
+    crate::instance::enforce_renderer_consistency(&mods_dir, default_inst.vulkan_enabled);
+
+    instances.insert(0, default_inst);
+    let _ = utils::save_json(&path, &instances);
+
+    let dd = data_dir.to_path_buf();
+    std::thread::Builder::new()
+        .name("install-default-instance".into())
+        .spawn(move || {
+            let _ = instance::install_instance(&dd, "26.3 Kollegen", "26.3", "fabric", None);
+            let _ = companion::install_companion_mod(&dd, "26.3 Kollegen", "26.3", "fabric");
+        })
+        .ok();
+}
+
 fn main() {
     
     
@@ -3127,6 +3178,7 @@ fn main() {
     };
 
     std::fs::create_dir_all(&data_dir).expect("Could not create data directory");
+    ensure_default_instance(&data_dir);
 
     let discord = discord::start(data_dir.clone());
     

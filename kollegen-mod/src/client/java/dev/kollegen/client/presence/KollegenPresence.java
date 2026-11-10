@@ -18,6 +18,7 @@ import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -27,6 +28,7 @@ import java.util.WeakHashMap;
 
 public final class KollegenPresence {
     private static final Set<UUID> USERS = ConcurrentHashMap.newKeySet();
+    private static final Set<String> USER_NAMES = ConcurrentHashMap.newKeySet();
     private static final Map<UUID, CosmeticData> COSMETICS = new ConcurrentHashMap<>();
     private static volatile boolean registered = false;
     private static volatile UUID selfId = null;
@@ -105,7 +107,18 @@ public final class KollegenPresence {
     }
 
     public static boolean isKollegen(UUID id) {
-        return id != null && USERS.contains(id);
+        return id != null && (USERS.contains(id) || COSMETICS.containsKey(id));
+    }
+
+    public static boolean isKollegen(UUID id, String name) {
+        if (isKollegen(id)) return true;
+        if (name != null && !name.isEmpty() && USER_NAMES.contains(name.toLowerCase(Locale.ROOT))) return true;
+        return false;
+    }
+
+    public static boolean isKollegen(String name) {
+        if (name == null || name.isEmpty()) return false;
+        return USER_NAMES.contains(name.toLowerCase(Locale.ROOT));
     }
 
     public static Set<UUID> users() {
@@ -120,7 +133,7 @@ public final class KollegenPresence {
                 loadLocalCapeConfig();
             }
             CosmeticData cur = COSMETICS.get(id);
-            if (cur != null && cur.capeTexture != null) {
+            if (cur != null && cur.capeTexture != null && (cur.maceTexture != null || localCapeData == null || localCapeData.maceTexture == null)) {
                 return cur;
             }
             if (localCapeData != null) {
@@ -130,7 +143,9 @@ public final class KollegenPresence {
                         cur.badgeIcon, cur.badgeColor, cur.stickerIcon, cur.stickerColor,
                         cur.font, cur.petKind, cur.petScale, cur.petMode,
                         cur.petName, cur.petNameColor, cur.petVariant,
-                        localCapeData.capeTexture, localCapeData.capeModel, localCapeData.capeOwner,
+                        localCapeData.capeTexture != null ? localCapeData.capeTexture : cur.capeTexture,
+                        localCapeData.capeModel != null ? localCapeData.capeModel : cur.capeModel,
+                        localCapeData.capeOwner != null ? localCapeData.capeOwner : cur.capeOwner,
                         cur.backAccessoryTexture, cur.backAccessoryModel,
                         cur.headAccessoryTexture, cur.headAccessoryModel,
                         cur.shieldTexture, cur.shieldModel,
@@ -140,7 +155,8 @@ public final class KollegenPresence {
                         cur.torsoAccessoryTexture, cur.torsoAccessoryModel,
                         cur.legsAccessoryTexture, cur.legsAccessoryModel,
                         cur.glovesTexture, cur.glovesModel,
-                        cur.maceTexture, cur.maceModel
+                        cur.maceTexture != null ? cur.maceTexture : localCapeData.maceTexture,
+                        cur.maceModel != null ? cur.maceModel : localCapeData.maceModel
                     );
                     COSMETICS.put(id, merged);
                     return merged;
@@ -224,8 +240,58 @@ public final class KollegenPresence {
             old != null ? old.legsAccessoryModel : null,
             old != null ? old.glovesTexture : null,
             old != null ? old.glovesModel : null,
-            old != null ? old.maceTexture : null,
-            old != null ? old.maceModel : null
+            old != null && old.maceTexture != null ? old.maceTexture : (localCapeData != null ? localCapeData.maceTexture : null),
+            old != null && old.maceModel != null ? old.maceModel : (localCapeData != null ? localCapeData.maceModel : null)
+        );
+        localCapeData = updated;
+        if (id != null) {
+            COSMETICS.put(id, updated);
+            USERS.add(id);
+        }
+    }
+
+    public static void setLocalMace(String texture, String model) {
+        UUID id = getSelfId();
+        CosmeticData old = (id != null) ? COSMETICS.get(id) : localCapeData;
+        if (old == null) old = localCapeData;
+        CosmeticData updated = new CosmeticData(
+            old != null ? old.level : 0,
+            old != null ? old.titleText : null,
+            old != null ? old.titleColor : null,
+            old != null ? old.nameColor : null,
+            old != null ? old.badgeIcon : null,
+            old != null ? old.badgeColor : null,
+            old != null ? old.stickerIcon : null,
+            old != null ? old.stickerColor : null,
+            old != null ? old.font : null,
+            old != null ? old.petKind : null,
+            old != null ? old.petScale : 0.2,
+            old != null ? old.petMode : null,
+            old != null ? old.petName : null,
+            old != null ? old.petNameColor : null,
+            old != null ? old.petVariant : null,
+            old != null ? old.capeTexture : null,
+            old != null ? old.capeModel : null,
+            old != null ? old.capeOwner : null,
+            old != null ? old.backAccessoryTexture : null,
+            old != null ? old.backAccessoryModel : null,
+            old != null ? old.headAccessoryTexture : null,
+            old != null ? old.headAccessoryModel : null,
+            old != null ? old.shieldTexture : null,
+            old != null ? old.shieldModel : null,
+            old != null ? old.faceAccessoryTexture : null,
+            old != null ? old.faceAccessoryModel : null,
+            old != null ? old.auraTexture : null,
+            old != null ? old.auraModel : null,
+            old != null ? old.shoulderAccessoryTexture : null,
+            old != null ? old.shoulderAccessoryModel : null,
+            old != null ? old.torsoAccessoryTexture : null,
+            old != null ? old.torsoAccessoryModel : null,
+            old != null ? old.legsAccessoryTexture : null,
+            old != null ? old.legsAccessoryModel : null,
+            old != null ? old.glovesTexture : null,
+            old != null ? old.glovesModel : null,
+            texture, model
         );
         localCapeData = updated;
         if (id != null) {
@@ -264,6 +330,8 @@ public final class KollegenPresence {
         String name = mc.player.getName().getString();
         selfId = id;
         selfName = name;
+        if (id != null) USERS.add(id);
+        if (name != null && !name.isEmpty()) USER_NAMES.add(name.toLowerCase(Locale.ROOT));
         registered = true;
         loadLocalCapeConfig();
         String url = base() + "/presence/" + id;
@@ -304,6 +372,7 @@ public final class KollegenPresence {
             thread(() -> delete(base() + "/presence/" + finalId));
         }
         USERS.clear();
+        USER_NAMES.clear();
         COSMETICS.clear();
         PetRenderer.clear();
         try {
@@ -351,12 +420,22 @@ public final class KollegenPresence {
             if (localBefore == null) localBefore = localCapeData;
 
             USERS.clear();
+            USER_NAMES.clear();
             COSMETICS.clear();
             Minecraft mc = Minecraft.getInstance();
             Level level = mc != null ? mc.level : null;
             for (JsonElement el : arr) {
                 if (el.isJsonObject()) {
                     JsonObject o = el.getAsJsonObject();
+                    if (o.has("name")) {
+                        try {
+                            String n = o.get("name").getAsString();
+                            if (n != null && !n.isEmpty()) {
+                                USER_NAMES.add(n.toLowerCase(Locale.ROOT));
+                            }
+                        } catch (Throwable ignored) {
+                        }
+                    }
                     if (o.has("uuid")) {
                         try {
                             UUID uid = parseUuid(o.get("uuid").getAsString());
@@ -394,15 +473,26 @@ public final class KollegenPresence {
                         serverCos.torsoAccessoryTexture, serverCos.torsoAccessoryModel,
                         serverCos.legsAccessoryTexture, serverCos.legsAccessoryModel,
                         serverCos.glovesTexture, serverCos.glovesModel,
-                        serverCos.maceTexture, serverCos.maceModel
+                        serverCos.maceTexture != null ? serverCos.maceTexture : (localBefore != null ? localBefore.maceTexture : null),
+                        serverCos.maceModel != null ? serverCos.maceModel : (localBefore != null ? localBefore.maceModel : null)
                     );
                     COSMETICS.put(self, merged);
                 } else {
                     COSMETICS.put(self, localBefore);
                 }
                 USERS.add(self);
+                if (selfName != null && !selfName.isEmpty()) {
+                    USER_NAMES.add(selfName.toLowerCase(Locale.ROOT));
+                }
             }
             loadLocalCapeConfig();
+            if (mc != null) {
+                mc.execute(() -> {
+                    if (mc.gui != null && mc.gui.screen() instanceof dev.kollegen.client.menu.KollegenSocialScreen soc) {
+                        soc.rebuildEntries();
+                    }
+                });
+            }
         } catch (Throwable ignored) {
         }
     }
@@ -458,6 +548,18 @@ public final class KollegenPresence {
                     }
                 }
             }
+            if (o.has("vanilla_capes") && o.get("vanilla_capes").isJsonArray()) {
+                for (JsonElement el : o.getAsJsonArray("vanilla_capes")) {
+                    if (el.isJsonObject()) {
+                        JsonObject vc = el.getAsJsonObject();
+                        String vcid = vc.has("id") && !vc.get("id").isJsonNull() ? vc.get("id").getAsString() : "";
+                        String raw = vc.has("texture") && !vc.get("texture").isJsonNull() ? vc.get("texture").getAsString() : (vc.has("preview") && !vc.get("preview").isJsonNull() ? vc.get("preview").getAsString() : null);
+                        if (!vcid.isEmpty() && raw != null && !raw.isEmpty()) {
+                            SkinCapeTextureManager.registerStaticCape(vcid, raw);
+                        }
+                    }
+                }
+            }
             if (o.has("active") && !o.get("active").isJsonNull()) {
                 String activeId = o.get("active").getAsString();
                 if ("none".equalsIgnoreCase(activeId) || activeId.isEmpty()) {
@@ -485,6 +587,41 @@ public final class KollegenPresence {
                 } else {
                     setLocalCape(activeId, null, null);
                 }
+            }
+            try {
+                Path cp = Path.of(System.getProperty("user.home", ""), ".kollegen", "client.json");
+                if (Files.exists(cp)) {
+                    JsonObject cj = JsonParser.parseString(Files.readString(cp)).getAsJsonObject();
+                    if (cj.has("me") && cj.get("me").isJsonObject()) {
+                        JsonObject me = cj.getAsJsonObject("me");
+                        if (me.has("equipped") && me.get("equipped").isJsonObject()) {
+                            JsonObject eq = me.getAsJsonObject("equipped");
+                            if (eq.has("mace") && !eq.get("mace").isJsonNull()) {
+                                String maceId = eq.get("mace").getAsString();
+                                if ("mace_kriegshammer".equalsIgnoreCase(maceId)) {
+                                    setLocalMace("kollegen:cosmetics/store/kollegen_warhammer.png", "kollegen:cosmetics/store/kollegen_warhammer.bbmodel");
+                                } else if (!maceId.isEmpty()) {
+                                    JsonObject sc = StoreClient.cachedCatalog();
+                                    if (sc != null && sc.has("catalog") && sc.get("catalog").isJsonArray()) {
+                                        for (JsonElement itemEl : sc.getAsJsonArray("catalog")) {
+                                            if (itemEl.isJsonObject()) {
+                                                JsonObject it = itemEl.getAsJsonObject();
+                                                if (maceId.equals(it.has("id") ? it.get("id").getAsString() : null)) {
+                                                    JsonObject d = it.has("data") && it.get("data").isJsonObject() ? it.getAsJsonObject("data") : null;
+                                                    if (d != null && d.has("texture")) {
+                                                        setLocalMace(d.get("texture").getAsString(), d.has("model") ? d.get("model").getAsString() : null);
+                                                    }
+                                                    break;
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch (Throwable ignored) {
             }
         } catch (Throwable ignored) {
         }

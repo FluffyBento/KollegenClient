@@ -369,7 +369,6 @@ const PERF_MODS: &[&str] = &[
     "dynamic-fps",
     "modernfix",
     "immediatelyfast",
-    "krypton",
     "memoryleakfix",
 ];
 

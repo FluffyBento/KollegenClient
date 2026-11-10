@@ -1,17 +1,4 @@
-const HOME_ICONS = {
-  plus: '<path d="M12 5v14M5 12h14"/>',
-  store: '<path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/>',
-  spark: '<path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/>',
-  users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
-  chat: '<path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/>',
-  chevron: '<path d="m9 6 6 6-6 6"/>'
-};
-
 const homeState = { me: null, friends: null, store: null, loadedAt: 0, loading: false };
-
-function homeIcon(name) {
-  return '<svg class="ui-ico" viewBox="0 0 24 24" aria-hidden="true">' + (HOME_ICONS[name] || "") + "</svg>";
-}
 
 function homeEl(tag, cls, text) {
   const e = document.createElement(tag);
@@ -97,35 +84,6 @@ function renderHomeHeroExtras() {
   const created = Date.parse(inst.created_at || "");
   if (Number.isFinite(created)) add("Erstellt", new Date(created).toLocaleDateString("de-DE"));
   hero.insertBefore(stats, hero.querySelector(".hero-art"));
-}
-
-function homeQuickTile(icon, title, sub, onclick) {
-  const b = homeEl("button", "quick-tile");
-  b.type = "button";
-  const ico = homeEl("span", "quick-ico");
-  ico.innerHTML = homeIcon(icon);
-  const text = homeEl("span", "quick-text");
-  text.append(homeEl("span", "quick-title", title), homeEl("span", "quick-sub", sub));
-  const chev = homeEl("span", "quick-chev");
-  chev.innerHTML = homeIcon("chevron");
-  b.append(ico, text, chev);
-  b.onclick = onclick;
-  return b;
-}
-
-function renderHomeQuick() {
-  const box = document.getElementById("homeQuick");
-  if (!box) return;
-  box.innerHTML = "";
-  const items = homeState.store ? homeStoreItems().length : 0;
-  const online = homeOnlineCount();
-  const discord = typeof KC_DISCORD_URL !== "undefined" ? KC_DISCORD_URL : "https://kollegen.me/discord";
-  box.append(
-    homeQuickTile("plus", "Neue Instanz", "Version wählen und los", () => switchTab("create")),
-    homeQuickTile("store", "Store", items ? items + " neue Items" : "Items ansehen", () => switchTab("store")),
-    homeQuickTile("users", "Soziales", Array.isArray(homeState.friends) ? online + " Freunde online" : "Freunde und Gruppen", () => switchTab("socials")),
-    homeQuickTile("chat", "Discord", "Community beitreten", () => homeOpenUrl(discord))
-  );
 }
 
 function renderHomeLevel() {
@@ -267,7 +225,6 @@ function renderHomeModels() {
 function renderHomeExtras() {
   const paint = () => {
     renderHomeHeroExtras();
-    renderHomeQuick();
     renderHomeFriends();
     renderHomeStore();
     renderHomeLevel();

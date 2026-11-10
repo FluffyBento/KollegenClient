@@ -67,13 +67,23 @@ public final class FeedImageManager {
         Identifier cached = TEXTURE_CACHE.get(clean);
         if (cached != null) return cached;
 
-        File f = new File(clean);
-        if (!f.exists() || !f.isFile()) {
-            File inScreenshots = new File(getScreenshotsDir(), clean);
-            if (inScreenshots.exists() && inScreenshots.isFile()) {
-                f = inScreenshots;
-            } else {
-                return null;
+        boolean isHttp = clean.startsWith("http://") || clean.startsWith("https://");
+        File f;
+        if (isHttp) {
+            File cacheDir = new File(Minecraft.getInstance().gameDirectory, "kollegen-cache/feed-images");
+            if (!cacheDir.exists()) cacheDir.mkdirs();
+            String hex = Integer.toHexString(clean.hashCode());
+            String ext = clean.toLowerCase(Locale.ROOT).endsWith(".jpg") ? ".jpg" : ".png";
+            f = new File(cacheDir, "feed_" + hex + ext);
+        } else {
+            f = new File(clean);
+            if (!f.exists() || !f.isFile()) {
+                File inScreenshots = new File(getScreenshotsDir(), clean);
+                if (inScreenshots.exists() && inScreenshots.isFile()) {
+                    f = inScreenshots;
+                } else {
+                    return null;
+                }
             }
         }
 
@@ -81,24 +91,43 @@ public final class FeedImageManager {
         if (!LOADING.add(clean)) return null;
 
         Thread t = new Thread(() -> {
-            try (InputStream in = new FileInputStream(fileToLoad)) {
-                NativeImage img = NativeImage.read(in);
-                if (img != null) {
-                    int w = img.getWidth();
-                    int h = img.getHeight();
-                    DIMS_CACHE.put(clean, new int[]{w, h});
+            try {
+                if (isHttp && (!fileToLoad.exists() || fileToLoad.length() == 0)) {
+                    java.net.http.HttpClient client = java.net.http.HttpClient.newBuilder()
+                            .connectTimeout(java.time.Duration.ofSeconds(6))
+                            .build();
+                    java.net.http.HttpRequest req = java.net.http.HttpRequest.newBuilder()
+                            .uri(java.net.URI.create(clean))
+                            .timeout(java.time.Duration.ofSeconds(12))
+                            .GET()
+                            .build();
+                    java.net.http.HttpResponse<byte[]> resp = client.send(req, java.net.http.HttpResponse.BodyHandlers.ofByteArray());
+                    if (resp.statusCode() == 200 && resp.body().length > 0) {
+                        Files.write(fileToLoad.toPath(), resp.body());
+                    } else {
+                        return;
+                    }
+                }
 
-                    String safeName = fileToLoad.getName().replaceAll("[^a-zA-Z0-9_.-]", "_");
-                    Identifier id = Identifier.tryParse("kollegen:feed_img_" + safeName.toLowerCase(Locale.ROOT));
+                try (InputStream in = new FileInputStream(fileToLoad)) {
+                    NativeImage img = NativeImage.read(in);
+                    if (img != null) {
+                        int w = img.getWidth();
+                        int h = img.getHeight();
+                        DIMS_CACHE.put(clean, new int[]{w, h});
 
-                    Minecraft.getInstance().execute(() -> {
-                        try {
-                            DynamicTexture tex = new DynamicTexture(() -> "feed_" + safeName, img);
-                            Minecraft.getInstance().getTextureManager().register(id, tex);
-                            TEXTURE_CACHE.put(clean, id);
-                        } catch (Throwable ignored) {
-                        }
-                    });
+                        String safeName = fileToLoad.getName().replaceAll("[^a-zA-Z0-9_.-]", "_");
+                        Identifier id = Identifier.tryParse("kollegen:feed_img_" + safeName.toLowerCase(Locale.ROOT));
+
+                        Minecraft.getInstance().execute(() -> {
+                            try {
+                                DynamicTexture tex = new DynamicTexture(() -> "feed_" + safeName, img);
+                                Minecraft.getInstance().getTextureManager().register(id, tex);
+                                TEXTURE_CACHE.put(clean, id);
+                            } catch (Throwable ignored) {
+                            }
+                        });
+                    }
                 }
             } catch (Throwable ignored) {
             } finally {
@@ -117,15 +146,23 @@ public final class FeedImageManager {
         int[] cached = DIMS_CACHE.get(clean);
         if (cached != null && cached[0] > 0 && cached[1] > 0) return cached;
 
-        File f = new File(clean);
-        if (!f.exists() || !f.isFile()) {
-            File inScreenshots = new File(getScreenshotsDir(), clean);
-            if (inScreenshots.exists() && inScreenshots.isFile()) {
-                f = inScreenshots;
+        File f = null;
+        if (clean.startsWith("http://") || clean.startsWith("https://")) {
+            File cacheDir = new File(Minecraft.getInstance().gameDirectory, "kollegen-cache/feed-images");
+            String hex = Integer.toHexString(clean.hashCode());
+            String ext = clean.toLowerCase(Locale.ROOT).endsWith(".jpg") ? ".jpg" : ".png";
+            f = new File(cacheDir, "feed_" + hex + ext);
+        } else {
+            f = new File(clean);
+            if (!f.exists() || !f.isFile()) {
+                File inScreenshots = new File(getScreenshotsDir(), clean);
+                if (inScreenshots.exists() && inScreenshots.isFile()) {
+                    f = inScreenshots;
+                }
             }
         }
 
-        if (f.exists() && f.isFile()) {
+        if (f != null && f.exists() && f.isFile()) {
             try (InputStream in = new FileInputStream(f)) {
                 byte[] header = new byte[24];
                 if (in.read(header) == 24) {
@@ -158,7 +195,12 @@ public final class FeedImageManager {
         if (path == null || path.trim().isEmpty()) return;
         Identifier id = getOrLoadTexture(path);
 
-        Glass.fillRound(gui, x, y, targetW, targetH, (int) radius, 0xFF0D0E15);
+        if (dev.kollegen.client.ui.UiStyleManager.isMinecraftStyle()) {
+            gui.fill(x, y, x + targetW, y + targetH, 0xFF000000);
+            gui.fill(x + 1, y + 1, x + targetW - 1, y + targetH - 1, 0xFF121212);
+        } else {
+            Glass.fillRound(gui, x, y, targetW, targetH, (int) radius, 0xFF0D0E15);
+        }
 
         if (id != null) {
             int[] dims = getDimensions(path);
@@ -178,10 +220,21 @@ public final class FeedImageManager {
             gui.blit(RenderPipelines.GUI_TEXTURED, id, 0, 0, 0.0f, 0.0f, origW, origH, origW, origH);
             pose.popMatrix();
 
-            Glass.ring(gui, x, y, targetW, targetH, radius, 1.0f, 0x44FFFFFF);
+            if (dev.kollegen.client.ui.UiStyleManager.isMinecraftStyle()) {
+                gui.fill(x + 1, y + 1, x + targetW - 1, y + 2, 0xFF383838);
+                gui.fill(x + 1, y + 1, x + 2, y + targetH - 1, 0xFF383838);
+                gui.fill(x + 1, y + targetH - 2, x + targetW - 1, y + targetH - 1, 0xFF181818);
+                gui.fill(x + targetW - 2, y + 1, x + targetW - 1, y + targetH - 1, 0xFF181818);
+            } else {
+                Glass.ring(gui, x, y, targetW, targetH, radius, 1.0f, 0x44FFFFFF);
+            }
         } else {
-            Glass.ring(gui, x, y, targetW, targetH, radius, 1.0f, 0x22FFFFFF);
-            Glass.textC(gui, Minecraft.getInstance().font, "Lade Bild…", x + targetW / 2, y + (targetH - 8) / 2, 0xFF888888, false);
+            if (dev.kollegen.client.ui.UiStyleManager.isMinecraftStyle()) {
+                Glass.textC(gui, Minecraft.getInstance().font, "Lade Bild…", x + targetW / 2, y + (targetH - 8) / 2, 0xFF888888, true);
+            } else {
+                Glass.ring(gui, x, y, targetW, targetH, radius, 1.0f, 0x22FFFFFF);
+                Glass.textC(gui, Minecraft.getInstance().font, "Lade Bild…", x + targetW / 2, y + (targetH - 8) / 2, 0xFF888888, false);
+            }
         }
     }
 }

@@ -17,6 +17,9 @@ public class ItemEntityRenderStateMixin implements KollegenItemPhysicsState {
     @Unique
     private float kollegen$yaw;
 
+    @Unique
+    private float kollegen$scale = 1.0f;
+
     @Override
     public boolean kollegen$isOnGround() {
         return this.kollegen$onGround;
@@ -46,5 +49,14 @@ public class ItemEntityRenderStateMixin implements KollegenItemPhysicsState {
     public void kollegen$setYaw(float yaw) {
         this.kollegen$yaw = yaw;
     }
-}
 
+    @Override
+    public float kollegen$getScale() {
+        return this.kollegen$scale;
+    }
+
+    @Override
+    public void kollegen$setScale(float scale) {
+        this.kollegen$scale = scale;
+    }
+}

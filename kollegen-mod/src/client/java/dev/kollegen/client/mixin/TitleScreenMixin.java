@@ -19,6 +19,7 @@ public abstract class TitleScreenMixin extends Screen {
 
     @Inject(method = "init", at = @At("RETURN"))
     private void kollegen$addAccountButton(CallbackInfo ci) {
+        dev.kollegen.client.KollegenMod.cleanModMenu();
         this.addRenderableWidget(new AccountButton(this.width, 10, btn -> {
             if (this.minecraft != null) {
                 this.minecraft.setScreenAndShow(new AccountSwitcherScreen(this));

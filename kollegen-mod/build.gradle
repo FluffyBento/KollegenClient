@@ -348,6 +348,7 @@ if (is262) {
                          .replace('com.mojang.renderpearl.api.commands.CommandEncoder', 'com.mojang.blaze3d.systems.CommandEncoder')
                          .replace('com.mojang.renderpearl.api.pipeline.RenderPipeline', 'com.mojang.blaze3d.pipeline.RenderPipeline')
                          .replace('com.mojang.renderpearl.api.textures.GpuTextureView', 'com.mojang.blaze3d.textures.GpuTextureView')
+                         .replace('server.publishServer(MinecraftServer.MultiplayerScope.LAN, cheats, port)', 'server.publishServer(MinecraftServer.MultiplayerScope.LAN, null, cheats, port)')
                          .replace('server.publishServer(MinecraftServer.MultiplayerScope.LAN, allowCommands, port)', 'server.publishServer(MinecraftServer.MultiplayerScope.LAN, null, allowCommands, port)')
                          .replace('bundle.itemCopies().toList()', 'bundle.itemCopyStream().toList()')
                          .replace('InputConstants.isKeyDown(key)', 'InputConstants.isKeyDown(net.minecraft.client.Minecraft.getInstance().getWindow(), key)')
@@ -498,7 +499,11 @@ def vendorModResource(String resourceRel, String slug, String urlOverride = null
                 if (!(json.custom instanceof Map)) {
                     json.custom = [:]
                 }
-                json.custom.modmenu = [parent: "kollegen-client"]
+                json.custom.modmenu = [badges: ["library"]]
+                if (slug == "bobby") {
+                    json.name = "Kollegen Distance"
+                    json.description = "Dauerhafte 1:1 Chunkspeicherung und erweiterte Sichtweite."
+                }
                 fmj.write(groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(json)))
             }
             ant.zip(destfile: res, basedir: unzipDir)
@@ -542,10 +547,10 @@ def flkTask = vendorModResource('dev/kollegen/client/flk.bin', 'fabric-language-
 def fabricApiTask = vendorModResource('dev/kollegen/client/fabricapi.bin', 'fabric-api')
 def owoTask = vendorModResource('dev/kollegen/client/owo.bin', 'owo-lib')
 def modMenuTask = vendorModResource('dev/kollegen/client/modmenu.bin', 'modmenu')
-def tpaTask = vendorModResource('dev/kollegen/client/tpa.bin', 'placeholder-api')
-def silkTask = vendorModResource('dev/kollegen/client/silk.bin', 'silk')
 def clothConfigTask = vendorModResource('dev/kollegen/client/clothconfig.bin', 'cloth-config')
 def chatHeadsTask = vendorModResource('dev/kollegen/client/chatheads.bin', 'chat-heads')
+def bobbyUrl = project.minecraft_version == "26.3" ? 'https://cdn.modrinth.com/data/M08ruV16/versions/J7YnfCss/bobby-5.2.16%2Bmc26.3.jar' : null
+def distanceTask = vendorModResource('dev/kollegen/client/distance.bin', 'bobby', bobbyUrl)
 
 
 
@@ -749,7 +754,7 @@ tasks.register('vendorVulkanMod') {
 }
 processResources.dependsOn vendorVulkanMod, sodiumTask, irisTask, berylTask,
         flkTask, fabricApiTask, owoTask, modMenuTask,
-        tpaTask, silkTask, clothConfigTask, chatHeadsTask
+        clothConfigTask, chatHeadsTask, distanceTask
 
 def javaRelease = project.minecraft_version.startsWith('1.21') ? 21 : 25
 
@@ -763,7 +768,6 @@ tasks.withType(JavaCompile).configureEach {
     it.options.release = javaRelease
 }
 
-// Erzwingt das korrekte Remapping aller Klassen auf Intermediary-Namen für 26.x
 if (project.minecraft_version.startsWith('26.')) {
     tasks.register('remapJar262') {
         dependsOn('jar')

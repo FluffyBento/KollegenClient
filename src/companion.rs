@@ -472,7 +472,7 @@ fn jar_mod_version_matches(p: &Path) -> bool {
 pub(crate) fn companion_bins_support_mc(jar: &Path, version: &str) -> bool {
     for bin in [
         "dev/kollegen/client/chatheads.bin",
-        "dev/kollegen/client/silk.bin",
+        "dev/kollegen/client/distance.bin",
     ] {
         if let Some(c) = bin_mc_constraint(jar, bin) {
             if !mc_constraint_supports(&c, version) {
@@ -838,6 +838,65 @@ pub fn install_companion_mod(data_dir: &Path, instance_name: &str, version: &str
             "Kollegen-Client-Mod in Instanz '{}' (MC {}) ist unverändert (mtime/Cache geschont).",
             instance_name, version
         );
+    }
+
+    install_e4mc_if_needed(&mods_dir, version);
+}
+
+fn install_e4mc_if_needed(mods_dir: &Path, version: &str) {
+    if let Ok(entries) = std::fs::read_dir(mods_dir) {
+        for e in entries.flatten() {
+            let name = e.file_name().to_string_lossy().to_lowercase();
+            if name.starts_with("krypton-") && name.ends_with(".jar") {
+                let _ = std::fs::remove_file(e.path());
+            }
+        }
+    }
+
+    let jar_name = if version.starts_with("26.") {
+        "e4mc-fabric-6.2.3-modern.jar"
+    } else {
+        "e4mc-fabric-6.2.3.jar"
+    };
+    let stale_name = if version.starts_with("26.") {
+        "e4mc-fabric-6.2.3.jar"
+    } else {
+        "e4mc-fabric-6.2.3-modern.jar"
+    };
+    let stale = mods_dir.join(stale_name);
+    if stale.is_file() {
+        let _ = std::fs::remove_file(&stale);
+    }
+    let target = mods_dir.join(jar_name);
+    if target.is_file() {
+        return;
+    }
+    let mut candidate_src = None;
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(dir) = exe.parent() {
+            for cand in [
+                dir.join("resources").join(jar_name),
+                dir.join(jar_name),
+                dir.join("../Resources").join(jar_name),
+                dir.join("../lib/Kollegen Client/resources").join(jar_name),
+                dir.join("../lib/kollegen-client/resources").join(jar_name),
+            ] {
+                if cand.is_file() {
+                    candidate_src = Some(cand);
+                    break;
+                }
+            }
+        }
+    }
+    if candidate_src.is_none() {
+        let manifest = Path::new(env!("CARGO_MANIFEST_DIR"));
+        let cand = manifest.join("resources").join(jar_name);
+        if cand.is_file() {
+            candidate_src = Some(cand);
+        }
+    }
+    if let Some(src) = candidate_src {
+        let _ = std::fs::copy(&src, &target);
     }
 }
 

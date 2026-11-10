@@ -24,6 +24,7 @@ public final class SkinCapeTextureManager {
     public static final Map<String, int[]> DIMS = new ConcurrentHashMap<>();
     private static final Set<String> PENDING = ConcurrentHashMap.newKeySet();
     private static final Map<Identifier, DynamicTexture> PENDING_REGISTRATIONS = new ConcurrentHashMap<>();
+    private static final Map<String, String> STATIC_RAW = new ConcurrentHashMap<>();
 
     public static void ensureRegistered(Identifier id) {
         if (id == null) return;
@@ -37,112 +38,49 @@ public final class SkinCapeTextureManager {
     }
 
     public static final class AnimatedCape {
-        public final java.util.List<Identifier> frames;
+        public final String safeId;
+        public final java.util.List<String> rawFrames;
+        public final java.util.Map<Integer, Identifier> frameTextures = new ConcurrentHashMap<>();
         public final int fps;
 
-        public AnimatedCape(java.util.List<Identifier> frames, int fps) {
-            this.frames = frames;
+        public AnimatedCape(String safeId, java.util.List<String> rawFrames, int fps) {
+            this.safeId = safeId;
+            this.rawFrames = rawFrames != null ? rawFrames : java.util.Collections.emptyList();
             this.fps = Math.max(1, fps);
         }
 
         public Identifier getCurrentFrame() {
-            if (frames.isEmpty()) return null;
-            Identifier id;
-            if (frames.size() == 1) {
-                id = frames.get(0);
-            } else {
+            if (rawFrames.isEmpty()) return null;
+            int size = rawFrames.size();
+            int idx = 0;
+            if (size > 1) {
                 long now = System.currentTimeMillis();
                 long frameMs = 1000L / fps;
-                int idx = (int) ((now / frameMs) % frames.size());
-                id = frames.get(idx);
+                idx = (int) ((now / frameMs) % size);
             }
-            ensureRegistered(id);
+            Identifier id = frameTextures.get(idx);
+            if (id != null) {
+                ensureRegistered(id);
+                return id;
+            }
+            String raw = rawFrames.get(idx);
+            id = createAndRegisterDynamicTexture("cape_" + safeId + "_f" + idx, "kollegen:cape_" + safeId + "_f" + idx, raw);
+            if (id != null) {
+                frameTextures.put(idx, id);
+                CACHE.put("cape_" + safeId + "_f" + idx, id);
+                if (idx == 0) {
+                    CACHE.put("cape_" + safeId, id);
+                    CACHE.put(safeId, id);
+                }
+            }
             return id;
         }
     }
 
     private static final Map<String, AnimatedCape> ANIMATED_CAPES = new ConcurrentHashMap<>();
 
-    public static void registerAnimatedCape(String capeId, java.util.List<String> frameDataUrls, int fps) {
-        if (capeId == null || capeId.isEmpty() || frameDataUrls == null || frameDataUrls.isEmpty()) return;
-        String safeId = capeId.toLowerCase(java.util.Locale.ROOT).replaceAll("[^a-z0-9_.-]", "_");
-        if (ANIMATED_CAPES.containsKey(safeId)) {
-            return;
-        }
-        java.util.List<Identifier> ids = new java.util.ArrayList<>();
-        Minecraft mc = Minecraft.getInstance();
-
-        for (int i = 0; i < frameDataUrls.size(); i++) {
-            String raw = frameDataUrls.get(i);
-            String frameKey = "cape_" + safeId + "_f" + i;
-            Identifier existing = CACHE.get(frameKey);
-            if (existing != null) {
-                ids.add(existing);
-                continue;
-            }
-
-            try {
-                byte[] bytes = null;
-                if (raw != null && raw.startsWith("data:image/")) {
-                    int comma = raw.indexOf(',');
-                    if (comma > 0) {
-                        bytes = Base64.getDecoder().decode(raw.substring(comma + 1));
-                    }
-                } else if (raw != null && !raw.isEmpty()) {
-                    Path p = Path.of(raw);
-                    if (Files.exists(p)) bytes = Files.readAllBytes(p);
-                }
-
-                if (bytes != null && bytes.length > 0) {
-                    NativeImage img = NativeImage.read(bytes);
-                    int[] dims = new int[]{img.getWidth(), img.getHeight()};
-                    DIMS.put(frameKey, dims);
-                    DIMS.put("cape_" + safeId, dims);
-                    int frameIndex = i;
-                    Identifier id = Identifier.tryParse("kollegen:cape_" + safeId + "_f" + frameIndex);
-                    DynamicTexture tex = new DynamicTexture(() -> "cape_" + safeId + "_f" + frameIndex, img);
-                    PENDING_REGISTRATIONS.put(id, tex);
-                    if (mc != null) {
-                        mc.execute(() -> {
-                            if (mc.getTextureManager() != null) {
-                                DynamicTexture t = PENDING_REGISTRATIONS.remove(id);
-                                if (t != null) {
-                                    mc.getTextureManager().register(id, t);
-                                }
-                            }
-                        });
-                    }
-                    CACHE.put(frameKey, id);
-                    ids.add(id);
-                }
-            } catch (Throwable ignored) {
-            }
-        }
-
-        if (!ids.isEmpty()) {
-            AnimatedCape anim = new AnimatedCape(ids, fps);
-            ANIMATED_CAPES.put(safeId, anim);
-            ANIMATED_CAPES.put(capeId, anim);
-            CACHE.put("cape_" + safeId, ids.get(0));
-            CACHE.put("cape_" + capeId, ids.get(0));
-            CACHE.put(safeId, ids.get(0));
-            CACHE.put(capeId, ids.get(0));
-        }
-    }
-
-    public static Identifier registerStaticCape(String capeId, String rawData) {
-        if (capeId == null || capeId.isEmpty() || "none".equalsIgnoreCase(capeId) || rawData == null || rawData.isEmpty()) {
-            return null;
-        }
-        String safeId = capeId.toLowerCase(java.util.Locale.ROOT).replaceAll("[^a-z0-9_.-]", "_");
-        Identifier existing = CACHE.get("cape_" + safeId);
-        if (existing == null) existing = CACHE.get("cape_" + capeId);
-        if (existing == null) existing = CACHE.get(safeId);
-        if (existing == null) existing = CACHE.get(capeId);
-        if (existing != null) {
-            ensureRegistered(existing);
-            return existing;
-        }
+    public static Identifier createAndRegisterDynamicTexture(String label, String idStr, String rawData) {
+        if (rawData == null || rawData.isEmpty()) return null;
         try {
             byte[] bytes = null;
             if (rawData.startsWith("data:image/")) {
@@ -159,29 +97,72 @@ public final class SkinCapeTextureManager {
             if (bytes != null && bytes.length > 0) {
                 NativeImage img = NativeImage.read(bytes);
                 int[] dims = new int[]{img.getWidth(), img.getHeight()};
-                DIMS.put("cape_" + safeId, dims);
-                DIMS.put("cape_" + capeId, dims);
-                Identifier id = Identifier.tryParse("kollegen:cape_" + safeId);
-                DynamicTexture tex = new DynamicTexture(() -> "cape_" + safeId, img);
+                DIMS.put(label, dims);
+                DIMS.put(idStr, dims);
+                String safeKey = label.startsWith("cape_") ? label.substring(5) : label;
+                DIMS.put("cape_" + safeKey, dims);
+                DIMS.put(safeKey, dims);
+                if (safeKey.contains("_f")) {
+                    String baseKey = safeKey.substring(0, safeKey.lastIndexOf("_f"));
+                    DIMS.put(baseKey, dims);
+                    DIMS.put("cape_" + baseKey, dims);
+                }
+                Identifier id = Identifier.tryParse(idStr);
+                if (id == null) return null;
+                DynamicTexture tex = new DynamicTexture(() -> label, img);
                 PENDING_REGISTRATIONS.put(id, tex);
                 Minecraft mc = Minecraft.getInstance();
-                if (mc != null) {
-                    mc.execute(() -> {
-                        if (mc.getTextureManager() != null) {
-                            DynamicTexture t = PENDING_REGISTRATIONS.remove(id);
-                            if (t != null) {
-                                mc.getTextureManager().register(id, t);
-                            }
-                        }
-                    });
+                if (mc != null && mc.getTextureManager() != null) {
+                    mc.getTextureManager().register(id, tex);
+                    PENDING_REGISTRATIONS.remove(id);
                 }
-                CACHE.put("cape_" + safeId, id);
-                CACHE.put("cape_" + capeId, id);
-                CACHE.put(safeId, id);
-                CACHE.put(capeId, id);
                 return id;
             }
         } catch (Throwable ignored) {
+        }
+        return null;
+    }
+
+    public static void registerAnimatedCape(String capeId, java.util.List<String> frameDataUrls, int fps) {
+        if (capeId == null || capeId.isEmpty() || frameDataUrls == null || frameDataUrls.isEmpty()) return;
+        String safeId = capeId.toLowerCase(java.util.Locale.ROOT).replaceAll("[^a-z0-9_.-]", "_");
+        AnimatedCape anim = new AnimatedCape(safeId, frameDataUrls, fps);
+        ANIMATED_CAPES.put(safeId, anim);
+        ANIMATED_CAPES.put(capeId, anim);
+        if (frameDataUrls.size() > 0) {
+            try {
+                String first = frameDataUrls.get(0);
+                if (first.startsWith("data:image/")) {
+                    int comma = first.indexOf(',');
+                    if (comma > 0) {
+                        byte[] b = Base64.getDecoder().decode(first.substring(comma + 1));
+                        NativeImage img = NativeImage.read(b);
+                        int[] dims = new int[]{img.getWidth(), img.getHeight()};
+                        DIMS.put(safeId, dims);
+                        DIMS.put("cape_" + safeId, dims);
+                        DIMS.put(capeId, dims);
+                        DIMS.put("cape_" + capeId, dims);
+                    }
+                }
+            } catch (Throwable ignored) {
+            }
+        }
+    }
+
+    public static Identifier registerStaticCape(String capeId, String rawData) {
+        if (capeId == null || capeId.isEmpty() || "none".equalsIgnoreCase(capeId) || rawData == null || rawData.isEmpty()) {
+            return null;
+        }
+        String safeId = capeId.toLowerCase(java.util.Locale.ROOT).replaceAll("[^a-z0-9_.-]", "_");
+        STATIC_RAW.put(safeId, rawData);
+        STATIC_RAW.put(capeId, rawData);
+        Identifier existing = CACHE.get("cape_" + safeId);
+        if (existing == null) existing = CACHE.get("cape_" + capeId);
+        if (existing == null) existing = CACHE.get(safeId);
+        if (existing == null) existing = CACHE.get(capeId);
+        if (existing != null) {
+            ensureRegistered(existing);
+            return existing;
         }
         return getOrLoadCape(capeId, rawData);
     }
@@ -194,7 +175,12 @@ public final class SkinCapeTextureManager {
 
     public static int[] getDimensions(String capeId) {
         if (capeId == null) return null;
-        return DIMS.get("cape_" + capeId);
+        String safeId = capeId.toLowerCase(java.util.Locale.ROOT).replaceAll("[^a-z0-9_.-]", "_");
+        int[] d = DIMS.get("cape_" + safeId);
+        if (d == null) d = DIMS.get("cape_" + capeId);
+        if (d == null) d = DIMS.get(safeId);
+        if (d == null) d = DIMS.get(capeId);
+        return d;
     }
 
     private SkinCapeTextureManager() {
@@ -270,76 +256,81 @@ public final class SkinCapeTextureManager {
             return hit;
         }
 
-        String key = "cape_" + capeId;
+        String actualRaw = (rawData != null && !rawData.isEmpty() && !rawData.equalsIgnoreCase(capeId) && !rawData.equalsIgnoreCase(safeId)) ? rawData : STATIC_RAW.get(safeId);
+        if (actualRaw == null) actualRaw = STATIC_RAW.get(capeId);
 
-        try {
-            byte[] bytes = null;
-            if (rawData != null && rawData.startsWith("data:image/")) {
-                int comma = rawData.indexOf(',');
-                if (comma > 0) {
-                    bytes = Base64.getDecoder().decode(rawData.substring(comma + 1));
-                }
-            } else if (rawData != null && !rawData.isEmpty() && !rawData.startsWith("http") && !rawData.startsWith("kollegen:")) {
-                Path p = Path.of(rawData);
-                if (Files.exists(p)) {
-                    bytes = Files.readAllBytes(p);
-                }
-            }
-            if (bytes != null && bytes.length > 0) {
-                NativeImage img = NativeImage.read(bytes);
-                DIMS.put(key, new int[]{img.getWidth(), img.getHeight()});
-                Identifier id = Identifier.tryParse("kollegen:cape_" + safeId);
-                DynamicTexture tex = new DynamicTexture(() -> "cape_" + capeId, img);
-                PENDING_REGISTRATIONS.put(id, tex);
-                Minecraft mc = Minecraft.getInstance();
-                if (mc != null && mc.getTextureManager() != null) {
-                    mc.getTextureManager().register(id, tex);
-                    PENDING_REGISTRATIONS.remove(id);
-                }
-                CACHE.put(key, id);
+        if (actualRaw != null && (actualRaw.startsWith("data:image/") || (!actualRaw.startsWith("http") && !actualRaw.startsWith("kollegen:")))) {
+            Identifier id = createAndRegisterDynamicTexture("cape_" + safeId, "kollegen:cape_" + safeId, actualRaw);
+            if (id != null) {
                 CACHE.put("cape_" + safeId, id);
+                CACHE.put("cape_" + capeId, id);
                 CACHE.put(safeId, id);
                 CACHE.put(capeId, id);
                 return id;
             }
-        } catch (Throwable ignored) {
         }
 
-        if (rawData != null && (rawData.startsWith("http://") || rawData.startsWith("https://"))) {
+        if (actualRaw != null && (actualRaw.startsWith("http://") || actualRaw.startsWith("https://"))) {
+            String key = "cape_" + safeId;
             String home = System.getProperty("user.home", "");
             Path cacheDir = Path.of(home, ".local", "share", "kollegenclient", "capes", "cache");
-            Path cachedFile = cacheDir.resolve(safeId + ".png");
+            Path targetFile = cacheDir.resolve(safeId + ".png");
+            if (!Files.exists(targetFile)) {
+                String altName = safeId.startsWith("vanilla_") ? safeId.substring(8) + ".png" : safeId + ".png";
+                if (Files.exists(cacheDir.resolve(altName))) {
+                    targetFile = cacheDir.resolve(altName);
+                }
+            }
+            final Path cachedFile = targetFile;
             if (Files.exists(cachedFile)) {
                 try {
                     byte[] bytes = Files.readAllBytes(cachedFile);
                     NativeImage img = NativeImage.read(bytes);
-                    DIMS.put(key, new int[]{img.getWidth(), img.getHeight()});
+                    int[] dims = new int[]{img.getWidth(), img.getHeight()};
+                    DIMS.put(key, dims);
+                    DIMS.put(safeId, dims);
+                    DIMS.put(capeId, dims);
                     Identifier id = Identifier.tryParse("kollegen:cape_" + safeId);
                     DynamicTexture tex = new DynamicTexture(() -> "cape_" + capeId, img);
-                    Minecraft.getInstance().getTextureManager().register(id, tex);
+                    Minecraft mc = Minecraft.getInstance();
+                    if (mc != null && mc.getTextureManager() != null) {
+                        mc.getTextureManager().register(id, tex);
+                    }
                     CACHE.put(key, id);
+                    CACHE.put(safeId, id);
+                    CACHE.put(capeId, id);
                     return id;
                 } catch (Throwable ignored) {
                 }
             } else if (PENDING.add(key)) {
+                final String downloadUrl = actualRaw;
                 Thread t = new Thread(() -> {
                     try {
                         Files.createDirectories(cacheDir);
                         HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(6)).build();
-                        HttpRequest req = HttpRequest.newBuilder(URI.create(rawData)).timeout(Duration.ofSeconds(10)).GET().build();
+                        HttpRequest req = HttpRequest.newBuilder(URI.create(downloadUrl)).timeout(Duration.ofSeconds(10)).GET().build();
                         HttpResponse<byte[]> res = client.send(req, HttpResponse.BodyHandlers.ofByteArray());
                         if (res.statusCode() >= 200 && res.statusCode() < 300 && res.body() != null && res.body().length > 0) {
                             Files.write(cachedFile, res.body());
-                            Minecraft.getInstance().execute(() -> {
-                                try {
-                                    NativeImage img = NativeImage.read(res.body());
-                                    DIMS.put(key, new int[]{img.getWidth(), img.getHeight()});
-                                    Identifier id = Identifier.tryParse("kollegen:cape_" + safeId);
-                                    DynamicTexture tex = new DynamicTexture(() -> "cape_" + capeId, img);
-                                    Minecraft.getInstance().getTextureManager().register(id, tex);
-                                    CACHE.put(key, id);
-                                } catch (Throwable ignored) {}
-                            });
+                            Minecraft mc = Minecraft.getInstance();
+                            if (mc != null) {
+                                mc.execute(() -> {
+                                    try {
+                                        NativeImage img = NativeImage.read(res.body());
+                                        DIMS.put(key, new int[]{img.getWidth(), img.getHeight()});
+                                        DIMS.put(safeId, new int[]{img.getWidth(), img.getHeight()});
+                                        DIMS.put(capeId, new int[]{img.getWidth(), img.getHeight()});
+                                        Identifier id = Identifier.tryParse("kollegen:cape_" + safeId);
+                                        DynamicTexture tex = new DynamicTexture(() -> "cape_" + capeId, img);
+                                        if (mc.getTextureManager() != null) {
+                                            mc.getTextureManager().register(id, tex);
+                                        }
+                                        CACHE.put(key, id);
+                                        CACHE.put(safeId, id);
+                                        CACHE.put(capeId, id);
+                                    } catch (Throwable ignored) {}
+                                });
+                            }
                         }
                     } catch (Throwable ignored) {
                     } finally {
@@ -395,19 +386,25 @@ public final class SkinCapeTextureManager {
                     if (in != null) {
                         try (InputStream is = in) {
                             NativeImage img = NativeImage.read(is);
-                            DIMS.put(key, new int[]{img.getWidth(), img.getHeight()});
+                            DIMS.put("cape_" + safeId, new int[]{img.getWidth(), img.getHeight()});
+                            DIMS.put(safeId, new int[]{img.getWidth(), img.getHeight()});
+                            DIMS.put(capeId, new int[]{img.getWidth(), img.getHeight()});
                             Identifier dynId = Identifier.tryParse("kollegen:cape_asset_" + safeId);
                             DynamicTexture tex = new DynamicTexture(() -> "cape_asset_" + capeId, img);
                             if (mc != null && mc.getTextureManager() != null) {
                                 mc.getTextureManager().register(dynId, tex);
                             }
-                            CACHE.put(key, dynId);
+                            CACHE.put("cape_" + safeId, dynId);
+                            CACHE.put(safeId, dynId);
+                            CACHE.put(capeId, dynId);
                             return dynId;
                         }
                     }
                 } catch (Throwable ignored) {
                 }
-                CACHE.put(key, resId);
+                CACHE.put("cape_" + safeId, resId);
+                CACHE.put(safeId, resId);
+                CACHE.put(capeId, resId);
                 return resId;
             }
         }

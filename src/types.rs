@@ -31,6 +31,7 @@ pub struct Instance {
     pub loader_version: Option<String>,
     pub description: String,
     pub mods: Vec<String>,
+    #[serde(default = "default_true")]
     pub vulkan_enabled: bool,
     pub memory_min: String,
     pub memory_max: String,

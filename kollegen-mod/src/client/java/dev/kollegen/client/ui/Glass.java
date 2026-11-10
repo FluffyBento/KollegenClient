@@ -296,6 +296,10 @@ public final class Glass {
         if ((top >>> 24) == 0 && (bottom >>> 24) == 0) {
             return;
         }
+        if (UiStyleManager.isMinecraftStyle()) {
+            g.fill((int) x, (int) y, (int) (x + w), (int) (y + h), top);
+            return;
+        }
         primCount++;
         float k = k();
         int X0 = P(x, k);
@@ -316,6 +320,17 @@ public final class Glass {
         if (w <= 0 || h <= 0 || (color >>> 24) == 0) {
             return;
         }
+        if (UiStyleManager.isMinecraftStyle()) {
+            int ix = (int) x;
+            int iy = (int) y;
+            int iw = (int) w;
+            int ih = (int) h;
+            g.fill(ix, iy, ix + iw, iy + 1, color);
+            g.fill(ix, iy + ih - 1, ix + iw, iy + ih, color);
+            g.fill(ix, iy, ix + 1, iy + ih, color);
+            g.fill(ix + iw - 1, iy, ix + iw, iy + ih, color);
+            return;
+        }
         primCount++;
         float k = k();
         int X0 = P(x, k);
@@ -332,6 +347,9 @@ public final class Glass {
     }
 
     public static void shadowSoft(GuiGraphicsExtractor g, float x, float y, float w, float h, float r, float spread, float dy, int color) {
+        if (UiStyleManager.isMinecraftStyle()) {
+            return;
+        }
         color = fa(color);
         if ((color >>> 24) == 0) {
             return;
@@ -408,6 +426,11 @@ public final class Glass {
         if ((color >>> 24) == 0 || rad <= 0.0f) {
             return;
         }
+        if (UiStyleManager.isMinecraftStyle()) {
+            int r = Math.max(1, (int) rad);
+            g.fill((int) (cx - r), (int) (cy - r), (int) (cx + r), (int) (cy + r), color);
+            return;
+        }
         primCount++;
         float k = k();
         int R = Math.max(1, Math.round(rad * k));
@@ -431,6 +454,23 @@ public final class Glass {
     }
 
     public static void glassCard(GuiGraphicsExtractor g, float x, float y, float w, float h, float r, int tint, float op, float shadow, int ringCol) {
+        if (UiStyleManager.isMinecraftStyle()) {
+            int ix = (int) x;
+            int iy = (int) y;
+            int iw = (int) w;
+            int ih = (int) h;
+            int base = (tint >>> 24) == 0 ? 0xFF141414 : tint;
+            g.fill(ix, iy, ix + iw, iy + ih, base);
+            g.fill(ix, iy, ix + iw, iy + 1, 0xFF000000);
+            g.fill(ix, iy + ih - 1, ix + iw, iy + ih, 0xFF000000);
+            g.fill(ix, iy, ix + 1, iy + ih, 0xFF000000);
+            g.fill(ix + iw - 1, iy, ix + iw, iy + ih, 0xFF000000);
+            g.fill(ix + 1, iy + 1, ix + iw - 1, iy + 2, 0xFF353535);
+            g.fill(ix + 1, iy + 1, ix + 2, iy + ih - 1, 0xFF353535);
+            g.fill(ix + 1, iy + ih - 2, ix + iw - 1, iy + ih - 1, 0xFF181818);
+            g.fill(ix + iw - 2, iy + 1, ix + iw - 1, iy + ih - 1, 0xFF181818);
+            return;
+        }
         if (shadow > 0.0f) {
             shadowSoft(g, x, y, w, h, r, 10.0f, 3.0f, Palette.tint(0x000000, (int) (70 * shadow)));
         }
@@ -674,10 +714,18 @@ public final class Glass {
     }
 
     public static void scrollbarTrack(GuiGraphicsExtractor g, int x, int y, int w, int h, int r) {
+        if (UiStyleManager.isMinecraftStyle()) {
+            g.fill(x, y, x + w, y + h, 0xFF000000);
+            return;
+        }
         rr(g, x, y, w, h, r, 0x22FFFFFF);
     }
 
     public static void scrollbarThumb(GuiGraphicsExtractor g, int x, int y, int w, int h, int r, boolean hover) {
+        if (UiStyleManager.isMinecraftStyle()) {
+            drawMinecraftButton(g, x, y, w, h, hover ? 1.0f : 0.0f, false, false);
+            return;
+        }
         rr(g, x, y, w, h, r, hover ? a(Palette.ACCENT, 0.9f) : 0x66FFFFFF);
     }
 

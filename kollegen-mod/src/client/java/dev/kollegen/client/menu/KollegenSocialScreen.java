@@ -19,7 +19,9 @@ import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.client.multiplayer.PlayerInfo;
 import net.minecraft.network.chat.Component;
+import dev.kollegen.client.friend.FriendManager;
 
 import java.net.URI;
 import java.net.URLEncoder;
@@ -61,6 +63,9 @@ public class KollegenSocialScreen extends Screen {
     private boolean pollBusy = false;
     private long lastPoll = 0;
 
+    private String selectedInviteGameId = null;
+    private String selectedInviteGameTitle = null;
+
     private EditBox friendSearchInput = null;
 
     private final List<Entry> entries = new ArrayList<>();
@@ -90,13 +95,22 @@ public class KollegenSocialScreen extends Screen {
         final Runnable joinAct;
         final String joinServer;
         final Runnable removeAct;
+        final Runnable inviteAct;
+        final Runnable addFriendAct;
+        final Runnable playAct;
 
         Entry(String title, String sub, int color, Runnable act) {
-            this(title, sub, color, act, null, null, false, false, null, null, null, null, null);
+            this(title, sub, color, act, null, null, false, false, null, null, null, null, null, null, null, null);
         }
 
         Entry(String title, String sub, int color, Runnable act, String playerHead, UUID playerUuid, boolean online, boolean isFriendCard,
               Runnable partyAct, Runnable chatAct, Runnable joinAct, String joinServer, Runnable removeAct) {
+            this(title, sub, color, act, playerHead, playerUuid, online, isFriendCard, partyAct, chatAct, joinAct, joinServer, removeAct, null, null, null);
+        }
+
+        Entry(String title, String sub, int color, Runnable act, String playerHead, UUID playerUuid, boolean online, boolean isFriendCard,
+              Runnable partyAct, Runnable chatAct, Runnable joinAct, String joinServer, Runnable removeAct,
+              Runnable inviteAct, Runnable addFriendAct, Runnable playAct) {
             this.title = title;
             this.sub = sub;
             this.color = color;
@@ -110,6 +124,9 @@ public class KollegenSocialScreen extends Screen {
             this.joinAct = joinAct;
             this.joinServer = joinServer;
             this.removeAct = removeAct;
+            this.inviteAct = inviteAct;
+            this.addFriendAct = addFriendAct;
+            this.playAct = playAct;
         }
     }
 
@@ -169,7 +186,7 @@ public class KollegenSocialScreen extends Screen {
 
         boolean hidden = PrivacySettings.isHideServer();
         String privText = hidden ? "🔒 Server: Verborgen" : "👁 Server: Öffentlich";
-        GlassButton privBtn = new GlassButton(px + pw - 340, topY, 150, 24, Component.literal(privText), btn -> {
+        GlassButton privBtn = new GlassButton(px + pw - 414, topY, 140, 24, Component.literal(privText), btn -> {
             PrivacySettings.toggleHideServer();
             boolean nowHidden = PrivacySettings.isHideServer();
             btn.setMessage(Component.literal(nowHidden ? "🔒 Server: Verborgen" : "👁 Server: Öffentlich"));
@@ -177,23 +194,27 @@ public class KollegenSocialScreen extends Screen {
         });
         addRenderableWidget(privBtn);
 
-        GlassButton feedBtn = new GlassButton(px + pw - 278, topY, 88, 24, Component.literal("📸 Feed"), btn ->
+        GlassButton feedBtn = new GlassButton(px + pw - 268, topY, 70, 24, Component.literal("📸 Feed"), btn ->
                 Minecraft.getInstance().setScreenAndShow(new dev.kollegen.client.menu.KollegenFeedScreen(this)));
         addRenderableWidget(feedBtn);
 
-        GlassButton switcherBtn = new GlassButton(px + pw - 184, topY, 110, 24, Component.literal("🌐 Server wechseln"), btn ->
+        GlassButton switcherBtn = new GlassButton(px + pw - 192, topY, 120, 24, Component.literal("🌐 Server wechseln"), btn ->
                 Minecraft.getInstance().setScreenAndShow(new ServerSwitcherScreen(this)));
         addRenderableWidget(switcherBtn);
 
-        refreshBtn = new GlassButton(px + pw - 68, topY, 26, 24, Component.literal("⟳"), btn -> {
+        refreshBtn = new GlassButton(px + pw - 66, topY, 26, 24, Component.literal("⟳"), btn -> {
             status = "Aktualisiere…";
             loadAll();
         });
         addRenderableWidget(refreshBtn);
 
-        backBtn = new GlassButton(px + pw - 38, topY, 26, 24, Component.literal("✕"), btn -> {
+        backBtn = new GlassButton(px + pw - 34, topY, 26, 24, Component.literal("✕"), btn -> {
             if (inThread) {
                 inThread = false;
+                rebuildEntries();
+            } else if (selectedInviteGameId != null) {
+                selectedInviteGameId = null;
+                selectedInviteGameTitle = null;
                 rebuildEntries();
             } else {
                 Minecraft.getInstance().setScreenAndShow(parent);
@@ -271,9 +292,11 @@ public class KollegenSocialScreen extends Screen {
         for (int i = 0; i < TABS.length; i++) {
             int by = sidebarTop + i * (tabItemH + 4);
             if (mx >= px + 10 && mx <= px + SW - 10 && my >= by && my <= by + tabItemH) {
-                if (tab != i || inThread) {
+                if (tab != i || inThread || selectedInviteGameId != null) {
                     tab = i;
                     inThread = false;
+                    selectedInviteGameId = null;
+                    selectedInviteGameTitle = null;
                     scroll = 0;
                     buildWidgets();
                     rebuildEntries();
@@ -307,6 +330,12 @@ public class KollegenSocialScreen extends Screen {
         if (ki.key() == InputConstants.KEY_ESCAPE || ki.isEscape()) {
             if (inThread) {
                 inThread = false;
+                rebuildEntries();
+                return true;
+            }
+            if (selectedInviteGameId != null) {
+                selectedInviteGameId = null;
+                selectedInviteGameTitle = null;
                 rebuildEntries();
                 return true;
             }
@@ -425,63 +454,102 @@ public class KollegenSocialScreen extends Screen {
                     textStartX = ex + 48;
                 }
 
-                    g.text(this.font, e.title, textStartX, ey + 10, e.color, true);
-                    if (e.sub != null && !e.sub.isEmpty()) {
-                        int subCol = e.online ? (e.joinServer != null ? Palette.GREEN : Palette.ACCENT) : Palette.MUTED;
-                        g.text(this.font, trunc(e.sub, ew - 240), textStartX, ey + 25, subCol, false);
+                    int btnH = 24;
+                    int curBx = ex + ew - 8;
+
+                    if (e.removeAct != null) {
+                        int rwBtn = 22;
+                        curBx -= rwBtn;
+                        int rby = ey + (ROW_H - btnH) / 2;
+                        boolean rHov = mx >= curBx && mx <= curBx + rwBtn && my >= rby && my <= rby + btnH;
+                        Glass.fillRound(g, curBx, rby, rwBtn, btnH, 5, rHov ? Palette.DANGER : Palette.PANEL2);
+                        Glass.textC(g, this.font, "✕", curBx + rwBtn / 2, rby + 7, rHov ? 0xFFFFFFFF : Palette.MUTED, false);
+                        entryRects.add(new Rect(curBx, rby, rwBtn, btnH, e.removeAct));
+                        curBx -= 6;
                     }
 
-                    if (e.isFriendCard) {
-                        int btnH = 24;
-                        int curBx = ex + ew - 8;
+                    if (e.chatAct != null) {
+                        int cwBtn = 52;
+                        curBx -= cwBtn;
+                        int cby = ey + (ROW_H - btnH) / 2;
+                        boolean cHov = mx >= curBx && mx <= curBx + cwBtn && my >= cby && my <= cby + btnH;
+                        Glass.fillRound(g, curBx, cby, cwBtn, btnH, 6, cHov ? Palette.ACCENT : Palette.PANEL2);
+                        int tw = this.font.width("💬 Chat");
+                        g.text(this.font, "💬 Chat", curBx + (cwBtn - tw) / 2, cby + 7, cHov ? 0xFFFFFFFF : Palette.TEXT, false);
+                        entryRects.add(new Rect(curBx, cby, cwBtn, btnH, e.chatAct));
+                        curBx -= 6;
+                    }
 
-                        if (e.removeAct != null) {
-                            int rwBtn = 22;
-                            curBx -= rwBtn;
-                            int rby = ey + (ROW_H - btnH) / 2;
-                            boolean rHov = mx >= curBx && mx <= curBx + rwBtn && my >= rby && my <= rby + btnH;
-                            Glass.fillRound(g, curBx, rby, rwBtn, btnH, 5, rHov ? Palette.DANGER : Palette.PANEL2);
-                            Glass.textC(g, this.font, "✕", curBx + rwBtn / 2, rby + 7, rHov ? 0xFFFFFFFF : Palette.MUTED, false);
-                            entryRects.add(new Rect(curBx, rby, rwBtn, btnH, e.removeAct));
-                            curBx -= 6;
-                        }
+                    if (e.partyAct != null) {
+                        int pwBtn = 62;
+                        curBx -= pwBtn;
+                        int pby = ey + (ROW_H - btnH) / 2;
+                        boolean pHov = mx >= curBx && mx <= curBx + pwBtn && my >= pby && my <= pby + btnH;
+                        Glass.fillRound(g, curBx, pby, pwBtn, btnH, 6, pHov ? Palette.ACCENT2 : Palette.PANEL2);
+                        int tw = this.font.width("🎉 Party");
+                        g.text(this.font, "🎉 Party", curBx + (pwBtn - tw) / 2, pby + 7, pHov ? 0xFFFFFFFF : Palette.TEXT, false);
+                        entryRects.add(new Rect(curBx, pby, pwBtn, btnH, e.partyAct));
+                        curBx -= 6;
+                    }
 
-                        if (e.chatAct != null) {
-                            int cwBtn = 52;
-                            curBx -= cwBtn;
-                            int cby = ey + (ROW_H - btnH) / 2;
-                            boolean cHov = mx >= curBx && mx <= curBx + cwBtn && my >= cby && my <= cby + btnH;
-                            Glass.fillRound(g, curBx, cby, cwBtn, btnH, 6, cHov ? Palette.ACCENT : Palette.PANEL2);
-                            int tw = this.font.width("💬 Chat");
-                            g.text(this.font, "💬 Chat", curBx + (cwBtn - tw) / 2, cby + 7, cHov ? 0xFFFFFFFF : Palette.TEXT, false);
-                            entryRects.add(new Rect(curBx, cby, cwBtn, btnH, e.chatAct));
-                            curBx -= 6;
-                        }
+                    if (e.joinAct != null) {
+                        int jw = 82;
+                        curBx -= jw;
+                        int jby = ey + (ROW_H - btnH) / 2;
+                        boolean jHov = mx >= curBx && mx <= curBx + jw && my >= jby && my <= jby + btnH;
+                        Glass.fillRound(g, curBx, jby, jw, btnH, 6, jHov ? Palette.GREEN : Palette.ACCENT);
+                        if (jHov) Glass.ring(g, curBx, jby, jw, btnH, 6, 1.0f, 0xFFFFFFFF);
+                        int tw = this.font.width("🚀 Beitreten");
+                        g.text(this.font, "🚀 Beitreten", curBx + (jw - tw) / 2, jby + 7, 0xFFFFFFFF, true);
+                        entryRects.add(new Rect(curBx, jby, jw, btnH, e.joinAct));
+                        curBx -= 6;
+                    }
 
-                        if (e.partyAct != null) {
-                            int pwBtn = 62;
-                            curBx -= pwBtn;
-                            int pby = ey + (ROW_H - btnH) / 2;
-                            boolean pHov = mx >= curBx && mx <= curBx + pwBtn && my >= pby && my <= pby + btnH;
-                            Glass.fillRound(g, curBx, pby, pwBtn, btnH, 6, pHov ? Palette.ACCENT2 : Palette.PANEL2);
-                            int tw = this.font.width("🎉 Party");
-                            g.text(this.font, "🎉 Party", curBx + (pwBtn - tw) / 2, pby + 7, pHov ? 0xFFFFFFFF : Palette.TEXT, false);
-                            entryRects.add(new Rect(curBx, pby, pwBtn, btnH, e.partyAct));
-                            curBx -= 6;
-                        }
+                    if (e.addFriendAct != null) {
+                        int fwBtn = 74;
+                        curBx -= fwBtn;
+                        int fby = ey + (ROW_H - btnH) / 2;
+                        boolean fHov = mx >= curBx && mx <= curBx + fwBtn && my >= fby && my <= fby + btnH;
+                        Glass.fillRound(g, curBx, fby, fwBtn, btnH, 6, fHov ? Palette.ACCENT : Palette.PANEL2);
+                        int tw = this.font.width("+ Freund");
+                        g.text(this.font, "+ Freund", curBx + (fwBtn - tw) / 2, fby + 7, fHov ? 0xFFFFFFFF : Palette.TEXT, false);
+                        entryRects.add(new Rect(curBx, fby, fwBtn, btnH, e.addFriendAct));
+                        curBx -= 6;
+                    }
 
-                        if (e.joinAct != null) {
-                            int jw = 82;
-                            curBx -= jw;
-                            int jby = ey + (ROW_H - btnH) / 2;
-                            boolean jHov = mx >= curBx && mx <= curBx + jw && my >= jby && my <= jby + btnH;
-                            Glass.fillRound(g, curBx, jby, jw, btnH, 6, jHov ? Palette.GREEN : Palette.ACCENT);
-                            if (jHov) Glass.ring(g, curBx, jby, jw, btnH, 6, 1.0f, 0xFFFFFFFF);
-                            int tw = this.font.width("🚀 Beitreten");
-                            g.text(this.font, "🚀 Beitreten", curBx + (jw - tw) / 2, jby + 7, 0xFFFFFFFF, true);
-                            entryRects.add(new Rect(curBx, jby, jw, btnH, e.joinAct));
-                        }
-                    } else if (e.act != null) {
+                    if (e.inviteAct != null) {
+                        int iwBtn = 80;
+                        curBx -= iwBtn;
+                        int iby = ey + (ROW_H - btnH) / 2;
+                        boolean iHov = mx >= curBx && mx <= curBx + iwBtn && my >= iby && my <= iby + btnH;
+                        Glass.fillRound(g, curBx, iby, iwBtn, btnH, 6, iHov ? Palette.ACCENT2 : Palette.PANEL2);
+                        int tw = this.font.width("✉ Einladen");
+                        g.text(this.font, "✉ Einladen", curBx + (iwBtn - tw) / 2, iby + 7, iHov ? 0xFFFFFFFF : Palette.TEXT, false);
+                        entryRects.add(new Rect(curBx, iby, iwBtn, btnH, e.inviteAct));
+                        curBx -= 6;
+                    }
+
+                    if (e.playAct != null) {
+                        int pwBtn = 76;
+                        curBx -= pwBtn;
+                        int pby = ey + (ROW_H - btnH) / 2;
+                        boolean pHov = mx >= curBx && mx <= curBx + pwBtn && my >= pby && my <= pby + btnH;
+                        Glass.fillRound(g, curBx, pby, pwBtn, btnH, 6, pHov ? Palette.GREEN : Palette.PANEL2);
+                        if (pHov) Glass.ring(g, curBx, pby, pwBtn, btnH, 6, 1.0f, 0xFFFFFFFF);
+                        int tw = this.font.width("▶ Spielen");
+                        g.text(this.font, "▶ Spielen", curBx + (pwBtn - tw) / 2, pby + 7, pHov ? 0xFFFFFFFF : Palette.TEXT, false);
+                        entryRects.add(new Rect(curBx, pby, pwBtn, btnH, e.playAct));
+                        curBx -= 6;
+                    }
+
+                    int availTextW = Math.max(60, curBx - textStartX - 8);
+                    g.text(this.font, trunc(e.title, availTextW), textStartX, ey + 10, e.color, true);
+                    if (e.sub != null && !e.sub.isEmpty()) {
+                        int subCol = e.online ? (e.joinServer != null ? Palette.GREEN : Palette.ACCENT) : Palette.MUTED;
+                        g.text(this.font, trunc(e.sub, availTextW), textStartX, ey + 25, subCol, false);
+                    }
+
+                    if (curBx == ex + ew - 8 && e.act != null) {
                         entryRects.add(new Rect(ex, ey, ew, ROW_H, e.act));
                     }
             }
@@ -502,7 +570,7 @@ public class KollegenSocialScreen extends Screen {
         super.extractRenderState(g, mx, my, pt);
     }
 
-    private void rebuildEntries() {
+    public void rebuildEntries() {
         entries.clear();
         if (inThread) {
             loadThread();
@@ -520,18 +588,101 @@ public class KollegenSocialScreen extends Screen {
     }
 
     private void rebuildGames() {
-        String[] titles = { "BedWars", "SkyWars", "Duels", "Build Battle", "Murder Mystery" };
-        String[] descs = {
-                "Zerstöre das gegnerische Bett & besiege deine Kontrahenten",
-                "Schneller Kampf auf schwebenden Inseln im Himmel",
-                "1v1 & 2v2 PvP-Duelle mit verschiedenen Kits",
-                "Zeige dein Können beim kreativen Bauen nach Vorgabe",
-                "Finde den Mörder oder eliminiere alle unauffällig"
-        };
-        for (int i = 0; i < titles.length; i++) {
-            String title = titles[i];
-            entries.add(new Entry("🎮 " + title, descs[i], Palette.TEXT, () ->
-                    Minecraft.getInstance().setScreenAndShow(new ServerSwitcherScreen(this))));
+        if (selectedInviteGameId != null) {
+            rebuildGameInviteView();
+            return;
+        }
+
+        entries.add(new Entry("♟ Schach", "Klassisches Schachspiel – Alleine gegen KI oder zu zweit online", Palette.TEXT, null, null, null, true, false, null, null, null, null, null,
+                () -> { selectedInviteGameId = "chess"; selectedInviteGameTitle = "Schach"; rebuildEntries(); },
+                null,
+                () -> mc().setScreenAndShow(new dev.kollegen.client.game.ChessScreen(this))));
+
+        entries.add(new Entry("🔴 Vier Gewinnt", "Verbinde 4 Steine in einer Reihe – Gegen KI oder Freunde", Palette.TEXT, null, null, null, true, false, null, null, null, null, null,
+                () -> { selectedInviteGameId = "c4"; selectedInviteGameTitle = "Vier Gewinnt"; rebuildEntries(); },
+                null,
+                () -> mc().setScreenAndShow(new dev.kollegen.client.game.Connect4Screen(this))));
+
+        entries.add(new Entry("🎲 Mensch ärgere Dich nicht", "Brettspiel-Klassiker für bis zu 4 Spieler online", Palette.TEXT, null, null, null, true, false, null, null, null, null, null,
+                () -> { selectedInviteGameId = "madt"; selectedInviteGameTitle = "Mensch ärgere Dich nicht"; rebuildEntries(); },
+                null,
+                () -> mc().setScreenAndShow(new dev.kollegen.client.game.MenschAergereDichNichtScreen(this))));
+
+        entries.add(new Entry("❌ Tic-Tac-Toe", "Schnelles 3x3 Duell gegen KI oder Kollegen", Palette.TEXT, null, null, null, true, false, null, null, null, null, null,
+                () -> { selectedInviteGameId = "tictactoe"; selectedInviteGameTitle = "Tic-Tac-Toe"; rebuildEntries(); },
+                null,
+                () -> mc().setScreenAndShow(new dev.kollegen.client.game.TicTacToeScreen(this))));
+
+        entries.add(new Entry("🐍 Snake", "Retro Arcade Klassiker – Fange Äpfel und jage den Highscore", Palette.TEXT, null, null, null, true, false, null, null, null, null, null,
+                null,
+                null,
+                () -> mc().setScreenAndShow(new dev.kollegen.client.game.SnakeScreen(this))));
+
+        entries.add(new Entry("🧱 Tetris", "Retro Block-Stapler Arcade Klassiker", Palette.TEXT, null, null, null, true, false, null, null, null, null, null,
+                null,
+                null,
+                () -> mc().setScreenAndShow(new dev.kollegen.client.menu.TetrisScreen(this))));
+    }
+
+    private void rebuildGameInviteView() {
+        entries.add(new Entry("← Zurück zur Spieleauswahl", "Klicke hier, um alle Minispiele anzuzeigen", Palette.ACCENT, () -> {
+            selectedInviteGameId = null;
+            selectedInviteGameTitle = null;
+            rebuildEntries();
+        }));
+
+        entries.add(new Entry("✉ Spieler zu " + selectedInviteGameTitle + " einladen", "Wähle einen Freund oder Spieler auf dem Server aus:", Palette.MUTED, null));
+
+        JsonArray list = arr(state.get("friends"));
+        List<String> added = new ArrayList<>();
+        for (int i = 0; i < list.size(); i++) {
+            JsonObject f = list.get(i).getAsJsonObject();
+            String name = str(f, "name");
+            if (name.isEmpty()) name = str(f, "mc_name");
+            if (name.isEmpty()) continue;
+            boolean online = f.has("online") && f.get("online").getAsBoolean();
+            String uuidStr = str(f, "uuid");
+            UUID friendUuid = null;
+            if (!uuidStr.isEmpty()) {
+                try {
+                    String formatted = uuidStr.contains("-") ? uuidStr : uuidStr.replaceFirst("(\\p{XDigit}{8})(\\p{XDigit}{4})(\\p{XDigit}{4})(\\p{XDigit}{4})(\\p{XDigit}+)", "$1-$2-$3-$4-$5");
+                    friendUuid = UUID.fromString(formatted);
+                } catch (Throwable ignored) {
+                }
+            }
+            final String fName = name;
+            final UUID fUuid = friendUuid;
+            added.add(name.toLowerCase());
+            entries.add(new Entry(name, online ? "● Freund (Online)" : "○ Freund (Offline)", online ? Palette.TEXT : Palette.MUTED, null, name, friendUuid, online, false,
+                    null, null, null, null, null,
+                    () -> sendGameInvite(selectedInviteGameId, selectedInviteGameTitle, fName, fUuid),
+                    null, null));
+        }
+
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.getConnection() != null) {
+            List<PlayerInfo> others = new ArrayList<>();
+            for (PlayerInfo pi : mc.getConnection().getOnlinePlayers()) {
+                if (pi.getProfile() == null) continue;
+                String pName = pi.getProfile().name();
+                if (pName.equalsIgnoreCase(myName) || (mc.player != null && pName.equalsIgnoreCase(mc.player.getGameProfile().name()))) continue;
+                if (added.contains(pName.toLowerCase())) continue;
+                UUID pUuid = pi.getProfile().id();
+                if (!dev.kollegen.client.presence.KollegenPresence.isKollegen(pUuid, pName)) continue;
+                others.add(pi);
+            }
+            if (!others.isEmpty()) {
+                entries.add(new Entry("🌐 Spieler auf diesem Server (" + others.size() + ")", "Lade Spieler direkt vom aktuellen Server ein:", Palette.ACCENT, null));
+                for (PlayerInfo pi : others) {
+                    String pName = pi.getProfile().name();
+                    UUID pUuid = pi.getProfile().id();
+                    Runnable invAct = () -> sendGameInvite(selectedInviteGameId, selectedInviteGameTitle, pName, pUuid);
+                    Runnable addAct = () -> sendFriendRequestInGame(pName, pUuid);
+                    entries.add(new Entry(pName, "● Auf aktuellem Server", Palette.TEXT, null, pName, pUuid, true, false,
+                            null, null, null, null, null,
+                            invAct, addAct, null));
+                }
+            }
         }
     }
 
@@ -624,6 +775,38 @@ public class KollegenSocialScreen extends Screen {
                     chatAction.run();
                 }
             }, friendName, friendUuid, online, true, partyAction, chatAction, joinAction, hasJoinableServer ? friendServer : null, removeAction));
+        }
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.getConnection() != null) {
+            List<PlayerInfo> others = new ArrayList<>();
+            for (PlayerInfo pi : mc.getConnection().getOnlinePlayers()) {
+                if (pi.getProfile() == null) continue;
+                String pName = pi.getProfile().name();
+                if (pName.equalsIgnoreCase(myName) || (mc.player != null && pName.equalsIgnoreCase(mc.player.getGameProfile().name()))) continue;
+                if (FriendManager.isFriend(pName)) continue;
+                UUID pUuid = pi.getProfile().id();
+                if (!dev.kollegen.client.presence.KollegenPresence.isKollegen(pUuid, pName)) continue;
+                boolean alreadyListed = false;
+                for (Entry ex : entries) {
+                    if (pName.equalsIgnoreCase(ex.title)) {
+                        alreadyListed = true;
+                        break;
+                    }
+                }
+                if (!alreadyListed) others.add(pi);
+            }
+            if (!others.isEmpty()) {
+                entries.add(new Entry("🌐 Spieler auf diesem Server (" + others.size() + ")", "Klicke [+ Freund] für eine Freundschaftsanfrage", Palette.ACCENT, null));
+                for (PlayerInfo pi : others) {
+                    String pName = pi.getProfile().name();
+                    UUID pUuid = pi.getProfile().id();
+                    Runnable addAct = () -> sendFriendRequestInGame(pName, pUuid);
+                    Runnable partyAct = () -> PartyManager.invite(pName);
+                    entries.add(new Entry(pName, "● Auf aktuellem Server", Palette.TEXT, null, pName, pUuid, true, false,
+                            partyAct, null, null, null, null,
+                            null, addAct, null));
+                }
+            }
         }
         if (entries.isEmpty()) {
             if (!searchFilter.isEmpty()) {
@@ -888,6 +1071,7 @@ public class KollegenSocialScreen extends Screen {
     }
 
     private void loadAll() {
+        dev.kollegen.client.presence.KollegenPresence.refreshAsync();
         if (!authed) {
             status = "Nicht angemeldet (bitte im Launcher einloggen)";
             rebuildEntries();
@@ -987,6 +1171,67 @@ public class KollegenSocialScreen extends Screen {
 
     private Minecraft mc() {
         return Minecraft.getInstance();
+    }
+
+    private void sendGameInvite(String gameId, String gameTitle, String targetName, UUID targetUuid) {
+        Minecraft mc = Minecraft.getInstance();
+        String my = (mc.player != null && mc.player.getGameProfile() != null) ? mc.player.getGameProfile().name() : myName;
+        if (my == null || my.isEmpty()) my = "Ein Kollege";
+        if (mc.getConnection() != null) {
+            try {
+                mc.getConnection().sendChat("[KOLLEGEN_GAME_INV:" + gameId + ":" + gameTitle + ":" + my + "]");
+            } catch (Throwable ignored) {
+            }
+        }
+        sendDirectPayload(targetName, "[KOLLEGEN_GAME_INV:" + gameId + ":" + gameTitle + ":" + my + "]");
+        status = "✓ Einladung zu " + gameTitle + " an " + targetName + " gesendet!";
+        Screen gameScreen = switch (gameId.toLowerCase()) {
+            case "chess" -> new dev.kollegen.client.game.ChessScreen(this);
+            case "c4" -> new dev.kollegen.client.game.Connect4Screen(this);
+            case "madt" -> new dev.kollegen.client.game.MenschAergereDichNichtScreen(this);
+            case "tictactoe" -> new dev.kollegen.client.game.TicTacToeScreen(this);
+            default -> null;
+        };
+        if (gameScreen != null) {
+            mc.setScreenAndShow(gameScreen);
+        }
+    }
+
+    private void sendFriendRequestInGame(String targetName, UUID targetUuid) {
+        if (targetName == null || targetName.isEmpty()) return;
+        Minecraft mc = Minecraft.getInstance();
+        String my = (mc.player != null && mc.player.getGameProfile() != null) ? mc.player.getGameProfile().name() : myName;
+        if (my == null || my.isEmpty()) my = "Ein Kollege";
+        FriendManager.addFriendAsync(targetName, targetUuid != null ? targetUuid.toString() : null, ok -> {
+            status = ok ? "✓ Anfrage an " + targetName + " gesendet!" : "Anfrage gesendet.";
+            rebuildEntries();
+        });
+        if (mc.getConnection() != null) {
+            try {
+                mc.getConnection().sendChat("[KOLLEGEN_FRIEND_REQ:" + my + "]");
+            } catch (Throwable ignored) {
+            }
+        }
+        sendDirectPayload(targetName, "[KOLLEGEN_FRIEND_REQ:" + my + "]");
+    }
+
+    private void sendDirectPayload(String recipient, String message) {
+        if (backend.isEmpty() || session.isEmpty() || recipient == null || recipient.isEmpty()) return;
+        thread(() -> {
+            try {
+                JsonObject body = new JsonObject();
+                body.addProperty("recipient", recipient);
+                body.addProperty("content", message);
+                HttpRequest req = HttpRequest.newBuilder(URI.create(backend + "/internal/dm/send"))
+                        .timeout(Duration.ofSeconds(4))
+                        .header("Authorization", "Bearer " + session)
+                        .header("Content-Type", "application/json")
+                        .POST(HttpRequest.BodyPublishers.ofString(body.toString()))
+                        .build();
+                http.send(req, HttpResponse.BodyHandlers.discarding());
+            } catch (Throwable ignored) {
+            }
+        });
     }
 
     private void thread(Runnable r) {

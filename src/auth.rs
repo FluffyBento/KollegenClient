@@ -27,72 +27,47 @@ lazy_static! {
 
 pub fn get_auth_status() -> Value {
     let mut status = AUTH_STATUS.lock().unwrap();
-    if status["state"] == "idle" {
-        if let Ok(data_dir) = crate::utils::get_project_dirs() {
-            let path = crate::utils::accounts_file(&data_dir);
-            let accts = crate::utils::load_json::<Vec<Account>>(&path, vec![]);
-            if let Some(acc) = accts.first() {
-                let now = SystemTime::now()
-                    .duration_since(UNIX_EPOCH)
-                    .unwrap()
-                    .as_secs();
-                let expired = acc.expires_at.map(|e| now >= e).unwrap_or(true);
-                if !expired {
-                    *status = serde_json::json!({
-                        "state": "done",
-                        "user_code": "",
-                        "verification_uri": "",
-                        "msg": format!("Angemeldet als {}", acc.username),
-                        "username": acc.username,
-                        "uuid": acc.uuid,
+    let user_code = status.get("user_code").and_then(|v| v.as_str()).unwrap_or("");
+    if !user_code.is_empty() {
+        return status.clone();
+    }
+    if let Ok(data_dir) = crate::utils::get_project_dirs() {
+        let path = crate::utils::accounts_file(&data_dir);
+        let accts = crate::utils::load_json::<Vec<Account>>(&path, vec![]);
+        if let Some(acc) = accts.first() {
+            let now = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_secs();
+            let expired = acc.expires_at.map(|e| now >= e).unwrap_or(false);
+            if expired && acc.refresh_token.is_some() {
+                let mut refreshing = REFRESHING.lock().unwrap();
+                if !*refreshing {
+                    *refreshing = true;
+                    drop(refreshing);
+                    std::thread::spawn(|| {
+                        let _ = refresh_stored_account();
+                        *REFRESHING.lock().unwrap() = false;
                     });
-                } else if acc.refresh_token.is_some() {
-                    let mut refreshing = REFRESHING.lock().unwrap();
-                    if !*refreshing {
-                        *refreshing = true;
-                        drop(refreshing);
-                        *status = serde_json::json!({
-                            "state": "pending",
-                            "user_code": "",
-                            "verification_uri": "",
-                            "msg": "Session wird erneuert..."
-                        });
-                        drop(status);
-                        std::thread::spawn(|| {
-                            let res = refresh_stored_account();
-                            let mut s = AUTH_STATUS.lock().unwrap();
-                            match res {
-                                Ok(_) => {
-                                    if let Ok(dd) = crate::utils::get_project_dirs() {
-                                        let p = crate::utils::accounts_file(&dd);
-                                        let a = crate::utils::load_json::<Vec<Account>>(&p, vec![]);
-                                        if let Some(acc) = a.first() {
-                                            *s = serde_json::json!({
-                                                "state": "done",
-                                                "user_code": "",
-                                                "verification_uri": "",
-                                                "msg": format!("Angemeldet als {}", acc.username),
-                                                "username": acc.username,
-                                                "uuid": acc.uuid,
-                                            });
-                                        }
-                                    }
-                                }
-                                Err(e) => {
-                                    *s = serde_json::json!({
-                                        "state": "idle",
-                                        "user_code": "",
-                                        "verification_uri": "",
-                                        "msg": format!("Session abgelaufen, bitte erneut anmelden: {}", e)
-                                    });
-                                }
-                            }
-                            *REFRESHING.lock().unwrap() = false;
-                        });
-                        return AUTH_STATUS.lock().unwrap().clone();
-                    }
                 }
             }
+            *status = serde_json::json!({
+                "state": "done",
+                "user_code": "",
+                "verification_uri": "",
+                "msg": format!("Angemeldet als {}", acc.username),
+                "username": acc.username,
+                "uuid": acc.uuid,
+            });
+            return status.clone();
+        } else {
+            *status = serde_json::json!({
+                "state": "idle",
+                "user_code": "",
+                "verification_uri": "",
+                "msg": ""
+            });
+            return status.clone();
         }
     }
     status.clone()
@@ -420,6 +395,15 @@ pub fn switch_account(data_dir: &Path, uuid: &str) -> Result<()> {
         let acc = accts.remove(pos);
         accts.insert(0, acc);
         crate::utils::save_json(&path, &accts)?;
+        let mut status = AUTH_STATUS.lock().unwrap();
+        *status = serde_json::json!({
+            "state": "done",
+            "user_code": "",
+            "verification_uri": "",
+            "msg": format!("Angemeldet als {}", accts[0].username),
+            "username": accts[0].username,
+            "uuid": accts[0].uuid,
+        });
     }
     Ok(())
 }
@@ -430,6 +414,24 @@ pub fn remove_account(data_dir: &Path, uuid: &str) -> Result<()> {
     let mut accts = crate::utils::load_json::<Vec<Account>>(&path, vec![]);
     accts.retain(|a| a.uuid != uuid);
     crate::utils::save_json(&path, &accts)?;
+    let mut status = AUTH_STATUS.lock().unwrap();
+    if let Some(first) = accts.first() {
+        *status = serde_json::json!({
+            "state": "done",
+            "user_code": "",
+            "verification_uri": "",
+            "msg": format!("Angemeldet als {}", first.username),
+            "username": first.username,
+            "uuid": first.uuid,
+        });
+    } else {
+        *status = serde_json::json!({
+            "state": "idle",
+            "user_code": "",
+            "verification_uri": "",
+            "msg": ""
+        });
+    }
     Ok(())
 }
 

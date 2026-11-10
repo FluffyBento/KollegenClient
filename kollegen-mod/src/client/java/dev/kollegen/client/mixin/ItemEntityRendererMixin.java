@@ -3,6 +3,7 @@ package dev.kollegen.client.mixin;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
 import dev.kollegen.client.mods.modules.ItemPhysics;
+import dev.kollegen.client.mods.modules.UhcOverlay;
 import dev.kollegen.client.render.KollegenItemPhysicsState;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.entity.ItemEntityRenderer;
@@ -43,6 +44,12 @@ public abstract class ItemEntityRendererMixin {
 
             float yaw = (float) ((Math.abs(entity.getUUID().getLeastSignificantBits()) % 3600) / 10.0);
             physicsState.kollegen$setYaw(yaw);
+
+            if (UhcOverlay.shouldScale(stack)) {
+                physicsState.kollegen$setScale((float) UhcOverlay.getItemScale());
+            } else {
+                physicsState.kollegen$setScale(1.0f);
+            }
         }
     }
 
@@ -53,14 +60,30 @@ public abstract class ItemEntityRendererMixin {
             require = 0
     )
     private void kollegen$submitItemPhysics(ItemEntityRenderState state, PoseStack poseStack, SubmitNodeCollector collector, CameraRenderState cameraRenderState, CallbackInfo ci) {
-        if (!ItemPhysics.isItemPhysicsEnabled()) return;
         if (state.item == null || state.item.isEmpty()) return;
+
+        float scale = (state instanceof KollegenItemPhysicsState ps) ? ps.kollegen$getScale() : 1.0f;
+        AABB aabb = state.item.getModelBoundingBox();
+
+        if (!ItemPhysics.isItemPhysicsEnabled()) {
+            if (scale > 1.0f) {
+                float yOff = (float) -aabb.minY + 0.0625f + (float) Math.sin((state.ageInTicks + state.bobOffset) / 10.0F + state.bobOffset) * 0.1F + 0.1F;
+                float spin = ItemEntity.getSpin(state.ageInTicks, state.bobOffset);
+                poseStack.pushPose();
+                poseStack.translate(0.0F, yOff, 0.0F);
+                poseStack.mulPose(Axis.YP.rotation(spin));
+                poseStack.scale(scale, scale, scale);
+                ItemEntityRenderer.submitMultipleFromCount(poseStack, collector, state.lightCoords, state, this.random, aabb);
+                poseStack.popPose();
+                ci.cancel();
+            }
+            return;
+        }
 
         boolean onGround = (state instanceof KollegenItemPhysicsState ps) && ps.kollegen$isOnGround();
         boolean isBlockItem = (state instanceof KollegenItemPhysicsState ps) && ps.kollegen$isBlock();
         float yaw = (state instanceof KollegenItemPhysicsState ps) ? ps.kollegen$getYaw() : (float) (Math.abs(state.seed * 37) % 360);
 
-        AABB aabb = state.item.getModelBoundingBox();
         boolean isFullCube = isBlockItem && aabb.getXsize() > 0.4 && aabb.getYsize() > 0.4 && aabb.getZsize() > 0.4;
 
         poseStack.pushPose();
@@ -95,9 +118,12 @@ public abstract class ItemEntityRendererMixin {
             }
         }
 
+        if (scale > 1.0f) {
+            poseStack.scale(scale, scale, scale);
+        }
+
         ItemEntityRenderer.submitMultipleFromCount(poseStack, collector, state.lightCoords, state, this.random, aabb);
         poseStack.popPose();
         ci.cancel();
     }
 }
-

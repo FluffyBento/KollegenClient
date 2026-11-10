@@ -103,7 +103,7 @@ pub fn set_active_cape(data_dir: &Path, cape_id: Option<String>) -> Result<(), S
 
 pub fn toggle_favorite(data_dir: &Path, cape_id: &str) -> bool {
     let mut data = load_capes(data_dir);
-    let mut new_state = false;
+    let new_state;
     if let Some(pos) = data.favorites.iter().position(|f| f == cape_id) {
         data.favorites.remove(pos);
         new_state = false;
@@ -120,12 +120,59 @@ pub fn toggle_favorite(data_dir: &Path, cape_id: &str) -> bool {
 
 pub fn delete_custom_cape(data_dir: &Path, cape_id: &str) -> Result<(), String> {
     let mut data = load_capes(data_dir);
-    data.capes.retain(|c| c.id != cape_id || c.category != "my_capes");
+    let to_delete: Vec<CapeEntry> = data.capes.iter().filter(|c| c.id == cape_id).cloned().collect();
+    let to_delete_names: Vec<String> = to_delete.iter().map(|c| c.name.clone()).collect();
+    data.capes.retain(|c| c.id != cape_id);
+    for del in &to_delete {
+        if del.category == "my_capes" || del.creator == "Du" {
+            data.capes.retain(|c| !(c.name == del.name && c.category == "community"));
+        }
+    }
     if data.active_cape.as_deref() == Some(cape_id) {
         data.active_cape = None;
     }
     save_capes(data_dir, &data);
     sync_active_cape_to_instances(data_dir, &data, data.active_cape.as_deref());
+
+    let dd = data_dir.to_path_buf();
+    let cid = cape_id.to_string();
+    let names = to_delete_names;
+    std::thread::spawn(move || {
+        if let Some((_client, backend, session)) = crate::presence::authed_request(&dd) {
+            let url_comm = format!("{}/community-capes/{}", backend, cid);
+            let _ = community_client()
+                .delete(&url_comm)
+                .header("Authorization", format!("Bearer {}", session))
+                .send();
+
+            let url_store = format!("{}/api/store/delete", backend);
+            let _ = community_client()
+                .post(&url_store)
+                .header("Authorization", format!("Bearer {}", session))
+                .json(&serde_json::json!({ "item_id": cid }))
+                .send();
+
+            if !names.is_empty() {
+                let list_url = format!("{}/community-capes", backend);
+                if let Ok(resp) = community_client().get(&list_url).send() {
+                    if let Ok(list) = resp.json::<Vec<serde_json::Value>>() {
+                        for item in list {
+                            let iname = item.get("name").and_then(|v| v.as_str()).unwrap_or("");
+                            let iid = item.get("id").and_then(|v| v.as_str()).unwrap_or("");
+                            if names.iter().any(|n| n == iname) && !iid.is_empty() {
+                                let del_url = format!("{}/community-capes/{}", backend, iid);
+                                let _ = community_client()
+                                    .delete(&del_url)
+                                    .header("Authorization", format!("Bearer {}", session))
+                                    .send();
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    });
+
     Ok(())
 }
 
@@ -177,8 +224,10 @@ fn ensure_minecraft_cape_format(
 
     let scale = cape_w / 64;
 
-    let back_x = 12 * scale;
-    let back_y = 1 * scale;
+    let out_x = 1 * scale;
+    let out_y = 1 * scale;
+    let in_x = 12 * scale;
+    let in_y = 1 * scale;
     let cape_part_w = 10 * scale;
     let cape_part_h = 16 * scale;
 
@@ -186,30 +235,74 @@ fn ensure_minecraft_cape_format(
         .resize_to_fill(cape_part_w, cape_part_h, image::imageops::FilterType::Triangle)
         .to_rgba8();
 
-    image::imageops::overlay(&mut out, &resized_back, back_x as i64, back_y as i64);
+    image::imageops::overlay(&mut out, &resized_back, out_x as i64, out_y as i64);
 
-    let mut front = resized_back.clone();
-    for p in front.pixels_mut() {
-        p.0[0] = (p.0[0] as f32 * 0.75) as u8;
-        p.0[1] = (p.0[1] as f32 * 0.75) as u8;
-        p.0[2] = (p.0[2] as f32 * 0.75) as u8;
-    }
-    image::imageops::overlay(&mut out, &front, (1 * scale) as i64, (1 * scale) as i64);
+    let mut r_sum = 0u64;
+    let mut g_sum = 0u64;
+    let mut b_sum = 0u64;
+    let mut count = 0u64;
 
     for x in 0..cape_part_w {
-        let top_col = *resized_back.get_pixel(x, 0);
-        let bot_col = *resized_back.get_pixel(x, cape_part_h - 1);
-        for dy in 0..scale {
-            out.put_pixel(1 * scale + x, dy, top_col);
-            out.put_pixel(11 * scale + x, dy, bot_col);
+        let p1 = resized_back.get_pixel(x, 0);
+        let p2 = resized_back.get_pixel(x, cape_part_h - 1);
+        if p1.0[3] > 32 {
+            r_sum += p1.0[0] as u64;
+            g_sum += p1.0[1] as u64;
+            b_sum += p1.0[2] as u64;
+            count += 1;
+        }
+        if p2.0[3] > 32 {
+            r_sum += p2.0[0] as u64;
+            g_sum += p2.0[1] as u64;
+            b_sum += p2.0[2] as u64;
+            count += 1;
         }
     }
     for y in 0..cape_part_h {
-        let left_col = *resized_back.get_pixel(0, y);
-        let right_col = *resized_back.get_pixel(cape_part_w - 1, y);
+        let p1 = resized_back.get_pixel(0, y);
+        let p2 = resized_back.get_pixel(cape_part_w - 1, y);
+        if p1.0[3] > 32 {
+            r_sum += p1.0[0] as u64;
+            g_sum += p1.0[1] as u64;
+            b_sum += p1.0[2] as u64;
+            count += 1;
+        }
+        if p2.0[3] > 32 {
+            r_sum += p2.0[0] as u64;
+            g_sum += p2.0[1] as u64;
+            b_sum += p2.0[2] as u64;
+            count += 1;
+        }
+    }
+    let (edge_r, edge_g, edge_b) = if count > 0 {
+        ((r_sum / count) as u8, (g_sum / count) as u8, (b_sum / count) as u8)
+    } else {
+        (30, 30, 35)
+    };
+    let edge_col = image::Rgba([edge_r, edge_g, edge_b, 255]);
+    let front_col = image::Rgba([
+        (edge_r as f32 * 0.85) as u8,
+        (edge_g as f32 * 0.85) as u8,
+        (edge_b as f32 * 0.85) as u8,
+        255,
+    ]);
+
+    for y in 0..cape_part_h {
+        for x in 0..cape_part_w {
+            out.put_pixel(in_x + x, in_y + y, front_col);
+        }
+    }
+
+    for x in 0..cape_part_w {
+        for dy in 0..scale {
+            out.put_pixel(out_x + x, dy, edge_col);
+            out.put_pixel(11 * scale + x, dy, edge_col);
+        }
+    }
+    for y in 0..cape_part_h {
         for dx in 0..scale {
-            out.put_pixel(dx, 1 * scale + y, left_col);
-            out.put_pixel(11 * scale + dx, 1 * scale + y, right_col);
+            out.put_pixel(dx, out_y + y, edge_col);
+            out.put_pixel(11 * scale + dx, out_y + y, edge_col);
         }
     }
 
@@ -239,27 +332,28 @@ fn ensure_minecraft_cape_format(
 
     image::imageops::overlay(&mut out, &el_img, (36 * scale) as i64, (2 * scale) as i64);
 
-    let mut el_inside = el_img.clone();
-    for p in el_inside.pixels_mut() {
-        p.0[0] = (p.0[0] as f32 * 0.75) as u8;
-        p.0[1] = (p.0[1] as f32 * 0.75) as u8;
-        p.0[2] = (p.0[2] as f32 * 0.75) as u8;
+    let el_inside_col = image::Rgba([
+        (edge_r as f32 * 0.85) as u8,
+        (edge_g as f32 * 0.85) as u8,
+        (edge_b as f32 * 0.85) as u8,
+        255,
+    ]);
+    for y in 0..el_h {
+        for x in 0..el_w {
+            out.put_pixel(24 * scale + x, 2 * scale + y, el_inside_col);
+        }
     }
-    image::imageops::overlay(&mut out, &el_inside, (24 * scale) as i64, (2 * scale) as i64);
 
     for x in 0..el_w {
-        let top_col = *el_img.get_pixel(x, 0);
-        let bot_col = *el_img.get_pixel(x, el_h - 1);
         for dy in 0..(2 * scale) {
-            out.put_pixel(24 * scale + x, dy, top_col);
-            out.put_pixel(34 * scale + x, dy, bot_col);
+            out.put_pixel(24 * scale + x, dy, edge_col);
+            out.put_pixel(34 * scale + x, dy, edge_col);
         }
     }
     for y in 0..el_h {
-        let side_col = *el_img.get_pixel(0, y);
         for dx in 0..(2 * scale) {
-            out.put_pixel(22 * scale + dx, 2 * scale + y, side_col);
-            out.put_pixel(34 * scale + dx, 2 * scale + y, side_col);
+            out.put_pixel(22 * scale + dx, 2 * scale + y, edge_col);
+            out.put_pixel(34 * scale + dx, 2 * scale + y, edge_col);
         }
     }
 
@@ -269,6 +363,8 @@ fn ensure_minecraft_cape_format(
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ParsedGifResult {
     pub frames: Vec<String>,
+    #[serde(default)]
+    pub raw_frames: Vec<String>,
     pub fps: u32,
 }
 
@@ -303,6 +399,7 @@ pub fn parse_gif_frames(
     let mut total_delay_ms = 0u64;
     let mut sampled_count = 0u64;
     let mut parsed_frames: Vec<String> = Vec::new();
+    let mut raw_frames: Vec<String> = Vec::new();
 
     for (idx, f) in collected_frames.into_iter().enumerate() {
         let (numer, denom) = f.delay().numer_denom_ms();
@@ -318,6 +415,17 @@ pub fn parse_gif_frames(
             sampled_count += 1;
 
             let buffer = f.into_buffer();
+            let mut raw_out = Vec::new();
+            let raw_enc = PngEncoder::new(&mut raw_out);
+            let _ = image::ImageEncoder::write_image(
+                raw_enc,
+                buffer.as_raw(),
+                buffer.width(),
+                buffer.height(),
+                image::ExtendedColorType::Rgba8,
+            );
+            raw_frames.push(format_data_url(&raw_out));
+
             let dyn_img = image::DynamicImage::ImageRgba8(buffer);
             let cape_img = ensure_minecraft_cape_format(&dyn_img, elytra_mode, Some(128));
             let mut out = Vec::new();
@@ -347,6 +455,7 @@ pub fn parse_gif_frames(
 
     Ok(ParsedGifResult {
         frames: parsed_frames,
+        raw_frames,
         fps: raw_fps,
     })
 }

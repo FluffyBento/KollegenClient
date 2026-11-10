@@ -46,6 +46,7 @@ import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.components.PlayerFaceExtractor;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.client.renderer.texture.AbstractTexture;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
@@ -1656,7 +1657,11 @@ public class KollegenMenuScreen extends Screen {
         float ax = this.accountX();
         boolean aHov = hit(mx, my, ax, by, 22, 22);
         float aH = this.hv("hb:acc", aHov, 14.0f);
-        Glass.pill(g, ax, by, 22, 22, aH, false, false);
+        if (UiStyleManager.isMinecraftStyle()) {
+            Glass.drawMinecraftButton(g, (int) ax, (int) by, 22, 22, aHov ? 1.0f : 0.0f, false, false);
+        } else {
+            Glass.pill(g, ax, by, 22, 22, aH, false, false);
+        }
         SkinFaceRenderer.drawFace(g, dev.kollegen.client.account.AccountManager.getActiveUsername(), dev.kollegen.client.account.AccountManager.getActiveProfile() != null ? dev.kollegen.client.account.AccountManager.getActiveProfile().id() : null, (int) ax + 3, (int) by + 3, 16);
         this.headerButton(g, mx, my, this.serverX(), by, 22, Icons.GLOBE, null, "server");
         this.headerButton(g, mx, my, this.socialX(), by, 22, Icons.USER, null, "social");
@@ -1668,7 +1673,11 @@ public class KollegenMenuScreen extends Screen {
     private void headerButton(GuiGraphicsExtractor g, int mx, int my, float x, float y, float w, int icon, String label, String key) {
         boolean hov = hit(mx, my, x, y, w, 22);
         float h = this.hv("hb:" + key, hov, 14.0f);
-        Glass.pill(g, x, y, w, 22, h, false, false);
+        if (UiStyleManager.isMinecraftStyle()) {
+            Glass.drawMinecraftButton(g, (int) x, (int) y, (int) w, 22, hov ? 1.0f : 0.0f, false, false);
+        } else {
+            Glass.pill(g, x, y, w, 22, h, false, false);
+        }
         int col = Glass.mix(Palette.TEXT, 0xFFFFFFFF, h * 0.4f);
         if (label == null) {
             Icons.draw(g, icon, x + (w - 12) / 2, y + 5, 12, col);
@@ -1875,11 +1884,40 @@ public class KollegenMenuScreen extends Screen {
         c.extraAnim = Glass.step(c.extraAnim, m.enabled ? 1.0f : 0.0f, 12.0f);
         float h = c.hoverAnim;
         float en = c.extraAnim;
-        int tint = Glass.mix(Palette.PANEL, Palette.ACCENT, 0.10f * en + 0.05f * h);
-        int border = en > 0.01f ? Glass.a(Palette.ACCENT, 0.7f * en) : (h > 0.01f ? Glass.a(0xFFFFFFFF, 0.35f * h) : 0x38FFFFFF);
-        Glass.glassCard(g, X, Y, c.w, c.h, 9, tint, Glass.opacity * (0.85f + 0.3f * h), 0.0f, border);
-        if (en > 0.01f) {
-            Glass.rrGrad(g, X + 1, Y + 1, c.w - 2, c.h - 2, 8, Glass.a(Palette.ACCENT, 0.16f * en), 0x00000000);
+        if (UiStyleManager.isMinecraftStyle()) {
+            int ix = (int) X;
+            int iy = (int) Y;
+            int iw = (int) c.w;
+            int ih = (int) c.h;
+            int base = hov ? 0xFF282828 : (m.enabled ? 0xFF1B261B : 0xFF141414);
+            g.fill(ix, iy, ix + iw, iy + ih, base);
+            g.fill(ix, iy, ix + iw, iy + 1, 0xFF000000);
+            g.fill(ix, iy + ih - 1, ix + iw, iy + ih, 0xFF000000);
+            g.fill(ix, iy, ix + 1, iy + ih, 0xFF000000);
+            g.fill(ix + iw - 1, iy, ix + iw, iy + ih, 0xFF000000);
+            if (hov) {
+                g.fill(ix + 1, iy + 1, ix + iw - 1, iy + 2, 0xFFFFFFFF);
+                g.fill(ix + 1, iy + 1, ix + 2, iy + ih - 1, 0xFFFFFFFF);
+                g.fill(ix + 1, iy + ih - 2, ix + iw - 1, iy + ih - 1, 0xFF555555);
+                g.fill(ix + iw - 2, iy + 1, ix + iw - 1, iy + ih - 1, 0xFF555555);
+            } else if (m.enabled) {
+                g.fill(ix + 1, iy + 1, ix + iw - 1, iy + 2, 0xFF3F823F);
+                g.fill(ix + 1, iy + 1, ix + 2, iy + ih - 1, 0xFF3F823F);
+                g.fill(ix + 1, iy + ih - 2, ix + iw - 1, iy + ih - 1, 0xFF183018);
+                g.fill(ix + iw - 2, iy + 1, ix + iw - 1, iy + ih - 1, 0xFF183018);
+            } else {
+                g.fill(ix + 1, iy + 1, ix + iw - 1, iy + 2, 0xFF303030);
+                g.fill(ix + 1, iy + 1, ix + 2, iy + ih - 1, 0xFF303030);
+                g.fill(ix + 1, iy + ih - 2, ix + iw - 1, iy + ih - 1, 0xFF101010);
+                g.fill(ix + iw - 2, iy + 1, ix + iw - 1, iy + ih - 1, 0xFF101010);
+            }
+        } else {
+            int tint = Glass.mix(Palette.PANEL, Palette.ACCENT, 0.10f * en + 0.05f * h);
+            int border = en > 0.01f ? Glass.a(Palette.ACCENT, 0.7f * en) : (h > 0.01f ? Glass.a(0xFFFFFFFF, 0.35f * h) : 0x38FFFFFF);
+            Glass.glassCard(g, X, Y, c.w, c.h, 9, tint, Glass.opacity * (0.85f + 0.3f * h), 0.0f, border);
+            if (en > 0.01f) {
+                Glass.rrGrad(g, X + 1, Y + 1, c.w - 2, c.h - 2, 8, Glass.a(Palette.ACCENT, 0.16f * en), 0x00000000);
+            }
         }
         int tx = Math.round(X + 10);
         if (c.truncTitle == null) {
@@ -1887,7 +1925,8 @@ public class KollegenMenuScreen extends Screen {
             c.truncTitle = Glass.trunc(this.font, m.name, maxW);
             c.truncDesc = Glass.trunc(this.font, m.description, (int) (c.w - 38));
         }
-        Glass.textBold(g, this.font, c.truncTitle, tx, Math.round(Y + 9), Palette.TEXT, true);
+        int titleColor = UiStyleManager.isMinecraftStyle() && m.enabled ? 0xFF55FF55 : Palette.TEXT;
+        Glass.textBold(g, this.font, c.truncTitle, tx, Math.round(Y + 9), titleColor, true);
         Glass.text(g, this.font, c.truncDesc, tx, Math.round(Y + 23), Palette.MUTED, false);
         if (m.isLocked()) {
             Icons.draw(g, Icons.LOCK, X + c.w - 28, Y + 8, 12, Palette.MUTED);
@@ -1906,7 +1945,11 @@ public class KollegenMenuScreen extends Screen {
         Module m = c.module;
         boolean hb = hit(mx, my, X, Y + 2, 22, 22);
         float h = this.hv("back", hb, 14.0f);
-        Glass.pill(g, X, Y + 2, 22, 22, h, false, false);
+        if (UiStyleManager.isMinecraftStyle()) {
+            Glass.drawMinecraftButton(g, (int) X, (int) (Y + 2), 22, 22, hb ? 1.0f : 0.0f, false, false);
+        } else {
+            Glass.pill(g, X, Y + 2, 22, 22, h, false, false);
+        }
         Icons.draw(g, Icons.BACK, X + 5, Y + 7, 12, Palette.TEXT);
         Glass.textScaled(g, this.font, m.name, X + 30, Y + 4, 1.3f, Palette.TEXT, true);
         Glass.text(g, this.font, Glass.trunc(this.font, m.description, (int) (c.w - 80)), Math.round(X + 30), Math.round(Y + 20), Palette.MUTED, false);
@@ -1923,8 +1966,20 @@ public class KollegenMenuScreen extends Screen {
     }
 
     private void drawSettingRow(GuiGraphicsExtractor g, Cell c, float X, float Y) {
-        Glass.rr(g, X, Y, c.w, c.h - 3, 7, Glass.a(0x000000, 0.20f));
-        Glass.ring(g, X, Y, c.w, c.h - 3, 7, 0.5f, 0x16FFFFFF);
+        if (UiStyleManager.isMinecraftStyle()) {
+            int ix = (int) X;
+            int iy = (int) Y;
+            int iw = (int) c.w;
+            int ih = (int) (c.h - 3);
+            g.fill(ix, iy, ix + iw, iy + ih, 0xFF141414);
+            g.fill(ix, iy, ix + iw, iy + 1, 0xFF000000);
+            g.fill(ix, iy + ih - 1, ix + iw, iy + ih, 0xFF000000);
+            g.fill(ix, iy, ix + 1, iy + ih, 0xFF000000);
+            g.fill(ix + iw - 1, iy, ix + iw, iy + ih, 0xFF000000);
+        } else {
+            Glass.rr(g, X, Y, c.w, c.h - 3, 7, Glass.a(0x000000, 0.20f));
+            Glass.ring(g, X, Y, c.w, c.h - 3, 7, 0.5f, 0x16FFFFFF);
+        }
         Setting s = c.setting;
         Glass.text(g, this.font, Glass.trunc(this.font, s.name, (int) (c.w * 0.36f) - 10), Math.round(X + 10), Math.round(Y + (c.h - 3 - 8) / 2.0f), Palette.TEXT, false);
         if (s instanceof SliderSetting) {
@@ -1933,14 +1988,22 @@ public class KollegenMenuScreen extends Screen {
     }
 
     private void drawPill(GuiGraphicsExtractor g, float x, float y, float w, float h, String label, boolean primary, boolean hov) {
-        Glass.pill(g, x, y, w, h, hov ? 1.0f : 0.0f, primary, false);
+        if (UiStyleManager.isMinecraftStyle()) {
+            Glass.drawMinecraftButton(g, (int) x, (int) y, (int) w, (int) h, hov ? 1.0f : 0.0f, primary, false);
+        } else {
+            Glass.pill(g, x, y, w, h, hov ? 1.0f : 0.0f, primary, false);
+        }
         Glass.textC(g, this.font, Glass.trunc(this.font, label, (int) w - 6), Math.round(x + w / 2), Math.round(y + (h - 8) / 2.0f), primary ? 0xFFFFFFFF : Palette.TEXT, false);
     }
 
     private void drawPill(GuiGraphicsExtractor g, Cell c, float x, float y, float w, float h, String label, boolean primary, boolean hov) {
         c.extraAnim = Glass.step(c.extraAnim, hov ? 1.0f : 0.0f, 14.0f);
-        Glass.pill(g, x, y, w, h, c.extraAnim, primary, false);
-        Glass.textC(g, this.font, label, Math.round(x + w / 2), Math.round(y + (h - 8) / 2.0f), primary ? 0xFFFFFFFF : Palette.TEXT, false);
+        if (UiStyleManager.isMinecraftStyle()) {
+            Glass.drawMinecraftButton(g, (int) x, (int) y, (int) w, (int) h, c.extraAnim, primary, false);
+        } else {
+            Glass.pill(g, x, y, w, h, c.extraAnim, primary, false);
+        }
+        Glass.textC(g, this.font, Glass.trunc(this.font, label, (int) w - 6), Math.round(x + w / 2), Math.round(y + (h - 8) / 2.0f), primary ? 0xFFFFFFFF : Palette.TEXT, false);
     }
 
     private void drawItemCard(GuiGraphicsExtractor g, Cell c, float X, float Y, boolean hov) {
@@ -2281,14 +2344,31 @@ public class KollegenMenuScreen extends Screen {
                 inf.text = "Alle Capes";
             }
 
+            List<JsonObject> capes = this.loadCapesFromConfig();
+
             if ("community".equalsIgnoreCase(this.capeCatFilter)) {
                 Cell eqCell = this.addGrid(K_CAPE_ITEM, cols, 50.0f);
                 JsonObject eqObj = new JsonObject();
                 if (this.inGameActiveCape != null && !this.inGameActiveCape.isEmpty() && !"none".equalsIgnoreCase(this.inGameActiveCape)) {
                     eqObj.addProperty("id", this.inGameActiveCape);
                     eqObj.addProperty("name", "Aktuell ausgerüstet");
-                    eqObj.addProperty("author", this.inGameActiveCape);
                     eqObj.addProperty("category", "community");
+                    JsonObject matchedCape = null;
+                    for (JsonObject ac : capes) {
+                        if (this.inGameActiveCape.equalsIgnoreCase(str(ac, "id", ""))) {
+                            matchedCape = ac;
+                            break;
+                        }
+                    }
+                    if (matchedCape != null) {
+                        if (matchedCape.has("frames")) eqObj.add("frames", matchedCape.get("frames"));
+                        if (matchedCape.has("texture")) eqObj.add("texture", matchedCape.get("texture"));
+                        if (matchedCape.has("preview")) eqObj.add("preview", matchedCape.get("preview"));
+                        eqObj.addProperty("author", str(matchedCape, "creator", str(matchedCape, "author", "Community")));
+                        if (matchedCape.has("fps")) eqObj.addProperty("fps", num(matchedCape, "fps", 10));
+                    } else {
+                        eqObj.addProperty("author", this.inGameActiveCape);
+                    }
                 } else {
                     eqObj.addProperty("id", "none");
                     eqObj.addProperty("name", "Kein Cape");
@@ -2298,7 +2378,6 @@ public class KollegenMenuScreen extends Screen {
                 eqCell.data = eqObj;
             }
 
-            List<JsonObject> capes = this.loadCapesFromConfig();
             for (JsonObject cape : capes) {
                 String id = str(cape, "id", "");
                 String name = str(cape, "name", id);
@@ -2612,33 +2691,41 @@ public class KollegenMenuScreen extends Screen {
             Icons.draw(g, Icons.PLUS, cx + 5, cy + 11, 14, Palette.ACCENT);
         } else {
             Identifier capeTex = SkinCapeTextureManager.getOrLoadCape(id, texRaw);
-            boolean isStore = "gekauft".equalsIgnoreCase(cat) || "store".equalsIgnoreCase(cat) || (d.has("model") && !str(d, "model", "").isEmpty());
             if (capeTex != null) {
                 try {
+                    int tw = 64;
+                    int th = 32;
                     int[] dims = SkinCapeTextureManager.getDimensions(id);
-                    int tw = (dims != null && dims[0] > 0) ? dims[0] : 64;
-                    int th = (dims != null && dims[1] > 0) ? dims[1] : 64;
-                    Matrix3x2fStack pose = g.pose();
-                    pose.pushMatrix();
-                    pose.translate(cx, cy);
+                    if (dims != null && dims[0] > 0 && dims[1] > 0) {
+                        tw = dims[0];
+                        th = dims[1];
+                    } else {
+                        try {
+                            Minecraft mc = Minecraft.getInstance();
+                            if (mc != null && mc.getTextureManager() != null) {
+                                AbstractTexture at = mc.getTextureManager().getTexture(capeTex);
+                                if (at != null && at.getTexture() != null) {
+                                    tw = at.getTexture().getWidth(0);
+                                    th = at.getTexture().getHeight(0);
+                                }
+                            }
+                        } catch (Throwable ignored) {
+                        }
+                    }
 
                     float aspect = (float) tw / (float) th;
-                    boolean isVanillaLayout = !isStore && Math.abs(aspect - 2.0f) < 0.25f;
+                    boolean isStore = "gekauft".equalsIgnoreCase(cat) || "store".equalsIgnoreCase(cat);
+                    boolean isCapeLayout = !isStore && Math.abs(aspect - 2.0f) < 0.35f;
 
-                    if (isVanillaLayout) {
-                        float u = 12.0f * ((float) tw / 64.0f);
+                    if (isCapeLayout) {
+                        float u = 1.0f * ((float) tw / 64.0f);
                         float v = 1.0f * ((float) th / 32.0f);
-                        float uw = 10.0f * ((float) tw / 64.0f);
-                        float vh = 16.0f * ((float) th / 32.0f);
-                        pose.scale(cw / uw, ch / vh);
-                        pose.translate(uw, 0.0f);
-                        pose.scale(-1.0f, 1.0f);
-                        g.blit(RenderPipelines.GUI_TEXTURED, capeTex, 0, 0, u, v, Math.round(uw), Math.round(vh), tw, th);
+                        float srcW = 10.0f * ((float) tw / 64.0f);
+                        float srcH = 16.0f * ((float) th / 32.0f);
+                        g.blit(RenderPipelines.GUI_TEXTURED, capeTex, (int) cx, (int) cy, u, v, (int) cw, (int) ch, Math.round(srcW), Math.round(srcH), tw, th);
                     } else {
-                        pose.scale(cw / (float) tw, ch / (float) th);
-                        g.blit(RenderPipelines.GUI_TEXTURED, capeTex, 0, 0, 0.0f, 0.0f, tw, th, tw, th);
+                        g.blit(RenderPipelines.GUI_TEXTURED, capeTex, (int) cx, (int) cy, 0.0f, 0.0f, (int) cw, (int) ch, tw, th, tw, th);
                     }
-                    pose.popMatrix();
                     Glass.ring(g, cx, cy, cw, ch, 4, 0.5f, 0x44FFFFFF);
                 } catch (Throwable t) {
                     Glass.rr(g, cx, cy, cw, ch, 4, Glass.a(Palette.ACCENT, 0.28f));
@@ -2690,6 +2777,10 @@ public class KollegenMenuScreen extends Screen {
         if (capeId.equalsIgnoreCase(this.inGameActiveCape)) {
             this.inGameActiveCape = null;
             KollegenPresence.setLocalCape(null, null, null);
+        }
+        try {
+            StoreClient.deleteItem(capeId);
+        } catch (Throwable ignored) {
         }
         try {
             Path p = FabricLoader.getInstance().getConfigDir().resolve("kollegen-cape.json");

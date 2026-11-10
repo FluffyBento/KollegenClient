@@ -22,6 +22,11 @@ async function loadVersions() {
     if (availableVersions.length > 0) {
       vSelect.value = availableVersions[0];
     }
+    const lSelect = $("iLoader");
+    if (lSelect && (!lSelect.value || lSelect.value === "vanilla")) {
+      lSelect.value = "fabric";
+      lSelect.dispatchEvent(new Event("change", { bubbles: true }));
+    }
     updateLoaderVersions();
   } catch (e) {
     console.error("Failed to load versions:", e);
@@ -3869,19 +3874,25 @@ applySavedTheme()
       else p.setAttribute("hidden", "");
     });
     if (document.body.classList.contains("console-mode")) kcSyncTabs(name);
+    if (name === "capes") {
+      loadCapesView();
+    }
+    if (name === "skins") {
+      loadSkinsLibrary();
+    }
     if (name === "appearance") {
       const activeApt = document.querySelector(".appearance-tab.active");
       const activeSubName = activeApt ? activeApt.dataset.apt : "skins";
       if (activeSubName === "skins") loadSkinsLibrary();
       if (activeSubName === "capes") loadCapesView();
     }
-    if (name !== "appearance" && typeof disposeAllSkinViewers === "function") {
+    if (name !== "appearance" && name !== "skins" && typeof disposeAllSkinViewers === "function") {
       disposeAllSkinViewers();
     }
-    if (name !== "appearance" && typeof clearCapeAnimTimers === "function") {
+    if (name !== "appearance" && name !== "capes" && typeof clearCapeAnimTimers === "function") {
       clearCapeAnimTimers();
     }
-    if (name !== "appearance" && typeof disposeAllCapeViewers === "function") {
+    if (name !== "appearance" && name !== "capes" && typeof disposeAllCapeViewers === "function") {
       disposeAllCapeViewers();
     }
     if (name === "home") {
@@ -4086,7 +4097,7 @@ async function initTwitch() {
           renderWaiting(st.user_code, st.verification_uri);
         } else {
           stopTwitchPolling();
-          txt.textContent = "LINK";
+          txt.textContent = "VERBINDEN";
           btn.classList.remove("linked");
           btn.title = "Mit Twitch verbinden";
           if (hint) hint.innerHTML = "";
@@ -4231,10 +4242,10 @@ async function loadSkinsLibrary() {
         <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="3"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
       </div>
     </div>
-    <div class="skin-card-title">Add New Skin</div>
+    <div class="skin-card-title">Neuen Skin hinzufügen</div>
     <div class="skin-card-sub">
       <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-      Upload or import a skin
+      Skin hochladen oder importieren
     </div>
   `;
   addCard.onclick = () => openSkinEditModal(null);
@@ -4463,15 +4474,18 @@ function disposeUploadCapeViewer() {
   }
 }
 
-// Convert any standard image (wallpaper, photo, meme, etc.) to HD Minecraft Cape UV layout with Elytra mapping
-function convertImageToMinecraftCape(source, elytraMode = 'normal') {
+function convertImageToMinecraftCape(source, elytraMode = 'normal', adjust = null) {
   try {
     const sw = source.naturalWidth || source.videoWidth || source.width || 64;
     const sh = source.naturalHeight || source.videoHeight || source.height || 32;
 
-    // If it's already a standard 2:1 aspect ratio Minecraft cape template:
-    if (sw === 2 * sh && sw >= 64) {
-      // Preserve native resolution up to 2048x1024!
+    const zoom = adjust && typeof adjust.zoom === "number" ? adjust.zoom / 100 : 1.0;
+    const rotation = adjust && typeof adjust.rotation === "number" ? adjust.rotation : 0;
+    const panX = adjust && typeof adjust.panX === "number" ? adjust.panX / 100 : 0.0;
+    const panY = adjust && typeof adjust.panY === "number" ? adjust.panY / 100 : 0.0;
+    const hasCustomTransform = Math.abs(zoom - 1.0) > 0.001 || rotation !== 0 || Math.abs(panX) > 0.001 || Math.abs(panY) > 0.001;
+
+    if (sw === 2 * sh && sw >= 64 && !hasCustomTransform && !(adjust && adjust.forceCrop)) {
       const targetW = Math.min(sw, 2048);
       const targetH = targetW / 2;
       const c = document.createElement("canvas");
@@ -4482,7 +4496,7 @@ function convertImageToMinecraftCape(source, elytraMode = 'normal') {
       ctx.drawImage(source, 0, 0, targetW, targetH);
       return c.toDataURL("image/png");
     }
-    if (sw === 22 && sh === 17) {
+    if (sw === 22 && sh === 17 && !hasCustomTransform && !(adjust && adjust.forceCrop)) {
       const c = document.createElement("canvas");
       c.width = sw;
       c.height = sh;
@@ -4491,11 +4505,9 @@ function convertImageToMinecraftCape(source, elytraMode = 'normal') {
       return c.toDataURL("image/png");
     }
 
-    // Determine crisp high-resolution cape dimensions based on input resolution
-    // so fine details, text, and photos are never blurred or pixelated
     const W = (sw >= 1000 || sh >= 800) ? 2048 : ((sw >= 400 || sh >= 300) ? 1024 : 512);
     const H = W / 2;
-    const scale = W / 64; // 32, 16, or 8
+    const scale = W / 64;
 
     const c = document.createElement("canvas");
     c.width = W;
@@ -4503,53 +4515,100 @@ function convertImageToMinecraftCape(source, elytraMode = 'normal') {
     const ctx = c.getContext("2d");
     ctx.imageSmoothingEnabled = true;
 
-    // Cape Back in Minecraft UV: x = 12 * scale, y = 1 * scale, w = 10 * scale, h = 16 * scale
-    // Cape Front in Minecraft UV: x = 1 * scale, y = 1 * scale, w = 10 * scale, h = 16 * scale
     const bw = 10 * scale;
     const bh = 16 * scale;
-    const backX = 12 * scale;
-    const backY = 1 * scale;
-    const frontX = 1 * scale;
-    const frontY = 1 * scale;
+    const outsideX = 1 * scale;
+    const outsideY = 1 * scale;
+    const insideX = 12 * scale;
+    const insideY = 1 * scale;
 
-    function drawCover(dx, dy, dw, dh, src, darken = 1.0) {
-      const srcW = src.naturalWidth || src.width || sw;
-      const srcH = src.naturalHeight || src.height || sh;
-      const imgRatio = srcW / srcH;
-      const destRatio = dw / dh;
-      let sx, sy, sWidth, sHeight;
-      if (imgRatio > destRatio) {
-        sHeight = srcH;
-        sWidth = srcH * destRatio;
-        sx = (srcW - sWidth) / 2;
-        sy = 0;
-      } else {
-        sWidth = srcW;
-        sHeight = srcW / destRatio;
-        sx = 0;
-        sy = (srcH - sHeight) / 2;
-      }
-      ctx.drawImage(src, sx, sy, sWidth, sHeight, dx, dy, dw, dh);
-      if (darken < 1.0) {
-        ctx.fillStyle = `rgba(0,0,0,${1.0 - darken})`;
-        ctx.fillRect(dx, dy, dw, dh);
-      }
+    const offB = document.createElement("canvas");
+    offB.width = bw;
+    offB.height = bh;
+    const bctx = offB.getContext("2d");
+    bctx.imageSmoothingEnabled = true;
+
+    const srcW = source.naturalWidth || source.videoWidth || source.width || sw;
+    const srcH = source.naturalHeight || source.videoHeight || source.height || sh;
+    const imgRatio = srcW / srcH;
+    const destRatio = bw / bh;
+    let baseW, baseH;
+    if (imgRatio > destRatio) {
+      baseH = bh;
+      baseW = bh * imgRatio;
+    } else {
+      baseW = bw;
+      baseH = bw / imgRatio;
     }
 
-    // Back face (visible behind player)
-    drawCover(backX, backY, bw, bh, source, 1.0);
-    // Front face (facing spine, slightly darker)
-    drawCover(frontX, frontY, bw, bh, source, 0.75);
+    bctx.save();
+    bctx.translate(bw / 2 + panX * bw, bh / 2 + panY * bh);
+    if (rotation !== 0) bctx.rotate((rotation * Math.PI) / 180);
+    bctx.scale(zoom, zoom);
+    bctx.drawImage(source, -baseW / 2, -baseH / 2, baseW, baseH);
+    bctx.restore();
 
-    // Edges & borders (top, bottom, left, right)
-    ctx.drawImage(c, backX, backY, bw, scale, frontX, 0, bw, scale); // Top
-    ctx.drawImage(c, backX, backY + bh - scale, bw, scale, 11 * scale, 0, bw, scale); // Bottom
-    ctx.drawImage(c, backX, backY, scale, bh, 0, frontY, scale, bh); // Left
-    ctx.drawImage(c, backX + bw - scale, backY, scale, bh, 11 * scale, frontY, scale, bh); // Right
+    ctx.drawImage(offB, outsideX, outsideY);
 
-    // Map Elytra wings:
-    // Left wing outside: x = 36 * scale, y = 2 * scale, w = 10 * scale, h = 20 * scale
-    // Left wing inside:  x = 24 * scale, y = 2 * scale, w = 10 * scale, h = 20 * scale
+    const imgData = bctx.getImageData(0, 0, bw, bh).data;
+    let rSum = 0, gSum = 0, bSum = 0, count = 0;
+    for (let x = 0; x < bw; x++) {
+      let idx1 = (0 * bw + x) * 4;
+      if (imgData[idx1 + 3] > 32) {
+        rSum += imgData[idx1];
+        gSum += imgData[idx1 + 1];
+        bSum += imgData[idx1 + 2];
+        count++;
+      }
+      let idx2 = ((bh - 1) * bw + x) * 4;
+      if (imgData[idx2 + 3] > 32) {
+        rSum += imgData[idx2];
+        gSum += imgData[idx2 + 1];
+        bSum += imgData[idx2 + 2];
+        count++;
+      }
+    }
+    for (let y = 0; y < bh; y++) {
+      let idx1 = (y * bw + 0) * 4;
+      if (imgData[idx1 + 3] > 32) {
+        rSum += imgData[idx1];
+        gSum += imgData[idx1 + 1];
+        bSum += imgData[idx1 + 2];
+        count++;
+      }
+      let idx2 = (y * bw + (bw - 1)) * 4;
+      if (imgData[idx2 + 3] > 32) {
+        rSum += imgData[idx2];
+        gSum += imgData[idx2 + 1];
+        bSum += imgData[idx2 + 2];
+        count++;
+      }
+    }
+    if (count === 0) {
+      for (let i = 0; i < imgData.length; i += 16) {
+        if (imgData[i + 3] > 32) {
+          rSum += imgData[i];
+          gSum += imgData[i + 1];
+          bSum += imgData[i + 2];
+          count++;
+        }
+      }
+    }
+    const edgeR = count > 0 ? Math.round(rSum / count) : 30;
+    const edgeG = count > 0 ? Math.round(gSum / count) : 30;
+    const edgeB = count > 0 ? Math.round(bSum / count) : 35;
+    const edgeCol = `rgb(${edgeR},${edgeG},${edgeB})`;
+    const frontCol = `rgb(${Math.round(edgeR * 0.85)},${Math.round(edgeG * 0.85)},${Math.round(edgeB * 0.85)})`;
+
+    ctx.fillStyle = frontCol;
+    ctx.fillRect(insideX, insideY, bw, bh);
+
+    ctx.fillStyle = edgeCol;
+    ctx.fillRect(outsideX, 0, bw, scale);
+    ctx.fillRect(11 * scale, 0, bw, scale);
+    ctx.fillRect(0, outsideY, scale, bh);
+    ctx.fillRect(11 * scale, outsideY, scale, bh);
+
     const elW = 10 * scale;
     const elH = 20 * scale;
     const elOutX = 36 * scale;
@@ -4557,11 +4616,11 @@ function convertImageToMinecraftCape(source, elytraMode = 'normal') {
     const elInX = 24 * scale;
     const elInY = 2 * scale;
 
-    // Render Elytra texture with selected mapping mode
     const elCanvas = document.createElement("canvas");
     elCanvas.width = sw;
     elCanvas.height = sh;
     const elCtx = elCanvas.getContext("2d");
+
     if (elytraMode === "mirrored") {
       elCtx.translate(sw, 0);
       elCtx.scale(-1, 1);
@@ -4588,16 +4647,36 @@ function convertImageToMinecraftCape(source, elytraMode = 'normal') {
       elCtx.drawImage(source, 0, 0);
     }
 
-    // Draw left wing outside
-    drawCover(elOutX, elOutY, elW, elH, elCanvas, 1.0);
-    // Draw left wing inside (slightly darker)
-    drawCover(elInX, elInY, elW, elH, elCanvas, 0.75);
+    function drawCover(dx, dy, dw, dh, src) {
+      const sW = src.naturalWidth || src.width || sw;
+      const sH = src.naturalHeight || src.height || sh;
+      const iRatio = sW / sH;
+      const dRatio = dw / dh;
+      let sx, sy, sWidth, sHeight;
+      if (iRatio > dRatio) {
+        sHeight = sH;
+        sWidth = sH * dRatio;
+        sx = (sW - sWidth) / 2;
+        sy = 0;
+      } else {
+        sWidth = sW;
+        sHeight = sW / dRatio;
+        sx = 0;
+        sy = (sH - sHeight) / 2;
+      }
+      ctx.drawImage(src, sx, sy, sWidth, sHeight, dx, dy, dw, dh);
+    }
 
-    // Elytra edges
-    ctx.drawImage(c, elOutX, elOutY, elW, 2 * scale, 24 * scale, 0, elW, 2 * scale); // Top
-    ctx.drawImage(c, elOutX, elOutY + elH - 2 * scale, elW, 2 * scale, 34 * scale, 0, elW, 2 * scale); // Bottom
-    ctx.drawImage(c, elOutX, elOutY, 2 * scale, elH, 22 * scale, 2 * scale, 2 * scale, elH); // Left
-    ctx.drawImage(c, elOutX + elW - 2 * scale, elOutY, 2 * scale, elH, 34 * scale, 2 * scale, 2 * scale, elH); // Right
+    drawCover(elOutX, elOutY, elW, elH, elCanvas);
+
+    ctx.fillStyle = frontCol;
+    ctx.fillRect(elInX, elInY, elW, elH);
+
+    ctx.fillStyle = edgeCol;
+    ctx.fillRect(24 * scale, 0, elW, 2 * scale);
+    ctx.fillRect(34 * scale, 0, elW, 2 * scale);
+    ctx.fillRect(22 * scale, 2 * scale, 2 * scale, elH);
+    ctx.fillRect(34 * scale, 2 * scale, 2 * scale, elH);
 
     return c.toDataURL("image/png");
   } catch (err) {
@@ -4606,13 +4685,13 @@ function convertImageToMinecraftCape(source, elytraMode = 'normal') {
   }
 }
 
-async function ensureCapeTextureUrl(url, elytraMode = 'normal') {
+async function ensureCapeTextureUrl(url, elytraMode = 'normal', adjust = null) {
   if (!url) return null;
   return new Promise((resolve) => {
     const img = new Image();
     img.crossOrigin = "anonymous";
     img.onload = () => {
-      const capeUrl = convertImageToMinecraftCape(img, elytraMode);
+      const capeUrl = convertImageToMinecraftCape(img, elytraMode, adjust);
       resolve(capeUrl || url);
     };
     img.onerror = () => resolve(url);
@@ -4645,113 +4724,174 @@ function resolveStoreCapeTexture(it) {
 }
 
 let __capeSyncAt = 0;
-async function loadCapesView() {
+let __cachedCapeData = null;
+let __cachedStoreCapes = null;
+let __cachedVanillaCapes = null;
+let __cachedAllCapes = null;
+
+function invalidateCapesCache() {
+  __cachedCapeData = null;
+  __cachedStoreCapes = null;
+  __cachedVanillaCapes = null;
+  __cachedAllCapes = null;
+}
+
+function drawCapeStatic2D(canvas, img) {
+  try {
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    const W = img.naturalWidth || img.width || 64;
+    const H = img.naturalHeight || img.height || 32;
+    const sx = Math.round((1 / 64) * W);
+    const sy = Math.round((1 / 32) * H);
+    const sw = Math.round((10 / 64) * W);
+    const sh = Math.round((16 / 32) * H);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.imageSmoothingEnabled = false;
+    const targetH = 136;
+    const targetW = Math.round(targetH * (10 / 16));
+    const dx = Math.round((canvas.width - targetW) / 2);
+    const dy = Math.round((canvas.height - targetH) / 2);
+    ctx.save();
+    ctx.shadowColor = "rgba(0, 0, 0, 0.4)";
+    ctx.shadowBlur = 10;
+    ctx.shadowOffsetY = 4;
+    ctx.fillStyle = "#000000";
+    ctx.fillRect(dx + 2, dy + 2, targetW - 4, targetH - 4);
+    ctx.restore();
+    ctx.drawImage(img, sx, sy, sw, sh, dx, dy, targetW, targetH);
+  } catch (_) {}
+}
+
+async function loadCapesView(forceReload = false) {
   const grid = $("capesGrid");
   if (!grid) return;
   clearCapeAnimTimers();
   disposeAllCapeViewers();
 
-  if (activeCapeCat === "community" && Date.now() - __capeSyncAt > 60000) {
-    __capeSyncAt = Date.now();
-    try { await invoke("capes_sync_community"); } catch (_) {}
-  }
+  if (!__cachedAllCapes || forceReload) {
+    let capeData = { active_cape: null, capes: [] };
+    try {
+      capeData = await invoke("capes_list");
+    } catch (e) {
+      console.error("Capes list failed:", e);
+    }
+    __cachedCapeData = capeData;
 
-  let capeData = { active_cape: null, capes: [] };
-  try {
-    capeData = await invoke("capes_list");
-  } catch (e) {
-    console.error("Capes list failed:", e);
-  }
+    let storeCapes = __cachedStoreCapes || [];
+    if (!__cachedStoreCapes) {
+      try {
+        let catalog = [];
+        if (Array.isArray(window.__cosmStore)) {
+          catalog = window.__cosmStore;
+        } else if (window.__cosmStore && Array.isArray(window.__cosmStore.catalog)) {
+          catalog = window.__cosmStore.catalog;
+        } else if (Array.isArray(window.kmCat)) {
+          catalog = window.kmCat;
+        } else {
+          const storeRes = await invoke("kollegen_store");
+          if (storeRes && Array.isArray(storeRes.catalog)) {
+            catalog = storeRes.catalog;
+            window.__cosmStore = storeRes.catalog;
+          }
+        }
 
-  let storeCapes = [];
-  try {
-    let catalog = [];
-    if (Array.isArray(window.__cosmStore)) {
-      catalog = window.__cosmStore;
-    } else if (window.__cosmStore && Array.isArray(window.__cosmStore.catalog)) {
-      catalog = window.__cosmStore.catalog;
-    } else if (Array.isArray(window.kmCat)) {
-      catalog = window.kmCat;
-    } else {
-      const storeRes = await invoke("kollegen_store");
-      if (storeRes && Array.isArray(storeRes.catalog)) {
-        catalog = storeRes.catalog;
-        window.__cosmStore = storeRes.catalog;
+        if (Array.isArray(catalog)) {
+          const pkgOwned = new Set();
+          catalog.forEach(it => {
+            if (it && it.category === "package" && (it.owned || it.is_owned) && it.data && Array.isArray(it.data.items)) {
+              it.data.items.forEach(id => pkgOwned.add(id));
+            }
+          });
+
+          storeCapes = catalog
+            .filter(it => it && it.category === "cape" && (it.owned || it.is_owned || pkgOwned.has(it.id)))
+            .map(it => {
+              let tex = resolveStoreCapeTexture(it);
+              return {
+                id: it.id,
+                name: it.title || it.name || "Store Cape",
+                creator: "Kollegen Store",
+                category: "gekauft",
+                uses: it.uses || 1,
+                favorite: false,
+                animated: false,
+                fps: 10,
+                frames: [tex],
+                preview: tex,
+                isStoreItem: true,
+                data: it.data,
+              };
+            });
+        }
+        __cachedStoreCapes = storeCapes;
+      } catch (e) {
+        console.warn("Could not load store capes:", e);
       }
     }
 
-    if (Array.isArray(catalog)) {
-      const pkgOwned = new Set();
-      catalog.forEach(it => {
-        if (it && it.category === "package" && (it.owned || it.is_owned) && it.data && Array.isArray(it.data.items)) {
-          it.data.items.forEach(id => pkgOwned.add(id));
-        }
-      });
-
-      storeCapes = catalog
-        .filter(it => it && it.category === "cape" && (it.owned || it.is_owned || pkgOwned.has(it.id)))
-        .map(it => {
-          let tex = resolveStoreCapeTexture(it);
-          return {
-            id: it.id,
-            name: it.title || it.name || "Store Cape",
-            creator: "Kollegen Store",
-            category: "gekauft",
-            uses: it.uses || 1,
+    let vanillaCapes = __cachedVanillaCapes || [];
+    if (!__cachedVanillaCapes) {
+      try {
+        const prof = await invoke("skin_mc_profile");
+        if (prof && Array.isArray(prof.capes)) {
+          vanillaCapes = prof.capes.map(vc => ({
+            id: "vanilla_" + vc.id,
+            vanillaId: vc.id,
+            name: vc.alias || "Vanilla Cape",
+            creator: "Mojang",
+            category: "vanilla",
+            uses: 1,
             favorite: false,
             animated: false,
             fps: 10,
-            frames: [tex],
-            preview: tex,
-            isStoreItem: true,
-            data: it.data,
-          };
-        });
+            frames: [httpsify(vc.url)],
+            preview: httpsify(vc.url),
+            isVanilla: true,
+            active: vc.state === "ACTIVE"
+          }));
+        }
+        __cachedVanillaCapes = vanillaCapes;
+      } catch (e) {
+        console.warn("Could not load vanilla capes:", e);
+      }
     }
-  } catch (e) {
-    console.warn("Could not load store capes:", e);
+
+    let allCapes = [...capeData.capes];
+    storeCapes.forEach(sc => {
+      if (!allCapes.some(c => c.id === sc.id)) allCapes.push(sc);
+    });
+    vanillaCapes.forEach(vc => {
+      if (!allCapes.some(c => c.id === vc.id)) allCapes.push(vc);
+    });
+
+    const favList = Array.isArray(capeData.favorites) ? capeData.favorites : [];
+    allCapes.forEach(c => {
+      if (favList.includes(c.id)) c.favorite = true;
+    });
+
+    __cachedAllCapes = allCapes;
+
+    if (activeCapeCat === "community" && Date.now() - __capeSyncAt > 60000) {
+      __capeSyncAt = Date.now();
+      invoke("capes_sync_community").then(async (count) => {
+        if (count > 0) {
+          const fresh = await invoke("capes_list");
+          __cachedCapeData = fresh;
+          let merged = [...fresh.capes];
+          (storeCapes || []).forEach(sc => { if (!merged.some(c => c.id === sc.id)) merged.push(sc); });
+          (vanillaCapes || []).forEach(vc => { if (!merged.some(c => c.id === vc.id)) merged.push(vc); });
+          const fList = Array.isArray(fresh.favorites) ? fresh.favorites : [];
+          merged.forEach(c => { if (fList.includes(c.id)) c.favorite = true; });
+          __cachedAllCapes = merged;
+          if (activeCapeCat === "community") loadCapesView(false);
+        }
+      }).catch(() => {});
+    }
   }
 
-  let vanillaCapes = [];
-  try {
-    const prof = await invoke("skin_mc_profile");
-    if (prof && Array.isArray(prof.capes)) {
-      vanillaCapes = prof.capes.map(vc => ({
-        id: "vanilla_" + vc.id,
-        vanillaId: vc.id,
-        name: vc.alias || "Vanilla Cape",
-        creator: "Mojang",
-        category: "vanilla",
-        uses: 1,
-        favorite: false,
-        animated: false,
-        fps: 10,
-        frames: [httpsify(vc.url)],
-        preview: httpsify(vc.url),
-        isVanilla: true,
-        active: vc.state === "ACTIVE"
-      }));
-    }
-  } catch (e) {
-    console.warn("Could not load vanilla capes:", e);
-  }
-
-  let allCapes = [...capeData.capes];
-  storeCapes.forEach(sc => {
-    if (!allCapes.some(c => c.id === sc.id)) {
-      allCapes.push(sc);
-    }
-  });
-  vanillaCapes.forEach(vc => {
-    if (!allCapes.some(c => c.id === vc.id)) {
-      allCapes.push(vc);
-    }
-  });
-
-  const favList = Array.isArray(capeData.favorites) ? capeData.favorites : [];
-  allCapes.forEach(c => {
-    if (favList.includes(c.id)) c.favorite = true;
-  });
+  const capeData = __cachedCapeData || { active_cape: null, capes: [] };
+  const allCapes = __cachedAllCapes || [];
 
   const searchVal = ($("capesSearchInput") ? $("capesSearchInput").value.trim().toLowerCase() : "");
 
@@ -4791,7 +4931,8 @@ async function loadCapesView() {
           try { await invoke("cape_equip", { capeId: "" }); } catch (_) {}
           currentCapeUrl = null;
           toast("Cape abgelegt", "ok");
-          loadCapesView();
+          invalidateCapesCache();
+          loadCapesView(true);
           loadHomeSkin(true);
         } catch (e) {
           toast("Fehler: " + e, "error");
@@ -4875,17 +5016,22 @@ async function loadCapesView() {
       }).catch((e) => {
         console.warn("Store Cape 3D thumb failed:", e);
       });
-    } else if (window.skinview3d && window.skinview3d.SkinViewer && initialCapeSrc) {
+    } else if (initialCapeSrc) {
       const canvas = document.createElement("canvas");
       canvas.width = 160;
       canvas.height = 180;
       canvas.className = "cape-card-canvas";
       prevWrap.appendChild(canvas);
 
-      ensureCapeTextureUrl(initialCapeSrc).then((validUrl) => {
-        if (!validUrl) return;
+      const staticImg = new Image();
+      staticImg.onload = () => drawCapeStatic2D(canvas, staticImg);
+      staticImg.src = initialCapeSrc;
+
+      let viewer = null;
+      const mountViewer = () => {
+        if (viewer || !window.skinview3d || !window.skinview3d.SkinViewer) return;
         try {
-          const viewer = new window.skinview3d.SkinViewer({
+          viewer = new window.skinview3d.SkinViewer({
             canvas: canvas,
             width: 160,
             height: 180,
@@ -4893,46 +5039,13 @@ async function loadCapesView() {
           viewer.playerObject.skin.visible = false;
           viewer.playerObject.cape.visible = true;
           viewer.playerObject.backEquipment = "cape";
-          if (viewer.playerObject.elytra) {
-            viewer.playerObject.elytra.visible = false;
-          }
-          viewer.playerWrapper.rotation.y = Math.PI; // Face the back of cape towards user
-          viewer.autoRotate = false;
+          if (viewer.playerObject.elytra) viewer.playerObject.elytra.visible = false;
+          viewer.playerWrapper.rotation.y = Math.PI;
+          viewer.autoRotate = true;
           viewer.autoRotateSpeed = 2.2;
           capeViewers.push(viewer);
 
-           viewer.loadCape(validUrl).then(() => {
-             let frames = 0;
-             const pump = () => {
-               try { viewer.render(); } catch (_) {}
-               if (frames++ < 4) requestAnimationFrame(pump);
-               else {
-                 setTimeout(() => {
-                   try {
-                     if (!card.matches(":hover")) {
-                       viewer.renderPaused = true;
-                     }
-                   } catch (_) {}
-                 }, 200);
-               }
-             };
-             requestAnimationFrame(pump);
-           }).catch((err) => {
-             console.warn("SkinViewer loadCape error:", err);
-           });
-
-          card.addEventListener("mouseenter", () => {
-            try {
-              viewer.autoRotate = true;
-              viewer.renderPaused = false;
-            } catch (_) {}
-          });
-          card.addEventListener("mouseleave", () => {
-            try {
-              viewer.autoRotate = false;
-              viewer.renderPaused = true;
-            } catch (_) {}
-          });
+          viewer.loadCape(initialCapeSrc).catch(() => {});
 
           if (c.animated && c.frames && c.frames.length > 1) {
             let fIdx = 0;
@@ -4950,12 +5063,42 @@ async function loadCapesView() {
         } catch (e) {
           console.warn("Cape 3D viewer failed:", e);
         }
+      };
+
+      card.addEventListener("mouseenter", () => {
+        if (!viewer) {
+          mountViewer();
+        } else {
+          try {
+            viewer.autoRotate = true;
+            viewer.renderPaused = false;
+          } catch (_) {}
+        }
       });
-    } else {
-      const img = document.createElement("img");
-      img.src = initialCapeSrc;
-      img.alt = c.name;
-      prevWrap.appendChild(img);
+      card.addEventListener("mouseleave", () => {
+        if (viewer) {
+          try {
+            viewer.autoRotate = false;
+            viewer.renderPaused = true;
+          } catch (_) {}
+        }
+      });
+
+      if (c.animated && c.frames && c.frames.length > 1) {
+        let fIdx = 0;
+        const interval = Math.max(50, Math.round(1000 / (c.fps || 10)));
+        const staticTimer = setInterval(() => {
+          if (viewer) return;
+          fIdx = (fIdx + 1) % c.frames.length;
+          const frameUrl = c.frames[fIdx];
+          if (frameUrl) {
+            const fImg = new Image();
+            fImg.onload = () => { if (!viewer) drawCapeStatic2D(canvas, fImg); };
+            fImg.src = frameUrl;
+          }
+        }, interval);
+        capeAnimTimers.push(staticTimer);
+      }
     }
 
     const name = document.createElement("div");
@@ -4971,18 +5114,26 @@ async function loadCapesView() {
     card.appendChild(name);
     card.appendChild(author);
 
-    if (c.category === "my_capes") {
+    const isOwner = c.category === "my_capes" || c.creator === "Du" ||
+      (socialMe && (c.creator === socialMe.mc_name || c.creator === socialMe.username || c.creator === socialMe.global_name)) ||
+      (c.id && c.id.startsWith("my_cape_")) ||
+      (c.id && c.id.startsWith("cape_") && !c.isStoreItem && !c.isVanilla && (c.creator === "Du" || (socialMe && (c.creator === socialMe.mc_name || c.creator === socialMe.username || c.creator === socialMe.global_name))));
+
+    if (isOwner) {
       const actions = document.createElement("div");
       actions.className = "cape-card-actions";
 
-      const renameBtn = document.createElement("button");
-      renameBtn.className = "cape-card-action-btn";
-      renameBtn.title = "Cape umbenennen";
-      renameBtn.innerHTML = `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
-      renameBtn.onclick = (e) => {
-        e.stopPropagation();
-        openCapeRenameModal(c);
-      };
+      if (c.category === "my_capes" || c.creator === "Du") {
+        const renameBtn = document.createElement("button");
+        renameBtn.className = "cape-card-action-btn";
+        renameBtn.title = "Cape umbenennen";
+        renameBtn.innerHTML = `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
+        renameBtn.onclick = (e) => {
+          e.stopPropagation();
+          openCapeRenameModal(c);
+        };
+        actions.appendChild(renameBtn);
+      }
 
       const delBtn = document.createElement("button");
       delBtn.className = "cape-card-action-btn btn-del";
@@ -4994,7 +5145,14 @@ async function loadCapesView() {
           try {
             await invoke("capes_delete", { capeId: c.id });
             toast(`Cape "${c.name}" gelöscht`, "ok");
-            loadCapesView();
+            if (__cachedAllCapes) {
+              __cachedAllCapes = __cachedAllCapes.filter(x => x.id !== c.id && x.name !== c.name);
+            }
+            if (__cachedCapeData && Array.isArray(__cachedCapeData.capes)) {
+              __cachedCapeData.capes = __cachedCapeData.capes.filter(x => x.id !== c.id && x.name !== c.name);
+            }
+            invalidateCapesCache();
+            await loadCapesView(true);
             loadHomeSkin(true);
           } catch (err) {
             toast("Löschen fehlgeschlagen: " + err, "error");
@@ -5002,7 +5160,6 @@ async function loadCapesView() {
         }
       };
 
-      actions.appendChild(renameBtn);
       actions.appendChild(delBtn);
       prevWrap.appendChild(actions);
     }
@@ -5048,7 +5205,8 @@ async function loadCapesView() {
           currentCapeUrl = c.preview || (c.frames && c.frames[0]) || null;
           toast(`Cape "${c.name}" ausgerüstet!`, "ok");
         }
-        loadCapesView();
+        invalidateCapesCache();
+        loadCapesView(true);
         loadHomeSkin(true);
       } catch (err) {
         toast("Cape ausrüsten fehlgeschlagen: " + err, "error");
@@ -5067,11 +5225,11 @@ document.querySelectorAll(".cape-cat-tab").forEach(tab => {
     });
     tab.classList.add("active");
     activeCapeCat = tab.dataset.cat || "all";
-    loadCapesView();
+    loadCapesView(false);
   };
 });
 
-if ($("capesSearchInput")) $("capesSearchInput").oninput = () => loadCapesView();
+if ($("capesSearchInput")) $("capesSearchInput").oninput = () => loadCapesView(false);
 if ($("capeFavToggleBtn")) {
   $("capeFavToggleBtn").onclick = (e) => {
     e.stopPropagation();
@@ -5079,7 +5237,7 @@ if ($("capeFavToggleBtn")) {
     $("capeFavToggleBtn").classList.toggle("active", capeFavOnly);
     const starIco = $("capeFavStarIco");
     if (starIco) starIco.setAttribute("fill", capeFavOnly ? "currentColor" : "none");
-    loadCapesView();
+    loadCapesView(false);
   };
 }
 
@@ -5091,6 +5249,13 @@ function openCapeUploadModal() {
   if (!modal) return;
   uploadedCapeFrames = [];
   rawUploadedCapeImages = [];
+  resetCapeAdjustControls();
+  const ic = $("capeInteractiveCanvas");
+  if (ic) {
+    const ictx = ic.getContext("2d");
+    if (ictx) ictx.clearRect(0, 0, ic.width, ic.height);
+  }
+  if ($("capeAdjustPanel")) $("capeAdjustPanel").style.display = "none";
   if ($("capeNameField")) $("capeNameField").value = "";
   if ($("capeFilesPicker")) $("capeFilesPicker").value = "";
   if ($("capeFrameManager")) $("capeFrameManager").style.display = "none";
@@ -5152,7 +5317,8 @@ async function submitCapeRename() {
     await invoke("capes_rename", { capeId: renamingCapeId, newName: newName });
     toast(`Cape erfolgreich in "${newName}" umbenannt!`, "ok");
     closeCapeRenameModal();
-    loadCapesView();
+    invalidateCapesCache();
+    loadCapesView(true);
     loadHomeSkin(true);
   } catch (err) {
     toast("Umbenennen fehlgeschlagen: " + err, "error");
@@ -5199,27 +5365,135 @@ function isGifData(str) {
 }
 
 let rawUploadedCapeImages = [];
+let capeAdjustState = { zoom: 100, rotation: 0, panX: 0, panY: 0, forceCrop: true };
+let isTransformingCapes = false;
+
+function resetCapeAdjustControls() {
+  capeAdjustState = { zoom: 100, rotation: 0, panX: 0, panY: 0, forceCrop: true };
+  if ($("capeZoomSlider")) $("capeZoomSlider").value = 100;
+  if ($("capeZoomVal")) $("capeZoomVal").textContent = "100%";
+  if ($("capeRotateVal")) $("capeRotateVal").textContent = "0°";
+  if ($("capePanXSlider")) $("capePanXSlider").value = 0;
+  if ($("capePanXVal")) $("capePanXVal").textContent = "0";
+  if ($("capePanYSlider")) $("capePanYSlider").value = 0;
+  if ($("capePanYVal")) $("capePanYVal").textContent = "0";
+}
+
+async function reapplyCapeTransforms() {
+  if (!rawUploadedCapeImages.length) return;
+  if (isTransformingCapes) return;
+  isTransformingCapes = true;
+  try {
+    const mode = $("capeElytraModeSelect") ? $("capeElytraModeSelect").value : "normal";
+    const formatted = await Promise.all(rawUploadedCapeImages.map(raw => ensureCapeTextureUrl(raw, mode, capeAdjustState)));
+    uploadedCapeFrames = formatted.filter(Boolean);
+    renderFrameManager();
+  } finally {
+    isTransformingCapes = false;
+  }
+}
+
+if ($("capeZoomSlider")) {
+  $("capeZoomSlider").oninput = (e) => {
+    capeAdjustState.zoom = parseInt(e.target.value, 10) || 100;
+    if ($("capeZoomVal")) $("capeZoomVal").textContent = capeAdjustState.zoom + "%";
+    reapplyCapeTransforms();
+  };
+}
+
+if ($("capeRotateLeftBtn")) {
+  $("capeRotateLeftBtn").onclick = () => {
+    capeAdjustState.rotation = (capeAdjustState.rotation - 90 + 360) % 360;
+    if ($("capeRotateVal")) $("capeRotateVal").textContent = capeAdjustState.rotation + "°";
+    reapplyCapeTransforms();
+  };
+}
+
+if ($("capeRotateRightBtn")) {
+  $("capeRotateRightBtn").onclick = () => {
+    capeAdjustState.rotation = (capeAdjustState.rotation + 90) % 360;
+    if ($("capeRotateVal")) $("capeRotateVal").textContent = capeAdjustState.rotation + "°";
+    reapplyCapeTransforms();
+  };
+}
+
+if ($("capePanXSlider")) {
+  $("capePanXSlider").oninput = (e) => {
+    capeAdjustState.panX = parseInt(e.target.value, 10) || 0;
+    if ($("capePanXVal")) $("capePanXVal").textContent = String(capeAdjustState.panX);
+    reapplyCapeTransforms();
+  };
+}
+
+if ($("capePanYSlider")) {
+  $("capePanYSlider").oninput = (e) => {
+    capeAdjustState.panY = parseInt(e.target.value, 10) || 0;
+    if ($("capePanYVal")) $("capePanYVal").textContent = String(capeAdjustState.panY);
+    reapplyCapeTransforms();
+  };
+}
+
+if ($("capeAdjustResetBtn")) {
+  $("capeAdjustResetBtn").onclick = () => {
+    resetCapeAdjustControls();
+    reapplyCapeTransforms();
+  };
+}
+
+const icCanvas = $("capeInteractiveCanvas");
+if (icCanvas) {
+  let isDraggingCrop = false;
+  let dragStartX = 0;
+  let dragStartY = 0;
+  let dragStartPanX = 0;
+  let dragStartPanY = 0;
+
+  icCanvas.onpointerdown = (e) => {
+    isDraggingCrop = true;
+    dragStartX = e.clientX;
+    dragStartY = e.clientY;
+    dragStartPanX = capeAdjustState.panX || 0;
+    dragStartPanY = capeAdjustState.panY || 0;
+    try { icCanvas.setPointerCapture(e.pointerId); } catch (_) {}
+    icCanvas.style.cursor = "grabbing";
+  };
+
+  icCanvas.onpointermove = (e) => {
+    if (!isDraggingCrop) return;
+    const dx = e.clientX - dragStartX;
+    const dy = e.clientY - dragStartY;
+    const rect = icCanvas.getBoundingClientRect();
+    const scaleX = rect.width || 130;
+    const scaleY = rect.height || 208;
+    capeAdjustState.panX = Math.max(-100, Math.min(100, Math.round(dragStartPanX + (dx / scaleX) * 100)));
+    capeAdjustState.panY = Math.max(-100, Math.min(100, Math.round(dragStartPanY + (dy / scaleY) * 100)));
+    if ($("capePanXSlider")) $("capePanXSlider").value = capeAdjustState.panX;
+    if ($("capePanXVal")) $("capePanXVal").textContent = String(capeAdjustState.panX);
+    if ($("capePanYSlider")) $("capePanYSlider").value = capeAdjustState.panY;
+    if ($("capePanYVal")) $("capePanYVal").textContent = String(capeAdjustState.panY);
+    reapplyCapeTransforms();
+  };
+
+  icCanvas.onpointerup = (e) => {
+    isDraggingCrop = false;
+    icCanvas.style.cursor = "grab";
+    try { icCanvas.releasePointerCapture(e.pointerId); } catch (_) {}
+  };
+
+  icCanvas.onwheel = (e) => {
+    e.preventDefault();
+    const delta = e.deltaY > 0 ? -10 : 10;
+    capeAdjustState.zoom = Math.max(20, Math.min(300, (capeAdjustState.zoom || 100) + delta));
+    if ($("capeZoomSlider")) $("capeZoomSlider").value = capeAdjustState.zoom;
+    if ($("capeZoomVal")) $("capeZoomVal").textContent = capeAdjustState.zoom + "%";
+    reapplyCapeTransforms();
+  };
+}
 
 const elytraModeSelect = $("capeElytraModeSelect");
 if (elytraModeSelect) {
   elytraModeSelect.onchange = async () => {
-    if (!rawUploadedCapeImages.length) return;
-    const mode = elytraModeSelect.value || "normal";
-    if (rawUploadedCapeImages.length === 1 && isGifData(rawUploadedCapeImages[0])) {
-      try {
-        const parsed = await invoke("capes_parse_gif", { data: rawUploadedCapeImages[0], elytra_mode: mode });
-        if (parsed && parsed.frames && parsed.frames.length > 0) {
-          uploadedCapeFrames = parsed.frames;
-          renderFrameManager();
-          return;
-        }
-      } catch (err) {
-        console.error("capes_parse_gif error:", err);
-      }
-    }
-    const formatted = await Promise.all(rawUploadedCapeImages.map(raw => ensureCapeTextureUrl(raw, mode)));
-    uploadedCapeFrames = formatted.filter(Boolean);
-    renderFrameManager();
+    reapplyCapeTransforms();
   };
 }
 
@@ -5228,6 +5502,9 @@ if ($("capeFilesPicker")) {
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
     uploadedCapeFrames = [];
+    resetCapeAdjustControls();
+    capeAdjustState.forceCrop = true;
+    if ($("capeAdjustPanel")) $("capeAdjustPanel").style.display = "block";
 
     const readPromises = files.map(f => new Promise((resolve) => {
       const r = new FileReader();
@@ -5242,13 +5519,17 @@ if ($("capeFilesPicker")) {
     if (rawResults.length === 1 && (isGifData(rawResults[0]) || (files[0] && files[0].name && files[0].name.toLowerCase().endsWith(".gif")))) {
       try {
         const parsed = await invoke("capes_parse_gif", { data: rawResults[0], elytra_mode: mode });
-        if (parsed && parsed.frames && parsed.frames.length > 0) {
-          uploadedCapeFrames = parsed.frames;
+        if (parsed) {
+          if (parsed.raw_frames && parsed.raw_frames.length > 0) {
+            rawUploadedCapeImages = parsed.raw_frames;
+          } else if (parsed.frames && parsed.frames.length > 0) {
+            rawUploadedCapeImages = parsed.frames;
+          }
           if (parsed.fps && $("capeFpsSlider")) {
             $("capeFpsSlider").value = parsed.fps;
             if ($("capeFpsVal")) $("capeFpsVal").textContent = parsed.fps + " FPS";
           }
-          renderFrameManager();
+          await reapplyCapeTransforms();
           return;
         }
       } catch (err) {
@@ -5256,9 +5537,7 @@ if ($("capeFilesPicker")) {
       }
     }
 
-    const formatted = await Promise.all(rawResults.map(raw => ensureCapeTextureUrl(raw, mode)));
-    uploadedCapeFrames = formatted.filter(Boolean);
-    renderFrameManager();
+    await reapplyCapeTransforms();
   };
 }
 
@@ -5280,8 +5559,8 @@ function renderFrameManager() {
       if (!uploadCapeViewer || uploadCapeViewer.disposed) {
         uploadCapeViewer = new window.skinview3d.SkinViewer({
           canvas: canvas3d,
-          width: 160,
-          height: 200,
+          width: 130,
+          height: 208,
         });
         uploadCapeViewer.playerObject.skin.visible = false;
         uploadCapeViewer.playerObject.cape.visible = true;
@@ -5292,7 +5571,7 @@ function renderFrameManager() {
         }
         uploadCapeViewer.playerWrapper.rotation.y = Math.PI;
         uploadCapeViewer.autoRotate = true;
-        uploadCapeViewer.autoRotateSpeed = 2.2;
+        uploadCapeViewer.autoRotateSpeed = 2.0;
       }
       uploadCapeViewer.loadCape(uploadedCapeFrames[0]);
       uploadCapeViewer.autoRotate = true;
@@ -5353,8 +5632,8 @@ function renderFrameManager() {
 function restartAnimPreview() {
   if (animPreviewTimer) clearInterval(animPreviewTimer);
   const canvas = $("capeAnimPreviewCanvas");
-  if (!canvas || !uploadedCapeFrames.length) return;
-  const ctx = canvas.getContext("2d");
+  const ic = $("capeInteractiveCanvas");
+  if (!uploadedCapeFrames.length) return;
   const fps = $("capeFpsSlider") ? parseInt($("capeFpsSlider").value, 10) || 10 : 10;
   let idx = 0;
 
@@ -5364,12 +5643,56 @@ function restartAnimPreview() {
     return im;
   });
 
+  const rawPreloaded = (rawUploadedCapeImages || []).map((f) => {
+    const im = new Image();
+    im.src = f;
+    return im;
+  });
+
   function drawCurrent() {
     const imgObj = preloaded[idx];
-    if (imgObj && imgObj.complete && imgObj.naturalWidth > 0) {
+    if (canvas && imgObj && imgObj.complete && imgObj.naturalWidth > 0) {
+      const ctx = canvas.getContext("2d");
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.imageSmoothingEnabled = false;
       ctx.drawImage(imgObj, 0, 0, canvas.width, canvas.height);
+    }
+    if (ic) {
+      const ictx = ic.getContext("2d");
+      if (ictx) {
+        ictx.clearRect(0, 0, ic.width, ic.height);
+        const rawSrc = rawPreloaded[idx] || imgObj;
+        if (rawSrc && rawSrc.complete && rawSrc.naturalWidth > 0) {
+          const sw = rawSrc.naturalWidth;
+          const sh = rawSrc.naturalHeight;
+          const bw = ic.width;
+          const bh = ic.height;
+          const imgRatio = sw / sh;
+          const destRatio = bw / bh;
+          let baseW, baseH;
+          if (imgRatio > destRatio) {
+            baseH = bh;
+            baseW = bh * imgRatio;
+          } else {
+            baseW = bw;
+            baseH = bw / imgRatio;
+          }
+          const zoom = (capeAdjustState.zoom || 100) / 100;
+          const panX = (capeAdjustState.panX || 0) / 100;
+          const panY = (capeAdjustState.panY || 0) / 100;
+          const rot = ((capeAdjustState.rotation || 0) * Math.PI) / 180;
+
+          ictx.save();
+          ictx.beginPath();
+          ictx.roundRect(0, 0, bw, bh, 10);
+          ictx.clip();
+          ictx.translate(bw / 2 + panX * bw, bh / 2 + panY * bh);
+          if (rot !== 0) ictx.rotate(rot);
+          ictx.scale(zoom, zoom);
+          ictx.drawImage(rawSrc, -baseW / 2, -baseH / 2, baseW, baseH);
+          ictx.restore();
+        }
+      }
     }
     if (uploadCapeViewer && !uploadCapeViewer.disposed && uploadCapeViewer.playerObject && uploadCapeViewer.playerObject.cape) {
       try {
@@ -5405,7 +5728,8 @@ if ($("capeUploadSubmitBtn")) {
       await invoke("capes_upload", { name, images: uploadedCapeFrames, fps, elytra_mode: mode });
       toast(`Cape "${name}" erfolgreich hochgeladen & ausgerüstet!`, "ok");
       closeCapeUploadModal();
-      loadCapesView();
+      invalidateCapesCache();
+      loadCapesView(true);
       loadHomeSkin(true);
     } catch (err) {
       toast("Cape-Upload fehlgeschlagen: " + err, "error");
@@ -5477,7 +5801,7 @@ document.addEventListener("click", () => closeVersionMenu());
 
 function setManageTab(kind) {
   manageKind = kind;
-  document.querySelectorAll(".tab").forEach((t) =>
+  document.querySelectorAll("#manageModal .tab[data-kind]").forEach((t) =>
     t.classList.toggle("active", t.dataset.kind === kind)
   );
   const isSettings = kind === "settings";

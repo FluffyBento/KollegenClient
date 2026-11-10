@@ -26,6 +26,10 @@ public final class UiStyleManager {
         return globalStyle;
     }
 
+    public static UiStyle getEffectiveStyle() {
+        return getGlobalStyle();
+    }
+
     public static void setGlobalStyle(UiStyle style) {
         if (style == null) return;
         globalStyle = style;
@@ -58,15 +62,15 @@ public final class UiStyleManager {
     }
 
     public static boolean isMinecraftStyle() {
-        return getGlobalStyle() == UiStyle.MINECRAFT_VANILLA || "minecraft".equalsIgnoreCase(Palette.getCurrentTheme());
+        return getEffectiveStyle() == UiStyle.MINECRAFT_VANILLA;
     }
 
     public static void drawPanel(GuiGraphicsExtractor g, float x, float y, float w, float h, int bgTint) {
-        drawPanel(g, x, y, w, h, bgTint, getGlobalStyle());
+        drawPanel(g, x, y, w, h, bgTint, getEffectiveStyle());
     }
 
     public static void drawPanel(GuiGraphicsExtractor g, float x, float y, float w, float h, int bgTint, UiStyle style) {
-        if (style == null) style = getGlobalStyle();
+        if (style == null) style = getEffectiveStyle();
         switch (style) {
             case MINECRAFT_VANILLA -> {
                 int ix = (int) x;
@@ -86,7 +90,7 @@ public final class UiStyleManager {
 
                 g.fill(ix + 3, iy + 3, ix + iw - 3, iy + 4, 0xFF373737);
                 g.fill(ix + 3, iy + 3, ix + 4, iy + ih - 3, 0xFF373737);
-                g.fill(ix + 3, iy + ih - 4, ix + iw - 3, iy + ih - 3, 0xFF2A2A2A);
+                g.fill(ix + 3, iy + ih - 4, ix + iw - 3, iy + ih - 4, 0xFF2A2A2A);
                 g.fill(ix + iw - 4, iy + 3, ix + iw - 3, iy + ih - 3, 0xFF2A2A2A);
             }
             case MODERN_FLAT -> {
@@ -106,7 +110,7 @@ public final class UiStyleManager {
     }
 
     public static void drawCard(GuiGraphicsExtractor g, float x, float y, float w, float h, float r, int tint, float hover, UiStyle style) {
-        if (style == null) style = getGlobalStyle();
+        if (style == null) style = getEffectiveStyle();
         switch (style) {
             case MINECRAFT_VANILLA -> {
                 int ix = (int) x;
@@ -127,10 +131,10 @@ public final class UiStyleManager {
                     g.fill(ix + 1, iy + 1, ix + 2, iy + ih - 1, 0xFFFFFFFF);
                     g.fill(ix + iw - 2, iy + 1, ix + iw - 1, iy + ih - 1, 0xFFFFFFFF);
                 } else {
-                    g.fill(ix + 1, iy + 1, ix + iw - 1, iy + 2, 0xFF0E0E0E);
-                    g.fill(ix + 1, iy + 1, ix + 2, iy + ih - 1, 0xFF0E0E0E);
-                    g.fill(ix + 1, iy + ih - 2, ix + iw - 1, iy + ih - 1, 0xFF2C2C2C);
-                    g.fill(ix + iw - 2, iy + 1, ix + iw - 1, iy + ih - 1, 0xFF2C2C2C);
+                    g.fill(ix + 1, iy + 1, ix + iw - 1, iy + 2, 0xFF2C2C2C);
+                    g.fill(ix + 1, iy + 1, ix + 2, iy + ih - 1, 0xFF2C2C2C);
+                    g.fill(ix + 1, iy + ih - 2, ix + iw - 1, iy + ih - 1, 0xFF121212);
+                    g.fill(ix + iw - 2, iy + 1, ix + iw - 1, iy + ih - 1, 0xFF121212);
                 }
             }
             case MODERN_FLAT -> {
@@ -157,7 +161,7 @@ public final class UiStyleManager {
     }
 
     public static void drawHudCard(GuiGraphicsExtractor g, float x, float y, float w, float h, int tint, float op, boolean accentBar, UiStyle style) {
-        if (style == null) style = getGlobalStyle();
+        if (style == null) style = getEffectiveStyle();
         switch (style) {
             case MINECRAFT_VANILLA -> {
                 int ix = (int) x;

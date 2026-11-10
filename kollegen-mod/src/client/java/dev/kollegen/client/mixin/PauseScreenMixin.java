@@ -23,6 +23,23 @@ public abstract class PauseScreenMixin extends Screen {
 
     @Inject(method = "init", at = @At("RETURN"))
     private void kollegen$addPauseMenuButtons(CallbackInfo ci) {
+        dev.kollegen.client.KollegenMod.cleanModMenu();
+        java.util.List<net.minecraft.client.gui.components.events.GuiEventListener> toRemove = new java.util.ArrayList<>();
+        for (net.minecraft.client.gui.components.events.GuiEventListener child : this.children()) {
+            if (child instanceof net.minecraft.client.gui.components.AbstractWidget aw) {
+                Component msg = aw.getMessage();
+                if (msg != null) {
+                    String s = msg.getString();
+                    if (s.contains("LAN") || (msg.getContents() instanceof net.minecraft.network.chat.contents.TranslatableContents tc && "menu.shareToLan".equals(tc.getKey()))) {
+                        toRemove.add(child);
+                    }
+                }
+            }
+        }
+        for (net.minecraft.client.gui.components.events.GuiEventListener child : toRemove) {
+            this.removeWidget(child);
+        }
+
         int btnH = 22;
         int topY = 10;
         int switchW = 120;
@@ -59,7 +76,7 @@ public abstract class PauseScreenMixin extends Screen {
 
         if (this.minecraft != null && this.minecraft.hasSingleplayerServer()) {
             boolean active = this.minecraft.getSingleplayerServer() != null && this.minecraft.getSingleplayerServer().isPublished();
-            String hostText = active ? "🌍 Welt (Aktiv)" : "🌍 Welt hosten";
+            String hostText = active ? "🌍 Host World (Aktiv)" : "🌍 Host World";
             this.addRenderableWidget(new GlassButton(this.width - switchW - friendW - feedW - hostW - 28, topY, hostW, btnH,
                     Component.literal(hostText), btn -> {
                 if (this.minecraft != null) {

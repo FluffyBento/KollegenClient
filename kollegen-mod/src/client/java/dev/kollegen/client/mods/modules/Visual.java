@@ -108,10 +108,13 @@ public final class Visual {
         ModuleManager.register(new FovModifier());
         ModuleManager.register(new KollegenShader());
         ModuleManager.register(new WaveyCapes());
+        ModuleManager.register(new ItemPhysics());
         ModuleManager.register(new SpectatorHighlighting());
         ModuleManager.register(new SmoothSwapping());
         ModuleManager.register(new FightCamera());
         ModuleManager.register(new AfkCinematic());
+        ModuleManager.register(new LowFire());
+        ModuleManager.register(new LowShield());
     }
 
     public static class WaveyCapes extends Module {
@@ -401,6 +404,70 @@ public final class Visual {
         @Override
         public void onDisable() {
             resetAfkTimer();
+        }
+    }
+
+    public static class LowFire extends Module {
+        public static volatile LowFire instance;
+
+        public static final SliderSetting height = new SliderSetting(
+                "Feuer-Höhe",
+                "Vertikale Position des Feuers (negativ = tiefer).",
+                -0.35, -0.65, 0.0, 0.05,
+                v -> String.format(java.util.Locale.ROOT, "%.2f", v), null
+        );
+
+        public LowFire() {
+            super("lowfire", "Low Fire", "Senkt das Feuer auf dem Bildschirm ab für ein freies Sichtfeld im Kampf.", Category.VISUAL);
+            this.enabled = true;
+            instance = this;
+            add(height);
+        }
+
+        public static boolean isLowFireEnabled() {
+            return instance != null && instance.enabled;
+        }
+
+        public static float getHeight() {
+            return instance != null ? (float) height.value : -0.35f;
+        }
+    }
+
+    public static class LowShield extends Module {
+        public static volatile LowShield instance;
+
+        public static final SliderSetting height = new SliderSetting(
+                "Schild-Höhe",
+                "Senkt das Schild im First-Person-Sichtfeld nach unten ab.",
+                -0.25, -0.60, 0.0, 0.05,
+                v -> String.format(java.util.Locale.ROOT, "%.2f", v), null
+        );
+
+        public static final SliderSetting scale = new SliderSetting(
+                "Schild-Größe",
+                "Größe des Schilds in der Hand.",
+                0.80, 0.40, 1.20, 0.05,
+                v -> Math.round(v * 100.0) + "%", null
+        );
+
+        public LowShield() {
+            super("lowshield", "Low Shield", "Senkt das gehaltene Schild im First-Person-Sichtfeld nach unten ab für freies Sichtfeld.", Category.VISUAL);
+            this.enabled = true;
+            instance = this;
+            add(height);
+            add(scale);
+        }
+
+        public static boolean isLowShieldEnabled() {
+            return instance != null && instance.enabled;
+        }
+
+        public static float getHeight() {
+            return instance != null ? (float) height.value : -0.25f;
+        }
+
+        public static float getScale() {
+            return instance != null ? (float) scale.value : 0.8f;
         }
     }
 

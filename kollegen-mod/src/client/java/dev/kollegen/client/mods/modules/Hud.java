@@ -70,6 +70,7 @@ public final class Hud {
         ModuleManager.register(new TotemCounter());
         ModuleManager.register(new GearTiers());
         ModuleManager.register(new ItemChangesHudModule());
+        ModuleManager.register(new RustEngineStatus());
     }
 
     private static class Coordinates extends HudModule {
@@ -599,6 +600,9 @@ public final class Hud {
     }
 
     private static class Memory extends HudModule {
+        private long lastRssCheck = 0L;
+        private long cachedRssMb = 0L;
+
         Memory() {
             super("memory", "Arbeitsspeicher", "Zeigt belegten RAM (MB) an.");
         }
@@ -609,7 +613,34 @@ public final class Hud {
             long used = (r.totalMemory() - r.freeMemory()) / (1024 * 1024);
             long total = r.maxMemory() / (1024 * 1024);
             List<String> lines = new ArrayList<>();
-            lines.add("RAM: " + used + " / " + total + " MB");
+            if (dev.kollegen.client.nativebridge.KollegenNative.isAvailable()) {
+                long now = System.currentTimeMillis();
+                if (now - lastRssCheck > 1000L) {
+                    lastRssCheck = now;
+                    cachedRssMb = dev.kollegen.client.nativebridge.KollegenNative.getRssBytes() / (1024 * 1024);
+                }
+                lines.add("RAM: " + used + " / " + total + " MB (RSS: " + cachedRssMb + " MB [Rust])");
+            } else {
+                lines.add("RAM: " + used + " / " + total + " MB");
+            }
+            renderLines(g, lines, 0, 0);
+        }
+    }
+
+    private static class RustEngineStatus extends HudModule {
+        RustEngineStatus() {
+            super("ruststatus", "Rust Native Engine", "Zeigt Status und SIMD-Beschleunigung der Horizon-basierten Rust-Runtime.");
+            this.enabled = false;
+        }
+
+        @Override
+        public void onRenderHud(GuiGraphicsExtractor g, float td) {
+            List<String> lines = new ArrayList<>();
+            if (dev.kollegen.client.nativebridge.KollegenNative.isAvailable() && dev.kollegen.client.mods.modules.Performance.KollegenTricks.shouldUseRustRuntime()) {
+                lines.add("Rust Engine: Aktiv (SIMD/AVX2)");
+            } else {
+                lines.add("Rust Engine: Inaktiv");
+            }
             renderLines(g, lines, 0, 0);
         }
     }

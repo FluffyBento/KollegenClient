@@ -138,6 +138,8 @@ public class ThemeSelectorScreen extends Screen {
                             Palette.setTheme(this.themes.get(i).id);
                             if ("minecraft".equalsIgnoreCase(this.themes.get(i).id)) {
                                 UiStyleManager.setGlobalStyle(UiStyle.MINECRAFT_VANILLA);
+                            } else if (UiStyleManager.getGlobalStyle() == UiStyle.MINECRAFT_VANILLA) {
+                                UiStyleManager.setGlobalStyle(UiStyle.LIQUID_GLASS);
                             }
                             return true;
                         }
@@ -149,6 +151,11 @@ public class ThemeSelectorScreen extends Screen {
                         float y = this.cy + (i / this.cols) * (74 + GAP) - this.scrollV;
                         if (hit(mx, my, x, y, this.cardW, 74)) {
                             UiStyleManager.setGlobalStyle(styles[i]);
+                            if (styles[i] == UiStyle.MINECRAFT_VANILLA) {
+                                Palette.setTheme("minecraft");
+                            } else if ("minecraft".equalsIgnoreCase(Palette.getCurrentTheme())) {
+                                Palette.setTheme("default");
+                            }
                             return true;
                         }
                     }

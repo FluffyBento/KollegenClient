@@ -1,4 +1,5 @@
 target/
+kollegen-native/target/
 kollegen-client
 *.jar
 .kollegen/

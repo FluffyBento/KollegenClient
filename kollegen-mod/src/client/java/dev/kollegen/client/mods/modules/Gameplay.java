@@ -28,6 +28,7 @@ public final class Gameplay {
         ModuleManager.register(new AutoJump());
         ModuleManager.register(new ToggleSprint());
         ModuleManager.register(new ToggleSneak());
+        ModuleManager.register(new UhcOverlay());
     }
 
     private static class AutoSprint extends Module {

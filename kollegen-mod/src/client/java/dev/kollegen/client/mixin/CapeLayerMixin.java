@@ -65,10 +65,14 @@ public abstract class CapeLayerMixin {
                     return;
                 }
                 capeTexture = SkinCapeTextureManager.getOrLoadCape(data.capeTexture, data.capeTexture);
-                if (capeTexture == null) {
+                if (capeTexture == null && (data.capeTexture.startsWith("kollegen:") || data.capeTexture.startsWith("minecraft:"))) {
                     capeTexture = Identifier.tryParse(data.capeTexture.toLowerCase(java.util.Locale.ROOT));
                 }
             } else if (state.skin != null && state.skin.cape() != null) {
+                capeTexture = state.skin.cape().texturePath();
+            }
+
+            if (capeTexture == null && state.skin != null && state.skin.cape() != null) {
                 capeTexture = state.skin.cape().texturePath();
             }
 

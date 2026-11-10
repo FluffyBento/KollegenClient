@@ -8,8 +8,11 @@ import net.minecraft.client.gui.components.ChatComponent;
 import net.minecraft.client.multiplayer.PlayerInfo;
 import net.minecraft.client.multiplayer.chat.GuiMessage;
 import net.minecraft.client.multiplayer.chat.GuiMessageTag;
+import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.network.chat.MessageSignature;
+import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.contents.TranslatableContents;
 import org.spongepowered.asm.mixin.Final;
@@ -47,27 +50,104 @@ public class ChatMixin {
         throw new AssertionError();
     }
 
-    @Inject(method = "addPlayerMessage(Lnet/minecraft/network/chat/Component;Lnet/minecraft/network/chat/MessageSignature;Lnet/minecraft/client/multiplayer/chat/GuiMessageTag;)V",
-            at = @At("HEAD"), cancellable = true)
-    private void kollegen$chat(Component message, MessageSignature signature, GuiMessageTag tag, CallbackInfo ci) {
-        if (message != null) {
-            String raw = message.getString();
-            if (raw.contains("[KOLLEGEN_PARTY_")) {
-                int start = raw.indexOf("[KOLLEGEN_PARTY_");
-                int end = raw.indexOf("]", start);
-                if (end > start) {
-                    String payload = raw.substring(start, end + 1);
-                    String sender = "";
-                    int colon = raw.indexOf(":");
-                    if (colon > 0 && colon < start) {
-                        sender = raw.substring(0, colon).replaceAll("[^a-zA-Z0-9_]", "").trim();
-                    }
-                    if (dev.kollegen.client.party.PartyManager.handleIncomingMessage(sender, payload)) {
-                        ci.cancel();
-                        return;
+    @Unique
+    private static boolean kollegen$checkE4mc(Component message) {
+        if (message == null) return false;
+        String raw = message.getString();
+        if (raw.contains(".e4mc.link")) {
+            java.util.regex.Matcher m = java.util.regex.Pattern.compile("([a-z0-9-]+\\.e4mc\\.link)").matcher(raw);
+            if (m.find()) {
+                dev.kollegen.client.menu.HostWorldScreen.onTunnelDomainAssigned(m.group(1));
+                return true;
+            }
+        }
+        return false;
+    }
+
+    @Unique
+    private boolean kollegen$handleCustomPayload(Component message) {
+        if (message == null) return false;
+        String raw = message.getString();
+        if (raw.contains("[KOLLEGEN_PARTY_")) {
+            int start = raw.indexOf("[KOLLEGEN_PARTY_");
+            int end = raw.indexOf("]", start);
+            if (end > start) {
+                String payload = raw.substring(start, end + 1);
+                String sender = "";
+                int colon = raw.indexOf(":");
+                if (colon > 0 && colon < start) {
+                    sender = raw.substring(0, colon).replaceAll("[^a-zA-Z0-9_]", "").trim();
+                }
+                if (dev.kollegen.client.party.PartyManager.handleIncomingMessage(sender, payload)) {
+                    return true;
+                }
+            }
+        }
+        if (raw.contains("[KOLLEGEN_GAME_INV:")) {
+            int start = raw.indexOf("[KOLLEGEN_GAME_INV:");
+            int end = raw.indexOf("]", start);
+            if (end > start) {
+                String payload = raw.substring(start + 19, end);
+                String[] parts = payload.split(":", 3);
+                if (parts.length >= 3) {
+                    String gameId = parts[0].trim();
+                    String gameTitle = parts[1].trim();
+                    String from = parts[2].trim();
+                    Minecraft mc = Minecraft.getInstance();
+                    if (mc.player == null || !from.equalsIgnoreCase(mc.player.getGameProfile().name())) {
+                        MutableComponent alert = Component.literal("§d§l[Kollegen-Spiele] §e" + from + " §fhat dich zu §a" + gameTitle + " §feingeladen! ");
+                        MutableComponent btn = Component.literal("§a§l[▶ BEITRETEN]")
+                                .withStyle(s -> s.withBold(true)
+                                        .withClickEvent(new ClickEvent.RunCommand("/kollegengame " + gameId + " " + from))
+                                        .withHoverEvent(new HoverEvent.ShowText(Component.literal("§aKlicken, um " + gameTitle + " beizutreten"))));
+                        alert.append(btn);
+                        kollegen$busy = true;
+                        try {
+                            ((ChatComponent) (Object) this).addClientSystemMessage(alert);
+                        } finally {
+                            kollegen$busy = false;
+                        }
+                        return true;
                     }
                 }
             }
+        }
+        if (raw.contains("[KOLLEGEN_FRIEND_REQ:")) {
+            int start = raw.indexOf("[KOLLEGEN_FRIEND_REQ:");
+            int end = raw.indexOf("]", start);
+            if (end > start) {
+                String from = raw.substring(start + 21, end).trim();
+                Minecraft mc = Minecraft.getInstance();
+                if (mc.player == null || !from.equalsIgnoreCase(mc.player.getGameProfile().name())) {
+                    MutableComponent alert = Component.literal("§d§l[Kollegen-Freunde] §e" + from + " §fhat dir eine Freundschaftsanfrage gesendet! ");
+                    MutableComponent btn = Component.literal("§a§l[✓ ANNEHMEN]")
+                            .withStyle(s -> s.withBold(true)
+                                    .withClickEvent(new ClickEvent.RunCommand("/kollegenfriendaccept " + from))
+                                    .withHoverEvent(new HoverEvent.ShowText(Component.literal("§aKlicken, um Anfrage von " + from + " anzunehmen"))));
+                    alert.append(btn);
+                    kollegen$busy = true;
+                    try {
+                        ((ChatComponent) (Object) this).addClientSystemMessage(alert);
+                    } finally {
+                        kollegen$busy = false;
+                    }
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    @Inject(method = "addPlayerMessage(Lnet/minecraft/network/chat/Component;Lnet/minecraft/network/chat/MessageSignature;Lnet/minecraft/client/multiplayer/chat/GuiMessageTag;)V",
+            at = @At("HEAD"), cancellable = true)
+    private void kollegen$chat(Component message, MessageSignature signature, GuiMessageTag tag, CallbackInfo ci) {
+        if (kollegen$checkE4mc(message)) {
+            ci.cancel();
+            return;
+        }
+        if (kollegen$handleCustomPayload(message)) {
+            ci.cancel();
+            return;
         }
         if (TwitchChat.isFilterActive()) {
             int mode = TwitchChat.getFilterMode();
@@ -102,6 +182,14 @@ public class ChatMixin {
     @Inject(method = "addServerSystemMessage(Lnet/minecraft/network/chat/Component;)V",
             at = @At("HEAD"), cancellable = true)
     private void kollegen$onServerSystemMessage(Component message, CallbackInfo ci) {
+        if (kollegen$checkE4mc(message)) {
+            ci.cancel();
+            return;
+        }
+        if (kollegen$handleCustomPayload(message)) {
+            ci.cancel();
+            return;
+        }
         if (TwitchChat.isFilterActive() && TwitchChat.getFilterMode() == 1) {
             ci.cancel();
             return;
@@ -121,6 +209,14 @@ public class ChatMixin {
     @Inject(method = "addClientSystemMessage(Lnet/minecraft/network/chat/Component;)V",
             at = @At("HEAD"), cancellable = true)
     private void kollegen$onClientSystemMessage(Component message, CallbackInfo ci) {
+        if (kollegen$checkE4mc(message)) {
+            ci.cancel();
+            return;
+        }
+        if (kollegen$handleCustomPayload(message)) {
+            ci.cancel();
+            return;
+        }
         if (TwitchChat.isFilterActive() && TwitchChat.getFilterMode() == 1) {
             if (message != null && !message.getString().contains("[Twitch]")) {
                 ci.cancel();

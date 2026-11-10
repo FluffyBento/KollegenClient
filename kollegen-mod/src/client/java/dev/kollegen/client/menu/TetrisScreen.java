@@ -48,7 +48,7 @@ public class TetrisScreen extends Screen {
     private int againX;
     private int againY;
 
-    protected TetrisScreen(Screen parent) {
+    public TetrisScreen(Screen parent) {
         super(Component.literal("Tetris"));
         this.parent = parent;
         reset();

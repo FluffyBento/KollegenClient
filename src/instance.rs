@@ -22,6 +22,7 @@ use std::time::Duration;
 
 const TITLE_LOGO_PACK: &[u8] = include_bytes!("title_logo_pack.zip");
 const TITLE_LOGO_PACK_ID: &str = "KollegenTitle";
+const UHC_OVERLAY_PACK: &[u8] = include_bytes!("../resources/Kollegen-UHC-Overlay.zip");
 
 
 
@@ -174,6 +175,10 @@ pub fn ensure_title_logo_pack(inst_dir: &Path, version: &str) {
         warn!("Konnte Titel-Logo-Pack nicht installieren: {}", e);
         return;
     }
+    let uhc_zip = rp_dir.join("Kollegen-UHC-Overlay.zip");
+    if !uhc_zip.exists() {
+        let _ = fs::write(&uhc_zip, UHC_OVERLAY_PACK);
+    }
 
     let opts = inst_dir.join("options.txt");
     let mut lines: Vec<String> = if opts.exists() {
@@ -200,7 +205,29 @@ pub fn ensure_title_logo_pack(inst_dir: &Path, version: &str) {
 
 
 pub fn ensure_kollegen_mod(data_dir: &Path, name: &str, loader: &str, version: &str) {
+    ensure_kollegen_native();
     crate::companion::install_companion_mod(data_dir, name, version, loader);
+}
+
+pub fn ensure_kollegen_native() {
+    if let Some(home) = dirs::home_dir() {
+        let native_dir = home.join(".kollegen").join("native");
+        let _ = std::fs::create_dir_all(&native_dir);
+        let target = native_dir.join("libkollegen_native.so");
+        if !target.is_file() {
+            let candidates = [
+                std::path::PathBuf::from("kollegen-native/target/release/libkollegen_native.so"),
+                std::path::PathBuf::from("release/libkollegen_native.so"),
+                std::path::PathBuf::from("resources/libkollegen_native.so"),
+            ];
+            for cand in &candidates {
+                if cand.is_file() {
+                    let _ = std::fs::copy(cand, &target);
+                    break;
+                }
+            }
+        }
+    }
 }
 
 
@@ -1006,16 +1033,18 @@ const BUNDLED_MODS: &[(&str, &str, &str)] = &[
     ("@deps", "kollegen-bundle-flk.jar", "dev/kollegen/client/flk.bin"),
     ("@deps", "kollegen-bundle-owo.jar", "dev/kollegen/client/owo.bin"),
     ("@deps", "kollegen-bundle-modmenu.jar", "dev/kollegen/client/modmenu.bin"),
-    ("@deps", "kollegen-bundle-tpa.jar", "dev/kollegen/client/tpa.bin"),
-    ("@deps", "kollegen-bundle-silk.jar", "dev/kollegen/client/silk.bin"),
     ("@deps", "kollegen-bundle-clothconfig.jar", "dev/kollegen/client/clothconfig.bin"),
+    ("@deps", "kollegen-bundle-distance.jar", "dev/kollegen/client/distance.bin"),
 ];
 
-
-
-
-
-const LEGACY_BUNDLE_JARS: &[&str] = &[];
+const LEGACY_BUNDLE_JARS: &[&str] = &[
+    "kollegen-bundle-bobby.jar",
+    "kollegen-bundle-bobby.jar.disabled",
+    "kollegen-bundle-silk.jar",
+    "kollegen-bundle-silk.jar.disabled",
+    "kollegen-bundle-tpa.jar",
+    "kollegen-bundle-tpa.jar.disabled",
+];
 
 
 
@@ -1041,6 +1070,7 @@ fn bundle_mod_families(jar_name: &str) -> &'static [&'static str] {
         "kollegen-bundle-tpa.jar" => &["placeholder", "tpa"],
         "kollegen-bundle-fabric-api.jar" => &["fabricapi"],
         "kollegen-bundle-flk.jar" => &["fabriclanguagekotlin"],
+        "kollegen-bundle-distance.jar" => &["distance", "kollegendistance", "bobby"],
         _ => &[],
     }
 }
@@ -1085,6 +1115,7 @@ fn bundle_standalone_prefixes(jar_name: &str) -> &'static [&'static str] {
         "kollegen-bundle-tpa.jar" => &["kollegen-tpa", "tpa-"],
         "kollegen-bundle-silk.jar" => &["silk-"],
         "kollegen-bundle-clothconfig.jar" => &["cloth-config", "cloth_config"],
+        "kollegen-bundle-distance.jar" => &["bobby", "kollegen-distance"],
         _ => &[],
     }
 }
@@ -1694,6 +1725,12 @@ pub fn launch(
     jvm_args.push("-Djava.lang.invoke.MethodHandle.EAGER_COMPILE=true".to_string());
     jvm_args.push("-Dsun.java2d.opengl=false".to_string());
     jvm_args.push("-Dsun.java2d.vulkan=true".to_string());
+    jvm_args.push("-Dkollegen.rust_runtime=true".to_string());
+    jvm_args.push("--enable-native-access=ALL-UNNAMED".to_string());
+    if let Some(home) = dirs::home_dir() {
+        let native_dir = home.join(".kollegen").join("native");
+        jvm_args.push(format!("-Djava.library.path={}", native_dir.to_string_lossy()));
+    }
 
     let (chosen_preset, active_idx) = select_and_apply_optimization_preset(&inst_dir);
     info!(
@@ -2560,6 +2597,30 @@ pub(crate) fn ensure_optimal_renderer_config(inst_dir: &Path, cores: usize, vulk
                     quality.insert("use_closest_point_entity_sort".to_string(), serde_json::json!(true));
                 }
                 let _ = fs::write(cfg_path, serde_json::to_string_pretty(&val).unwrap_or_default());
+            }
+        }
+    }
+
+    let bobby_cfg = inst_dir.join("config").join("bobby.conf");
+    let bobby_content = "delete-unused-regions-after-days=-1\ndynamic-multi-world=false\nenabled=true\nmax-render-distance=2048\nno-block-entities=true\ntaint-fake-chunks=false\nunload-delay-secs=2147483647\nview-distance-overwrite=12\n";
+    let _ = fs::write(&bobby_cfg, bobby_content);
+
+    let mm_cfg = inst_dir.join("config").join("modmenu.json");
+    if mm_cfg.exists() {
+        if let Ok(content) = fs::read_to_string(&mm_cfg) {
+            if let Ok(mut val) = serde_json::from_str::<serde_json::Value>(&content) {
+                if let Some(obj) = val.as_object_mut() {
+                    obj.insert("count_children".to_string(), serde_json::json!(false));
+                    let hidden = serde_json::json!([
+                        "bobby", "kollegen-distance", "cloth-config", "clothconfig", "cloth-basic-math",
+                        "chat_heads", "chatheads", "placeholder-api", "placeholder_api",
+                        "silk-all", "silk", "silk-commands", "silk-core", "silk-game", "silk-igui",
+                        "silk-nbt", "silk-network", "silk-persistence",
+                        "fabric-language-kotlin", "fabriclanguagekotlin", "owo", "owo-lib", "owolib"
+                    ]);
+                    obj.insert("hidden_mods".to_string(), hidden);
+                }
+                let _ = fs::write(&mm_cfg, serde_json::to_string_pretty(&val).unwrap_or_default());
             }
         }
     }

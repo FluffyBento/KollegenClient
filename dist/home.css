@@ -512,23 +512,31 @@
   display: none;
 }
 
-/* ==========================================================================
-   Minecraft Server Card (Multiplayer-Style Direct Launch)
-   ========================================================================== */
+.hero-copy {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.55rem;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
 .hero-server-slot {
   width: 100%;
-  max-width: 440px;
+  max-width: 680px;
+  min-width: 320px;
+  align-self: stretch;
   margin-top: 4px;
 }
 
 .mc-server-card {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   background: var(--panel);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg, 12px);
-  padding: 8px 12px;
+  padding: 7px 11px;
   cursor: pointer;
   transition: all 0.16s ease;
   position: relative;
@@ -536,6 +544,7 @@
   box-shadow: 0 3px 12px rgba(0, 0, 0, 0.25);
   user-select: none;
   width: 100%;
+  min-width: 360px;
   box-sizing: border-box;
 }
 
@@ -606,6 +615,7 @@
   align-items: center;
   gap: 6px;
   flex-wrap: nowrap;
+  min-width: 0;
 }
 
 .mc-server-name {
@@ -616,6 +626,8 @@
   overflow: hidden;
   text-overflow: ellipsis;
   letter-spacing: 0.1px;
+  flex-shrink: 0;
+  max-width: 240px;
 }
 
 .mc-server-ip-badge {
@@ -627,6 +639,10 @@
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   border: 1px solid var(--border);
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 120px;
+  flex-shrink: 1;
 }
 
 .mc-server-switch-btn {
@@ -641,6 +657,8 @@
   align-items: center;
   gap: 2px;
   transition: all 0.15s ease;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .mc-server-switch-btn:hover {
@@ -668,7 +686,7 @@
   flex-direction: column;
   align-items: flex-end;
   justify-content: space-between;
-  gap: 4px;
+  gap: 3px;
   flex-shrink: 0;
   padding-left: 4px;
 }
@@ -676,14 +694,15 @@
 .mc-server-ping-row {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
 }
 
 .mc-server-players {
-  font-size: 0.76rem;
+  font-size: 0.72rem;
   font-weight: 500;
   color: var(--text-muted);
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .mc-server-ping-bars {
@@ -716,13 +735,13 @@
 .mc-server-join-btn {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 3px;
   background: rgba(var(--accent-rgb, 99, 102, 241), 0.16);
   color: #ffffff;
   border: 1px solid rgba(var(--accent-rgb, 99, 102, 241), 0.35);
   border-radius: var(--radius-md, 8px);
-  padding: 4px 10px;
-  font-size: 0.78rem;
+  padding: 2.5px 7px;
+  font-size: 0.72rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.15s ease;
@@ -733,6 +752,28 @@
   background: var(--accent);
   border-color: var(--accent);
   box-shadow: 0 0 10px rgba(var(--accent-rgb, 99, 102, 241), 0.4);
+}
+
+@media (min-width: 1000px) {
+  .hero-server-slot {
+    max-width: 100%;
+  }
+  .mc-server-join-btn {
+    padding: 1.5px 5.5px;
+    font-size: 0.68rem;
+    gap: 2px;
+  }
+}
+
+@media (min-width: 1400px) {
+  .mc-server-join-btn {
+    padding: 1px 5px;
+    font-size: 0.66rem;
+    gap: 2px;
+  }
+  .mc-server-name {
+    max-width: 320px;
+  }
 }
 
 .mc-server-picker-menu {

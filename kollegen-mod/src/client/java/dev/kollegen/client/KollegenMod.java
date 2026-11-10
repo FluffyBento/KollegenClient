@@ -28,9 +28,11 @@ public class KollegenMod implements ClientModInitializer {
     private static final Set<Integer> pressedKeys = new HashSet<>();
     private static boolean wasConnected = false;
     private static boolean perfApplied = false;
+    private static boolean threadFavoured = false;
 
     @Override
     public void onInitializeClient() {
+        dev.kollegen.client.nativebridge.KollegenNative.init();
         dev.kollegen.client.server.ServerRestrictions.init();
         dev.kollegen.client.mods.Palette.loadTheme(); 
         ModuleManager.registerAll();
@@ -40,13 +42,70 @@ public class KollegenMod implements ClientModInitializer {
         dev.kollegen.client.input.ControllerMode.init(); 
         KollegenRPC.start(); 
         dev.kollegen.client.presence.KollegenPresence.loadLocalCapeConfig(); 
-        
+        cleanModMenu();
         LOGGER.info("Kollegen Client Mod initialisiert (Rechts-Shift = Menü).");
+    }
+
+    private static int modMenuCleanTick = 0;
+
+    public static void cleanModMenu() {
+        String[] internalIds = {
+            "bobby", "kollegen-distance", "cloth-config", "clothconfig", "cloth-basic-math",
+            "chat_heads", "chatheads", "placeholder-api", "placeholder_api",
+            "silk-all", "silk", "silk-commands", "silk-core", "silk-game", "silk-igui",
+            "silk-nbt", "silk-network", "silk-persistence",
+            "fabric-language-kotlin", "fabriclanguagekotlin", "owo", "owolib", "owo-lib"
+        };
+        try {
+            Class<?> mmClass = Class.forName("com.terraformersmc.modmenu.ModMenu");
+            Object modsObj = mmClass.getField("MODS").get(null);
+            Object rootModsObj = mmClass.getField("ROOT_MODS").get(null);
+            Object pmapObj = mmClass.getField("PARENT_MAP").get(null);
+
+            if (modsObj instanceof java.util.Map<?, ?> modsMap) {
+                for (String id : internalIds) {
+                    Object m = modsMap.remove(id);
+                    if (rootModsObj instanceof java.util.Map<?, ?> rootMap) {
+                        rootMap.remove(id);
+                    }
+                    if (pmapObj instanceof com.google.common.collect.Multimap<?, ?> mm && m != null) {
+                        mm.removeAll(m);
+                    }
+                }
+            }
+            try {
+                mmClass.getMethod("clearModCountCache").invoke(null);
+            } catch (Throwable ignored) {
+            }
+        } catch (Throwable ignored) {
+        }
+        try {
+            Class<?> cfgClass = Class.forName("com.terraformersmc.modmenu.config.ModMenuConfig");
+            Object hiddenOption = cfgClass.getField("HIDDEN_MODS").get(null);
+            java.lang.reflect.Method getVal = hiddenOption.getClass().getMethod("getValue");
+            @SuppressWarnings("unchecked")
+            java.util.Set<String> set = (java.util.Set<String>) getVal.invoke(hiddenOption);
+            if (set != null) {
+                for (String id : internalIds) {
+                    set.add(id);
+                }
+            }
+        } catch (Throwable ignored) {
+        }
     }
 
     public static void onTick() {
         Minecraft mc = Minecraft.getInstance();
         if (mc == null) return;
+
+        if (++modMenuCleanTick % 20 == 0) {
+            cleanModMenu();
+        }
+
+        if (!threadFavoured && dev.kollegen.client.mods.modules.Performance.KollegenTricks.shouldUseRustRuntime()) {
+            threadFavoured = true;
+            dev.kollegen.client.nativebridge.KollegenNative.favourRenderThread();
+        }
 
         if (!perfApplied && mc.options != null) {
             perfApplied = true;

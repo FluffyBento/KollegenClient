@@ -2,6 +2,7 @@ package dev.kollegen.client.mixin;
 
 import dev.kollegen.client.mods.modules.HitboxSettings;
 import dev.kollegen.client.mods.modules.LightLevelOverlay;
+import dev.kollegen.client.mods.modules.UhcOverlay;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.culling.Frustum;
 import net.minecraft.client.renderer.debug.DebugRenderer;
@@ -27,6 +28,9 @@ public class DebugRendererMixin {
         if (LightLevelOverlay.INSTANCE != null && !this.renderers.contains(LightLevelOverlay.INSTANCE)) {
             this.renderers.add(LightLevelOverlay.INSTANCE);
         }
+        if (UhcOverlay.INSTANCE != null && !this.renderers.contains(UhcOverlay.INSTANCE)) {
+            this.renderers.add(UhcOverlay.INSTANCE);
+        }
         if (HitboxSettings.shouldAlwaysRender()) {
             boolean hasHitboxes = false;
             for (DebugRenderer.SimpleDebugRenderer r : this.renderers) {
@@ -45,6 +49,9 @@ public class DebugRendererMixin {
     private void kollegen$onEmitGizmos(Frustum frustum, double cameraX, double cameraY, double cameraZ, float tickDelta, CallbackInfo ci) {
         if (LightLevelOverlay.INSTANCE != null && !this.renderers.contains(LightLevelOverlay.INSTANCE)) {
             this.renderers.add(LightLevelOverlay.INSTANCE);
+        }
+        if (UhcOverlay.INSTANCE != null && !this.renderers.contains(UhcOverlay.INSTANCE)) {
+            this.renderers.add(UhcOverlay.INSTANCE);
         }
     }
 }

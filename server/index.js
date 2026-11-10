@@ -12,6 +12,80 @@ const PORT = parseInt(process.env.PORT || '8080', 10);
 const DATA_DIR = process.env.KOLLEGEN_DATA_DIR || path.join(__dirname, 'data');
 const PRESENCE_TTL_MS = parseInt(process.env.PRESENCE_TTL_MS || '90000', 10);
 const STORE_FILE = path.join(DATA_DIR, 'store.json');
+const COMMUNITY_CAPES_FILE = path.join(DATA_DIR, 'community-capes.json');
+const COMMUNITY_CAPES_MAX = 200;
+const COMMUNITY_CAPES_MAX_FRAMES = 240;
+
+function loadCommunityCapes() {
+  try {
+    const v = JSON.parse(fs.readFileSync(COMMUNITY_CAPES_FILE, 'utf8'));
+    return Array.isArray(v) ? v : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveCommunityCapes(list) {
+  try {
+    fs.writeFileSync(COMMUNITY_CAPES_FILE, JSON.stringify(list));
+  } catch (e) {
+    console.error('community-capes speichern fehlgeschlagen:', e);
+  }
+}
+
+function communityCapePublic(c) {
+  return {
+    id: c.id,
+    name: c.name,
+    creator: c.creator,
+    category: 'community',
+    uses: c.uses || 0,
+    favorite: false,
+    animated: !!c.animated,
+    fps: c.fps || 10,
+    frames: c.frames || [],
+    preview: c.preview || '',
+    owner: c.owner || null,
+  };
+}
+
+const FEED_FILE = path.join(DATA_DIR, 'feed.json');
+const FEED_IMAGES_DIR = path.join(DATA_DIR, 'feed-images');
+if (!fs.existsSync(FEED_IMAGES_DIR)) fs.mkdirSync(FEED_IMAGES_DIR, { recursive: true });
+
+function loadFeed() {
+  try {
+    const v = JSON.parse(fs.readFileSync(FEED_FILE, 'utf8'));
+    return Array.isArray(v) ? v : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveFeed(list) {
+  try {
+    fs.writeFileSync(FEED_FILE, JSON.stringify(list));
+  } catch (e) {
+    console.error('feed save error:', e);
+  }
+}
+
+function readRawBody(req, maxBytes = 10 * 1024 * 1024) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    let total = 0;
+    req.on('data', (c) => {
+      total += c.length;
+      if (total > maxBytes) {
+        req.destroy();
+        return reject(new Error('payload_too_large'));
+      }
+      chunks.push(c);
+    });
+    req.on('end', () => resolve(Buffer.concat(chunks)));
+    req.on('error', reject);
+  });
+}
 
 
 
@@ -129,37 +203,37 @@ const CATALOG = [
   { id: 'skin_zombie_nautilus', category: 'pet_skin', name: 'Zombie-Nautilus', desc: 'Dunkler Skin für Nautilus. Exklusiv verliehen.', price: 0, rarity: 'legendary', hidden: true, data: { variantOf: 'pet_nautilus', variant: 'zombie', label: 'Zombie' } },
 
   { id: 'mace_kriegshammer', category: 'mace', name: 'Kollegen Kriegshammer', desc: 'Ersetzt den normalen Mace durch einen kollektiven Kriegshammer.', price: 2400, rarity: 'legendary', featured: true, data: { texture: 'kollegen:cosmetics/store/kollegen_warhammer.png', model: 'kollegen:cosmetics/store/kollegen_warhammer.bbmodel' } },
-  { id: 'cape_fluffybento', category: 'cape', name: 'FluffyBento Cape', desc: 'FluffyBento Cape.', price: 0, rarity: 'legendary', featured: true, hidden: true, data: { texture: 'kollegen:cosmetics/fluffybento/fluffybento_cape.png', model: 'kollegen:cosmetics/fluffybento/fluffybento_cape.bbmodel' } },
-  { id: 'schild_fluffybento', category: 'shield', name: 'FluffyBento Schild', desc: 'FluffyBento Schild.', price: 0, rarity: 'legendary', featured: true, hidden: true, data: { texture: 'kollegen:cosmetics/fluffybento/fluffybento_schild.png', model: 'kollegen:cosmetics/fluffybento/fluffybento_schild.bbmodel' } },
-  { id: 'back_fluffybento', category: 'back_accessory', name: 'FluffyBento Flügel', desc: 'FluffyBento Flügel.', price: 0, rarity: 'legendary', featured: true, hidden: true, data: { texture: 'kollegen:cosmetics/fluffybento/fluffybento_fluegel.png', model: 'kollegen:cosmetics/fluffybento/fluffybento_fluegel.bbmodel' } },
-  { id: 'head_fluffybento', category: 'face_accessory', name: 'FluffyBento Visor', desc: 'FluffyBento Visor.', price: 0, rarity: 'legendary', featured: true, hidden: true, data: { texture: 'kollegen:cosmetics/fluffybento/fluffybento_visor.png', model: 'kollegen:cosmetics/fluffybento/fluffybento_visor.bbmodel' } },
+  { id: 'cape_fluffybento', category: 'cape', name: 'FluffyBento Cape', desc: 'FluffyBento Cape.', price: 0, rarity: 'legendary', featured: true, hidden: true, data: { texture: 'kollegen:cosmetics/fluffybento/FluffyBento_cape.png', model: 'kollegen:cosmetics/fluffybento/FluffyBento_cape.bbmodel' } },
+  { id: 'schild_fluffybento', category: 'shield', name: 'FluffyBento Schild', desc: 'FluffyBento Schild.', price: 0, rarity: 'legendary', featured: true, hidden: true, data: { texture: 'kollegen:cosmetics/fluffybento/FluffyBento_schild.png', model: 'kollegen:cosmetics/fluffybento/FluffyBento_schild.bbmodel' } },
+  { id: 'back_fluffybento', category: 'back_accessory', name: 'FluffyBento Flügel', desc: 'FluffyBento Flügel.', price: 0, rarity: 'legendary', featured: true, hidden: true, data: { texture: 'kollegen:cosmetics/fluffybento/FluffyBento_fluegel.png', model: 'kollegen:cosmetics/fluffybento/FluffyBento_fluegel.bbmodel' } },
+  { id: 'head_fluffybento', category: 'face_accessory', name: 'FluffyBento Visor', desc: 'FluffyBento Visor.', price: 0, rarity: 'legendary', featured: true, hidden: true, data: { texture: 'kollegen:cosmetics/fluffybento/FluffyBento_visor.png', model: 'kollegen:cosmetics/fluffybento/FluffyBento_visor.bbmodel' } },
 
-  { id: 'cape_limitlos', category: 'cape', name: 'Limit_Los Cape', desc: 'Limit_Los Cape.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/limit_los/limit_los_cape.png', model: 'kollegen:cosmetics/limit_los/limit_los_cape.bbmodel' } },
-  { id: 'head_limitlos', category: 'head_accessory', name: 'Limit_Los Bandana', desc: 'Limit_Los Bandana.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/limit_los/limit_los_bandana.png', model: 'kollegen:cosmetics/limit_los/limit_los_bandana.bbmodel' } },
-  { id: 'shield_limitlos', category: 'shield', name: 'Limit_Los Schild', desc: 'Limit_Los Schild.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/limit_los/limit_los_schild.png', model: 'kollegen:cosmetics/limit_los/limit_los_schild.bbmodel' } },
-  { id: 'back_limitlos', category: 'back_accessory', name: 'Limit_Los Schwert', desc: 'Limit_Los Schwert (Rücken).', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/limit_los/limit_los_schwert.png', model: 'kollegen:cosmetics/limit_los/limit_los_schwert.bbmodel' } },
-  { id: 'shoulder_limitlos', category: 'aura', name: 'Limit_Los Dolche', desc: 'Limit_Los Dolche.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/limit_los/limit_los_dolche.png', model: 'kollegen:cosmetics/limit_los/limit_los_dolche.bbmodel' } },
+  { id: 'cape_limitlos', category: 'cape', name: 'Limit_Los Cape', desc: 'Limit_Los Cape.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/limit_los/Limit_Los_cape.png', model: 'kollegen:cosmetics/limit_los/Limit_Los_cape.bbmodel' } },
+  { id: 'head_limitlos', category: 'head_accessory', name: 'Limit_Los Bandana', desc: 'Limit_Los Bandana.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/limit_los/Limit_Los_bandana.png', model: 'kollegen:cosmetics/limit_los/Limit_Los_bandana.bbmodel' } },
+  { id: 'shield_limitlos', category: 'shield', name: 'Limit_Los Schild', desc: 'Limit_Los Schild.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/limit_los/Limit_Los_schild.png', model: 'kollegen:cosmetics/limit_los/Limit_Los_schild.bbmodel' } },
+  { id: 'back_limitlos', category: 'back_accessory', name: 'Limit_Los Schwert', desc: 'Limit_Los Schwert (Rücken).', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/limit_los/Limit_Los_schwert.png', model: 'kollegen:cosmetics/limit_los/Limit_Los_schwert.bbmodel' } },
+  { id: 'shoulder_limitlos', category: 'aura', name: 'Limit_Los Dolche', desc: 'Limit_Los Dolche.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/limit_los/Limit_Los_dolche.png', model: 'kollegen:cosmetics/limit_los/Limit_Los_dolche.bbmodel' } },
 
-  { id: 'cape_zerocraft77', category: 'cape', name: 'Zerocraft77 Cape', desc: 'Zerocraft77 Cape.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/zerocraft77/zerocraft77_cape.png', model: 'kollegen:cosmetics/zerocraft77/zerocraft77_cape.bbmodel' } },
-  { id: 'head_zerocraft77', category: 'head_accessory', name: 'Zerocraft77 Bandana', desc: 'Zerocraft77 Bandana.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/zerocraft77/zerocraft77_bandana.png', model: 'kollegen:cosmetics/zerocraft77/zerocraft77_bandana.bbmodel' } },
-  { id: 'back_zerocraft77', category: 'back_accessory', name: 'Zerocraft77 Flügel', desc: 'Zerocraft77 Flügel.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/zerocraft77/zerocraft77_fluegel.png', model: 'kollegen:cosmetics/zerocraft77/zerocraft77_fluegel.bbmodel' } },
-  { id: 'gloves_zerocraft77', category: 'gloves', name: 'Zerocraft77 Handschuhe', desc: 'Zerocraft77 Handschuhe.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/zerocraft77/zerocraft77_handschuhe.png', model: 'kollegen:cosmetics/zerocraft77/zerocraft77_handschuhe.bbmodel' } },
-  { id: 'shield_zerocraft77', category: 'shield', name: 'Zerocraft77 Schild', desc: 'Zerocraft77 Schild.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/zerocraft77/zerocraft77_schild.png', model: 'kollegen:cosmetics/zerocraft77/zerocraft77_schild.bbmodel' } },
+  { id: 'cape_zerocraft77', category: 'cape', name: 'Zerocraft77 Cape', desc: 'Zerocraft77 Cape.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/zerocraft77/Zerocraft77_cape.png', model: 'kollegen:cosmetics/zerocraft77/Zerocraft77_cape.bbmodel' } },
+  { id: 'head_zerocraft77', category: 'head_accessory', name: 'Zerocraft77 Bandana', desc: 'Zerocraft77 Bandana.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/zerocraft77/Zerocraft77_bandana.png', model: 'kollegen:cosmetics/zerocraft77/Zerocraft77_bandana.bbmodel' } },
+  { id: 'back_zerocraft77', category: 'back_accessory', name: 'Zerocraft77 Flügel', desc: 'Zerocraft77 Flügel.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/zerocraft77/Zerocraft77_fluegel.png', model: 'kollegen:cosmetics/zerocraft77/Zerocraft77_fluegel.bbmodel' } },
+  { id: 'gloves_zerocraft77', category: 'gloves', name: 'Zerocraft77 Handschuhe', desc: 'Zerocraft77 Handschuhe.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/zerocraft77/Zerocraft77_handschuhe.png', model: 'kollegen:cosmetics/zerocraft77/Zerocraft77_handschuhe.bbmodel' } },
+  { id: 'shield_zerocraft77', category: 'shield', name: 'Zerocraft77 Schild', desc: 'Zerocraft77 Schild.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/zerocraft77/Zerocraft77_schild.png', model: 'kollegen:cosmetics/zerocraft77/Zerocraft77_schild.bbmodel' } },
 
-  { id: 'cape_irongirl', category: 'cape', name: 'Irongirl Cape', desc: 'Irongirl Cape.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/irongirl_lp/irongirl_lp_cape.png', model: 'kollegen:cosmetics/irongirl_lp/irongirl_lp_cape.bbmodel' } },
-  { id: 'back_irongirl', category: 'back_accessory', name: 'Irongirl Flügel', desc: 'Irongirl Flügel.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/irongirl_lp/irongirl_lp_fluegel.png', model: 'kollegen:cosmetics/irongirl_lp/irongirl_lp_fluegel.bbmodel' } },
-  { id: 'head_irongirl', category: 'head_accessory', name: 'Irongirl Halo', desc: 'Irongirl Halo.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/irongirl_lp/irongirl_lp_halo.png', model: 'kollegen:cosmetics/irongirl_lp/irongirl_lp_halo.bbmodel' } },
-  { id: 'shield_irongirl', category: 'shield', name: 'Irongirl Schild', desc: 'Irongirl Schild.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/irongirl_lp/irongirl_lp_schild.png', model: 'kollegen:cosmetics/irongirl_lp/irongirl_lp_schild.bbmodel' } },
+  { id: 'cape_irongirl', category: 'cape', name: 'Irongirl Cape', desc: 'Irongirl Cape.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/irongirl_lp/Irongirl_lp_cape.png', model: 'kollegen:cosmetics/irongirl_lp/Irongirl_lp_cape.bbmodel' } },
+  { id: 'back_irongirl', category: 'back_accessory', name: 'Irongirl Flügel', desc: 'Irongirl Flügel.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/irongirl_lp/Irongirl_lp_fluegel.png', model: 'kollegen:cosmetics/irongirl_lp/Irongirl_lp_fluegel.bbmodel' } },
+  { id: 'head_irongirl', category: 'head_accessory', name: 'Irongirl Halo', desc: 'Irongirl Halo.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/irongirl_lp/Irongirl_lp_halo.png', model: 'kollegen:cosmetics/irongirl_lp/Irongirl_lp_halo.bbmodel' } },
+  { id: 'shield_irongirl', category: 'shield', name: 'Irongirl Schild', desc: 'Irongirl Schild.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/irongirl_lp/Irongirl_lp_schild.png', model: 'kollegen:cosmetics/irongirl_lp/Irongirl_lp_schild.bbmodel' } },
 
-  { id: 'cape_tson', category: 'cape', name: 'T_son_ Cape', desc: 'T_son_ Cape.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/t_son_/t_son__cape.png', model: 'kollegen:cosmetics/t_son_/t_son__cape.bbmodel' } },
-  { id: 'head_tson', category: 'head_accessory', name: 'T_son_ Bandana', desc: 'T_son_ Bandana.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/t_son_/t_son__bandana.png', model: 'kollegen:cosmetics/t_son_/t_son__bandana.bbmodel' } },
-  { id: 'back_tson', category: 'back_accessory', name: 'T_son_ Flügel', desc: 'T_son_ Flügel.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/t_son_/t_son__fluegel.png', model: 'kollegen:cosmetics/t_son_/t_son__fluegel.bbmodel' } },
-  { id: 'shield_tson', category: 'shield', name: 'T_son_ Schild', desc: 'T_son_ Schild.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/t_son_/t_son__schild.png', model: 'kollegen:cosmetics/t_son_/t_son__schild.bbmodel' } },
+  { id: 'cape_tson', category: 'cape', name: 'T_son_ Cape', desc: 'T_son_ Cape.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/t_son_/T_son__cape.png', model: 'kollegen:cosmetics/t_son_/T_son__cape.bbmodel' } },
+  { id: 'head_tson', category: 'head_accessory', name: 'T_son_ Bandana', desc: 'T_son_ Bandana.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/t_son_/T_son__bandana.png', model: 'kollegen:cosmetics/t_son_/T_son__bandana.bbmodel' } },
+  { id: 'back_tson', category: 'back_accessory', name: 'T_son_ Flügel', desc: 'T_son_ Flügel.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/t_son_/T_son__fluegel.png', model: 'kollegen:cosmetics/t_son_/T_son__fluegel.bbmodel' } },
+  { id: 'shield_tson', category: 'shield', name: 'T_son_ Schild', desc: 'T_son_ Schild.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/t_son_/T_son__schild.png', model: 'kollegen:cosmetics/t_son_/T_son__schild.bbmodel' } },
 
-  { id: 'cape_rixhii', category: 'cape', name: 'Rixhii Cape', desc: 'Rixhii Cape.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/rixhii/rixhii_cape.png', model: 'kollegen:cosmetics/rixhii/rixhii_cape.bbmodel' } },
-  { id: 'head_rixhii', category: 'head_accessory', name: 'Rixhii Bandana', desc: 'Rixhii Bandana.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/rixhii/rixhii_bandana.png', model: 'kollegen:cosmetics/rixhii/rixhii_bandana.bbmodel' } },
-  { id: 'back_rixhii', category: 'back_accessory', name: 'Rixhii Flügel', desc: 'Rixhii Flügel.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/rixhii/rixhii_fluegel.png', model: 'kollegen:cosmetics/rixhii/rixhii_fluegel.bbmodel' } },
-  { id: 'shield_rixhii', category: 'shield', name: 'Rixhii Schild', desc: 'Rixhii Schild.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/rixhii/rixhii_schild.png', model: 'kollegen:cosmetics/rixhii/rixhii_schild.bbmodel' } },
+  { id: 'cape_rixhii', category: 'cape', name: 'Rixhii Cape', desc: 'Rixhii Cape.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/rixhii/Rixhii_cape.png', model: 'kollegen:cosmetics/rixhii/Rixhii_cape.bbmodel' } },
+  { id: 'head_rixhii', category: 'head_accessory', name: 'Rixhii Bandana', desc: 'Rixhii Bandana.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/rixhii/Rixhii_bandana.png', model: 'kollegen:cosmetics/rixhii/Rixhii_bandana.bbmodel' } },
+  { id: 'back_rixhii', category: 'back_accessory', name: 'Rixhii Flügel', desc: 'Rixhii Flügel.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/rixhii/Rixhii_fluegel.png', model: 'kollegen:cosmetics/rixhii/Rixhii_fluegel.bbmodel' } },
+  { id: 'shield_rixhii', category: 'shield', name: 'Rixhii Schild', desc: 'Rixhii Schild.', price: 0, rarity: 'legendary', hidden: true, data: { texture: 'kollegen:cosmetics/rixhii/Rixhii_schild.png', model: 'kollegen:cosmetics/rixhii/Rixhii_schild.bbmodel' } },
 
   { id: 'cape_phantomumhang', category: 'cape', name: 'Phantomumhang', desc: 'Dunkler Umhang mit Glutpartikeln.', price: 8500, rarity: 'legendary', featured: true, data: { texture: 'kollegen:cosmetics/store/phantomumhang.png', model: 'kollegen:cosmetics/store/phantomumhang.bbmodel' } },
   { id: 'cape_sternenhimmel', category: 'cape', name: 'Sternenhimmel-Umhang', desc: 'Der Nachthimmel zum Umhängen.', price: 2600, rarity: 'legendary', featured: true, data: { texture: 'kollegen:cosmetics/store/sternenhimmel_umhang.png', model: 'kollegen:cosmetics/store/sternenhimmel_umhang.bbmodel' } },
@@ -394,6 +468,8 @@ function presenceCosmetics(u) {
   if (legs && legs.data && legs.data.texture) out.legs_accessory = { texture: legs.data.texture, model: legs.data.model || null };
   const gloves = eq.gloves && catById(eq.gloves);
   if (gloves && gloves.data && gloves.data.texture) out.gloves = { texture: gloves.data.texture, model: gloves.data.model || null };
+  const mace = eq.mace && catById(eq.mace);
+  if (mace && mace.data && mace.data.texture) out.mace = { texture: mace.data.texture, model: mace.data.model || null };
   return out;
 }
 
@@ -656,7 +732,198 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 200, { ok: true });
     }
 
+    if (pathname === '/community-capes' && method === 'GET') {
+      const list = loadCommunityCapes().slice(0, COMMUNITY_CAPES_MAX);
+      return sendJson(res, 200, list.map(communityCapePublic));
+    }
+
+    if (pathname === '/community-capes' && method === 'POST') {
+      const user = bearerUser(req);
+      if (!user) return sendJson(res, 401, { error: 'not_authenticated' });
+      const body = await readBody(req);
+      const name = String(body.name || '').trim().slice(0, 64) || 'Community Cape';
+      const frames = Array.isArray(body.frames) ? body.frames.slice(0, COMMUNITY_CAPES_MAX_FRAMES) : [];
+      const preview = typeof body.preview === 'string' ? body.preview : (frames[0] || '');
+      if (!frames.length && !preview) return sendJson(res, 400, { error: 'no_frames' });
+      const list = loadCommunityCapes();
+      const entry = {
+        id: 'cape_' + crypto.randomBytes(8).toString('hex'),
+        name,
+        creator: String(user.name || user.discordName || 'Unbekannt').slice(0, 64),
+        owner: user.discordId,
+        uses: 0,
+        animated: !!body.animated,
+        fps: Math.min(Math.max(parseInt(body.fps, 10) || 10, 1), 60),
+        frames,
+        preview,
+        createdAt: Date.now(),
+      };
+      list.unshift(entry);
+      while (list.length > COMMUNITY_CAPES_MAX) list.pop();
+      saveCommunityCapes(list);
+      return sendJson(res, 200, communityCapePublic(entry));
+    }
+
+    if (pathname.startsWith('/community-capes/') && method === 'DELETE') {
+      const user = bearerUser(req);
+      if (!user) return sendJson(res, 401, { error: 'not_authenticated' });
+      const id = pathname.slice('/community-capes/'.length);
+      const list = loadCommunityCapes();
+      const idx = list.findIndex((c) => c.id === id && c.owner === user.discordId);
+      if (idx < 0) return sendJson(res, 404, { error: 'not_found' });
+      list.splice(idx, 1);
+      saveCommunityCapes(list);
+      return sendJson(res, 200, { ok: true });
+    }
+
+    if (pathname.startsWith('/community-capes/') && method === 'POST') {
+      const user = bearerUser(req);
+      if (!user) return sendJson(res, 401, { error: 'not_authenticated' });
+      const id = pathname.slice('/community-capes/'.length);
+      const list = loadCommunityCapes();
+      const c = list.find((x) => x.id === id);
+      if (!c) return sendJson(res, 404, { error: 'not_found' });
+      c.uses = (c.uses || 0) + 1;
+      saveCommunityCapes(list);
+      return sendJson(res, 200, communityCapePublic(c));
+    }
+
     
+    if (pathname === '/feed' && method === 'GET') {
+      const limit = Math.min(Math.max(parseInt(url.searchParams.get('limit') || '100', 10), 1), 200);
+      const list = loadFeed().slice(0, limit);
+      return sendJson(res, 200, list);
+    }
+
+    if (pathname === '/feed/upload' && method === 'POST') {
+      const buf = await readRawBody(req);
+      if (!buf || buf.length === 0) return sendJson(res, 400, { error: 'empty_body' });
+      const ctype = String(req.headers['content-type'] || '');
+      const ext = (ctype === 'image/jpeg' || ctype === 'image/jpg') ? '.jpg' : '.png';
+      const fname = 'feed_' + Date.now() + '_' + crypto.randomBytes(4).toString('hex') + ext;
+      const fpath = path.join(FEED_IMAGES_DIR, fname);
+      fs.writeFileSync(fpath, buf);
+      const host = req.headers['host'] || 'kollegen.me';
+      const proto = req.headers['x-forwarded-proto'] || 'https';
+      const imgUrl = `${proto}://${host}/feed/images/${fname}`;
+      return sendJson(res, 200, { ok: true, url: imgUrl, filename: fname });
+    }
+
+    if (pathname.startsWith('/feed/images/') && (method === 'GET' || method === 'HEAD')) {
+      const fname = path.basename(pathname.slice('/feed/images/'.length));
+      const fpath = path.join(FEED_IMAGES_DIR, fname);
+      if (!fs.existsSync(fpath)) return sendJson(res, 404, { error: 'not_found' });
+      const ext = path.extname(fname).toLowerCase();
+      const mime = ext === '.png' ? 'image/png' : (ext === '.jpg' || ext === '.jpeg') ? 'image/jpeg' : 'application/octet-stream';
+      res.writeHead(200, {
+        'Content-Type': mime,
+        'Access-Control-Allow-Origin': '*',
+        'Cache-Control': 'public, max-age=86400',
+      });
+      if (method === 'HEAD') {
+        res.end();
+        return;
+      }
+      fs.createReadStream(fpath).pipe(res);
+      return;
+    }
+
+    if (pathname === '/feed/post' && method === 'POST') {
+      const body = await readBody(req);
+      const author = String(body.author || body.authorName || 'Spieler').trim().slice(0, 32);
+      const uuid = String(body.uuid || body.authorUuid || '').trim().slice(0, 64);
+      const caption = String(body.caption || '').trim().slice(0, 500);
+      const server = String(body.server || body.serverTag || 'Minecraft').trim().slice(0, 64);
+      const image = typeof body.image === 'string' ? body.image.trim() : (typeof body.imagePath === 'string' ? body.imagePath.trim() : null);
+      const isJustNow = !!body.isJustNow;
+      const isLate = !!body.isLate;
+      const coins = Math.max(0, parseInt(body.coins || body.coinsEarned || 0, 10) || 0);
+      const streak = Math.max(0, parseInt(body.streak || body.streakDay || 0, 10) || 0);
+      const id = (body.id && String(body.id).trim()) || crypto.randomUUID();
+      const time = typeof body.time === 'number' ? body.time : (typeof body.timestamp === 'number' ? body.timestamp : Date.now());
+
+      const post = {
+        id,
+        author,
+        uuid,
+        caption,
+        server,
+        image,
+        isJustNow,
+        isLate,
+        coins,
+        streak,
+        time,
+        likes: 0,
+        likedBy: [],
+        comments: [],
+      };
+
+      const list = loadFeed();
+      const existingIdx = list.findIndex((p) => p.id === id);
+      if (existingIdx >= 0) {
+        list[existingIdx] = post;
+      } else {
+        list.unshift(post);
+      }
+      while (list.length > 500) list.pop();
+      saveFeed(list);
+      return sendJson(res, 200, { ok: true, post });
+    }
+
+    if (pathname === '/feed/like' && method === 'POST') {
+      const body = await readBody(req);
+      const postId = String(body.postId || body.id || '');
+      const userKey = String(body.uuid || body.author || body.name || '').trim();
+      if (!postId || !userKey) return sendJson(res, 400, { error: 'missing_parameters' });
+      const list = loadFeed();
+      const post = list.find((p) => p.id === postId);
+      if (!post) return sendJson(res, 404, { error: 'post_not_found' });
+      if (!Array.isArray(post.likedBy)) post.likedBy = [];
+      const idx = post.likedBy.indexOf(userKey);
+      let liked = false;
+      if (idx >= 0) {
+        post.likedBy.splice(idx, 1);
+        liked = false;
+      } else {
+        post.likedBy.push(userKey);
+        liked = true;
+      }
+      post.likes = post.likedBy.length;
+      saveFeed(list);
+      return sendJson(res, 200, { ok: true, likes: post.likes, liked });
+    }
+
+    if (pathname === '/feed/comment' && method === 'POST') {
+      const body = await readBody(req);
+      const postId = String(body.postId || body.id || '');
+      const author = String(body.author || 'Spieler').trim().slice(0, 32);
+      const text = String(body.comment || body.text || '').trim().slice(0, 300);
+      if (!postId || !text) return sendJson(res, 400, { error: 'text_required' });
+      const list = loadFeed();
+      const post = list.find((p) => p.id === postId);
+      if (!post) return sendJson(res, 404, { error: 'post_not_found' });
+      if (!Array.isArray(post.comments)) post.comments = [];
+      const commentStr = author + ': ' + text;
+      post.comments.push(commentStr);
+      if (post.comments.length > 100) post.comments = post.comments.slice(-100);
+      saveFeed(list);
+      return sendJson(res, 200, { ok: true, comments: post.comments });
+    }
+
+    if (pathname === '/feed/delete' && method === 'POST') {
+      const body = await readBody(req);
+      const postId = String(body.postId || body.id || '');
+      const author = String(body.author || '').trim();
+      const uuid = String(body.uuid || '').trim();
+      const list = loadFeed();
+      const idx = list.findIndex((p) => p.id === postId && ((uuid && p.uuid === uuid) || (author && p.author === author)));
+      if (idx < 0) return sendJson(res, 404, { error: 'not_found_or_unauthorized' });
+      list.splice(idx, 1);
+      saveFeed(list);
+      return sendJson(res, 200, { ok: true });
+    }
+
     if (pathname === '/auth' && method === 'POST') {
       const body = await readBody(req);
       const discord = await verifyDiscordToken(body.discord_token);
@@ -1749,6 +2016,10 @@ if (pathname === '/internal/reset' && method === 'POST') {
       let targetId = null;
       if (body.code) targetId = store.codes[String(body.code).toUpperCase()];
       else if (body.target_id) targetId = String(body.target_id);
+      else if (body.name || body.mc_name || body.uuid) {
+        const u = resolveUser(body.name || body.mc_name || body.uuid);
+        if (u) targetId = u.discordId;
+      }
 
       const target = targetId ? resolveUser(targetId) : null;
       if (!target) return sendJson(res, 404, { error: 'target_not_found' });
