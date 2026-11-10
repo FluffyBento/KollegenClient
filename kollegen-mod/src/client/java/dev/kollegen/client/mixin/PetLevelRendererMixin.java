@@ -27,6 +27,26 @@ public class PetLevelRendererMixin {
         }
     }
 
+    @org.spongepowered.asm.mixin.injection.Redirect(
+        method = "compileSections",
+        at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/chunk/SectionRenderDispatcher$RenderSection;compileAsync(Lnet/minecraft/client/renderer/chunk/RenderSectionRegion;)V")
+    )
+    private void kollegen$safeCompileAsync(net.minecraft.client.renderer.chunk.SectionRenderDispatcher.RenderSection section, net.minecraft.client.renderer.chunk.RenderSectionRegion region) {
+        if (section != null) {
+            section.compileAsync(region);
+        }
+    }
+
+    @org.spongepowered.asm.mixin.injection.Redirect(
+        method = "compileSections",
+        at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/chunk/SectionRenderDispatcher$RenderSection;compileSync(Lnet/minecraft/client/renderer/chunk/RenderSectionRegion;)V")
+    )
+    private void kollegen$safeCompileSync(net.minecraft.client.renderer.chunk.SectionRenderDispatcher.RenderSection section, net.minecraft.client.renderer.chunk.RenderSectionRegion region) {
+        if (section != null) {
+            section.compileSync(region);
+        }
+    }
+
     @Inject(method = "extractVisibleEntities(Lnet/minecraft/client/Camera;Lnet/minecraft/client/renderer/culling/Frustum;Lnet/minecraft/client/DeltaTracker;Lnet/minecraft/client/renderer/state/LevelRenderState;)V", at = @At("TAIL"))
     private void kollegen$addPets(Camera camera, Frustum frustum, DeltaTracker tracker, LevelRenderState state, CallbackInfo ci) {
         try {
