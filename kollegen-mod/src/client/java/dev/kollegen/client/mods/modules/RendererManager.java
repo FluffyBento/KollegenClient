@@ -121,7 +121,13 @@ public final class RendererManager {
                     removeIfBroken(jar, fileName);
                 } else {
                     byte[] payload = in.readAllBytes();
-                    Files.write(jar, payload);
+                    Path tmp = mods.resolve(fileName + ".tmp");
+                    Files.write(tmp, payload);
+                    try {
+                        Files.move(tmp, jar, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+                    } catch (IOException e) {
+                        Files.move(tmp, jar, StandardCopyOption.REPLACE_EXISTING);
+                    }
                     removeIfBroken(jar, fileName);
                 }
             } catch (IOException e) {

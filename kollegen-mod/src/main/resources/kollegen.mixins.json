@@ -83,7 +83,8 @@
     "PetFakeChunkManagerMixin",
     "ModsScreenMixin",
     "OptionInstanceIntRangeMixin",
-    "SectionOcclusionGraphMixin"
+    "SectionOcclusionGraphMixin",
+    "VideoSettingsScreenMixin"
   ],
   "injectors": {
     "defaultRequire": 1

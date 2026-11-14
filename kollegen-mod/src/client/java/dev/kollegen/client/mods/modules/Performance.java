@@ -265,8 +265,8 @@ public final class Performance {
             super("kollegendistance", "Kollegen Distance", "Erweiterte Sichtweite: Speichert geladene Chunks dauerhaft auf der Festplatte und rendert sie 1:1 wie echte Chunks ohne Server-Limit.", Category.PERFORMANCE);
             this.enabled = true;
             instance = this;
-            add(actualDistance);
             add(distanceLimit);
+            add(actualDistance);
         }
 
         @Override
@@ -318,6 +318,46 @@ public final class Performance {
         @Override
         public void onDisable() {
             syncDistance();
+            try {
+                net.minecraft.client.Minecraft client = net.minecraft.client.Minecraft.getInstance();
+                if (client != null) {
+                    if (client.level != null) {
+                        try {
+                            Class<?> extClass = Class.forName("de.johni0702.minecraft.bobby.ext.ClientChunkCacheExt");
+                            Object chunkSource = client.level.getChunkSource();
+                            if (extClass.isInstance(chunkSource)) {
+                                Object fcm = extClass.getMethod("bobby_getFakeChunkManager").invoke(chunkSource);
+                                if (fcm != null) {
+                                    java.util.Collection<?> fakeChunks = (java.util.Collection<?>) fcm.getClass().getMethod("getFakeChunks").invoke(fcm);
+                                    if (fakeChunks != null) {
+                                        java.util.List<?> copy = new java.util.ArrayList<>(fakeChunks);
+                                        java.lang.reflect.Method unloadMethod = fcm.getClass().getMethod("unload", int.class, int.class, boolean.class);
+                                        for (Object fc : copy) {
+                                            if (fc instanceof net.minecraft.world.level.chunk.LevelChunk lc) {
+                                                unloadMethod.invoke(fcm, lc.getPos().x(), lc.getPos().z(), true);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        } catch (Throwable ignored) {
+                        }
+                        dev.kollegen.client.distance.KollegenDistanceManager.clear(client.level);
+                        if (client.levelRenderer != null) {
+                            try {
+                                client.levelRenderer.resetLevelRenderData();
+                            } catch (Throwable ignored) {
+                            }
+                        }
+                    }
+                    if (client.options != null && client.options.renderDistance() != null) {
+                        if (client.options.renderDistance().get() > 32) {
+                            client.options.renderDistance().set(32);
+                        }
+                    }
+                }
+            } catch (Throwable ignored) {
+            }
         }
 
         @Override
@@ -375,7 +415,7 @@ public final class Performance {
                                 Class<?> accessorClass = Class.forName("de.johni0702.minecraft.bobby.mixin.OptionInstanceIntRangeAccessor");
                                 if (accessorClass.isInstance(ir)) {
                                     java.lang.reflect.Method m = accessorClass.getMethod("setMaxInclusive", int.class);
-                                    m.invoke(ir, bobbyLimit);
+                                    m.invoke(ir, enabled ? Math.max(2048, bobbyLimit) : 32);
                                 }
                             } catch (Throwable ignored) {
                             }
@@ -388,14 +428,18 @@ public final class Performance {
                             } catch (Throwable ignored) {
                             }
                         }
-                        if (!enabled && rd.get() > 32) {
+                        if (enabled) {
+                            if (rd.get() != bobbyLimit) {
+                                rd.set(bobbyLimit);
+                            }
+                        } else if (rd.get() > 32) {
                             rd.set(32);
                         }
                     } catch (Throwable ignored) {}
                 }
-                if (!enabled && client.getSingleplayerServer() != null && client.getSingleplayerServer().getPlayerList() != null) {
+                if (client.getSingleplayerServer() != null && client.getSingleplayerServer().getPlayerList() != null) {
                     try {
-                        int normDist = Math.min(client.options.renderDistance().get(), 32);
+                        int normDist = enabled ? actual : Math.min(client.options.renderDistance().get(), 32);
                         client.getSingleplayerServer().getPlayerList().setViewDistance(normDist);
                     } catch (Throwable ignored) {}
                 }

@@ -27,22 +27,21 @@ public class PostShaderMixin {
     private void kollegen$injectUpdate(DeltaTracker deltaTracker, CallbackInfo ci) {
         try {
             if (this.failedPostEffects != null) {
-                this.failedPostEffects.remove(KollegenShader.SHADER_ID);
-                this.failedPostEffects.remove(KollegenShader.BLUR_ID);
+                this.failedPostEffects.removeIf(id -> KollegenShader.SHADER_ID.equals(id) || KollegenShader.BLUR_ID.equals(id));
             }
             if (KollegenShader.isShaderActive()) {
                 if (!this.requestedPostEffects.contains(KollegenShader.SHADER_ID)) {
                     this.requestedPostEffects.add(KollegenShader.SHADER_ID);
                 }
             } else {
-                this.requestedPostEffects.remove(KollegenShader.SHADER_ID);
+                this.requestedPostEffects.removeIf(KollegenShader.SHADER_ID::equals);
             }
             if (KollegenShader.isMotionBlurActive()) {
                 if (!this.requestedPostEffects.contains(KollegenShader.BLUR_ID)) {
                     this.requestedPostEffects.add(KollegenShader.BLUR_ID);
                 }
             } else {
-                this.requestedPostEffects.remove(KollegenShader.BLUR_ID);
+                this.requestedPostEffects.removeIf(KollegenShader.BLUR_ID::equals);
             }
         } catch (Throwable ignored) {
         }
@@ -52,8 +51,7 @@ public class PostShaderMixin {
     private void kollegen$injectExtract(DeltaTracker deltaTracker, boolean bl, CallbackInfo ci) {
         try {
             if (this.failedPostEffects != null) {
-                this.failedPostEffects.remove(KollegenShader.SHADER_ID);
-                this.failedPostEffects.remove(KollegenShader.BLUR_ID);
+                this.failedPostEffects.removeIf(id -> KollegenShader.SHADER_ID.equals(id) || KollegenShader.BLUR_ID.equals(id));
             }
             if (this.gameRenderState != null && this.gameRenderState.requestedPostEffects != null) {
                 if (KollegenShader.isShaderActive()) {
@@ -61,14 +59,14 @@ public class PostShaderMixin {
                         this.gameRenderState.requestedPostEffects.add(KollegenShader.SHADER_ID);
                     }
                 } else {
-                    this.gameRenderState.requestedPostEffects.remove(KollegenShader.SHADER_ID);
+                    this.gameRenderState.requestedPostEffects.removeIf(KollegenShader.SHADER_ID::equals);
                 }
                 if (KollegenShader.isMotionBlurActive()) {
                     if (!this.gameRenderState.requestedPostEffects.contains(KollegenShader.BLUR_ID)) {
                         this.gameRenderState.requestedPostEffects.add(KollegenShader.BLUR_ID);
                     }
                 } else {
-                    this.gameRenderState.requestedPostEffects.remove(KollegenShader.BLUR_ID);
+                    this.gameRenderState.requestedPostEffects.removeIf(KollegenShader.BLUR_ID::equals);
                 }
             }
         } catch (Throwable ignored) {
@@ -79,8 +77,7 @@ public class PostShaderMixin {
     private void kollegen$injectPrepare(List<Identifier> list, CallbackInfo ci) {
         try {
             if (this.failedPostEffects != null) {
-                this.failedPostEffects.remove(KollegenShader.SHADER_ID);
-                this.failedPostEffects.remove(KollegenShader.BLUR_ID);
+                this.failedPostEffects.removeIf(id -> KollegenShader.SHADER_ID.equals(id) || KollegenShader.BLUR_ID.equals(id));
             }
             if (list != null) {
                 if (KollegenShader.isShaderActive()) {
@@ -88,14 +85,14 @@ public class PostShaderMixin {
                         list.add(KollegenShader.SHADER_ID);
                     }
                 } else {
-                    list.remove(KollegenShader.SHADER_ID);
+                    list.removeIf(KollegenShader.SHADER_ID::equals);
                 }
                 if (KollegenShader.isMotionBlurActive()) {
                     if (!list.contains(KollegenShader.BLUR_ID)) {
                         list.add(KollegenShader.BLUR_ID);
                     }
                 } else {
-                    list.remove(KollegenShader.BLUR_ID);
+                    list.removeIf(KollegenShader.BLUR_ID::equals);
                 }
             }
         } catch (Throwable ignored) {
@@ -106,6 +103,12 @@ public class PostShaderMixin {
     private void kollegen$injectApply(CallbackInfo ci) {
         try {
             if (this.appliedPostEffects != null && !this.appliedPostEffects.isEmpty()) {
+                if (!KollegenShader.isShaderActive()) {
+                    this.appliedPostEffects.removeIf(chain -> chain != null && KollegenShader.SHADER_ID.equals(chain.id()));
+                }
+                if (!KollegenShader.isMotionBlurActive()) {
+                    this.appliedPostEffects.removeIf(chain -> chain != null && KollegenShader.BLUR_ID.equals(chain.id()));
+                }
                 for (PostChain chain : this.appliedPostEffects) {
                     if (chain == null) continue;
                     if (KollegenShader.SHADER_ID.equals(chain.id())) {

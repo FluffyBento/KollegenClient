@@ -114,9 +114,31 @@ public class KollegenShader extends Module {
         add(vignetteStrength);
     }
 
+    @Override
+    public void onDisable() {
+        try {
+            net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
+            if (mc != null && mc.gameRenderer != null) {
+                java.lang.reflect.Field f1 = net.minecraft.client.renderer.GameRenderer.class.getDeclaredField("requestedPostEffects");
+                f1.setAccessible(true);
+                Object req = f1.get(mc.gameRenderer);
+                if (req instanceof java.util.List<?> list) {
+                    list.removeIf(id -> SHADER_ID.equals(id) || BLUR_ID.equals(id));
+                }
+                java.lang.reflect.Field f2 = net.minecraft.client.renderer.GameRenderer.class.getDeclaredField("appliedPostEffects");
+                f2.setAccessible(true);
+                Object app = f2.get(mc.gameRenderer);
+                if (app instanceof java.util.List<?> list) {
+                    list.removeIf(chain -> chain instanceof net.minecraft.client.renderer.PostChain pc && (SHADER_ID.equals(pc.id()) || BLUR_ID.equals(pc.id())));
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+    }
+
     private void applyPreset(int index) {
         switch (index) {
-            case 1 -> { // Vibrant
+            case 1 -> {
                 saturationEnabled.value = true;
                 saturation.value = 1.45;
                 contrastEnabled.value = true;
@@ -126,7 +148,7 @@ public class KollegenShader extends Module {
                 vignetteEnabled.value = false;
                 vignetteStrength.value = 0.20;
             }
-            case 2 -> { // Cinematic
+            case 2 -> {
                 saturationEnabled.value = true;
                 saturation.value = 1.15;
                 contrastEnabled.value = true;
@@ -136,7 +158,7 @@ public class KollegenShader extends Module {
                 vignetteEnabled.value = true;
                 vignetteStrength.value = 0.35;
             }
-            case 3 -> { // Klar & Kontrast
+            case 3 -> {
                 saturationEnabled.value = true;
                 saturation.value = 1.10;
                 contrastEnabled.value = true;
@@ -146,7 +168,7 @@ public class KollegenShader extends Module {
                 vignetteEnabled.value = false;
                 vignetteStrength.value = 0.15;
             }
-            case 4 -> { // Warm
+            case 4 -> {
                 saturationEnabled.value = true;
                 saturation.value = 1.30;
                 contrastEnabled.value = true;

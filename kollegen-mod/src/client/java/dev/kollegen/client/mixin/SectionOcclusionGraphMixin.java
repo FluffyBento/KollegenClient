@@ -27,6 +27,7 @@ public abstract class SectionOcclusionGraphMixin {
     @Shadow @Final private LongOpenHashSet loadedChunks;
     @Shadow private ViewArea viewArea;
     @Shadow public abstract void schedulePropagationFrom(SectionRenderDispatcher.RenderSection section);
+    @Shadow public abstract void invalidate();
 
     @Inject(method = "updateLoadedChunks", at = @At("HEAD"))
     private void kollegen$fixLoadedChunks(LongOpenHashSet addedLoadedChunks, LongOpenHashSet removedLoadedChunks, CallbackInfo ci) {
@@ -34,6 +35,7 @@ public abstract class SectionOcclusionGraphMixin {
             Minecraft mc = Minecraft.getInstance();
             if (mc == null || mc.level == null) return;
             ClientLevel level = mc.level;
+            boolean changed = false;
             if (removedLoadedChunks != null && !removedLoadedChunks.isEmpty()) {
                 LongIterator it = removedLoadedChunks.longIterator();
                 while (it.hasNext()) {
@@ -47,8 +49,15 @@ public abstract class SectionOcclusionGraphMixin {
                             addedLoadedChunks.add(packed);
                         }
                         this.loadedChunks.add(packed);
+                        changed = true;
                     }
                 }
+            }
+            if (addedLoadedChunks != null && !addedLoadedChunks.isEmpty()) {
+                changed = true;
+            }
+            if (changed) {
+                this.invalidate();
             }
         } catch (Throwable ignored) {
         }
@@ -60,6 +69,7 @@ public abstract class SectionOcclusionGraphMixin {
             Minecraft mc = Minecraft.getInstance();
             if (mc == null || mc.level == null) return;
             ClientLevel level = mc.level;
+            boolean changed = false;
             if (addedEmptySections != null && !addedEmptySections.isEmpty()) {
                 LongIterator it = addedEmptySections.longIterator();
                 while (it.hasNext()) {
@@ -86,10 +96,14 @@ public abstract class SectionOcclusionGraphMixin {
                                         this.schedulePropagationFrom(rs);
                                     }
                                 }
+                                changed = true;
                             }
                         }
                     }
                 }
+            }
+            if (changed) {
+                this.invalidate();
             }
         } catch (Throwable ignored) {
         }

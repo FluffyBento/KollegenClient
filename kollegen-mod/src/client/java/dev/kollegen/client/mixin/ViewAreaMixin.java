@@ -15,6 +15,6 @@ public class ViewAreaMixin {
             return Math.min(viewDistance, 32);
         }
         int limit = Performance.KollegenDistance.getDistanceLimit();
-        return Math.min(Math.max(viewDistance, 32), Math.min(limit, 256));
+        return Math.min(Math.max(viewDistance, limit), 256);
     }
 }

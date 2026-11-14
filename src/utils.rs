@@ -129,6 +129,15 @@ pub fn download_file_client(client: &reqwest::blocking::Client, url: &str, dest:
 
 
 
+fn is_valid_jar(path: &Path) -> bool {
+    if let Ok(file) = fs::File::open(path) {
+        if let Ok(archive) = zip::ZipArchive::new(file) {
+            return archive.len() > 0;
+        }
+    }
+    false
+}
+
 pub fn ensure_modrinth_mod(
     mods_dir: &Path,
     slug: &str,
@@ -138,13 +147,8 @@ pub fn ensure_modrinth_mod(
     fs::create_dir_all(mods_dir)?;
     let target = mods_dir.join(target_filename);
 
-    if target.exists() {
-        let remove = fs::metadata(&target)
-            .map(|meta| meta.len() == 0)
-            .unwrap_or(false);
-        if remove {
-            let _ = fs::remove_file(&target);
-        }
+    if target.exists() && !is_valid_jar(&target) {
+        let _ = fs::remove_file(&target);
     }
 
     let client = reqwest::blocking::Client::builder()
@@ -185,7 +189,7 @@ pub fn ensure_modrinth_mod(
                 let expected_size = file.get("size").and_then(|s| s.as_u64()).unwrap_or(0);
                 if target.is_file() && expected_size > 0 {
                     if let Ok(meta) = fs::metadata(&target) {
-                        if meta.len() == expected_size {
+                        if meta.len() == expected_size && is_valid_jar(&target) {
                             return Ok(());
                         }
                     }
@@ -194,8 +198,15 @@ pub fn ensure_modrinth_mod(
                     if resp.status().is_success() {
                         if let Ok(bytes) = resp.bytes() {
                             if bytes.len() > 0 && bytes.starts_with(b"PK") {
-                                fs::write(&target, &bytes)?;
-                                return Ok(());
+                                let tmp = target.with_extension("tmp");
+                                if fs::write(&tmp, &bytes).is_ok() {
+                                    if is_valid_jar(&tmp) {
+                                        let _ = fs::rename(&tmp, &target);
+                                        return Ok(());
+                                    } else {
+                                        let _ = fs::remove_file(&tmp);
+                                    }
+                                }
                             }
                         }
                     }

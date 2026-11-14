@@ -20,7 +20,7 @@ public class OptionInstanceIntRangeMixin {
                     if (!Performance.KollegenDistance.isDistanceEnabled()) {
                         cir.setReturnValue(32);
                     } else {
-                        cir.setReturnValue(Performance.KollegenDistance.getDistanceLimit());
+                        cir.setReturnValue(Math.max(2048, Performance.KollegenDistance.getDistanceLimit()));
                     }
                 }
             }
