@@ -117,7 +117,11 @@ pub fn download_file_client(client: &reqwest::blocking::Client, url: &str, dest:
     let tmp = dest.with_extension("part");
     let _ = fs::remove_file(&tmp);
     fs::write(&tmp, &bytes)?;
-    fs::rename(&tmp, dest)?;
+    let _ = fs::remove_file(dest);
+    if fs::rename(&tmp, dest).is_err() {
+        fs::copy(&tmp, dest)?;
+        let _ = fs::remove_file(&tmp);
+    }
     Ok(())
 }
 
@@ -173,9 +177,14 @@ pub fn ensure_modrinth_mod(
         }
         v.get("game_versions")
             .and_then(|g| g.as_array())
-            .map(|g| g.iter().any(|ver| ver.as_str() == Some(mc_version)))
+            .map(|g| g.iter().any(|ver| {
+                let s = ver.as_str().unwrap_or("");
+                s.eq_ignore_ascii_case(mc_version)
+                    || (mc_version.starts_with("26.") && (s.starts_with("26.3") || s.starts_with("26.")))
+                    || (mc_version.starts_with("1.21.") && s.starts_with("1.21"))
+            }))
             .unwrap_or(false)
-    }).or_else(|| versions.first());
+    });
 
     if let Some(version) = matching_version {
         let files = version
@@ -201,7 +210,12 @@ pub fn ensure_modrinth_mod(
                                 let tmp = target.with_extension("tmp");
                                 if fs::write(&tmp, &bytes).is_ok() {
                                     if is_valid_jar(&tmp) {
-                                        let _ = fs::rename(&tmp, &target);
+                                        let _ = fs::remove_file(&target);
+                                        if fs::rename(&tmp, &target).is_err() {
+                                            let _ = fs::copy(&tmp, &target);
+                                            let _ = fs::remove_file(&tmp);
+                                        }
+                                        let _ = fs::remove_file(mods_dir.join(format!("{}.disabled", target_filename)));
                                         return Ok(());
                                     } else {
                                         let _ = fs::remove_file(&tmp);

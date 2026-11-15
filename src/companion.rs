@@ -304,7 +304,7 @@ fn mc_constraint_supports(constraint: &str, version: &str) -> bool {
         if c.contains("26.3") {
             return true;
         }
-        if c.contains(">=26") {
+        if c.contains(">=26") || c.contains("26.x") || c.contains("26.*") {
             return true;
         }
         return false;
@@ -316,7 +316,7 @@ fn mc_constraint_supports(constraint: &str, version: &str) -> bool {
         if c.contains("<26.2") || c.contains("<=26.1") || c.contains("26.1.x") || c.contains("~26.1") || c.contains(">=26.3") {
             return false;
         }
-        if c.contains(">=26") {
+        if c.contains(">=26") || c.contains("26.x") || c.contains("26.*") {
             return true;
         }
         return false;
@@ -898,6 +898,13 @@ fn install_e4mc_if_needed(mods_dir: &Path, version: &str) {
     }
     if let Some(src) = candidate_src {
         let _ = std::fs::copy(&src, &target);
+    } else {
+        let url = if version.starts_with("26.") {
+            "https://cdn.modrinth.com/data/qANg5Jrr/versions/RNDvrMAd/e4mc-6.2.3-fabric-modern.jar"
+        } else {
+            "https://cdn.modrinth.com/data/qANg5Jrr/versions/1.21-fabric/e4mc-6.2.3-fabric.jar"
+        };
+        let _ = crate::utils::download_file(url, &target);
     }
 }
 

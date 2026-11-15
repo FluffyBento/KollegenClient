@@ -2,6 +2,7 @@ target/
 kollegen-native/target/
 kollegen-client
 *.jar
+!resources/*.jar
 .kollegen/
 debug.log
 npm-debug.log*

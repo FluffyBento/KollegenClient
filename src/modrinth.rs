@@ -53,6 +53,27 @@ fn category_dir(kind: &str) -> Result<&'static str> {
 
 
 
+fn is_game_version_match(v: &str, target: &str) -> bool {
+    if v.eq_ignore_ascii_case(target) {
+        return true;
+    }
+    let v_clean = v.trim();
+    let target_clean = target.trim();
+    if v_clean.starts_with(target_clean) {
+        let rest = &v_clean[target_clean.len()..];
+        if rest.starts_with('.') || rest.starts_with('-') || rest.starts_with('+') {
+            return true;
+        }
+    }
+    if target_clean.starts_with(v_clean) {
+        let rest = &target_clean[v_clean.len()..];
+        if rest.starts_with('.') || rest.starts_with('-') || rest.starts_with('+') {
+            return true;
+        }
+    }
+    false
+}
+
 pub fn search(
     kind: &str,
     query: &str,
@@ -69,7 +90,21 @@ pub fn search(
 
     let mut facets: Vec<Vec<String>> = vec![vec![format!("project_type:{}", project_type)]];
     if !mc_version.is_empty() {
-        facets.push(vec![format!("versions:{}", mc_version)]);
+        let mut ver_facets = vec![format!("versions:{}", mc_version)];
+        if mc_version == "26.3" || mc_version.starts_with("26.3") {
+            for extra in [
+                "26.3.0",
+                "26.3-rc-1",
+                "26.3-rc-2",
+                "26.3-rc-3",
+                "26.3-pre-1",
+                "26.3-pre-2",
+                "26.3-pre-3",
+            ] {
+                ver_facets.push(format!("versions:{}", extra));
+            }
+        }
+        facets.push(ver_facets);
     }
     let loader_lc = loader.to_lowercase();
     if kind == "mod" && !loader_lc.is_empty() && loader_lc != "vanilla" {
@@ -139,31 +174,42 @@ pub fn search(
     Ok(out)
 }
 
-
-
 fn pick_compatible<'a>(
     versions: &'a [Value],
     mc_version: &str,
     loader: &str,
     is_mod: bool,
 ) -> Option<&'a Value> {
-    versions.iter().find(|v| {
-        let game_versions = v
+    let loader_ok = |v: &Value| -> bool {
+        if !is_mod {
+            return true;
+        }
+        let loaders = v
+            .get("loaders")
+            .and_then(|l| l.as_array())
+            .map(|a| a.iter().filter_map(|x| x.as_str()).collect::<Vec<_>>())
+            .unwrap_or_default();
+        loaders.is_empty() || loaders.iter().any(|l| l.eq_ignore_ascii_case(loader))
+    };
+
+    if let Some(chosen) = versions.iter().find(|v| {
+        let gv = v
             .get("game_versions")
             .and_then(|g| g.as_array())
             .map(|a| a.iter().filter_map(|x| x.as_str()).collect::<Vec<_>>())
             .unwrap_or_default();
-        let game_ok = game_versions.iter().any(|g| g.eq_ignore_ascii_case(mc_version));
-        let loader_ok = !is_mod
-            || {
-                let loaders = v
-                    .get("loaders")
-                    .and_then(|l| l.as_array())
-                    .map(|a| a.iter().filter_map(|x| x.as_str()).collect::<Vec<_>>())
-                    .unwrap_or_default();
-                loaders.iter().any(|l| l.eq_ignore_ascii_case(loader))
-            };
-        game_ok && loader_ok
+        gv.iter().any(|g| g.eq_ignore_ascii_case(mc_version)) && loader_ok(v)
+    }) {
+        return Some(chosen);
+    }
+
+    versions.iter().find(|v| {
+        let gv = v
+            .get("game_versions")
+            .and_then(|g| g.as_array())
+            .map(|a| a.iter().filter_map(|x| x.as_str()).collect::<Vec<_>>())
+            .unwrap_or_default();
+        gv.iter().any(|g| is_game_version_match(g, mc_version)) && loader_ok(v)
     })
 }
 
@@ -205,7 +251,7 @@ pub fn list_versions(project_id: &str, mc_version: &str, loader: &str) -> Result
             .and_then(|g| g.as_array())
             .map(|a| a.iter().filter_map(|x| x.as_str().map(|s| s.to_string())).collect::<Vec<_>>())
             .unwrap_or_default();
-        let game_ok = game_versions.iter().any(|g| g.eq_ignore_ascii_case(mc_version));
+        let game_ok = game_versions.iter().any(|g| is_game_version_match(g, mc_version));
         let loaders = v
             .get("loaders")
             .and_then(|l| l.as_array())
@@ -446,6 +492,9 @@ pub fn list_content(data_dir: &Path, instance_name: &str) -> Value {
                         if name.starts_with("kollegen-bundle") {
                             continue;
                         }
+                        if crate::companion::is_companion_mod_name(&name) {
+                            continue;
+                        }
                         let mut obj = serde_json::json!({ "name": name.clone() });
                         if let Some(mo) = meta_obj {
                             if let Some(pid) = mo.get(&name).and_then(|v| v.as_str()) {
@@ -491,6 +540,7 @@ pub fn import_content_file(
     fs::create_dir_all(&dest_dir)?;
     let dest = dest_dir.join(&fname);
     fs::copy(src, &dest)?;
+    let _ = record_install(data_dir, instance_name, kind, &fname, "");
     Ok(fname)
 }
 
@@ -730,4 +780,22 @@ pub fn project_details(id: &str) -> Result<Value, String> {
     };
 
     Ok(serde_json::json!({ "project": project, "gallery": gallery }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_is_game_version_match() {
+        assert!(is_game_version_match("26.3", "26.3"));
+        assert!(is_game_version_match("26.3.0", "26.3"));
+        assert!(is_game_version_match("26.3-rc-1", "26.3"));
+        assert!(is_game_version_match("26.3-snapshot-8", "26.3"));
+        assert!(is_game_version_match("26.3", "26.3.0"));
+        assert!(!is_game_version_match("26.2", "26.3"));
+        assert!(!is_game_version_match("26.4", "26.3"));
+        assert!(is_game_version_match("1.21.11", "1.21"));
+        assert!(is_game_version_match("1.21", "1.21.11"));
+    }
 }

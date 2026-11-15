@@ -685,8 +685,7 @@ fn clone_instance_v2(
                     continue;
                 }
                 
-                // Wenn die Mod bereits kompatibel mit der Ziel-Version ist, direkt übernehmen
-                if crate::companion::jar_supports_mc(&p, &new_version) {
+                if new_version == source.version || crate::companion::jar_supports_mc(&p, &new_version) {
                     let _ = std::fs::copy(&p, new_mods_dir.join(&fname));
                     if let Some(pid) = mod_project_map.get(&fname) {
                         let _ = crate::modrinth::record_install(
@@ -700,7 +699,6 @@ fn clone_instance_v2(
                     continue;
                 }
                 
-                // Inkompatibel: Passende Version über Modrinth suchen
                 let pid = mod_project_map.get(&fname).cloned().or_else(|| {
                     resolve_jar_pid(&p, &state.data_dir, &source_name, &new_version, &new_loader)
                 });
@@ -740,32 +738,53 @@ fn clone_instance_v2(
                             "Mod '{}' ({}) nicht aktualisierbar für {} / {}: {}",
                             fname, pid, new_version, new_loader, e
                         );
-                        utils::append_log(
-                            &state,
-                            &format!(
-                                "⚠️ Mod '{}' hat keine kompatible Version für {} – übersprungen.",
-                                fname, new_version
-                            ),
-                        );
+                        if new_version.starts_with("26.") && source.version.starts_with("26.") {
+                            let _ = std::fs::copy(source_mods_dir.join(&fname), new_mods_dir.join(&fname));
+                            utils::append_log(
+                                &state,
+                                &format!(
+                                    "ℹ️ Mod '{}' ohne Update übernommen (Versuche Weiterverwendung für {}).",
+                                    fname, new_version
+                                ),
+                            );
+                        } else {
+                            utils::append_log(
+                                &state,
+                                &format!(
+                                    "⚠️ Mod '{}' hat keine kompatible Version für {} – übersprungen.",
+                                    fname, new_version
+                                ),
+                            );
+                        }
                     }
                 }
             } else {
-                warn!(
-                    "Inkompatible Mod '{}' übersprungen (keine Modrinth-ID ermittelbar).",
-                    fname
-                );
-                utils::append_log(
-                    &state,
-                    &format!(
-                        "⚠️ Inkompatible Mod '{}' übersprungen (keine passende Version für {}).",
-                        fname, new_version
-                    ),
-                );
+                if new_version.starts_with("26.") && source.version.starts_with("26.") {
+                    let _ = std::fs::copy(source_mods_dir.join(&fname), new_mods_dir.join(&fname));
+                    utils::append_log(
+                        &state,
+                        &format!(
+                            "ℹ️ Mod '{}' übernommen (Versuche Weiterverwendung für {}).",
+                            fname, new_version
+                        ),
+                    );
+                } else {
+                    warn!(
+                        "Inkompatible Mod '{}' übersprungen (keine Modrinth-ID ermittelbar).",
+                        fname
+                    );
+                    utils::append_log(
+                        &state,
+                        &format!(
+                            "⚠️ Inkompatible Mod '{}' übersprungen (keine passende Version für {}).",
+                            fname, new_version
+                        ),
+                    );
+                }
             }
         }
     }
     
-    // Begleit-Mod und Bundles für Zielversion installieren
     crate::companion::install_companion_mod(
         &state.data_dir,
         &new_name,
@@ -1863,7 +1882,7 @@ fn toggle_instance_module(
                     let _ = std::fs::rename(&disabled, &active);
                 } else {
                     let ver = instances.iter().find(|i| i.name == instance_name).map(|i| i.version.clone()).unwrap_or_else(|| "26.3".to_string());
-                    let _ = crate::utils::ensure_modrinth_mod(&mods_dir, slug, jar_name, &ver);
+                    crate::utils::ensure_modrinth_mod(&mods_dir, slug, jar_name, &ver).map_err(|e| e.to_string())?;
                 }
             } else {
                 return Err(format!("Unbekanntes Modul: {}", module));
