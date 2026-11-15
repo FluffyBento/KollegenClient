@@ -176,9 +176,7 @@ pub fn ensure_title_logo_pack(inst_dir: &Path, version: &str) {
         return;
     }
     let uhc_zip = rp_dir.join("Kollegen-UHC-Overlay.zip");
-    if !uhc_zip.exists() {
-        let _ = fs::write(&uhc_zip, UHC_OVERLAY_PACK);
-    }
+    let _ = fs::write(&uhc_zip, UHC_OVERLAY_PACK);
 
     let opts = inst_dir.join("options.txt");
     let mut lines: Vec<String> = if opts.exists() {

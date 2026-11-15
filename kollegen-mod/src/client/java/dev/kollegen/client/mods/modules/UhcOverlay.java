@@ -96,6 +96,19 @@ public class UhcOverlay extends Module implements DebugRenderer.SimpleDebugRende
         setPackEnabled(false);
     }
 
+    @Override
+    public void onTick() {
+        if (this.colorOres.value && isOverlayEnabled()) {
+            Minecraft mc = Minecraft.getInstance();
+            if (mc != null && mc.options != null && mc.gui != null && mc.gui.overlay() == null) {
+                net.minecraft.server.packs.repository.PackRepository repo = mc.getResourcePackRepository();
+                if (repo != null && !repo.getSelectedIds().contains("file/Kollegen-UHC-Overlay.zip")) {
+                    setPackEnabled(true);
+                }
+            }
+        }
+    }
+
     public static boolean isOverlayEnabled() {
         return INSTANCE != null && INSTANCE.enabled;
     }
@@ -169,7 +182,7 @@ public class UhcOverlay extends Module implements DebugRenderer.SimpleDebugRende
         try {
             ensurePackExists();
             Minecraft mc = Minecraft.getInstance();
-            if (mc.options == null) return;
+            if (mc == null || mc.options == null || (mc.gui != null && mc.gui.overlay() != null)) return;
             net.minecraft.server.packs.repository.PackRepository repo = mc.getResourcePackRepository();
             if (repo == null) return;
             repo.reload();

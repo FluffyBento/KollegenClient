@@ -119,6 +119,7 @@ if (is121) {
                     .replace('Glass.__text__(', 'Glass.text(')
                     .replace('.item(', '.renderItem(')
                     .replace('.gui.screen()', '.screen')
+                    .replace('.gui.overlay()', '.getOverlay()')
                     .replace('renderer.state.level.CameraRenderState', 'renderer.state.CameraRenderState')
                     .replace('renderer.state.level.SkyRenderState', 'renderer.state.SkyRenderState')
                     .replace('renderer/state/level/CameraRenderState', 'renderer/state/CameraRenderState')

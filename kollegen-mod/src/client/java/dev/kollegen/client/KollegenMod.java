@@ -119,7 +119,7 @@ public class KollegenMod implements ClientModInitializer {
             dev.kollegen.client.nativebridge.KollegenNative.favourRenderThread();
         }
 
-        if (!perfApplied && mc.options != null) {
+        if (!perfApplied && mc.options != null && (mc.gui == null || mc.gui.overlay() == null)) {
             perfApplied = true;
             for (Module m : ModuleManager.modules()) {
                 if (m.enabled && !m.initialized) {
