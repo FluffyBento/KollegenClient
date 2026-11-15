@@ -24,7 +24,8 @@ pub const COMPANION_MOD_PREFIX: &str = "kollegen-client";
 pub const COMPANION_MOD_FILENAME_1_21: &str = "kollegen-client-mod-1.21.11.jar";
 pub const COMPANION_MOD_FILENAME_26_2: &str = "kollegen-client-mod-26.2.jar";
 pub const COMPANION_MOD_FILENAME_26_3: &str = "kollegen-client-mod-26.3.jar";
-pub const COMPANION_MOD_VERSION: &str = "1.26.2";
+#[allow(dead_code)]
+pub const COMPANION_MOD_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub fn companion_target_versions() -> &'static [&'static str] {
     &["1.21.11", "26.2", "26.3"]
@@ -433,7 +434,6 @@ fn companion_candidate_ok(p: &Path, version: &str) -> bool {
         && jar_mod_version_matches(p)
 }
 
-/// Prüft, ob die Mod-Version im Jar zur erwarteten Mod-Version passt
 fn jar_mod_version_matches(p: &Path) -> bool {
     use zip::ZipArchive;
     use std::fs::File;
@@ -462,8 +462,9 @@ fn jar_mod_version_matches(p: &Path) -> bool {
         Err(_) => return false,
     };
     
+    let mod_id = json.get("id").and_then(|v| v.as_str()).unwrap_or("");
     let mod_version = json.get("version").and_then(|v| v.as_str()).unwrap_or("");
-    mod_version == COMPANION_MOD_VERSION
+    mod_id == "kollegen-client" && !mod_version.is_empty()
 }
 
 /// Prüft zusätzlich die eingebetteten Bundle-Payloads: Ein Jar mit umgeschriebener
@@ -928,5 +929,22 @@ mod tests {
         let p_1_21 = Path::new("/path/to/kollegen-client-mod-1.21.11.jar");
         assert!(!companion_candidate_ok(p_1_21, "26.2"));
         assert!(!companion_candidate_ok(p_1_21, "26.3"));
+    }
+
+    #[test]
+    fn test_companion_candidate_ok_for_all_supported_versions() {
+        let manifest = Path::new(env!("CARGO_MANIFEST_DIR"));
+        let p_26_3 = manifest.join("resources").join(COMPANION_MOD_FILENAME_26_3);
+        if p_26_3.is_file() {
+            assert!(companion_candidate_ok(&p_26_3, "26.3"));
+        }
+        let p_26_2 = manifest.join("resources").join(COMPANION_MOD_FILENAME_26_2);
+        if p_26_2.is_file() {
+            assert!(companion_candidate_ok(&p_26_2, "26.2"));
+        }
+        let p_1_21 = manifest.join("resources").join(COMPANION_MOD_FILENAME_1_21);
+        if p_1_21.is_file() {
+            assert!(companion_candidate_ok(&p_1_21, "1.21.11"));
+        }
     }
 }

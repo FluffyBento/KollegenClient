@@ -76,7 +76,7 @@ dependencies = [
 
 [[package]]
 name = "kollegen-native"
-version = "1.26.4"
+version = "1.26.5"
 dependencies = [
  "jni",
  "libc",
