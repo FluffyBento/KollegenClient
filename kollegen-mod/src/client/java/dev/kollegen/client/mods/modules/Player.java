@@ -46,10 +46,10 @@ public final class Player {
 
     private static boolean shouldHide(int modeIndex, boolean isSelf) {
         return switch (modeIndex) {
-            case 1 -> isSelf;   // Nur eigener
-            case 2 -> !isSelf;  // Nur andere
-            case 3 -> true;     // Alle
-            default -> false;   // Aus (0)
+            case 1 -> isSelf;
+            case 2 -> !isSelf;
+            case 3 -> true;
+            default -> false;
         };
     }
 

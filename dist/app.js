@@ -3905,20 +3905,20 @@ applySavedTheme()
     if (name === "store" && window.renderKollegenStore) {
       try { window.renderKollegenStore(); } catch (e) {}
     }
-    if (name === "appearance") {
+    if (name === "cosmetics" || name === "appearance") {
       const activeApt2 = document.querySelector(".appearance-tab.active");
       const activeSubName2 = activeApt2 ? activeApt2.dataset.apt : "cosmetics";
-      if (activeSubName2 === "cosmetics") {
-      try {
-        const p = window.renderCosmetics();
-        if (p && p.catch) p.catch((e) => {
-          const bx2 = $("cosmOwned");
-          if (bx2) bx2.innerHTML = '<div class="store-msg">Fehler: ' + String((e && e.message) || e) + '</div>';
-        });
-      } catch (e) {
-        const bx3 = $("cosmOwned");
-        if (bx3) bx3.innerHTML = '<div class="store-msg">Fehler: ' + String((e && e.message) || e) + '</div>';
-      }
+      if (name === "cosmetics" || activeSubName2 === "cosmetics") {
+        try {
+          const p = window.renderCosmetics();
+          if (p && p.catch) p.catch((e) => {
+            const bx2 = $("cosmOwned");
+            if (bx2) bx2.innerHTML = '<div class="store-msg">Fehler: ' + String((e && e.message) || e) + '</div>';
+          });
+        } catch (e) {
+          const bx3 = $("cosmOwned");
+          if (bx3) bx3.innerHTML = '<div class="store-msg">Fehler: ' + String((e && e.message) || e) + '</div>';
+        }
       }
     }
     if (name === "home" && document.body.classList.contains("console-mode")) {
@@ -3927,7 +3927,7 @@ applySavedTheme()
     if (name === "support" && typeof renderConsoleSupport === "function") {
       try { renderConsoleSupport(); } catch (e) { console.error(e); }
     }
-    if (name !== "appearance" && typeof disposeCosmSkinViewer === "function") {
+    if (name !== "appearance" && name !== "cosmetics" && typeof disposeCosmSkinViewer === "function") {
       disposeCosmSkinViewer();
     }
     if (name !== "profile" && typeof disposeProfileSkinViewer === "function") {
@@ -7725,7 +7725,21 @@ startBackgroundIntervals();
     }
      if (!me || !store) {
        stopDbg();
-       // Automatischer Retry bei transienten Netzwerkfehlern (bis zu 2x)
+       if (errText === "not_authenticated") {
+         if (box) {
+           box.innerHTML = "";
+           const msg = document.createElement("div");
+           msg.className = "store-msg";
+           msg.textContent = "Bitte verbinde dein Konto in den Einstellungen, um deine Kosmetik zu sehen.";
+           box.appendChild(msg);
+           const btn = document.createElement("button");
+           btn.className = "btn-secondary";
+           btn.textContent = "Zu den Konten";
+           btn.onclick = () => { if (typeof openSettings === "function") openSettings("connections"); };
+           box.appendChild(btn);
+         }
+         return;
+       }
        const retryCount = window.__cosmRetryCount || 0;
        if (retryCount < 2) {
          window.__cosmRetryCount = retryCount + 1;
@@ -7758,14 +7772,40 @@ startBackgroundIntervals();
     return;
     function renderCosmeticsFrom(me, store) {
     const equipped = me.equipped || {};
-    const owned = store.catalog.filter((it) => it.owned && it.category !== "cape" && ["pet", "pet_skin", "name_color", "badge", "sticker", "title", "profil_stil", "shield", "back_accessory", "head_accessory", "face_accessory", "aura", "shoulder_accessory", "torso_accessory", "legs_accessory", "gloves"].includes(it.category));
+    const myCosmIds = new Set((me.cosmetics || []).map((x) => (typeof x === "string" ? x : (x && x.id))).filter(Boolean));
+    const owned = (store.catalog || []).filter((it) => it && (it.owned || myCosmIds.has(it.id)) && it.category !== "cape" && it.category !== "package");
     const cosmCatLabel = (c) => {
-      const known = { pet: "Haustier", title: "Titel", name_color: "Namensfarbe", badge: "Abzeichen", profile_frame: "Profil-Rahmen", profile_bg: "Profil-Hintergrund", banner: "Banner", profil_stil: "Profilstil", font: "Schriftart", sticker: "Aufkleber", avatar_theme: "Avatar-Hintergrund", cape: "Umhang", shield: "Schild", back_accessory: "Rücken", head_accessory: "Kopf", face_accessory: "Gesicht", aura: "Aura", shoulder_accessory: "Schulter", torso_accessory: "Oberkörper", legs_accessory: "Unterkörper", gloves: "Handschuhe" };
+      const known = {
+        mace: "Streitkolben / Mace",
+        shield: "Schild",
+        head_accessory: "Kopf",
+        face_accessory: "Gesicht",
+        shoulder_accessory: "Schulter",
+        back_accessory: "Rücken",
+        torso_accessory: "Oberkörper",
+        legs_accessory: "Unterkörper",
+        gloves: "Handschuhe",
+        aura: "Aura",
+        title: "Titel",
+        badge: "Abzeichen",
+        sticker: "Aufkleber",
+        name_color: "Namensfarbe",
+        profil_stil: "Profilstil",
+        font: "Schriftart",
+        avatar_frame: "Avatar-Rahmen",
+        avatar_theme: "Avatar-Hintergrund",
+        profile_frame: "Profil-Rahmen",
+        profile_bg: "Profil-Hintergrund",
+        banner: "Banner",
+        pet: "Haustier"
+      };
       if (c && known[c]) return known[c];
       const s = String(c || "").replace(/_/g, " ").trim();
       return s ? s.charAt(0).toUpperCase() + s.slice(1) : "";
     };
-    const cosmOrder = ["title", "badge", "sticker", "name_color", "profil_stil", "shield", "back_accessory", "head_accessory", "face_accessory", "aura", "shoulder_accessory", "torso_accessory", "legs_accessory", "gloves"];
+    const defaultOrder = ["mace", "shield", "head_accessory", "face_accessory", "shoulder_accessory", "back_accessory", "torso_accessory", "legs_accessory", "gloves", "aura", "title", "badge", "sticker", "name_color", "profil_stil", "font", "avatar_frame", "avatar_theme", "profile_frame", "profile_bg", "banner"];
+    const availCats = Array.from(new Set(owned.map((it) => it.category).filter((c) => c !== "pet" && c !== "pet_skin")));
+    const cosmOrder = defaultOrder.concat(availCats.filter((c) => !defaultOrder.includes(c)));
     let cosmCollapsed = {};
     try { cosmCollapsed = JSON.parse(localStorage.getItem("kosmetCollapsed") || "{}"); } catch (e) { cosmCollapsed = {}; }
     const cosmIsCollapsed = (cat) => cosmCollapsed[cat] !== false;
@@ -7776,6 +7816,10 @@ startBackgroundIntervals();
     const cosmEquip = async (cat, itemId, busyEl) => {
       if (busyEl && busyEl.dataset.busy) return;
       if (busyEl) busyEl.dataset.busy = "1";
+      if (cat) {
+        if (itemId) equipped[cat] = itemId;
+        else equipped[cat] = "";
+      }
       try {
         if (itemId) await invoke("kollegen_store_equip", { itemId, category: cat || "" });
         else await invoke("kollegen_store_equip", { itemId: "", category: cat });

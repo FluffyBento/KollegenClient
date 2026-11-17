@@ -269,6 +269,7 @@
       if (name === "kmod") initKmodPage();
       if (name === "capes" && typeof loadCapesView === "function") loadCapesView();
       if (name === "skins" && typeof loadSkinsLibrary === "function") loadSkinsLibrary();
+      if (name === "cosmetics" && typeof window.renderCosmetics === "function") window.renderCosmetics();
       closePalette();
     };
   })();

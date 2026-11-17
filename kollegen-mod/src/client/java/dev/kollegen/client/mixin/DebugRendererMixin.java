@@ -31,6 +31,9 @@ public class DebugRendererMixin {
         if (UhcOverlay.INSTANCE != null && !this.renderers.contains(UhcOverlay.INSTANCE)) {
             this.renderers.add(UhcOverlay.INSTANCE);
         }
+        if (dev.kollegen.client.waypoints.WaypointRenderer.INSTANCE != null && !this.renderers.contains(dev.kollegen.client.waypoints.WaypointRenderer.INSTANCE)) {
+            this.renderers.add(dev.kollegen.client.waypoints.WaypointRenderer.INSTANCE);
+        }
         if (HitboxSettings.shouldAlwaysRender()) {
             boolean hasHitboxes = false;
             for (DebugRenderer.SimpleDebugRenderer r : this.renderers) {
@@ -52,6 +55,9 @@ public class DebugRendererMixin {
         }
         if (UhcOverlay.INSTANCE != null && !this.renderers.contains(UhcOverlay.INSTANCE)) {
             this.renderers.add(UhcOverlay.INSTANCE);
+        }
+        if (dev.kollegen.client.waypoints.WaypointRenderer.INSTANCE != null && !this.renderers.contains(dev.kollegen.client.waypoints.WaypointRenderer.INSTANCE)) {
+            this.renderers.add(dev.kollegen.client.waypoints.WaypointRenderer.INSTANCE);
         }
     }
 }

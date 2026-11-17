@@ -16,7 +16,7 @@ public final class ShieldCooldownTracker {
     public static void onShieldBreak(double x, double y, double z) {
         Minecraft mc = Minecraft.getInstance();
         if (mc == null || mc.level == null) return;
-        long expiry = System.currentTimeMillis() + 5000L; // 5 Sekunden Schild-Sperre
+        long expiry = System.currentTimeMillis() + 5000L;
 
         double bestDist = 6.0 * 6.0;
         UUID bestPlayer = null;

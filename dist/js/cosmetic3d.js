@@ -67,7 +67,7 @@
   }
 
   /* ---------- Item -> Modell-Schluessel ---------- */
-  var MODEL_CATS = ['cape', 'shield', 'back_accessory', 'head_accessory', 'face_accessory', 'aura', 'shoulder_accessory', 'torso_accessory', 'legs_accessory', 'gloves', 'gekauft'];
+  var MODEL_CATS = ['cape', 'shield', 'mace', 'back_accessory', 'head_accessory', 'face_accessory', 'aura', 'shoulder_accessory', 'torso_accessory', 'legs_accessory', 'gloves', 'gekauft'];
 
   function keyFor(item) {
     try {
@@ -307,6 +307,8 @@
     rightArm.position.set(-4 - aw / 2, 22, 0);
     rightArm.add(makePart(aw, 12, 4, legacy ? 40 : 32, legacy ? 16 : 48, legacy, 0, false, 0, -4, 0));
     if (!legacy) rightArm.add(makePart(aw, 12, 4, 48, 48, false, 0.25, true, 0, -4, 0));
+    rightArm.userData.itemGroup = new THREE.Group();
+    rightArm.add(rightArm.userData.itemGroup);
     g.add(rightArm);
 
     // Linkes Bein Pivot bei (2, 12, 0)
@@ -673,6 +675,9 @@
       } else if (item.category === 'shield' && pl && pl.leftArm) {
         mesh.position.set(0, -6, -2);
         pl.leftArm.add(mesh);
+      } else if (item.category === 'mace' && pl && pl.rightArm) {
+        mesh.position.set(0, -6, -2);
+        pl.rightArm.add(mesh);
       } else {
         mesh.position.copy(off);
         stage.add(mesh);
@@ -961,6 +966,11 @@
             h.player.leftArm.userData.itemGroup.remove(h.player.leftArm.userData.itemGroup.children[0]);
           }
         }
+        if (h.player.rightArm && h.player.rightArm.userData.itemGroup) {
+          while (h.player.rightArm.userData.itemGroup.children.length) {
+            h.player.rightArm.userData.itemGroup.remove(h.player.rightArm.userData.itemGroup.children[0]);
+          }
+        }
       }
       if (h.pet) { h.stage.remove(h.pet); try { h.pet.material.dispose(); } catch (e) {} h.pet = null; }
       var list = h.items || [];
@@ -977,6 +987,7 @@
 
             var isHead = it && (it.category === 'head_accessory' || it.category === 'face_accessory');
             var isShield = it && it.category === 'shield';
+            var isMace = it && it.category === 'mace';
 
             if (isHead && h.player && h.player.head && h.player.head.userData.itemGroup) {
               root.position.set(off.x, off.y - 24, off.z);
@@ -985,6 +996,9 @@
             } else if (isShield && h.player && h.player.leftArm && h.player.leftArm.userData.itemGroup) {
               root.position.set(0, -6, -2);
               h.player.leftArm.userData.itemGroup.add(root);
+            } else if (isMace && h.player && h.player.rightArm && h.player.rightArm.userData.itemGroup) {
+              root.position.set(0, -6, -2);
+              h.player.rightArm.userData.itemGroup.add(root);
             } else {
               root.position.copy(off);
               h.itemsG.add(root);

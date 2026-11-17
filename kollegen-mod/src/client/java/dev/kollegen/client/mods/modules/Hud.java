@@ -1,5 +1,6 @@
 package dev.kollegen.client.mods.modules;
 
+import dev.kollegen.client.map.MinimapHudModule;
 import dev.kollegen.client.mods.BooleanSetting;
 import dev.kollegen.client.mods.Category;
 import dev.kollegen.client.mods.ClickTracker;
@@ -71,6 +72,7 @@ public final class Hud {
         ModuleManager.register(new GearTiers());
         ModuleManager.register(new ItemChangesHudModule());
         ModuleManager.register(new RustEngineStatus());
+        ModuleManager.register(new MinimapHudModule());
     }
 
     private static class Coordinates extends HudModule {
@@ -192,7 +194,7 @@ public final class Hud {
 
         Direction() {
             super("direction", "Richtung", "Blickrichtung als moderne Kompass-Leiste oder Text.");
-            this.position.index = 4; // Standard: Oben mittig
+            this.position.index = 4;
             this.accentBar.value = false;
             add(style);
             add(compassWidth);
@@ -207,15 +209,32 @@ public final class Hud {
             if (heading < 0f) heading += 360f;
 
             if (style.index == 1) {
-                int y = (int) Math.floor(yaw);
-                if (y < 0) y += 360;
+                int yRot = (int) Math.floor(yaw);
+                if (yRot < 0) yRot += 360;
                 String cardinal;
-                if (y >= 315 || y < 45) cardinal = "S";
-                else if (y < 135) cardinal = "W";
-                else if (y < 225) cardinal = "N";
+                if (yRot >= 315 || yRot < 45) cardinal = "S";
+                else if (yRot < 135) cardinal = "W";
+                else if (yRot < 225) cardinal = "N";
                 else cardinal = "E";
                 List<String> lines = new ArrayList<>();
                 lines.add("Blick: " + cardinal + " (" + ((int) yaw) + "°)");
+                if (dev.kollegen.client.mods.modules.WaypointsModule.INSTANCE != null
+                        && dev.kollegen.client.mods.modules.WaypointsModule.INSTANCE.enabled
+                        && dev.kollegen.client.mods.modules.WaypointsModule.INSTANCE.showInCompass.value) {
+                    java.util.List<dev.kollegen.client.waypoints.Waypoint> wps = dev.kollegen.client.waypoints.WaypointManager.getVisibleForCurrentDimension();
+                    dev.kollegen.client.waypoints.Waypoint nearest = null;
+                    double minDist = Double.MAX_VALUE;
+                    for (dev.kollegen.client.waypoints.Waypoint wp : wps) {
+                        double d = wp.distanceTo(mc.player.getX(), mc.player.getY(), mc.player.getZ());
+                        if (d < minDist) {
+                            minDist = d;
+                            nearest = wp;
+                        }
+                    }
+                    if (nearest != null) {
+                        lines.add(nearest.name + ": " + nearest.formatDistance(minDist));
+                    }
+                }
                 renderLines(g, lines, 0, 0);
                 return;
             }
@@ -271,6 +290,34 @@ public final class Hud {
                 } else {
                     int tw = mc.font.width("|");
                     g.text(mc.font, "|", Math.round(mx - tw / 2.0f), Math.round(y + (h - 8) / 2.0f), markColor, true);
+                }
+            }
+
+            if (dev.kollegen.client.mods.modules.WaypointsModule.INSTANCE != null
+                    && dev.kollegen.client.mods.modules.WaypointsModule.INSTANCE.enabled
+                    && dev.kollegen.client.mods.modules.WaypointsModule.INSTANCE.showInCompass.value) {
+                java.util.List<dev.kollegen.client.waypoints.Waypoint> wps = dev.kollegen.client.waypoints.WaypointManager.getVisibleForCurrentDimension();
+                for (dev.kollegen.client.waypoints.Waypoint wp : wps) {
+                    double dx = wp.x - mc.player.getX();
+                    double dz = wp.z - mc.player.getZ();
+                    double d = Math.sqrt(dx * dx + dz * dz);
+                    double angleRad = Math.atan2(dz, dx);
+                    float targetYaw = (float) Math.toDegrees(angleRad) - 90.0f;
+                    float targetHeading = (targetYaw + 180f) % 360f;
+                    if (targetHeading < 0f) targetHeading += 360f;
+                    float diff = (targetHeading - heading + 540f) % 360f - 180f;
+                    float mx = centerX + diff * pixelsPerDegree;
+
+                    if (mx >= x + 6 && mx <= x + w - 6) {
+                        int wpCol = wp.getEffectiveColor();
+                        Glass.disc(g, mx, y + h / 2.0f, 3.5f, wpCol);
+                        Glass.disc(g, mx, y + h / 2.0f, 1.5f, 0xFFFFFFFF);
+                        String distText = wp.formatDistance(d);
+                        String label = wp.name + " (" + distText + ")";
+                        int tw = mc.font.width(label);
+                        int tx = Math.max(x, Math.min(x + w - tw, Math.round(mx - tw / 2.0f)));
+                        g.text(mc.font, label, tx, y + h + 2, wpCol, true);
+                    }
                 }
             }
 

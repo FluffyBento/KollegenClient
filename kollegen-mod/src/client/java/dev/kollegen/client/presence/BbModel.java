@@ -663,12 +663,12 @@ public final class BbModel {
     }
 
     private static final float[][] STATIC_NORMALS = {
-        {0.0F, -1.0F, 0.0F},  // DOWN = 0
-        {0.0F, 1.0F, 0.0F},   // UP = 1
-        {0.0F, 0.0F, -1.0F},  // NORTH = 2
-        {0.0F, 0.0F, 1.0F},   // SOUTH = 3
-        {-1.0F, 0.0F, 0.0F},  // WEST = 4
-        {1.0F, 0.0F, 0.0F}    // EAST = 5
+        {0.0F, -1.0F, 0.0F},
+        {0.0F, 1.0F, 0.0F},
+        {0.0F, 0.0F, -1.0F},
+        {0.0F, 0.0F, 1.0F},
+        {-1.0F, 0.0F, 0.0F},
+        {1.0F, 0.0F, 0.0F}
     };
 
     public static float[] normalFor(int dir) {

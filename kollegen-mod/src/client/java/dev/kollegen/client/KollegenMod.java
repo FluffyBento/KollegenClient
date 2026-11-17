@@ -35,6 +35,7 @@ public class KollegenMod implements ClientModInitializer {
         dev.kollegen.client.nativebridge.KollegenNative.init();
         dev.kollegen.client.server.ServerRestrictions.init();
         dev.kollegen.client.mods.Palette.loadTheme(); 
+        dev.kollegen.client.waypoints.WaypointManager.load();
         ModuleManager.registerAll();
         
         
