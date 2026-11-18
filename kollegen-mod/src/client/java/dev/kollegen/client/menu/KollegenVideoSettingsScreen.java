@@ -301,7 +301,7 @@ public class KollegenVideoSettingsScreen extends Screen {
         renderButton(g, px + 338, barY, 150, barH, "Shader-Optionen...", 0xFFA78BFA, mx, my);
 
         int listY = barY + 32;
-        int listH = ph - 74;
+        int listH = ph - 48;
         drawRect(g, px + 16, listY, pw - 32, listH, 0x33000000);
 
         String activePack = this.selectedShaderPack;
@@ -329,16 +329,6 @@ public class KollegenVideoSettingsScreen extends Screen {
             String prefix = isCur ? "✔  " : "    ";
             Glass.text(g, this.font, prefix + pack, px + 26, iy + 6, textCol, true);
         }
-
-        int noticeY = py + ph - 26;
-        boolean active = !activePack.contains("Deaktiviert");
-        int bgNotice = active ? 0x4410B981 : 0x223B82F6;
-        int textNotice = active ? 0xFF34D399 : 0xFF93C5FD;
-        String noticeText = active
-                ? "✔ Shader geladen: " + activePack + " (Eigener Shader-Loader ohne Iris/Sodium)"
-                : "Kein Shader aktiv. Klicke einen installierten Shader an, um ihn direkt zu laden.";
-        drawRect(g, px + 16, noticeY, pw - 32, 22, bgNotice);
-        Glass.textC(g, this.font, noticeText, px + pw / 2, noticeY + 7, textNotice, true);
     }
 
     private void renderTabKollegenShader(GuiGraphicsExtractor g, int px, int py, int pw, int ph, int mx, int my) {
@@ -411,10 +401,6 @@ public class KollegenVideoSettingsScreen extends Screen {
         boolean motEn = ks.motionBlurEnabled.value;
         double mot = ks.motionBlurStrength.value;
         renderSlider(g, col2X, y2, colW, 22, "Motion Blur: " + (motEn ? Math.round(mot * 100.0) + "%" : "Aus"), (float) mot, mx, my);
-
-        int bottomY = py + ph - 26;
-        drawRect(g, px + 16, bottomY, pw - 32, 22, 0x3310B981);
-        Glass.textC(g, this.font, "✔ Eigener Kollegen Shader-Loader aktiv (Vulkan & OpenGL)", px + pw / 2, bottomY + 7, 0xFF34D399, true);
     }
 
     private void renderButton(GuiGraphicsExtractor g, int x, int y, int w, int h, String text, int color, int mx, int my) {
@@ -642,7 +628,7 @@ public class KollegenVideoSettingsScreen extends Screen {
         }
 
         int listY = barY + 32;
-        int listH = ph - 74;
+        int listH = ph - 48;
         int itemH = 26;
         int startIdx = (int) (this.shaderScroll / itemH);
 
