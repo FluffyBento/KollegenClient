@@ -34,6 +34,26 @@
                         "name": "Vignette",
                         "type": "float",
                         "value": 0.0
+                    },
+                    {
+                        "name": "Bloom",
+                        "type": "float",
+                        "value": 0.0
+                    },
+                    {
+                        "name": "Exposure",
+                        "type": "float",
+                        "value": 1.0
+                    },
+                    {
+                        "name": "Warmth",
+                        "type": "float",
+                        "value": 1.0
+                    },
+                    {
+                        "name": "Vibrance",
+                        "type": "float",
+                        "value": 1.0
                     }
                 ]
             }

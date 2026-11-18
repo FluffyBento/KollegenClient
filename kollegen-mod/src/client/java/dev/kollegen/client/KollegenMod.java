@@ -37,9 +37,8 @@ public class KollegenMod implements ClientModInitializer {
         dev.kollegen.client.mods.Palette.loadTheme(); 
         dev.kollegen.client.waypoints.WaypointManager.load();
         ModuleManager.registerAll();
-        
-        
-        dev.kollegen.client.mods.modules.        RendererManager.apply();
+        dev.kollegen.client.shader.KollegenShaderLoader.getInstance().init();
+        dev.kollegen.client.mods.modules.RendererManager.apply();
         dev.kollegen.client.input.ControllerMode.init(); 
         KollegenRPC.start(); 
         dev.kollegen.client.presence.KollegenPresence.loadLocalCapeConfig(); 

@@ -4,6 +4,7 @@ import com.mojang.blaze3d.platform.InputConstants;
 import dev.kollegen.client.mods.modules.KollegenShader;
 import dev.kollegen.client.mods.modules.Performance;
 import dev.kollegen.client.mods.modules.RendererManager;
+import dev.kollegen.client.shader.KollegenShaderLoader;
 import dev.kollegen.client.ui.Glass;
 import dev.kollegen.client.ui.LogoDraw;
 import net.minecraft.client.CloudStatus;
@@ -49,8 +50,8 @@ public class KollegenVideoSettingsScreen extends Screen {
     @Override
     protected void init() {
         super.init();
-        refreshShaderpacks();
-        this.selectedShaderPack = IrisBridge.getCurrentShaderpack();
+        this.shaderPacks = KollegenShaderLoader.getInstance().getShaderPacks();
+        this.selectedShaderPack = KollegenShaderLoader.getInstance().getActiveShaderPack();
         if (this.selectedShaderPack == null || this.selectedShaderPack.isEmpty()) {
             this.selectedShaderPack = "(Deaktiviert)";
         }
@@ -61,35 +62,12 @@ public class KollegenVideoSettingsScreen extends Screen {
     }
 
     private Path getShaderpacksDir() {
-        Minecraft mc = Minecraft.getInstance();
-        Path dir = mc.gameDirectory.toPath().resolve("shaderpacks");
-        if (!Files.exists(dir)) {
-            try {
-                Files.createDirectories(dir);
-            } catch (Throwable ignored) {
-            }
-        }
-        return dir;
+        return KollegenShaderLoader.getInstance().getShaderpacksDir();
     }
 
     public void refreshShaderpacks() {
-        List<String> list = new ArrayList<>();
-        list.add("(Deaktiviert)");
-        Path dir = getShaderpacksDir();
-        if (Files.isDirectory(dir)) {
-            try (java.nio.file.DirectoryStream<Path> ds = Files.newDirectoryStream(dir)) {
-                for (Path p : ds) {
-                    String name = p.getFileName().toString();
-                    if (Files.isRegularFile(p) && name.toLowerCase().endsWith(".zip")) {
-                        list.add(name);
-                    } else if (Files.isDirectory(p) && Files.isDirectory(p.resolve("shaders"))) {
-                        list.add(name);
-                    }
-                }
-            } catch (Throwable ignored) {
-            }
-        }
-        this.shaderPacks = list;
+        this.shaderPacks = KollegenShaderLoader.getInstance().refreshPacks();
+        this.selectedShaderPack = KollegenShaderLoader.getInstance().getActiveShaderPack();
     }
 
     public static void openFolder(Path path) {
@@ -156,7 +134,7 @@ public class KollegenVideoSettingsScreen extends Screen {
 
         boolean sodium = SodiumBridge.isSodiumLoaded() || RendererManager.isSodiumPresent();
         RendererManager.Group group = RendererManager.desiredGroup();
-        String backendText = sodium ? "OpenGL (Sodium & Iris)" : (group == RendererManager.Group.VULKAN ? "Vulkan MDI" : "OpenGL");
+        String backendText = sodium ? "OpenGL (Sodium)" : (group == RendererManager.Group.VULKAN ? "Vulkan MDI" : "OpenGL");
         int badgeCol = sodium ? 0xFF10B981 : (group == RendererManager.Group.VULKAN ? 0xFF8B5CF6 : 0xFF3B82F6);
         int badgeW = this.font.width(backendText) + 16;
         Glass.pill(g, this.width - badgeW - 14, 12, badgeW, 20, 0.0f, false, false);
@@ -316,17 +294,14 @@ public class KollegenVideoSettingsScreen extends Screen {
         int barY = py + 14;
         int barH = 24;
 
-        int btnW = 120;
+        int btnW = 110;
         renderButton(g, px + 16, barY, btnW, barH, "+ Hinzufügen", 0xFF10B981, mx, my);
-        renderButton(g, px + 142, barY, btnW, barH, "Shader-Ordner", 0xFF3B82F6, mx, my);
-        renderButton(g, px + 268, barY, 90, barH, "Neu laden", 0xFFFFFFFF, mx, my);
-
-        if (IrisBridge.isIrisLoaded()) {
-            renderButton(g, px + 364, barY, 136, barH, "Shader-Optionen...", 0xFFA78BFA, mx, my);
-        }
+        renderButton(g, px + 132, barY, btnW, barH, "Shader-Ordner", 0xFF3B82F6, mx, my);
+        renderButton(g, px + 248, barY, 84, barH, "Neu laden", 0xFFFFFFFF, mx, my);
+        renderButton(g, px + 338, barY, 150, barH, "Shader-Optionen...", 0xFFA78BFA, mx, my);
 
         int listY = barY + 32;
-        int listH = ph - (IrisBridge.isIrisLoaded() ? 54 : 64);
+        int listH = ph - 74;
         drawRect(g, px + 16, listY, pw - 32, listH, 0x33000000);
 
         String activePack = this.selectedShaderPack;
@@ -347,7 +322,6 @@ public class KollegenVideoSettingsScreen extends Screen {
             String pack = this.shaderPacks.get(i);
             boolean isCur = pack.equalsIgnoreCase(activePack) || (pack.contains("Deaktiviert") && activePack.contains("Deaktiviert"));
             boolean hov = mx >= px + 20 && mx <= px + pw - 20 && my >= iy && my <= iy + itemH - 2;
-
             int bg = isCur ? 0x4410B981 : (hov ? 0x22FFFFFF : 0x11FFFFFF);
             drawRect(g, px + 20, iy, pw - 40, itemH - 2, bg);
 
@@ -356,11 +330,15 @@ public class KollegenVideoSettingsScreen extends Screen {
             Glass.text(g, this.font, prefix + pack, px + 26, iy + 6, textCol, true);
         }
 
-        if (!IrisBridge.isIrisLoaded()) {
-            int noticeY = py + ph - 24;
-            drawRect(g, px + 16, noticeY, pw - 32, 20, 0x443B82F6);
-            Glass.textC(g, this.font, "Shader gewählt -> schaltet Sodium & Iris (OpenGL) beim Neustart ein.", px + pw / 2, noticeY + 6, 0xFF93C5FD, true);
-        }
+        int noticeY = py + ph - 26;
+        boolean active = !activePack.contains("Deaktiviert");
+        int bgNotice = active ? 0x4410B981 : 0x223B82F6;
+        int textNotice = active ? 0xFF34D399 : 0xFF93C5FD;
+        String noticeText = active
+                ? "✔ Shader geladen: " + activePack + " (Eigener Shader-Loader ohne Iris/Sodium)"
+                : "Kein Shader aktiv. Klicke einen installierten Shader an, um ihn direkt zu laden.";
+        drawRect(g, px + 16, noticeY, pw - 32, 22, bgNotice);
+        Glass.textC(g, this.font, noticeText, px + pw / 2, noticeY + 7, textNotice, true);
     }
 
     private void renderTabKollegenShader(GuiGraphicsExtractor g, int px, int py, int pw, int ph, int mx, int my) {
@@ -370,50 +348,73 @@ public class KollegenVideoSettingsScreen extends Screen {
             return;
         }
 
-        int rowY = py + 14;
-        int rowH = 28;
-        int colW = pw - 32;
-        int colX = px + 16;
+        int colW = (pw - 40) / 2;
+        int col1X = px + 16;
+        int col2X = px + 24 + colW;
+        int rowH = 26;
 
+        int y1 = py + 14;
         boolean en = ks.enabled;
-        renderButton(g, colX, rowY, colW, 24, "Kollegen Shader: " + (en ? "Aktiviert (Funktioniert auch auf Vulkan)" : "Aus"), en ? 0xFF10B981 : 0xFFEF4444, mx, my);
+        renderButton(g, col1X, y1, colW, 22, "Shader: " + (en ? "Aktiviert" : "Aus"), en ? 0xFF10B981 : 0xFFEF4444, mx, my);
 
-        rowY += rowH;
+        y1 += rowH;
+        String curPack = this.selectedShaderPack != null && !this.selectedShaderPack.isEmpty() ? this.selectedShaderPack : "(Deaktiviert)";
+        renderButton(g, col1X, y1, colW, 22, "Pack: " + curPack, 0xFF38BDF8, mx, my);
 
+        y1 += rowH;
         String[] profs = ks.preset.options;
         int profIdx = ks.preset.index;
         String curProf = (profIdx >= 0 && profIdx < profs.length) ? profs[profIdx] : "Eigenes";
-        renderButton(g, colX, rowY, colW, 24, "Shader-Profil: " + curProf, 0xFFA78BFA, mx, my);
+        renderButton(g, col1X, y1, colW, 22, "Profil: " + curProf, 0xFFA78BFA, mx, my);
 
-        rowY += rowH;
-
+        y1 += rowH;
         boolean satEn = ks.saturationEnabled.value;
         double sat = ks.saturation.value;
-        renderSlider(g, colX, rowY, colW, 24, "Farbsättigung: " + (satEn ? Math.round(sat * 100.0) + "%" : "Aus"), (float) (sat / 3.0), mx, my);
+        renderSlider(g, col1X, y1, colW, 22, "Sättigung: " + (satEn ? Math.round(sat * 100.0) + "%" : "Aus"), (float) (sat / 3.0), mx, my);
 
-        rowY += rowH;
+        y1 += rowH;
+        boolean vibEn = ks.vibranceEnabled.value;
+        double vib = ks.vibrance.value;
+        renderSlider(g, col1X, y1, colW, 22, "Vibrance: " + (vibEn ? String.format("%.2f", vib) : "Aus"), (float) ((vib - 0.5) / 2.0), mx, my);
 
+        y1 += rowH;
         boolean conEn = ks.contrastEnabled.value;
         double con = ks.contrast.value;
-        renderSlider(g, colX, rowY, colW, 24, "Kontrast: " + (conEn ? String.format("%.2f", con) : "Aus"), (float) ((con - 0.5) / 1.5), mx, my);
+        renderSlider(g, col1X, y1, colW, 22, "Kontrast: " + (conEn ? String.format("%.2f", con) : "Aus"), (float) ((con - 0.5) / 1.5), mx, my);
 
-        rowY += rowH;
-
-        boolean blurEn = ks.motionBlurEnabled.value;
-        double blur = ks.motionBlurStrength.value;
-        renderSlider(g, colX, rowY, colW, 24, "Motion Blur: " + (blurEn ? Math.round(blur * 100.0) + "%" : "Aus"), (float) blur, mx, my);
-
-        rowY += rowH;
-
+        int y2 = py + 14;
         boolean briEn = ks.brightnessEnabled.value;
         double bri = ks.brightness.value;
-        renderSlider(g, colX, rowY, colW, 24, "Helligkeitsanpassung: " + (briEn ? String.format("%.2f", bri) : "Aus"), (float) ((bri - 0.5) / 1.5), mx, my);
+        renderSlider(g, col2X, y2, colW, 22, "Helligkeit: " + (briEn ? String.format("%.2f", bri) : "Aus"), (float) ((bri - 0.5) / 1.5), mx, my);
 
-        rowY += rowH;
+        y2 += rowH;
+        boolean expEn = ks.exposureEnabled.value;
+        double exp = ks.exposure.value;
+        renderSlider(g, col2X, y2, colW, 22, "Belichtung: " + (expEn ? String.format("%.2f", exp) : "Aus"), (float) ((exp - 0.5) / 1.5), mx, my);
 
+        y2 += rowH;
+        boolean blEn = ks.bloomEnabled.value;
+        double bl = ks.bloom.value;
+        renderSlider(g, col2X, y2, colW, 22, "Bloom: " + (blEn ? Math.round(bl * 100.0) + "%" : "Aus"), (float) bl, mx, my);
+
+        y2 += rowH;
+        boolean warEn = ks.warmthEnabled.value;
+        double war = ks.warmth.value;
+        renderSlider(g, col2X, y2, colW, 22, "Farbtemperatur: " + (warEn ? String.format("%.2f", war) : "Aus"), (float) ((war - 0.7) / 0.7), mx, my);
+
+        y2 += rowH;
         boolean vigEn = ks.vignetteEnabled.value;
         double vig = ks.vignetteStrength.value;
-        renderSlider(g, colX, rowY, colW, 24, "Kino-Vignette: " + (vigEn ? Math.round(vig * 100.0) + "%" : "Aus"), (float) vig, mx, my);
+        renderSlider(g, col2X, y2, colW, 22, "Kino-Vignette: " + (vigEn ? Math.round(vig * 100.0) + "%" : "Aus"), (float) vig, mx, my);
+
+        y2 += rowH;
+        boolean motEn = ks.motionBlurEnabled.value;
+        double mot = ks.motionBlurStrength.value;
+        renderSlider(g, col2X, y2, colW, 22, "Motion Blur: " + (motEn ? Math.round(mot * 100.0) + "%" : "Aus"), (float) mot, mx, my);
+
+        int bottomY = py + ph - 26;
+        drawRect(g, px + 16, bottomY, pw - 32, 22, 0x3310B981);
+        Glass.textC(g, this.font, "✔ Eigener Kollegen Shader-Loader aktiv (Vulkan & OpenGL)", px + pw / 2, bottomY + 7, 0xFF34D399, true);
     }
 
     private void renderButton(GuiGraphicsExtractor g, int x, int y, int w, int h, String text, int color, int mx, int my) {
@@ -619,32 +620,29 @@ public class KollegenVideoSettingsScreen extends Screen {
         int barY = py + 14;
         int barH = 24;
 
-        if (mx >= px + 16 && mx <= px + 136 && my >= barY && my <= barY + barH) {
+        if (mx >= px + 16 && mx <= px + 126 && my >= barY && my <= barY + barH) {
             addShaderAction();
             return;
         }
 
-        if (mx >= px + 142 && mx <= px + 262 && my >= barY && my <= barY + barH) {
+        if (mx >= px + 132 && mx <= px + 242 && my >= barY && my <= barY + barH) {
             openFolder(getShaderpacksDir());
             return;
         }
 
-        if (mx >= px + 268 && mx <= px + 358 && my >= barY && my <= barY + barH) {
+        if (mx >= px + 248 && mx <= px + 332 && my >= barY && my <= barY + barH) {
             refreshShaderpacks();
-            IrisBridge.reloadAsync();
+            KollegenShaderLoader.getInstance().triggerReload();
             return;
         }
 
-        if (IrisBridge.isIrisLoaded() && mx >= px + 364 && mx <= px + 500 && my >= barY && my <= barY + barH) {
-            Screen irisScreen = IrisBridge.openIrisConfigScreen(this);
-            if (irisScreen != null) {
-                Minecraft.getInstance().setScreenAndShow(irisScreen);
-            }
+        if (mx >= px + 338 && mx <= px + 488 && my >= barY && my <= barY + barH) {
+            this.currentTab = 3;
             return;
         }
 
         int listY = barY + 32;
-        int listH = ph - (IrisBridge.isIrisLoaded() ? 54 : 64);
+        int listH = ph - 74;
         int itemH = 26;
         int startIdx = (int) (this.shaderScroll / itemH);
 
@@ -663,77 +661,104 @@ public class KollegenVideoSettingsScreen extends Screen {
 
     private void selectShaderPack(String pack) {
         this.selectedShaderPack = pack;
-        IrisBridge.setShaderpack(pack);
-
-        boolean isDisable = pack.contains("Deaktiviert");
-        if (!isDisable && (!IrisBridge.isIrisLoaded() || RendererManager.desiredGroup() == RendererManager.Group.VULKAN)) {
-            RendererManager.setDesired(RendererManager.Group.OPENGL);
-            RendererManager.apply();
-            this.restartRequired = true;
-        }
+        KollegenShaderLoader.getInstance().setShaderPack(pack);
     }
 
     private void handleTabKollegenShaderClick(int px, int py, int pw, double mx, double my) {
         KollegenShader ks = KollegenShader.INSTANCE;
         if (ks == null) return;
 
-        int rowY = py + 14;
-        int rowH = 28;
-        int colW = pw - 32;
-        int colX = px + 16;
+        int colW = (pw - 40) / 2;
+        int col1X = px + 16;
+        int col2X = px + 24 + colW;
+        int rowH = 26;
 
-        if (mx >= colX && mx <= colX + colW && my >= rowY && my <= rowY + 24) {
+        int y1 = py + 14;
+        if (mx >= col1X && mx <= col1X + colW && my >= y1 && my <= y1 + 22) {
             ks.enabled = !ks.enabled;
-            if (!ks.enabled) ks.onDisable();
+            if (!ks.enabled) {
+                ks.onDisable();
+            } else {
+                KollegenShaderLoader.getInstance().triggerReload();
+            }
             return;
         }
 
-        rowY += rowH;
+        y1 += rowH;
+        if (mx >= col1X && mx <= col1X + colW && my >= y1 && my <= y1 + 22) {
+            this.currentTab = 2;
+            return;
+        }
 
-        if (mx >= colX && mx <= colX + colW && my >= rowY && my <= rowY + 24) {
+        y1 += rowH;
+        if (mx >= col1X && mx <= col1X + colW && my >= y1 && my <= y1 + 22) {
             int next = (ks.preset.index + 1) % ks.preset.options.length;
             ks.preset.index = next;
             ks.applyPreset(next);
+            KollegenShaderLoader.getInstance().triggerReload();
             return;
         }
 
-        rowY += rowH;
-
-        if (mx >= colX && mx <= colX + colW && my >= rowY && my <= rowY + 24) {
+        y1 += rowH;
+        if (mx >= col1X && mx <= col1X + colW && my >= y1 && my <= y1 + 22) {
             this.activeSlider = 10;
             setSliderValue(10, mx);
             return;
         }
 
-        rowY += rowH;
-
-        if (mx >= colX && mx <= colX + colW && my >= rowY && my <= rowY + 24) {
+        y1 += rowH;
+        if (mx >= col1X && mx <= col1X + colW && my >= y1 && my <= y1 + 22) {
             this.activeSlider = 11;
             setSliderValue(11, mx);
             return;
         }
 
-        rowY += rowH;
-
-        if (mx >= colX && mx <= colX + colW && my >= rowY && my <= rowY + 24) {
+        y1 += rowH;
+        if (mx >= col1X && mx <= col1X + colW && my >= y1 && my <= y1 + 22) {
             this.activeSlider = 12;
             setSliderValue(12, mx);
             return;
         }
 
-        rowY += rowH;
-
-        if (mx >= colX && mx <= colX + colW && my >= rowY && my <= rowY + 24) {
+        int y2 = py + 14;
+        if (mx >= col2X && mx <= col2X + colW && my >= y2 && my <= y2 + 22) {
             this.activeSlider = 13;
             setSliderValue(13, mx);
             return;
         }
 
-        rowY += rowH;
-
-        if (mx >= colX && mx <= colX + colW && my >= rowY && my <= rowY + 24) {
+        y2 += rowH;
+        if (mx >= col2X && mx <= col2X + colW && my >= y2 && my <= y2 + 22) {
             this.activeSlider = 14;
             setSliderValue(14, mx);
+            return;
+        }
+
+        y2 += rowH;
+        if (mx >= col2X && mx <= col2X + colW && my >= y2 && my <= y2 + 22) {
+            this.activeSlider = 15;
+            setSliderValue(15, mx);
+            return;
+        }
+
+        y2 += rowH;
+        if (mx >= col2X && mx <= col2X + colW && my >= y2 && my <= y2 + 22) {
+            this.activeSlider = 16;
+            setSliderValue(16, mx);
+            return;
+        }
+
+        y2 += rowH;
+        if (mx >= col2X && mx <= col2X + colW && my >= y2 && my <= y2 + 22) {
+            this.activeSlider = 17;
+            setSliderValue(17, mx);
+            return;
+        }
+
+        y2 += rowH;
+        if (mx >= col2X && mx <= col2X + colW && my >= y2 && my <= y2 + 22) {
+            this.activeSlider = 18;
+            setSliderValue(18, mx);
         }
     }
 
@@ -750,6 +775,12 @@ public class KollegenVideoSettingsScreen extends Screen {
         int colW = panelW - 32;
         int colX = px + 16;
         float ratio = Math.max(0.0f, Math.min(1.0f, (float) ((mx - colX) / colW)));
+
+        int halfW = (panelW - 40) / 2;
+        int halfCol1X = px + 16;
+        int halfCol2X = px + 24 + halfW;
+        float half1Ratio = Math.max(0.0f, Math.min(1.0f, (float) ((mx - halfCol1X) / halfW)));
+        float half2Ratio = Math.max(0.0f, Math.min(1.0f, (float) ((mx - halfCol2X) / halfW)));
 
         switch (id) {
             case 0 -> {
@@ -788,36 +819,64 @@ public class KollegenVideoSettingsScreen extends Screen {
             case 10 -> {
                 KollegenShader ks = KollegenShader.INSTANCE;
                 if (ks != null) {
-                    ks.saturationEnabled.value = ratio > 0.02f;
-                    ks.saturation.value = Math.round(ratio * 3.0 * 20.0) / 20.0;
+                    ks.saturationEnabled.value = half1Ratio > 0.02f;
+                    ks.saturation.value = Math.round(half1Ratio * 3.0 * 20.0) / 20.0;
                 }
             }
             case 11 -> {
                 KollegenShader ks = KollegenShader.INSTANCE;
                 if (ks != null) {
-                    ks.contrastEnabled.value = true;
-                    ks.contrast.value = Math.round((0.5 + ratio * 1.5) * 50.0) / 50.0;
+                    ks.vibranceEnabled.value = half1Ratio > 0.02f;
+                    ks.vibrance.value = Math.round((0.5 + half1Ratio * 2.0) * 20.0) / 20.0;
                 }
             }
             case 12 -> {
                 KollegenShader ks = KollegenShader.INSTANCE;
                 if (ks != null) {
-                    ks.motionBlurEnabled.value = ratio > 0.05f;
-                    ks.motionBlurStrength.value = Math.round(ratio * 20.0) / 20.0;
+                    ks.contrastEnabled.value = true;
+                    ks.contrast.value = Math.round((0.5 + half1Ratio * 1.5) * 50.0) / 50.0;
                 }
             }
             case 13 -> {
                 KollegenShader ks = KollegenShader.INSTANCE;
                 if (ks != null) {
-                    ks.brightnessEnabled.value = ratio > 0.02f;
-                    ks.brightness.value = Math.round((0.5 + ratio * 1.5) * 20.0) / 20.0;
+                    ks.brightnessEnabled.value = half2Ratio > 0.02f;
+                    ks.brightness.value = Math.round((0.5 + half2Ratio * 1.5) * 20.0) / 20.0;
                 }
             }
             case 14 -> {
                 KollegenShader ks = KollegenShader.INSTANCE;
                 if (ks != null) {
-                    ks.vignetteEnabled.value = ratio > 0.05f;
-                    ks.vignetteStrength.value = Math.round(ratio * 20.0) / 20.0;
+                    ks.exposureEnabled.value = half2Ratio > 0.02f;
+                    ks.exposure.value = Math.round((0.5 + half2Ratio * 1.5) * 20.0) / 20.0;
+                }
+            }
+            case 15 -> {
+                KollegenShader ks = KollegenShader.INSTANCE;
+                if (ks != null) {
+                    ks.bloomEnabled.value = half2Ratio > 0.02f;
+                    ks.bloom.value = Math.round(half2Ratio * 20.0) / 20.0;
+                }
+            }
+            case 16 -> {
+                KollegenShader ks = KollegenShader.INSTANCE;
+                if (ks != null) {
+                    ks.warmthEnabled.value = half2Ratio > 0.02f;
+                    ks.warmth.value = Math.round((0.7 + half2Ratio * 0.7) * 50.0) / 50.0;
+                }
+            }
+            case 17 -> {
+                KollegenShader ks = KollegenShader.INSTANCE;
+                if (ks != null) {
+                    ks.vignetteEnabled.value = half2Ratio > 0.05f;
+                    ks.vignetteStrength.value = Math.round(half2Ratio * 20.0) / 20.0;
+                }
+            }
+            case 18 -> {
+                KollegenShader ks = KollegenShader.INSTANCE;
+                if (ks != null) {
+                    ks.motionBlurEnabled.value = half2Ratio > 0.05f;
+                    ks.motionBlurStrength.value = Math.round(half2Ratio * 20.0) / 20.0;
                 }
             }
         }
@@ -849,6 +908,7 @@ public class KollegenVideoSettingsScreen extends Screen {
 
     @Override
     public void onClose() {
+        KollegenShaderLoader.getInstance().saveConfig();
         Minecraft mc = Minecraft.getInstance();
         if (mc.options != null) {
             mc.options.save();
