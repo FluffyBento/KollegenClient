@@ -22,12 +22,12 @@ public abstract class GuiScreenMixin {
     private void kollegen$interceptSetScreen(Screen newScreen, CallbackInfo ci) {
         if (newScreen != null && (newScreen instanceof VideoSettingsScreen
                 || newScreen.getClass().getName().contains("sodium.client.gui.VideoSettingsScreen"))) {
-            if (this.screen instanceof KollegenVideoSettingsScreen) {
+            if (this.screen instanceof KollegenVideoSettingsScreen || newScreen instanceof KollegenVideoSettingsScreen) {
                 return;
             }
             ci.cancel();
             Screen parent = this.screen;
-            if (parent == null) {
+            if (parent == null || parent instanceof VideoSettingsScreen || parent.getClass().getName().contains("sodium.client.gui.VideoSettingsScreen")) {
                 parent = new OptionsScreen(null, Minecraft.getInstance().options);
             }
             this.setScreen(new KollegenVideoSettingsScreen(parent));

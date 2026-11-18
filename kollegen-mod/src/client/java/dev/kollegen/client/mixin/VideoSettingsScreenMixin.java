@@ -1,14 +1,19 @@
 package dev.kollegen.client.mixin;
 
+import dev.kollegen.client.menu.KollegenVideoSettingsScreen;
 import dev.kollegen.client.mods.modules.Performance;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.OptionInstance;
 import net.minecraft.client.Options;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.gui.screens.options.OptionsScreen;
 import net.minecraft.client.gui.screens.options.OptionsSubScreen;
 import net.minecraft.client.gui.screens.options.VideoSettingsScreen;
 import net.minecraft.network.chat.Component;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(VideoSettingsScreen.class)
@@ -16,6 +21,16 @@ public abstract class VideoSettingsScreenMixin extends OptionsSubScreen {
 
     protected VideoSettingsScreenMixin() {
         super(null, null, null);
+    }
+
+    @Inject(method = "addOptions", at = @At("HEAD"), cancellable = true)
+    private void kollegen$redirectVideoScreen(CallbackInfo ci) {
+        ci.cancel();
+        Screen parent = this.lastScreen;
+        if (parent == null) {
+            parent = new OptionsScreen(null, Minecraft.getInstance().options);
+        }
+        Minecraft.getInstance().setScreenAndShow(new KollegenVideoSettingsScreen(parent));
     }
 
     @Inject(method = "qualityOptions", at = @At("RETURN"), cancellable = true)
