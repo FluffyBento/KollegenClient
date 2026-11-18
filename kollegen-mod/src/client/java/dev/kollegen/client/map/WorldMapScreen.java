@@ -164,7 +164,7 @@ public class WorldMapScreen extends Screen {
             Glass.disc(g, sx, sy, 2.0f, 0xFFFFFFFF);
             Glass.ring(g, sx - 4.5f, sy - 4.5f, 9.0f, 9.0f, 4.5f, 1.0f, 0xFFFFFFFF);
 
-            String label = wp.name;
+            String label = (wp.isDeath ? "☠ " : "") + wp.name;
             int tw = this.font.width(label);
             int bx = (int) (sx - tw / 2.0f - 4);
             int by = (int) (sy + 7);
@@ -286,7 +286,7 @@ public class WorldMapScreen extends Screen {
             Glass.disc(g, sideX + 22, iy + itemH / 2.0f, 4.5f, col);
             Glass.disc(g, sideX + 22, iy + itemH / 2.0f, 2.0f, 0xFFFFFFFF);
 
-            Glass.text(g, this.font, wp.name, sideX + 34, iy + 6, 0xFFFFFFFF, true);
+            Glass.text(g, this.font, (wp.isDeath ? "☠ " : "") + wp.name, sideX + 34, iy + 6, 0xFFFFFFFF, true);
             double dist = this.minecraft.player != null ? wp.distanceTo(this.minecraft.player.getX(), this.minecraft.player.getY(), this.minecraft.player.getZ()) : 0.0;
             String sub = wp.formatDistance(dist) + " · " + (int) wp.x + ", " + (int) wp.z;
             Glass.text(g, this.font, sub, sideX + 34, iy + 18, 0xFF94A3B8, false);

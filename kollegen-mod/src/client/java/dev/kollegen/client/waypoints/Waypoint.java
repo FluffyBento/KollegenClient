@@ -17,9 +17,10 @@ public class Waypoint {
     public int color;
     public boolean hasColor;
     public boolean visible;
+    public boolean isDeath;
     public long createdAt;
 
-    public Waypoint(String id, String name, double x, double y, double z, String dimension, int color, boolean hasColor, boolean visible) {
+    public Waypoint(String id, String name, double x, double y, double z, String dimension, int color, boolean hasColor, boolean visible, boolean isDeath) {
         this.id = id != null && !id.isBlank() ? id : UUID.randomUUID().toString();
         this.name = name != null && !name.isBlank() ? name.trim() : "Wegpunkt";
         this.x = x;
@@ -29,14 +30,26 @@ public class Waypoint {
         this.color = color;
         this.hasColor = hasColor;
         this.visible = visible;
+        this.isDeath = isDeath;
         this.createdAt = System.currentTimeMillis();
     }
 
+    public Waypoint(String id, String name, double x, double y, double z, String dimension, int color, boolean hasColor, boolean visible) {
+        this(id, name, x, y, z, dimension, color, hasColor, visible, false);
+    }
+
+    public Waypoint(String name, double x, double y, double z, String dimension, int color, boolean hasColor, boolean visible, boolean isDeath) {
+        this(UUID.randomUUID().toString(), name, x, y, z, dimension, color, hasColor, visible, isDeath);
+    }
+
     public Waypoint(String name, double x, double y, double z, String dimension, int color, boolean hasColor, boolean visible) {
-        this(UUID.randomUUID().toString(), name, x, y, z, dimension, color, hasColor, visible);
+        this(UUID.randomUUID().toString(), name, x, y, z, dimension, color, hasColor, visible, false);
     }
 
     public int getEffectiveColor() {
+        if (isDeath) {
+            return (hasColor && color != 0) ? (0xFF000000 | color) : 0xFFE53935;
+        }
         if (!hasColor) {
             return Palette.ACCENT;
         }
@@ -79,6 +92,7 @@ public class Waypoint {
         o.addProperty("color", color);
         o.addProperty("hasColor", hasColor);
         o.addProperty("visible", visible);
+        o.addProperty("isDeath", isDeath);
         o.addProperty("createdAt", createdAt);
         return o;
     }
@@ -94,7 +108,8 @@ public class Waypoint {
         int color = o.has("color") ? o.get("color").getAsInt() : 0;
         boolean hasColor = o.has("hasColor") && o.get("hasColor").getAsBoolean();
         boolean visible = !o.has("visible") || o.get("visible").getAsBoolean();
-        Waypoint wp = new Waypoint(id, name, x, y, z, dim, color, hasColor, visible);
+        boolean isDeath = o.has("isDeath") && o.get("isDeath").getAsBoolean();
+        Waypoint wp = new Waypoint(id, name, x, y, z, dim, color, hasColor, visible, isDeath);
         if (o.has("createdAt")) {
             wp.createdAt = o.get("createdAt").getAsLong();
         }

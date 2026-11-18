@@ -1,10 +1,12 @@
 package dev.kollegen.client.mixin;
 
 import dev.kollegen.client.lock.ItemLockManager;
+import dev.kollegen.client.waypoints.WaypointManager;
 import net.minecraft.client.player.LocalPlayer;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(LocalPlayer.class)
@@ -15,6 +17,14 @@ public class LocalPlayerMixin {
         LocalPlayer self = (LocalPlayer) (Object) this;
         if (ItemLockManager.isLocked(self.getInventory().getSelectedSlot())) {
             cir.setReturnValue(false);
+        }
+    }
+
+    @Inject(method = "tickDeath", at = @At("HEAD"))
+    private void kollegen$onTickDeath(CallbackInfo ci) {
+        LocalPlayer self = (LocalPlayer) (Object) this;
+        if (self.deathTime == 0) {
+            WaypointManager.recordDeath(self);
         }
     }
 }

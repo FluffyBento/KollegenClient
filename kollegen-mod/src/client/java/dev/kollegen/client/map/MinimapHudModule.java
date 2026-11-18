@@ -210,7 +210,15 @@ public class MinimapHudModule extends HudModule {
             float wy = (float) (cy + ry);
             int color = wp.getEffectiveColor();
 
-            if (clamped) {
+            if (wp.isDeath) {
+                if (clamped) {
+                    Glass.disc(g, wx, wy, 4.0f, 0xFFE53935);
+                    Glass.ring(g, wx - 4.5f, wy - 4.5f, 9.0f, 9.0f, 4.5f, 1.2f, 0xFFFFFFFF);
+                } else {
+                    Glass.disc(g, wx, wy, 5.0f, 0xFFE53935);
+                    Glass.disc(g, wx, wy, 2.2f, 0xFFFFFFFF);
+                }
+            } else if (clamped) {
                 Glass.disc(g, wx, wy, 3.0f, color);
                 Glass.ring(g, wx - 3.5f, wy - 3.5f, 7.0f, 7.0f, 3.5f, 1.0f, 0xFFFFFFFF);
             } else {

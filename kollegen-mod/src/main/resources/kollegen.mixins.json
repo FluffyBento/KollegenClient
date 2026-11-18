@@ -77,6 +77,7 @@
     "PauseScreenMixin",
     "PlayerModelMixin",
     "LocalPlayerMixin",
+    "DeathScreenMixin",
     "ScreenshotMixin",
     "ScreenEffectRendererMixin",
     "ViewAreaMixin",

@@ -232,7 +232,7 @@ public class WaypointListScreen extends Screen {
                     Glass.line(g, listX + 11, ry + rowH / 2.0f - 5, listX + 21, ry + rowH / 2.0f + 5, 1.5f, 0xFFFF3333);
                 }
 
-                Glass.text(g, this.font, wp.name, listX + 30, ry + 8, wp.visible ? Palette.TEXT : Palette.MUTED, false);
+                Glass.text(g, this.font, (wp.isDeath ? "☠ " : "") + wp.name, listX + 30, ry + 8, wp.visible ? Palette.TEXT : Palette.MUTED, false);
 
                 String coordsStr = String.format(Locale.ROOT, "X: %.0f  Y: %.0f  Z: %.0f  [%s]", wp.x, wp.y, wp.z, getDimName(wp.dimension));
                 Glass.text(g, this.font, coordsStr, listX + 30, ry + 22, Palette.MUTED, false);

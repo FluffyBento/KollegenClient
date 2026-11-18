@@ -5,8 +5,10 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
+import dev.kollegen.client.mods.modules.WaypointsModule;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.resources.Identifier;
 
 import java.nio.file.Files;
@@ -14,12 +16,14 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 public final class WaypointManager {
     private static final List<Waypoint> WAYPOINTS = new CopyOnWriteArrayList<>();
     private static final Path PATH = FabricLoader.getInstance().getConfigDir().resolve("kollegen-waypoints.json");
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
+    private static long lastDeathRecordTime = 0L;
 
     private WaypointManager() {
     }
@@ -107,6 +111,35 @@ public final class WaypointManager {
         String wpName = (name != null && !name.isBlank()) ? name.trim() : ("Wegpunkt " + (WAYPOINTS.size() + 1));
         Waypoint wp = new Waypoint(null, wpName, x, y, z, dim, 0, false, true);
         add(wp);
+    }
+
+    public static void recordDeath(LocalPlayer player) {
+        Minecraft mc = Minecraft.getInstance();
+        LocalPlayer target = player != null ? player : (mc != null ? mc.player : null);
+        if (target == null) return;
+        long now = System.currentTimeMillis();
+        if (now - lastDeathRecordTime < 3000L) {
+            return;
+        }
+        lastDeathRecordTime = now;
+        if (WaypointsModule.INSTANCE != null && (!WaypointsModule.INSTANCE.enabled || !WaypointsModule.INSTANCE.deathWaypoints.value)) {
+            return;
+        }
+        double x = Math.round(target.getX() * 10.0) / 10.0;
+        double y = Math.round(target.getY() * 10.0) / 10.0;
+        double z = Math.round(target.getZ() * 10.0) / 10.0;
+        String dim = getCurrentDimension();
+        if (WaypointsModule.INSTANCE != null && WaypointsModule.INSTANCE.onlyLatestDeath.value) {
+            WAYPOINTS.removeIf(w -> w.isDeath);
+        }
+        java.time.LocalTime time = java.time.LocalTime.now();
+        String timeStr = String.format(Locale.ROOT, "%02d:%02d:%02d", time.getHour(), time.getMinute(), time.getSecond());
+        String name = "Tod (" + timeStr + ")";
+        Waypoint wp = new Waypoint(null, name, x, y, z, dim, 0xFFE53935, true, true, true);
+        add(wp);
+        if (mc != null && mc.gui != null && mc.gui.hud != null && mc.gui.hud.getChat() != null) {
+            mc.gui.hud.getChat().addClientSystemMessage(net.minecraft.network.chat.Component.literal("§c[Kollegen] §fTodespunkt gesetzt bei §e" + (int) x + " " + (int) y + " " + (int) z));
+        }
     }
 
     public static synchronized void load() {

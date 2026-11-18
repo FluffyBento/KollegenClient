@@ -232,7 +232,7 @@ public final class Hud {
                         }
                     }
                     if (nearest != null) {
-                        lines.add(nearest.name + ": " + nearest.formatDistance(minDist));
+                        lines.add((nearest.isDeath ? "☠ " : "") + nearest.name + ": " + nearest.formatDistance(minDist));
                     }
                 }
                 renderLines(g, lines, 0, 0);
@@ -310,10 +310,10 @@ public final class Hud {
 
                     if (mx >= x + 6 && mx <= x + w - 6) {
                         int wpCol = wp.getEffectiveColor();
-                        Glass.disc(g, mx, y + h / 2.0f, 3.5f, wpCol);
+                        Glass.disc(g, mx, y + h / 2.0f, wp.isDeath ? 4.5f : 3.5f, wpCol);
                         Glass.disc(g, mx, y + h / 2.0f, 1.5f, 0xFFFFFFFF);
                         String distText = wp.formatDistance(d);
-                        String label = wp.name + " (" + distText + ")";
+                        String label = (wp.isDeath ? "☠ " : "") + wp.name + " (" + distText + ")";
                         int tw = mc.font.width(label);
                         int tx = Math.max(x, Math.min(x + w - tw, Math.round(mx - tw / 2.0f)));
                         g.text(mc.font, label, tx, y + h + 2, wpCol, true);

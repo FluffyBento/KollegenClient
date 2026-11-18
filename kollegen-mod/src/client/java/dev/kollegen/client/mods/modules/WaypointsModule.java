@@ -23,6 +23,8 @@ public class WaypointsModule extends Module {
     public final BooleanSetting showInWorld = new BooleanSetting("In der Welt anzeigen", "Zeigt Wegpunkt-Marker in der 3D-Welt und auf dem Bildschirm.", true);
     public final BooleanSetting beaconBeam = new BooleanSetting("Lichtsäule", "Rendert eine sichtbare Lichtsäule bis in den Himmel.", true);
     public final BooleanSetting hudPins = new BooleanSetting("HUD-Pins", "Zeigt schwebende Wegpunkt-Pins auf dem Bildschirm an.", false);
+    public final BooleanSetting deathWaypoints = new BooleanSetting("Todes-Wegpunkte", "Erstellt automatisch einen Wegpunkt, wenn du stirbst.", true);
+    public final BooleanSetting onlyLatestDeath = new BooleanSetting("Nur neuester Tod", "Ersetzt den vorherigen Todes-Wegpunkt automatisch.", true);
 
     public WaypointsModule() {
         super("waypoints", "Wegpunkte", "Verwaltet und visualisiert Wegpunkte mit Namen, Farben und Entfernungsanzeige.", Category.WORLD);
@@ -38,6 +40,8 @@ public class WaypointsModule extends Module {
         this.add(this.showInWorld);
         this.add(this.beaconBeam);
         this.add(this.hudPins);
+        this.add(this.deathWaypoints);
+        this.add(this.onlyLatestDeath);
         this.enabled = true;
     }
 

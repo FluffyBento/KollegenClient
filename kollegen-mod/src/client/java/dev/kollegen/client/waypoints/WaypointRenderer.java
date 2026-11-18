@@ -57,7 +57,8 @@ public class WaypointRenderer implements DebugRenderer.SimpleDebugRenderer {
                     GizmoStyle.strokeAndFill(color, 2.0f, Glass.a(color, 0.4f))
             );
 
-            String label = wp.name + (WaypointsModule.INSTANCE.showDistance.value ? " (" + wp.formatDistance(dist) + ")" : "");
+            String prefix = wp.isDeath ? "☠ " : "";
+            String label = prefix + wp.name + (WaypointsModule.INSTANCE.showDistance.value ? " (" + wp.formatDistance(dist) + ")" : "");
             BlockPos bp = new BlockPos((int) Math.floor(wp.x), (int) Math.floor(wp.y + 1.2), (int) Math.floor(wp.z));
             Gizmos.billboardTextOverBlock(label, bp, 0, color, 1.0f);
         }
@@ -117,7 +118,8 @@ public class WaypointRenderer implements DebugRenderer.SimpleDebugRenderer {
             float sy = (sh / 2.0f) * (1.0f - ndcY);
 
             int color = wp.getEffectiveColor();
-            String label = wp.name + (WaypointsModule.INSTANCE.showDistance.value ? " (" + wp.formatDistance(dist) + ")" : "");
+            String prefix = wp.isDeath ? "☠ " : "";
+            String label = prefix + wp.name + (WaypointsModule.INSTANCE.showDistance.value ? " (" + wp.formatDistance(dist) + ")" : "");
             int tw = mc.font.width(label);
             int bw = tw + 10;
             int bh = 14;
