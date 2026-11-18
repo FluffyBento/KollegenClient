@@ -225,8 +225,11 @@ public class KollegenShaderLoader {
         if (mc == null) return;
         mc.execute(() -> {
             try {
-                if (mc.gameRenderer != null) {
-                    mc.gameRenderer.checkEntityPostEffect(mc.getCameraEntity());
+                if (mc.getShaderManager() != null) {
+                    net.minecraft.client.renderer.PostChain chain = mc.getShaderManager().getPostChain(KollegenShader.SHADER_ID, net.minecraft.client.renderer.LevelTargetBundle.MAIN_TARGETS);
+                    if (chain != null) {
+                        KollegenShader.updateShaderUniforms(chain);
+                    }
                 }
             } catch (Throwable ignored) {
             }

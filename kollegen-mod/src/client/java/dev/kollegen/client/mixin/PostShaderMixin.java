@@ -2,7 +2,9 @@ package dev.kollegen.client.mixin;
 
 import dev.kollegen.client.mods.modules.KollegenShader;
 import net.minecraft.client.DeltaTracker;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.GameRenderer;
+import net.minecraft.client.renderer.LevelTargetBundle;
 import net.minecraft.client.renderer.PostChain;
 import net.minecraft.client.renderer.state.GameRenderState;
 import net.minecraft.resources.Identifier;
@@ -80,19 +82,22 @@ public class PostShaderMixin {
                 this.failedPostEffects.removeIf(id -> KollegenShader.SHADER_ID.equals(id) || KollegenShader.BLUR_ID.equals(id));
             }
             if (list != null) {
-                if (KollegenShader.isShaderActive()) {
-                    if (!list.contains(KollegenShader.SHADER_ID)) {
-                        list.add(KollegenShader.SHADER_ID);
+                try {
+                    if (KollegenShader.isShaderActive()) {
+                        if (!list.contains(KollegenShader.SHADER_ID)) {
+                            list.add(KollegenShader.SHADER_ID);
+                        }
+                    } else {
+                        list.removeIf(KollegenShader.SHADER_ID::equals);
                     }
-                } else {
-                    list.removeIf(KollegenShader.SHADER_ID::equals);
-                }
-                if (KollegenShader.isMotionBlurActive()) {
-                    if (!list.contains(KollegenShader.BLUR_ID)) {
-                        list.add(KollegenShader.BLUR_ID);
+                    if (KollegenShader.isMotionBlurActive()) {
+                        if (!list.contains(KollegenShader.BLUR_ID)) {
+                            list.add(KollegenShader.BLUR_ID);
+                        }
+                    } else {
+                        list.removeIf(KollegenShader.BLUR_ID::equals);
                     }
-                } else {
-                    list.removeIf(KollegenShader.BLUR_ID::equals);
+                } catch (Throwable ignored) {
                 }
             }
         } catch (Throwable ignored) {
@@ -102,20 +107,51 @@ public class PostShaderMixin {
     @Inject(method = "applyPostEffects", at = @At("HEAD"), require = 0)
     private void kollegen$injectApply(CallbackInfo ci) {
         try {
-            if (this.appliedPostEffects != null && !this.appliedPostEffects.isEmpty()) {
-                if (!KollegenShader.isShaderActive()) {
+            if (this.appliedPostEffects != null) {
+                if (KollegenShader.isShaderActive()) {
+                    boolean found = false;
+                    for (PostChain chain : this.appliedPostEffects) {
+                        if (chain != null && KollegenShader.SHADER_ID.equals(chain.id())) {
+                            found = true;
+                            KollegenShader.updateShaderUniforms(chain);
+                            break;
+                        }
+                    }
+                    if (!found) {
+                        Minecraft mc = Minecraft.getInstance();
+                        if (mc != null && mc.getShaderManager() != null) {
+                            PostChain chain = mc.getShaderManager().getPostChain(KollegenShader.SHADER_ID, LevelTargetBundle.MAIN_TARGETS);
+                            if (chain != null) {
+                                KollegenShader.updateShaderUniforms(chain);
+                                this.appliedPostEffects.add(chain);
+                            }
+                        }
+                    }
+                } else {
                     this.appliedPostEffects.removeIf(chain -> chain != null && KollegenShader.SHADER_ID.equals(chain.id()));
                 }
-                if (!KollegenShader.isMotionBlurActive()) {
-                    this.appliedPostEffects.removeIf(chain -> chain != null && KollegenShader.BLUR_ID.equals(chain.id()));
-                }
-                for (PostChain chain : this.appliedPostEffects) {
-                    if (chain == null) continue;
-                    if (KollegenShader.SHADER_ID.equals(chain.id())) {
-                        KollegenShader.updateShaderUniforms(chain);
-                    } else if (KollegenShader.BLUR_ID.equals(chain.id())) {
-                        KollegenShader.updateBlurUniforms(chain);
+
+                if (KollegenShader.isMotionBlurActive()) {
+                    boolean found = false;
+                    for (PostChain chain : this.appliedPostEffects) {
+                        if (chain != null && KollegenShader.BLUR_ID.equals(chain.id())) {
+                            found = true;
+                            KollegenShader.updateBlurUniforms(chain);
+                            break;
+                        }
                     }
+                    if (!found) {
+                        Minecraft mc = Minecraft.getInstance();
+                        if (mc != null && mc.getShaderManager() != null) {
+                            PostChain chain = mc.getShaderManager().getPostChain(KollegenShader.BLUR_ID, LevelTargetBundle.MAIN_TARGETS);
+                            if (chain != null) {
+                                KollegenShader.updateBlurUniforms(chain);
+                                this.appliedPostEffects.add(chain);
+                            }
+                        }
+                    }
+                } else {
+                    this.appliedPostEffects.removeIf(chain -> chain != null && KollegenShader.BLUR_ID.equals(chain.id()));
                 }
             }
         } catch (Throwable ignored) {

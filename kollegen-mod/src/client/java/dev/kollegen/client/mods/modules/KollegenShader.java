@@ -414,36 +414,38 @@ public class KollegenShader extends Module {
     }
 
     private static void uploadShaderConfig(GpuBuffer buf, float sat, float cont, float bright, float vig, float bloom, float exp, float warm, float vib) {
-        ByteBuffer bb = ByteBuffer.allocateDirect(32).order(ByteOrder.nativeOrder());
-        bb.putFloat(sat);
-        bb.putFloat(cont);
-        bb.putFloat(bright);
-        bb.putFloat(vig);
-        bb.putFloat(bloom);
-        bb.putFloat(exp);
-        bb.putFloat(warm);
-        bb.putFloat(vib);
+        int maxLen = (int) Math.min(buf.size(), 32L);
+        if (maxLen <= 0) return;
+        ByteBuffer bb = ByteBuffer.allocateDirect(maxLen).order(ByteOrder.nativeOrder());
+        if (maxLen >= 4) bb.putFloat(sat);
+        if (maxLen >= 8) bb.putFloat(cont);
+        if (maxLen >= 12) bb.putFloat(bright);
+        if (maxLen >= 16) bb.putFloat(vig);
+        if (maxLen >= 20) bb.putFloat(bloom);
+        if (maxLen >= 24) bb.putFloat(exp);
+        if (maxLen >= 28) bb.putFloat(warm);
+        if (maxLen >= 32) bb.putFloat(vib);
         bb.flip();
 
         try {
             CommandEncoder encoder = RenderSystem.getDevice().createCommandEncoder();
-            encoder.writeToBuffer(buf.slice(), bb);
+            encoder.writeToBuffer(buf.slice(0, maxLen), bb);
             encoder.submit();
             return;
         } catch (Throwable ignored) {
         }
 
-        try (GpuBufferSlice.MappedView view = buf.map(false, true)) {
+        try (GpuBufferSlice.MappedView view = buf.map(0, maxLen, false, true)) {
             ByteBuffer vbb = view.data();
             vbb.order(ByteOrder.nativeOrder());
-            vbb.putFloat(0, sat);
-            vbb.putFloat(4, cont);
-            vbb.putFloat(8, bright);
-            vbb.putFloat(12, vig);
-            vbb.putFloat(16, bloom);
-            vbb.putFloat(20, exp);
-            vbb.putFloat(24, warm);
-            vbb.putFloat(28, vib);
+            if (vbb.capacity() >= 4) vbb.putFloat(0, sat);
+            if (vbb.capacity() >= 8) vbb.putFloat(4, cont);
+            if (vbb.capacity() >= 12) vbb.putFloat(8, bright);
+            if (vbb.capacity() >= 16) vbb.putFloat(12, vig);
+            if (vbb.capacity() >= 20) vbb.putFloat(16, bloom);
+            if (vbb.capacity() >= 24) vbb.putFloat(20, exp);
+            if (vbb.capacity() >= 28) vbb.putFloat(24, warm);
+            if (vbb.capacity() >= 32) vbb.putFloat(28, vib);
         } catch (Throwable ignored) {
         }
     }
@@ -466,22 +468,24 @@ public class KollegenShader extends Module {
     }
 
     private static void uploadBlurConfig(GpuBuffer buf, float blur) {
-        ByteBuffer bb = ByteBuffer.allocateDirect(4).order(ByteOrder.nativeOrder());
-        bb.putFloat(blur);
+        int maxLen = (int) Math.min(buf.size(), 4L);
+        if (maxLen <= 0) return;
+        ByteBuffer bb = ByteBuffer.allocateDirect(maxLen).order(ByteOrder.nativeOrder());
+        if (maxLen >= 4) bb.putFloat(blur);
         bb.flip();
 
         try {
             CommandEncoder encoder = RenderSystem.getDevice().createCommandEncoder();
-            encoder.writeToBuffer(buf.slice(), bb);
+            encoder.writeToBuffer(buf.slice(0, maxLen), bb);
             encoder.submit();
             return;
         } catch (Throwable ignored) {
         }
 
-        try (GpuBufferSlice.MappedView view = buf.map(false, true)) {
+        try (GpuBufferSlice.MappedView view = buf.map(0, maxLen, false, true)) {
             ByteBuffer vbb = view.data();
             vbb.order(ByteOrder.nativeOrder());
-            vbb.putFloat(0, blur);
+            if (vbb.capacity() >= 4) vbb.putFloat(0, blur);
         } catch (Throwable ignored) {
         }
     }
