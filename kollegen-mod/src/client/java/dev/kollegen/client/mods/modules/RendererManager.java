@@ -50,9 +50,6 @@ public final class RendererManager {
     }
 
     public static Group desiredGroup() {
-        if (isSodiumPresent()) {
-            return Group.OPENGL;
-        }
         try {
             if (Files.exists(STATE_FILE)) {
                 String s = Files.readString(STATE_FILE).trim();
@@ -64,6 +61,9 @@ public final class RendererManager {
                 }
             }
         } catch (IOException ignored) {
+        }
+        if (isSodiumPresent()) {
+            return Group.OPENGL;
         }
         return Group.VULKAN;
     }
@@ -80,9 +80,6 @@ public final class RendererManager {
         Path mods = FabricLoader.getInstance().getGameDir().resolve("mods");
         if (!Files.isDirectory(mods)) {
             return;
-        }
-        if (isSodiumPresent()) {
-            setDesired(Group.OPENGL);
         }
         Group active = desiredGroup();
         for (String[] mod : MODS) {

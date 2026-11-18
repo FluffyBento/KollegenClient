@@ -1569,8 +1569,13 @@ pub fn launch(
     
     
     let mods_dir = inst_dir.join("mods");
-    let sodium_present = has_active_sodium(&mods_dir);
-    let actual_vulkan = inst.vulkan_enabled && !sodium_present;
+    let state_vulkan = read_renderer_state(&mods_dir);
+    let sodium_present = has_active_sodium(&mods_dir) || state_vulkan == Some(false);
+    let actual_vulkan = if let Some(v) = state_vulkan {
+        v && !has_active_sodium(&mods_dir)
+    } else {
+        inst.vulkan_enabled && !sodium_present
+    };
     enforce_renderer_consistency(&mods_dir, actual_vulkan);
     enforce_controller_state(&mods_dir, settings.steamdeck_mode);
     if inst.loader == "fabric" || inst.loader == "quilt" {

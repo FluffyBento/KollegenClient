@@ -35,6 +35,7 @@ public class KollegenVideoSettingsScreen extends Screen {
     };
 
     private List<String> shaderPacks = new ArrayList<>();
+    private String selectedShaderPack = "(Deaktiviert)";
     private float shaderScroll = 0.0f;
     private float maxShaderScroll = 0.0f;
     private boolean restartRequired = false;
@@ -49,6 +50,10 @@ public class KollegenVideoSettingsScreen extends Screen {
     protected void init() {
         super.init();
         refreshShaderpacks();
+        this.selectedShaderPack = IrisBridge.getCurrentShaderpack();
+        if (this.selectedShaderPack == null || this.selectedShaderPack.isEmpty()) {
+            this.selectedShaderPack = "(Deaktiviert)";
+        }
     }
 
     private static void drawRect(GuiGraphicsExtractor g, int x, int y, int w, int h, int color) {
@@ -321,11 +326,11 @@ public class KollegenVideoSettingsScreen extends Screen {
         }
 
         int listY = barY + 32;
-        int listH = ph - 54;
+        int listH = ph - (IrisBridge.isIrisLoaded() ? 54 : 64);
         drawRect(g, px + 16, listY, pw - 32, listH, 0x33000000);
 
-        String activePack = IrisBridge.getCurrentShaderpack();
-        if (activePack.isEmpty() || !IrisBridge.areShadersEnabled()) {
+        String activePack = this.selectedShaderPack;
+        if (activePack == null || activePack.isEmpty()) {
             activePack = "(Deaktiviert)";
         }
 
@@ -349,6 +354,12 @@ public class KollegenVideoSettingsScreen extends Screen {
             int textCol = isCur ? 0xFF34D399 : (hov ? 0xFFFFFFFF : 0xFFCCCCCC);
             String prefix = isCur ? "✔  " : "    ";
             Glass.text(g, this.font, prefix + pack, px + 26, iy + 6, textCol, true);
+        }
+
+        if (!IrisBridge.isIrisLoaded()) {
+            int noticeY = py + ph - 24;
+            drawRect(g, px + 16, noticeY, pw - 32, 20, 0x443B82F6);
+            Glass.textC(g, this.font, "Shader gewählt -> schaltet Sodium & Iris (OpenGL) beim Neustart ein.", px + pw / 2, noticeY + 6, 0xFF93C5FD, true);
         }
     }
 
@@ -504,14 +515,12 @@ public class KollegenVideoSettingsScreen extends Screen {
         int col2X = px + 24 + colW;
 
         if (mx >= col1X && mx <= col1X + colW && my >= rowY && my <= rowY + 24) {
-            if (!SodiumBridge.isSodiumLoaded() && !RendererManager.isSodiumPresent()) {
-                RendererManager.Group next = RendererManager.desiredGroup() == RendererManager.Group.VULKAN
-                        ? RendererManager.Group.OPENGL
-                        : RendererManager.Group.VULKAN;
-                RendererManager.setDesired(next);
-                RendererManager.syncOptionsBackend(next);
-                this.restartRequired = true;
-            }
+            RendererManager.Group next = RendererManager.desiredGroup() == RendererManager.Group.VULKAN
+                    ? RendererManager.Group.OPENGL
+                    : RendererManager.Group.VULKAN;
+            RendererManager.setDesired(next);
+            RendererManager.apply();
+            this.restartRequired = true;
             return;
         }
 
@@ -635,7 +644,7 @@ public class KollegenVideoSettingsScreen extends Screen {
         }
 
         int listY = barY + 32;
-        int listH = ph - 54;
+        int listH = ph - (IrisBridge.isIrisLoaded() ? 54 : 64);
         int itemH = 26;
         int startIdx = (int) (this.shaderScroll / itemH);
 
@@ -646,9 +655,21 @@ public class KollegenVideoSettingsScreen extends Screen {
 
             if (mx >= px + 20 && mx <= px + pw - 20 && my >= iy && my <= iy + itemH - 2) {
                 String pack = this.shaderPacks.get(i);
-                IrisBridge.setShaderpack(pack);
+                selectShaderPack(pack);
                 return;
             }
+        }
+    }
+
+    private void selectShaderPack(String pack) {
+        this.selectedShaderPack = pack;
+        IrisBridge.setShaderpack(pack);
+
+        boolean isDisable = pack.contains("Deaktiviert");
+        if (!isDisable && (!IrisBridge.isIrisLoaded() || RendererManager.desiredGroup() == RendererManager.Group.VULKAN)) {
+            RendererManager.setDesired(RendererManager.Group.OPENGL);
+            RendererManager.apply();
+            this.restartRequired = true;
         }
     }
 
