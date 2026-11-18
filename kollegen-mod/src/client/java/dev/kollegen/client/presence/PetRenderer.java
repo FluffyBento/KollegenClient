@@ -9,6 +9,7 @@ import net.minecraft.client.renderer.culling.Frustum;
 import net.minecraft.client.renderer.entity.EntityRenderDispatcher;
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
 import net.minecraft.client.renderer.entity.state.LivingEntityRenderState;
+import net.minecraft.client.renderer.entity.state.RabbitRenderState;
 import net.minecraft.client.renderer.state.LevelRenderState;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
 import net.minecraft.network.chat.Component;
@@ -21,6 +22,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.animal.axolotl.Axolotl;
 import net.minecraft.world.entity.animal.fox.Fox;
+import net.minecraft.world.entity.animal.rabbit.Rabbit;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.boss.enderdragon.EnderDragon;
@@ -228,6 +230,29 @@ public final class PetRenderer {
                     f.setFloat(renderState, cur + (target - cur) * 0.25F);
                 } catch (Throwable ignored) {
                 }
+            } else if (renderState instanceof RabbitRenderState rabbitState) {
+                if (pet.rabbitHopStartTick >= 0) {
+                    rabbitState.hopAnimationState.startIfStopped(pet.rabbitHopStartTick);
+                    rabbitState.idleHeadTiltAnimationState.stop();
+                    int hopTick = (pet.entity.tickCount - pet.rabbitHopStartTick) % 15;
+                    rabbitState.jumpCompletion = (float) Math.sin((double) hopTick / 15.0 * Math.PI);
+                } else {
+                    rabbitState.hopAnimationState.stop();
+                    rabbitState.jumpCompletion = 0.0F;
+                    if (pet.rabbitIdleStartTick >= 0) {
+                        rabbitState.idleHeadTiltAnimationState.startIfStopped(pet.rabbitIdleStartTick);
+                    } else {
+                        rabbitState.idleHeadTiltAnimationState.stop();
+                    }
+                }
+                if ("toast".equalsIgnoreCase(pet.variant)) {
+                    rabbitState.isToast = true;
+                } else if (pet.variant != null && !pet.variant.isBlank()) {
+                    try {
+                        rabbitState.variant = Rabbit.Variant.valueOf(pet.variant.toUpperCase());
+                    } catch (Throwable ignored) {
+                    }
+                }
             }
         } catch (Throwable ignored) {
         }
@@ -410,6 +435,8 @@ public final class PetRenderer {
         private int flapCd = 200;
         private int happyT = 0;
         private int happyCd = 600;
+        private int rabbitHopStartTick = -1;
+        private int rabbitIdleStartTick = -1;
 
         PetInstance(EntityType<?> type, Level level, String kind, String variant) {
             this.level = level;
@@ -561,6 +588,7 @@ public final class PetRenderer {
                 double dy = y - cur.y;
                 double dz = z - cur.z;
                 double dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+                boolean isRabbit = entity instanceof Rabbit;
                 if (dist > 0.001) {
                     double oxo = ownerPos.x - cur.x;
                     double ozo = ownerPos.z - cur.z;
@@ -569,6 +597,19 @@ public final class PetRenderer {
                     if (swimmer) {
                         pulsePhase += 0.15;
                         step *= 0.6 + 0.6 * Math.max(0.0, Math.sin(pulsePhase));
+                    }
+                    if (isRabbit) {
+                        if (rabbitHopStartTick < 0) {
+                            rabbitHopStartTick = entity.tickCount;
+                        }
+                        int hopTick = (entity.tickCount - rabbitHopStartTick) % 15;
+                        if (hopTick < 11) {
+                            double hopSin = Math.sin((double) hopTick / 11.0 * Math.PI);
+                            step *= (0.35 + 1.25 * hopSin);
+                            step = Math.min(step, dist);
+                        } else {
+                            step *= 0.2;
+                        }
                     }
                     double tnx = cur.x + dx / dist * step;
                     double tny = cur.y + dy / dist * step;
@@ -579,9 +620,17 @@ public final class PetRenderer {
                         tny += 0.18 * Math.sin(Math.PI * (1.0 - (double) pounceT / 6.0));
                     }
                     idleT = 0;
+                    rabbitIdleStartTick = -1;
                     if ("follow".equals(mode) || "hover".equals(mode)) {
                         double gy = groundTop(level, tnx, tny, tnz);
                         if (!Double.isNaN(gy) && tny < gy + 0.02) tny = gy + 0.02;
+                    }
+                    if (isRabbit && rabbitHopStartTick >= 0) {
+                        int hopTick = (entity.tickCount - rabbitHopStartTick) % 15;
+                        if (hopTick < 11) {
+                            double hopSin = Math.sin((double) hopTick / 11.0 * Math.PI);
+                            tny += hopSin * 0.16 * Math.min(1.0, Math.max(0.3, strideAmount * 2.0));
+                        }
                     }
                     double[] cl = clipHorizontal(level, entity, cur, Math.max(cur.y, tny), tnx, tnz, 0.8);
                     if (Math.abs(cl[0] - cur.x) + Math.abs(cl[1] - cur.z) < 0.02) {
@@ -605,6 +654,14 @@ public final class PetRenderer {
                     entity.setPos(x, y, z);
                     idleT++;
                     strideAmount = Math.max(0.0, strideAmount - 0.1);
+                    if (isRabbit && strideAmount <= 0.04) {
+                        rabbitHopStartTick = -1;
+                        if (idleT > 40 && (idleT % 140 < 40)) {
+                            if (rabbitIdleStartTick < 0) rabbitIdleStartTick = entity.tickCount;
+                        } else {
+                            rabbitIdleStartTick = -1;
+                        }
+                    }
                 }
             }
             double faceSpeed = Math.sqrt(faceDx * faceDx + faceDz * faceDz);
@@ -658,6 +715,18 @@ public final class PetRenderer {
                 if (!loggedTickFail) {
                     loggedTickFail = true;
                     PETLOG.info("pet tick failed {}", entity.getClass().getSimpleName());
+                }
+            }
+            if (entity instanceof Rabbit rabbit) {
+                if (rabbitHopStartTick >= 0) {
+                    rabbit.hopAnimationState.startIfStopped(rabbitHopStartTick);
+                    rabbit.idleHeadTiltAnimationState.stop();
+                } else if (rabbitIdleStartTick >= 0) {
+                    rabbit.idleHeadTiltAnimationState.startIfStopped(rabbitIdleStartTick);
+                    rabbit.hopAnimationState.stop();
+                } else {
+                    rabbit.hopAnimationState.stop();
+                    rabbit.idleHeadTiltAnimationState.stop();
                 }
             }
             if (d.petName != null && !d.petName.isEmpty()) {
@@ -939,6 +1008,17 @@ public final class PetRenderer {
                     else if ("cyan".equals(variant)) want = Axolotl.Variant.CYAN;
                     else if ("blue".equals(variant)) want = Axolotl.Variant.BLUE;
                     ((dev.kollegen.client.mixin.AxolotlAccessor) ax).kollegen$setVariant(want);
+                } catch (Throwable ignored) {
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+        try {
+            if (entity instanceof Rabbit rabbit) {
+                try {
+                    if ("toast".equalsIgnoreCase(variant)) {
+                        rabbit.setCustomName(Component.literal("Toast"));
+                    }
                 } catch (Throwable ignored) {
                 }
             }
