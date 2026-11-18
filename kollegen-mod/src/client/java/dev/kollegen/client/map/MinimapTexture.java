@@ -32,9 +32,9 @@ public class MinimapTexture {
         boolean moved = Math.abs(playerX - this.lastX) > 0.25 || Math.abs(playerZ - this.lastZ) > 0.25;
         boolean zoomChanged = Math.abs(zoom - this.lastZoom) > 0.04f;
         boolean shapeChanged = circle != this.lastCircle;
-        boolean timeElapsed = (now - this.lastUploadTime) > 250L;
+        boolean timeElapsed = (now - this.lastUploadTime) >= 200L;
 
-        if (!moved && !zoomChanged && !shapeChanged && !timeElapsed) {
+        if (!shapeChanged && !zoomChanged && (!moved || !timeElapsed)) {
             return;
         }
 

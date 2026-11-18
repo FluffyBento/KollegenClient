@@ -3636,7 +3636,7 @@ function renderThemeList() {
 // ─ Layout-/Darstellungsoptionen ─
 const APP_FONTS = {
   inter: '"Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
-  minecraft: '"Minecraft", monospace',
+  minecraft: '"Minecraft", "Inter", system-ui, -apple-system, sans-serif',
   mono: '"JetBrains Mono", ui-monospace, monospace',
   system: 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif'
 };

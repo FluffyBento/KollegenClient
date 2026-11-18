@@ -104,7 +104,7 @@ body.font-minecraft h3,
 body.font-minecraft h4,
 body.font-minecraft .sidebar,
 body.font-minecraft .sidebar * {
-  font-family: "Minecraft", monospace !important;
+  font-family: "Minecraft", "Inter", system-ui, -apple-system, sans-serif !important;
 }
 
 h1, h2, h3, h4 {

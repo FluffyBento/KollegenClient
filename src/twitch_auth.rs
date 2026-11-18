@@ -21,6 +21,10 @@ pub struct TwitchAccount {
     pub user_id: String,
     pub profile_image_url: Option<String>,
     pub access_token: Option<String>,
+    #[serde(default)]
+    pub refresh_token: Option<String>,
+    #[serde(default)]
+    pub expires_at: Option<u64>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -175,6 +179,8 @@ pub fn fetch_account_profile(client_id: &str, access_token: &str) -> TwitchAccou
         user_id,
         profile_image_url,
         access_token: Some(access_token.to_string()),
+        refresh_token: None,
+        expires_at: None,
     }
 }
 
@@ -265,7 +271,17 @@ pub fn start_device_flow(data_dir: PathBuf) -> Result<TwitchDeviceStartResponse,
             if token_resp.status().is_success() {
                 if let Ok(tok) = token_resp.json::<serde_json::Value>() {
                     if let Some(access_token) = tok.get("access_token").and_then(|v| v.as_str()) {
-                        let acct = fetch_account_profile(&poll_cid, access_token);
+                        let rt = tok.get("refresh_token").and_then(|v| v.as_str()).map(|s| s.to_string());
+                        let exp_in = tok.get("expires_in").and_then(|v| v.as_u64());
+                        let now_sec = std::time::SystemTime::now()
+                            .duration_since(std::time::UNIX_EPOCH)
+                            .map(|d| d.as_secs())
+                            .unwrap_or(0);
+                        let mut acct = fetch_account_profile(&poll_cid, access_token);
+                        acct.refresh_token = rt;
+                        if let Some(secs) = exp_in {
+                            acct.expires_at = Some(now_sec + secs);
+                        }
                         save(&d_dir, &acct);
                         let mut st = FLOW_STATE.lock().unwrap();
                         st.state = "success".to_string();
@@ -354,6 +370,8 @@ pub fn link(data_dir: &Path, username: &str, token: Option<String>) -> TwitchAcc
                 .to_string(),
         ),
         access_token: token,
+        refresh_token: None,
+        expires_at: None,
     };
     save(data_dir, &acct);
     acct
@@ -362,4 +380,54 @@ pub fn link(data_dir: &Path, username: &str, token: Option<String>) -> TwitchAcc
 fn rand_id() -> u32 {
     use std::time::{SystemTime, UNIX_EPOCH};
     (SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_millis()).unwrap_or(0) % 1_000_000) as u32
+}
+
+pub fn refresh_if_needed(data_dir: &Path) -> TwitchAccount {
+    let acct = load(data_dir);
+    if !acct.connected {
+        return acct;
+    }
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    let is_expired = match acct.expires_at {
+        Some(exp) => now + 300 >= exp,
+        None => false,
+    };
+    let cid = twitch_client_id();
+    if is_expired {
+        if let Some(ref rt) = acct.refresh_token {
+            let client = reqwest::blocking::Client::builder()
+                .timeout(Duration::from_secs(8))
+                .build()
+                .unwrap_or_else(|_| reqwest::blocking::Client::new());
+            if let Ok(resp) = client
+                .post("https://id.twitch.tv/oauth2/token")
+                .form(&[
+                    ("client_id", cid.as_str()),
+                    ("refresh_token", rt.as_str()),
+                    ("grant_type", "refresh_token"),
+                ])
+                .send()
+            {
+                if resp.status().is_success() {
+                    if let Ok(tok) = resp.json::<serde_json::Value>() {
+                        if let Some(new_tok) = tok.get("access_token").and_then(|v| v.as_str()) {
+                            let new_rt = tok.get("refresh_token").and_then(|v| v.as_str()).map(|s| s.to_string()).or(acct.refresh_token.clone());
+                            let exp_in = tok.get("expires_in").and_then(|v| v.as_u64());
+                            let mut updated = fetch_account_profile(&cid, new_tok);
+                            updated.refresh_token = new_rt;
+                            if let Some(secs) = exp_in {
+                                updated.expires_at = Some(now + secs);
+                            }
+                            save(data_dir, &updated);
+                            return updated;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    acct
 }

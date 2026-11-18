@@ -29,7 +29,7 @@ public final class Version {
         }
         try (InputStream is = Version.class.getResourceAsStream("/fabric.mod.json")) {
             if (is != null) {
-                JsonObject obj = JsonParser.parseReader(new InputStreamReader(is)).getAsJsonObject();
+                JsonObject obj = JsonParser.parseReader(new InputStreamReader(is, java.nio.charset.StandardCharsets.UTF_8)).getAsJsonObject();
                 if (obj.has("version")) {
                     cachedVersion = obj.get("version").getAsString();
                     return cachedVersion;

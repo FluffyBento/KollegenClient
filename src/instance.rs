@@ -1547,7 +1547,7 @@ pub fn launch(
     settings: &Settings,
 ) -> Result<(String, u32)> {
     let inst_dir = crate::utils::instance_dir(data_dir, &inst.name);
-    
+    let _ = crate::twitch_auth::refresh_if_needed(data_dir);
     ensure_kollegen_mod(data_dir, &inst.name, &inst.loader, &inst.version);
     
     
@@ -1578,7 +1578,6 @@ pub fn launch(
 
     info!("Launching Minecraft {} ({}) for instance '{}'...", inst.version, inst.loader, inst.name);
 
-    // Page-Cache vorwärmen (Task 4): JARs & Bibliotheken im Hintergrund vorab in OS-Cache einlesen
     warmup_page_cache(vec![
         mods_dir.clone(),
         libs_dir.clone(),
@@ -1694,21 +1693,20 @@ pub fn launch(
     for flag in [
         "-XX:+UseG1GC",
         "-XX:+ParallelRefProcEnabled",
-        "-XX:MaxGCPauseMillis=10",
+        "-XX:MaxGCPauseMillis=100",
         "-XX:+UnlockExperimentalVMOptions",
         "-XX:+DisableExplicitGC",
         "-XX:+AlwaysPreTouch",
-        "-XX:G1NewSizePercent=40",
+        "-XX:G1NewSizePercent=30",
         "-XX:G1MaxNewSizePercent=50",
-        "-XX:G1ReservePercent=20",
-        "-XX:G1HeapWastePercent=3",
-        "-XX:G1MixedGCCountTarget=8",
-        "-XX:InitiatingHeapOccupancyPercent=20",
+        "-XX:G1ReservePercent=15",
+        "-XX:G1HeapWastePercent=5",
+        "-XX:G1MixedGCCountTarget=4",
+        "-XX:InitiatingHeapOccupancyPercent=45",
         "-XX:G1MixedGCLiveThresholdPercent=90",
         "-XX:G1RSetUpdatingPauseTimePercent=5",
         "-XX:SurvivorRatio=32",
         "-XX:+PerfDisableSharedMem",
-        "-XX:MaxTenuringThreshold=1",
         "-XX:+UseStringDeduplication",
         "-XX:+OptimizeStringConcat",
         "-XX:ReservedCodeCacheSize=1024M",
@@ -1718,6 +1716,10 @@ pub fn launch(
         jvm_args.push(flag.to_string());
     }
 
+    jvm_args.push("-Dfile.encoding=UTF-8".to_string());
+    jvm_args.push("-Dsun.jnu.encoding=UTF-8".to_string());
+    jvm_args.push("-Dstdout.encoding=UTF-8".to_string());
+    jvm_args.push("-Dstderr.encoding=UTF-8".to_string());
     jvm_args.push("-Dsun.rmi.dgc.client.gcInterval=3600000".to_string());
     jvm_args.push("-Dsun.rmi.dgc.server.gcInterval=3600000".to_string());
     jvm_args.push("-Djava.lang.invoke.MethodHandle.EAGER_COMPILE=true".to_string());
@@ -2694,7 +2696,6 @@ pub static OPTIMIZATION_PRESETS: &[OptimizationPreset] = &[
             "-XX:+EliminateLocks",
             "-XX:+DoEscapeAnalysis",
             "-XX:+UseTransparentHugePages",
-            "-XX:ZAllocationSpikeTolerance=4",
             "-XX:+UseFastUnorderedTimeStamps",
             "-XX:CompileThreshold=600",
             "-XX:ReservedCodeCacheSize=1024M",
@@ -2727,7 +2728,6 @@ pub static OPTIMIZATION_PRESETS: &[OptimizationPreset] = &[
             "-XX:+UseFastJNIAccessors",
             "-XX:+EliminateAllocations",
             "-XX:+EliminateLocks",
-            "-XX:ZAllocationSpikeTolerance=4",
             "-XX:+UseFastUnorderedTimeStamps",
             "-XX:ReservedCodeCacheSize=1024M",
             "-XX:+SegmentedCodeCache",
@@ -2759,7 +2759,6 @@ pub static OPTIMIZATION_PRESETS: &[OptimizationPreset] = &[
             "-XX:+UseFastJNIAccessors",
             "-XX:+EliminateAllocations",
             "-XX:+EliminateLocks",
-            "-XX:ZAllocationSpikeTolerance=4",
             "-XX:+UseFastUnorderedTimeStamps",
             "-XX:ReservedCodeCacheSize=1024M",
             "-XX:+SegmentedCodeCache",

@@ -87,6 +87,7 @@ public class TwitchChat extends HudModule {
     private String accountUsername = "";
     private String accountDisplayName = "";
     private String accountUserId = "";
+    private long lastAccountCheck = 0;
 
     private static final Set<String> COMMON_WORDS = Set.of(
             "hallo", "hey", "hi", "moin", "servus", "guten", "yo", "what", "how", "warum", "wieso", "weshalb",
@@ -341,13 +342,17 @@ public class TwitchChat extends HudModule {
 
     private void loadDefaultChannel() {
         try {
+            String userHome = System.getProperty("user.home", "");
             Path[] candidates = new Path[]{
                     FabricLoader.getInstance().getConfigDir().resolve("twitch_account.json"),
+                    FabricLoader.getInstance().getGameDir().resolve("config").resolve("twitch_account.json"),
+                    Path.of(userHome, ".local", "share", "kollegenclient", "twitch_account.json"),
+                    Path.of(userHome, ".kollegen", "twitch_account.json"),
                     FabricLoader.getInstance().getGameDir().getParent().getParent().resolve("twitch_account.json")
             };
             for (Path p : candidates) {
                 if (Files.isRegularFile(p)) {
-                    String json = Files.readString(p);
+                    String json = Files.readString(p, java.nio.charset.StandardCharsets.UTF_8);
                     JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
                     if (obj.has("connected") && obj.get("connected").getAsBoolean()) {
                         String user = obj.has("username") ? obj.get("username").getAsString() : "";
@@ -387,13 +392,20 @@ public class TwitchChat extends HudModule {
     @Override
     public void onTick() {
         if (!enabled) return;
+        long now = System.currentTimeMillis();
+        if (oauthToken == null && now - lastAccountCheck > 30000L) {
+            lastAccountCheck = now;
+            loadDefaultChannel();
+            if (oauthToken != null && webSocket != null) {
+                disconnect();
+            }
+        }
         String cur = channel.value.trim().toLowerCase();
         if (cur.isEmpty()) {
             loadDefaultChannel();
             cur = channel.value.trim().toLowerCase();
         }
         if (!cur.isEmpty() && (!cur.equals(activeChannel) || webSocket == null)) {
-            long now = System.currentTimeMillis();
             if (now - lastConnectAttempt > 6000) {
                 connect();
             }
@@ -485,6 +497,11 @@ public class TwitchChat extends HudModule {
         String[] lines = raw.split("\r\n|\n");
         for (String line : lines) {
             if (line.isEmpty()) continue;
+            if (line.contains("Login authentication failed") || line.contains("Login unsuccessful")) {
+                this.oauthToken = null;
+                disconnect();
+                return;
+            }
             if (line.startsWith("PING")) {
                 ws.sendText("PONG :tmi.twitch.tv", true);
                 continue;

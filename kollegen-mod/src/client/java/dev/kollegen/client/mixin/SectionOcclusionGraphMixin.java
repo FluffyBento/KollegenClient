@@ -49,15 +49,8 @@ public abstract class SectionOcclusionGraphMixin {
                             addedLoadedChunks.add(packed);
                         }
                         this.loadedChunks.add(packed);
-                        changed = true;
                     }
                 }
-            }
-            if (addedLoadedChunks != null && !addedLoadedChunks.isEmpty()) {
-                changed = true;
-            }
-            if (changed) {
-                this.invalidate();
             }
         } catch (Throwable ignored) {
         }
@@ -69,7 +62,6 @@ public abstract class SectionOcclusionGraphMixin {
             Minecraft mc = Minecraft.getInstance();
             if (mc == null || mc.level == null) return;
             ClientLevel level = mc.level;
-            boolean changed = false;
             if (addedEmptySections != null && !addedEmptySections.isEmpty()) {
                 LongIterator it = addedEmptySections.longIterator();
                 while (it.hasNext()) {
@@ -96,14 +88,10 @@ public abstract class SectionOcclusionGraphMixin {
                                         this.schedulePropagationFrom(rs);
                                     }
                                 }
-                                changed = true;
                             }
                         }
                     }
                 }
-            }
-            if (changed) {
-                this.invalidate();
             }
         } catch (Throwable ignored) {
         }
