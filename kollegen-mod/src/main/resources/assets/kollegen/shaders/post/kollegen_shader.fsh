@@ -30,7 +30,7 @@ void main() {
     vec3 c = inTexel.rgb;
 
     if (Bloom > 0.001) {
-        vec2 px = 1.0 / InSize;
+        vec2 px = 1.0 / max(InSize, vec2(1.0, 1.0));
         vec3 bloomAcc = vec3(0.0);
         float wSum = 0.0;
         for (int x = -2; x <= 2; x++) {
@@ -98,5 +98,5 @@ void main() {
         c = c * vig;
     }
 
-    fragColor = vec4(clamp(c, 0.0, 1.0), inTexel.a);
+    fragColor = vec4(clamp(c, 0.0, 1.0), 1.0);
 }

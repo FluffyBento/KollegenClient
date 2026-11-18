@@ -1,13 +1,13 @@
 package dev.kollegen.client.mixin;
 
+import com.mojang.blaze3d.pipeline.RenderTarget;
+import com.mojang.blaze3d.resource.CrossFrameResourcePool;
+import dev.kollegen.client.KollegenMod;
 import dev.kollegen.client.mods.modules.KollegenShader;
-import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.client.renderer.LevelTargetBundle;
 import net.minecraft.client.renderer.PostChain;
-import net.minecraft.client.renderer.state.GameRenderState;
-import net.minecraft.resources.Identifier;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -15,146 +15,45 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-import java.util.List;
-
 @Mixin(GameRenderer.class)
 public class PostShaderMixin {
 
-    @Shadow @Final private List<Identifier> requestedPostEffects;
-    @Shadow @Final private List<Identifier> failedPostEffects;
-    @Shadow @Final private List<PostChain> appliedPostEffects;
-    @Shadow private GameRenderState gameRenderState;
+    @Shadow @Final private Minecraft minecraft;
+    @Shadow @Final private RenderTarget mainRenderTarget;
+    @Shadow @Final private CrossFrameResourcePool resourcePool;
 
-    @Inject(method = "update", at = @At("TAIL"), require = 0)
-    private void kollegen$injectUpdate(DeltaTracker deltaTracker, CallbackInfo ci) {
-        try {
-            if (this.failedPostEffects != null) {
-                this.failedPostEffects.removeIf(id -> KollegenShader.SHADER_ID.equals(id) || KollegenShader.BLUR_ID.equals(id));
-            }
-            if (KollegenShader.isShaderActive()) {
-                if (!this.requestedPostEffects.contains(KollegenShader.SHADER_ID)) {
-                    this.requestedPostEffects.add(KollegenShader.SHADER_ID);
-                }
-            } else {
-                this.requestedPostEffects.removeIf(KollegenShader.SHADER_ID::equals);
-            }
-            if (KollegenShader.isMotionBlurActive()) {
-                if (!this.requestedPostEffects.contains(KollegenShader.BLUR_ID)) {
-                    this.requestedPostEffects.add(KollegenShader.BLUR_ID);
-                }
-            } else {
-                this.requestedPostEffects.removeIf(KollegenShader.BLUR_ID::equals);
-            }
-        } catch (Throwable ignored) {
-        }
-    }
+    private static int kollegen$logCooldown = 0;
 
-    @Inject(method = "extract", at = @At("TAIL"), require = 0)
-    private void kollegen$injectExtract(DeltaTracker deltaTracker, boolean bl, CallbackInfo ci) {
-        try {
-            if (this.failedPostEffects != null) {
-                this.failedPostEffects.removeIf(id -> KollegenShader.SHADER_ID.equals(id) || KollegenShader.BLUR_ID.equals(id));
-            }
-            if (this.gameRenderState != null && this.gameRenderState.requestedPostEffects != null) {
-                if (KollegenShader.isShaderActive()) {
-                    if (!this.gameRenderState.requestedPostEffects.contains(KollegenShader.SHADER_ID)) {
-                        this.gameRenderState.requestedPostEffects.add(KollegenShader.SHADER_ID);
-                    }
-                } else {
-                    this.gameRenderState.requestedPostEffects.removeIf(KollegenShader.SHADER_ID::equals);
-                }
-                if (KollegenShader.isMotionBlurActive()) {
-                    if (!this.gameRenderState.requestedPostEffects.contains(KollegenShader.BLUR_ID)) {
-                        this.gameRenderState.requestedPostEffects.add(KollegenShader.BLUR_ID);
-                    }
-                } else {
-                    this.gameRenderState.requestedPostEffects.removeIf(KollegenShader.BLUR_ID::equals);
-                }
-            }
-        } catch (Throwable ignored) {
-        }
-    }
-
-    @Inject(method = "preparePostEffects", at = @At("HEAD"), require = 0)
-    private void kollegen$injectPrepare(List<Identifier> list, CallbackInfo ci) {
-        try {
-            if (this.failedPostEffects != null) {
-                this.failedPostEffects.removeIf(id -> KollegenShader.SHADER_ID.equals(id) || KollegenShader.BLUR_ID.equals(id));
-            }
-            if (list != null) {
-                try {
-                    if (KollegenShader.isShaderActive()) {
-                        if (!list.contains(KollegenShader.SHADER_ID)) {
-                            list.add(KollegenShader.SHADER_ID);
-                        }
-                    } else {
-                        list.removeIf(KollegenShader.SHADER_ID::equals);
-                    }
-                    if (KollegenShader.isMotionBlurActive()) {
-                        if (!list.contains(KollegenShader.BLUR_ID)) {
-                            list.add(KollegenShader.BLUR_ID);
-                        }
-                    } else {
-                        list.removeIf(KollegenShader.BLUR_ID::equals);
-                    }
-                } catch (Throwable ignored) {
-                }
-            }
-        } catch (Throwable ignored) {
-        }
-    }
-
-    @Inject(method = "applyPostEffects", at = @At("HEAD"), require = 0)
+    @Inject(method = "applyPostEffects", at = @At("TAIL"), require = 0)
     private void kollegen$injectApply(CallbackInfo ci) {
+        if (!KollegenShader.isShaderActive()) {
+            return;
+        }
         try {
-            if (this.appliedPostEffects != null) {
-                if (KollegenShader.isShaderActive()) {
-                    boolean found = false;
-                    for (PostChain chain : this.appliedPostEffects) {
-                        if (chain != null && KollegenShader.SHADER_ID.equals(chain.id())) {
-                            found = true;
-                            KollegenShader.updateShaderUniforms(chain);
-                            break;
-                        }
+            if (this.minecraft != null && this.minecraft.getShaderManager() != null && this.mainRenderTarget != null && this.resourcePool != null) {
+                PostChain chain = this.minecraft.getShaderManager().getPostChain(KollegenShader.SHADER_ID, LevelTargetBundle.MAIN_TARGETS);
+                if (chain != null) {
+                    KollegenShader.updateShaderUniforms(chain);
+                    chain.process(this.mainRenderTarget, this.resourcePool);
+                    if (kollegen$logCooldown++ % 300 == 0) {
+                        KollegenMod.LOGGER.info("KollegenShader: post effect processed successfully");
                     }
-                    if (!found) {
-                        Minecraft mc = Minecraft.getInstance();
-                        if (mc != null && mc.getShaderManager() != null) {
-                            PostChain chain = mc.getShaderManager().getPostChain(KollegenShader.SHADER_ID, LevelTargetBundle.MAIN_TARGETS);
-                            if (chain != null) {
-                                KollegenShader.updateShaderUniforms(chain);
-                                this.appliedPostEffects.add(chain);
-                            }
-                        }
-                    }
-                } else {
-                    this.appliedPostEffects.removeIf(chain -> chain != null && KollegenShader.SHADER_ID.equals(chain.id()));
+                } else if (kollegen$logCooldown++ % 300 == 0) {
+                    KollegenMod.LOGGER.warn("KollegenShader: getPostChain returned null for {}", KollegenShader.SHADER_ID);
                 }
 
                 if (KollegenShader.isMotionBlurActive()) {
-                    boolean found = false;
-                    for (PostChain chain : this.appliedPostEffects) {
-                        if (chain != null && KollegenShader.BLUR_ID.equals(chain.id())) {
-                            found = true;
-                            KollegenShader.updateBlurUniforms(chain);
-                            break;
-                        }
+                    PostChain blurChain = this.minecraft.getShaderManager().getPostChain(KollegenShader.BLUR_ID, LevelTargetBundle.MAIN_TARGETS);
+                    if (blurChain != null) {
+                        KollegenShader.updateBlurUniforms(blurChain);
+                        blurChain.process(this.mainRenderTarget, this.resourcePool);
                     }
-                    if (!found) {
-                        Minecraft mc = Minecraft.getInstance();
-                        if (mc != null && mc.getShaderManager() != null) {
-                            PostChain chain = mc.getShaderManager().getPostChain(KollegenShader.BLUR_ID, LevelTargetBundle.MAIN_TARGETS);
-                            if (chain != null) {
-                                KollegenShader.updateBlurUniforms(chain);
-                                this.appliedPostEffects.add(chain);
-                            }
-                        }
-                    }
-                } else {
-                    this.appliedPostEffects.removeIf(chain -> chain != null && KollegenShader.BLUR_ID.equals(chain.id()));
                 }
             }
-        } catch (Throwable ignored) {
+        } catch (Throwable t) {
+            if (kollegen$logCooldown++ % 300 == 0) {
+                KollegenMod.LOGGER.error("KollegenShader applyPostEffects error", t);
+            }
         }
     }
 }
