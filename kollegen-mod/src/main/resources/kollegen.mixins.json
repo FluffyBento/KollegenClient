@@ -86,7 +86,9 @@
     "OptionInstanceIntRangeMixin",
     "OptionsMixin",
     "SectionOcclusionGraphMixin",
-    "VideoSettingsScreenMixin"
+    "VideoSettingsScreenMixin",
+    "GuiScreenMixin",
+    "OptionsScreenMixin"
   ],
   "injectors": {
     "defaultRequire": 1
