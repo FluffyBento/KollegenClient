@@ -954,11 +954,26 @@ fn is_intact_jar(path: &Path) -> bool {
     }
 }
 
+pub(crate) fn has_active_sodium(mods_dir: &Path) -> bool {
+    if let Ok(entries) = fs::read_dir(mods_dir) {
+        for entry in entries.flatten() {
+            let name = entry.file_name().to_string_lossy().to_lowercase();
+            if name.starts_with("sodium") && name.ends_with(".jar") && !name.ends_with(".disabled") {
+                return true;
+            }
+        }
+    }
+    false
+}
+
 pub(crate) fn enforce_renderer_consistency(mods_dir: &Path, vulkan_enabled: bool) {
     if !mods_dir.exists() {
         return;
     }
-    let vulkan_enabled = if vulkan_enabled && mods_dir.join(".kollegen-vulkan-fallback").is_file() {
+    let sodium_present = has_active_sodium(mods_dir);
+    let vulkan_enabled = if sodium_present {
+        false
+    } else if vulkan_enabled && mods_dir.join(".kollegen-vulkan-fallback").is_file() {
         let _ = fs::remove_file(mods_dir.join(".kollegen-vulkan-fallback"));
         false
     } else {
@@ -1554,11 +1569,13 @@ pub fn launch(
     
     
     let mods_dir = inst_dir.join("mods");
-    enforce_renderer_consistency(&mods_dir, inst.vulkan_enabled);
+    let sodium_present = has_active_sodium(&mods_dir);
+    let actual_vulkan = inst.vulkan_enabled && !sodium_present;
+    enforce_renderer_consistency(&mods_dir, actual_vulkan);
     enforce_controller_state(&mods_dir, settings.steamdeck_mode);
     if inst.loader == "fabric" || inst.loader == "quilt" {
         let _ = crate::utils::ensure_flk(&inst.name, data_dir, &inst.version);
-        if !inst.vulkan_enabled {
+        if !actual_vulkan {
             let _ = crate::utils::ensure_sodium(&inst.name, data_dir, &inst.version);
         }
         if mods_dir.join("essentialmod.jar").is_file() {
@@ -1723,8 +1740,13 @@ pub fn launch(
     jvm_args.push("-Dsun.rmi.dgc.client.gcInterval=3600000".to_string());
     jvm_args.push("-Dsun.rmi.dgc.server.gcInterval=3600000".to_string());
     jvm_args.push("-Djava.lang.invoke.MethodHandle.EAGER_COMPILE=true".to_string());
-    jvm_args.push("-Dsun.java2d.opengl=false".to_string());
-    jvm_args.push("-Dsun.java2d.vulkan=true".to_string());
+    if actual_vulkan {
+        jvm_args.push("-Dsun.java2d.opengl=false".to_string());
+        jvm_args.push("-Dsun.java2d.vulkan=true".to_string());
+    } else {
+        jvm_args.push("-Dsun.java2d.opengl=true".to_string());
+        jvm_args.push("-Dsun.java2d.vulkan=false".to_string());
+    }
     jvm_args.push("-Dkollegen.rust_runtime=true".to_string());
     jvm_args.push("--enable-native-access=ALL-UNNAMED".to_string());
     if let Some(home) = dirs::home_dir() {
@@ -1741,7 +1763,7 @@ pub fn launch(
         jvm_args.push(flag.to_string());
     }
 
-    ensure_optimal_renderer_config(&inst_dir, cores, inst.vulkan_enabled);
+    ensure_optimal_renderer_config(&inst_dir, cores, actual_vulkan);
 
     let os_cp_sep = if cfg!(target_os = "windows") { ";" } else { ":" };
     let joined = classpath.join(os_cp_sep);

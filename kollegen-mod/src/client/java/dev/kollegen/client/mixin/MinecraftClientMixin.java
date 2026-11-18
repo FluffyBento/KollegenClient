@@ -11,7 +11,6 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-
 @Mixin(Minecraft.class)
 public abstract class MinecraftClientMixin {
 
@@ -19,6 +18,9 @@ public abstract class MinecraftClientMixin {
     @Shadow public abstract boolean startAttack();
     @Shadow public net.minecraft.world.phys.HitResult hitResult;
     @Shadow public net.minecraft.client.player.LocalPlayer player;
+    @Shadow public net.minecraft.client.gui.Gui gui;
+    @Shadow public net.minecraft.client.Options options;
+    @Shadow public abstract void setScreenAndShow(net.minecraft.client.gui.screens.Screen screen);
 
     @Inject(method = "<init>", at = @At("RETURN"))
     private void kollegen_client$onInit(CallbackInfo ci) {
@@ -47,10 +49,26 @@ public abstract class MinecraftClientMixin {
         KollegenMod.onTick();
     }
 
-    
     @Inject(method = "tick", at = @At("TAIL"))
     private void kollegen_client$onFrame(CallbackInfo ci) {
         KollegenMod.onFrame();
+    }
+
+    @Inject(method = "setScreenAndShow", at = @At("HEAD"), cancellable = true)
+    private void kollegen$interceptVideoSettings(net.minecraft.client.gui.screens.Screen screen, CallbackInfo ci) {
+        if (screen != null && (screen instanceof net.minecraft.client.gui.screens.options.VideoSettingsScreen
+                || screen.getClass().getName().contains("sodium.client.gui.VideoSettingsScreen"))) {
+            net.minecraft.client.gui.screens.Screen cur = this.gui != null ? this.gui.screen() : null;
+            if (cur instanceof dev.kollegen.client.menu.KollegenVideoSettingsScreen) {
+                return;
+            }
+            ci.cancel();
+            net.minecraft.client.gui.screens.Screen parent = cur;
+            if (parent == null) {
+                parent = new net.minecraft.client.gui.screens.options.OptionsScreen(null, this.options);
+            }
+            this.setScreenAndShow(new dev.kollegen.client.menu.KollegenVideoSettingsScreen(parent));
+        }
     }
 
     @Inject(method = "startAttack", at = @At("HEAD"), cancellable = true)

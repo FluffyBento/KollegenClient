@@ -28,7 +28,31 @@ public final class RendererManager {
         VULKAN
     }
 
+    public static boolean isSodiumPresent() {
+        if (FabricLoader.getInstance().isModLoaded("sodium")) {
+            return true;
+        }
+        try {
+            Path mods = FabricLoader.getInstance().getGameDir().resolve("mods");
+            if (Files.isDirectory(mods)) {
+                try (java.nio.file.DirectoryStream<Path> ds = Files.newDirectoryStream(mods, "*.jar")) {
+                    for (Path p : ds) {
+                        String name = p.getFileName().toString().toLowerCase();
+                        if (name.startsWith("sodium") && !name.endsWith(".disabled")) {
+                            return true;
+                        }
+                    }
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+        return false;
+    }
+
     public static Group desiredGroup() {
+        if (isSodiumPresent()) {
+            return Group.OPENGL;
+        }
         try {
             if (Files.exists(STATE_FILE)) {
                 String s = Files.readString(STATE_FILE).trim();
@@ -57,6 +81,9 @@ public final class RendererManager {
         if (!Files.isDirectory(mods)) {
             return;
         }
+        if (isSodiumPresent()) {
+            setDesired(Group.OPENGL);
+        }
         Group active = desiredGroup();
         for (String[] mod : MODS) {
             boolean wantActive = active == Group.OPENGL;
@@ -74,7 +101,7 @@ public final class RendererManager {
         KollegenMod.LOGGER.info("Kollegen: Renderer abgestimmt -> {}", active == Group.VULKAN ? "Vulkan Native MDI" : "OpenGL (Sodium + Iris)");
     }
 
-    private static void syncOptionsBackend(Group active) {
+    public static void syncOptionsBackend(Group active) {
         try {
             Path opts = FabricLoader.getInstance().getGameDir().resolve("options.txt");
             if (Files.isRegularFile(opts)) {
@@ -85,6 +112,18 @@ public final class RendererManager {
                     Files.writeString(opts, content.replace(other, target));
                 } else if (!content.contains(target)) {
                     Files.writeString(opts, content + "\n" + target + "\n");
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+        try {
+            net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
+            if (mc != null && mc.options != null && mc.options.preferredGraphicsBackend() != null) {
+                net.minecraft.client.PreferredGraphicsApi api = active == Group.VULKAN
+                        ? net.minecraft.client.PreferredGraphicsApi.VULKAN
+                        : net.minecraft.client.PreferredGraphicsApi.OPENGL;
+                if (mc.options.preferredGraphicsBackend().get() != api) {
+                    mc.options.preferredGraphicsBackend().set(api);
                 }
             }
         } catch (Throwable ignored) {
@@ -107,32 +146,41 @@ public final class RendererManager {
     private static void ensureState(Path mods, String resource, String fileName, boolean active) {
         Path jar = mods.resolve(fileName);
         Path disabled = mods.resolve(fileName + ".disabled");
-        if (active) {
+        if (!active) {
+            if (Files.exists(jar)) {
+                try {
+                    Files.move(jar, disabled, StandardCopyOption.REPLACE_EXISTING);
+                } catch (IOException ignored) {
+                }
+            }
+            return;
+        }
+        if (Files.exists(disabled)) {
             try {
-                Files.deleteIfExists(disabled);
+                Files.move(disabled, jar, StandardCopyOption.REPLACE_EXISTING);
             } catch (IOException ignored) {
             }
-            if (Files.exists(jar) && isIntactJar(jar)) {
-                return;
-            }
-            try (InputStream in = RendererManager.class.getResourceAsStream(resource)) {
-                if (in == null) {
-                    KollegenMod.LOGGER.warn("Kollegen: eingebettete Mod '{}' fehlt.", resource);
-                    removeIfBroken(jar, fileName);
-                } else {
-                    byte[] payload = in.readAllBytes();
-                    Path tmp = mods.resolve(fileName + ".tmp");
-                    Files.write(tmp, payload);
-                    try {
-                        Files.move(tmp, jar, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
-                    } catch (IOException e) {
-                        Files.move(tmp, jar, StandardCopyOption.REPLACE_EXISTING);
-                    }
-                    removeIfBroken(jar, fileName);
+        }
+        if (Files.exists(jar) && isIntactJar(jar)) {
+            return;
+        }
+        try (InputStream in = RendererManager.class.getResourceAsStream(resource)) {
+            if (in == null) {
+                KollegenMod.LOGGER.warn("Kollegen: Mod-Ressource fehlt: " + resource);
+                removeIfBroken(jar, fileName);
+            } else {
+                byte[] payload = in.readAllBytes();
+                Path tmp = mods.resolve(fileName + ".tmp");
+                Files.write(tmp, payload);
+                try {
+                    Files.move(tmp, jar, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+                } catch (IOException e) {
+                    Files.move(tmp, jar, StandardCopyOption.REPLACE_EXISTING);
                 }
-            } catch (IOException e) {
-                KollegenMod.LOGGER.warn("Kollegen: Mod '{}' konnte nicht deployt werden: {}", fileName, e.getMessage());
+                removeIfBroken(jar, fileName);
             }
+        } catch (IOException e) {
+            KollegenMod.LOGGER.warn("Kollegen: Mod konnte nicht deployt werden: " + fileName);
         }
     }
 

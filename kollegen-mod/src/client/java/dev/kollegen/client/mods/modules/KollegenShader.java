@@ -136,7 +136,7 @@ public class KollegenShader extends Module {
         }
     }
 
-    private void applyPreset(int index) {
+    public void applyPreset(int index) {
         switch (index) {
             case 1 -> {
                 saturationEnabled.value = true;
