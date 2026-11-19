@@ -1,6 +1,5 @@
 package dev.kollegen.client.mixin;
 
-import dev.kollegen.client.mods.modules.Performance;
 import net.minecraft.client.renderer.ViewArea;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -11,10 +10,6 @@ public class ViewAreaMixin {
 
     @ModifyVariable(method = "<init>", at = @At("HEAD"), argsOnly = true, ordinal = 4)
     private static int kollegen$clampViewDistance(int viewDistance) {
-        if (!Performance.KollegenDistance.isDistanceEnabled()) {
-            return Math.min(viewDistance, 32);
-        }
-        int limit = Performance.KollegenDistance.getDistanceLimit();
-        return Math.min(Math.max(limit, 2), 2048);
+        return Math.min(Math.max(viewDistance, 2), 32);
     }
 }

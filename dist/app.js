@@ -7547,7 +7547,11 @@ startBackgroundIntervals();
     if (slot.dataset.sig === sig) return;
     slot.dataset.sig = sig;
     slot.innerHTML = "";
-    if (!pkgs.length) return;
+    if (!pkgs.length) {
+      slot.style.display = "none";
+      return;
+    }
+    slot.style.display = "";
     const strip = document.createElement("div");
     strip.id = "storePkgStrip";
     strip.className = "pkg-strip";
