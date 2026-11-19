@@ -337,11 +337,14 @@ public class KollegenShader extends Module {
     }
 
     public static boolean isShaderActive() {
+        if (dev.kollegen.client.menu.IrisBridge.isIrisLoaded() && dev.kollegen.client.menu.IrisBridge.areShadersEnabled()) {
+            return false;
+        }
         return INSTANCE != null && INSTANCE.enabled;
     }
 
     public static boolean isMotionBlurActive() {
-        return isShaderActive() && INSTANCE.motionBlurEnabled.value;
+        return INSTANCE != null && INSTANCE.enabled && INSTANCE.motionBlurEnabled.value;
     }
 
     public static float getEffectiveSaturation() {

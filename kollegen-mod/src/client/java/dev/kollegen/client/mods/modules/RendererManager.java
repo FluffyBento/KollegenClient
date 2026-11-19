@@ -65,7 +65,7 @@ public final class RendererManager {
         if (isSodiumPresent()) {
             return Group.OPENGL;
         }
-        return Group.VULKAN;
+        return Group.OPENGL;
     }
 
     public static void setDesired(Group g) {

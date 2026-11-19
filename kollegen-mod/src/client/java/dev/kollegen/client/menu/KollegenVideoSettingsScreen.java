@@ -51,7 +51,16 @@ public class KollegenVideoSettingsScreen extends Screen {
     protected void init() {
         super.init();
         this.shaderPacks = KollegenShaderLoader.getInstance().getShaderPacks();
-        this.selectedShaderPack = KollegenShaderLoader.getInstance().getActiveShaderPack();
+        if (IrisBridge.isIrisLoaded()) {
+            String cur = IrisBridge.getCurrentShaderpack();
+            if (cur != null && !cur.isEmpty() && !"(Deaktiviert)".equals(cur)) {
+                this.selectedShaderPack = cur;
+            } else {
+                this.selectedShaderPack = KollegenShaderLoader.getInstance().getActiveShaderPack();
+            }
+        } else {
+            this.selectedShaderPack = KollegenShaderLoader.getInstance().getActiveShaderPack();
+        }
         if (this.selectedShaderPack == null || this.selectedShaderPack.isEmpty()) {
             this.selectedShaderPack = "(Deaktiviert)";
         }
@@ -623,6 +632,15 @@ public class KollegenVideoSettingsScreen extends Screen {
         }
 
         if (mx >= px + 338 && mx <= px + 488 && my >= barY && my <= barY + barH) {
+            if (IrisBridge.isIrisLoaded() && !"(Deaktiviert)".equals(this.selectedShaderPack)) {
+                net.minecraft.client.gui.screens.Screen screen = IrisBridge.openIrisConfigScreen(this);
+                if (screen != null) {
+                    if (this.minecraft != null) {
+                        this.minecraft.setScreenAndShow(screen);
+                    }
+                    return;
+                }
+            }
             this.currentTab = 3;
             return;
         }
@@ -647,6 +665,9 @@ public class KollegenVideoSettingsScreen extends Screen {
 
     private void selectShaderPack(String pack) {
         this.selectedShaderPack = pack;
+        if (IrisBridge.isIrisLoaded()) {
+            IrisBridge.setShaderpack(pack);
+        }
         KollegenShaderLoader.getInstance().setShaderPack(pack);
     }
 
