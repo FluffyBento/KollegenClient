@@ -60,6 +60,7 @@
     "EquipmentLayerRendererMixin",
     "AbstractClientPlayerMixin",
     "PostShaderMixin",
+    "PackRepositoryMixin",
     "PostChainAccessor",
     "PostPassAccessor",
     "FirstPersonHandsAndItemsRendererMixin",

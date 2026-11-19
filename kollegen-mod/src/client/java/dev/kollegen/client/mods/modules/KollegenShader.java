@@ -201,10 +201,31 @@ public class KollegenShader extends Module {
             v -> Math.round(v * 100.0) + "%", null
     );
 
+    public final BooleanSetting wavingVegetation = new BooleanSetting(
+            "Bewegende Pflanzen",
+            "Bäume, Gras und Pflanzen bewegen sich sanft im Wind.",
+            true
+    );
+
+    public final BooleanSetting wavingWater = new BooleanSetting(
+            "Bewegendes Wasser",
+            "Wellen und dynamische Wasserreflexionen.",
+            true
+    );
+
+    public final BooleanSetting sunLighting = new BooleanSetting(
+            "Direktes Sonnenlicht",
+            "Realistisches gerichtetes Sonnenlicht mit warmen Lichter und kühlen Schatten.",
+            true
+    );
+
     public KollegenShader() {
         super("kollegenshader", "Kollegen Shader", "Eigen anpassbarer Vulkan Shader - Farbsättigung, Motion Blur, Bloom, Kontrast und Bildfilter rein im Kollegen Client.", Category.VISUAL);
         INSTANCE = this;
         add(preset);
+        add(wavingVegetation);
+        add(wavingWater);
+        add(sunLighting);
         add(saturationEnabled);
         add(saturation);
         add(vibranceEnabled);
