@@ -103,10 +103,10 @@ public final class CosmeticText {
 
     public static Component titleComponent(UUID id) {
         CosmeticData d = id == null ? null : KollegenPresence.getCosmetics(id);
-        if (d == null || d.titleText == null) return null;
+        if (d == null || d.titleText == null || d.titleText.trim().isEmpty()) return null;
         int nameColor = parseColor(d.nameColor, FALLBACK_NAME);
-        return Component.literal(d.titleText)
-                .withStyle(Style.EMPTY.withColor(TextColor.fromRgb(titleColor(d, nameColor))));
+        return Component.literal(d.titleText.trim())
+                .withStyle(Style.EMPTY.withColor(TextColor.fromRgb(titleColor(d, nameColor))).withBold(true));
     }
 
     public static Component levelComponent(UUID id) {
