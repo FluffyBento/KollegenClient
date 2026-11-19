@@ -1,25 +1,25 @@
-/* Cosmetic3D – zeigt Kollegen-Cosmetics an einem Spieler.
- *
- *  - thumb(item)            -> Promise<dataURL>  Store-Vorschau (Spieler traegt das Item)
- *  - mount(el, item)        -> unmount-fn        drehbare Vorschau (Store-Detailfenster)
- *  - mountPlayer(canvas, o) -> Controller        Spieler mit echtem Skin + ausgeruesteten Items
- *
- * Performance:
- *  - EIN gemeinsamer WebGL-Renderer fuer alles (Ergebnis wird in 2D-Canvases kopiert),
- *    dadurch keine verlorenen Kontexte.
- *  - Jedes Cosmetic wird einmalig zu EINER Geometrie zusammengefuehrt (1 Draw-Call statt
- *    hunderter Boxen) und danach gecacht.
- *  - Animierte Ansichten rendern nur, wenn sie sichtbar sind (IntersectionObserver),
- *    der Tab im Vordergrund ist und mit max. ~30 FPS.
- *  - Thumbnails laufen ueber eine Queue (max. 1 pro Frame).
- */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 (function () {
   'use strict';
   var DEG = Math.PI / 180;
 
-  /* ---------- three.js-Kompatibilitaet (r13x und r150+) ----------
-     index.html laedt zwei three.js-Versionen (klassisch + Modul). Damit nie Objekte
-     verschiedener Versionen gemischt werden, wird THREE genau EINMAL lokal gebunden. */
+  
+
+
   var THREE = null;
   function bind() {
     if (!THREE && typeof window.THREE !== 'undefined' && window.THREE) THREE = window.THREE;
@@ -58,7 +58,7 @@
       renderer.setPixelRatio(1);
       renderer.domElement.addEventListener('webglcontextlost', function (e) {
         e.preventDefault();
-        renderer = null; // naechster Frame legt einen neuen an
+        renderer = null; 
       }, false);
     }
     var W = Math.max(2, Math.round(w)), H = Math.max(2, Math.round(h));
@@ -66,7 +66,7 @@
     return renderer;
   }
 
-  /* ---------- Item -> Modell-Schluessel ---------- */
+  
   var MODEL_CATS = ['cape', 'shield', 'mace', 'back_accessory', 'head_accessory', 'face_accessory', 'aura', 'shoulder_accessory', 'torso_accessory', 'legs_accessory', 'gloves', 'gekauft'];
 
   function keyFor(item) {
@@ -85,7 +85,7 @@
     return (item && item.data && item.data.kind) || String((item && item.id) || '').replace(/^pet_/, '');
   }
 
-  /* ---------- Laden ---------- */
+  
   function loadImage(src, cors) {
     return new Promise(function (res, rej) {
       var im = new Image();
@@ -96,7 +96,7 @@
     });
   }
 
-  // Bilder ueber fetch->Blob laden: so bleibt das Canvas/WebGL-Texture "sauber" (kein CORS-Taint).
+  
   function fetchImage(url) {
     return fetch(url).then(function (r) {
       if (!r.ok) throw new Error('http ' + r.status);
@@ -118,7 +118,7 @@
     return t;
   }
 
-  /* ---------- Skin ---------- */
+  
   function paintMannequin() {
     var c = document.createElement('canvas');
     c.width = 64; c.height = 64;
@@ -165,7 +165,7 @@
   function skinInfo(src) {
     var W = src.width, H = src.height;
     var s = W / 64;
-    var legacy = H < W; // 64x32
+    var legacy = H < W; 
     var slim = false;
     if (!legacy) {
       try {
@@ -210,10 +210,10 @@
     return p;
   }
 
-  /* ---------- Geometrie-Helfer ---------- */
+  
   var FACE_ORDER = ['east', 'west', 'up', 'down', 'south', 'north'];
 
-  // Flaeche -> [u0,v0,u1,v1] oder null (Blockbench: {uv:[..],texture:0}; auch reine Arrays erlaubt)
+  
   function faceRect(fd) {
     if (!fd) return null;
     if (typeof fd.texture === 'number' && fd.texture < 0) return null;
@@ -223,7 +223,7 @@
     return rc;
   }
 
-  // Setzt die UVs und entfernt Flaechen ohne UV aus dem Index (statt sie falsch zu texturieren).
+  
   function setUV(geo, rects, W, H) {
     var uv = geo.attributes.uv;
     var keep = [];
@@ -262,7 +262,7 @@
     return out;
   }
 
-  /* ---------- Spieler ---------- */
+  
   function buildPlayer(info) {
     var g = new THREE.Group();
     var s = info.s, W = info.W, H = info.H, aw = info.slim ? 3 : 4, legacy = info.legacy;
@@ -277,7 +277,7 @@
       return m;
     }
 
-    // Kopf Pivot bei (0, 24, 0)
+    
     var head = new THREE.Group();
     head.position.set(0, 24, 0);
     head.add(makePart(8, 8, 8, 0, 0, false, 0, false, 0, 4, 0));
@@ -286,14 +286,14 @@
     head.add(head.userData.itemGroup);
     g.add(head);
 
-    // Torso Pivot bei (0, 12, 0)
+    
     var torso = new THREE.Group();
     torso.position.set(0, 12, 0);
     torso.add(makePart(8, 12, 4, 16, 16, false, 0, false, 0, 6, 0));
     if (!legacy) torso.add(makePart(8, 12, 4, 16, 32, false, 0.25, true, 0, 6, 0));
     g.add(torso);
 
-    // Linker Arm (Spieler-Links = +X) Pivot bei (4 + aw/2, 22, 0)
+    
     var leftArm = new THREE.Group();
     leftArm.position.set(4 + aw / 2, 22, 0);
     leftArm.add(makePart(aw, 12, 4, 40, 16, false, 0, false, 0, -4, 0));
@@ -302,7 +302,7 @@
     leftArm.add(leftArm.userData.itemGroup);
     g.add(leftArm);
 
-    // Rechter Arm (Spieler-Rechts = -X) Pivot bei (-4 - aw/2, 22, 0)
+    
     var rightArm = new THREE.Group();
     rightArm.position.set(-4 - aw / 2, 22, 0);
     rightArm.add(makePart(aw, 12, 4, legacy ? 40 : 32, legacy ? 16 : 48, legacy, 0, false, 0, -4, 0));
@@ -311,14 +311,14 @@
     rightArm.add(rightArm.userData.itemGroup);
     g.add(rightArm);
 
-    // Linkes Bein Pivot bei (2, 12, 0)
+    
     var leftLeg = new THREE.Group();
     leftLeg.position.set(2, 12, 0);
     leftLeg.add(makePart(4, 12, 4, 0, 16, false, 0, false, 0, -6, 0));
     if (!legacy) leftLeg.add(makePart(4, 12, 4, 0, 32, false, 0.25, true, 0, -6, 0));
     g.add(leftLeg);
 
-    // Rechtes Bein Pivot bei (-2, 12, 0)
+    
     var rightLeg = new THREE.Group();
     rightLeg.position.set(-2, 12, 0);
     rightLeg.add(makePart(4, 12, 4, legacy ? 0 : 16, legacy ? 16 : 48, legacy, 0, false, 0, -6, 0));
@@ -362,7 +362,7 @@
     return { group: piv, dispose: function () { geo.dispose(); mat.dispose(); } };
   }
 
-  /* ---------- Cosmetic-Modell (Blockbench-JSON) -> eine Geometrie ---------- */
+  
   var modelCache = {};
   function loadModel(key) {
     if (modelCache[key]) return modelCache[key];
@@ -496,7 +496,7 @@
   }
 
   var mergedCache = {};
-  // Ergebnis: { geo, mat, box } – wird von allen Szenen geteilt, nie disposen.
+  
   function getMerged(key) {
     if (mergedCache[key]) return mergedCache[key];
     var p = loadModel(key).then(function (entry) {
@@ -534,7 +534,7 @@
     return p;
   }
 
-  // Schilde und Zubehör platzieren
+  
   function placeOffset(item, box) {
     var off = new THREE.Vector3(0, 0, 0);
     if (item && item.category === 'shield') {
@@ -546,7 +546,7 @@
     return off;
   }
 
-  /* ---------- Szene ---------- */
+  
   function baseScene() {
     var K = lightK();
     var scene = new THREE.Scene();
@@ -569,14 +569,14 @@
     return b;
   }
 
-  // Kamera so setzen, dass die Box (bei Drehung) komplett sichtbar ist.
+  
   function fitCamera(camera, box, aspect, rotating) {
     var size = box.getSize(new THREE.Vector3());
     var center = box.getCenter(new THREE.Vector3());
     var vf = camera.fov * DEG;
     var t = Math.tan(vf / 2);
-    // Sehr breite Items (Fluegel) duerfen an den Spitzen minimal abgeschnitten werden,
-    // damit der Spieler nicht winzig wird.
+    
+    
     var hExt = rotating ? Math.min(Math.max(size.x, size.z), 50) : size.x + size.z * 0.5;
     var dist = Math.max((size.y / 2) / t, (hExt / 2) / (t * aspect)) * 1.12 + size.z / 2;
     camera.aspect = aspect;
@@ -585,8 +585,8 @@
     camera.updateProjectionMatrix();
   }
 
-  /* ---------- Pets ---------- */
-  // Pet-Bilder haben viel Rand -> auf den sichtbaren Bereich zuschneiden (quadratisch, 256px).
+  
+  
   var petCropCache = {};
   function petCropped(kind) {
     if (petCropCache[kind]) return petCropCache[kind];
@@ -633,7 +633,7 @@
     return p;
   }
 
-  /* ---------- Thumbnails (Queue) ---------- */
+  
   var thumbQ = [], thumbBusy = false;
 
   function thumb(item, w, h) {
@@ -702,13 +702,13 @@
     });
   }
 
-  /* ---------- 2D Canvas Safe Context Helper ---------- */
+  
   function ensure2dCanvas(canvas) {
     if (!canvas) return null;
     var ctx = null;
     try { ctx = canvas.getContext('2d'); } catch (e) {}
     if (ctx) return canvas;
-    // Context is already locked into webgl or failed -> replace with fresh canvas
+    
     var clean = document.createElement('canvas');
     if (canvas.id) clean.id = canvas.id;
     if (canvas.className) clean.className = canvas.className;
@@ -721,7 +721,7 @@
     return clean;
   }
 
-  /* ---------- Spieler-Ansicht (Cosmetics-Tab, Home, Modal) ---------- */
+  
   var mounts = [];
   var rafOn = false;
   var lastFrame = 0;
@@ -745,7 +745,7 @@
     if (!any) return;
     rafOn = true;
     requestAnimationFrame(tick);
-    if (now - lastFrame < 30) return; // ~30 FPS
+    if (now - lastFrame < 30) return; 
     var dt = Math.min(0.1, (now - (lastFrame || now)) / 1000);
     lastFrame = now;
     mounts.slice().forEach(function (h) {
@@ -754,7 +754,7 @@
         if (!needsFrame(h)) return;
         drawMount(h, dt, now);
       } catch (e) {
-        // Log error but don't silently kill mount unless disconnected
+        
         console.warn('drawMount error:', e);
       }
     });
@@ -772,7 +772,7 @@
     if (h.animate && h.autoRotate && (now - h.lastInteract) > 2500) h.rot += dt * 0.7;
     h.stage.rotation.y = h.rot;
 
-    // Lebendige Idle-Animationen (Sanfter Umhang, Schwingen der Flügel, schwebende Cosmetics)
+    
     if (h.animate) {
       var timeSec = now * 0.001;
       var t = now * 0.002;
@@ -831,6 +831,14 @@
     ctx.clearRect(0, 0, W, H);
     ctx.drawImage(r.domElement, 0, 0, W, H);
     h.dirty = false;
+    if (h.onFrame) {
+      try {
+        
+        var hasHat = h.items && h.items.some(function (it) { return it && (it.category === 'head_accessory' || it.category === 'face_accessory'); });
+        var v = new THREE.Vector3(0, hasHat ? 37 : 34, 0).project(h.camera);
+        h.onFrame({ x: v.x * 0.5 + 0.5, y: -v.y * 0.5 + 0.5 });
+      } catch (e) {}
+    }
   }
 
   function disposeMount(h) {
@@ -855,21 +863,23 @@
     if (!bind()) throw new Error('THREE fehlt');
     canvas = ensure2dCanvas(canvas);
     var h = {
+      headroom: opts.headroom || 0,
       canvas: canvas, done: false, visible: true, dirty: true, refit: true,
       animate: opts.animate !== false, autoRotate: opts.autoRotate !== false,
       rot: opts.rot != null ? opts.rot : 0.55, lastInteract: -1e9, camAspect: 0,
       scene: baseScene(), stage: new THREE.Group(), itemsG: new THREE.Group(),
       camera: new THREE.PerspectiveCamera(30, 1, 0.1, 600),
       player: null, cape: null, pet: null, petY: 21, capeG: null,
-      box: unionBox([]), skinUrl: null, capeUrl: null, itemKeys: '', gen: 0, items: [],
+      box: null, skinUrl: null, capeUrl: null, itemKeys: '', gen: 0, items: [],
       liveCosmetics: []
     };
+    h.box = unionBox(headroomBox([]));
     h.scene.add(h.stage);
     h.stage.add(h.itemsG);
     canvas.style.cursor = 'grab';
     canvas.style.touchAction = 'pan-y';
 
-    // Ziehen zum Drehen
+    
     var drag = null;
     h.onPointerDown = function (e) {
       drag = { x: e.clientX, rot: h.rot };
@@ -920,6 +930,13 @@
     }
     mounts.push(h);
 
+    function headroomBox(boxes) {
+      if (h.headroom > 0) {
+        boxes = boxes.concat([new THREE.Box3(new THREE.Vector3(-1, 30, -1), new THREE.Vector3(1, 32 + h.headroom, 1))]);
+      }
+      return boxes;
+    }
+
     function recomputeBox() {
       var boxes = [];
       h.itemsG.children.forEach(function (m) {
@@ -927,7 +944,7 @@
       });
       if (h.capeG) boxes.push(new THREE.Box3(new THREE.Vector3(-5, 8, 2), new THREE.Vector3(5, 24, 4.5)));
       if (h.pet) boxes.push(new THREE.Box3(new THREE.Vector3(-19.5, 14, -13), new THREE.Vector3(-6.5, 28, 1)));
-      h.box = unionBox(boxes);
+      h.box = unionBox(headroomBox(boxes));
       h.refit = true;
       h.dirty = true;
       kick();
@@ -949,7 +966,7 @@
 
     function applyItems() {
       var gen = ++h.gen;
-      // alte Meshes & Live Cosmetics entfernen
+      
       while (h.itemsG.children.length) h.itemsG.remove(h.itemsG.children[0]);
       if (h.liveCosmetics) {
         h.liveCosmetics.forEach(function (c) { try { c.dispose(); } catch (e) {} });
@@ -1052,12 +1069,17 @@
       },
       setSkin: function (url) { if ((url || null) === h.skinUrl) return; h.skinUrl = url || null; applySkin(); },
       setCape: function (url) { if ((url || null) === h.capeUrl) return; h.capeUrl = url || null; applyItems(); },
+      setOnFrame: function (fn) { h.onFrame = fn || null; h.dirty = true; kick(); },
+      setAutoRotate: function (on) { h.autoRotate = !!on; if (on) h.lastInteract = -1e9; h.dirty = true; kick(); },
+      isAutoRotate: function () { return h.autoRotate; },
+      turnTo: function (rad) { h.rot = rad; h.lastInteract = performance.now(); h.dirty = true; kick(); },
+      getRot: function () { return h.rot; },
       dispose: function () { disposeMount(h); },
       isDisposed: function () { return h.done; }
     };
   }
 
-  /* ---------- Modal-Vorschau (alter Einstieg) ---------- */
+  
   var modalMounts = [];
   function mount(el, item) {
     var key = keyFor(item);

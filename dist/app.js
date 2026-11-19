@@ -441,9 +441,9 @@ function mountMinecraftServerCard(inst, container) {
               };
               pickerMenu.append(item);
 
-              // Lazy: lade Status (Icon + MOTD) fuer diesen Server (sequentiell, nicht parallel)
+              
               (async () => {
-                // Kleine Verzoegerung basierend auf Index, um API-Last zu verteilen
+                
                 await new Promise(r => setTimeout(r, savedServers.indexOf(srv) * 120));
                 try {
                   const st = await invoke("get_server_status", { instanceName: inst.name, serverIp: srv.ip });
@@ -691,9 +691,9 @@ async function refreshLogs() {
   try {
     const logs = await invoke("get_logs");
     const logsEl = $("logs");
-    // Only touch the DOM when the Logs panel is actually visible – otherwise
-    // we'd keep allocating huge strings in the renderer every poll and the
-    // webview (Edge/WebView2) memory would grow without bound.
+    
+    
+    
     const visible =
       logsEl && (logsEl.offsetParent !== null || logsEl.style.display !== "none");
     let glogText = "";
@@ -701,12 +701,12 @@ async function refreshLogs() {
       try {
         glogText = await invoke("get_game_log", { instanceName: activeInstance });
       } catch (e) {
-        /* ignore missing game log */
+        
       }
     }
 
-    // Auto-detect and resolve Fabric mod incompatibilities in the game log
-    // (only if enabled in settings - default: disabled)
+    
+    
     let autoResolveEnabled = false;
     try {
       const ss = await invoke("get_settings");
@@ -783,9 +783,9 @@ async function refreshLogs() {
 
   async function refreshDiscord() {
     try {
-      // `discord_social` combines OAuth login + RPC presence + friends into a
-      // single source of truth, so the header and the Socials tab never show
-      // contradictory "verbunden" / "nicht verbunden" states.
+      
+      
+      
       const s = await invoke("discord_social");
       const acct = $("discordAccountName");
       const avatar = $("discordAvatar");
@@ -838,10 +838,10 @@ async function refreshLogs() {
     );
   }
 
-  // Renders the Discord friends and wires the "Freund beitreten" action that
-  // lets the user join a friend's game (instance picker filtered by version).
-  // Friends who run the Kollegen Client (detected via rich presence) are
-  // highlighted with a badge and sorted to the top.
+  
+  
+  
+  
   function renderDiscordFriends(friends, connected) {
     const list = $("discordFriends");
     const hint = $("friendsHint");
@@ -852,7 +852,7 @@ async function refreshLogs() {
       f.presence_known ? (f.status && f.status !== "offline") : true
     );
      if (!friends.length) {
-       // Nur anzeigen, wenn keine Kollegen-Freunde vorhanden sind
+       
        if (socialFriends && socialFriends.length) {
          hint.style.display = "none";
          return;
@@ -870,7 +870,7 @@ async function refreshLogs() {
     }
     hint.style.display = "none";
 
-    // Kollegen-Nutzer zuerst anzeigen.
+    
     online.sort((a, b) => (!!b.kollegen || false) - (!!a.kollegen || false));
 
     for (const f of online) {
@@ -936,9 +936,9 @@ async function refreshLogs() {
     }
   }
 
-  // Social-System (Discord-verifiziert, Freundes-Codes): eigenes Profil +
-  // Freundesliste. Beides wird auch als ~/.kollegen/social.json für die Mod
-  // geschrieben. Freunde werden ausschließlich über den Freundes-Code hinzugefügt.
+  
+  
+  
   let socialMe = null;
   let socialFriends = [];
   let socialRequests = [];
@@ -955,8 +955,8 @@ async function refreshLogs() {
   }
 
   async function refreshSocial(force) {
-    // Bei frischen Daten sofort aus dem Cache rendern statt erneut zu laden –
-    // dann öffnet der Socials-Tab ohne Netz-Wartezeit (kein Lag/Blinken).
+    
+    
     if (
       !force &&
       socialMe !== null &&
@@ -982,9 +982,9 @@ async function refreshLogs() {
     }
   }
 
-  // Das Backend liefert /me als {id,name,uuid,code,accounts} und /friends als
-  // [{id,name,uuid,code,server,online}]. Die Anzeige erwartet mc_name /
-  // friend_code / global_name / username / avatar – wir normalisieren hier zentral.
+  
+  
+  
   let discordAvatarFallback = "";
   function normalizeProfile(me) {
     if (!me) return me;
@@ -1038,7 +1038,7 @@ async function refreshLogs() {
       equipped: f.equipped && typeof f.equipped === "object" ? f.equipped : {},
       avatar,
       accounts: accts,
-      // Profil-Zusammenfassung (kommt seit v1.11.5 vom Backend mit).
+      
       bio: (f.profile && f.profile.bio) || null,
       avatar_data_url: (f.profile && f.profile.avatar_data_url) || null,
       banner_data_url: (f.profile && f.profile.banner_data_url) || null,
@@ -1099,7 +1099,7 @@ async function refreshLogs() {
     loadHomeSkin(false);
   }
 
-// Tabs im Profil-Fenster (Profil / Kosmetik / Skin & Capes)
+
 (function wirePmTabs() {
   const tabs = document.getElementById("pmTabs");
   if (!tabs) return;
@@ -1118,7 +1118,7 @@ async function refreshLogs() {
     if (b) apply(b.dataset.pane);
   });
   window.pmShowPane = apply;
-  // Beim Schließen das Ergebnis-Element wieder auf die Socials-Seite zurücksetzen
+  
   const pmEl = document.getElementById("profileModal");
   if (pmEl) {
     new MutationObserver(() => {
@@ -1132,7 +1132,7 @@ async function refreshLogs() {
   }
 })();
 
-// Wire profile UI controls (save/edit/view)
+
 (function wireProfileUI(){
   const editBtn = $("profileEditToggle");
   const saveBtn = $("profileSaveBtn");
@@ -1202,7 +1202,7 @@ async function refreshLogs() {
      }
    }
 
-  // Eingehende Freundesanfragen (Anfrage → Annehmen/Ablehnen), neueste zuerst.
+  
   function renderKollegenRequests() {
     const wrap = $("kollegenRequestsWrap");
     const list = $("kollegenRequests");
@@ -1318,7 +1318,7 @@ async function refreshLogs() {
     }
   }
 
-  // Freundes-Profil im Viewer anzeigen (Daten kommen mit /friends mit).
+  
   function showFriendProfile(u) {
     pmSetView(true);
     const wrap = $("viewProfileResult");
@@ -1377,7 +1377,7 @@ async function refreshLogs() {
        if (window.pmShowPane) window.pmShowPane("profile");
        setTimeout(() => loadSkinChanger(false), 60);
 
-    // Load profile customization from settings
+    
     try {
       invoke("get_settings").then(s => {
         const prof = (s && s.profile) ? s.profile : {};
@@ -1405,7 +1405,7 @@ async function refreshLogs() {
     });
   }
 
-  // Profil-Modal: eigene Bearbeitung vs. Fremdansicht
+  
   function pmSetView(foreign) {
     const mode = foreign ? "none" : "";
     ["profileSkinCol", "pmOwnHead", "pmTabs", "profileCustomize", "kosmetBox", "skinChanger", "capeChanger"].forEach((id) => {
@@ -1414,14 +1414,14 @@ async function refreshLogs() {
     });
     const wr = document.getElementById("viewProfileResult");
     if (wr) wr.style.display = foreign ? "block" : "";
-    // Fremdansicht: Ergebnis im Fenster anzeigen, sonst zurück auf die Socials-Seite
+    
     const pmc = document.querySelector("#profileModal .profile-modal");
     if (pmc) pmc.classList.toggle("foreign", !!foreign);
     const slot = document.getElementById(foreign ? "pmForeign" : "vpResultSlot");
     if (wr && slot && wr.parentElement !== slot) slot.append(wr);
   }
 
-  // Profile editing helpers
+  
   function setProfileEditMode(on) {
     const editBtn = $("profileEditToggle");
     const saveBtn = $("profileSaveBtn");
@@ -1440,7 +1440,7 @@ async function refreshLogs() {
     }
   }
 
-  // Save profile customization to settings
+  
   async function saveProfileCustomization() {
     try {
       const s = await invoke('get_settings');
@@ -1469,7 +1469,7 @@ async function refreshLogs() {
     } catch (e) { toast('Speichern fehlgeschlagen: '+e, 'error'); }
   }
 
-  // Publish profile to the Kollegen-Cloud via Launcher-Discord-Session.
+  
   async function publishProfileToServer() {
     const choice = $("profileAvatarChoice").value;
     const profile = {
@@ -1498,7 +1498,7 @@ async function refreshLogs() {
     }
   }
 
-  // Browse public profiles in the Kollegen-Cloud via Launcher-Backend.
+  
   async function browsePublicProfiles(search) {
     const wrap = $("viewProfileResult");
     wrap.innerHTML = "";
@@ -1535,7 +1535,7 @@ async function refreshLogs() {
     }
   }
 
-  // Öffentliches Cloud-Profil im Viewer öffnen (egal ob in Browse-Liste).
+  
   function showCloudProfile(p) {
     const wrap = $("viewProfileResult");
     if (!wrap) return;
@@ -1581,7 +1581,7 @@ async function refreshLogs() {
     wrap.append(card);
   }
 
-  // Cancel edits: reload from settings
+  
   function cancelProfileEdits() {
     invoke('get_settings').then(s => {
       const prof = (s && s.profile) ? s.profile : {};
@@ -1593,7 +1593,7 @@ async function refreshLogs() {
     }).catch(()=>{});
   }
 
-  // View other profile by name (uses new Tauri command)
+  
   async function viewProfileByName() {
     const name = $("viewProfileName").value.trim();
     if (!name) return;
@@ -1602,10 +1602,10 @@ async function refreshLogs() {
     try {
       const res = await invoke('get_minecraft_profile_by_name', { name });
       if (res && res.error) { resWrap.textContent = 'Fehler: ' + res.error; return; }
-      // show basic info + skin preview
+      
       resWrap.innerHTML = '';
       const title = document.createElement('div'); title.textContent = `${res.name} · ${res.uuid}`; resWrap.append(title);
-      // Freundes-Code nachschlagen (falls Person sich im Client/Website angemeldet hat)
+      
       try {
         const j = await invoke('kollegen_browse_profiles', { search: res.name });
         const items = (j && j.items) ? j.items : [];
@@ -1647,7 +1647,7 @@ async function refreshLogs() {
   let currentSkinUrl = null;
   let currentCapeUrl = null;
 
-  // Lädt (sofern vorhanden) das aktive Cape auf den 3D-Viewer.
+  
   function applyCapeToViewer() {
     if (!skinViewer || !currentCapeUrl) return;
     try {
@@ -1666,8 +1666,8 @@ async function refreshLogs() {
     }
     currentSkinUrl = url;
     const sv3d = window.skinview3d;
-    // WebGL-Verfügbarkeit prüfen (SteamDeck/WebKit ohne GPU-Kontext → direkt
-    // auf das 2D-Fallback-Bild gehen statt auf einen leeren Canvas zu warten).
+    
+    
     let webglOk = false;
     try {
       const probeCanvas = document.createElement("canvas");
@@ -1680,8 +1680,8 @@ async function refreshLogs() {
         canvas.style.display = "";
         dropSkinFallback(canvas.parentElement);
         skinViewer = new sv3d.SkinViewer({ canvas: canvas, width: 240, height: 480 });
-        // Dieser skinview3d-Build wertet die `skin`-Option nicht aus – die
-        // Textur muss explizit via loadSkin() geladen werden.
+        
+        
         const p = skinViewer.loadSkin(url);
         if (p && typeof p.then === "function") {
           p.then(() => applyCapeToViewer()).catch(() => applyCapeToViewer());
@@ -1737,13 +1737,13 @@ async function refreshLogs() {
   let homeSkinKey = "";
   let homeSkinFailed = false;
   let homeSkinPauseTimer = null;
-  let homeWorn = null;      // Cosmetic3D-Spieler (Home)
-  let homeLegacy = false;   // true = skinview3d verwenden
-  let cosmWorn = null;      // Cosmetic3D-Spieler (Cosmetics-Tab)
+  let homeWorn = null;      
+  let homeLegacy = false;   
+  let cosmWorn = null;      
   let cosmLegacy = false;
   let wornFetchP = null;
 
-  // Ausgeruestete Items (Katalog + equipped) -> Liste fuer den 3D-Spieler
+  
   function wornItemsFrom(equipped, catalog) {
     const out = [];
     const by = {};
@@ -1779,7 +1779,7 @@ async function refreshLogs() {
     return wornItemsFrom(eq || {}, cat || []);
   }
 
-  // Nach Ausruesten/Laden: Home- und Cosmetics-Spieler aktualisieren
+  
   window.refreshWornViewers = async function (force) {
     try {
       const items = await currentWornItems(!!force);
@@ -1803,8 +1803,8 @@ async function refreshLogs() {
 
   window.httpsify = function (url) {
     if (typeof url !== "string" || !url) return url;
-    // Die Mojang-API liefert http:// - die CSP des Launchers laesst nur https
-    // fuer Bilder und Verbindungen zu, sonst bleiben Skin und Cape unsichtbar.
+    
+    
     return url.startsWith("http://") ? "https://" + url.slice(7) : url;
   };
   const httpsify = window.httpsify;
@@ -1832,7 +1832,17 @@ async function refreshLogs() {
     if (fb) fb.remove();
   }
 
+  
   async function loadHomeSkin(force) {
+    try {
+      await loadHomeSkinCore(force);
+    } catch (e) {
+      console.error("Home-Skin fehlgeschlagen:", e);
+      if (window.KStage) window.KStage.showFallback($("homeStage"));
+    }
+  }
+
+  async function loadHomeSkinCore(force) {
     let canvas = $("homeSkinCanvas");
     if (!canvas) return;
     let nm = (socialMe && (socialMe.mc_name || socialMe.username)) || "";
@@ -1842,8 +1852,7 @@ async function refreshLogs() {
         if (accs && accs.length > 0 && accs[0].username) nm = accs[0].username;
       } catch (_) {}
     }
-    const nameEl = $("homeSkinName");
-    if (nameEl) nameEl.textContent = nm || "—";
+    if (window.KStage) window.KStage.tag($("homeTag"), { name: nm || "" });
     let url = null;
     try {
       const list = await invoke("skin_list");
@@ -1869,7 +1878,8 @@ async function refreshLogs() {
     const key = url + "|" + (currentCapeUrl || "");
     if (!force && key === homeSkinKey && homeSkinViewer && !homeSkinViewer.disposed) return;
     if (key !== homeSkinKey) {
-      for (const k in c3dThumbCache) delete c3dThumbCache[k];
+      const tc = window.__c3dThumbCache;
+      if (tc) for (const k in tc) delete tc[k];
     }
     homeSkinKey = key;
     homeSkinFailed = false;
@@ -1925,7 +1935,7 @@ async function refreshLogs() {
     if (homeWorn) { try { homeWorn.dispose(); } catch (_) {} homeWorn = null; }
     disposeHomeSkinViewer();
 
-    // 3D-Render (Cosmetic3D) wie im Cosmetics-Tab, mit Skin + Cape + Items
+    
     if (!homeLegacy && window.Cosmetic3D && window.Cosmetic3D.ready()) {
       try {
         const itemsH = await currentWornItems(false);
@@ -1936,11 +1946,14 @@ async function refreshLogs() {
         const fbH = wrapH.querySelector("img.skin-fallback, .skin-fallback");
         if (fbH) fbH.remove();
         canvas.style.display = "";
+        const stageH = $("homeStage");
+        if (window.KStage) window.KStage.loading(stageH);
         homeWorn = window.Cosmetic3D.mountPlayer(canvas, {
           skin: url,
           cape: currentCapeUrl || null,
           items: itemsH,
           animate: true,
+          headroom: 7,
           onSkinError: () => {
             homeLegacy = true;
             try { homeWorn && homeWorn.dispose(); } catch (_) {}
@@ -1949,6 +1962,7 @@ async function refreshLogs() {
             loadHomeSkin(true);
           },
         });
+        if (window.KStage) window.KStage.attach(stageH, homeWorn);
         setSkinState("");
         return;
       } catch (e) {
@@ -1959,7 +1973,7 @@ async function refreshLogs() {
     }
 
     if (!sv3d || !sv3d.SkinViewer) {
-      showSkinFallback(wrap, canvas, url);
+      if (window.KStage) window.KStage.showFallback($("homeStage")); else showSkinFallback(wrap, canvas, url);
       homeSkinFailed = true;
       setSkinState("");
       return;
@@ -1991,12 +2005,14 @@ async function refreshLogs() {
           }
         } catch (_) {}
         try { homeSkinViewer.renderPaused = false; } catch (_) {}
+        const stg = $("homeStage");
+        if (stg) stg.setAttribute("data-state", "ready");
         setSkinState("");
       };
       if (p && typeof p.then === "function") {
         p.then(ready).catch(() => {
           homeSkinFailed = true;
-          showSkinFallback(wrap, canvas, url);
+          if (window.KStage) window.KStage.showFallback($("homeStage")); else showSkinFallback(wrap, canvas, url);
           setSkinState("");
         });
       } else {
@@ -2006,18 +2022,18 @@ async function refreshLogs() {
       console.warn("Home SkinViewer Fehler:", e);
       disposeHomeSkinViewer();
       homeSkinFailed = true;
-      showSkinFallback(wrap, canvas, url);
+      if (window.KStage) window.KStage.showFallback($("homeStage")); else showSkinFallback(wrap, canvas, url);
       setSkinState("");
     }
   }
 
-  // ── Skin-Bibliothek + Cape-Wechsler im Profil ──
+  
   let skinChangerLoaded = false;
   function loadSkinChanger(force) {
     if (!force && skinChangerLoaded) return;
     skinChangerLoaded = true;
-    // Capes IMMER laden – unabhängig von der Skin-Bibliothek, damit sie auch
-    // dann erscheinen, wenn `skin_list` fehlschlägt oder leer ist.
+    
+    
     invoke("skin_mc_profile").then(renderCapes).catch(() => { skinChangerLoaded = false; renderCapes({}); });
 
     invoke("skin_list").then(list => {
@@ -2027,8 +2043,8 @@ async function refreshLogs() {
         showSkin(httpsify(active.url));
         return;
       }
-      // Kein lokaler aktiver Skin: automatisch vom Minecraft-Namen ziehen
-      // (funktioniert ohne Microsoft-Login über das öffentliche Mojang-Profil).
+      
+      
       const fromMcProfile = (prof) => {
         const skins = (prof && prof.skins) || [];
         const s = skins.find(x => x.state === "ACTIVE") || skins[0];
@@ -2148,9 +2164,9 @@ async function refreshLogs() {
 
   let joinFriendTarget = null;
 
-  // Opens the instance picker for joining a friend. Only instances with the
-  // same Minecraft version as the friend are offered (if the version could be
-  // detected from their rich presence); otherwise all instances are shown.
+  
+  
+  
   function openJoinFriend(friend) {
     joinFriendTarget = friend;
     const list = $("joinFriendInstances");
@@ -2213,7 +2229,7 @@ async function refreshLogs() {
     }
   }
 
-  // ── Discord OAuth (browser login) ──
+  
   let discordLoginWaiting = false;
   async function discordOauthStart() {
     if (discordLoginWaiting) return;
@@ -2271,8 +2287,8 @@ async function refreshLogs() {
         box.appendChild(wrap);
       }
     } else if (info.state === "done") {
-      // Verbunden-Status zeigt #discordStatus an; "Abmelden" ist bewusst nur in
-      // den Einstellungen (Verbindungen → Discord abmelden) zu finden.
+      
+      
       btn.style.display = "none";
     } else if (info.state === "error") {
       btn.style.display = "";
@@ -2667,7 +2683,7 @@ if (_copyUrlBtn) _copyUrlBtn.onclick = () => {
   setTimeout(() => (_copyUrlBtn.textContent = "Kopieren"), 1500);
 };
 
-// Vollbild umschalten mit F11 (kein extra Button mehr).
+
 document.addEventListener("keydown", async (e) => {
   if (e.key === "F11") {
     e.preventDefault();
@@ -2687,14 +2703,14 @@ if (_homeCreateBtn) _homeCreateBtn.onclick = () => switchTab("create");
 $("discordLoginBtn").onclick = discordOauthStart;
 if ($("discordLoginBtnSettings")) $("discordLoginBtnSettings").onclick = discordOauthStart;
 
-// ─=== Akzentfarbe (wird auch in die Theme-Datei für den In-Game-Mod geschrieben) ===
+
 function readCssVar(name) {
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 }
 
-// Schreibt die aktuellen Launcher-Farben in eine Datei, damit der Kollegen-Client
-// In-Game-Mod sein Menü in exakt derselben Farbe rendern kann (auch wenn die
-// Launcher-Farbe zur Laufzeit geändert wird).
+
+
+
 function pushTheme() {
   const theme = {
     bg: readCssVar("--bg") || "#0a0a0f",
@@ -2710,7 +2726,7 @@ function pushTheme() {
   invoke("write_theme_file", { json: JSON.stringify(theme) }).catch(() => {});
 }
 
-// Einladen zum Launcher: Text + Link zum GitHub-Repo.
+
 const inviteLauncherBtn = $("inviteLauncherBtn");
 if (inviteLauncherBtn) {
   inviteLauncherBtn.onclick = () => {
@@ -2720,13 +2736,13 @@ if (inviteLauncherBtn) {
   };
 }
 
-// Beim Start die aktuelle Launcher-Theme an den Mod weitergeben.
+
 pushTheme();
 
-// ─=== Settings (Verbindungen / Themes / Importieren) ===
 
-// Farbschemata je Theme (reine Farbpaletten, kein Hell/Dunkel-Modus mehr).
-// `head` = Minecraft-Kopf (PNG in dist/heads) links neben dem Theme.
+
+
+
 const THEMES = {
   Kollegen:    { bg:"#0a0c10", panel:"#12141d", panel2:"#161922", accent:"#ffaa00", accent2:"#f5c518", text:"#ededed", muted:"#9ca3af", border:"#282d3d", danger:"#ff5b6e", head:"Kollegen.png" },
   Limit_Los:   { bg:"#140a0a", panel:"#1d0f0f", panel2:"#271414", accent:"#FF0000", accent2:"#cc0000", text:"#f3e9e9", muted:"#c39b9b", border:"#600000", danger:"#ff5b6e", head:"heads/Limit_Los.png" },
@@ -2813,7 +2829,7 @@ async function saveTheme(name) {
   applyTheme(name);
 }
 
-// ─=== Settings panel wiring ===
+
 
 function showSettingsTab(t) {
   document.querySelectorAll(".settings-tab").forEach((el) => {
@@ -3050,9 +3066,9 @@ if (addHiddenServerBtn && hiddenServerInput) {
     }
   };
 }
-// ─ SteamDeck / Konsolen-Modus ─
-// Schaltet den TV/Controller-optimierten "Konsolen"-Look um und sorgt dafür,
-// dass der Controller-Modus im Kollegen-Begleit-Mod automatisch aktiviert wird.
+
+
+
 const steamdeckToggle = $("steamdeckToggle");
 function initSteamDeckTab() {
   if (!steamdeckToggle) return;
@@ -3074,7 +3090,7 @@ async function applyConsoleMode() {
   const on = !!s.steamdeck_mode;
   document.body.classList.toggle("console-mode", on);
   setupConsoleNavigation(on);
-  // Controller-Modus im Begleit-Mod sofort (ohne Neustart) aktivieren.
+  
   try { await invoke("set_console_mode", { on }); } catch (e) {}
   if (on) {
     renderConsoleHome();
@@ -3405,7 +3421,7 @@ document.querySelectorAll(".settings-tab").forEach((tab) => {
   };
 });
 
-// ─ Updates (manual check + install) ─
+
 let pendingCanInstall = false;
 let pendingInstallFormat = "deb-rpm";
 const UPDATE_RELEASE_URL = "https://github.com/FluffyBento/KollegenClient/releases/latest";
@@ -3495,7 +3511,7 @@ $("clearCacheBtn").onclick = async () => {
   }
 };
 
-// ─ Verbindungen (Microsoft / Discord) ─
+
 async function refreshSettingsAccounts() {
   const list = $("msAccountList");
   list.innerHTML = "";
@@ -3613,7 +3629,7 @@ $("discordLogoutBtn").onclick = async () => {
   }
 };
 
-// ─ Themes (reine Farbschemata) ─
+
 function renderThemeList() {
   const list = $("themeList");
   list.innerHTML = "";
@@ -3633,10 +3649,10 @@ function renderThemeList() {
   }
 }
 
-// ─ Layout-/Darstellungsoptionen ─
+
 const APP_FONTS = {
   inter: '"Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
-  minecraft: '"Minecraft", "Inter", system-ui, -apple-system, sans-serif',
+  minecraft: '"Minecraft", monospace',
   mono: '"JetBrains Mono", ui-monospace, monospace',
   system: 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif'
 };
@@ -3723,7 +3739,7 @@ function renderLayoutOptions() {
   wrap.append(density, sidebar, anim, fontRow);
 }
 
-// ─ Importieren (andere Launcher) ─
+
 $("importScanBtn").onclick = async () => {
   const list = $("importLauncherList");
   list.innerHTML = "";
@@ -3856,13 +3872,13 @@ async function doImport(launcherId, dirName, dispName) {
   }
 }
 
-// Beim Start das gespeicherte Theme + Layout anwenden. Danach den SteamDeck-/
-// Konsolen-Modus anwenden (aktiviert die Konsolen-UI und den Controller-Modus).
+
+
 applySavedTheme()
   .then(applyLayout)
   .then(applyConsoleMode);
 
-  // Tab-System (Sidebar: Home / Erstellen / Soziales).
+  
   function switchTab(name) {
     document.querySelectorAll(".sidebar-link[data-tab]").forEach((l) => {
       l.classList.toggle("active", l.dataset.tab === name);
@@ -3982,7 +3998,7 @@ $("profileClose").onclick = () => {
 };
 $("pmCopy").onclick = () => { if (socialMe) copyText(socialMe.friend_code); };
 
-// Skin/Cape-Changer
+
 const skinFileInput = $("skinFileInput");
 if ($("skinDownloadBtn")) {
   $("skinDownloadBtn").onclick = () => {
@@ -4209,7 +4225,7 @@ async function initTwitch() {
   refreshTwitch();
 }
 
-// ─── SKIN LIBRARY (Image 2) ───
+
 let skinViewers = [];
 function disposeAllSkinViewers() {
   skinViewers.forEach(v => {
@@ -4448,7 +4464,7 @@ if ($("skinSaveBtn")) {
   };
 }
 
-// ─── COMMUNITY CAPES & STORE CAPES (Image 3 & Image 4) ───
+
 let activeCapeCat = "community";
 let capeFavOnly = false;
 let capeAnimTimers = [];
@@ -4897,7 +4913,7 @@ async function loadCapesView(forceReload = false) {
 
   grid.innerHTML = "";
 
-  // 1. In Community-Tab: Zeige das aktuell ausgerüstete Cape als erste Karte
+  
   if (activeCapeCat === "community") {
     const activeCape = allCapes.find(c => 
       c.id === capeData.active_cape ||
@@ -4941,7 +4957,7 @@ async function loadCapesView(forceReload = false) {
     }
     grid.appendChild(eqCard);
   } else if (activeCapeCat === "my_capes") {
-    // 2. In My Capes: Ein 2ter Upload Button als erste Karte
+    
     const uploadCard = document.createElement("div");
     uploadCard.className = "cape-card skin-card-add";
     uploadCard.innerHTML = `
@@ -5753,7 +5769,7 @@ if ($("capeUploadSubmitBtn")) {
   if ($("openLogFolderBtn"))
     $("openLogFolderBtn").onclick = () => invoke("open_logs_folder");
 
-  // Update-Status: Version anzeigen + Launcher-Update prüfen
+  
   (async () => {
     try {
       const v = await invoke("get_version");
@@ -5791,12 +5807,12 @@ $("joinFriendClose").onclick = () => {
   $("joinFriendModal").style.display = "none";
 };
 
-// ─=== Instance content management (Modrinth) ===
+
 
 let manageInst = null;
 let manageKind = "mod";
 
-// Close the version picker when clicking anywhere outside of it.
+
 document.addEventListener("click", () => closeVersionMenu());
 
 function setManageTab(kind) {
@@ -6115,7 +6131,7 @@ $("manageCloneBtn").onclick = async () => {
     alert("Datei-Dialog nicht verfügbar.");
     return;
   }
-  // Get available versions
+  
   let versions = [];
   try {
     const response = await invoke("get_available_versions");
@@ -6254,8 +6270,8 @@ function renderCard(p) {
   const meta = document.createElement("div");
   meta.className = "card-meta";
   meta.textContent = `${(p.downloads || 0).toLocaleString()} Downloads`;
-  // Install button + version dropdown arrow. A plain click installs the newest
-  // compatible version; the arrow opens a menu to pick a specific version.
+  
+  
   const installGroup = document.createElement("div");
   installGroup.className = "install-group";
   installGroup.style.cssText = "position:relative; display:inline-flex; gap:6px;";
@@ -6286,7 +6302,7 @@ function renderCard(p) {
   return card;
 }
 
-// ─=== Version picker ===
+
 let activeVersionMenu = null;
 
 function closeVersionMenu() {
@@ -6311,8 +6327,8 @@ async function toggleVersionMenu(p, arrow) {
     "position:fixed; top:" + top + "px; left:" + rect.left + "px; z-index:9999; background:#1e1e24; border:1px solid #333; border-radius:8px; padding:6px; min-width:210px; max-height:240px; overflow:auto; box-shadow:0 6px 20px rgba(0,0,0,.45);";
   menu.innerHTML =
     "<div style='padding:8px; color:#aaa;'>Lade Versionen…</div>";
-  // Portaled to <body> so ancestors like `.card { content-visibility:auto }`
-  // or `.modal-content { overflow:auto }` can't clip the dropdown.
+  
+  
   document.body.appendChild(menu);
   activeVersionMenu = menu;
   const mh = menu.getBoundingClientRect().height;
@@ -6356,11 +6372,11 @@ async function toggleVersionMenu(p, arrow) {
   }
 }
 
-// ─=== Paginated, install-filtered browsing ===
-// We walk the Modrinth result stream, skip already-installed projects, and
-// buffer the remaining hits. Each visible page is then filled from that buffer,
-// pulling extra API pages as needed so gaps left by installed items are filled
-// by subsequent results (which then don't reappear on later pages).
+
+
+
+
+
 const MANAGE_PAGE = 12;
 let manageAllHits = [];
 let manageApiOffset = 0;
@@ -6481,8 +6497,8 @@ async function manageInstall(projectId, title, versionId) {
       loader: manageInst.loader,
       versionId: versionId ?? null,
     });
-    // Remove the freshly installed project from the buffered list and
-    // re-render the current page (freed slot is filled by the next hit).
+    
+    
     const idx = manageAllHits.findIndex((x) => x.id === projectId);
     if (idx >= 0) manageAllHits.splice(idx, 1);
     if (
@@ -6548,7 +6564,7 @@ async function manageDelete(filename) {
   }
 }
 
-// ─=== Change version of an already-installed mod/pack ===
+
 async function changeInstalledVersion(filename, projectId, versionId) {
   try {
     await invoke("change_content_version", {
@@ -6629,7 +6645,7 @@ async function openChangeMenu(filename, projectId, btn) {
   }
 }
 
-// ─=== In-client detail view ("Ansehen") ===
+
 
 function escapeHtml(s) {
   return String(s == null ? "" : s)
@@ -6646,9 +6662,9 @@ function stripHtml(s) {
   return tmp.textContent || "";
 }
 
-// "Ansehen" opens the project in the system's default browser (a separate,
-// GPU-accelerated window) instead of rendering a heavy in-app overlay. This
-// keeps the content browser smooth.
+
+
+
 async function openExternal(p) {
   const link = `https://modrinth.com/project/${encodeURIComponent(p.id)}`;
   try {
@@ -6659,7 +6675,7 @@ async function openExternal(p) {
   }
 }
 
-// ─=== Background intervals (paused while the content browser is open) ===
+
 let bgIntervals = [];
 function startBackgroundIntervals() {
   stopBackgroundIntervals();
@@ -6674,7 +6690,7 @@ function stopBackgroundIntervals() {
   bgIntervals = [];
 }
 
-// Initiale Discord Rich Presence ("Im Launcher")
+
 try {
   invoke("set_discord_presence", {
     details: "Kollegen Client",
@@ -6686,8 +6702,8 @@ try {
 } catch (e) {}
 
 loadVersions();
-// Defensive: alle Overlays beim Start schließen, damit nach Update/Neuinstall
-// nicht versehentlich mehrere Menüs gleichzeitig offen sind.
+
+
 function closeAllOverlays() {
   ["settingsModal", "manageModal", "joinFriendModal", "profileModal", "dmModal"].forEach((id) => {
     const el = $(id);
@@ -6698,8 +6714,8 @@ function closeAllOverlays() {
 }
 closeAllOverlays();
 
-// Globales Schließen von Modals: Klick auf den Backdrop oder ESC schließt alles,
-// damit nie ein Overlay hängen bleibt (robust gegen einzelne fehlende Close-Buttons).
+
+
 document.addEventListener("click", (e) => {
   if (e.target && e.target.classList && e.target.classList.contains("modal")) {
     e.target.style.display = "none";
@@ -6720,7 +6736,7 @@ refreshSocial();
 loadHomeSkin(false);
 startBackgroundIntervals();
 
-// ─── Kollegen-Sozial-Modul v2: Kosmetik-Editor, Profil-Viewer, DMs ───────────
+
 (function () {
   let kmCat = null;
   let kmState = null;
@@ -6838,7 +6854,7 @@ startBackgroundIntervals();
     return "";
   }
 
-  // ── Kosmetik-Editor (im Profil-Modal) ──
+  
   const ORDER = ["title", "badge", "avatar_theme", "avatar_frame", "profile_bg", "profile_frame", "banner", "sticker", "name_color", "font", "profil_stil"];
   const CATNAMES = { title: "Titel", badge: "Abzeichen", avatar_theme: "Avatar-Hintergrund", avatar_frame: "Avatar-Rahmen", profile_bg: "Profil-Hintergrund", profile_frame: "Profil-Rahmen", banner: "Banner", sticker: "Aufkleber", name_color: "Namensfarbe", font: "Schriftart", profil_stil: "Profilstil" };
 
@@ -7001,7 +7017,7 @@ startBackgroundIntervals();
   const STORE_PET_EMOJI = { pet_allay: "🧚", pet_blub: "🫧", pet_cat: "🐱", pet_dog: "🐶", pet_chicken: "🐔", pet_rabbit: "🐰", pet_axolotl: "🦎", pet_bat: "🦇", pet_fox: "🦊", pet_parrot: "🦜", pet_bee: "🐝", pet_squid: "🦑", pet_nautilus: "🐚", pet_copper_golem: "🤖" };
   const STORE_CAT_GLYPH = { pet: "🐾", clothing: "👕", effect: "✨", cape: "🧣", shield: "🛡️", back_accessory: "🎒", head_accessory: "👑", face_accessory: "🥽", aura: "🌀", shoulder_accessory: "🦜", torso_accessory: "🧥", legs_accessory: "👢", gloves: "🧤", pet_skin: "🎨" };
 
-  // Ingame-Items: 3D-Vorschau (kommt per Thumbnail), sonst Bild/Textur, sonst Symbol – nie der eigene Avatar.
+  
   function storeIngamePreview(item) {
     const glyph = item.category === "pet" ? (STORE_PET_EMOJI[item.id] || "🐾") : (STORE_CAT_GLYPH[item.category] || "✨");
     const swap = `onerror="this.outerHTML='<span class=&quot;pv-glyph&quot;>${glyph}</span>'"`;
@@ -7016,7 +7032,7 @@ startBackgroundIntervals();
     return `<span class="pv-glyph${has3d ? " pv-wait" : ""}">${glyph}</span>`;
   }
 
-  // Pet-Bild auf den sichtbaren Bereich zuschneiden (grosse Vorschau statt viel Rand)
+  
   function storeCropPet(pv, item) {
     if (item.category !== "pet" || !window.Cosmetic3D || !window.Cosmetic3D.petCropped) return;
     const kind = window.Cosmetic3D.petKind(item);
@@ -7070,7 +7086,7 @@ startBackgroundIntervals();
   }
 
   let c3dObserver = null;
-  const c3dThumbCache = {};
+  const c3dThumbCache = (window.__c3dThumbCache = {});
   function c3dRenderNow(pv, item) {
     try {
       if (!window.Cosmetic3D || !window.Cosmetic3D.ready()) return;
@@ -7178,7 +7194,7 @@ startBackgroundIntervals();
       c3dObserver.observe(pv);
     } catch (e) {}
   }
-  // Zustand einer Karte (Klassen, Status-Label, Fußzeile) – ohne die Vorschau neu zu bauen.
+  
   function storeApplyState(card, item) {
     const logged = !!(kmState && !kmState.needsAuth && typeof kmState.points === "number");
     const b = storeButtonFor(item);
@@ -7242,7 +7258,7 @@ startBackgroundIntervals();
     return card;
   }
 
-  // Bereits gerenderte Karten nur aktualisieren (Kauf/Ausrüsten) – kein Neuaufbau, kein Scroll-Sprung.
+  
   function storeRefreshCards() {
     const grid = $("storeGridMain");
     if (!grid) return;
@@ -7252,7 +7268,7 @@ startBackgroundIntervals();
     });
   }
 
-  // Weitere Karten in Häppchen anhängen, damit nie hunderte Karten auf einmal gebaut werden.
+  
   function storeRenderChunk() {
     const grid = $("storeGridMain");
     if (!grid) return;
@@ -7845,90 +7861,187 @@ startBackgroundIntervals();
       el.onclick = fn;
       el.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fn(); } };
     };
-    if (box) {
-      box.innerHTML = "";
-      if (!owned.length) box.innerHTML = '<div class="store-msg">Noch keine Ingame-Gegenstände – schau im Store vorbei.</div>';
-      for (const cat of cosmOrder) {
-        const mine = owned.filter((it) => it.category === cat);
-        if (!mine.length) continue;
-        const g = document.createElement("div");
-        g.className = "kosmet-group" + (cosmIsCollapsed(cat) ? " collapsed" : "");
-        const title = document.createElement("div");
-        title.className = "kg-title";
-        title.textContent = cosmCatLabel(cat) || "Sonstiges";
-        const cnt = document.createElement("span");
-        cnt.className = "kg-count";
-        cnt.textContent = String(mine.length);
-        title.append(cnt);
-        title.setAttribute("role", "button");
-        title.tabIndex = 0;
-        const toggleGroup = () => {
-          const c = g.classList.toggle("collapsed");
-          cosmSetCollapsed(cat, c);
-        };
-        title.onclick = toggleGroup;
-        title.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleGroup(); } };
-        g.append(title);
-        const chips = document.createElement("div");
-        chips.className = "kosmet-chips";
-        const none = document.createElement("span");
-        none.className = "kosmet-chip" + (equipped[cat] ? "" : " eq");
-        none.textContent = "Keins";
-        cosmChipKeys(none, () => cosmEquip(cat, "", none));
-        chips.append(none);
-        for (const it of mine) {
-          const ch = document.createElement("span");
-          ch.className = "kosmet-chip" + (equipped[it.category] === it.id ? " eq" : "");
-          cosmSwatch(ch, it);
-          ch.append(" " + (it.name || it.id));
-          cosmChipKeys(ch, () => cosmEquip(it.category, it.id, ch));
-          chips.append(ch);
+    
+    const SLOT_ORDER = ["head_accessory", "face_accessory", "back_accessory", "shoulder_accessory", "torso_accessory", "legs_accessory", "gloves", "shield", "mace", "aura"];
+    const catOf = {};
+    for (const it of (store.catalog || [])) if (it && it.id) catOf[it.id] = it;
+    const rarRank = { common: 0, rare: 1, epic: 2, legendary: 3 };
+    const modelCats = owned.filter((it) => it.category !== "pet" && it.category !== "pet_skin");
+    const slotLabel = (c) => (c === "cape" ? "Cape" : cosmCatLabel(c) || c);
+    const swatchFor = (it) => {
+      const sw = document.createElement("span");
+      sw.className = "cw-sw";
+      const d = it.data || {};
+      if (d.color1) sw.style.background = d.color1;
+      else if (d.gradient) sw.style.background = d.gradient;
+      else if (d.accent) sw.style.background = d.accent;
+      if (d.icon) { sw.textContent = d.icon; if (d.color) sw.style.color = d.color; }
+      else if (d.text) { sw.textContent = d.text; sw.style.fontSize = "0.8rem"; }
+      else if (d.font) { sw.textContent = "Aa"; sw.style.fontFamily = d.font; }
+      else if (!sw.style.background) sw.textContent = (slotLabel(it.category) || "?").charAt(0);
+      return sw;
+    };
+    const fillPreview = (pv, it) => {
+      const hasModel = window.Cosmetic3D && window.Cosmetic3D.keyFor && window.Cosmetic3D.keyFor(it) && window.KStage;
+      if (!hasModel) { pv.append(swatchFor(it)); return; }
+      const ph = document.createElement("span");
+      ph.className = "cw-ph";
+      pv.append(ph);
+      window.KStage.thumb(it).then((url) => {
+        if (!pv.isConnected) return;
+        pv.textContent = "";
+        if (url) {
+          const img = new Image();
+          img.alt = "";
+          img.src = url;
+          pv.append(img);
+        } else {
+          pv.append(swatchFor(it));
         }
-        g.append(chips);
-        box.appendChild(g);
+      });
+    };
+    const getFilter = () => {
+      if (window.__cosmFilter) return window.__cosmFilter;
+      try { window.__cosmFilter = localStorage.getItem("cosmFilter") || "all"; } catch (e) { window.__cosmFilter = "all"; }
+      return window.__cosmFilter;
+    };
+    const setFilter = (v) => {
+      window.__cosmFilter = v;
+      try { localStorage.setItem("cosmFilter", v); } catch (e) {}
+      renderFilters();
+      renderSlots();
+      renderGrid();
+    };
+    const ownedCats = SLOT_ORDER.filter((c) => modelCats.some((it) => it.category === c))
+      .concat(cosmOrder.filter((c) => !SLOT_ORDER.includes(c) && modelCats.some((it) => it.category === c)));
+    if (getFilter() !== "all" && !ownedCats.includes(getFilter())) window.__cosmFilter = "all";
+
+    function renderFilters() {
+      const fb = $("cosmFilter");
+      if (!fb) return;
+      fb.innerHTML = "";
+      const mk = (val, label, n) => {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "cw-pill" + (getFilter() === val ? " is-active" : "");
+        b.append(label);
+        const c = document.createElement("b");
+        c.textContent = String(n);
+        b.append(c);
+        b.onclick = () => setFilter(val);
+        fb.append(b);
+      };
+      mk("all", "Alle", modelCats.length);
+      for (const c of ownedCats) mk(c, slotLabel(c), modelCats.filter((it) => it.category === c).length);
+    }
+
+    function renderSlots() {
+      if (!eqBox) return;
+      eqBox.innerHTML = "";
+      const cats = SLOT_ORDER.filter((c) => equipped[c] || ownedCats.includes(c));
+      if (equipped.cape) cats.push("cape");
+      for (const c of Object.keys(equipped)) {
+        if (equipped[c] && !cats.includes(c) && c !== "pet_skin") cats.push(c);
+      }
+      let n = 0;
+      for (const c of cats) {
+        const it = equipped[c] ? catOf[equipped[c]] : null;
+        if (it) n++;
+        const slot = document.createElement("div");
+        slot.className = "cw-slot" + (it ? "" : " is-empty") + (getFilter() === c ? " is-active" : "");
+        slot.setAttribute("role", "button");
+        slot.tabIndex = 0;
+        if (it && it.rarity) slot.dataset.rar = it.rarity;
+        const pv = document.createElement("span");
+        pv.className = "cw-slot-pv";
+        if (it) fillPreview(pv, it); else pv.textContent = "+";
+        const txt = document.createElement("span");
+        txt.className = "cw-slot-txt";
+        const lab = document.createElement("span");
+        lab.className = "cw-slot-cat";
+        lab.textContent = slotLabel(c);
+        const nm = document.createElement("span");
+        nm.className = "cw-slot-name";
+        nm.textContent = it ? (it.name || it.id) : "Leer";
+        if (it) nm.title = nm.textContent;
+        txt.append(lab, nm);
+        slot.append(pv, txt);
+        const open = () => {
+          if (c === "cape") { try { switchTab("capes"); } catch (e) {} return; }
+          if (ownedCats.includes(c)) setFilter(getFilter() === c ? "all" : c);
+        };
+        slot.onclick = open;
+        slot.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(); } };
+        if (it) {
+          const x = document.createElement("button");
+          x.type = "button";
+          x.className = "cw-slot-x";
+          x.title = "Ablegen";
+          x.setAttribute("aria-label", slotLabel(c) + " ablegen");
+          x.textContent = "✕";
+          x.onclick = (e) => { e.stopPropagation(); cosmEquip(c, "", x); };
+          slot.append(x);
+        }
+        eqBox.append(slot);
+      }
+      if (!cats.length) eqBox.innerHTML = '<div class="store-msg">Noch nichts ausgerüstet – schau im Store vorbei.</div>';
+      const ec = $("cosmEqCount");
+      if (ec) ec.textContent = n ? String(n) : "";
+    }
+
+    function renderGrid() {
+      if (!box) return;
+      box.innerHTML = "";
+      const f = getFilter();
+      const list = modelCats
+        .filter((it) => f === "all" || it.category === f)
+        .sort((a, b) => ((equipped[b.category] === b.id ? 1 : 0) - (equipped[a.category] === a.id ? 1 : 0))
+          || ((rarRank[b.rarity] || 0) - (rarRank[a.rarity] || 0))
+          || String(a.name || a.id).localeCompare(String(b.name || b.id), "de"));
+      const oc = $("cosmOwnCount");
+      if (oc) oc.textContent = modelCats.length ? String(modelCats.length) : "";
+      if (!list.length) {
+        const m = document.createElement("div");
+        m.className = "cw-empty";
+        m.textContent = modelCats.length ? "Hier ist nichts drin." : "Noch keine Ingame-Gegenstände – schau im Store vorbei.";
+        box.append(m);
+        return;
+      }
+      for (const it of list) {
+        const on = equipped[it.category] === it.id;
+        const card = document.createElement("button");
+        card.type = "button";
+        card.className = "cw-card" + (on ? " is-eq" : "");
+        if (it.rarity) card.dataset.rar = it.rarity;
+        card.title = on ? "Ausgerüstet – Klick zum Ablegen" : "Ausrüsten";
+        const pv = document.createElement("span");
+        pv.className = "cw-pv";
+        fillPreview(pv, it);
+        const meta = document.createElement("span");
+        meta.className = "cw-meta";
+        const nm = document.createElement("span");
+        nm.className = "cw-name";
+        nm.textContent = it.name || it.id;
+        const ct = document.createElement("span");
+        ct.className = "cw-cat";
+        ct.textContent = slotLabel(it.category);
+        meta.append(nm, ct);
+        card.append(pv, meta);
+        if (on) {
+          const badge = document.createElement("span");
+          badge.className = "cw-eq";
+          badge.textContent = "Ausgerüstet";
+          card.append(badge);
+        }
+        card.onclick = () => cosmEquip(it.category, on ? "" : it.id, card);
+        box.append(card);
       }
     }
-     const eqBox = $("cosmEquipped");
-     if (eqBox) {
-       eqBox.innerHTML = "";
-      const catOf = {};
-      for (const it of store.catalog) { catOf[it.id] = it; }
-      const rows = [];
-      for (const cat of Object.keys(equipped || {})) {
-        const id = equipped[cat];
-        if (!id) continue;
-        const it = catOf[id];
-        rows.push({
-          label: (cosmCatLabel(cat) || cat),
-          name: it ? (it.name || id) : id,
-          accent: (it && it.data && (it.data.accent || it.data.color1)) || null,
-        });
-      }
-      if (!rows.length) {
-        eqBox.innerHTML = '<div class="store-msg">Nichts ausgerüstet – wähle links eine Kategorie.</div>';
-      } else {
-        for (const r of rows) {
-          const row = document.createElement("div");
-          row.className = "cosm-eq-row";
-          const dot = document.createElement("span");
-          dot.className = "cosm-eq-dot";
-          if (r.accent) dot.style.background = r.accent;
-          const txt = document.createElement("span");
-          txt.className = "cosm-eq-txt";
-          const lab = document.createElement("span");
-          lab.className = "cosm-eq-label";
-          lab.textContent = r.label;
-          const nm = document.createElement("span");
-          nm.className = "cosm-eq-name";
-          nm.textContent = r.name;
-          nm.title = r.name;
-          txt.append(lab, nm);
-          row.append(dot, txt);
-          eqBox.appendChild(row);
-        }
-      }
-     }
-     // Store-ausgerüsteten Cape auf die Skin-Viewer anwenden (nur wenn kein Custom- oder Vanilla-Cape aktiv)
+    const eqBox = $("cosmEquipped");
+    renderFilters();
+    renderSlots();
+    renderGrid();
+     
      (async function () {
        try {
          const capesData = await invoke("capes_list");
@@ -8144,8 +8257,8 @@ startBackgroundIntervals();
       }
     }
     stopDbg();
-    renderCosmSkin(me);
     renderCosmName(me, store.catalog);
+    renderCosmSkin(me);
     }
   }
 
@@ -8156,39 +8269,13 @@ startBackgroundIntervals();
 
   function renderCosmName(me, catalog) {
     const el = $("cosmNamePreview");
-    if (!el || !me) return;
-    const eq = me.equipped || {};
-    const parts = [];
-    const badge = cosmCatById(catalog, eq.badge);
-    if (badge && badge.data && badge.data.icon) parts.push({ t: badge.data.icon + " ", c: badge.data.color || "#FFD700" });
-    const nc = cosmCatById(catalog, eq.name_color);
-    const stil = cosmCatById(catalog, eq.profil_stil);
-    const accent = (nc && nc.data && nc.data.accent) || (stil && stil.data && stil.data.accent) || "#FFFFFF";
-    parts.push({ t: me.name || me.mc_name || "Spieler", c: accent, b: true });
-    const sticker = cosmCatById(catalog, eq.sticker);
-    if (sticker && sticker.data && sticker.data.icon) parts.push({ t: " " + sticker.data.icon, c: sticker.data.color || "#FFFFFF" });
-    el.innerHTML = "";
-    for (const p of parts) {
-      const s = document.createElement("span");
-      s.textContent = p.t;
-      s.style.color = p.c;
-      if (p.b) s.style.fontWeight = "800";
-      el.appendChild(s);
-    }
-    const title = cosmCatById(catalog, eq.title);
-    if (title && title.data && title.data.text) {
-      const t = document.createElement("div");
-      t.className = "cosm-titlepreview";
-      t.textContent = title.data.text;
-      t.style.color = accent;
-      el.appendChild(t);
-    }
-    if (typeof me.level === "number") {
-      const l = document.createElement("div");
-      l.className = "cosm-levelpreview";
-      l.textContent = "[lv " + me.level + "]";
-      el.appendChild(l);
-    }
+    if (!el || !me || !window.KStage) return;
+    window.KStage.tag(el, {
+      name: me.name || me.mc_name || "Spieler",
+      level: typeof me.level === "number" ? me.level : undefined,
+      equipped: me.equipped || {},
+      catalog: catalog || []
+    });
   }
 
   function disposeCosmSkinViewer() {
@@ -8206,6 +8293,15 @@ startBackgroundIntervals();
     }
   }
   async function renderCosmSkin(me) {
+    try {
+      await renderCosmSkinCore(me);
+    } catch (e) {
+      console.error("Kosmetik-Skin fehlgeschlagen:", e);
+      if (window.KStage) window.KStage.showFallback($("cosmStage"));
+    }
+  }
+
+  async function renderCosmSkinCore(me) {
     const canvas = $("cosmSkinCanvas");
     if (!canvas) return;
     let url = null;
@@ -8243,8 +8339,11 @@ startBackgroundIntervals();
     }
     const nm = (me && (me.name || me.mc_name)) || "";
     if (!url && nm) url = `https://mc-heads.net/skin/${encodeURIComponent(nm)}`;
-    if (!url) return;
-    // Neuer 3D-Spieler: echter Skin + ausgeruestete Cosmetics
+    if (!url) {
+      if (window.KStage) window.KStage.showFallback($("cosmStage"));
+      return;
+    }
+    
     if (!cosmLegacy && window.Cosmetic3D && window.Cosmetic3D.ready()) {
       const items3 = wornItemsFrom(me && me.equipped, window.__cosmStore);
       const key3 = url + "|" + (currentCapeUrl || "");
@@ -8256,11 +8355,14 @@ startBackgroundIntervals();
         const fb3 = wrap3.querySelector("img.skin-fallback");
         if (fb3) fb3.remove();
         canvas.style.display = "";
+        const stageC = $("cosmStage");
+        if (window.KStage) window.KStage.loading(stageC);
         cosmWorn = window.Cosmetic3D.mountPlayer(canvas, {
           skin: url,
           cape: currentCapeUrl || null,
           items: items3,
           animate: true,
+          headroom: 7,
           onSkinError: () => {
             cosmLegacy = true;
             try { cosmWorn && cosmWorn.dispose(); } catch (_) {}
@@ -8269,6 +8371,7 @@ startBackgroundIntervals();
             renderCosmSkin(me);
           },
         });
+        if (window.KStage) window.KStage.attach(stageC, cosmWorn);
         return;
       } catch (e) {
         console.error("Cosmetics-3D fehlgeschlagen:", e);
@@ -8491,7 +8594,7 @@ startBackgroundIntervals();
     if (dm) dm.onclick = () => window.kmOpenDm && window.kmOpenDm(p.code);
   };
 
-  // ── DM-Modal ──
+  
   function closeDm() {
     if (dmPoll) clearInterval(dmPoll);
     dmPoll = null;
@@ -8648,7 +8751,7 @@ startBackgroundIntervals();
     } catch (e) { inp.value = t; alert("Fehler: " + e); }
   }
 
-  // ── Gruppen ──
+  
   let groupsCache = [];
   let groupCurrent = null;
   let groupPoll = null;
@@ -8821,7 +8924,7 @@ startBackgroundIntervals();
     } catch (e) { alert("Fehler: " + e); }
   };
 
-  // ── Anrufe (Gerüst, kein Audio) ──
+  
   let dmCallId = null;
   let dmCallPoll = null;
   let dmCallSinceSig = 0;
@@ -8910,7 +9013,7 @@ startBackgroundIntervals();
     startDmCallPoll();
   }
 
-  // ── Gruppenanruf ──
+  
   let groupCallId = null;
   let groupCallPoll = null;
   let groupCallSinceSig = 0;
@@ -9004,7 +9107,7 @@ startBackgroundIntervals();
     renderProfileSummary();
     renderGroups();
     initTwitch();
-    // Freundes-Zeilen aktualisieren, falls schon gerendert.
+    
     if (window.refreshSocial) { try { window.refreshSocial(true); } catch (e) {} }
   })();
 })();

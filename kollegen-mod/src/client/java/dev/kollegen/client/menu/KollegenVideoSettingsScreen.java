@@ -4,7 +4,6 @@ import com.mojang.blaze3d.platform.InputConstants;
 import dev.kollegen.client.mods.modules.KollegenShader;
 import dev.kollegen.client.mods.modules.Performance;
 import dev.kollegen.client.mods.modules.RendererManager;
-import dev.kollegen.client.shader.KollegenShaderLoader;
 import dev.kollegen.client.ui.Glass;
 import dev.kollegen.client.ui.LogoDraw;
 import net.minecraft.client.CloudStatus;
@@ -17,13 +16,6 @@ import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ParticleStatus;
 
-import java.io.File;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
-import java.util.ArrayList;
-import java.util.List;
-
 public class KollegenVideoSettingsScreen extends Screen {
 
     private final Screen parent;
@@ -31,14 +23,9 @@ public class KollegenVideoSettingsScreen extends Screen {
     private static final String[] TABS = {
             "Grafik & Anzeige",
             "Performance & Chunks",
-            "Shader & Packs",
             "Kollegen Shader"
     };
 
-    private List<String> shaderPacks = new ArrayList<>();
-    private String selectedShaderPack = "(Deaktiviert)";
-    private float shaderScroll = 0.0f;
-    private float maxShaderScroll = 0.0f;
     private boolean restartRequired = false;
     private int activeSlider = -1;
 
@@ -50,76 +37,10 @@ public class KollegenVideoSettingsScreen extends Screen {
     @Override
     protected void init() {
         super.init();
-        this.shaderPacks = KollegenShaderLoader.getInstance().getShaderPacks();
-        this.selectedShaderPack = KollegenShaderLoader.getInstance().getActiveShaderPack();
-        if (this.selectedShaderPack == null || this.selectedShaderPack.isEmpty()) {
-            this.selectedShaderPack = "(Deaktiviert)";
-        }
     }
 
     private static void drawRect(GuiGraphicsExtractor g, int x, int y, int w, int h, int color) {
         g.fill(x, y, x + w, y + h, color);
-    }
-
-    private Path getShaderpacksDir() {
-        return KollegenShaderLoader.getInstance().getShaderpacksDir();
-    }
-
-    public void refreshShaderpacks() {
-        this.shaderPacks = KollegenShaderLoader.getInstance().refreshPacks();
-        this.selectedShaderPack = KollegenShaderLoader.getInstance().getActiveShaderPack();
-    }
-
-    public static void openFolder(Path path) {
-        try {
-            if (!Files.exists(path)) {
-                Files.createDirectories(path);
-            }
-            if (java.awt.Desktop.isDesktopSupported() && java.awt.Desktop.getDesktop().isSupported(java.awt.Desktop.Action.OPEN)) {
-                java.awt.Desktop.getDesktop().open(path.toFile());
-                return;
-            }
-        } catch (Throwable ignored) {
-        }
-        try {
-            String os = System.getProperty("os.name", "").toLowerCase();
-            if (os.contains("win")) {
-                new ProcessBuilder("explorer.exe", path.toAbsolutePath().toString()).start();
-            } else if (os.contains("mac")) {
-                new ProcessBuilder("open", path.toAbsolutePath().toString()).start();
-            } else {
-                new ProcessBuilder("xdg-open", path.toAbsolutePath().toString()).start();
-            }
-        } catch (Throwable ignored) {
-        }
-    }
-
-    private void addShaderAction() {
-        Path dir = getShaderpacksDir();
-        new Thread(() -> {
-            try {
-                java.awt.EventQueue.invokeAndWait(() -> {
-                    try {
-                        javax.swing.JFileChooser chooser = new javax.swing.JFileChooser();
-                        chooser.setDialogTitle("Shaderpack auswählen (.zip)");
-                        chooser.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("Shaderpack (*.zip)", "zip"));
-                        chooser.setCurrentDirectory(new File(System.getProperty("user.home")));
-                        int res = chooser.showOpenDialog(null);
-                        if (res == javax.swing.JFileChooser.APPROVE_OPTION) {
-                            File selected = chooser.getSelectedFile();
-                            if (selected != null && selected.exists()) {
-                                Files.copy(selected.toPath(), dir.resolve(selected.getName()), StandardCopyOption.REPLACE_EXISTING);
-                            }
-                        }
-                    } catch (Throwable t) {
-                        openFolder(dir);
-                    }
-                });
-            } catch (Throwable t) {
-                openFolder(dir);
-            }
-            refreshShaderpacks();
-        }, "Kollegen-Shader-Picker").start();
     }
 
     @Override
@@ -140,12 +61,12 @@ public class KollegenVideoSettingsScreen extends Screen {
         Glass.textC(g, this.font, backendText, this.width - badgeW - 14 + badgeW / 2, 17, badgeCol, true);
 
         int tabY = 52;
-        int tabW = 124;
-        int totalTabsW = TABS.length * tabW + (TABS.length - 1) * 6;
+        int tabW = 140;
+        int totalTabsW = TABS.length * tabW + (TABS.length - 1) * 8;
         int startTabX = (this.width - totalTabsW) / 2;
 
         for (int i = 0; i < TABS.length; i++) {
-            int tx = startTabX + i * (tabW + 6);
+            int tx = startTabX + i * (tabW + 8);
             boolean active = currentTab == i;
             boolean hov = mx >= tx && mx <= tx + tabW && my >= tabY && my <= tabY + 22;
             int bg = active ? 0xFF3B82F6 : (hov ? 0x44FFFFFF : 0x22FFFFFF);
@@ -168,8 +89,7 @@ public class KollegenVideoSettingsScreen extends Screen {
         switch (currentTab) {
             case 0 -> renderTabDisplay(g, panelX, panelY, panelW, panelH, mx, my);
             case 1 -> renderTabPerformance(g, panelX, panelY, panelW, panelH, mx, my);
-            case 2 -> renderTabShaders(g, panelX, panelY, panelW, panelH, mx, my);
-            case 3 -> renderTabKollegenShader(g, panelX, panelY, panelW, panelH, mx, my);
+            case 2 -> renderTabKollegenShader(g, panelX, panelY, panelW, panelH, mx, my);
         }
 
         renderFooter(g, mx, my);
@@ -190,13 +110,6 @@ public class KollegenVideoSettingsScreen extends Screen {
         boolean doneHov = mx >= doneX && mx <= doneX + doneW && my >= footY && my <= footY + 24;
         Glass.pill(g, doneX, footY, doneW, 24, doneHov ? 1.0f : 0.0f, true, false);
         Glass.textC(g, this.font, "Fertig", doneX + doneW / 2, footY + 8, 0xFFFFFFFF, true);
-
-        int shW = 150;
-        int shX = 16;
-        boolean shHov = mx >= shX && mx <= shX + shW && my >= footY && my <= footY + 24;
-        Glass.pill(g, shX, footY, shW, 24, shHov ? 1.0f : 0.0f, false, false);
-        drawRect(g, shX, footY, shW, 24, shHov ? 0x44FFFFFF : 0x22FFFFFF);
-        Glass.textC(g, this.font, "Shader-Ordner", shX + shW / 2, footY + 8, 0xFFA7F3D0, true);
     }
 
     private void renderTabDisplay(GuiGraphicsExtractor g, int px, int py, int pw, int ph, int mx, int my) {
@@ -217,16 +130,16 @@ public class KollegenVideoSettingsScreen extends Screen {
         rowY += rowH;
 
         boolean fs = mc.options.fullscreen().get();
-        renderButton(g, col1X, rowY, colW, 24, "Vollbild: " + (fs ? "An" : "Aus"), fs ? 0xFF10B981 : 0xFFEF4444, mx, my);
+        renderButton(g, col1X, rowY, colW, 24, "Vollbild: " + (fs ? "Ein" : "Aus"), fs ? 0xFF10B981 : 0xFFEF4444, mx, my);
 
-        boolean vsync = mc.options.enableVsync().get();
-        renderButton(g, col2X, rowY, colW, 24, "VSync: " + (vsync ? "An" : "Aus"), vsync ? 0xFF10B981 : 0xFFEF4444, mx, my);
+        boolean vs = mc.options.enableVsync().get();
+        renderButton(g, col2X, rowY, colW, 24, "VSync: " + (vs ? "Ein" : "Aus"), vs ? 0xFF10B981 : 0xFFEF4444, mx, my);
 
         rowY += rowH;
 
-        int scale = mc.options.guiScale().get();
-        String scaleStr = scale == 0 ? "Auto" : scale + "x";
-        renderButton(g, col1X, rowY, colW, 24, "GUI-Skalierung: " + scaleStr, 0xFFFFFFFF, mx, my);
+        int sc = mc.options.guiScale().get();
+        String scStr = sc == 0 ? "Auto" : String.valueOf(sc);
+        renderButton(g, col1X, rowY, colW, 24, "GUI-Skalierung: " + scStr, 0xFF38BDF8, mx, my);
 
         CloudStatus cs = mc.options.cloudStatus().get();
         String csStr = cs == CloudStatus.OFF ? "Aus" : (cs == CloudStatus.FAST ? "Schnell" : "Schön");
@@ -238,8 +151,9 @@ public class KollegenVideoSettingsScreen extends Screen {
         String psStr = ps == ParticleStatus.ALL ? "Alle" : (ps == ParticleStatus.DECREASED ? "Verringert" : "Minimal");
         renderButton(g, col1X, rowY, colW, 24, "Partikel: " + psStr, 0xFFFFFFFF, mx, my);
 
-        double gamma = mc.options.gamma().get();
-        renderSlider(g, col2X, rowY, colW, 24, "Helligkeit: " + Math.round(gamma * 100.0) + "%", (float) gamma, mx, my);
+        double gam = mc.options.gamma().get();
+        int gamPct = (int) Math.round(gam * 100.0);
+        renderSlider(g, col2X, rowY, colW, 24, "Helligkeit: " + gamPct + "%", (float) gam, mx, my);
     }
 
     private void renderTabPerformance(GuiGraphicsExtractor g, int px, int py, int pw, int ph, int mx, int my) {
@@ -251,7 +165,7 @@ public class KollegenVideoSettingsScreen extends Screen {
 
         int rd = mc.options.renderDistance().get();
         renderSlider(g, colX, rowY, colW, 24, "Render Distance (Echte Chunks): " + rd + " Chunks", (rd - 2) / 30.0f, mx, my);
-        Glass.text(g, this.font, "Standart Minecraft Sichtweite, lädt und rendert aktive Spielwelt-Chunks.", colX + 4, rowY + 26, 0xFF888888, false);
+        Glass.text(g, this.font, "Standard Minecraft Sichtweite, lädt und rendert aktive Spielwelt-Chunks.", colX + 4, rowY + 26, 0xFF888888, false);
 
         rowY += rowH;
 
@@ -272,50 +186,9 @@ public class KollegenVideoSettingsScreen extends Screen {
 
         int fps = mc.options.framerateLimit().get();
         String fpsStr = fps >= 260 ? "Unbegrenzt" : fps + " FPS";
-        float fpsProg = fps >= 260 ? 1.0f : (fps - 10) / 250.0f;
-        renderSlider(g, colX, rowY, colW, 24, "Max. Framerate: " + fpsStr, fpsProg, mx, my);
-        Glass.text(g, this.font, "Maximale Bildrate oder Unbegrenzt für minimale Latenz.", colX + 4, rowY + 26, 0xFF888888, false);
-    }
-
-    private void renderTabShaders(GuiGraphicsExtractor g, int px, int py, int pw, int ph, int mx, int my) {
-        int barY = py + 14;
-        int barH = 24;
-
-        int btnW = 110;
-        renderButton(g, px + 16, barY, btnW, barH, "+ Hinzufügen", 0xFF10B981, mx, my);
-        renderButton(g, px + 132, barY, btnW, barH, "Shader-Ordner", 0xFF3B82F6, mx, my);
-        renderButton(g, px + 248, barY, 84, barH, "Neu laden", 0xFFFFFFFF, mx, my);
-        renderButton(g, px + 338, barY, 150, barH, "Shader-Optionen...", 0xFFA78BFA, mx, my);
-
-        int listY = barY + 32;
-        int listH = ph - 48;
-        drawRect(g, px + 16, listY, pw - 32, listH, 0x33000000);
-
-        String activePack = this.selectedShaderPack;
-        if (activePack == null || activePack.isEmpty()) {
-            activePack = "(Deaktiviert)";
-        }
-
-        int itemH = 26;
-        int visibleCount = listH / itemH;
-        this.maxShaderScroll = Math.max(0, (this.shaderPacks.size() - visibleCount) * itemH);
-
-        int startIdx = (int) (this.shaderScroll / itemH);
-        for (int i = startIdx; i < this.shaderPacks.size(); i++) {
-            int iy = listY + 4 + (i * itemH) - (int) this.shaderScroll;
-            if (iy + itemH > listY + listH) break;
-            if (iy < listY) continue;
-
-            String pack = this.shaderPacks.get(i);
-            boolean isCur = pack.equalsIgnoreCase(activePack) || (pack.contains("Deaktiviert") && activePack.contains("Deaktiviert"));
-            boolean hov = mx >= px + 20 && mx <= px + pw - 20 && my >= iy && my <= iy + itemH - 2;
-            int bg = isCur ? 0x4410B981 : (hov ? 0x22FFFFFF : 0x11FFFFFF);
-            drawRect(g, px + 20, iy, pw - 40, itemH - 2, bg);
-
-            int textCol = isCur ? 0xFF34D399 : (hov ? 0xFFFFFFFF : 0xFFCCCCCC);
-            String prefix = isCur ? "✔  " : "    ";
-            Glass.text(g, this.font, prefix + pack, px + 26, iy + 6, textCol, true);
-        }
+        float fpsProg = fps >= 260 ? 1.0f : Math.max(0.0f, (fps - 10) / 250.0f);
+        renderSlider(g, colX, rowY, colW, 24, "FPS-Limit: " + fpsStr, fpsProg, mx, my);
+        Glass.text(g, this.font, "Maximale Bildwiederholrate zur Begrenzung der GPU-Last.", colX + 4, rowY + 26, 0xFF888888, false);
     }
 
     private void renderTabKollegenShader(GuiGraphicsExtractor g, int px, int py, int pw, int ph, int mx, int my) {
@@ -332,11 +205,7 @@ public class KollegenVideoSettingsScreen extends Screen {
 
         int y1 = py + 14;
         boolean en = ks.enabled;
-        renderButton(g, col1X, y1, colW, 22, "Shader: " + (en ? "Aktiviert" : "Aus"), en ? 0xFF10B981 : 0xFFEF4444, mx, my);
-
-        y1 += rowH;
-        String curPack = this.selectedShaderPack != null && !this.selectedShaderPack.isEmpty() ? this.selectedShaderPack : "(Deaktiviert)";
-        renderButton(g, col1X, y1, colW, 22, "Pack: " + curPack, 0xFF38BDF8, mx, my);
+        renderButton(g, col1X, y1, colW, 22, "Kollegen Shader: " + (en ? "Aktiviert" : "Aus"), en ? 0xFF10B981 : 0xFFEF4444, mx, my);
 
         y1 += rowH;
         String[] profs = ks.preset.options;
@@ -419,12 +288,12 @@ public class KollegenVideoSettingsScreen extends Screen {
         }
 
         int tabY = 52;
-        int tabW = 124;
-        int totalTabsW = TABS.length * tabW + (TABS.length - 1) * 6;
+        int tabW = 140;
+        int totalTabsW = TABS.length * tabW + (TABS.length - 1) * 8;
         int startTabX = (this.width - totalTabsW) / 2;
 
         for (int i = 0; i < TABS.length; i++) {
-            int tx = startTabX + i * (tabW + 6);
+            int tx = startTabX + i * (tabW + 8);
             if (mx >= tx && mx <= tx + tabW && my >= tabY && my <= tabY + 22) {
                 this.currentTab = i;
                 return true;
@@ -436,13 +305,6 @@ public class KollegenVideoSettingsScreen extends Screen {
         int doneX = this.width - doneW - 16;
         if (mx >= doneX && mx <= doneX + doneW && my >= footY && my <= footY + 24) {
             this.onClose();
-            return true;
-        }
-
-        int shW = 150;
-        int shX = 16;
-        if (mx >= shX && mx <= shX + shW && my >= footY && my <= footY + 24) {
-            openFolder(getShaderpacksDir());
             return true;
         }
 
@@ -458,9 +320,6 @@ public class KollegenVideoSettingsScreen extends Screen {
             handleTabPerformanceClick(panelX, panelY, panelW, mx, my);
             return true;
         } else if (currentTab == 2) {
-            handleTabShadersClick(panelX, panelY, panelW, panelH, mx, my);
-            return true;
-        } else if (currentTab == 3) {
             handleTabKollegenShaderClick(panelX, panelY, panelW, mx, my);
             return true;
         }
@@ -573,54 +432,6 @@ public class KollegenVideoSettingsScreen extends Screen {
         }
     }
 
-    private void handleTabShadersClick(int px, int py, int pw, int ph, double mx, double my) {
-        int barY = py + 14;
-        int barH = 24;
-
-        if (mx >= px + 16 && mx <= px + 126 && my >= barY && my <= barY + barH) {
-            addShaderAction();
-            return;
-        }
-
-        if (mx >= px + 132 && mx <= px + 242 && my >= barY && my <= barY + barH) {
-            openFolder(getShaderpacksDir());
-            return;
-        }
-
-        if (mx >= px + 248 && mx <= px + 332 && my >= barY && my <= barY + barH) {
-            refreshShaderpacks();
-            KollegenShaderLoader.getInstance().triggerReload();
-            return;
-        }
-
-        if (mx >= px + 338 && mx <= px + 488 && my >= barY && my <= barY + barH) {
-            this.currentTab = 3;
-            return;
-        }
-
-        int listY = barY + 32;
-        int listH = ph - 48;
-        int itemH = 26;
-        int startIdx = (int) (this.shaderScroll / itemH);
-
-        for (int i = startIdx; i < this.shaderPacks.size(); i++) {
-            int iy = listY + 4 + (i * itemH) - (int) this.shaderScroll;
-            if (iy + itemH > listY + listH) break;
-            if (iy < listY) continue;
-
-            if (mx >= px + 20 && mx <= px + pw - 20 && my >= iy && my <= iy + itemH - 2) {
-                String pack = this.shaderPacks.get(i);
-                selectShaderPack(pack);
-                return;
-            }
-        }
-    }
-
-    private void selectShaderPack(String pack) {
-        this.selectedShaderPack = pack;
-        KollegenShaderLoader.getInstance().setShaderPack(pack);
-    }
-
     private void handleTabKollegenShaderClick(int px, int py, int pw, double mx, double my) {
         KollegenShader ks = KollegenShader.INSTANCE;
         if (ks == null) return;
@@ -636,14 +447,8 @@ public class KollegenVideoSettingsScreen extends Screen {
             if (!ks.enabled) {
                 ks.onDisable();
             } else {
-                KollegenShaderLoader.getInstance().triggerReload();
+                ks.onEnable();
             }
-            return;
-        }
-
-        y1 += rowH;
-        if (mx >= col1X && mx <= col1X + colW && my >= y1 && my <= y1 + 22) {
-            this.currentTab = 2;
             return;
         }
 
@@ -652,7 +457,6 @@ public class KollegenVideoSettingsScreen extends Screen {
             int next = (ks.preset.index + 1) % ks.preset.options.length;
             ks.preset.index = next;
             ks.applyPreset(next);
-            KollegenShaderLoader.getInstance().triggerReload();
             return;
         }
 
@@ -719,6 +523,12 @@ public class KollegenVideoSettingsScreen extends Screen {
         }
     }
 
+    @Override
+    public boolean mouseReleased(MouseButtonEvent event) {
+        this.activeSlider = -1;
+        return super.mouseReleased(event);
+    }
+
     private void handleSliderDrag(double mx) {
         if (this.activeSlider != -1) {
             setSliderValue(this.activeSlider, mx);
@@ -749,19 +559,19 @@ public class KollegenVideoSettingsScreen extends Screen {
             case 1 -> {
                 int rd = 2 + Math.round(ratio * 30.0f);
                 mc.options.renderDistance().set(rd);
-                Performance.KollegenDistance.actualDistance.value = rd;
+                Performance.KollegenDistance.actualDistance.value = (double) rd;
                 Performance.KollegenDistance.syncDistance();
             }
             case 2 -> {
                 if (ratio <= 0.05f) {
-                    Performance.KollegenDistance.distanceLimit.value = 0;
+                    Performance.KollegenDistance.distanceLimit.value = 0.0;
                     Performance.KollegenDistance.syncDistance();
                 } else if (ratio >= 0.95f) {
-                    Performance.KollegenDistance.distanceLimit.value = 256;
+                    Performance.KollegenDistance.distanceLimit.value = 256.0;
                     Performance.KollegenDistance.syncDistance();
                 } else {
                     int val = 16 + Math.round(((ratio - 0.05f) / 0.90f) * 48.0f);
-                    Performance.KollegenDistance.distanceLimit.value = val;
+                    Performance.KollegenDistance.distanceLimit.value = (double) val;
                     Performance.KollegenDistance.syncDistance();
                 }
             }
@@ -812,7 +622,7 @@ public class KollegenVideoSettingsScreen extends Screen {
                 KollegenShader ks = KollegenShader.INSTANCE;
                 if (ks != null) {
                     ks.bloomEnabled.value = half2Ratio > 0.02f;
-                    ks.bloom.value = Math.round(half2Ratio * 20.0) / 20.0;
+                    ks.bloom.value = (double) half2Ratio;
                 }
             }
             case 16 -> {
@@ -825,47 +635,31 @@ public class KollegenVideoSettingsScreen extends Screen {
             case 17 -> {
                 KollegenShader ks = KollegenShader.INSTANCE;
                 if (ks != null) {
-                    ks.vignetteEnabled.value = half2Ratio > 0.05f;
-                    ks.vignetteStrength.value = Math.round(half2Ratio * 20.0) / 20.0;
+                    ks.vignetteEnabled.value = half2Ratio > 0.02f;
+                    ks.vignetteStrength.value = (double) half2Ratio;
                 }
             }
             case 18 -> {
                 KollegenShader ks = KollegenShader.INSTANCE;
                 if (ks != null) {
-                    ks.motionBlurEnabled.value = half2Ratio > 0.05f;
-                    ks.motionBlurStrength.value = Math.round(half2Ratio * 20.0) / 20.0;
+                    ks.motionBlurEnabled.value = half2Ratio > 0.02f;
+                    ks.motionBlurStrength.value = (double) half2Ratio;
                 }
             }
         }
     }
 
     @Override
-    public boolean mouseReleased(MouseButtonEvent event) {
-        this.activeSlider = -1;
-        return super.mouseReleased(event);
-    }
-
-    @Override
-    public boolean mouseScrolled(double mx, double my, double hx, double vy) {
-        if (currentTab == 2 && this.maxShaderScroll > 0) {
-            this.shaderScroll = Math.max(0.0f, Math.min(this.maxShaderScroll, this.shaderScroll - (float) (vy * 26.0)));
-            return true;
-        }
-        return super.mouseScrolled(mx, my, hx, vy);
-    }
-
-    @Override
-    public boolean keyPressed(KeyEvent ki) {
-        if (ki.key() == InputConstants.KEY_ESCAPE || ki.isEscape()) {
+    public boolean keyPressed(KeyEvent event) {
+        if (event.key() == InputConstants.KEY_ESCAPE) {
             this.onClose();
             return true;
         }
-        return super.keyPressed(ki);
+        return super.keyPressed(event);
     }
 
     @Override
     public void onClose() {
-        KollegenShaderLoader.getInstance().saveConfig();
         Minecraft mc = Minecraft.getInstance();
         if (mc.options != null) {
             mc.options.save();

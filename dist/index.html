@@ -11,6 +11,7 @@
   <link rel="stylesheet" href="social-store.css">
   <link rel="stylesheet" href="shell.css">
   <link rel="stylesheet" href="console.css">
+  <link rel="stylesheet" href="stage.css">
 </head>
   <body>
   <header class="topbar">
@@ -115,12 +116,20 @@
           <div id="instanceList" class="instance-grid" role="list"></div>
         </div>
         <aside class="home-rail" aria-label="Übersicht">
-          <section class="home-skin rail-card" aria-label="Dein Skin">
-            <canvas id="homeSkinCanvas" width="220" height="440"></canvas>
-            <div id="homeSkinName" class="home-skin-name">—</div>
-            <div id="homeLevel" class="home-level" hidden=""></div>
+          <section class="home-skin rail-card pstage-card" aria-label="Dein Skin">
+            <div class="pstage" id="homeStage" data-state="loading">
+              <div class="pstage-skel" aria-hidden="true"><i></i></div>
+              <canvas id="homeSkinCanvas" width="220" height="440"></canvas>
+              <div class="pstage-tag is-empty" id="homeTag"></div>
+              <div class="pstage-tools">
+          <button type="button" class="pstage-tool" data-stage-spin title="Automatisch drehen" aria-label="Automatisch drehen"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7"></path><path d="M21 4v5h-5"></path></svg></button>
+          <button type="button" class="pstage-tool" data-stage-flip title="Vorder- und Rückseite" aria-label="Vorder- und Rückseite"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7h13l-3-3"></path><path d="M17 17H4l3 3"></path></svg></button>
+        </div>
+              <div class="pstage-hint">Ziehen zum Drehen</div>
+            </div>
             <div id="homeSkinState" class="home-skin-state"></div>
-            <div class="home-skin-btns" style="display:flex;gap:8px;width:100%;margin-top:6px;">
+            <div id="homeLevel" class="home-level" hidden=""></div>
+            <div class="home-skin-btns" style="display:flex;gap:8px;width:100%;">
               <button id="homeSkinOpen" class="btn-secondary" style="flex:1;">Skin ändern</button>
               <button id="homeCapeOpen" class="btn-secondary" style="flex:1;">Cape ändern</button>
             </div>
@@ -411,21 +420,30 @@
       <div class="cosm-layout">
         <div class="cosm-list">
           <section class="sx-card" aria-label="Ausgerüstet im Spiel">
-            <div class="sx-card-head"><h3 class="sx-title">Ausgerüstet im Spiel</h3></div>
-            <div id="cosmEquipped" class="cosm-owned"><div class="store-msg">Lade …</div></div>
+            <div class="sx-card-head"><h3 class="sx-title">Ausgerüstet im Spiel<span id="cosmEqCount" class="cw-count"></span></h3></div>
+            <div id="cosmEquipped" class="cw-slots"><div class="store-msg">Lade …</div></div>
           </section>
           <section class="sx-card" aria-label="Deine Gegenstände">
-            <div class="sx-card-head"><h3 class="sx-title">Deine Gegenstände</h3></div>
-            <div id="cosmOwned" class="cosm-owned"><div class="store-msg">Lade …</div></div>
+            <div class="sx-card-head"><h3 class="sx-title">Deine Gegenstände<span id="cosmOwnCount" class="cw-count"></span></h3></div>
+            <div id="cosmFilter" class="cw-filter" role="tablist" aria-label="Kategorie"></div>
+            <div id="cosmOwned" class="cw-grid"><div class="store-msg">Lade …</div></div>
           </section>
           <section id="cosmPetBox" class="cosm-petbox sx-card" style="display:none;" aria-label="Haustiere">
             <div class="pet-headrow"><h3 class="sx-title">Haustiere</h3><button id="cosmPetNone" class="pet-nonebtn" title="Kein Haustier ausrüsten">Keins</button></div>
             <div id="cosmPetCards" class="cosm-petcards"></div>
           </section>
         </div>
-        <div class="cosm-preview">
-          <canvas id="cosmSkinCanvas" width="220" height="440"></canvas>
-          <div id="cosmNamePreview" class="cosm-namepreview">—</div>
+        <div class="cosm-stagecol">
+          <div class="pstage" id="cosmStage" data-state="loading">
+            <div class="pstage-skel" aria-hidden="true"><i></i></div>
+            <canvas id="cosmSkinCanvas" width="220" height="440"></canvas>
+            <div class="pstage-tag is-empty" id="cosmNamePreview"></div>
+            <div class="pstage-tools">
+          <button type="button" class="pstage-tool" data-stage-spin title="Automatisch drehen" aria-label="Automatisch drehen"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7"></path><path d="M21 4v5h-5"></path></svg></button>
+          <button type="button" class="pstage-tool" data-stage-flip title="Vorder- und Rückseite" aria-label="Vorder- und Rückseite"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7h13l-3-3"></path><path d="M17 17H4l3 3"></path></svg></button>
+        </div>
+            <div class="pstage-hint">Ziehen zum Drehen</div>
+          </div>
         </div>
       </div>
     </section>
@@ -992,6 +1010,7 @@
 
   <script src="qrcode.js"></script>
   <script src="js/cosmetic3d.js"></script>
+  <script src="stage.js"></script>
   
   <div id="skinEditModal" class="modal" hidden="">
     <div class="modal-content skin-edit-modal-content">

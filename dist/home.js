@@ -222,6 +222,20 @@ function renderHomeModels() {
   canvas.hidden = !has;
 }
 
+
+function renderHomeTag() {
+  const tag = document.getElementById("homeTag");
+  if (!tag || !window.KStage) return;
+  const me = homeState.me || {};
+  const st = homeState.store || {};
+  window.KStage.tag(tag, {
+    name: me.name || me.mc_name || undefined,
+    level: typeof st.level === "number" ? st.level : (typeof me.level === "number" ? me.level : undefined),
+    equipped: me.equipped || st.equipped || {},
+    catalog: Array.isArray(st.catalog) ? st.catalog : []
+  });
+}
+
 function renderHomeExtras() {
   const paint = () => {
     renderHomeHeroExtras();
@@ -229,6 +243,7 @@ function renderHomeExtras() {
     renderHomeStore();
     renderHomeLevel();
     renderHomeModels();
+    renderHomeTag();
   };
   paint();
   homeLoadData(false).then((fresh) => { if (fresh) paint(); });
