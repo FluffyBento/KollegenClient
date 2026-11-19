@@ -126,9 +126,10 @@ public class NametagMixin {
 
             CosmeticData d = id != null ? KollegenPresence.getCosmetics(id) : null;
             boolean hasData = d != null && !d.isEmpty();
+            boolean hasTier = id != null && dev.kollegen.client.mods.modules.PvPTiers.isTiersActive() && dev.kollegen.client.mods.modules.PvPTiers.getPlayerTierBadge(id) != null;
             boolean isKollegen = isSelf || (id != null && KollegenPresence.isKollegen(id)) || hasData;
 
-            if (!isKollegen) {
+            if (!isKollegen && !hasTier) {
                 return;
             }
 
@@ -143,6 +144,13 @@ public class NametagMixin {
 
             if (hasData || isSelf) {
                 Component decorated = CosmeticText.decorateNameLine(line, id);
+                if (useW) state.nameTag = decorated;
+                else state.scoreText = decorated;
+            }
+
+            if (hasTier) {
+                Component cur = useW ? state.nameTag : state.scoreText;
+                Component decorated = dev.kollegen.client.mods.modules.PvPTiers.decorateNametag(cur, id);
                 if (useW) state.nameTag = decorated;
                 else state.scoreText = decorated;
             }

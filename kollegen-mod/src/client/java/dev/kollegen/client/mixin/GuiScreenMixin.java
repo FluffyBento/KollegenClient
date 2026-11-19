@@ -20,6 +20,18 @@ public abstract class GuiScreenMixin {
 
     @Inject(method = "setScreen", at = @At("HEAD"), cancellable = true)
     private void kollegen$interceptSetScreen(Screen newScreen, CallbackInfo ci) {
+        if (dev.kollegen.client.mods.modules.UiScale.isCustomScaleActive()) {
+            Minecraft mc = Minecraft.getInstance();
+            if (mc != null && mc.getWindow() != null && mc.options != null) {
+                boolean isContainer = newScreen instanceof net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+                int target = dev.kollegen.client.mods.modules.UiScale.getTargetScale(isContainer);
+                int desired = target > 0 ? target : mc.options.guiScale().get();
+                int scale = mc.getWindow().calculateScale(desired, mc.isEnforceUnicode());
+                if (scale != mc.getWindow().getGuiScale()) {
+                    mc.getWindow().setGuiScale(scale);
+                }
+            }
+        }
         if (newScreen != null && (newScreen instanceof VideoSettingsScreen
                 || newScreen.getClass().getName().contains("sodium.client.gui.VideoSettingsScreen"))) {
             if (this.screen instanceof KollegenVideoSettingsScreen || newScreen instanceof KollegenVideoSettingsScreen) {

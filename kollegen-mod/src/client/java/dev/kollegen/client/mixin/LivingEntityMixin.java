@@ -43,8 +43,33 @@ public abstract class LivingEntityMixin {
         }
     }
 
+    @Inject(method = "jumpFromGround", at = @At("HEAD"))
+    private void kollegen$jumpResetJump(CallbackInfo ci) {
+        LivingEntity self = (LivingEntity) (Object) this;
+        net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
+        if (mc != null && self == mc.player) {
+            dev.kollegen.client.mods.modules.JumpReset.onPlayerJump();
+        }
+    }
+
+    @Inject(method = "animateHurt", at = @At("HEAD"))
+    private void kollegen$jumpResetHurt(float yaw, CallbackInfo ci) {
+        LivingEntity self = (LivingEntity) (Object) this;
+        net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
+        if (mc != null && self == mc.player) {
+            dev.kollegen.client.mods.modules.JumpReset.onPlayerDamage();
+        }
+    }
+
     @Inject(method = "handleEntityEvent", at = @At("HEAD"))
     private void kollegen$totemCounter(byte status, CallbackInfo ci) {
+        if (status == 2) {
+            LivingEntity self = (LivingEntity) (Object) this;
+            net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
+            if (mc != null && self == mc.player) {
+                dev.kollegen.client.mods.modules.JumpReset.onPlayerDamage();
+            }
+        }
         if (status == 35) {
             LivingEntity self = (LivingEntity) (Object) this;
             net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();

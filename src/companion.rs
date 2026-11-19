@@ -921,14 +921,12 @@ mod tests {
 
     #[test]
     fn test_mc_constraint_supports_26_3() {
-        // 26.2 specific mods should NOT match 26.3
         assert!(!mc_constraint_supports(">=26.1 <=26.2", "26.3"));
         assert!(!mc_constraint_supports(">=26.2 <26.3-", "26.3"));
         assert!(!mc_constraint_supports("26.2.x", "26.3"));
         assert!(!mc_constraint_supports("~26.2", "26.3"));
         assert!(!mc_constraint_supports("26.2", "26.3"));
 
-        // 26.3 compatible mods SHOULD match 26.3
         assert!(mc_constraint_supports("26.3", "26.3"));
         assert!(mc_constraint_supports("26.3.x", "26.3"));
         assert!(mc_constraint_supports(">=26.3-", "26.3"));

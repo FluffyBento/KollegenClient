@@ -53,6 +53,11 @@ public final class ModuleManager {
         dev.kollegen.client.mods.modules.InventoryTweaks.register();
         register(new dev.kollegen.client.mods.modules.InventoryEnhancements());
         register(new dev.kollegen.client.mods.modules.Bossbar());
+        register(new dev.kollegen.client.mods.modules.UiScale());
+        register(new dev.kollegen.client.mods.modules.JumpReset());
+        register(new dev.kollegen.client.mods.modules.HealthIndicator());
+        register(new dev.kollegen.client.mods.modules.ColorSaturation());
+        register(new dev.kollegen.client.mods.modules.PvPTiers());
         load();
     }
 

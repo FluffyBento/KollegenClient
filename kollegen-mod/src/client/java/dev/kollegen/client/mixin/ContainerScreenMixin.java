@@ -82,6 +82,22 @@ public abstract class ContainerScreenMixin extends Screen {
         }
     }
 
+    @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
+    private void kollegen$handleQuickScaleClick(MouseButtonEvent event, boolean doubleClick, CallbackInfoReturnable<Boolean> cir) {
+        if (event.button() == 0 && dev.kollegen.client.mods.modules.UiScale.isQuickButtonEnabled()) {
+            int bw = 48;
+            int bh = 14;
+            int bx = this.leftPos + 4;
+            int by = this.topPos > 20 ? this.topPos - 18 : this.topPos + 4;
+            double mx = event.x();
+            double my = event.y();
+            if (mx >= bx && mx <= bx + bw && my >= by && my <= by + bh) {
+                dev.kollegen.client.mods.modules.UiScale.cycleContainerScale();
+                cir.setReturnValue(true);
+            }
+        }
+    }
+
     @Inject(method = "keyPressed", at = @At("HEAD"), cancellable = true)
     private void kollegen$handleItemLockKey(KeyEvent event, CallbackInfoReturnable<Boolean> cir) {
         if (this.kollegen$searchBox != null && this.kollegen$searchBox.isFocused()) {
@@ -156,6 +172,17 @@ public abstract class ContainerScreenMixin extends Screen {
                     Glass.fillRound(gui, sx + 9, sy + 1, 7, 7, 2, 0xCCFFB300);
                     Glass.ring(gui, sx + 9, sy + 1, 7, 7, 2, 0.5f, 0xFFFFFFFF);
                 }
+            }
+
+            if (dev.kollegen.client.mods.modules.UiScale.isQuickButtonEnabled()) {
+                int bw = 48;
+                int bh = 14;
+                int bx = this.leftPos + 4;
+                int by = this.topPos > 20 ? this.topPos - 18 : this.topPos + 4;
+                boolean hov = mouseX >= bx && mouseX <= bx + bw && mouseY >= by && mouseY <= by + bh;
+                Glass.fillRound(gui, bx, by, bw, bh, 4, hov ? 0xDD252836 : 0x9912141F);
+                Glass.ring(gui, bx, by, bw, bh, 4, 1.0f, hov ? 0xFF8A5CF6 : 0x55FFFFFF);
+                Glass.text(gui, mc.font, dev.kollegen.client.mods.modules.UiScale.getContainerScaleLabel(), bx + 6, by + 3, hov ? 0xFFFFFFFF : 0xCCFFFFFF, false);
             }
 
             if (InventoryEnhancements.isSearchEnabled() && this.kollegen$searchBox != null) {

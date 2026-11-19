@@ -49,6 +49,23 @@ public abstract class MinecraftClientMixin {
         KollegenMod.onTick();
     }
 
+    @Inject(method = "resizeGui", at = @At("HEAD"), cancellable = true)
+    private void kollegen$customResizeGui(CallbackInfo ci) {
+        if (dev.kollegen.client.mods.modules.UiScale.isCustomScaleActive()) {
+            Minecraft mc = (Minecraft) (Object) this;
+            boolean isContainer = this.gui != null && this.gui.screen() instanceof net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+            int target = dev.kollegen.client.mods.modules.UiScale.getTargetScale(isContainer);
+            if (target > 0) {
+                ci.cancel();
+                int scale = mc.getWindow().calculateScale(target, mc.isEnforceUnicode());
+                mc.getWindow().setGuiScale(scale);
+                if (this.gui != null && this.gui.screen() != null) {
+                    this.gui.screen().resize(mc.getWindow().getGuiScaledWidth(), mc.getWindow().getGuiScaledHeight());
+                }
+            }
+        }
+    }
+
     @Inject(method = "tick", at = @At("TAIL"))
     private void kollegen_client$onFrame(CallbackInfo ci) {
         KollegenMod.onFrame();

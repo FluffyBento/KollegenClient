@@ -20,7 +20,8 @@ public class TablistMixin {
             Component current = cir.getReturnValue();
             if (current == null) return;
             Component next = CosmeticText.decorateTab(current, info.getProfile().id());
-            if (next != current) cir.setReturnValue(next);
+            Component withTier = dev.kollegen.client.mods.modules.PvPTiers.decorateTab(next, info.getProfile().id());
+            if (withTier != current) cir.setReturnValue(withTier);
         } catch (Throwable ignored) {
         }
     }

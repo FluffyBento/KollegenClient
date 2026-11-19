@@ -244,6 +244,10 @@ public final class ServerRestrictions {
         return false;
     }
 
+    public static boolean isRestrictedCurrent() {
+        return isFreecamBlockedCurrent();
+    }
+
     public static Set<String> getDisallowedServers() {
         return Collections.unmodifiableSet(new HashSet<>(DISALLOWED_SERVERS));
     }
