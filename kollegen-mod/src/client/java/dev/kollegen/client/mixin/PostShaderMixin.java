@@ -23,7 +23,7 @@ public class PostShaderMixin {
     @Shadow @Final private Minecraft minecraft;
     @Shadow @Final private RenderTarget mainRenderTarget;
     @Shadow @Final private CrossFrameResourcePool resourcePool;
-    @Shadow private List<PostChain> appliedPostEffects;
+    @Shadow @Final private List<PostChain> appliedPostEffects;
 
     @Inject(method = "preparePostEffects", at = @At("HEAD"))
     private void kollegen$injectPrepare(List<Identifier> list, CallbackInfo ci) {

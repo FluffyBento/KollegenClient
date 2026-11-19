@@ -54,6 +54,26 @@
                         "name": "Vibrance",
                         "type": "float",
                         "value": 1.0
+                    },
+                    {
+                        "name": "ToneMap",
+                        "type": "float",
+                        "value": 0.0
+                    },
+                    {
+                        "name": "SunRays",
+                        "type": "float",
+                        "value": 0.0
+                    },
+                    {
+                        "name": "Atmosphere",
+                        "type": "float",
+                        "value": 0.0
+                    },
+                    {
+                        "name": "ShadowTint",
+                        "type": "float",
+                        "value": 0.0
                     }
                 ]
             }

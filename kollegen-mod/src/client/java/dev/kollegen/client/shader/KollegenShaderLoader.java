@@ -1,5 +1,6 @@
 package dev.kollegen.client.shader;
 
+import dev.kollegen.client.KollegenMod;
 import dev.kollegen.client.mods.modules.KollegenShader;
 import net.minecraft.client.Minecraft;
 
@@ -60,6 +61,7 @@ public class KollegenShaderLoader {
     public synchronized List<String> refreshPacks() {
         List<String> list = new ArrayList<>();
         list.add("(Deaktiviert)");
+        list.add("Kollegen Shader (Integriert)");
         Path dir = getShaderpacksDir();
         if (Files.isDirectory(dir)) {
             try (DirectoryStream<Path> ds = Files.newDirectoryStream(dir)) {
@@ -74,9 +76,9 @@ public class KollegenShaderLoader {
             } catch (Throwable ignored) {
             }
         }
-        List<String> sorted = new ArrayList<>(list.subList(1, list.size()));
+        List<String> sorted = new ArrayList<>(list.subList(2, list.size()));
         Collections.sort(sorted, String.CASE_INSENSITIVE_ORDER);
-        list.subList(1, list.size()).clear();
+        list.subList(2, list.size()).clear();
         list.addAll(sorted);
 
         this.cachedPacks.clear();
@@ -107,6 +109,16 @@ public class KollegenShaderLoader {
         this.activeShaderPack = packName.trim();
         applyShaderPack(this.activeShaderPack, true);
         saveConfig();
+        KollegenMod.LOGGER.info("Kollegen: Shaderpack aktiviert -> {}", this.activeShaderPack);
+
+        try {
+            Minecraft mc = Minecraft.getInstance();
+            if (mc != null && mc.player != null) {
+                String msg = this.activeShaderPack.contains("Deaktiviert") ? "§7Shader deaktiviert" : "§aShader geladen: §f" + this.activeShaderPack;
+                mc.player.sendOverlayMessage(net.minecraft.network.chat.Component.literal(msg));
+            }
+        } catch (Throwable ignored) {
+        }
     }
 
     public void applyShaderPack(String packName, boolean reload) {
@@ -125,9 +137,13 @@ public class KollegenShaderLoader {
         }
 
         KollegenShader.INSTANCE.enabled = true;
+        KollegenShader.INSTANCE.onEnable();
         String lower = packName.toLowerCase();
 
-        if (lower.contains("bsl")) {
+        if (lower.contains("kollegen") || lower.contains("integriert")) {
+            KollegenShader.INSTANCE.preset.index = 0;
+            KollegenShader.INSTANCE.applyPreset(0);
+        } else if (lower.contains("bsl")) {
             KollegenShader.INSTANCE.preset.index = 1;
             KollegenShader.INSTANCE.applyPreset(1);
         } else if (lower.contains("reimagined")) {
@@ -162,33 +178,40 @@ public class KollegenShaderLoader {
 
     private void inspectPackProperties(String packName) {
         Path packFile = getShaderpacksDir().resolve(packName);
-        if (!Files.exists(packFile)) return;
-
-        try {
-            if (Files.isRegularFile(packFile) && packName.toLowerCase().endsWith(".zip")) {
-                try (ZipFile zip = new ZipFile(packFile.toFile())) {
-                    ZipEntry entry = zip.getEntry("shaders/shaders.properties");
-                    if (entry == null) {
-                        entry = zip.getEntry("shaders.properties");
+        if (Files.exists(packFile)) {
+            try {
+                if (Files.isRegularFile(packFile) && packName.toLowerCase().endsWith(".zip")) {
+                    try (ZipFile zip = new ZipFile(packFile.toFile())) {
+                        ZipEntry entry = zip.getEntry("shaders/shaders.properties");
+                        if (entry == null) {
+                            entry = zip.getEntry("shaders.properties");
+                        }
+                        if (entry != null) {
+                            try (InputStream in = zip.getInputStream(entry)) {
+                                parsePropertiesStream(in);
+                            }
+                        }
                     }
-                    if (entry != null) {
-                        try (InputStream in = zip.getInputStream(entry)) {
+                } else if (Files.isDirectory(packFile)) {
+                    Path propPath = packFile.resolve("shaders").resolve("shaders.properties");
+                    if (!Files.isRegularFile(propPath)) {
+                        propPath = packFile.resolve("shaders.properties");
+                    }
+                    if (Files.isRegularFile(propPath)) {
+                        try (InputStream in = Files.newInputStream(propPath)) {
                             parsePropertiesStream(in);
                         }
                     }
                 }
-            } else if (Files.isDirectory(packFile)) {
-                Path propPath = packFile.resolve("shaders").resolve("shaders.properties");
-                if (!Files.isRegularFile(propPath)) {
-                    propPath = packFile.resolve("shaders.properties");
-                }
-                if (Files.isRegularFile(propPath)) {
-                    try (InputStream in = Files.newInputStream(propPath)) {
-                        parsePropertiesStream(in);
-                    }
-                }
+            } catch (Throwable ignored) {
             }
-        } catch (Throwable ignored) {
+        }
+        Path sideTxt = getShaderpacksDir().resolve(packName + ".txt");
+        if (Files.isRegularFile(sideTxt)) {
+            try (InputStream in = Files.newInputStream(sideTxt)) {
+                parsePropertiesStream(in);
+            } catch (Throwable ignored) {
+            }
         }
     }
 
@@ -207,12 +230,61 @@ public class KollegenShaderLoader {
                     if (k.contains("BLOOM")) {
                         boolean b = !"false".equalsIgnoreCase(v) && !"0".equals(v) && !"-1".equals(v);
                         KollegenShader.INSTANCE.bloomEnabled.value = b;
+                        try {
+                            double d = Double.parseDouble(v);
+                            if (d > 0.0) {
+                                KollegenShader.INSTANCE.bloom.value = Math.max(0.1, Math.min(1.0, d));
+                            }
+                        } catch (NumberFormatException ignored) {
+                        }
                     } else if (k.contains("MOTION_BLUR")) {
                         boolean b = "true".equalsIgnoreCase(v) || "1".equals(v) || "2".equals(v);
                         KollegenShader.INSTANCE.motionBlurEnabled.value = b;
+                        try {
+                            double d = Double.parseDouble(v);
+                            if (d > 0.0) {
+                                KollegenShader.INSTANCE.motionBlurStrength.value = Math.max(0.05, Math.min(0.95, d));
+                            }
+                        } catch (NumberFormatException ignored) {
+                        }
                     } else if (k.contains("VIGNETTE")) {
                         boolean b = "true".equalsIgnoreCase(v) || "1".equals(v);
                         KollegenShader.INSTANCE.vignetteEnabled.value = b;
+                        try {
+                            double d = Double.parseDouble(v);
+                            if (d > 0.0) {
+                                KollegenShader.INSTANCE.vignetteStrength.value = Math.max(0.05, Math.min(1.0, d));
+                            }
+                        } catch (NumberFormatException ignored) {
+                        }
+                    } else if (k.equals("SATURATION") || k.contains("COLOR_SATURATION")) {
+                        try {
+                            double d = Double.parseDouble(v);
+                            KollegenShader.INSTANCE.saturationEnabled.value = true;
+                            KollegenShader.INSTANCE.saturation.value = Math.max(0.5, Math.min(3.0, d));
+                        } catch (NumberFormatException ignored) {
+                        }
+                    } else if (k.equals("VIBRANCE")) {
+                        try {
+                            double d = Double.parseDouble(v);
+                            KollegenShader.INSTANCE.vibranceEnabled.value = true;
+                            KollegenShader.INSTANCE.vibrance.value = Math.max(0.5, Math.min(2.5, d));
+                        } catch (NumberFormatException ignored) {
+                        }
+                    } else if (k.equals("CONTRAST")) {
+                        try {
+                            double d = Double.parseDouble(v);
+                            KollegenShader.INSTANCE.contrastEnabled.value = true;
+                            KollegenShader.INSTANCE.contrast.value = Math.max(0.5, Math.min(2.0, d));
+                        } catch (NumberFormatException ignored) {
+                        }
+                    } else if (k.equals("EXPOSURE")) {
+                        try {
+                            double d = Double.parseDouble(v);
+                            KollegenShader.INSTANCE.exposureEnabled.value = true;
+                            KollegenShader.INSTANCE.exposure.value = Math.max(0.5, Math.min(2.0, d));
+                        } catch (NumberFormatException ignored) {
+                        }
                     }
                 }
             }
@@ -225,10 +297,19 @@ public class KollegenShaderLoader {
         if (mc == null) return;
         mc.execute(() -> {
             try {
+                if (KollegenShader.isShaderActive()) {
+                    KollegenShader.INSTANCE.onEnable();
+                }
                 if (mc.getShaderManager() != null) {
                     net.minecraft.client.renderer.PostChain chain = mc.getShaderManager().getPostChain(KollegenShader.SHADER_ID, net.minecraft.client.renderer.LevelTargetBundle.MAIN_TARGETS);
                     if (chain != null) {
                         KollegenShader.updateShaderUniforms(chain);
+                    }
+                    if (KollegenShader.isMotionBlurActive()) {
+                        net.minecraft.client.renderer.PostChain blurChain = mc.getShaderManager().getPostChain(KollegenShader.BLUR_ID, net.minecraft.client.renderer.LevelTargetBundle.MAIN_TARGETS);
+                        if (blurChain != null) {
+                            KollegenShader.updateBlurUniforms(blurChain);
+                        }
                     }
                 }
             } catch (Throwable ignored) {
