@@ -874,7 +874,7 @@
     var h = {
       headroom: opts.headroom || 0,
       canvas: canvas, done: false, visible: true, dirty: true, refit: true,
-      animate: opts.animate !== false, autoRotate: opts.autoRotate !== false,
+      animate: opts.animate !== false, autoRotate: !!opts.autoRotate,
       rot: opts.rot != null ? opts.rot : 0.55, lastInteract: -1e9, camAspect: 0,
       scene: baseScene(), stage: new THREE.Group(), itemsG: new THREE.Group(),
       camera: new THREE.PerspectiveCamera(30, 1, 0.1, 600),

@@ -161,13 +161,16 @@
   }
 
   function bindTools(stage, st) {
-    if (st.toolsBound) return;
-    st.toolsBound = true;
     var spin = stage.querySelector("[data-stage-spin]");
     var flip = stage.querySelector("[data-stage-flip]");
     var hint = stage.querySelector(".pstage-hint");
     if (spin) {
-      spin.setAttribute("aria-pressed", "true");
+      var initOn = !!(st.ctrl && st.ctrl.isAutoRotate && st.ctrl.isAutoRotate());
+      spin.setAttribute("aria-pressed", initOn ? "true" : "false");
+    }
+    if (st.toolsBound) return;
+    st.toolsBound = true;
+    if (spin) {
       spin.addEventListener("click", function () {
         if (!st.ctrl) return;
         var on = !st.ctrl.isAutoRotate();

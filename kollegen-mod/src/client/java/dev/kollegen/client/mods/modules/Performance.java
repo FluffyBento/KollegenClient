@@ -300,17 +300,21 @@ public final class Performance {
             return instance != null && instance.enabled;
         }
 
+        public static boolean isInfinite() {
+            return isDistanceEnabled() && distanceLimit.value >= 250.0;
+        }
+
         public static int getDistanceLimit() {
             if (instance == null) return 128;
             double v = distanceLimit.value;
-            if (v >= 250.0) return 256;
+            if (v >= 250.0) return 2048;
             return Math.max(16, (int) Math.round(v));
         }
 
         public static int getMaxChunkDistance() {
             if (instance == null) return 128;
             double v = distanceLimit.value;
-            if (v >= 250.0) return Integer.MAX_VALUE;
+            if (v >= 250.0) return 2048;
             return Math.max(16, (int) Math.round(v));
         }
 
@@ -391,9 +395,10 @@ public final class Performance {
                 if (!configDir.exists()) configDir.mkdirs();
                 java.io.File conf = new java.io.File(configDir, "bobby.conf");
                 boolean enabled = isDistanceEnabled();
-                int limit = enabled ? getDistanceLimit() : 32;
+                boolean infinite = isInfinite();
+                int limit = enabled ? (infinite ? 2048 : getDistanceLimit()) : 32;
                 int actual = enabled ? getActualDistance() : 12;
-                int bobbyLimit = enabled ? ((distanceLimit.value >= 250.0) ? 256 : Math.max(16, limit)) : 32;
+                int bobbyLimit = enabled ? (infinite ? 2048 : Math.max(16, limit)) : 32;
                 String content = "delete-unused-regions-after-days=-1\n" +
                         "dynamic-multi-world=false\n" +
                         "enabled=" + enabled + "\n" +

@@ -172,7 +172,7 @@ public class KollegenVideoSettingsScreen extends Screen {
         boolean bobbyOn = Performance.KollegenDistance.isDistanceEnabled();
         int limit = Performance.KollegenDistance.getDistanceLimit();
         String limitStr = !bobbyOn ? "Aus" : (limit >= 250 ? "Unbegrenzt" : limit + " Chunks");
-        float limProg = !bobbyOn ? 0.0f : (limit >= 250 ? 1.0f : Math.max(0.0f, (limit - 16) / 48.0f));
+        float limProg = !bobbyOn ? 0.0f : (limit >= 250 ? 1.0f : Math.max(0.0f, (limit - 16) / 240.0f));
         renderSlider(g, colX, rowY, colW, 24, "Inaktive Chunks: " + limitStr, limProg, mx, my);
         Glass.text(g, this.font, "Speichert und rendert gesehene Chunks dauerhaft im Hintergrund.", colX + 4, rowY + 26, 0xFF888888, false);
 
@@ -570,7 +570,7 @@ public class KollegenVideoSettingsScreen extends Screen {
                     Performance.KollegenDistance.distanceLimit.value = 256.0;
                     Performance.KollegenDistance.syncDistance();
                 } else {
-                    int val = 16 + Math.round(((ratio - 0.05f) / 0.90f) * 48.0f);
+                    int val = 16 + Math.round(((ratio - 0.05f) / 0.90f) * 240.0f);
                     Performance.KollegenDistance.distanceLimit.value = (double) val;
                     Performance.KollegenDistance.syncDistance();
                 }

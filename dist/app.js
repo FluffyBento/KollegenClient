@@ -1953,6 +1953,7 @@ async function refreshLogs() {
           cape: currentCapeUrl || null,
           items: itemsH,
           animate: true,
+          autoRotate: false,
           headroom: 7,
           onSkinError: () => {
             homeLegacy = true;
@@ -1995,6 +1996,7 @@ async function refreshLogs() {
         homeSkinViewer.animation = new sv3d.IdleAnimation();
         homeSkinViewer.animation.speed = 0.8;
       }
+      homeSkinViewer.autoRotate = false;
       const p = homeSkinViewer.loadSkin(skinUrl);
       const ready = () => {
         if (!homeSkinViewer) return;
@@ -7538,7 +7540,7 @@ startBackgroundIntervals();
   function storeRenderPackages() {
     const slot = $("storePkgSlot");
     if (!slot) return;
-    const pkgs = (kmCat || []).filter((i) => i.category === "package" && !i.hidden);
+    const pkgs = (kmCat || []).filter((i) => i.category === "package" && !i.hidden && (Number(i.price) || 0) > 0);
     const sig = pkgs.map((p) => p.id).join("|");
     if (slot.dataset.sig === sig) return;
     slot.dataset.sig = sig;
@@ -8373,6 +8375,7 @@ startBackgroundIntervals();
           cape: currentCapeUrl || null,
           items: items3,
           animate: true,
+          autoRotate: false,
           headroom: 7,
           onSkinError: () => {
             cosmLegacy = true;

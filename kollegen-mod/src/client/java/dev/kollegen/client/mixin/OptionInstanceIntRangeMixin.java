@@ -17,7 +17,11 @@ public class OptionInstanceIntRangeMixin {
             Minecraft mc = Minecraft.getInstance();
             if (mc != null && mc.options != null && mc.options.renderDistance() != null) {
                 if (mc.options.renderDistance().values() == (Object) this) {
-                    cir.setReturnValue(32);
+                    if (Performance.KollegenDistance.isDistanceEnabled()) {
+                        cir.setReturnValue(Performance.KollegenDistance.getDistanceLimit());
+                    } else {
+                        cir.setReturnValue(32);
+                    }
                 }
             }
         } catch (Throwable ignored) {
