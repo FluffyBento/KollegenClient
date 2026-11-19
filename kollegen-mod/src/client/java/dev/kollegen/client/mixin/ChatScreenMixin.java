@@ -139,6 +139,13 @@ public class ChatScreenMixin {
                         }
                     });
                 }
+            } else if (lower.equals("/mod") || lower.startsWith("/mod ") || lower.equals("/module") || lower.startsWith("/module ") || lower.equals(".mod") || lower.startsWith(".mod ") || lower.equals(".module") || lower.startsWith(".module ")) {
+                ci.cancel();
+                Minecraft mc = Minecraft.getInstance();
+                if (addToHistory && mc != null && mc.gui != null && mc.gui.hud != null && mc.gui.hud.getChat() != null) {
+                    mc.gui.hud.getChat().addRecentChat(message);
+                }
+                dev.kollegen.client.mods.ModuleCommandHandler.handle(trimmed);
             }
         }
     }

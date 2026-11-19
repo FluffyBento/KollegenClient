@@ -89,7 +89,10 @@
     "SectionOcclusionGraphMixin",
     "VideoSettingsScreenMixin",
     "GuiScreenMixin",
-    "OptionsScreenMixin"
+    "OptionsScreenMixin",
+    "GameNarratorMixin",
+    "ScreenNarrationMixin",
+    "BossHealthOverlayMixin"
   ],
   "injectors": {
     "defaultRequire": 1

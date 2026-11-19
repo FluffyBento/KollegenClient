@@ -1862,6 +1862,24 @@ fn import_content_file(
         .map_err(|e| e.to_string())
 }
 
+#[tauri::command]
+fn copy_content_to_instance(
+    state: State<'_, AppState>,
+    source_instance: String,
+    target_instance: String,
+    kind: String,
+    items: Vec<String>,
+) -> Result<usize, String> {
+    crate::modrinth::copy_content_to_instance(
+        &state.data_dir,
+        &source_instance,
+        &target_instance,
+        &kind,
+        items,
+    )
+    .map_err(|e| e.to_string())
+}
+
 
 
 
@@ -3331,6 +3349,7 @@ fn main() {
             set_instance_image,
             clear_instance_image,
             import_content_file,
+            copy_content_to_instance,
             clipping::clips_get_config,
             clipping::clips_save_config,
             clipping::clips_list_programs,

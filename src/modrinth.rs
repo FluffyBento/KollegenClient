@@ -782,6 +782,32 @@ pub fn project_details(id: &str) -> Result<Value, String> {
     Ok(serde_json::json!({ "project": project, "gallery": gallery }))
 }
 
+pub fn copy_content_to_instance(
+    data_dir: &Path,
+    source_instance: &str,
+    target_instance: &str,
+    kind: &str,
+    items: Vec<String>,
+) -> Result<usize> {
+    let dir_name = category_dir(kind)?;
+    let src_dir = data_dir.join("instances").join(source_instance).join(dir_name);
+    let target_dir = data_dir.join("instances").join(target_instance).join(dir_name);
+    if !src_dir.is_dir() {
+        return Err(anyhow!("Quellverzeichnis existiert nicht"));
+    }
+    std::fs::create_dir_all(&target_dir)?;
+    let mut count = 0;
+    for item in items {
+        let src_file = src_dir.join(&item);
+        let dst_file = target_dir.join(&item);
+        if src_file.is_file() {
+            std::fs::copy(&src_file, &dst_file)?;
+            count += 1;
+        }
+    }
+    Ok(count)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -6528,6 +6528,39 @@ async function manageLoadInstalled() {
       list.innerHTML = "<li style='color:#888;'>Keine installiert</li>";
       return;
     }
+    const topBar = document.createElement("div");
+    topBar.style.cssText = "display:flex; justify-content:flex-end; margin-bottom:8px;";
+    const bulkBtn = document.createElement("button");
+    bulkBtn.className = "btn-secondary";
+    bulkBtn.textContent = "In anderes Profil kopieren";
+    bulkBtn.style.cssText = "font-size:0.8rem; padding:4px 10px;";
+    bulkBtn.onclick = async () => {
+      let allInst = [];
+      try { allInst = await invoke("get_instances"); } catch (e) { allInst = []; }
+      const targets = allInst.filter((x) => x.name !== manageInst.name);
+      if (!targets.length) {
+        alert("Keine weiteren Profile vorhanden.");
+        return;
+      }
+      const targetNames = targets.map((x) => x.name);
+      const chosen = prompt("Ziel-Profil auswählen:\n" + targetNames.join("\n"), targetNames[0]);
+      if (!chosen || !targetNames.includes(chosen)) return;
+      const allNames = items.map((x) => x.name || x);
+      try {
+        const count = await invoke("copy_content_to_instance", {
+          sourceInstance: manageInst.name,
+          targetInstance: chosen,
+          kind: manageKind,
+          items: allNames,
+        });
+        toast(`${count} Inhalt(e) nach '${chosen}' kopiert!`, "ok");
+      } catch (err) {
+        alert("Kopieren fehlgeschlagen: " + err);
+      }
+    };
+    topBar.append(bulkBtn);
+    list.append(topBar);
+
     for (const it of items) {
       const name = it.name || it;
       const li = document.createElement("li");
@@ -6536,7 +6569,34 @@ async function manageLoadInstalled() {
       const del = document.createElement("button");
       del.textContent = "Entfernen";
       del.onclick = () => manageDelete(name);
-      li.append(span, del);
+      const copyBtn = document.createElement("button");
+      copyBtn.textContent = "Kopieren";
+      copyBtn.className = "btn-secondary";
+      copyBtn.style.cssText = "margin-left: 6px; padding: 4px 8px; font-size: 0.8rem;";
+      copyBtn.onclick = async () => {
+        let allInst = [];
+        try { allInst = await invoke("get_instances"); } catch (e) { allInst = []; }
+        const targets = allInst.filter((x) => x.name !== manageInst.name);
+        if (!targets.length) {
+          alert("Keine weiteren Profile vorhanden.");
+          return;
+        }
+        const targetNames = targets.map((x) => x.name);
+        const chosen = prompt("Ziel-Profil auswählen:\n" + targetNames.join("\n"), targetNames[0]);
+        if (!chosen || !targetNames.includes(chosen)) return;
+        try {
+          await invoke("copy_content_to_instance", {
+            sourceInstance: manageInst.name,
+            targetInstance: chosen,
+            kind: manageKind,
+            items: [name],
+          });
+          toast(`'${name}' nach '${chosen}' kopiert!`, "ok");
+        } catch (err) {
+          alert("Kopieren fehlgeschlagen: " + err);
+        }
+      };
+      li.append(span, del, copyBtn);
       if (it.project_id) {
         const chg = document.createElement("button");
         chg.textContent = "Version ändern";

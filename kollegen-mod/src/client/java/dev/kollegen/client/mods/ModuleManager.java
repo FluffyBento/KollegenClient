@@ -52,6 +52,7 @@ public final class ModuleManager {
         dev.kollegen.client.mods.modules.Misc.register();
         dev.kollegen.client.mods.modules.InventoryTweaks.register();
         register(new dev.kollegen.client.mods.modules.InventoryEnhancements());
+        register(new dev.kollegen.client.mods.modules.Bossbar());
         load();
     }
 
