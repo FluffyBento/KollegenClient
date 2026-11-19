@@ -7062,7 +7062,7 @@ startBackgroundIntervals();
 
   function storeFiltered() {
     const ingame = (c) => STORE_INGAME_CATS.includes(c);
-    const items = (kmCat || []).filter((i) => (storeGroup === "ingame" ? ingame(i.category) : !ingame(i.category)) && (storeFilter === "alle" || i.category === storeFilter) && (storeRar === "alle" || i.rarity === storeRar) && (!storeQuery || ((i.name || "") + " " + (i.desc || "")).toLowerCase().includes(storeQuery)));
+    const items = (kmCat || []).filter((i) => (Number(i.price) || 0) > 0 && i.category !== "package" && (storeGroup === "ingame" ? ingame(i.category) : !ingame(i.category)) && (storeFilter === "alle" || i.category === storeFilter) && (storeRar === "alle" || i.rarity === storeRar) && (!storeQuery || ((i.name || "") + " " + (i.desc || "")).toLowerCase().includes(storeQuery)));
     items.sort((a, b) => {
       if (storeSort === "featured") { const f = ((b.featured ? 1 : 0) - (a.featured ? 1 : 0)) || ((STORE_RANK[b.rarity] ?? -1) - (STORE_RANK[a.rarity] ?? -1)); return f || a.price - b.price; }
       if (storeSort === "price-asc") return a.price - b.price;
@@ -7079,8 +7079,10 @@ startBackgroundIntervals();
     const owned = logged && item.owned;
     const equipped = logged && item.equippedCategory;
     if (equipped) return { txt: "Ausgerüstet ✓", short: "Ausgerüstet", disabled: true, act: "", cls: "" };
+    if (owned && item.category === "package") return { txt: "Bereits im Besitz ✓", short: "Im Besitz", disabled: true, act: "", cls: "" };
     if (owned) return { txt: "Ausrüsten", short: "Ausrüsten", disabled: false, act: "equip", cls: "" };
     if (!logged) return { txt: "Anmelden zum Kaufen", short: "Anmelden", disabled: true, act: "", cls: "" };
+    if ((Number(item.price) || 0) <= 0) return { txt: "Nur im Paket", short: "Im Paket", disabled: true, act: "", cls: "" };
     if (item.price > (kmState.points || 0)) return { txt: "Nicht genug Punkte", short: "Zu teuer", disabled: true, act: "", cls: "" };
     return { txt: `Kaufen · ${item.price} Punkte`, short: "Kaufen", disabled: false, act: "buy", cls: "buy" };
   }
@@ -7463,7 +7465,7 @@ startBackgroundIntervals();
     d.textContent = item.desc || "";
     const pr = document.createElement("div");
     pr.className = "store-price store-mm-price";
-    pr.textContent = item.price + " Punkte";
+    pr.textContent = (Number(item.price) || 0) > 0 ? (item.price + " Punkte") : "Im Paket enthalten";
     const btn = document.createElement("button");
     btn.className = "cardBtn store-mm-btn";
     const b = storeButtonFor(item);
@@ -7510,7 +7512,7 @@ startBackgroundIntervals();
         total += (it.price || 0);
         const row = document.createElement("button");
         row.style.cssText = "display:flex;align-items:center;gap:.6rem;background:var(--panel-2);border:1px solid var(--border-secondary);border-radius:10px;padding:.45rem .6rem;color:inherit;cursor:pointer;text-align:left;";
-        row.innerHTML = `<span style="font-weight:700;">${esc(it.name || it.id)}</span><span style="margin-left:auto;color:var(--accent);">${it.price || 0} Punkte</span>`;
+        row.innerHTML = `<span style="font-weight:700;">${esc(it.name || it.id)}</span><span style="margin-left:auto;color:var(--accent);">${(Number(it.price) || 0) > 0 ? (it.price + " Punkte") : "Im Paket"}</span>`;
         row.onclick = () => { storeCloseModal(); setTimeout(() => storeOpenModal(it), 50); };
         list.append(row);
       }
@@ -7518,8 +7520,17 @@ startBackgroundIntervals();
       const tot = document.createElement("div");
       tot.className = "store-price";
       tot.style.cssText = "margin-top:.8rem;";
-      tot.textContent = "Gesamt " + total + " Punkte";
+      tot.textContent = (pkg.price ? ("Paketpreis: " + pkg.price + " Punkte") : (total > 0 ? ("Gesamt " + total + " Punkte") : ""));
       body.append(tot);
+      const b = storeButtonFor(pkg);
+      if (b && b.act === "buy") {
+        const btn = document.createElement("button");
+        btn.className = "cardBtn store-mm-btn " + (b.cls || "");
+        btn.textContent = b.txt;
+        if (b.disabled) btn.disabled = true;
+        btn.onclick = () => { storeBuy(pkg.id); storeCloseModal(); };
+        body.append(btn);
+      }
     }
     m.style.display = "flex";
   }

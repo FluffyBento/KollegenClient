@@ -409,7 +409,7 @@ function kcStoreCandidates() {
   const cat = Array.isArray(window.kmCat) ? window.kmCat : [];
   const rank = { common: 0, rare: 1, epic: 2, legendary: 3 };
   return cat
-    .filter((i) => i && i.category !== "package" && !i.hidden)
+    .filter((i) => i && i.category !== "package" && !i.hidden && (Number(i.price) || 0) > 0)
     .sort((a, b) => ((b.featured ? 1 : 0) - (a.featured ? 1 : 0)) || ((rank[b.rarity] || 0) - (rank[a.rarity] || 0)) || (a.price - b.price))
     .slice(0, 10);
 }
