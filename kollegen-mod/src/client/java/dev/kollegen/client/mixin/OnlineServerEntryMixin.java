@@ -27,7 +27,7 @@ public abstract class OnlineServerEntryMixin extends ServerSelectionList.Entry {
         int w = this.getWidth() - 2;
         int h = this.getHeight() - 2;
 
-        boolean isDragged = ServerSelectionListMixin.DRAGGED_SERVER == data;
+        boolean isDragged = ServerBannerManager.DRAGGED_SERVER == data;
         Identifier banner = ServerBannerManager.getBanner(data.ip);
 
         if (banner != null) {

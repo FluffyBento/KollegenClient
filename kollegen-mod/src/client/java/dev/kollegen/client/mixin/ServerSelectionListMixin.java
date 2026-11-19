@@ -6,7 +6,6 @@ import net.minecraft.client.gui.components.AbstractContainerWidget;
 import net.minecraft.client.gui.screens.multiplayer.JoinMultiplayerScreen;
 import net.minecraft.client.gui.screens.multiplayer.ServerSelectionList;
 import net.minecraft.client.input.MouseButtonEvent;
-import net.minecraft.client.multiplayer.ServerData;
 import net.minecraft.client.multiplayer.ServerList;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
@@ -18,9 +17,6 @@ import java.util.List;
 
 @Mixin(AbstractContainerWidget.class)
 public abstract class ServerSelectionListMixin {
-
-    public static ServerData DRAGGED_SERVER = null;
-    public static boolean IS_DRAGGING = false;
 
     @Unique private int kollegen$draggedIndex = -1;
     @Unique private double kollegen$dragStartY = 0.0;
@@ -43,8 +39,8 @@ public abstract class ServerSelectionListMixin {
             }
             this.kollegen$draggedIndex = clicked;
             this.kollegen$dragStartY = event.y();
-            IS_DRAGGING = false;
-            DRAGGED_SERVER = (clicked >= 0 && clicked < children.size() && children.get(clicked) instanceof ServerSelectionList.OnlineServerEntry online)
+            ServerBannerManager.IS_DRAGGING = false;
+            ServerBannerManager.DRAGGED_SERVER = (clicked >= 0 && clicked < children.size() && children.get(clicked) instanceof ServerSelectionList.OnlineServerEntry online)
                     ? online.getServerData() : null;
         }
     }
@@ -52,10 +48,10 @@ public abstract class ServerSelectionListMixin {
     @Inject(method = "mouseDragged", at = @At("HEAD"), cancellable = true)
     private void kollegen$onMouseDragged(MouseButtonEvent event, double deltaX, double deltaY, CallbackInfoReturnable<Boolean> cir) {
         if ((Object) this instanceof ServerSelectionList ssl && event.button() == 0 && this.kollegen$draggedIndex >= 0) {
-            if (!IS_DRAGGING && Math.abs(event.y() - this.kollegen$dragStartY) > 3.0) {
-                IS_DRAGGING = true;
+            if (!ServerBannerManager.IS_DRAGGING && Math.abs(event.y() - this.kollegen$dragStartY) > 3.0) {
+                ServerBannerManager.IS_DRAGGING = true;
             }
-            if (IS_DRAGGING) {
+            if (ServerBannerManager.IS_DRAGGING) {
                 int targetIdx = -1;
                 List<?> children = ssl.children();
                 int firstOnlineIdx = -1;
@@ -89,7 +85,7 @@ public abstract class ServerSelectionListMixin {
                             ssl.updateOnlineServers(serverList);
                             this.kollegen$draggedIndex = targetIdx;
                             if (targetIdx < ssl.children().size() && ssl.children().get(targetIdx) instanceof ServerSelectionList.OnlineServerEntry online) {
-                                DRAGGED_SERVER = online.getServerData();
+                                ServerBannerManager.DRAGGED_SERVER = online.getServerData();
                                 ssl.setSelected(online);
                             }
                             cir.setReturnValue(true);
@@ -103,14 +99,14 @@ public abstract class ServerSelectionListMixin {
     @Inject(method = "mouseReleased", at = @At("HEAD"), cancellable = true)
     private void kollegen$onMouseReleased(MouseButtonEvent event, CallbackInfoReturnable<Boolean> cir) {
         if ((Object) this instanceof ServerSelectionList ssl && event.button() == 0) {
-            if (IS_DRAGGING) {
-                IS_DRAGGING = false;
+            if (ServerBannerManager.IS_DRAGGING) {
+                ServerBannerManager.IS_DRAGGING = false;
                 this.kollegen$draggedIndex = -1;
-                DRAGGED_SERVER = null;
+                ServerBannerManager.DRAGGED_SERVER = null;
                 cir.setReturnValue(true);
             } else {
                 this.kollegen$draggedIndex = -1;
-                DRAGGED_SERVER = null;
+                ServerBannerManager.DRAGGED_SERVER = null;
             }
         }
     }

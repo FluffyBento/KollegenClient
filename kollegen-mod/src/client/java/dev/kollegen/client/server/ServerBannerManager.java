@@ -31,6 +31,9 @@ public final class ServerBannerManager {
     private static final Set<String> PENDING = ConcurrentHashMap.newKeySet();
     private static volatile boolean initialized = false;
 
+    public static net.minecraft.client.multiplayer.ServerData DRAGGED_SERVER = null;
+    public static boolean IS_DRAGGING = false;
+
     private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(4))
             .followRedirects(HttpClient.Redirect.NORMAL)
