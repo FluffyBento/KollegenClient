@@ -235,7 +235,7 @@ public class KollegenShaderLoader {
         return ShaderProfile.DEFAULT;
     }
 
-    private void materializeRuntimePack(String packName) {
+    public void materializeRuntimePack(String packName) {
         try {
             Path root = getRuntimePackDir();
             Path coreShaders = root.resolve("assets").resolve("minecraft").resolve("shaders").resolve("core");
@@ -246,7 +246,7 @@ public class KollegenShaderLoader {
 
             ShaderProfile profile = detectProfile(packName);
 
-            String terrainVsh = generateTerrainVsh(profile);
+            String terrainVsh = generateTerrainVsh();
             String terrainFsh = generateTerrainFsh(profile);
             String blockVsh = generateBlockVsh();
             String blockFsh = generateBlockFsh(profile);
@@ -262,36 +262,7 @@ public class KollegenShaderLoader {
         }
     }
 
-    private String generateTerrainVsh(ShaderProfile profile) {
-        String waveSpeed;
-        String waveAmp;
-        switch (profile) {
-            case COMPLEMENTARY_UNBOUND:
-                waveSpeed = "2200.0";
-                waveAmp = "0.032";
-                break;
-            case COMPLEMENTARY_REIMAGINED:
-                waveSpeed = "1800.0";
-                waveAmp = "0.020";
-                break;
-            case BSL:
-                waveSpeed = "1400.0";
-                waveAmp = "0.015";
-                break;
-            case BLISS:
-                waveSpeed = "1100.0";
-                waveAmp = "0.022";
-                break;
-            case VIBRANT:
-                waveSpeed = "1900.0";
-                waveAmp = "0.026";
-                break;
-            default:
-                waveSpeed = "1600.0";
-                waveAmp = "0.018";
-                break;
-        }
-
+    public String generateTerrainVsh() {
         return "#version 330\n" +
                 "#extension GL_ARB_separate_shader_objects : require\n\n" +
                 "#include <minecraft:fog.glsl>\n" +
@@ -324,20 +295,9 @@ public class KollegenShaderLoader {
                 "    vec3 basePos = Position + (ChunkPosition - CameraBlockPos) + CameraOffset;\n" +
                 "    worldPos = basePos;\n" +
                 "    lightCoords = vec2(UV2) / 240.0;\n\n" +
-                "    vec3 animatedPos = basePos;\n" +
-                "#ifdef ALPHA_CUTOUT\n" +
-                "    if (lightCoords.y > 0.65) {\n" +
-                "        float waveStrength = (lightCoords.y - 0.65) * 2.85;\n" +
-                "        vec3 seed = basePos + vec3(CameraBlockPos);\n" +
-                "        float t = GameTime * " + waveSpeed + ";\n" +
-                "        float w = sin(t + seed.x * 0.45 + seed.z * 0.45) * " + waveAmp + " * waveStrength;\n" +
-                "        animatedPos.x += w;\n" +
-                "        animatedPos.z += w * 0.5;\n" +
-                "    }\n" +
-                "#endif\n\n" +
-                "    gl_Position = ProjMat * ModelViewMat * vec4(animatedPos, 1.0);\n\n" +
-                "    sphericalVertexDistance = fog_spherical_distance(animatedPos);\n" +
-                "    cylindricalVertexDistance = fog_cylindrical_distance(animatedPos);\n" +
+                "    gl_Position = ProjMat * ModelViewMat * vec4(basePos, 1.0);\n\n" +
+                "    sphericalVertexDistance = fog_spherical_distance(basePos);\n" +
+                "    cylindricalVertexDistance = fog_cylindrical_distance(basePos);\n" +
                 "    #ifndef OIT_ALPHA_ONLY\n" +
                 "    vertexColor = Color * sample_lightmap(Sampler2, UV2);\n" +
                 "    #else\n" +
@@ -345,98 +305,91 @@ public class KollegenShaderLoader {
                 "    #endif\n" +
                 "    texCoord0 = UV0;\n\n" +
                 "    const float chunkFullyVisibleRange = 16.0;\n" +
-                "    float dist = length(animatedPos);\n" +
+                "    float dist = length(basePos);\n" +
                 "    chunkVisibility = mix(1.0, ChunkVisibility, clamp((dist - chunkFullyVisibleRange) / chunkFullyVisibleRange, 0.0, 1.0));\n" +
                 "}\n";
     }
 
-    private String generateTerrainFsh(ShaderProfile profile) {
+    public String generateTerrainFsh(ShaderProfile profile) {
         String sunLight;
         String skyLight;
         String deepWater;
         String shallowWater;
-        String waterSpec;
-        String waterFresnel;
-        String waterAlpha;
         String torchGlow;
+        String godRayIntensity;
+        String bumpStrength;
         String extraShading;
 
         switch (profile) {
             case COMPLEMENTARY_UNBOUND:
-                sunLight = "vec3(1.28, 1.12, 0.90) * (NdotL * 0.55 + 0.45)";
-                skyLight = "vec3(0.50, 0.66, 0.98) * (upFactor * 0.35 + 0.65)";
-                deepWater = "vec3(0.02, 0.18, 0.48)";
-                shallowWater = "vec3(0.12, 0.80, 0.94)";
-                waterSpec = "pow(max(dot(waveN, H), 0.0), 80.0) * 3.8 * lightCoords.y";
-                waterFresnel = "0.05 + 0.95 * pow(1.0 - max(dot(V, waveN), 0.0), 4.2)";
-                waterAlpha = "clamp(color.a * 0.65 + 0.25, 0.40, 0.88)";
-                torchGlow = "vec3(1.20, 0.70, 0.22) * (torch * 0.75)";
-                extraShading = "        if (lightCoords.y > 0.4) {\n" +
+                sunLight = "vec3(1.30, 1.14, 0.90) * (NdotL * 0.58 + 0.42)";
+                skyLight = "vec3(0.48, 0.65, 1.00) * (upFactor * 0.38 + 0.62)";
+                deepWater = "vec3(0.015, 0.16, 0.46)";
+                shallowWater = "vec3(0.10, 0.82, 0.96)";
+                torchGlow = "vec3(1.22, 0.70, 0.20) * (torch * 0.80)";
+                godRayIntensity = "0.45";
+                bumpStrength = "2.2";
+                extraShading = "        if (lightCoords.y > 0.35) {\n" +
                         "            vec3 H = normalize(sunDir + V);\n" +
-                        "            float spec = pow(max(dot(N, H), 0.0), 48.0) * 0.26 * lightCoords.y;\n" +
-                        "            color.rgb += vec3(1.05, 0.98, 0.90) * spec;\n" +
+                        "            float spec = pow(max(dot(bumpN, H), 0.0), 54.0) * 0.32 * lightCoords.y;\n" +
+                        "            color.rgb += vec3(1.08, 1.00, 0.92) * spec;\n" +
                         "        }\n";
                 break;
             case COMPLEMENTARY_REIMAGINED:
-                sunLight = "vec3(1.18, 1.08, 0.94) * (NdotL * 0.42 + 0.58)";
-                skyLight = "vec3(0.65, 0.80, 1.05) * (upFactor * 0.30 + 0.70)";
-                deepWater = "vec3(0.04, 0.28, 0.52)";
-                shallowWater = "vec3(0.16, 0.72, 0.86)";
-                waterSpec = "pow(max(dot(waveN, H), 0.0), 64.0) * 2.2 * lightCoords.y";
-                waterFresnel = "0.04 + 0.96 * pow(1.0 - max(dot(V, waveN), 0.0), 4.5)";
-                waterAlpha = "clamp(color.a * 0.70 + 0.20, 0.35, 0.85)";
-                torchGlow = "vec3(1.12, 0.68, 0.28) * (torch * 0.65)";
-                extraShading = "        if (lightCoords.y > 0.5) {\n" +
+                sunLight = "vec3(1.20, 1.10, 0.94) * (NdotL * 0.44 + 0.56)";
+                skyLight = "vec3(0.62, 0.78, 1.05) * (upFactor * 0.32 + 0.68)";
+                deepWater = "vec3(0.03, 0.26, 0.50)";
+                shallowWater = "vec3(0.15, 0.74, 0.88)";
+                torchGlow = "vec3(1.14, 0.68, 0.26) * (torch * 0.70)";
+                godRayIntensity = "0.38";
+                bumpStrength = "1.8";
+                extraShading = "        if (lightCoords.y > 0.45) {\n" +
                         "            vec3 H = normalize(sunDir + V);\n" +
-                        "            float spec = pow(max(dot(N, H), 0.0), 32.0) * 0.16 * lightCoords.y;\n" +
-                        "            color.rgb += vec3(1.0, 0.96, 0.88) * spec;\n" +
+                        "            float spec = pow(max(dot(bumpN, H), 0.0), 38.0) * 0.22 * lightCoords.y;\n" +
+                        "            color.rgb += vec3(1.02, 0.98, 0.90) * spec;\n" +
                         "        }\n";
                 break;
             case BSL:
-                sunLight = "vec3(1.12, 1.02, 0.86) * (NdotL * 0.36 + 0.64)";
-                skyLight = "vec3(0.72, 0.78, 0.86) * (upFactor * 0.25 + 0.75)";
-                deepWater = "vec3(0.05, 0.35, 0.46)";
-                shallowWater = "vec3(0.24, 0.76, 0.82)";
-                waterSpec = "pow(max(dot(waveN, H), 0.0), 52.0) * 1.8 * lightCoords.y";
-                waterFresnel = "0.04 + 0.96 * pow(1.0 - max(dot(V, waveN), 0.0), 4.0)";
-                waterAlpha = "clamp(color.a * 0.55 + 0.15, 0.25, 0.75)";
-                torchGlow = "vec3(1.06, 0.58, 0.22) * (torch * 0.60)";
+                sunLight = "vec3(1.14, 1.04, 0.88) * (NdotL * 0.38 + 0.62)";
+                skyLight = "vec3(0.70, 0.76, 0.86) * (upFactor * 0.26 + 0.74)";
+                deepWater = "vec3(0.04, 0.32, 0.44)";
+                shallowWater = "vec3(0.22, 0.76, 0.82)";
+                torchGlow = "vec3(1.08, 0.60, 0.22) * (torch * 0.65)";
+                godRayIntensity = "0.32";
+                bumpStrength = "1.5";
                 extraShading = "        float lum = dot(color.rgb, vec3(0.2126, 0.7152, 0.0722));\n" +
                         "        float shadowDim = clamp(1.0 - (NdotL * 0.6 + lightCoords.y * 0.4), 0.0, 1.0);\n" +
-                        "        color.rgb = mix(color.rgb, vec3(lum), 0.14 * shadowDim);\n";
+                        "        color.rgb = mix(color.rgb, vec3(lum), 0.15 * shadowDim);\n";
                 break;
             case BLISS:
-                sunLight = "vec3(1.25, 1.12, 0.98) * (pow(NdotL, 0.70) * 0.35 + 0.65)";
-                skyLight = "vec3(0.82, 0.88, 1.04) * (upFactor * 0.20 + 0.80)";
+                sunLight = "vec3(1.26, 1.14, 0.98) * (pow(NdotL, 0.68) * 0.38 + 0.62)";
+                skyLight = "vec3(0.82, 0.88, 1.04) * (upFactor * 0.22 + 0.78)";
                 deepWater = "vec3(0.02, 0.14, 0.24)";
-                shallowWater = "vec3(0.10, 0.46, 0.60)";
-                waterSpec = "pow(max(dot(waveN, H), 0.0), 40.0) * 1.6 * lightCoords.y";
-                waterFresnel = "0.06 + 0.94 * pow(1.0 - max(dot(V, waveN), 0.0), 3.8)";
-                waterAlpha = "clamp(color.a * 0.75 + 0.15, 0.30, 0.85)";
-                torchGlow = "vec3(1.08, 0.76, 0.45) * (torch * 0.58)";
-                extraShading = "        float haze = smoothstep(0.4, 1.0, sphericalVertexDistance / max(FogRenderDistanceEnd, 32.0));\n" +
-                        "        color.rgb = mix(color.rgb, FogColor.rgb * 1.06, haze * 0.22);\n";
+                shallowWater = "vec3(0.10, 0.48, 0.62)";
+                torchGlow = "vec3(1.10, 0.78, 0.46) * (torch * 0.60)";
+                godRayIntensity = "0.48";
+                bumpStrength = "1.6";
+                extraShading = "        float haze = smoothstep(0.35, 1.0, sphericalVertexDistance / max(FogRenderDistanceEnd, 32.0));\n" +
+                        "        color.rgb = mix(color.rgb, FogColor.rgb * 1.08, haze * 0.28);\n";
                 break;
             case VIBRANT:
-                sunLight = "vec3(1.26, 1.10, 0.86) * (NdotL * 0.48 + 0.52)";
-                skyLight = "vec3(0.55, 0.72, 1.04) * (upFactor * 0.30 + 0.70)";
-                deepWater = "vec3(0.02, 0.26, 0.52)";
-                shallowWater = "vec3(0.14, 0.82, 0.90)";
-                waterSpec = "pow(max(dot(waveN, H), 0.0), 72.0) * 2.8 * lightCoords.y";
-                waterFresnel = "0.05 + 0.95 * pow(1.0 - max(dot(V, waveN), 0.0), 4.2)";
-                waterAlpha = "clamp(color.a * 0.68 + 0.22, 0.35, 0.86)";
-                torchGlow = "vec3(1.18, 0.64, 0.20) * (torch * 0.70)";
+                sunLight = "vec3(1.28, 1.12, 0.86) * (NdotL * 0.50 + 0.50)";
+                skyLight = "vec3(0.52, 0.70, 1.04) * (upFactor * 0.32 + 0.68)";
+                deepWater = "vec3(0.02, 0.24, 0.52)";
+                shallowWater = "vec3(0.14, 0.84, 0.92)";
+                torchGlow = "vec3(1.20, 0.65, 0.20) * (torch * 0.75)";
+                godRayIntensity = "0.40";
+                bumpStrength = "2.0";
                 extraShading = "";
                 break;
             default:
-                sunLight = "vec3(1.15, 1.06, 0.92) * (NdotL * 0.40 + 0.60)";
-                skyLight = "vec3(0.68, 0.80, 1.02) * (upFactor * 0.28 + 0.72)";
-                deepWater = "vec3(0.04, 0.26, 0.48)";
-                shallowWater = "vec3(0.18, 0.70, 0.82)";
-                waterSpec = "pow(max(dot(waveN, H), 0.0), 60.0) * 2.0 * lightCoords.y";
-                waterFresnel = "0.04 + 0.96 * pow(1.0 - max(dot(V, waveN), 0.0), 4.2)";
-                waterAlpha = "clamp(color.a * 0.70 + 0.18, 0.32, 0.84)";
-                torchGlow = "vec3(1.10, 0.66, 0.28) * (torch * 0.62)";
+                sunLight = "vec3(1.16, 1.08, 0.94) * (NdotL * 0.42 + 0.58)";
+                skyLight = "vec3(0.66, 0.78, 1.02) * (upFactor * 0.30 + 0.70)";
+                deepWater = "vec3(0.03, 0.24, 0.48)";
+                shallowWater = "vec3(0.16, 0.72, 0.84)";
+                torchGlow = "vec3(1.12, 0.66, 0.26) * (torch * 0.65)";
+                godRayIntensity = "0.35";
+                bumpStrength = "1.7";
                 extraShading = "";
                 break;
         }
@@ -472,7 +425,8 @@ public class KollegenShaderLoader {
                 "    return apply_fog(color, sphericalVertexDistance, cylindricalVertexDistance, FogEnvironmentalStart, FogEnvironmentalEnd, FogRenderDistanceStart, FogRenderDistanceEnd, fogColor);\n" +
                 "}\n\n" +
                 "void main() {\n" +
-                "    vec4 color = (UseRgss == 1 ? sampleRGSS(Sampler0, texCoord0, 1.0f / TextureSize) : sampleNearest(Sampler0, texCoord0, 1.0f / TextureSize)) * vertexColor;\n" +
+                "    vec4 tex = (UseRgss == 1 ? sampleRGSS(Sampler0, texCoord0, 1.0f / TextureSize) : sampleNearest(Sampler0, texCoord0, 1.0f / TextureSize));\n" +
+                "    vec4 color = tex * vertexColor;\n" +
                 "    #ifndef OIT_ALPHA_ONLY\n" +
                 "    color = mix(FogColor * vec4(1, 1, 1, color.a), color, chunkVisibility);\n" +
                 "    #endif\n" +
@@ -488,31 +442,60 @@ public class KollegenShaderLoader {
                 "        N = -N;\n" +
                 "    }\n\n" +
                 "    vec3 sunDir = normalize(vec3(0.48, 0.78, 0.38));\n" +
-                "    vec3 V = normalize(-worldPos);\n" +
-                "    float NdotL = max(dot(N, sunDir), 0.0);\n" +
-                "    float upFactor = max(N.y, 0.0);\n\n" +
-                "    vec3 sunLight = " + sunLight + ";\n" +
-                "    vec3 skyLight = " + skyLight + ";\n" +
-                "    vec3 naturalLighting = mix(skyLight, sunLight, lightCoords.y);\n\n" +
+                "    vec3 V = normalize(-worldPos);\n\n" +
                 "    float isWater = (color.a < 0.95 && color.a > 0.05) ? 1.0 : 0.0;\n" +
                 "    if (isWater > 0.5) {\n" +
-                "        float wT = GameTime * 1800.0;\n" +
-                "        vec2 p = worldPos.xz * 0.7;\n" +
-                "        float w1 = sin(p.x * 2.2 + wT * 1.6) * cos(p.y * 1.9 + wT * 1.3);\n" +
-                "        float w2 = sin(p.x * 4.1 - wT * 2.2 + p.y * 2.7) * 0.5;\n" +
-                "        vec3 waveN = normalize(N + vec3(w1 * 0.20, 0.0, w2 * 0.20));\n\n" +
+                "        float wT = GameTime * 2200.0;\n" +
+                "        vec2 p1 = worldPos.xz * 1.5;\n" +
+                "        vec2 p2 = worldPos.xz * 3.2;\n" +
+                "        float w1 = sin(p1.x * 2.2 + wT * 1.5) * cos(p1.y * 1.8 + wT * 1.2);\n" +
+                "        float w2 = sin(p2.x * 3.6 - wT * 2.0 + p2.y * 2.8) * 0.5;\n" +
+                "        float w3 = cos(p1.x * 4.8 + p1.y * 4.2 + wT * 2.5) * 0.25;\n" +
+                "        vec3 waveN = normalize(N + vec3((w1 + w2) * 0.25, 0.0, (w2 + w3) * 0.25));\n\n" +
+                "        float c1 = sin(worldPos.x * 3.5 + wT * 1.8) * cos(worldPos.z * 3.5 - wT * 1.6);\n" +
+                "        float c2 = sin(worldPos.x * 5.8 - worldPos.z * 5.2 + wT * 2.2);\n" +
+                "        float caustic = clamp(pow((c1 + c2) * 0.5 + 0.5, 3.0), 0.0, 1.0) * 0.35 * lightCoords.y;\n\n" +
+                "        float NdotV = max(dot(waveN, V), 0.0);\n" +
+                "        float fresnel = 0.04 + 0.96 * pow(1.0 - NdotV, 4.5);\n\n" +
                 "        vec3 H = normalize(sunDir + V);\n" +
-                "        float spec = " + waterSpec + ";\n" +
-                "        float fresnel = " + waterFresnel + ";\n\n" +
+                "        float spec = pow(max(dot(waveN, H), 0.0), 80.0) * 3.2 * lightCoords.y;\n\n" +
                 "        vec3 deepWater = " + deepWater + ";\n" +
                 "        vec3 shallowWater = " + shallowWater + ";\n" +
-                "        vec3 waterColor = mix(deepWater, shallowWater, clamp(1.0 - sphericalVertexDistance / 36.0, 0.0, 1.0));\n\n" +
-                "        color.rgb = mix(color.rgb * 0.45 + waterColor * 0.55, vec3(1.0, 0.98, 0.92), fresnel * 0.55);\n" +
-                "        color.rgb += vec3(1.08, 1.02, 0.94) * spec;\n" +
-                "        color.a = " + waterAlpha + ";\n" +
+                "        vec3 waterColor = mix(deepWater, shallowWater, clamp(1.0 - sphericalVertexDistance / 32.0, 0.0, 1.0));\n\n" +
+                "        color.rgb = mix(waterColor + caustic * vec3(1.10, 1.05, 0.90), FogColor.rgb * 1.15, fresnel * 0.65);\n" +
+                "        color.rgb += vec3(1.20, 1.10, 0.95) * spec;\n" +
+                "        color.a = clamp(color.a * 0.65 + 0.20, 0.30, 0.85);\n" +
                 "    } else {\n" +
+                "        vec2 texel = 1.0f / TextureSize;\n" +
+                "        float hC = dot(tex.rgb, vec3(0.299, 0.587, 0.114));\n" +
+                "        float hR = dot(texture(Sampler0, texCoord0 + vec2(texel.x, 0.0)).rgb, vec3(0.299, 0.587, 0.114));\n" +
+                "        float hU = dot(texture(Sampler0, texCoord0 + vec2(0.0, texel.y)).rgb, vec3(0.299, 0.587, 0.114));\n" +
+                "        float bX = (hR - hC) * " + bumpStrength + ";\n" +
+                "        float bY = (hU - hC) * " + bumpStrength + ";\n\n" +
+                "        vec3 bumpN = N;\n" +
+                "        if (abs(N.y) > 0.5) {\n" +
+                "            bumpN = normalize(vec3(N.x + bX, N.y, N.z + bY));\n" +
+                "        } else if (abs(N.x) > 0.5) {\n" +
+                "            bumpN = normalize(vec3(N.x, N.y + bY, N.z + bX));\n" +
+                "        } else {\n" +
+                "            bumpN = normalize(vec3(N.x + bX, N.y + bY, N.z));\n" +
+                "        }\n\n" +
+                "        float NdotL = max(dot(bumpN, sunDir), 0.0);\n" +
+                "        float upFactor = max(bumpN.y, 0.0);\n" +
+                "        vec3 sunLight = " + sunLight + ";\n" +
+                "        vec3 skyLight = " + skyLight + ";\n" +
+                "        vec3 naturalLighting = mix(skyLight, sunLight, lightCoords.y);\n" +
                 "        color.rgb *= naturalLighting;\n" +
                 extraShading +
+                "    }\n\n" +
+                "    float VdotL = dot(V, -sunDir);\n" +
+                "    if (VdotL > 0.25 && lightCoords.y > 0.20) {\n" +
+                "        float rayPhase = pow((VdotL - 0.25) / 0.75, 4.0);\n" +
+                "        float tNoise = GameTime * 250.0;\n" +
+                "        float rayPattern = sin(worldPos.x * 0.08 + worldPos.z * 0.06 + tNoise) * cos(worldPos.y * 0.08 - tNoise * 0.7);\n" +
+                "        float rayMask = clamp(0.5 + 0.5 * rayPattern, 0.0, 1.0);\n" +
+                "        float godRay = rayPhase * (0.6 + 0.4 * rayMask) * lightCoords.y * " + godRayIntensity + ";\n" +
+                "        color.rgb += vec3(1.15, 0.98, 0.80) * godRay;\n" +
                 "    }\n\n" +
                 "    float torch = pow(lightCoords.x, 2.2);\n" +
                 "    vec3 torchGlow = " + torchGlow + ";\n" +
@@ -525,7 +508,7 @@ public class KollegenShaderLoader {
                 "}\n";
     }
 
-    private String generateBlockVsh() {
+    public String generateBlockVsh() {
         return "#version 330\n" +
                 "#extension GL_ARB_separate_shader_objects : require\n\n" +
                 "#include <minecraft:fog.glsl>\n" +
@@ -561,41 +544,48 @@ public class KollegenShaderLoader {
                 "}\n";
     }
 
-    private String generateBlockFsh(ShaderProfile profile) {
+    public String generateBlockFsh(ShaderProfile profile) {
         String sunLight;
         String skyLight;
         String torchGlow;
+        String godRayIntensity;
 
         switch (profile) {
             case COMPLEMENTARY_UNBOUND:
-                sunLight = "vec3(1.28, 1.12, 0.90) * (NdotL * 0.55 + 0.45)";
-                skyLight = "vec3(0.50, 0.66, 0.98) * (upFactor * 0.35 + 0.65)";
-                torchGlow = "vec3(1.20, 0.70, 0.22) * (torch * 0.75)";
+                sunLight = "vec3(1.30, 1.14, 0.90) * (NdotL * 0.58 + 0.42)";
+                skyLight = "vec3(0.48, 0.65, 1.00) * (upFactor * 0.38 + 0.62)";
+                torchGlow = "vec3(1.22, 0.70, 0.20) * (torch * 0.80)";
+                godRayIntensity = "0.45";
                 break;
             case COMPLEMENTARY_REIMAGINED:
-                sunLight = "vec3(1.18, 1.08, 0.94) * (NdotL * 0.42 + 0.58)";
-                skyLight = "vec3(0.65, 0.80, 1.05) * (upFactor * 0.30 + 0.70)";
-                torchGlow = "vec3(1.12, 0.68, 0.28) * (torch * 0.65)";
+                sunLight = "vec3(1.20, 1.10, 0.94) * (NdotL * 0.44 + 0.56)";
+                skyLight = "vec3(0.62, 0.78, 1.05) * (upFactor * 0.32 + 0.68)";
+                torchGlow = "vec3(1.14, 0.68, 0.26) * (torch * 0.70)";
+                godRayIntensity = "0.38";
                 break;
             case BSL:
-                sunLight = "vec3(1.12, 1.02, 0.86) * (NdotL * 0.36 + 0.64)";
-                skyLight = "vec3(0.72, 0.78, 0.86) * (upFactor * 0.25 + 0.75)";
-                torchGlow = "vec3(1.06, 0.58, 0.22) * (torch * 0.60)";
+                sunLight = "vec3(1.14, 1.04, 0.88) * (NdotL * 0.38 + 0.62)";
+                skyLight = "vec3(0.70, 0.76, 0.86) * (upFactor * 0.26 + 0.74)";
+                torchGlow = "vec3(1.08, 0.60, 0.22) * (torch * 0.65)";
+                godRayIntensity = "0.32";
                 break;
             case BLISS:
-                sunLight = "vec3(1.25, 1.12, 0.98) * (pow(NdotL, 0.70) * 0.35 + 0.65)";
-                skyLight = "vec3(0.82, 0.88, 1.04) * (upFactor * 0.20 + 0.80)";
-                torchGlow = "vec3(1.08, 0.76, 0.45) * (torch * 0.58)";
+                sunLight = "vec3(1.26, 1.14, 0.98) * (pow(NdotL, 0.68) * 0.38 + 0.62)";
+                skyLight = "vec3(0.82, 0.88, 1.04) * (upFactor * 0.22 + 0.78)";
+                torchGlow = "vec3(1.10, 0.78, 0.46) * (torch * 0.60)";
+                godRayIntensity = "0.48";
                 break;
             case VIBRANT:
-                sunLight = "vec3(1.26, 1.10, 0.86) * (NdotL * 0.48 + 0.52)";
-                skyLight = "vec3(0.55, 0.72, 1.04) * (upFactor * 0.30 + 0.70)";
-                torchGlow = "vec3(1.18, 0.64, 0.20) * (torch * 0.70)";
+                sunLight = "vec3(1.28, 1.12, 0.86) * (NdotL * 0.50 + 0.50)";
+                skyLight = "vec3(0.52, 0.70, 1.04) * (upFactor * 0.32 + 0.68)";
+                torchGlow = "vec3(1.20, 0.65, 0.20) * (torch * 0.75)";
+                godRayIntensity = "0.40";
                 break;
             default:
-                sunLight = "vec3(1.15, 1.06, 0.92) * (NdotL * 0.40 + 0.60)";
-                skyLight = "vec3(0.68, 0.80, 1.02) * (upFactor * 0.28 + 0.72)";
-                torchGlow = "vec3(1.10, 0.66, 0.28) * (torch * 0.62)";
+                sunLight = "vec3(1.16, 1.08, 0.94) * (NdotL * 0.42 + 0.58)";
+                skyLight = "vec3(0.66, 0.78, 1.02) * (upFactor * 0.30 + 0.70)";
+                torchGlow = "vec3(1.12, 0.66, 0.26) * (torch * 0.65)";
+                godRayIntensity = "0.35";
                 break;
         }
 
@@ -624,7 +614,8 @@ public class KollegenShaderLoader {
                 "    return apply_fog(color, sphericalVertexDistance, cylindricalVertexDistance, FogEnvironmentalStart, FogEnvironmentalEnd, FogRenderDistanceStart, FogRenderDistanceEnd, fogColor);\n" +
                 "}\n\n" +
                 "void main() {\n" +
-                "    vec4 color = texture(Sampler0, texCoord0) * vertexColor * ColorModulator;\n" +
+                "    vec4 tex = texture(Sampler0, texCoord0);\n" +
+                "    vec4 color = tex * vertexColor * ColorModulator;\n" +
                 "    #ifdef ALPHA_CUTOUT\n" +
                 "    if (color.a < ALPHA_CUTOUT) {\n" +
                 "        discard;\n" +
@@ -637,12 +628,22 @@ public class KollegenShaderLoader {
                 "        N = -N;\n" +
                 "    }\n\n" +
                 "    vec3 sunDir = normalize(vec3(0.48, 0.78, 0.38));\n" +
+                "    vec3 V = normalize(-worldPos);\n\n" +
                 "    float NdotL = max(dot(N, sunDir), 0.0);\n" +
-                "    float upFactor = max(N.y, 0.0);\n\n" +
+                "    float upFactor = max(N.y, 0.0);\n" +
                 "    vec3 sunLight = " + sunLight + ";\n" +
                 "    vec3 skyLight = " + skyLight + ";\n" +
                 "    vec3 naturalLighting = mix(skyLight, sunLight, lightCoords.y);\n" +
                 "    color.rgb *= naturalLighting;\n\n" +
+                "    float VdotL = dot(V, -sunDir);\n" +
+                "    if (VdotL > 0.25 && lightCoords.y > 0.20) {\n" +
+                "        float rayPhase = pow((VdotL - 0.25) / 0.75, 4.0);\n" +
+                "        float tNoise = GameTime * 250.0;\n" +
+                "        float rayPattern = sin(worldPos.x * 0.08 + worldPos.z * 0.06 + tNoise) * cos(worldPos.y * 0.08 - tNoise * 0.7);\n" +
+                "        float rayMask = clamp(0.5 + 0.5 * rayPattern, 0.0, 1.0);\n" +
+                "        float godRay = rayPhase * (0.6 + 0.4 * rayMask) * lightCoords.y * " + godRayIntensity + ";\n" +
+                "        color.rgb += vec3(1.15, 0.98, 0.80) * godRay;\n" +
+                "    }\n\n" +
                 "    float torch = pow(lightCoords.x, 2.2);\n" +
                 "    vec3 torchGlow = " + torchGlow + ";\n" +
                 "    color.rgb += color.rgb * torchGlow;\n\n" +
@@ -654,26 +655,26 @@ public class KollegenShaderLoader {
                 "}\n";
     }
 
-    private String generateCloudsFsh(ShaderProfile profile) {
+    public String generateCloudsFsh(ShaderProfile profile) {
         String cloudTint;
         switch (profile) {
             case COMPLEMENTARY_UNBOUND:
-                cloudTint = "vec3(1.12, 1.04, 0.94)";
+                cloudTint = "vec3(1.14, 1.05, 0.94)";
                 break;
             case COMPLEMENTARY_REIMAGINED:
-                cloudTint = "vec3(1.08, 1.02, 0.96)";
+                cloudTint = "vec3(1.10, 1.03, 0.96)";
                 break;
             case BSL:
-                cloudTint = "vec3(1.02, 1.02, 1.04)";
+                cloudTint = "vec3(1.02, 1.02, 1.05)";
                 break;
             case BLISS:
-                cloudTint = "vec3(1.14, 1.06, 0.98)";
+                cloudTint = "vec3(1.16, 1.08, 0.98)";
                 break;
             case VIBRANT:
-                cloudTint = "vec3(1.10, 1.02, 0.92)";
+                cloudTint = "vec3(1.12, 1.04, 0.92)";
                 break;
             default:
-                cloudTint = "vec3(1.05, 1.02, 0.96)";
+                cloudTint = "vec3(1.06, 1.02, 0.96)";
                 break;
         }
 
