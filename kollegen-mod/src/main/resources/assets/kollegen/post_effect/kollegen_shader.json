@@ -18,7 +18,7 @@
                     {
                         "name": "Saturation",
                         "type": "float",
-                        "value": 1.35
+                        "value": 1.20
                     },
                     {
                         "name": "Contrast",
@@ -28,7 +28,7 @@
                     {
                         "name": "Brightness",
                         "type": "float",
-                        "value": 1.05
+                        "value": 1.02
                     },
                     {
                         "name": "Vignette",
@@ -38,40 +38,40 @@
                     {
                         "name": "Bloom",
                         "type": "float",
-                        "value": 0.0
+                        "value": 0.25
                     },
                     {
                         "name": "Exposure",
                         "type": "float",
-                        "value": 1.0
+                        "value": 1.04
                     },
                     {
                         "name": "Warmth",
                         "type": "float",
-                        "value": 1.0
+                        "value": 1.04
                     },
                     {
                         "name": "Vibrance",
                         "type": "float",
-                        "value": 1.0
+                        "value": 1.18
                     },
                     {
                         "name": "ToneMap",
                         "type": "float",
-                        "value": 0.0
+                        "value": 1.0
                     },
                     {
-                        "name": "SunRays",
+                        "name": "Gamma",
+                        "type": "float",
+                        "value": 1.18
+                    },
+                    {
+                        "name": "Pad1",
                         "type": "float",
                         "value": 0.0
                     },
                     {
-                        "name": "Atmosphere",
-                        "type": "float",
-                        "value": 0.0
-                    },
-                    {
-                        "name": "ShadowTint",
+                        "name": "Pad2",
                         "type": "float",
                         "value": 0.0
                     }

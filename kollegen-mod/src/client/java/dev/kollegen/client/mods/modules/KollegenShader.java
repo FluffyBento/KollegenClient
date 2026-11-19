@@ -162,29 +162,15 @@ public class KollegenShader extends Module {
     public final SliderSetting toneMap = new SliderSetting(
             "Tone Mapping",
             "Tonemapping-Algorithmus",
-            2.0, 0.0, 4.0, 1.0,
-            v -> v < 0.5 ? "Linear" : (v < 1.5 ? "BSL Filmic" : (v < 2.5 ? "ACES" : (v < 3.5 ? "Bliss Dreamy" : "Vibrant Pop"))), null
+            1.0, 0.0, 3.0, 1.0,
+            v -> v < 0.5 ? "Linear" : (v < 1.5 ? "Beryl ACES" : (v < 2.5 ? "Reinhard-Jodie" : "Uncharted 2")), null
     );
 
-    public final SliderSetting sunRays = new SliderSetting(
-            "Sonnenstrahlen",
-            "Intensität der God Rays und Lichtstrahlen.",
-            0.40, 0.0, 1.0, 0.05,
-            v -> Math.round(v * 100.0) + "%", null
-    );
-
-    public final SliderSetting atmosphere = new SliderSetting(
-            "Atmosphäre",
-            "Horizont-Dunst und Himmelsstreuung.",
-            0.35, 0.0, 1.0, 0.05,
-            v -> Math.round(v * 100.0) + "%", null
-    );
-
-    public final SliderSetting shadowTint = new SliderSetting(
-            "Schatten-Farbton",
-            "Atmosphärischer Schattenkontrast.",
-            0.35, 0.0, 1.0, 0.05,
-            v -> Math.round(v * 100.0) + "%", null
+    public final SliderSetting gamma = new SliderSetting(
+            "Gamma-Korrektur",
+            "Tonwertkurve und Gammakorrektur.",
+            1.18, 0.8, 1.6, 0.02,
+            v -> String.format("%.2f", v), null
     );
 
     public KollegenShader() {
@@ -210,9 +196,7 @@ public class KollegenShader extends Module {
         add(motionBlurEnabled);
         add(motionBlurStrength);
         add(toneMap);
-        add(sunRays);
-        add(atmosphere);
-        add(shadowTint);
+        add(gamma);
     }
 
     @Override
@@ -260,179 +244,163 @@ public class KollegenShader extends Module {
         switch (index) {
             case 0 -> {
                 saturationEnabled.value = true;
-                saturation.value = 1.35;
+                saturation.value = 1.20;
                 vibranceEnabled.value = true;
-                vibrance.value = 1.30;
+                vibrance.value = 1.18;
+                contrastEnabled.value = true;
+                contrast.value = 1.12;
+                brightnessEnabled.value = false;
+                brightness.value = 1.02;
+                exposureEnabled.value = true;
+                exposure.value = 1.04;
+                bloomEnabled.value = true;
+                bloom.value = 0.25;
+                warmthEnabled.value = true;
+                warmth.value = 1.04;
+                vignetteEnabled.value = false;
+                vignetteStrength.value = 0.10;
+                toneMap.value = 1.0;
+                gamma.value = 1.18;
+            }
+            case 1 -> {
+                saturationEnabled.value = true;
+                saturation.value = 1.25;
+                vibranceEnabled.value = true;
+                vibrance.value = 1.20;
                 contrastEnabled.value = true;
                 contrast.value = 1.15;
                 brightnessEnabled.value = false;
-                brightness.value = 1.05;
+                brightness.value = 1.02;
+                exposureEnabled.value = true;
+                exposure.value = 1.06;
+                bloomEnabled.value = true;
+                bloom.value = 0.30;
+                warmthEnabled.value = true;
+                warmth.value = 1.06;
+                vignetteEnabled.value = false;
+                vignetteStrength.value = 0.12;
+                toneMap.value = 1.0;
+                gamma.value = 1.16;
+            }
+            case 2 -> {
+                saturationEnabled.value = true;
+                saturation.value = 1.22;
+                vibranceEnabled.value = true;
+                vibrance.value = 1.18;
+                contrastEnabled.value = true;
+                contrast.value = 1.16;
+                brightnessEnabled.value = false;
+                brightness.value = 1.00;
+                exposureEnabled.value = true;
+                exposure.value = 1.04;
+                bloomEnabled.value = true;
+                bloom.value = 0.20;
+                warmthEnabled.value = true;
+                warmth.value = 1.02;
+                vignetteEnabled.value = false;
+                vignetteStrength.value = 0.10;
+                toneMap.value = 2.0;
+                gamma.value = 1.18;
+            }
+            case 3 -> {
+                saturationEnabled.value = true;
+                saturation.value = 1.32;
+                vibranceEnabled.value = true;
+                vibrance.value = 1.26;
+                contrastEnabled.value = true;
+                contrast.value = 1.18;
+                brightnessEnabled.value = false;
+                brightness.value = 1.02;
                 exposureEnabled.value = true;
                 exposure.value = 1.08;
                 bloomEnabled.value = true;
                 bloom.value = 0.35;
                 warmthEnabled.value = true;
-                warmth.value = 1.06;
-                vignetteEnabled.value = false;
-                vignetteStrength.value = 0.10;
-                toneMap.value = 2.0;
-                sunRays.value = 0.30;
-                atmosphere.value = 0.25;
-                shadowTint.value = 0.20;
-            }
-            case 1 -> {
-                saturationEnabled.value = true;
-                saturation.value = 1.40;
-                vibranceEnabled.value = true;
-                vibrance.value = 1.35;
-                contrastEnabled.value = true;
-                contrast.value = 1.25;
-                brightnessEnabled.value = false;
-                brightness.value = 1.04;
-                exposureEnabled.value = true;
-                exposure.value = 1.10;
-                bloomEnabled.value = true;
-                bloom.value = 0.45;
-                warmthEnabled.value = true;
-                warmth.value = 1.10;
-                vignetteEnabled.value = true;
-                vignetteStrength.value = 0.15;
-                toneMap.value = 1.0;
-                sunRays.value = 0.50;
-                atmosphere.value = 0.35;
-                shadowTint.value = 0.45;
-            }
-            case 2 -> {
-                saturationEnabled.value = true;
-                saturation.value = 1.45;
-                vibranceEnabled.value = true;
-                vibrance.value = 1.40;
-                contrastEnabled.value = true;
-                contrast.value = 1.20;
-                brightnessEnabled.value = true;
-                brightness.value = 1.05;
-                exposureEnabled.value = true;
-                exposure.value = 1.12;
-                bloomEnabled.value = true;
-                bloom.value = 0.50;
-                warmthEnabled.value = true;
-                warmth.value = 1.06;
+                warmth.value = 1.05;
                 vignetteEnabled.value = true;
                 vignetteStrength.value = 0.12;
-                toneMap.value = 2.0;
-                sunRays.value = 0.40;
-                atmosphere.value = 0.40;
-                shadowTint.value = 0.35;
-            }
-            case 3 -> {
-                saturationEnabled.value = true;
-                saturation.value = 1.55;
-                vibranceEnabled.value = true;
-                vibrance.value = 1.45;
-                contrastEnabled.value = true;
-                contrast.value = 1.30;
-                brightnessEnabled.value = true;
-                brightness.value = 1.06;
-                exposureEnabled.value = true;
-                exposure.value = 1.18;
-                bloomEnabled.value = true;
-                bloom.value = 0.60;
-                warmthEnabled.value = true;
-                warmth.value = 1.12;
-                vignetteEnabled.value = true;
-                vignetteStrength.value = 0.20;
-                toneMap.value = 2.0;
-                sunRays.value = 0.65;
-                atmosphere.value = 0.50;
-                shadowTint.value = 0.50;
+                toneMap.value = 1.0;
+                gamma.value = 1.20;
             }
             case 4 -> {
                 saturationEnabled.value = true;
-                saturation.value = 1.35;
+                saturation.value = 1.18;
                 vibranceEnabled.value = true;
-                vibrance.value = 1.25;
+                vibrance.value = 1.15;
                 contrastEnabled.value = true;
                 contrast.value = 1.08;
-                brightnessEnabled.value = true;
-                brightness.value = 1.10;
+                brightnessEnabled.value = false;
+                brightness.value = 1.04;
                 exposureEnabled.value = true;
-                exposure.value = 1.15;
+                exposure.value = 1.06;
                 bloomEnabled.value = true;
-                bloom.value = 0.70;
+                bloom.value = 0.30;
                 warmthEnabled.value = true;
-                warmth.value = 1.18;
-                vignetteEnabled.value = true;
-                vignetteStrength.value = 0.25;
-                toneMap.value = 3.0;
-                sunRays.value = 0.60;
-                atmosphere.value = 0.65;
-                shadowTint.value = 0.20;
+                warmth.value = 1.10;
+                vignetteEnabled.value = false;
+                vignetteStrength.value = 0.10;
+                toneMap.value = 2.0;
+                gamma.value = 1.22;
             }
             case 5 -> {
                 saturationEnabled.value = true;
-                saturation.value = 1.70;
-                vibranceEnabled.value = true;
-                vibrance.value = 1.60;
-                contrastEnabled.value = true;
-                contrast.value = 1.25;
-                brightnessEnabled.value = false;
-                brightness.value = 1.08;
-                exposureEnabled.value = true;
-                exposure.value = 1.10;
-                bloomEnabled.value = true;
-                bloom.value = 0.40;
-                warmthEnabled.value = true;
-                warmth.value = 1.04;
-                vignetteEnabled.value = false;
-                vignetteStrength.value = 0.05;
-                toneMap.value = 4.0;
-                sunRays.value = 0.45;
-                atmosphere.value = 0.30;
-                shadowTint.value = 0.25;
-            }
-            case 6 -> {
-                saturationEnabled.value = true;
-                saturation.value = 1.20;
-                vibranceEnabled.value = true;
-                vibrance.value = 1.20;
-                contrastEnabled.value = true;
-                contrast.value = 1.35;
-                brightnessEnabled.value = true;
-                brightness.value = 0.98;
-                exposureEnabled.value = true;
-                exposure.value = 1.05;
-                bloomEnabled.value = true;
-                bloom.value = 0.45;
-                warmthEnabled.value = true;
-                warmth.value = 1.05;
-                vignetteEnabled.value = true;
-                vignetteStrength.value = 0.40;
-                toneMap.value = 1.0;
-                sunRays.value = 0.35;
-                atmosphere.value = 0.40;
-                shadowTint.value = 0.50;
-            }
-            case 7 -> {
-                saturationEnabled.value = true;
-                saturation.value = 1.45;
+                saturation.value = 1.38;
                 vibranceEnabled.value = true;
                 vibrance.value = 1.35;
                 contrastEnabled.value = true;
-                contrast.value = 1.15;
-                brightnessEnabled.value = true;
-                brightness.value = 1.12;
+                contrast.value = 1.18;
+                brightnessEnabled.value = false;
+                brightness.value = 1.02;
                 exposureEnabled.value = true;
-                exposure.value = 1.15;
+                exposure.value = 1.06;
                 bloomEnabled.value = true;
-                bloom.value = 0.55;
+                bloom.value = 0.25;
                 warmthEnabled.value = true;
-                warmth.value = 1.28;
+                warmth.value = 1.02;
+                vignetteEnabled.value = false;
+                vignetteStrength.value = 0.08;
+                toneMap.value = 1.0;
+                gamma.value = 1.15;
+            }
+            case 6 -> {
+                saturationEnabled.value = true;
+                saturation.value = 1.15;
+                vibranceEnabled.value = true;
+                vibrance.value = 1.12;
+                contrastEnabled.value = true;
+                contrast.value = 1.24;
+                brightnessEnabled.value = false;
+                brightness.value = 0.98;
+                exposureEnabled.value = true;
+                exposure.value = 1.04;
+                bloomEnabled.value = true;
+                bloom.value = 0.30;
+                warmthEnabled.value = true;
+                warmth.value = 1.04;
                 vignetteEnabled.value = true;
-                vignetteStrength.value = 0.15;
-                toneMap.value = 2.0;
-                sunRays.value = 0.55;
-                atmosphere.value = 0.50;
-                shadowTint.value = 0.20;
+                vignetteStrength.value = 0.25;
+                toneMap.value = 3.0;
+                gamma.value = 1.12;
+            }
+            case 7 -> {
+                saturationEnabled.value = true;
+                saturation.value = 1.25;
+                vibranceEnabled.value = true;
+                vibrance.value = 1.22;
+                contrastEnabled.value = true;
+                contrast.value = 1.12;
+                brightnessEnabled.value = false;
+                brightness.value = 1.04;
+                exposureEnabled.value = true;
+                exposure.value = 1.08;
+                bloomEnabled.value = true;
+                bloom.value = 0.35;
+                warmthEnabled.value = true;
+                warmth.value = 1.16;
+                vignetteEnabled.value = false;
+                vignetteStrength.value = 0.10;
+                toneMap.value = 1.0;
+                gamma.value = 1.20;
             }
         }
     }
@@ -490,19 +458,9 @@ public class KollegenShader extends Module {
         return (float) INSTANCE.toneMap.value;
     }
 
-    public static float getEffectiveSunRays() {
-        if (!isShaderActive()) return 0.0f;
-        return (float) INSTANCE.sunRays.value;
-    }
-
-    public static float getEffectiveAtmosphere() {
-        if (!isShaderActive()) return 0.0f;
-        return (float) INSTANCE.atmosphere.value;
-    }
-
-    public static float getEffectiveShadowTint() {
-        if (!isShaderActive()) return 0.0f;
-        return (float) INSTANCE.shadowTint.value;
+    public static float getEffectiveGamma() {
+        if (!isShaderActive()) return 1.0f;
+        return (float) INSTANCE.gamma.value;
     }
 
     public static float getEffectiveMotionBlur() {
@@ -522,9 +480,7 @@ public class KollegenShader extends Module {
             float warm = getEffectiveWarmth();
             float vib = getEffectiveVibrance();
             float tm = getEffectiveToneMap();
-            float sun = getEffectiveSunRays();
-            float atmo = getEffectiveAtmosphere();
-            float shad = getEffectiveShadowTint();
+            float gamma = getEffectiveGamma();
 
             for (PostPass pass : ((PostChainAccessor) chain).kollegen$getPasses()) {
                 Map<String, GpuBuffer> uniforms = ((PostPassAccessor) pass).kollegen$getCustomUniforms();
@@ -532,13 +488,13 @@ public class KollegenShader extends Module {
                 GpuBuffer buf = uniforms.get("ShaderConfig");
                 if (buf == null || buf.isClosed()) continue;
 
-                uploadShaderConfig(buf, sat, cont, bright, vig, bloom, exp, warm, vib, tm, sun, atmo, shad);
+                uploadShaderConfig(buf, sat, cont, bright, vig, bloom, exp, warm, vib, tm, gamma, 0.0f, 0.0f);
             }
         } catch (Throwable ignored) {
         }
     }
 
-    private static void uploadShaderConfig(GpuBuffer buf, float sat, float cont, float bright, float vig, float bloom, float exp, float warm, float vib, float tm, float sun, float atmo, float shad) {
+    private static void uploadShaderConfig(GpuBuffer buf, float sat, float cont, float bright, float vig, float bloom, float exp, float warm, float vib, float tm, float gamma, float pad1, float pad2) {
         int maxLen = (int) Math.min(buf.size(), 48L);
         if (maxLen <= 0) return;
         ByteBuffer bb = ByteBuffer.allocateDirect(maxLen).order(ByteOrder.nativeOrder());
@@ -551,9 +507,9 @@ public class KollegenShader extends Module {
         if (maxLen >= 28) bb.putFloat(warm);
         if (maxLen >= 32) bb.putFloat(vib);
         if (maxLen >= 36) bb.putFloat(tm);
-        if (maxLen >= 40) bb.putFloat(sun);
-        if (maxLen >= 44) bb.putFloat(atmo);
-        if (maxLen >= 48) bb.putFloat(shad);
+        if (maxLen >= 40) bb.putFloat(gamma);
+        if (maxLen >= 44) bb.putFloat(pad1);
+        if (maxLen >= 48) bb.putFloat(pad2);
         bb.flip();
 
         try {
@@ -576,9 +532,9 @@ public class KollegenShader extends Module {
             if (vbb.capacity() >= 28) vbb.putFloat(24, warm);
             if (vbb.capacity() >= 32) vbb.putFloat(28, vib);
             if (vbb.capacity() >= 36) vbb.putFloat(32, tm);
-            if (vbb.capacity() >= 40) vbb.putFloat(36, sun);
-            if (vbb.capacity() >= 44) vbb.putFloat(40, atmo);
-            if (vbb.capacity() >= 48) vbb.putFloat(44, shad);
+            if (vbb.capacity() >= 40) vbb.putFloat(36, gamma);
+            if (vbb.capacity() >= 44) vbb.putFloat(40, pad1);
+            if (vbb.capacity() >= 48) vbb.putFloat(44, pad2);
         } catch (Throwable ignored) {
         }
     }
