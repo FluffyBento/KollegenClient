@@ -161,6 +161,10 @@ pub fn ensure_modrinth_mod(
     fs::create_dir_all(mods_dir)?;
     let target = mods_dir.join(target_filename);
 
+    if target.exists() && is_valid_jar(&target) {
+        return Ok(());
+    }
+
     if target.exists() && !is_valid_jar(&target) {
         let _ = fs::remove_file(&target);
     }

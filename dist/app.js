@@ -2443,6 +2443,8 @@ async function launchGame(name, targetServer, isAuto) {
     }
   }
 
+  showGameSplash(name, "");
+
   try {
     const result = await invoke("launch_game", { instanceName: name, server: srv });
     showGameSplash(name, result);

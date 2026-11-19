@@ -76,10 +76,16 @@ pub fn is_companion_mod_name(filename: &str) -> bool {
 
 fn is_valid_jar(p: &Path) -> bool {
     match std::fs::metadata(p) {
-        Ok(m) if m.len() > 0 => match std::fs::read(p) {
-            Ok(b) => b.len() >= 4 && b.starts_with(b"PK"),
-            Err(_) => false,
-        },
+        Ok(m) if m.len() >= 4 => {
+            use std::io::Read;
+            std::fs::File::open(p)
+                .and_then(|mut f| {
+                    let mut b = [0u8; 4];
+                    f.read_exact(&mut b)?;
+                    Ok(b.starts_with(b"PK"))
+                })
+                .unwrap_or(false)
+        }
         _ => false,
     }
 }
@@ -579,6 +585,9 @@ pub fn companion_jar(data_dir: &Path, version: &str) -> Option<PathBuf> {
 
 
 fn relax_companion_constraints(jar: &Path, version: &str) -> PathBuf {
+    if jar_supports_mc(jar, version) {
+        return jar.to_path_buf();
+    }
     let patched = std::env::temp_dir().join(format!(
         "kollegen-mod-relaxed-{}.jar",
         std::process::id()
@@ -781,8 +790,6 @@ pub fn install_companion_mod(data_dir: &Path, instance_name: &str, version: &str
 
     
     
-    let _ = refresh_cache(data_dir, version);
-
     let source = match companion_jar(data_dir, version) {
         Some(j) => j,
         None => {

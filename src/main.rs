@@ -1443,18 +1443,11 @@ fn launch_game(
         .ok_or("Instanz nicht gefunden")?;
     let mut inst = inst.clone();
     if let Some(s) = &server {
-        
         inst.server = Some(if s.contains(':') { s.clone() } else { format!("{}:25565", s) });
     } else {
-        // Normal start: clear any previously set server from quicklaunch
         inst.server = None;
     }
 
-    
-    
-    
-    
-    
     {
         let mods_dir = utils::instance_dir(&state.data_dir, &inst.name).join("mods");
         if let Some(desired) = instance::read_renderer_state(&mods_dir) {
@@ -1478,14 +1471,6 @@ fn launch_game(
         }
     }
 
-    
-    
-    
-    ensure_companion_mod(&state.data_dir, &inst.name, &inst.version, &inst.loader);
-
-    
-    
-    
     {
         let cfg = utils::instance_dir(&state.data_dir, &inst.name).join("config");
         let _ = std::fs::create_dir_all(&cfg);
@@ -1499,13 +1484,6 @@ fn launch_game(
         capes::sync_active_cape_to_instances(&state.data_dir, &capes_data, capes_data.active_cape.as_deref());
     }
 
-    
-    
-    
-    
-    
-    
-    
     let required_java = {
         let fallback = required_java_for_version(&inst.version);
         let version_dir = utils::instance_dir(&state.data_dir, &inst.name)
@@ -1528,15 +1506,6 @@ fn launch_game(
         }
         from_json.unwrap_or(fallback)
     };
-
-    // Java 25 / OpenJDK 25 direkt installieren, falls noch nicht installiert
-    if java::find_java(&state.data_dir, 25).is_err() {
-        utils::append_log(&state, "Java 25 / OpenJDK 25 nicht gefunden – lade OpenJDK 25 automatisch herunter...");
-        match java::download_jre_internal(25) {
-            Ok(p) => utils::append_log(&state, &format!("Java 25 erfolgreich installiert: {}", p)),
-            Err(e) => utils::append_log(&state, &format!("Hinweis: Java 25 Auto-Installation: {}", e)),
-        }
-    }
 
     let java_path = match java::find_java(&state.data_dir, required_java) {
         Ok(p) => p,

@@ -850,10 +850,15 @@ fn clean_corrupt_mods(mods_dir: &Path) {
                 Err(_) => continue,
             };
             
-            let corrupt = meta.len() == 0
-                || fs::read(&p)
-                    .map(|b| b.len() < 4 || !b.starts_with(b"PK"))
-                    .unwrap_or(false);
+            let corrupt = meta.len() < 4
+                || fs::File::open(&p)
+                    .and_then(|mut f| {
+                        use std::io::Read;
+                        let mut head = [0u8; 4];
+                        f.read_exact(&mut head)?;
+                        Ok(!head.starts_with(b"PK"))
+                    })
+                    .unwrap_or(true);
             if corrupt {
                 log::warn!("Entferne beschädigte Mod-Datei: {}", p.display());
                 let _ = fs::remove_file(&p);
