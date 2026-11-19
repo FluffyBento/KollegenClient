@@ -110,14 +110,7 @@ public final class CosmeticText {
     }
 
     public static Component levelComponent(UUID id) {
-        CosmeticData d = id == null ? null : KollegenPresence.getCosmetics(id);
-        if (d == null || d.level <= 0) return null;
-        MutableComponent out = Component.empty();
-        out.append(Component.literal("[").withStyle(Style.EMPTY.withColor(TextColor.fromRgb(0x555555))));
-        out.append(Component.literal("lv ").withStyle(Style.EMPTY.withColor(TextColor.fromRgb(LEVEL_GRAY))));
-        out.append(Component.literal(String.valueOf(d.level)).withStyle(Style.EMPTY.withColor(TextColor.fromRgb(0x7EE787))));
-        out.append(Component.literal("]").withStyle(Style.EMPTY.withColor(TextColor.fromRgb(0x555555))));
-        return out;
+        return null;
     }
 
     public static Component decorateNametag(Component base, UUID id) {
@@ -146,10 +139,6 @@ public final class CosmeticText {
         out.append(Component.literal(plain).withStyle(nameStyle(nameColor, d.font)));
         if (d.stickerIcon != null) {
             out.append(Component.literal(d.stickerIcon).withStyle(Style.EMPTY.withColor(TextColor.fromRgb(parseColor(d.stickerColor, FALLBACK_NAME)))));
-        }
-        if (d.level > 0) {
-            out.append(Component.literal("\n"));
-            out.append(Component.literal("· Lv " + d.level + " ·").withStyle(Style.EMPTY.withColor(TextColor.fromRgb(LEVEL_GRAY))));
         }
         return out;
     }
@@ -238,9 +227,6 @@ public final class CosmeticText {
         if (d.stickerIcon != null) {
             out.append(Component.literal(" "));
             out.append(Component.literal(d.stickerIcon).withStyle(Style.EMPTY.withColor(TextColor.fromRgb(parseColor(d.stickerColor, FALLBACK_NAME)))));
-        }
-        if (d.level > 0) {
-            out.append(Component.literal(" · Lv " + d.level).withStyle(Style.EMPTY.withColor(TextColor.fromRgb(LEVEL_GRAY))));
         }
         return out;
     }

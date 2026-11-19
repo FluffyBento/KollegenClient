@@ -53,7 +53,6 @@
       host.appendChild(t);
     }
     var row = el("div", "pstage-tag-row");
-    if (typeof d.level === "number") row.appendChild(el("span", "pstage-lv", String(d.level)));
     if (badge && badge.data && badge.data.icon) {
       var b = el("span", "pstage-ico", badge.data.icon);
       b.style.color = badge.data.color || "#FFD700";
