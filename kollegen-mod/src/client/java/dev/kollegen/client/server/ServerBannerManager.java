@@ -102,11 +102,20 @@ public final class ServerBannerManager {
 
         for (Map.Entry<String, String> e : BANNER_URLS.entrySet()) {
             String key = e.getKey();
-            if (key.length() >= 4 && (host.equals(key) || host.contains(key))) {
+            if (key.length() >= 4 && (host.equals(key) || host.contains(key) || (host.length() >= 4 && key.contains(host)))) {
                 return e.getValue();
             }
         }
         return null;
+    }
+
+    public static Identifier getBanner(net.minecraft.client.multiplayer.ServerData data) {
+        if (data == null) return null;
+        Identifier banner = getBanner(data.ip);
+        if (banner == null && data.name != null && !data.name.isBlank()) {
+            banner = getBanner(data.name);
+        }
+        return banner;
     }
 
     public static Identifier getBanner(String rawAddress) {

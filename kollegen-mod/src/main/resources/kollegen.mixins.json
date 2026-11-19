@@ -95,6 +95,7 @@
     "BossHealthOverlayMixin",
     "ServerSelectionListMixin",
     "OnlineServerEntryMixin",
+    "AbstractSelectionListMixin",
     "LivingEntityRendererMixin"
   ],
   "injectors": {

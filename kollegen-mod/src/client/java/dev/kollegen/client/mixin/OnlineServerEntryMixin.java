@@ -6,6 +6,7 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.multiplayer.ServerSelectionList;
 import net.minecraft.client.multiplayer.ServerData;
 import net.minecraft.resources.Identifier;
+import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
@@ -15,6 +16,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(ServerSelectionList.OnlineServerEntry.class)
 public abstract class OnlineServerEntryMixin extends ServerSelectionList.Entry {
 
+    @Shadow @Final ServerSelectionList this$0;
     @Shadow public abstract ServerData getServerData();
 
     @Inject(method = "extractContent", at = @At("HEAD"))
@@ -28,10 +30,11 @@ public abstract class OnlineServerEntryMixin extends ServerSelectionList.Entry {
         int h = this.getHeight() - 2;
 
         boolean isDragged = ServerBannerManager.DRAGGED_SERVER == data;
-        Identifier banner = ServerBannerManager.getBanner(data.ip);
+        boolean isSelected = this.this$0 != null && this.this$0.getSelected() == this;
+        Identifier banner = ServerBannerManager.getBanner(data);
 
         if (banner != null) {
-            g.blit(banner, x, y, w, h, 0.0f, 0.2f, 1.0f, 0.8f);
+            g.blit(banner, x, y, x + w, y + h, 0.0f, 1.0f, 0.15f, 0.85f);
             g.fill(x, y, x + w, y + h, 0x5508090E);
             g.fillGradient(x, y, x + w, y + h, 0x88000000, 0xBB000000);
             g.fillGradient(x, y, x + 160, y + h, 0xAA08090E, 0x0008090E);
@@ -43,6 +46,9 @@ public abstract class OnlineServerEntryMixin extends ServerSelectionList.Entry {
         if (isDragged) {
             Glass.drawHollowRect(g, x, y, w, h, 0xFFFFCC00);
             Glass.drawHollowRect(g, x + 1, y + 1, w - 2, h - 2, 0x88FFCC00);
+        } else if (isSelected) {
+            Glass.drawHollowRect(g, x, y, w, h, 0xFF9333EA);
+            Glass.drawHollowRect(g, x + 1, y + 1, w - 2, h - 2, 0x66A855F7);
         } else if (hovered) {
             Glass.drawHollowRect(g, x, y, w, h, 0xAA8A5CF6);
         } else {
