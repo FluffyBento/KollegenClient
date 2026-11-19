@@ -46,12 +46,9 @@ public abstract class OnlineServerEntryMixin extends ServerSelectionList.Entry {
         if (isDragged) {
             Glass.drawHollowRect(g, x, y, w, h, 0xFFFFCC00);
             Glass.drawHollowRect(g, x + 1, y + 1, w - 2, h - 2, 0x88FFCC00);
-        } else if (isSelected) {
-            Glass.drawHollowRect(g, x, y, w, h, 0xFF9333EA);
-            Glass.drawHollowRect(g, x + 1, y + 1, w - 2, h - 2, 0x66A855F7);
         } else if (hovered) {
             Glass.drawHollowRect(g, x, y, w, h, 0xAA8A5CF6);
-        } else {
+        } else if (!isSelected) {
             Glass.drawHollowRect(g, x, y, w, h, 0x22FFFFFF);
         }
     }
