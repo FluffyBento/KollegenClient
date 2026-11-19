@@ -10,71 +10,36 @@
                 {
                     "sampler_name": "In",
                     "target": "minecraft:main"
+                },
+                {
+                    "sampler_name": "Depth",
+                    "target": "minecraft:main",
+                    "use_depth_buffer": true
                 }
             ],
             "output": "swap",
             "uniforms": {
                 "ShaderConfig": [
-                    {
-                        "name": "Saturation",
-                        "type": "float",
-                        "value": 1.20
-                    },
-                    {
-                        "name": "Contrast",
-                        "type": "float",
-                        "value": 1.08
-                    },
-                    {
-                        "name": "Brightness",
-                        "type": "float",
-                        "value": 1.02
-                    },
-                    {
-                        "name": "Vignette",
-                        "type": "float",
-                        "value": 0.0
-                    },
-                    {
-                        "name": "Bloom",
-                        "type": "float",
-                        "value": 0.25
-                    },
-                    {
-                        "name": "Exposure",
-                        "type": "float",
-                        "value": 1.04
-                    },
-                    {
-                        "name": "Warmth",
-                        "type": "float",
-                        "value": 1.04
-                    },
-                    {
-                        "name": "Vibrance",
-                        "type": "float",
-                        "value": 1.18
-                    },
-                    {
-                        "name": "ToneMap",
-                        "type": "float",
-                        "value": 1.0
-                    },
-                    {
-                        "name": "Gamma",
-                        "type": "float",
-                        "value": 1.18
-                    },
-                    {
-                        "name": "Pad1",
-                        "type": "float",
-                        "value": 0.0
-                    },
-                    {
-                        "name": "Pad2",
-                        "type": "float",
-                        "value": 0.0
-                    }
+                    { "name": "Saturation", "type": "float", "value": 1.20 },
+                    { "name": "Contrast", "type": "float", "value": 1.08 },
+                    { "name": "Brightness", "type": "float", "value": 1.02 },
+                    { "name": "Vignette", "type": "float", "value": 0.0 },
+                    { "name": "Bloom", "type": "float", "value": 0.25 },
+                    { "name": "Exposure", "type": "float", "value": 1.04 },
+                    { "name": "Warmth", "type": "float", "value": 1.04 },
+                    { "name": "Vibrance", "type": "float", "value": 1.18 },
+                    { "name": "ToneMap", "type": "float", "value": 1.0 },
+                    { "name": "Gamma", "type": "float", "value": 1.18 },
+                    { "name": "GodRays", "type": "float", "value": 0.45 },
+                    { "name": "SSAO", "type": "float", "value": 0.40 },
+                    { "name": "DepthFog", "type": "float", "value": 0.35 },
+                    { "name": "WaterShimmer", "type": "float", "value": 0.35 },
+                    { "name": "GameTime", "type": "float", "value": 0.0 },
+                    { "name": "SunVisibility", "type": "float", "value": 1.0 },
+                    { "name": "SunScreenX", "type": "float", "value": 0.5 },
+                    { "name": "SunScreenY", "type": "float", "value": 0.2 },
+                    { "name": "FarPlane", "type": "float", "value": 256.0 },
+                    { "name": "Pad", "type": "float", "value": 0.0 }
                 ]
             }
         },

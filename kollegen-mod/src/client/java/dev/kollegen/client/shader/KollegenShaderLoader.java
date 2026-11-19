@@ -285,6 +285,42 @@ public class KollegenShaderLoader {
                             KollegenShader.INSTANCE.exposure.value = Math.max(0.5, Math.min(2.0, d));
                         } catch (NumberFormatException ignored) {
                         }
+                    } else if (k.contains("LIGHT_SHAFT") || k.contains("GODRAY") || k.contains("VOLUMETRIC_LIGHT")) {
+                        boolean b = !"false".equalsIgnoreCase(v) && !"0".equals(v);
+                        if (b) {
+                            try {
+                                double d = Double.parseDouble(v);
+                                KollegenShader.INSTANCE.godRays.value = Math.max(0.1, Math.min(1.0, d));
+                            } catch (NumberFormatException ignored) {
+                                KollegenShader.INSTANCE.godRays.value = 0.65;
+                            }
+                        } else {
+                            KollegenShader.INSTANCE.godRays.value = 0.0;
+                        }
+                    } else if (k.contains("AMBIENT_OCCLUSION") || k.contains("SSAO") || k.equals("AO")) {
+                        boolean b = !"false".equalsIgnoreCase(v) && !"0".equals(v);
+                        if (b) {
+                            try {
+                                double d = Double.parseDouble(v);
+                                KollegenShader.INSTANCE.ssao.value = Math.max(0.1, Math.min(1.0, d));
+                            } catch (NumberFormatException ignored) {
+                                KollegenShader.INSTANCE.ssao.value = 0.50;
+                            }
+                        } else {
+                            KollegenShader.INSTANCE.ssao.value = 0.0;
+                        }
+                    } else if (k.contains("FOG") || k.contains("ATMOSPHERE")) {
+                        try {
+                            double d = Double.parseDouble(v);
+                            KollegenShader.INSTANCE.depthFog.value = Math.max(0.05, Math.min(1.0, d));
+                        } catch (NumberFormatException ignored) {
+                        }
+                    } else if (k.contains("WATER") || k.contains("WAVE")) {
+                        try {
+                            double d = Double.parseDouble(v);
+                            KollegenShader.INSTANCE.waterShimmer.value = Math.max(0.05, Math.min(1.0, d));
+                        } catch (NumberFormatException ignored) {
+                        }
                     }
                 }
             }

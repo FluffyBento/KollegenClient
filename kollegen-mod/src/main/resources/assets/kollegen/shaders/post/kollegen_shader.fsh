@@ -2,8 +2,7 @@
 #extension GL_ARB_separate_shader_objects : require
 
 uniform sampler2D InSampler;
-
-layout(location = 0) in vec2 texCoord;
+uniform sampler2D DepthSampler;
 
 layout(std140) uniform SamplerInfo {
     vec2 OutSize;
@@ -15,16 +14,29 @@ layout(std140) uniform ShaderConfig {
     float Contrast;
     float Brightness;
     float Vignette;
+
     float Bloom;
     float Exposure;
     float Warmth;
     float Vibrance;
+
     float ToneMap;
     float Gamma;
-    float Pad1;
-    float Pad2;
+    float GodRays;
+    float SSAO;
+
+    float DepthFog;
+    float WaterShimmer;
+    float GameTime;
+    float SunVisibility;
+
+    float SunScreenX;
+    float SunScreenY;
+    float FarPlane;
+    float Pad;
 };
 
+layout(location = 0) in vec2 texCoord;
 layout(location = 0) out vec4 fragColor;
 
 const vec3 Gray = vec3(0.2126, 0.7152, 0.0722);
@@ -61,9 +73,76 @@ vec3 uncharted2Tonemap(vec3 x) {
 void main() {
     vec4 inTexel = texture(InSampler, texCoord);
     vec3 c = inTexel.rgb;
+    float rawDepth = texture(DepthSampler, texCoord).r;
+    bool isSky = rawDepth >= 0.9999;
+
+    vec2 px = 1.0 / max(InSize, vec2(1.0, 1.0));
+
+    if (!isSky && SSAO > 0.01) {
+        float occ = 0.0;
+        vec2 off[6] = vec2[](
+            vec2(1.5, 0.5), vec2(-1.5, -0.5),
+            vec2(0.5, 1.5), vec2(-0.5, -1.5),
+            vec2(1.2, -1.2), vec2(-1.2, 1.2)
+        );
+        for (int i = 0; i < 6; i++) {
+            float sd = texture(DepthSampler, texCoord + off[i] * px * 2.2).r;
+            float diff = rawDepth - sd;
+            if (diff > 0.00008 && diff < 0.008) {
+                occ += 1.0;
+            }
+        }
+        float ao = 1.0 - (occ / 6.0) * SSAO * 0.65;
+        c *= clamp(ao, 0.28, 1.0);
+    }
+
+    if (!isSky && DepthFog > 0.01) {
+        float zNear = 0.05;
+        float zFar = max(FarPlane, 64.0);
+        float linearDist = (zNear * zFar) / (zFar - rawDepth * (zFar - zNear));
+        float fogDensity = DepthFog * 0.006;
+        float fogFactor = 1.0 - exp(-pow(linearDist * fogDensity, 1.35));
+        fogFactor = clamp(fogFactor, 0.0, 0.90);
+
+        vec2 sunPos = vec2(SunScreenX, SunScreenY);
+        float distToSun = length(texCoord - sunPos);
+        float sunScattering = pow(max(1.0 - distToSun * 1.4, 0.0), 3.0) * SunVisibility;
+
+        vec3 skyHaze = mix(vec3(0.55, 0.68, 0.88), vec3(1.15, 0.98, 0.76), sunScattering * 0.65);
+        c = mix(c, skyHaze, fogFactor);
+    }
+
+    if (GodRays > 0.01 && SunVisibility > 0.05) {
+        vec2 sunPos = vec2(SunScreenX, SunScreenY);
+        vec2 delta = (sunPos - texCoord) / 8.0;
+        vec2 cur = texCoord;
+        float godRay = 0.0;
+        float decay = 1.0;
+        for (int i = 0; i < 8; i++) {
+            cur += delta;
+            float d = texture(DepthSampler, clamp(cur, 0.0, 1.0)).r;
+            if (d >= 0.9998) {
+                godRay += decay;
+            }
+            decay *= 0.85;
+        }
+        float toSunDist = length(sunPos - texCoord);
+        float sunCone = smoothstep(1.1, 0.0, toSunDist);
+        float intensity = (godRay / 8.0) * GodRays * SunVisibility * sunCone * 0.42;
+        vec3 beamColor = vec3(1.18, 1.02, 0.78);
+        c += beamColor * intensity;
+    }
+
+    if (!isSky && WaterShimmer > 0.01) {
+        vec2 sunPos = vec2(SunScreenX, SunScreenY);
+        float toSun = length(sunPos - texCoord);
+        vec2 waveCoord = texCoord * 32.0 + vec2(GameTime * 0.9, GameTime * 0.6);
+        float wave = sin(waveCoord.x) * cos(waveCoord.y);
+        float spec = pow(max(1.0 - toSun * 1.8 + wave * 0.18, 0.0), 10.0) * SunVisibility;
+        c += vec3(0.85, 0.95, 1.1) * spec * WaterShimmer * 0.28;
+    }
 
     if (Bloom > 0.01) {
-        vec2 px = 1.0 / max(InSize, vec2(1.0, 1.0));
         vec3 bloomAcc = vec3(0.0);
         float wSum = 0.0;
         for (int x = -2; x <= 2; x++) {

@@ -173,6 +173,34 @@ public class KollegenShader extends Module {
             v -> String.format("%.2f", v), null
     );
 
+    public final SliderSetting godRays = new SliderSetting(
+            "Sonnenstrahlen (God Rays)",
+            "Volumetrische Lichtstrahlen durch Bäume und Berge.",
+            0.45, 0.0, 1.0, 0.05,
+            v -> Math.round(v * 100.0) + "%", null
+    );
+
+    public final SliderSetting ssao = new SliderSetting(
+            "Ambient Occlusion (SSAO)",
+            "Weiche Tiefenschatten in Ecken und Kanten.",
+            0.40, 0.0, 1.0, 0.05,
+            v -> Math.round(v * 100.0) + "%", null
+    );
+
+    public final SliderSetting depthFog = new SliderSetting(
+            "Atmosphärischer Tiefennebel",
+            "Realistischer Dunst entfernter Landschaft basierend auf Tiefenpuffer.",
+            0.35, 0.0, 1.0, 0.05,
+            v -> Math.round(v * 100.0) + "%", null
+    );
+
+    public final SliderSetting waterShimmer = new SliderSetting(
+            "Wasser-Glanz & Schimmer",
+            "Wellenreflexionen und sonnenabhängiges Glitzern.",
+            0.35, 0.0, 1.0, 0.05,
+            v -> Math.round(v * 100.0) + "%", null
+    );
+
     public KollegenShader() {
         super("kollegenshader", "Kollegen Shader", "Eigen anpassbarer Vulkan Shader - Farbsättigung, Motion Blur, Bloom, Kontrast und Bildfilter rein im Kollegen Client.", Category.VISUAL);
         INSTANCE = this;
@@ -197,6 +225,10 @@ public class KollegenShader extends Module {
         add(motionBlurStrength);
         add(toneMap);
         add(gamma);
+        add(godRays);
+        add(ssao);
+        add(depthFog);
+        add(waterShimmer);
     }
 
     @Override
@@ -261,6 +293,10 @@ public class KollegenShader extends Module {
                 vignetteStrength.value = 0.10;
                 toneMap.value = 1.0;
                 gamma.value = 1.18;
+                godRays.value = 0.45;
+                ssao.value = 0.40;
+                depthFog.value = 0.35;
+                waterShimmer.value = 0.35;
             }
             case 1 -> {
                 saturationEnabled.value = true;
@@ -281,6 +317,10 @@ public class KollegenShader extends Module {
                 vignetteStrength.value = 0.12;
                 toneMap.value = 1.0;
                 gamma.value = 1.16;
+                godRays.value = 0.65;
+                ssao.value = 0.50;
+                depthFog.value = 0.45;
+                waterShimmer.value = 0.50;
             }
             case 2 -> {
                 saturationEnabled.value = true;
@@ -301,6 +341,10 @@ public class KollegenShader extends Module {
                 vignetteStrength.value = 0.10;
                 toneMap.value = 2.0;
                 gamma.value = 1.18;
+                godRays.value = 0.40;
+                ssao.value = 0.45;
+                depthFog.value = 0.35;
+                waterShimmer.value = 0.40;
             }
             case 3 -> {
                 saturationEnabled.value = true;
@@ -321,6 +365,10 @@ public class KollegenShader extends Module {
                 vignetteStrength.value = 0.12;
                 toneMap.value = 1.0;
                 gamma.value = 1.20;
+                godRays.value = 0.75;
+                ssao.value = 0.60;
+                depthFog.value = 0.40;
+                waterShimmer.value = 0.55;
             }
             case 4 -> {
                 saturationEnabled.value = true;
@@ -341,6 +389,10 @@ public class KollegenShader extends Module {
                 vignetteStrength.value = 0.10;
                 toneMap.value = 2.0;
                 gamma.value = 1.22;
+                godRays.value = 0.50;
+                ssao.value = 0.30;
+                depthFog.value = 0.65;
+                waterShimmer.value = 0.35;
             }
             case 5 -> {
                 saturationEnabled.value = true;
@@ -361,6 +413,10 @@ public class KollegenShader extends Module {
                 vignetteStrength.value = 0.08;
                 toneMap.value = 1.0;
                 gamma.value = 1.15;
+                godRays.value = 0.60;
+                ssao.value = 0.50;
+                depthFog.value = 0.30;
+                waterShimmer.value = 0.45;
             }
             case 6 -> {
                 saturationEnabled.value = true;
@@ -381,6 +437,10 @@ public class KollegenShader extends Module {
                 vignetteStrength.value = 0.25;
                 toneMap.value = 3.0;
                 gamma.value = 1.12;
+                godRays.value = 0.40;
+                ssao.value = 0.70;
+                depthFog.value = 0.40;
+                waterShimmer.value = 0.30;
             }
             case 7 -> {
                 saturationEnabled.value = true;
@@ -401,6 +461,10 @@ public class KollegenShader extends Module {
                 vignetteStrength.value = 0.10;
                 toneMap.value = 1.0;
                 gamma.value = 1.20;
+                godRays.value = 0.80;
+                ssao.value = 0.45;
+                depthFog.value = 0.50;
+                waterShimmer.value = 0.60;
             }
         }
     }
@@ -463,6 +527,26 @@ public class KollegenShader extends Module {
         return (float) INSTANCE.gamma.value;
     }
 
+    public static float getEffectiveGodRays() {
+        if (!isShaderActive()) return 0.0f;
+        return (float) INSTANCE.godRays.value;
+    }
+
+    public static float getEffectiveSSAO() {
+        if (!isShaderActive()) return 0.0f;
+        return (float) INSTANCE.ssao.value;
+    }
+
+    public static float getEffectiveDepthFog() {
+        if (!isShaderActive()) return 0.0f;
+        return (float) INSTANCE.depthFog.value;
+    }
+
+    public static float getEffectiveWaterShimmer() {
+        if (!isShaderActive()) return 0.0f;
+        return (float) INSTANCE.waterShimmer.value;
+    }
+
     public static float getEffectiveMotionBlur() {
         if (!isMotionBlurActive()) return 0.0f;
         return (float) Math.max(0.05, Math.min(0.95, INSTANCE.motionBlurStrength.value));
@@ -481,6 +565,72 @@ public class KollegenShader extends Module {
             float vib = getEffectiveVibrance();
             float tm = getEffectiveToneMap();
             float gamma = getEffectiveGamma();
+            float rays = getEffectiveGodRays();
+            float ssao = getEffectiveSSAO();
+            float fog = getEffectiveDepthFog();
+            float shimmer = getEffectiveWaterShimmer();
+
+            float sunScreenX = 0.5f;
+            float sunScreenY = 0.2f;
+            float sunVis = 0.0f;
+            float gameTime = (float) (System.currentTimeMillis() % 1000000L) / 1000.0f;
+            float farPlane = 256.0f;
+
+            net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
+            if (mc != null && mc.level != null && mc.gameRenderer != null) {
+                float partialTick = 1.0f;
+                try {
+                    partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
+                } catch (Throwable ignored) {
+                }
+
+                farPlane = (float) mc.options.getEffectiveRenderDistance() * 16.0f;
+                if (farPlane < 32.0f) farPlane = 128.0f;
+
+                try {
+                    net.minecraft.client.Camera camera = mc.gameRenderer.mainCamera();
+                    if (camera != null && camera.isInitialized()) {
+                        float rawSunAngle = 0.0f;
+                        try {
+                            rawSunAngle = camera.attributeProbe().getValue(net.minecraft.world.attribute.EnvironmentAttributes.SUN_ANGLE, partialTick);
+                        } catch (Throwable ignored) {
+                        }
+                        float sunAngle = (float) Math.toRadians(rawSunAngle);
+
+                        float sunWorldY = (float) Math.cos(sunAngle);
+                        float sunWorldZ = (float) Math.sin(sunAngle);
+
+                        float yawRad = (float) Math.toRadians(camera.yRot());
+                        float pitchRad = (float) Math.toRadians(camera.xRot());
+
+                        float cosY = (float) Math.cos(yawRad);
+                        float sinY = (float) Math.sin(yawRad);
+                        float x1 = -sinY * sunWorldZ;
+                        float z1 = cosY * sunWorldZ;
+                        float y1 = sunWorldY;
+
+                        float cosP = (float) Math.cos(pitchRad);
+                        float sinP = (float) Math.sin(pitchRad);
+                        float viewX = x1;
+                        float viewY = cosP * y1 - sinP * z1;
+                        float viewZ = sinP * y1 + cosP * z1;
+
+                        if (viewZ < -0.05f) {
+                            float fov = (float) Math.tan(Math.toRadians(mc.options.fov().get() * 0.5));
+                            float aspect = (float) mc.getWindow().getWidth() / Math.max(1.0f, (float) mc.getWindow().getHeight());
+                            float sx = 0.5f + (viewX / (-viewZ * fov * aspect)) * 0.5f;
+                            float sy = 0.5f - (viewY / (-viewZ * fov)) * 0.5f;
+
+                            if (sx >= -0.2f && sx <= 1.2f && sy >= -0.2f && sy <= 1.2f) {
+                                sunScreenX = Math.max(0.0f, Math.min(1.0f, sx));
+                                sunScreenY = Math.max(0.0f, Math.min(1.0f, sy));
+                                sunVis = Math.max(0.0f, Math.min(1.0f, -viewZ));
+                            }
+                        }
+                    }
+                } catch (Throwable ignored) {
+                }
+            }
 
             for (PostPass pass : ((PostChainAccessor) chain).kollegen$getPasses()) {
                 Map<String, GpuBuffer> uniforms = ((PostPassAccessor) pass).kollegen$getCustomUniforms();
@@ -488,14 +638,14 @@ public class KollegenShader extends Module {
                 GpuBuffer buf = uniforms.get("ShaderConfig");
                 if (buf == null || buf.isClosed()) continue;
 
-                uploadShaderConfig(buf, sat, cont, bright, vig, bloom, exp, warm, vib, tm, gamma, 0.0f, 0.0f);
+                uploadShaderConfig(buf, sat, cont, bright, vig, bloom, exp, warm, vib, tm, gamma, rays, ssao, fog, shimmer, gameTime, sunVis, sunScreenX, sunScreenY, farPlane, 0.0f);
             }
         } catch (Throwable ignored) {
         }
     }
 
-    private static void uploadShaderConfig(GpuBuffer buf, float sat, float cont, float bright, float vig, float bloom, float exp, float warm, float vib, float tm, float gamma, float pad1, float pad2) {
-        int maxLen = (int) Math.min(buf.size(), 48L);
+    private static void uploadShaderConfig(GpuBuffer buf, float sat, float cont, float bright, float vig, float bloom, float exp, float warm, float vib, float tm, float gamma, float rays, float ssao, float fog, float shimmer, float time, float sunVis, float sunX, float sunY, float farPlane, float pad) {
+        int maxLen = (int) Math.min(buf.size(), 80L);
         if (maxLen <= 0) return;
         ByteBuffer bb = ByteBuffer.allocateDirect(maxLen).order(ByteOrder.nativeOrder());
         if (maxLen >= 4) bb.putFloat(sat);
@@ -508,8 +658,16 @@ public class KollegenShader extends Module {
         if (maxLen >= 32) bb.putFloat(vib);
         if (maxLen >= 36) bb.putFloat(tm);
         if (maxLen >= 40) bb.putFloat(gamma);
-        if (maxLen >= 44) bb.putFloat(pad1);
-        if (maxLen >= 48) bb.putFloat(pad2);
+        if (maxLen >= 44) bb.putFloat(rays);
+        if (maxLen >= 48) bb.putFloat(ssao);
+        if (maxLen >= 52) bb.putFloat(fog);
+        if (maxLen >= 56) bb.putFloat(shimmer);
+        if (maxLen >= 60) bb.putFloat(time);
+        if (maxLen >= 64) bb.putFloat(sunVis);
+        if (maxLen >= 68) bb.putFloat(sunX);
+        if (maxLen >= 72) bb.putFloat(sunY);
+        if (maxLen >= 76) bb.putFloat(farPlane);
+        if (maxLen >= 80) bb.putFloat(pad);
         bb.flip();
 
         try {
@@ -533,8 +691,16 @@ public class KollegenShader extends Module {
             if (vbb.capacity() >= 32) vbb.putFloat(28, vib);
             if (vbb.capacity() >= 36) vbb.putFloat(32, tm);
             if (vbb.capacity() >= 40) vbb.putFloat(36, gamma);
-            if (vbb.capacity() >= 44) vbb.putFloat(40, pad1);
-            if (vbb.capacity() >= 48) vbb.putFloat(44, pad2);
+            if (vbb.capacity() >= 44) vbb.putFloat(40, rays);
+            if (vbb.capacity() >= 48) vbb.putFloat(44, ssao);
+            if (vbb.capacity() >= 52) vbb.putFloat(48, fog);
+            if (vbb.capacity() >= 56) vbb.putFloat(52, shimmer);
+            if (vbb.capacity() >= 60) vbb.putFloat(56, time);
+            if (vbb.capacity() >= 64) vbb.putFloat(60, sunVis);
+            if (vbb.capacity() >= 68) vbb.putFloat(64, sunX);
+            if (vbb.capacity() >= 72) vbb.putFloat(68, sunY);
+            if (vbb.capacity() >= 76) vbb.putFloat(72, farPlane);
+            if (vbb.capacity() >= 80) vbb.putFloat(76, pad);
         } catch (Throwable ignored) {
         }
     }
