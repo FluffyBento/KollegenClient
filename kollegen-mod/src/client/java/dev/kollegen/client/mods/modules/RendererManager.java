@@ -17,6 +17,8 @@ public final class RendererManager {
             .getGameDir().resolve("mods").resolve(".kollegen-renderer");
 
     public enum Group {
+        DEFAULT,
+        OPENGL,
         VULKAN
     }
 
@@ -25,12 +27,25 @@ public final class RendererManager {
     }
 
     public static Group desiredGroup() {
-        return Group.VULKAN;
+        try {
+            if (Files.isRegularFile(STATE_FILE)) {
+                String val = Files.readString(STATE_FILE).trim().toLowerCase();
+                if ("vulkan".equals(val)) {
+                    return Group.VULKAN;
+                }
+                if ("opengl".equals(val)) {
+                    return Group.OPENGL;
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+        return Group.DEFAULT;
     }
 
     public static void setDesired(Group g) {
         try {
-            Files.writeString(STATE_FILE, "vulkan");
+            String name = (g == Group.VULKAN) ? "vulkan" : (g == Group.OPENGL ? "opengl" : "default");
+            Files.writeString(STATE_FILE, name);
         } catch (IOException e) {
             KollegenMod.LOGGER.warn("Kollegen: Renderer-State konnte nicht gespeichert werden: " + e.getMessage());
         }
@@ -44,7 +59,7 @@ public final class RendererManager {
         purgeIncompatibleJars(mods);
         handleRendererConflicts(mods);
         syncOptionsBackend();
-        KollegenMod.LOGGER.info("Kollegen: Renderer abgestimmt -> Vulkan Native (SPIR-V)");
+        KollegenMod.LOGGER.info("Kollegen: Renderer abgestimmt");
     }
 
     public static void syncOptionsBackend() {
@@ -52,12 +67,27 @@ public final class RendererManager {
             Path opts = FabricLoader.getInstance().getGameDir().resolve("options.txt");
             if (Files.isRegularFile(opts)) {
                 String content = Files.readString(opts);
-                String target = "preferredGraphicsBackend:\"vulkan\"";
-                String other = "preferredGraphicsBackend:\"opengl\"";
-                if (content.contains(other)) {
-                    Files.writeString(opts, content.replace(other, target));
-                } else if (!content.contains(target)) {
-                    Files.writeString(opts, content + "\n" + target + "\n");
+                Group desired = desiredGroup();
+                if (desired == Group.VULKAN) {
+                    String target = "preferredGraphicsBackend:\"vulkan\"";
+                    if (content.contains("preferredGraphicsBackend:\"opengl\"")) {
+                        Files.writeString(opts, content.replace("preferredGraphicsBackend:\"opengl\"", target));
+                    } else if (content.contains("preferredGraphicsBackend:\"default\"")) {
+                        Files.writeString(opts, content.replace("preferredGraphicsBackend:\"default\"", target));
+                    } else if (!content.contains(target)) {
+                        Files.writeString(opts, content + "\n" + target + "\n");
+                    }
+                } else if (desired == Group.OPENGL) {
+                    String target = "preferredGraphicsBackend:\"opengl\"";
+                    if (content.contains("preferredGraphicsBackend:\"vulkan\"")) {
+                        Files.writeString(opts, content.replace("preferredGraphicsBackend:\"vulkan\"", target));
+                    } else if (content.contains("preferredGraphicsBackend:\"default\"")) {
+                        Files.writeString(opts, content.replace("preferredGraphicsBackend:\"default\"", target));
+                    }
+                } else {
+                    if (content.contains("preferredGraphicsBackend:\"vulkan\"")) {
+                        Files.writeString(opts, content.replace("preferredGraphicsBackend:\"vulkan\"", "preferredGraphicsBackend:\"default\""));
+                    }
                 }
             }
         } catch (Throwable ignored) {
@@ -65,7 +95,10 @@ public final class RendererManager {
         try {
             net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
             if (mc != null && mc.options != null && mc.options.preferredGraphicsBackend() != null) {
-                net.minecraft.client.PreferredGraphicsApi api = net.minecraft.client.PreferredGraphicsApi.VULKAN;
+                Group desired = desiredGroup();
+                net.minecraft.client.PreferredGraphicsApi api = (desired == Group.VULKAN)
+                        ? net.minecraft.client.PreferredGraphicsApi.VULKAN
+                        : ((desired == Group.OPENGL) ? net.minecraft.client.PreferredGraphicsApi.OPENGL : net.minecraft.client.PreferredGraphicsApi.DEFAULT);
                 if (mc.options.preferredGraphicsBackend().get() != api) {
                     mc.options.preferredGraphicsBackend().set(api);
                 }

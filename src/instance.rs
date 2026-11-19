@@ -1796,7 +1796,6 @@ pub fn launch(
         cmd.env("__NV_PRIME_RENDER_OFFLOAD", "1");
         cmd.env("__GLX_VENDOR_LIBRARY_NAME", "nvidia");
         cmd.env("__VK_LAYER_NV_optimus", "NVIDIA_only");
-        cmd.env("DRI_PRIME", "1");
 
         let nvidia_64 = std::path::Path::new("/usr/share/vulkan/icd.d/nvidia_icd.x86_64.json");
         if nvidia_64.exists() {
@@ -2492,9 +2491,13 @@ fn is_disconnect_log(line: &str) -> bool {
         || line.contains("Client disconnected")
 }
 
-pub fn apply_instance_performance_patch(inst_dir: &Path, is_new: bool, _vulkan_enabled: bool) {
+pub fn apply_instance_performance_patch(inst_dir: &Path, is_new: bool, vulkan_enabled: bool) {
     let opts = inst_dir.join("options.txt");
-    let target_backend = "\"vulkan\"";
+    let target_backend = if vulkan_enabled && !cfg!(target_os = "linux") {
+        "\"vulkan\""
+    } else {
+        "\"default\""
+    };
 
     let optimal_pairs = [
         ("preferredGraphicsBackend", target_backend),
