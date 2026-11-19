@@ -35,9 +35,7 @@ public abstract class OnlineServerEntryMixin extends ServerSelectionList.Entry {
 
         if (banner != null) {
             g.blit(banner, x, y, x + w, y + h, 0.0f, 1.0f, 0.15f, 0.85f);
-            g.fill(x, y, x + w, y + h, 0x5508090E);
-            g.fillGradient(x, y, x + w, y + h, 0x88000000, 0xBB000000);
-            g.fillGradient(x, y, x + 160, y + h, 0xAA08090E, 0x0008090E);
+            g.fillGradient(x, y, x + w, y + h, 0x15000000, 0x45000000);
         } else {
             g.fillGradient(x, y, x + w, y + h, 0xDD181B26, 0xEE10121C);
             g.fill(x, y, x + w, y + h, 0x440C0E16);
