@@ -1,8 +1,6 @@
 package dev.kollegen.client.shader;
 
 import dev.kollegen.client.KollegenMod;
-import dev.kollegen.client.mods.modules.KollegenShader;
-import net.minecraft.SharedConstants;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.packs.PackLocationInfo;
@@ -12,9 +10,7 @@ import net.minecraft.server.packs.PathPackResources;
 import net.minecraft.server.packs.repository.Pack;
 import net.minecraft.server.packs.repository.PackSource;
 
-import java.io.BufferedReader;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.DirectoryStream;
@@ -24,12 +20,20 @@ import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.Properties;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipFile;
 
 public class KollegenShaderLoader {
+
+    public enum ShaderProfile {
+        COMPLEMENTARY_UNBOUND,
+        COMPLEMENTARY_REIMAGINED,
+        BSL,
+        BLISS,
+        VIBRANT,
+        DEFAULT
+    }
 
     private static final KollegenShaderLoader INSTANCE = new KollegenShaderLoader();
 
@@ -77,13 +81,12 @@ public class KollegenShaderLoader {
     public synchronized List<String> refreshPacks() {
         List<String> list = new ArrayList<>();
         list.add("(Deaktiviert)");
-        list.add("Kollegen Shader (Integriert)");
         Path dir = getShaderpacksDir();
         if (Files.isDirectory(dir)) {
             try (DirectoryStream<Path> ds = Files.newDirectoryStream(dir)) {
                 for (Path p : ds) {
                     String name = p.getFileName().toString();
-                    if (Files.isRegularFile(p) && name.toLowerCase().endsWith(".zip")) {
+                    if (Files.isRegularFile(p) && name.toLowerCase(Locale.ROOT).endsWith(".zip")) {
                         list.add(name);
                     } else if (Files.isDirectory(p) && (Files.isDirectory(p.resolve("shaders")) || Files.isRegularFile(p.resolve("shaders.properties")))) {
                         list.add(name);
@@ -92,9 +95,9 @@ public class KollegenShaderLoader {
             } catch (Throwable ignored) {
             }
         }
-        List<String> sorted = new ArrayList<>(list.subList(2, list.size()));
+        List<String> sorted = new ArrayList<>(list.subList(1, list.size()));
         Collections.sort(sorted, String.CASE_INSENSITIVE_ORDER);
-        list.subList(2, list.size()).clear();
+        list.subList(1, list.size()).clear();
         list.addAll(sorted);
 
         this.cachedPacks.clear();
@@ -115,7 +118,7 @@ public class KollegenShaderLoader {
 
     public boolean isShaderPackActive() {
         String p = getActiveShaderPack();
-        return !p.equalsIgnoreCase("(Deaktiviert)") && !p.toLowerCase().contains("deaktiviert");
+        return !p.equalsIgnoreCase("(Deaktiviert)") && !p.toLowerCase(Locale.ROOT).contains("deaktiviert");
     }
 
     public synchronized Pack getRuntimeShaderPack() {
@@ -155,12 +158,12 @@ public class KollegenShaderLoader {
         this.cachedRuntimePack = null;
         applyShaderPack(this.activeShaderPack, true);
         saveConfig();
-        KollegenMod.LOGGER.info("Kollegen: Shaderpack aktiviert -> {}", this.activeShaderPack);
+        KollegenMod.LOGGER.info("Kollegen: Shaderpack gewechselt -> {}", this.activeShaderPack);
 
         try {
             Minecraft mc = Minecraft.getInstance();
             if (mc != null && mc.player != null) {
-                String msg = this.activeShaderPack.contains("Deaktiviert") ? "§7Shader deaktiviert" : "§aShader geladen: §f" + this.activeShaderPack;
+                String msg = !isShaderPackActive() ? "§7Shader deaktiviert" : "§aShader geladen: §f" + this.activeShaderPack;
                 mc.player.sendOverlayMessage(Component.literal(msg));
             }
         } catch (Throwable ignored) {
@@ -168,13 +171,9 @@ public class KollegenShaderLoader {
     }
 
     public void applyShaderPack(String packName, boolean reload) {
-        if (packName == null || packName.equalsIgnoreCase("(Deaktiviert)") || packName.toLowerCase().contains("deaktiviert")) {
+        if (packName == null || packName.equalsIgnoreCase("(Deaktiviert)") || packName.toLowerCase(Locale.ROOT).contains("deaktiviert")) {
             this.activeShaderPack = "(Deaktiviert)";
             this.cachedRuntimePack = null;
-            if (KollegenShader.INSTANCE != null) {
-                KollegenShader.INSTANCE.enabled = false;
-                KollegenShader.INSTANCE.onDisable();
-            }
             cleanRuntimePackDir();
             if (reload) {
                 triggerReload();
@@ -184,60 +183,6 @@ public class KollegenShaderLoader {
 
         this.activeShaderPack = packName;
         this.cachedRuntimePack = null;
-        if (KollegenShader.INSTANCE != null) {
-            KollegenShader.INSTANCE.enabled = true;
-            KollegenShader.INSTANCE.onEnable();
-        }
-
-        String lower = packName.toLowerCase();
-        if (lower.contains("kollegen") || lower.contains("integriert")) {
-            if (KollegenShader.INSTANCE != null) {
-                KollegenShader.INSTANCE.preset.index = 0;
-                KollegenShader.INSTANCE.applyPreset(0);
-            }
-        } else if (lower.contains("unbound")) {
-            if (KollegenShader.INSTANCE != null) {
-                KollegenShader.INSTANCE.preset.index = 3;
-                KollegenShader.INSTANCE.applyPreset(3);
-            }
-        } else if (lower.contains("reimagined") || lower.contains("complementary")) {
-            if (KollegenShader.INSTANCE != null) {
-                KollegenShader.INSTANCE.preset.index = 2;
-                KollegenShader.INSTANCE.applyPreset(2);
-            }
-        } else if (lower.contains("bsl")) {
-            if (KollegenShader.INSTANCE != null) {
-                KollegenShader.INSTANCE.preset.index = 1;
-                KollegenShader.INSTANCE.applyPreset(1);
-            }
-        } else if (lower.contains("bliss")) {
-            if (KollegenShader.INSTANCE != null) {
-                KollegenShader.INSTANCE.preset.index = 4;
-                KollegenShader.INSTANCE.applyPreset(4);
-            }
-        } else if (lower.contains("vibrant") || lower.contains("sildur")) {
-            if (KollegenShader.INSTANCE != null) {
-                KollegenShader.INSTANCE.preset.index = 5;
-                KollegenShader.INSTANCE.applyPreset(5);
-            }
-        } else if (lower.contains("cinema") || lower.contains("nostalgia") || lower.contains("kappa")) {
-            if (KollegenShader.INSTANCE != null) {
-                KollegenShader.INSTANCE.preset.index = 6;
-                KollegenShader.INSTANCE.applyPreset(6);
-            }
-        } else if (lower.contains("warm") || lower.contains("sun")) {
-            if (KollegenShader.INSTANCE != null) {
-                KollegenShader.INSTANCE.preset.index = 7;
-                KollegenShader.INSTANCE.applyPreset(7);
-            }
-        } else {
-            if (KollegenShader.INSTANCE != null) {
-                KollegenShader.INSTANCE.preset.index = 1;
-                KollegenShader.INSTANCE.applyPreset(1);
-            }
-        }
-
-        inspectPackProperties(packName);
         materializeRuntimePack(packName);
 
         if (reload) {
@@ -269,41 +214,84 @@ public class KollegenShaderLoader {
         }
     }
 
+    public ShaderProfile detectProfile(String name) {
+        if (name == null) return ShaderProfile.DEFAULT;
+        String lower = name.toLowerCase(Locale.ROOT);
+        if (lower.contains("unbound")) {
+            return ShaderProfile.COMPLEMENTARY_UNBOUND;
+        }
+        if (lower.contains("reimagined") || lower.contains("complementary")) {
+            return ShaderProfile.COMPLEMENTARY_REIMAGINED;
+        }
+        if (lower.contains("bsl")) {
+            return ShaderProfile.BSL;
+        }
+        if (lower.contains("bliss") || lower.contains("chocapic")) {
+            return ShaderProfile.BLISS;
+        }
+        if (lower.contains("vibrant") || lower.contains("sildur")) {
+            return ShaderProfile.VIBRANT;
+        }
+        return ShaderProfile.DEFAULT;
+    }
+
     private void materializeRuntimePack(String packName) {
         try {
             Path root = getRuntimePackDir();
             Path coreShaders = root.resolve("assets").resolve("minecraft").resolve("shaders").resolve("core");
             Files.createDirectories(coreShaders);
 
-            int packFormat = SharedConstants.RESOURCE_PACK_FORMAT_MAJOR;
-            if (packFormat <= 0) packFormat = 97;
-            String mcmeta = "{\"pack\":{\"pack_format\":" + packFormat + ",\"description\":\"Kollegen Vulkan Shader Pipeline\"}}";
+            String mcmeta = "{\"pack\":{\"pack_format\":97,\"supported_formats\":[1,999],\"description\":\"Kollegen Vulkan Shader Pipeline\"}}";
             Files.writeString(root.resolve("pack.mcmeta"), mcmeta, StandardCharsets.UTF_8, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
 
-            String lower = packName.toLowerCase();
-            boolean isComplementary = lower.contains("complementary") || lower.contains("reimagined") || lower.contains("unbound");
-            boolean isBsl = lower.contains("bsl");
-            boolean isBliss = lower.contains("bliss");
+            ShaderProfile profile = detectProfile(packName);
 
-            float sunStrength = isComplementary ? 1.15f : (isBsl ? 1.08f : 1.05f);
-            float waterWaveSpeed = isComplementary ? 1.8f : (isBsl ? 1.5f : 1.2f);
-
-            String terrainVsh = generateTerrainVsh(waterWaveSpeed);
-            String terrainFsh = generateTerrainFsh(sunStrength, isComplementary, isBsl, isBliss);
+            String terrainVsh = generateTerrainVsh(profile);
+            String terrainFsh = generateTerrainFsh(profile);
             String blockVsh = generateBlockVsh();
-            String blockFsh = generateBlockFsh(sunStrength);
-            String cloudsFsh = generateCloudsFsh();
+            String blockFsh = generateBlockFsh(profile);
+            String cloudsFsh = generateCloudsFsh(profile);
 
             Files.writeString(coreShaders.resolve("terrain.vsh"), terrainVsh, StandardCharsets.UTF_8, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
             Files.writeString(coreShaders.resolve("terrain.fsh"), terrainFsh, StandardCharsets.UTF_8, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
             Files.writeString(coreShaders.resolve("block.vsh"), blockVsh, StandardCharsets.UTF_8, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
             Files.writeString(coreShaders.resolve("block.fsh"), blockFsh, StandardCharsets.UTF_8, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
             Files.writeString(coreShaders.resolve("clouds.fsh"), cloudsFsh, StandardCharsets.UTF_8, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
-        } catch (Throwable ignored) {
+        } catch (Throwable t) {
+            KollegenMod.LOGGER.error("Kollegen: Fehler beim Materialisieren des Shaderpacks", t);
         }
     }
 
-    private String generateTerrainVsh(float waveSpeed) {
+    private String generateTerrainVsh(ShaderProfile profile) {
+        String waveSpeed;
+        String waveAmp;
+        switch (profile) {
+            case COMPLEMENTARY_UNBOUND:
+                waveSpeed = "2200.0";
+                waveAmp = "0.032";
+                break;
+            case COMPLEMENTARY_REIMAGINED:
+                waveSpeed = "1800.0";
+                waveAmp = "0.020";
+                break;
+            case BSL:
+                waveSpeed = "1400.0";
+                waveAmp = "0.015";
+                break;
+            case BLISS:
+                waveSpeed = "1100.0";
+                waveAmp = "0.022";
+                break;
+            case VIBRANT:
+                waveSpeed = "1900.0";
+                waveAmp = "0.026";
+                break;
+            default:
+                waveSpeed = "1600.0";
+                waveAmp = "0.018";
+                break;
+        }
+
         return "#version 330\n" +
                 "#extension GL_ARB_separate_shader_objects : require\n\n" +
                 "#include <minecraft:fog.glsl>\n" +
@@ -336,18 +324,17 @@ public class KollegenShaderLoader {
                 "    vec3 basePos = Position + (ChunkPosition - CameraBlockPos) + CameraOffset;\n" +
                 "    worldPos = basePos;\n" +
                 "    lightCoords = vec2(UV2) / 240.0;\n\n" +
-                "    float skyLight = clamp(lightCoords.y, 0.0, 1.0);\n" +
-                "    float t = GameTime * " + String.format(java.util.Locale.US, "%.1f", 2000.0f * waveSpeed) + ";\n" +
-                "    vec3 animatedPos = basePos;\n\n" +
-                "    if (skyLight > 0.35) {\n" +
-                "        float waveStrength = (skyLight - 0.35) * 1.538;\n" +
+                "    vec3 animatedPos = basePos;\n" +
+                "#ifdef ALPHA_CUTOUT\n" +
+                "    if (lightCoords.y > 0.65) {\n" +
+                "        float waveStrength = (lightCoords.y - 0.65) * 2.85;\n" +
                 "        vec3 seed = basePos + vec3(CameraBlockPos);\n" +
-                "        float w1 = sin(t * 1.8 + seed.x * 0.75 + seed.z * 0.5) * cos(t * 1.2 + seed.z * 0.8);\n" +
-                "        float w2 = sin(t * 2.4 + seed.z * 1.2) * 0.5;\n" +
-                "        animatedPos.x += (w1 + w2) * 0.035 * waveStrength;\n" +
-                "        animatedPos.y += sin(t * 1.5 + seed.x * 0.9) * 0.02 * waveStrength;\n" +
-                "        animatedPos.z += cos(t * 1.7 + seed.y * 0.8) * 0.025 * waveStrength;\n" +
-                "    }\n\n" +
+                "        float t = GameTime * " + waveSpeed + ";\n" +
+                "        float w = sin(t + seed.x * 0.45 + seed.z * 0.45) * " + waveAmp + " * waveStrength;\n" +
+                "        animatedPos.x += w;\n" +
+                "        animatedPos.z += w * 0.5;\n" +
+                "    }\n" +
+                "#endif\n\n" +
                 "    gl_Position = ProjMat * ModelViewMat * vec4(animatedPos, 1.0);\n\n" +
                 "    sphericalVertexDistance = fog_spherical_distance(animatedPos);\n" +
                 "    cylindricalVertexDistance = fog_cylindrical_distance(animatedPos);\n" +
@@ -363,9 +350,97 @@ public class KollegenShaderLoader {
                 "}\n";
     }
 
-    private String generateTerrainFsh(float sunMultiplier, boolean isComp, boolean isBsl, boolean isBliss) {
-        String deepWater = isComp ? "vec3(0.05, 0.22, 0.44)" : (isBsl ? "vec3(0.04, 0.26, 0.48)" : "vec3(0.08, 0.25, 0.40)");
-        String shallowWater = isComp ? "vec3(0.18, 0.65, 0.78)" : (isBsl ? "vec3(0.12, 0.68, 0.82)" : "vec3(0.20, 0.62, 0.68)");
+    private String generateTerrainFsh(ShaderProfile profile) {
+        String sunLight;
+        String skyLight;
+        String deepWater;
+        String shallowWater;
+        String waterSpec;
+        String waterFresnel;
+        String waterAlpha;
+        String torchGlow;
+        String extraShading;
+
+        switch (profile) {
+            case COMPLEMENTARY_UNBOUND:
+                sunLight = "vec3(1.28, 1.12, 0.90) * (NdotL * 0.55 + 0.45)";
+                skyLight = "vec3(0.50, 0.66, 0.98) * (upFactor * 0.35 + 0.65)";
+                deepWater = "vec3(0.02, 0.18, 0.48)";
+                shallowWater = "vec3(0.12, 0.80, 0.94)";
+                waterSpec = "pow(max(dot(waveN, H), 0.0), 80.0) * 3.8 * lightCoords.y";
+                waterFresnel = "0.05 + 0.95 * pow(1.0 - max(dot(V, waveN), 0.0), 4.2)";
+                waterAlpha = "clamp(color.a * 0.65 + 0.25, 0.40, 0.88)";
+                torchGlow = "vec3(1.20, 0.70, 0.22) * (torch * 0.75)";
+                extraShading = "        if (lightCoords.y > 0.4) {\n" +
+                        "            vec3 H = normalize(sunDir + V);\n" +
+                        "            float spec = pow(max(dot(N, H), 0.0), 48.0) * 0.26 * lightCoords.y;\n" +
+                        "            color.rgb += vec3(1.05, 0.98, 0.90) * spec;\n" +
+                        "        }\n";
+                break;
+            case COMPLEMENTARY_REIMAGINED:
+                sunLight = "vec3(1.18, 1.08, 0.94) * (NdotL * 0.42 + 0.58)";
+                skyLight = "vec3(0.65, 0.80, 1.05) * (upFactor * 0.30 + 0.70)";
+                deepWater = "vec3(0.04, 0.28, 0.52)";
+                shallowWater = "vec3(0.16, 0.72, 0.86)";
+                waterSpec = "pow(max(dot(waveN, H), 0.0), 64.0) * 2.2 * lightCoords.y";
+                waterFresnel = "0.04 + 0.96 * pow(1.0 - max(dot(V, waveN), 0.0), 4.5)";
+                waterAlpha = "clamp(color.a * 0.70 + 0.20, 0.35, 0.85)";
+                torchGlow = "vec3(1.12, 0.68, 0.28) * (torch * 0.65)";
+                extraShading = "        if (lightCoords.y > 0.5) {\n" +
+                        "            vec3 H = normalize(sunDir + V);\n" +
+                        "            float spec = pow(max(dot(N, H), 0.0), 32.0) * 0.16 * lightCoords.y;\n" +
+                        "            color.rgb += vec3(1.0, 0.96, 0.88) * spec;\n" +
+                        "        }\n";
+                break;
+            case BSL:
+                sunLight = "vec3(1.12, 1.02, 0.86) * (NdotL * 0.36 + 0.64)";
+                skyLight = "vec3(0.72, 0.78, 0.86) * (upFactor * 0.25 + 0.75)";
+                deepWater = "vec3(0.05, 0.35, 0.46)";
+                shallowWater = "vec3(0.24, 0.76, 0.82)";
+                waterSpec = "pow(max(dot(waveN, H), 0.0), 52.0) * 1.8 * lightCoords.y";
+                waterFresnel = "0.04 + 0.96 * pow(1.0 - max(dot(V, waveN), 0.0), 4.0)";
+                waterAlpha = "clamp(color.a * 0.55 + 0.15, 0.25, 0.75)";
+                torchGlow = "vec3(1.06, 0.58, 0.22) * (torch * 0.60)";
+                extraShading = "        float lum = dot(color.rgb, vec3(0.2126, 0.7152, 0.0722));\n" +
+                        "        float shadowDim = clamp(1.0 - (NdotL * 0.6 + lightCoords.y * 0.4), 0.0, 1.0);\n" +
+                        "        color.rgb = mix(color.rgb, vec3(lum), 0.14 * shadowDim);\n";
+                break;
+            case BLISS:
+                sunLight = "vec3(1.25, 1.12, 0.98) * (pow(NdotL, 0.70) * 0.35 + 0.65)";
+                skyLight = "vec3(0.82, 0.88, 1.04) * (upFactor * 0.20 + 0.80)";
+                deepWater = "vec3(0.02, 0.14, 0.24)";
+                shallowWater = "vec3(0.10, 0.46, 0.60)";
+                waterSpec = "pow(max(dot(waveN, H), 0.0), 40.0) * 1.6 * lightCoords.y";
+                waterFresnel = "0.06 + 0.94 * pow(1.0 - max(dot(V, waveN), 0.0), 3.8)";
+                waterAlpha = "clamp(color.a * 0.75 + 0.15, 0.30, 0.85)";
+                torchGlow = "vec3(1.08, 0.76, 0.45) * (torch * 0.58)";
+                extraShading = "        float haze = smoothstep(0.4, 1.0, sphericalVertexDistance / max(FogRenderDistanceEnd, 32.0));\n" +
+                        "        color.rgb = mix(color.rgb, FogColor.rgb * 1.06, haze * 0.22);\n";
+                break;
+            case VIBRANT:
+                sunLight = "vec3(1.26, 1.10, 0.86) * (NdotL * 0.48 + 0.52)";
+                skyLight = "vec3(0.55, 0.72, 1.04) * (upFactor * 0.30 + 0.70)";
+                deepWater = "vec3(0.02, 0.26, 0.52)";
+                shallowWater = "vec3(0.14, 0.82, 0.90)";
+                waterSpec = "pow(max(dot(waveN, H), 0.0), 72.0) * 2.8 * lightCoords.y";
+                waterFresnel = "0.05 + 0.95 * pow(1.0 - max(dot(V, waveN), 0.0), 4.2)";
+                waterAlpha = "clamp(color.a * 0.68 + 0.22, 0.35, 0.86)";
+                torchGlow = "vec3(1.18, 0.64, 0.20) * (torch * 0.70)";
+                extraShading = "";
+                break;
+            default:
+                sunLight = "vec3(1.15, 1.06, 0.92) * (NdotL * 0.40 + 0.60)";
+                skyLight = "vec3(0.68, 0.80, 1.02) * (upFactor * 0.28 + 0.72)";
+                deepWater = "vec3(0.04, 0.26, 0.48)";
+                shallowWater = "vec3(0.18, 0.70, 0.82)";
+                waterSpec = "pow(max(dot(waveN, H), 0.0), 60.0) * 2.0 * lightCoords.y";
+                waterFresnel = "0.04 + 0.96 * pow(1.0 - max(dot(V, waveN), 0.0), 4.2)";
+                waterAlpha = "clamp(color.a * 0.70 + 0.18, 0.32, 0.84)";
+                torchGlow = "vec3(1.10, 0.66, 0.28) * (torch * 0.62)";
+                extraShading = "";
+                break;
+        }
+
         return "#version 330\n" +
                 "#extension GL_ARB_separate_shader_objects : require\n\n" +
                 "#include <minecraft:fog.glsl>\n" +
@@ -416,8 +491,8 @@ public class KollegenShaderLoader {
                 "    vec3 V = normalize(-worldPos);\n" +
                 "    float NdotL = max(dot(N, sunDir), 0.0);\n" +
                 "    float upFactor = max(N.y, 0.0);\n\n" +
-                "    vec3 sunLight = vec3(1.10, 1.02, 0.92) * (" + String.format(java.util.Locale.US, "%.2f", sunMultiplier) + " * NdotL * 0.45 + 0.55);\n" +
-                "    vec3 skyLight = vec3(0.85, 0.92, 1.05) * (upFactor * 0.3 + 0.7);\n" +
+                "    vec3 sunLight = " + sunLight + ";\n" +
+                "    vec3 skyLight = " + skyLight + ";\n" +
                 "    vec3 naturalLighting = mix(skyLight, sunLight, lightCoords.y);\n\n" +
                 "    float isWater = (color.a < 0.95 && color.a > 0.05) ? 1.0 : 0.0;\n" +
                 "    if (isWater > 0.5) {\n" +
@@ -427,24 +502,20 @@ public class KollegenShaderLoader {
                 "        float w2 = sin(p.x * 4.1 - wT * 2.2 + p.y * 2.7) * 0.5;\n" +
                 "        vec3 waveN = normalize(N + vec3(w1 * 0.20, 0.0, w2 * 0.20));\n\n" +
                 "        vec3 H = normalize(sunDir + V);\n" +
-                "        float spec = pow(max(dot(waveN, H), 0.0), 64.0) * 2.0 * lightCoords.y;\n" +
-                "        float fresnel = 0.04 + 0.96 * pow(1.0 - max(dot(V, waveN), 0.0), 4.5);\n\n" +
+                "        float spec = " + waterSpec + ";\n" +
+                "        float fresnel = " + waterFresnel + ";\n\n" +
                 "        vec3 deepWater = " + deepWater + ";\n" +
                 "        vec3 shallowWater = " + shallowWater + ";\n" +
                 "        vec3 waterColor = mix(deepWater, shallowWater, clamp(1.0 - sphericalVertexDistance / 36.0, 0.0, 1.0));\n\n" +
                 "        color.rgb = mix(color.rgb * 0.45 + waterColor * 0.55, vec3(1.0, 0.98, 0.92), fresnel * 0.55);\n" +
                 "        color.rgb += vec3(1.08, 1.02, 0.94) * spec;\n" +
-                "        color.a = clamp(color.a * 0.85 + 0.15, 0.35, 0.90);\n" +
+                "        color.a = " + waterAlpha + ";\n" +
                 "    } else {\n" +
                 "        color.rgb *= naturalLighting;\n" +
-                "        if (lightCoords.y > 0.5) {\n" +
-                "            vec3 H = normalize(sunDir + V);\n" +
-                "            float spec = pow(max(dot(N, H), 0.0), 32.0) * 0.18 * lightCoords.y;\n" +
-                "            color.rgb += vec3(1.0, 0.96, 0.88) * spec;\n" +
-                "        }\n" +
+                extraShading +
                 "    }\n\n" +
                 "    float torch = pow(lightCoords.x, 2.2);\n" +
-                "    vec3 torchGlow = vec3(1.0, 0.65, 0.32) * (torch * 0.65);\n" +
+                "    vec3 torchGlow = " + torchGlow + ";\n" +
                 "    color.rgb += color.rgb * torchGlow;\n\n" +
                 "    #ifdef OIT_ALPHA_ONLY\n" +
                 "    executeAlphaOnlyPhase(gl_FragCoord.z, color.a);\n" +
@@ -490,7 +561,44 @@ public class KollegenShaderLoader {
                 "}\n";
     }
 
-    private String generateBlockFsh(float sunMultiplier) {
+    private String generateBlockFsh(ShaderProfile profile) {
+        String sunLight;
+        String skyLight;
+        String torchGlow;
+
+        switch (profile) {
+            case COMPLEMENTARY_UNBOUND:
+                sunLight = "vec3(1.28, 1.12, 0.90) * (NdotL * 0.55 + 0.45)";
+                skyLight = "vec3(0.50, 0.66, 0.98) * (upFactor * 0.35 + 0.65)";
+                torchGlow = "vec3(1.20, 0.70, 0.22) * (torch * 0.75)";
+                break;
+            case COMPLEMENTARY_REIMAGINED:
+                sunLight = "vec3(1.18, 1.08, 0.94) * (NdotL * 0.42 + 0.58)";
+                skyLight = "vec3(0.65, 0.80, 1.05) * (upFactor * 0.30 + 0.70)";
+                torchGlow = "vec3(1.12, 0.68, 0.28) * (torch * 0.65)";
+                break;
+            case BSL:
+                sunLight = "vec3(1.12, 1.02, 0.86) * (NdotL * 0.36 + 0.64)";
+                skyLight = "vec3(0.72, 0.78, 0.86) * (upFactor * 0.25 + 0.75)";
+                torchGlow = "vec3(1.06, 0.58, 0.22) * (torch * 0.60)";
+                break;
+            case BLISS:
+                sunLight = "vec3(1.25, 1.12, 0.98) * (pow(NdotL, 0.70) * 0.35 + 0.65)";
+                skyLight = "vec3(0.82, 0.88, 1.04) * (upFactor * 0.20 + 0.80)";
+                torchGlow = "vec3(1.08, 0.76, 0.45) * (torch * 0.58)";
+                break;
+            case VIBRANT:
+                sunLight = "vec3(1.26, 1.10, 0.86) * (NdotL * 0.48 + 0.52)";
+                skyLight = "vec3(0.55, 0.72, 1.04) * (upFactor * 0.30 + 0.70)";
+                torchGlow = "vec3(1.18, 0.64, 0.20) * (torch * 0.70)";
+                break;
+            default:
+                sunLight = "vec3(1.15, 1.06, 0.92) * (NdotL * 0.40 + 0.60)";
+                skyLight = "vec3(0.68, 0.80, 1.02) * (upFactor * 0.28 + 0.72)";
+                torchGlow = "vec3(1.10, 0.66, 0.28) * (torch * 0.62)";
+                break;
+        }
+
         return "#version 330\n" +
                 "#extension GL_ARB_separate_shader_objects : require\n\n" +
                 "#include <minecraft:fog.glsl>\n" +
@@ -529,15 +637,14 @@ public class KollegenShaderLoader {
                 "        N = -N;\n" +
                 "    }\n\n" +
                 "    vec3 sunDir = normalize(vec3(0.48, 0.78, 0.38));\n" +
-                "    vec3 V = normalize(-worldPos);\n" +
                 "    float NdotL = max(dot(N, sunDir), 0.0);\n" +
                 "    float upFactor = max(N.y, 0.0);\n\n" +
-                "    vec3 sunLight = vec3(1.10, 1.02, 0.92) * (" + String.format(java.util.Locale.US, "%.2f", sunMultiplier) + " * NdotL * 0.45 + 0.55);\n" +
-                "    vec3 skyLight = vec3(0.85, 0.92, 1.05) * (upFactor * 0.3 + 0.7);\n" +
+                "    vec3 sunLight = " + sunLight + ";\n" +
+                "    vec3 skyLight = " + skyLight + ";\n" +
                 "    vec3 naturalLighting = mix(skyLight, sunLight, lightCoords.y);\n" +
                 "    color.rgb *= naturalLighting;\n\n" +
                 "    float torch = pow(lightCoords.x, 2.2);\n" +
-                "    vec3 torchGlow = vec3(1.0, 0.65, 0.32) * (torch * 0.65);\n" +
+                "    vec3 torchGlow = " + torchGlow + ";\n" +
                 "    color.rgb += color.rgb * torchGlow;\n\n" +
                 "    #ifdef OIT_ALPHA_ONLY\n" +
                 "    executeAlphaOnlyPhase(gl_FragCoord.z, color.a);\n" +
@@ -547,7 +654,29 @@ public class KollegenShaderLoader {
                 "}\n";
     }
 
-    private String generateCloudsFsh() {
+    private String generateCloudsFsh(ShaderProfile profile) {
+        String cloudTint;
+        switch (profile) {
+            case COMPLEMENTARY_UNBOUND:
+                cloudTint = "vec3(1.12, 1.04, 0.94)";
+                break;
+            case COMPLEMENTARY_REIMAGINED:
+                cloudTint = "vec3(1.08, 1.02, 0.96)";
+                break;
+            case BSL:
+                cloudTint = "vec3(1.02, 1.02, 1.04)";
+                break;
+            case BLISS:
+                cloudTint = "vec3(1.14, 1.06, 0.98)";
+                break;
+            case VIBRANT:
+                cloudTint = "vec3(1.10, 1.02, 0.92)";
+                break;
+            default:
+                cloudTint = "vec3(1.05, 1.02, 0.96)";
+                break;
+        }
+
         return "#version 330\n" +
                 "#extension GL_ARB_separate_shader_objects : require\n\n" +
                 "#include <minecraft:fog.glsl>\n" +
@@ -565,7 +694,7 @@ public class KollegenShaderLoader {
                 "}\n\n" +
                 "void main() {\n" +
                 "    vec4 color = vertexColor;\n" +
-                "    color.rgb = mix(color.rgb, vec3(1.08, 1.02, 0.96), 0.30);\n" +
+                "    color.rgb = mix(color.rgb, " + cloudTint + ", 0.35);\n" +
                 "    #ifndef OIT_DEPTH_BOUNDS\n" +
                 "    color.a *= 1.0f - linear_fog_value(vertexDistance, 0, FogCloudsEnd);\n" +
                 "    #endif\n\n" +
@@ -575,158 +704,6 @@ public class KollegenShaderLoader {
                 "    fragColor = calculateFinalColor(color);\n" +
                 "    #endif\n" +
                 "}\n";
-    }
-
-    private void inspectPackProperties(String packName) {
-        Path packFile = getShaderpacksDir().resolve(packName);
-        if (Files.exists(packFile)) {
-            try {
-                if (Files.isRegularFile(packFile) && packName.toLowerCase().endsWith(".zip")) {
-                    try (ZipFile zip = new ZipFile(packFile.toFile())) {
-                        ZipEntry entry = zip.getEntry("shaders/shaders.properties");
-                        if (entry == null) {
-                            entry = zip.getEntry("shaders.properties");
-                        }
-                        if (entry != null) {
-                            try (InputStream in = zip.getInputStream(entry)) {
-                                parsePropertiesStream(in);
-                            }
-                        }
-                    }
-                } else if (Files.isDirectory(packFile)) {
-                    Path propPath = packFile.resolve("shaders").resolve("shaders.properties");
-                    if (!Files.isRegularFile(propPath)) {
-                        propPath = packFile.resolve("shaders.properties");
-                    }
-                    if (Files.isRegularFile(propPath)) {
-                        try (InputStream in = Files.newInputStream(propPath)) {
-                            parsePropertiesStream(in);
-                        }
-                    }
-                }
-            } catch (Throwable ignored) {
-            }
-        }
-        Path sideTxt = getShaderpacksDir().resolve(packName + ".txt");
-        if (Files.isRegularFile(sideTxt)) {
-            try (InputStream in = Files.newInputStream(sideTxt)) {
-                parsePropertiesStream(in);
-            } catch (Throwable ignored) {
-            }
-        }
-    }
-
-    private void parsePropertiesStream(InputStream in) {
-        try (BufferedReader reader = new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8))) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                line = line.trim();
-                if (line.isEmpty() || line.startsWith("#")) continue;
-                int eq = line.indexOf('=');
-                if (eq <= 0) continue;
-                String k = line.substring(0, eq).trim().toUpperCase();
-                String v = line.substring(eq + 1).trim();
-
-                if (KollegenShader.INSTANCE != null) {
-                    if (k.contains("BLOOM")) {
-                        boolean b = !"false".equalsIgnoreCase(v) && !"0".equals(v) && !"-1".equals(v);
-                        KollegenShader.INSTANCE.bloomEnabled.value = b;
-                        try {
-                            double d = Double.parseDouble(v);
-                            if (d > 0.0) {
-                                KollegenShader.INSTANCE.bloom.value = Math.max(0.1, Math.min(1.0, d));
-                            }
-                        } catch (NumberFormatException ignored) {
-                        }
-                    } else if (k.contains("MOTION_BLUR")) {
-                        boolean b = "true".equalsIgnoreCase(v) || "1".equals(v) || "2".equals(v);
-                        KollegenShader.INSTANCE.motionBlurEnabled.value = b;
-                        try {
-                            double d = Double.parseDouble(v);
-                            if (d > 0.0) {
-                                KollegenShader.INSTANCE.motionBlurStrength.value = Math.max(0.05, Math.min(0.95, d));
-                            }
-                        } catch (NumberFormatException ignored) {
-                        }
-                    } else if (k.contains("VIGNETTE")) {
-                        boolean b = "true".equalsIgnoreCase(v) || "1".equals(v);
-                        KollegenShader.INSTANCE.vignetteEnabled.value = b;
-                        try {
-                            double d = Double.parseDouble(v);
-                            if (d > 0.0) {
-                                KollegenShader.INSTANCE.vignetteStrength.value = Math.max(0.05, Math.min(1.0, d));
-                            }
-                        } catch (NumberFormatException ignored) {
-                        }
-                    } else if (k.equals("SATURATION") || k.contains("COLOR_SATURATION")) {
-                        try {
-                            double d = Double.parseDouble(v);
-                            KollegenShader.INSTANCE.saturationEnabled.value = true;
-                            KollegenShader.INSTANCE.saturation.value = Math.max(0.5, Math.min(3.0, d));
-                        } catch (NumberFormatException ignored) {
-                        }
-                    } else if (k.equals("VIBRANCE")) {
-                        try {
-                            double d = Double.parseDouble(v);
-                            KollegenShader.INSTANCE.vibranceEnabled.value = true;
-                            KollegenShader.INSTANCE.vibrance.value = Math.max(0.5, Math.min(2.5, d));
-                        } catch (NumberFormatException ignored) {
-                        }
-                    } else if (k.equals("CONTRAST")) {
-                        try {
-                            double d = Double.parseDouble(v);
-                            KollegenShader.INSTANCE.contrastEnabled.value = true;
-                            KollegenShader.INSTANCE.contrast.value = Math.max(0.5, Math.min(2.0, d));
-                        } catch (NumberFormatException ignored) {
-                        }
-                    } else if (k.equals("EXPOSURE")) {
-                        try {
-                            double d = Double.parseDouble(v);
-                            KollegenShader.INSTANCE.exposureEnabled.value = true;
-                            KollegenShader.INSTANCE.exposure.value = Math.max(0.5, Math.min(2.0, d));
-                        } catch (NumberFormatException ignored) {
-                        }
-                    } else if (k.contains("LIGHT_SHAFT") || k.contains("GODRAY") || k.contains("VOLUMETRIC_LIGHT")) {
-                        boolean b = !"false".equalsIgnoreCase(v) && !"0".equals(v);
-                        if (b) {
-                            try {
-                                double d = Double.parseDouble(v);
-                                KollegenShader.INSTANCE.godRays.value = Math.max(0.1, Math.min(1.0, d));
-                            } catch (NumberFormatException ignored) {
-                                KollegenShader.INSTANCE.godRays.value = 0.65;
-                            }
-                        } else {
-                            KollegenShader.INSTANCE.godRays.value = 0.0;
-                        }
-                    } else if (k.contains("AMBIENT_OCCLUSION") || k.contains("SSAO") || k.equals("AO")) {
-                        boolean b = !"false".equalsIgnoreCase(v) && !"0".equals(v);
-                        if (b) {
-                            try {
-                                double d = Double.parseDouble(v);
-                                KollegenShader.INSTANCE.ssao.value = Math.max(0.1, Math.min(1.0, d));
-                            } catch (NumberFormatException ignored) {
-                                KollegenShader.INSTANCE.ssao.value = 0.50;
-                            }
-                        } else {
-                            KollegenShader.INSTANCE.ssao.value = 0.0;
-                        }
-                    } else if (k.contains("FOG") || k.contains("ATMOSPHERE")) {
-                        try {
-                            double d = Double.parseDouble(v);
-                            KollegenShader.INSTANCE.depthFog.value = Math.max(0.05, Math.min(1.0, d));
-                        } catch (NumberFormatException ignored) {
-                        }
-                    } else if (k.contains("WATER") || k.contains("WAVE")) {
-                        try {
-                            double d = Double.parseDouble(v);
-                            KollegenShader.INSTANCE.waterShimmer.value = Math.max(0.05, Math.min(1.0, d));
-                        } catch (NumberFormatException ignored) {
-                        }
-                    }
-                }
-            }
-        } catch (Throwable ignored) {
-        }
     }
 
     public void triggerReload() {
