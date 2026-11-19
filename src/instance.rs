@@ -2554,8 +2554,8 @@ pub fn apply_instance_performance_patch(inst_dir: &Path, is_new: bool, _vulkan_e
         for line in lines.iter_mut() {
             if line.starts_with("renderDistance:") {
                 if let Ok(dist) = line["renderDistance:".len()..].trim().parse::<u32>() {
-                    if dist > 16 {
-                        *line = "renderDistance:14".to_string();
+                    if dist > 32 {
+                        *line = "renderDistance:32".to_string();
                         changed = true;
                     }
                 }
@@ -2563,7 +2563,7 @@ pub fn apply_instance_performance_patch(inst_dir: &Path, is_new: bool, _vulkan_e
             if line.starts_with("simulationDistance:") {
                 if let Ok(dist) = line["simulationDistance:".len()..].trim().parse::<u32>() {
                     if dist > 12 {
-                        *line = "simulationDistance:8".to_string();
+                        *line = "simulationDistance:10".to_string();
                         changed = true;
                     }
                 }

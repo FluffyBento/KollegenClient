@@ -81,6 +81,7 @@
     "ScreenshotMixin",
     "ScreenEffectRendererMixin",
     "ViewAreaMixin",
+    "RotatingSectionStorageMixin",
     "PetFakeChunkManagerMixin",
     "ModsScreenMixin",
     "OptionInstanceIntRangeMixin",
