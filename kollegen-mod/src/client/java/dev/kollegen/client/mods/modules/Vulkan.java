@@ -16,26 +16,22 @@ public final class Vulkan {
     private static final class VulkanModule extends Module {
         VulkanModule() {
             super("vulkan", "Vulkan Renderer",
-                    "Moderner Vulkan-Renderer für hardwarenahe Grafikberechnung und maximale Bildraten. Wirkt nach Neustart.",
+                    "Moderner Vulkan-Renderer für hardwarenahe Grafikberechnung und maximale Bildraten mit nativer SPIR-V Pipeline.",
                     Category.PERFORMANCE);
-            this.enabled = !RendererManager.isSodiumPresent() && RendererManager.desiredGroup() == RendererManager.Group.VULKAN;
+            this.enabled = true;
+            this.locked = true;
         }
 
         @Override
         public void onEnable() {
-            if (RendererManager.isSodiumPresent()) {
-                this.enabled = false;
-                risk = "Sodium ist aktiv! Vulkan kann nicht zeitgleich mit Sodium laufen. Deaktiviere zuerst Sodium.";
-                return;
-            }
+            this.enabled = true;
             RendererManager.setDesired(RendererManager.Group.VULKAN);
-            risk = "Vulkan AKTIV – starte Minecraft neu, um den nativen Vulkan-Renderer zu laden.";
         }
 
         @Override
         public void onDisable() {
-            RendererManager.setDesired(RendererManager.Group.OPENGL);
-            risk = "Vulkan DEAKTIVIERT – starte Minecraft neu, um den Standard-OpenGL-Renderer (Sodium+Iris) zu laden.";
+            this.enabled = true;
+            RendererManager.setDesired(RendererManager.Group.VULKAN);
         }
     }
 }

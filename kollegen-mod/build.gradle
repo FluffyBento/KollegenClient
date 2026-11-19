@@ -529,10 +529,7 @@ def vendorModResource(String resourceRel, String slug, String urlOverride = null
 
 
 
-def sodiumUrl = project.minecraft_version == "26.3" ? 'https://cdn.modrinth.com/data/AANobbMI/versions/g6ju16VJ/sodium-fabric-0.9.3-beta.1%2Bmc26.3.jar' : null
-def sodiumTask = vendorModResource('dev/kollegen/client/sodium.bin', 'sodium', sodiumUrl)
-def irisTask = vendorModResource('dev/kollegen/client/iris.bin', 'iris')
-def berylTask = vendorModResource('dev/kollegen/client/beryl.bin', 'beryl')
+
 
 
 
@@ -753,7 +750,7 @@ tasks.register('vendorVulkanMod') {
         ant.copy(file: patchedJar, tofile: vulkanRes)
     }
 }
-processResources.dependsOn vendorVulkanMod, sodiumTask, irisTask, berylTask,
+processResources.dependsOn vendorVulkanMod,
         flkTask, fabricApiTask, owoTask, modMenuTask,
         clothConfigTask, chatHeadsTask, distanceTask
 

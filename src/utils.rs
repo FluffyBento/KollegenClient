@@ -256,9 +256,8 @@ pub fn ensure_essential(name: &str, data_dir: &Path, mc_version: &str) -> Result
     ensure_modrinth_mod(&mods_dir, "essential", "essentialmod.jar", mc_version)
 }
 
-pub fn ensure_sodium(name: &str, data_dir: &Path, mc_version: &str) -> Result<()> {
-    let mods_dir = instance_dir(data_dir, name).join("mods");
-    ensure_modrinth_mod(&mods_dir, "sodium", "sodium.jar", mc_version)
+pub fn ensure_sodium(_name: &str, _data_dir: &Path, _mc_version: &str) -> Result<()> {
+    Ok(())
 }
 
 pub fn ensure_flk(name: &str, data_dir: &Path, mc_version: &str) -> Result<()> {

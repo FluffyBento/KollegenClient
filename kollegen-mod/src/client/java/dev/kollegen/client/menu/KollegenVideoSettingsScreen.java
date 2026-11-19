@@ -51,16 +51,7 @@ public class KollegenVideoSettingsScreen extends Screen {
     protected void init() {
         super.init();
         this.shaderPacks = KollegenShaderLoader.getInstance().getShaderPacks();
-        if (IrisBridge.isIrisLoaded()) {
-            String cur = IrisBridge.getCurrentShaderpack();
-            if (cur != null && !cur.isEmpty() && !"(Deaktiviert)".equals(cur)) {
-                this.selectedShaderPack = cur;
-            } else {
-                this.selectedShaderPack = KollegenShaderLoader.getInstance().getActiveShaderPack();
-            }
-        } else {
-            this.selectedShaderPack = KollegenShaderLoader.getInstance().getActiveShaderPack();
-        }
+        this.selectedShaderPack = KollegenShaderLoader.getInstance().getActiveShaderPack();
         if (this.selectedShaderPack == null || this.selectedShaderPack.isEmpty()) {
             this.selectedShaderPack = "(Deaktiviert)";
         }
@@ -141,10 +132,8 @@ public class KollegenVideoSettingsScreen extends Screen {
 
         Glass.textC(g, this.font, "Kollegen Client Grafik-Einstellungen", this.width / 2, 38, 0xFFFFFFFF, true);
 
-        boolean sodium = SodiumBridge.isSodiumLoaded() || RendererManager.isSodiumPresent();
-        RendererManager.Group group = RendererManager.desiredGroup();
-        String backendText = sodium ? "OpenGL (Sodium)" : (group == RendererManager.Group.VULKAN ? "Vulkan MDI" : "OpenGL");
-        int badgeCol = sodium ? 0xFF10B981 : (group == RendererManager.Group.VULKAN ? 0xFF8B5CF6 : 0xFF3B82F6);
+        String backendText = "Vulkan Native (SPIR-V)";
+        int badgeCol = 0xFF8B5CF6;
         int badgeW = this.font.width(backendText) + 16;
         Glass.pill(g, this.width - badgeW - 14, 12, badgeW, 20, 0.0f, false, false);
         drawRect(g, this.width - badgeW - 14, 12, badgeW, 20, 0x33000000);
@@ -192,7 +181,7 @@ public class KollegenVideoSettingsScreen extends Screen {
         int footY = this.height - 34;
 
         if (this.restartRequired) {
-            String note = "Neustart erforderlich für vollständigen Renderer-Wechsel.";
+            String note = "Neustart empfohlen für geänderte Grafik-Optionen.";
             Glass.text(g, this.font, note, 20, footY + 6, 0xFFF59E0B, true);
         }
 
@@ -201,15 +190,6 @@ public class KollegenVideoSettingsScreen extends Screen {
         boolean doneHov = mx >= doneX && mx <= doneX + doneW && my >= footY && my <= footY + 24;
         Glass.pill(g, doneX, footY, doneW, 24, doneHov ? 1.0f : 0.0f, true, false);
         Glass.textC(g, this.font, "Fertig", doneX + doneW / 2, footY + 8, 0xFFFFFFFF, true);
-
-        if (SodiumBridge.isSodiumLoaded()) {
-            int sodW = 160;
-            int sodX = doneX - sodW - 10;
-            boolean sodHov = mx >= sodX && mx <= sodX + sodW && my >= footY && my <= footY + 24;
-            Glass.pill(g, sodX, footY, sodW, 24, sodHov ? 1.0f : 0.0f, false, false);
-            drawRect(g, sodX, footY, sodW, 24, sodHov ? 0x44FFFFFF : 0x22FFFFFF);
-            Glass.textC(g, this.font, "Sodium-Menü...", sodX + sodW / 2, footY + 8, 0xFF38BDF8, true);
-        }
 
         int shW = 150;
         int shX = 16;
@@ -227,10 +207,8 @@ public class KollegenVideoSettingsScreen extends Screen {
         int col1X = px + 16;
         int col2X = px + 24 + colW;
 
-        boolean sodium = SodiumBridge.isSodiumLoaded() || RendererManager.isSodiumPresent();
-        RendererManager.Group group = RendererManager.desiredGroup();
-        String renLabel = sodium ? "Renderer: OpenGL (Sodium erzwungen)" : (group == RendererManager.Group.VULKAN ? "Renderer: Vulkan Native" : "Renderer: OpenGL");
-        renderButton(g, col1X, rowY, colW, 24, renLabel, sodium ? 0xFFAAAAAA : 0xFF3B82F6, mx, my);
+        String renLabel = "Renderer: Vulkan Native (SPIR-V)";
+        renderButton(g, col1X, rowY, colW, 24, renLabel, 0xFF8B5CF6, mx, my);
 
         GraphicsPreset gp = mc.options.graphicsPreset().get();
         String gpStr = gp == GraphicsPreset.FAST ? "Schnell" : (gp == GraphicsPreset.FANCY ? "Schön" : (gp == GraphicsPreset.FABULOUS ? "Fabelhaft" : "Eigene"));
@@ -461,18 +439,6 @@ public class KollegenVideoSettingsScreen extends Screen {
             return true;
         }
 
-        if (SodiumBridge.isSodiumLoaded()) {
-            int sodW = 160;
-            int sodX = doneX - sodW - 10;
-            if (mx >= sodX && mx <= sodX + sodW && my >= footY && my <= footY + 24) {
-                Screen sodScreen = SodiumBridge.openSodiumScreen(this);
-                if (sodScreen != null) {
-                    Minecraft.getInstance().setScreenAndShow(sodScreen);
-                }
-                return true;
-            }
-        }
-
         int shW = 150;
         int shX = 16;
         if (mx >= shX && mx <= shX + shW && my >= footY && my <= footY + 24) {
@@ -511,12 +477,8 @@ public class KollegenVideoSettingsScreen extends Screen {
         int col2X = px + 24 + colW;
 
         if (mx >= col1X && mx <= col1X + colW && my >= rowY && my <= rowY + 24) {
-            RendererManager.Group next = RendererManager.desiredGroup() == RendererManager.Group.VULKAN
-                    ? RendererManager.Group.OPENGL
-                    : RendererManager.Group.VULKAN;
-            RendererManager.setDesired(next);
+            RendererManager.setDesired(RendererManager.Group.VULKAN);
             RendererManager.apply();
-            this.restartRequired = true;
             return;
         }
 
@@ -632,15 +594,6 @@ public class KollegenVideoSettingsScreen extends Screen {
         }
 
         if (mx >= px + 338 && mx <= px + 488 && my >= barY && my <= barY + barH) {
-            if (IrisBridge.isIrisLoaded() && !"(Deaktiviert)".equals(this.selectedShaderPack)) {
-                net.minecraft.client.gui.screens.Screen screen = IrisBridge.openIrisConfigScreen(this);
-                if (screen != null) {
-                    if (this.minecraft != null) {
-                        this.minecraft.setScreenAndShow(screen);
-                    }
-                    return;
-                }
-            }
             this.currentTab = 3;
             return;
         }
@@ -665,9 +618,6 @@ public class KollegenVideoSettingsScreen extends Screen {
 
     private void selectShaderPack(String pack) {
         this.selectedShaderPack = pack;
-        if (IrisBridge.isIrisLoaded()) {
-            IrisBridge.setShaderpack(pack);
-        }
         KollegenShaderLoader.getInstance().setShaderPack(pack);
     }
 

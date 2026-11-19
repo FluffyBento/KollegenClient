@@ -1,6 +1,5 @@
 package dev.kollegen.client.shader;
 
-import dev.kollegen.client.menu.IrisBridge;
 import dev.kollegen.client.mods.modules.KollegenShader;
 import net.minecraft.client.Minecraft;
 
@@ -55,9 +54,6 @@ public class KollegenShaderLoader {
         refreshPacks();
         if (isShaderPackActive()) {
             applyShaderPack(this.activeShaderPack, false);
-            if (IrisBridge.isIrisLoaded()) {
-                IrisBridge.setShaderpack(this.activeShaderPack);
-            }
         }
     }
 
@@ -109,9 +105,6 @@ public class KollegenShaderLoader {
             packName = "(Deaktiviert)";
         }
         this.activeShaderPack = packName.trim();
-        if (IrisBridge.isIrisLoaded()) {
-            IrisBridge.setShaderpack(this.activeShaderPack);
-        }
         applyShaderPack(this.activeShaderPack, true);
         saveConfig();
     }

@@ -51,7 +51,7 @@ public class KollegenShader extends Module {
     public final SliderSetting saturation = new SliderSetting(
             "Sättigung",
             "Farbintensität (1.0 = normal, höher = lebendiger).",
-            1.35, 0.0, 3.0, 0.05,
+            1.40, 0.0, 3.0, 0.05,
             v -> Math.round(v * 100.0) + "%", null
     );
 
@@ -64,7 +64,7 @@ public class KollegenShader extends Module {
     public final SliderSetting vibrance = new SliderSetting(
             "Vibrance-Stärke",
             "Intensität der dynamischen Farbanhebung.",
-            1.25, 0.5, 2.5, 0.05,
+            1.30, 0.5, 2.5, 0.05,
             v -> String.format("%.2f", v), null
     );
 
@@ -77,7 +77,7 @@ public class KollegenShader extends Module {
     public final SliderSetting contrast = new SliderSetting(
             "Kontrast-Stärke",
             "Intensität des Kontrasts.",
-            1.10, 0.5, 2.0, 0.02,
+            1.15, 0.5, 2.0, 0.02,
             v -> String.format("%.2f", v), null
     );
 
@@ -103,7 +103,7 @@ public class KollegenShader extends Module {
     public final SliderSetting exposure = new SliderSetting(
             "Belichtungs-Wert",
             "Intensität der Belichtung.",
-            1.06, 0.5, 2.0, 0.02,
+            1.10, 0.5, 2.0, 0.02,
             v -> String.format("%.2f", v), null
     );
 
@@ -116,7 +116,7 @@ public class KollegenShader extends Module {
     public final SliderSetting bloom = new SliderSetting(
             "Bloom-Stärke",
             "Intensität des Lichtleuchtens.",
-            0.35, 0.0, 1.0, 0.05,
+            0.40, 0.0, 1.0, 0.05,
             v -> Math.round(v * 100.0) + "%", null
     );
 
@@ -129,7 +129,7 @@ public class KollegenShader extends Module {
     public final SliderSetting warmth = new SliderSetting(
             "Temperatur",
             "Farbwärme (1.0 = neutral, >1 = sonnig/golden, <1 = kühl).",
-            1.06, 0.7, 1.4, 0.02,
+            1.08, 0.7, 1.4, 0.02,
             v -> String.format("%.2f", v), null
     );
 
@@ -160,7 +160,7 @@ public class KollegenShader extends Module {
     );
 
     public KollegenShader() {
-        super("kollegenshader", "Kollegen Shader", "Eigen anpassbarer Shader - Farbsättigung, Motion Blur, Kontrast und Bildfilter rein im Kollegen Client ohne Zusatz-Mods.", Category.VISUAL);
+        super("kollegenshader", "Kollegen Shader", "Eigen anpassbarer Vulkan Shader - Farbsättigung, Motion Blur, Bloom, Kontrast und Bildfilter rein im Kollegen Client.", Category.VISUAL);
         INSTANCE = this;
         add(preset);
         add(saturationEnabled);
@@ -209,17 +209,17 @@ public class KollegenShader extends Module {
         switch (index) {
             case 1 -> {
                 saturationEnabled.value = true;
-                saturation.value = 1.32;
+                saturation.value = 1.40;
                 vibranceEnabled.value = true;
-                vibrance.value = 1.25;
+                vibrance.value = 1.30;
                 contrastEnabled.value = true;
-                contrast.value = 1.10;
+                contrast.value = 1.15;
                 brightnessEnabled.value = false;
-                brightness.value = 1.02;
+                brightness.value = 1.04;
                 exposureEnabled.value = true;
-                exposure.value = 1.08;
+                exposure.value = 1.10;
                 bloomEnabled.value = true;
-                bloom.value = 0.35;
+                bloom.value = 0.40;
                 warmthEnabled.value = true;
                 warmth.value = 1.08;
                 vignetteEnabled.value = true;
@@ -227,71 +227,71 @@ public class KollegenShader extends Module {
             }
             case 2 -> {
                 saturationEnabled.value = true;
-                saturation.value = 1.38;
-                vibranceEnabled.value = true;
-                vibrance.value = 1.30;
-                contrastEnabled.value = true;
-                contrast.value = 1.15;
-                brightnessEnabled.value = true;
-                brightness.value = 1.04;
-                exposureEnabled.value = true;
-                exposure.value = 1.12;
-                bloomEnabled.value = true;
-                bloom.value = 0.40;
-                warmthEnabled.value = true;
-                warmth.value = 1.06;
-                vignetteEnabled.value = true;
-                vignetteStrength.value = 0.10;
-            }
-            case 3 -> {
-                saturationEnabled.value = true;
-                saturation.value = 1.42;
+                saturation.value = 1.45;
                 vibranceEnabled.value = true;
                 vibrance.value = 1.35;
                 contrastEnabled.value = true;
-                contrast.value = 1.18;
+                contrast.value = 1.20;
                 brightnessEnabled.value = true;
-                brightness.value = 1.04;
+                brightness.value = 1.05;
                 exposureEnabled.value = true;
                 exposure.value = 1.14;
                 bloomEnabled.value = true;
                 bloom.value = 0.45;
                 warmthEnabled.value = true;
-                warmth.value = 1.08;
+                warmth.value = 1.06;
                 vignetteEnabled.value = true;
                 vignetteStrength.value = 0.12;
             }
+            case 3 -> {
+                saturationEnabled.value = true;
+                saturation.value = 1.50;
+                vibranceEnabled.value = true;
+                vibrance.value = 1.40;
+                contrastEnabled.value = true;
+                contrast.value = 1.22;
+                brightnessEnabled.value = true;
+                brightness.value = 1.05;
+                exposureEnabled.value = true;
+                exposure.value = 1.15;
+                bloomEnabled.value = true;
+                bloom.value = 0.50;
+                warmthEnabled.value = true;
+                warmth.value = 1.08;
+                vignetteEnabled.value = true;
+                vignetteStrength.value = 0.14;
+            }
             case 4 -> {
                 saturationEnabled.value = true;
-                saturation.value = 1.26;
+                saturation.value = 1.35;
                 vibranceEnabled.value = true;
-                vibrance.value = 1.20;
+                vibrance.value = 1.25;
                 contrastEnabled.value = true;
-                contrast.value = 1.08;
+                contrast.value = 1.10;
                 brightnessEnabled.value = true;
-                brightness.value = 1.06;
+                brightness.value = 1.08;
                 exposureEnabled.value = true;
-                exposure.value = 1.10;
+                exposure.value = 1.12;
                 bloomEnabled.value = true;
-                bloom.value = 0.48;
+                bloom.value = 0.55;
                 warmthEnabled.value = true;
-                warmth.value = 1.12;
+                warmth.value = 1.14;
                 vignetteEnabled.value = true;
                 vignetteStrength.value = 0.20;
             }
             case 5 -> {
                 saturationEnabled.value = true;
-                saturation.value = 1.45;
+                saturation.value = 1.60;
                 vibranceEnabled.value = true;
-                vibrance.value = 1.35;
+                vibrance.value = 1.45;
                 contrastEnabled.value = true;
-                contrast.value = 1.12;
+                contrast.value = 1.18;
                 brightnessEnabled.value = false;
                 brightness.value = 1.05;
                 exposureEnabled.value = true;
-                exposure.value = 1.05;
+                exposure.value = 1.08;
                 bloomEnabled.value = true;
-                bloom.value = 0.25;
+                bloom.value = 0.35;
                 warmthEnabled.value = true;
                 warmth.value = 1.02;
                 vignetteEnabled.value = false;
@@ -299,37 +299,37 @@ public class KollegenShader extends Module {
             }
             case 6 -> {
                 saturationEnabled.value = true;
-                saturation.value = 1.15;
+                saturation.value = 1.20;
                 vibranceEnabled.value = true;
-                vibrance.value = 1.10;
+                vibrance.value = 1.15;
                 contrastEnabled.value = true;
-                contrast.value = 1.22;
+                contrast.value = 1.28;
                 brightnessEnabled.value = true;
-                brightness.value = 0.98;
+                brightness.value = 0.96;
                 exposureEnabled.value = true;
-                exposure.value = 1.00;
+                exposure.value = 1.02;
                 bloomEnabled.value = true;
-                bloom.value = 0.35;
+                bloom.value = 0.40;
                 warmthEnabled.value = true;
                 warmth.value = 1.05;
                 vignetteEnabled.value = true;
-                vignetteStrength.value = 0.35;
+                vignetteStrength.value = 0.38;
             }
             case 7 -> {
                 saturationEnabled.value = true;
-                saturation.value = 1.30;
+                saturation.value = 1.40;
                 vibranceEnabled.value = true;
-                vibrance.value = 1.25;
+                vibrance.value = 1.30;
                 contrastEnabled.value = true;
-                contrast.value = 1.08;
+                contrast.value = 1.12;
                 brightnessEnabled.value = true;
-                brightness.value = 1.08;
+                brightness.value = 1.10;
                 exposureEnabled.value = true;
-                exposure.value = 1.08;
+                exposure.value = 1.12;
                 bloomEnabled.value = true;
-                bloom.value = 0.30;
+                bloom.value = 0.40;
                 warmthEnabled.value = true;
-                warmth.value = 1.18;
+                warmth.value = 1.22;
                 vignetteEnabled.value = true;
                 vignetteStrength.value = 0.18;
             }
@@ -337,9 +337,6 @@ public class KollegenShader extends Module {
     }
 
     public static boolean isShaderActive() {
-        if (dev.kollegen.client.menu.IrisBridge.isIrisLoaded() && dev.kollegen.client.menu.IrisBridge.areShadersEnabled()) {
-            return false;
-        }
         return INSTANCE != null && INSTANCE.enabled;
     }
 

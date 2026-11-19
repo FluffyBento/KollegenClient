@@ -969,42 +969,18 @@ fn is_intact_jar(path: &Path) -> bool {
     }
 }
 
-pub(crate) fn has_active_sodium(mods_dir: &Path) -> bool {
-    if let Ok(entries) = fs::read_dir(mods_dir) {
-        for entry in entries.flatten() {
-            let name = entry.file_name().to_string_lossy().to_lowercase();
-            if name.starts_with("sodium") && name.ends_with(".jar") && !name.ends_with(".disabled") {
-                return true;
-            }
-        }
-    }
+pub(crate) fn has_active_sodium(_mods_dir: &Path) -> bool {
     false
 }
 
-pub(crate) fn enforce_renderer_consistency(mods_dir: &Path, vulkan_enabled: bool) {
+pub(crate) fn enforce_renderer_consistency(mods_dir: &Path, _vulkan_enabled: bool) {
     if !mods_dir.exists() {
         return;
     }
-    let sodium_present = has_active_sodium(mods_dir);
-    let vulkan_enabled = if sodium_present {
-        false
-    } else if vulkan_enabled && mods_dir.join(".kollegen-vulkan-fallback").is_file() {
-        let _ = fs::remove_file(mods_dir.join(".kollegen-vulkan-fallback"));
-        false
-    } else {
-        vulkan_enabled
-    };
-    for name in ["sodium.jar", "iris.jar"] {
-        for candidate in [
-            mods_dir.join(name),
-            mods_dir.join(format!("{}.disabled", name)),
-        ] {
-            if candidate.is_file() && !is_intact_jar(&candidate) {
-                let _ = fs::remove_file(&candidate);
-            }
-        }
-    }
-    for name in ["VulkanMod.jar", "beryl.jar"] {
+    for name in [
+        "sodium.jar", "iris.jar", "sodium-fabric.jar", "iris-fabric.jar",
+        "VulkanMod.jar", "beryl.jar"
+    ] {
         for candidate in [
             mods_dir.join(name),
             mods_dir.join(format!("{}.disabled", name)),
@@ -1014,55 +990,18 @@ pub(crate) fn enforce_renderer_consistency(mods_dir: &Path, vulkan_enabled: bool
             }
         }
     }
-    if !vulkan_enabled {
-        if let Ok(entries) = fs::read_dir(mods_dir) {
-            for entry in entries.flatten() {
-                let name = entry.file_name().to_string_lossy().to_string();
-                let lower = name.to_lowercase();
-                if (lower.starts_with("sodium-fabric") || lower.starts_with("iris-fabric"))
-                    && lower.ends_with(".jar")
-                    && !lower.ends_with(".disabled")
-                {
-                    let _ = fs::rename(entry.path(), mods_dir.join(format!("{}.disabled", name)));
-                }
-            }
-        }
-    }
-    let state = if vulkan_enabled { "vulkan" } else { "opengl" };
-    let _ = fs::write(renderer_state_path(mods_dir), state);
-
     if let Ok(entries) = fs::read_dir(mods_dir) {
-        for e in entries.flatten() {
-            let p = e.path();
-            let ext = p.to_string_lossy().to_lowercase();
-            
-            let is_jar = p.extension().and_then(|x| x.to_str()) == Some("jar")
-                || ext.ends_with(".jar.disabled");
-            if !is_jar {
-                continue;
-            }
-            let fname = p.file_name().unwrap().to_string_lossy().to_lowercase();
-            let group = match renderer_mod_group(&fname) {
-                Some(g) => g,
-                None => continue,
-            };
-            let active = if vulkan_enabled {
-                group == RendererGroup::Vulkan
-            } else {
-                group == RendererGroup::Opengl
-            };
-            let is_disabled = fname.ends_with(".disabled");
-            if active && is_disabled {
-                
-                let target = p.with_file_name(fname.trim_end_matches(".disabled").to_string());
-                let _ = fs::rename(&p, &target);
-            } else if !active && !is_disabled {
-                
-                let target = p.with_file_name(format!("{}.disabled", fname));
-                let _ = fs::rename(&p, &target);
+        for entry in entries.flatten() {
+            let name = entry.file_name().to_string_lossy().to_string();
+            let lower = name.to_lowercase();
+            if (lower.starts_with("sodium") || lower.starts_with("iris"))
+                && (lower.ends_with(".jar") || lower.ends_with(".jar.disabled"))
+            {
+                let _ = fs::remove_file(entry.path());
             }
         }
     }
+    let _ = fs::write(renderer_state_path(mods_dir), "vulkan");
 }
 
 
@@ -1598,20 +1537,11 @@ pub fn launch(
     
     
     let mods_dir = inst_dir.join("mods");
-    let state_vulkan = read_renderer_state(&mods_dir);
-    let sodium_present = has_active_sodium(&mods_dir) || state_vulkan == Some(false);
-    let actual_vulkan = if let Some(v) = state_vulkan {
-        v && !has_active_sodium(&mods_dir)
-    } else {
-        inst.vulkan_enabled && !sodium_present
-    };
+    let actual_vulkan = true;
     enforce_renderer_consistency(&mods_dir, actual_vulkan);
     enforce_controller_state(&mods_dir, settings.steamdeck_mode);
     if inst.loader == "fabric" || inst.loader == "quilt" {
         let _ = crate::utils::ensure_flk(&inst.name, data_dir, &inst.version);
-        if !actual_vulkan {
-            let _ = crate::utils::ensure_sodium(&inst.name, data_dir, &inst.version);
-        }
         if inst.version.starts_with("26.3") {
             let ess = mods_dir.join("essentialmod.jar");
             if ess.is_file() {
@@ -2557,13 +2487,9 @@ fn is_disconnect_log(line: &str) -> bool {
         || line.contains("Client disconnected")
 }
 
-pub fn apply_instance_performance_patch(inst_dir: &Path, is_new: bool, vulkan_enabled: bool) {
+pub fn apply_instance_performance_patch(inst_dir: &Path, is_new: bool, _vulkan_enabled: bool) {
     let opts = inst_dir.join("options.txt");
-    let target_backend = if vulkan_enabled {
-        "\"vulkan\""
-    } else {
-        "\"opengl\""
-    };
+    let target_backend = "\"vulkan\"";
 
     let optimal_pairs = [
         ("preferredGraphicsBackend", target_backend),

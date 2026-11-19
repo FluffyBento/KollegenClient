@@ -1793,20 +1793,15 @@ const INSTANCE_MOD_MODULES: &[(&str, &str, &str)] = &[
 fn get_instance_modules(state: State<'_, AppState>, instance_name: String) -> Result<Value, String> {
     let inst_dir = crate::utils::instance_dir(&state.data_dir, &instance_name);
     let mods_dir = inst_dir.join("mods");
-    let instances = crate::utils::load_json::<Vec<types::Instance>>(
-        &crate::utils::instances_file(&state.data_dir),
-        vec![],
-    );
-    let vulkan_enabled = instances.iter().find(|i| i.name == instance_name).map(|i| i.vulkan_enabled).unwrap_or(true);
+
     let essential_enabled = mods_dir.join("essentialmod.jar").is_file();
-    let sodium_enabled = !vulkan_enabled;
     let bundle_flags = crate::instance::read_bundle_flags(&mods_dir);
     let chatheads_enabled = bundle_flags.get("chatheads").and_then(|v| v.as_bool()).unwrap_or(true);
 
     let mut map = serde_json::Map::new();
-    map.insert("vulkan".to_string(), serde_json::Value::Bool(vulkan_enabled));
+    map.insert("vulkan".to_string(), serde_json::Value::Bool(true));
     map.insert("essential".to_string(), serde_json::Value::Bool(essential_enabled));
-    map.insert("sodium".to_string(), serde_json::Value::Bool(sodium_enabled));
+    map.insert("sodium".to_string(), serde_json::Value::Bool(false));
     map.insert("chatheads".to_string(), serde_json::Value::Bool(chatheads_enabled));
     for (id, _, jar_name) in INSTANCE_MOD_MODULES {
         let active = mods_dir.join(jar_name).is_file();
@@ -1842,13 +1837,7 @@ fn toggle_instance_module(
             }
         }
         "sodium" => {
-            if let Some(i) = instances.iter_mut().find(|i| i.name == instance_name) {
-                i.vulkan_enabled = !i.vulkan_enabled;
-                let ve = i.vulkan_enabled;
-                let _ = crate::utils::save_json(&crate::utils::instances_file(&state.data_dir), &instances);
-                crate::instance::enforce_renderer_consistency(&mods_dir, ve);
-                crate::instance::ensure_optimal_renderer_config(&inst_dir, cores, ve);
-            }
+            crate::instance::enforce_renderer_consistency(&mods_dir, true);
         }
         "essential" => {
             let active = mods_dir.join("essentialmod.jar");
