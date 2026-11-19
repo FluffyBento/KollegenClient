@@ -14,26 +14,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(targets = "de.johni0702.minecraft.bobby.FakeChunkManager", remap = false)
 public class PetFakeChunkManagerMixin {
 
-    private static final java.lang.invoke.MethodHandle SODIUM_GET_TRACKER;
-    private static final java.lang.invoke.MethodHandle SODIUM_ADD_STATUS;
-
-    static {
-        java.lang.invoke.MethodHandle getHandle = null;
-        java.lang.invoke.MethodHandle addHandle = null;
-        try {
-            Class<?> holder = Class.forName("net.caffeinemc.mods.sodium.client.render.chunk.map.ChunkTrackerHolder");
-            java.lang.invoke.MethodHandles.Lookup lookup = java.lang.invoke.MethodHandles.publicLookup();
-            java.lang.reflect.Method gm = holder.getMethod("get", net.minecraft.client.multiplayer.ClientLevel.class);
-            getHandle = lookup.unreflect(gm);
-            Class<?> trackerClass = gm.getReturnType();
-            java.lang.reflect.Method am = trackerClass.getMethod("onChunkStatusAdded", int.class, int.class, int.class);
-            addHandle = lookup.unreflect(am);
-        } catch (Throwable ignored) {
-        }
-        SODIUM_GET_TRACKER = getHandle;
-        SODIUM_ADD_STATUS = addHandle;
-    }
-
     @Shadow
     private ClientChunkCache clientChunkManager;
 
@@ -167,26 +147,6 @@ public class PetFakeChunkManagerMixin {
             if (chunkSection != null && !chunkSection.hasOnlyAir()) {
                 addedEmptySections.remove(sectionPos);
                 removedEmptySections.add(sectionPos);
-            }
-        }
-        if (SODIUM_GET_TRACKER != null && SODIUM_ADD_STATUS != null) {
-            try {
-                net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
-                if (mc != null && mc.level != null) {
-                    Object tracker = SODIUM_GET_TRACKER.invoke(mc.level);
-                    if (tracker != null) {
-                        for (int dx = -1; dx <= 1; dx++) {
-                            for (int dz = -1; dz <= 1; dz++) {
-                                int nx = x + dx;
-                                int nz = z + dz;
-                                if (this.clientChunkManager.getChunk(nx, nz, net.minecraft.world.level.chunk.status.ChunkStatus.FULL, false) != null) {
-                                    SODIUM_ADD_STATUS.invoke(tracker, nx, nz, 3);
-                                }
-                            }
-                        }
-                    }
-                }
-            } catch (Throwable ignored) {
             }
         }
     }
