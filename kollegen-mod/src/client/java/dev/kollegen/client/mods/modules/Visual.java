@@ -1,5 +1,7 @@
 package dev.kollegen.client.mods.modules;
 
+import com.google.gson.JsonObject;
+import com.mojang.blaze3d.platform.InputConstants;
 import dev.kollegen.client.mods.BooleanSetting;
 import dev.kollegen.client.mods.Category;
 import dev.kollegen.client.mods.KeybindSetting;
@@ -74,6 +76,16 @@ public final class Visual {
         return afkCameraDistance;
     }
 
+    private static Zoom zoomModuleInstance = null;
+
+    public static boolean onMouseScroll(double yoffset) {
+        if (zoomModuleInstance != null && zoomModuleInstance.mouseScroll.value && zoomActive) {
+            zoomModuleInstance.scrollOffset = (float) Math.max(-zoomModuleInstance.zoom.value + 1.1, Math.min(20.0, zoomModuleInstance.scrollOffset + yoffset * 0.5));
+            return true;
+        }
+        return false;
+    }
+
     public static void onFrame() {
         long now = System.nanoTime();
         if (lastAfkFrameNano == 0L) {
@@ -88,6 +100,10 @@ public final class Visual {
             afkCameraYaw += afkRotationSpeed * 25.0f * dt;
             if (afkCameraYaw >= 360.0f) afkCameraYaw -= 360.0f;
         }
+
+        if (zoomModuleInstance != null) {
+            zoomModuleInstance.updateFrame(dt);
+        }
     }
 
     public static void resetAfkTimer() {
@@ -101,7 +117,9 @@ public final class Visual {
     public static void register() {
         ModuleManager.register(new Fullbright());
         ModuleManager.register(new ReducedParticles());
-        ModuleManager.register(new Zoom());
+        Zoom zoomMod = new Zoom();
+        zoomModuleInstance = zoomMod;
+        ModuleManager.register(zoomMod);
         ModuleManager.register(new Freecam());
         ModuleManager.register(new NoFog());
         ModuleManager.register(new ArmorTransparency());
@@ -251,48 +269,105 @@ public final class Visual {
     }
 
     
-    private static class Zoom extends Module {
+    public static class Zoom extends Module {
         private final SliderSetting zoom = new SliderSetting("Zoom", "Zoomstärke (1 = kein Zoom, höher = stärker heran).", 4.0, 1.0, 16.0, 0.5);
-        private final KeybindSetting key = new KeybindSetting("Taste", "Schaltet den Zoom ein/aus.");
-        private final BooleanSetting smoothCamera = new BooleanSetting("Weiche Kamera", "Kamerabewegung verlangsamen / glätten (Cinematic).", false);
+        private final BooleanSetting hold = new BooleanSetting("Taste halten", "Zoom nur aktiv solange die Taste gedrückt gehalten wird.", true);
+        private final BooleanSetting smoothTransition = new BooleanSetting("Weicher Übergang", "Sanftes Herein- und Herauszoomen.", true);
+        private final BooleanSetting mouseScroll = new BooleanSetting("Mausrad-Zoom", "Zoomstufe mit dem Mausrad feinjustieren.", true);
+        private final BooleanSetting smoothCamera = new BooleanSetting("Cinematic Kamera", "Kamerabewegung verlangsamen / glätten (Cinematic).", false);
+        private final KeybindSetting key = new KeybindSetting("Taste", "Zoom-Taste.");
+
+        private float currentDivisor = 1.0f;
+        private float scrollOffset = 0.0f;
+        private boolean wasKeyHeld = false;
+        private boolean toggleState = false;
 
         Zoom() {
             super("zoom", "Zoom", "Zoomt heran ohne Maus-Verzögerung.", Category.VISUAL);
+            key.value = InputConstants.KEY_C;
             add(zoom);
+            add(hold);
+            add(smoothTransition);
+            add(mouseScroll);
             add(smoothCamera);
             add(key);
         }
 
         @Override
         public void onKey() {
-            enabled = !enabled;
-            if (enabled) onEnable();
-            else onDisable();
+            if (!hold.value) {
+                toggleState = !toggleState;
+            }
         }
 
         @Override
         public void onEnable() {
-            Visual.zoomActive = true;
-            Visual.zoomSmoothCamera = smoothCamera.value;
-            applyZoom();
-        }
-
-        @Override
-        public void onTick() {
-            Visual.zoomActive = enabled;
-            Visual.zoomSmoothCamera = smoothCamera.value;
-            applyZoom();
-        }
-
-        private void applyZoom() {
-            Visual.zoomFovDivisor = zoom.value > 1.001 ? (float) zoom.value : 1.0f;
+            toggleState = true;
         }
 
         @Override
         public void onDisable() {
-            Visual.zoomActive = false;
-            Visual.zoomSmoothCamera = false;
-            Visual.zoomFovDivisor = 1.0f;
+            toggleState = false;
+            scrollOffset = 0.0f;
+        }
+
+        @Override
+        public void load(JsonObject o) {
+            super.load(o);
+            if (o.has("settings")) {
+                JsonObject s = o.getAsJsonObject("settings");
+                if (s.has("Weiche Kamera") && !s.has("Cinematic Kamera")) {
+                    JsonObject wc = s.getAsJsonObject("Weiche Kamera");
+                    if (wc.has("value")) {
+                        smoothCamera.value = wc.get("value").getAsBoolean();
+                    }
+                }
+            }
+        }
+
+        public void updateFrame(float dt) {
+            Minecraft mc = Minecraft.getInstance();
+            boolean screenOpen = mc != null && mc.gui != null && mc.gui.screen() != null;
+            boolean keyHeld = false;
+            if (!screenOpen && key.value > 0) {
+                keyHeld = dev.kollegen.client.KollegenMod.isKeyDown(key.value);
+                if (key.ctrl && !dev.kollegen.client.KollegenMod.isCtrlDown()) keyHeld = false;
+                if (key.shift && !dev.kollegen.client.KollegenMod.isShiftDown()) keyHeld = false;
+                if (key.alt && !dev.kollegen.client.KollegenMod.isAltDown()) keyHeld = false;
+            }
+
+            boolean shouldZoom;
+            if (hold.value) {
+                shouldZoom = keyHeld || (this.enabled && key.value <= 0);
+            } else {
+                if (keyHeld && !this.wasKeyHeld) {
+                    this.toggleState = !this.toggleState;
+                }
+                shouldZoom = this.toggleState || this.enabled;
+            }
+            this.wasKeyHeld = keyHeld;
+
+            float targetDivisor = 1.0f;
+            if (shouldZoom) {
+                targetDivisor = (float) (zoom.value + scrollOffset);
+                if (targetDivisor < 1.0f) targetDivisor = 1.0f;
+            } else {
+                scrollOffset = 0.0f;
+            }
+
+            if (smoothTransition.value) {
+                float speed = 24.0f;
+                currentDivisor += (targetDivisor - currentDivisor) * Math.min(1.0f, dt * speed);
+                if (Math.abs(currentDivisor - targetDivisor) < 0.01f) {
+                    currentDivisor = targetDivisor;
+                }
+            } else {
+                currentDivisor = targetDivisor;
+            }
+
+            Visual.zoomFovDivisor = currentDivisor;
+            Visual.zoomActive = currentDivisor > 1.01f || targetDivisor > 1.01f;
+            Visual.zoomSmoothCamera = shouldZoom && smoothCamera.value;
         }
     }
 

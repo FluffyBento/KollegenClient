@@ -9,6 +9,7 @@ import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
+import com.mojang.blaze3d.platform.InputConstants;
 import org.lwjgl.glfw.GLFW;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -215,25 +216,32 @@ public class KollegenMod implements ClientModInitializer {
     }
 
     public static boolean isCtrlDown() {
-        return isKeyDown(GLFW.GLFW_KEY_LEFT_CONTROL) || isKeyDown(GLFW.GLFW_KEY_RIGHT_CONTROL);
+        return isKeyDown(InputConstants.KEY_LCONTROL) || isKeyDown(InputConstants.KEY_RCONTROL)
+                || isKeyDown(GLFW.GLFW_KEY_LEFT_CONTROL) || isKeyDown(GLFW.GLFW_KEY_RIGHT_CONTROL);
     }
 
     public static boolean isShiftDown() {
-        return isKeyDown(GLFW.GLFW_KEY_LEFT_SHIFT) || isKeyDown(GLFW.GLFW_KEY_RIGHT_SHIFT);
+        return isKeyDown(InputConstants.KEY_LSHIFT) || isKeyDown(InputConstants.KEY_RSHIFT)
+                || isKeyDown(GLFW.GLFW_KEY_LEFT_SHIFT) || isKeyDown(GLFW.GLFW_KEY_RIGHT_SHIFT);
     }
 
     public static boolean isAltDown() {
-        return isKeyDown(GLFW.GLFW_KEY_LEFT_ALT) || isKeyDown(GLFW.GLFW_KEY_RIGHT_ALT);
+        return isKeyDown(InputConstants.KEY_LALT) || isKeyDown(InputConstants.KEY_RALT)
+                || isKeyDown(GLFW.GLFW_KEY_LEFT_ALT) || isKeyDown(GLFW.GLFW_KEY_RIGHT_ALT);
     }
 
-    private static boolean isKeyDown(int key) {
+    public static boolean isKeyDown(int key) {
+        if (key <= 0) return false;
+        try {
+            if (InputConstants.isKeyDown(key)) return true;
+        } catch (Throwable ignored) {
+        }
         try {
             Minecraft mc = Minecraft.getInstance();
-            if (mc == null || mc.getWindow() == null) return false;
-            long handle = mc.getWindow().handle();
-            return GLFW.glfwGetKey(handle, key) == GLFW.GLFW_PRESS;
-        } catch (Throwable t) {
-            return false;
+            long handle = mc != null && mc.getWindow() != null ? mc.getWindow().handle() : 0L;
+            if (GLFW.glfwGetKey(handle, key) == GLFW.GLFW_PRESS) return true;
+        } catch (Throwable ignored) {
         }
+        return false;
     }
 }

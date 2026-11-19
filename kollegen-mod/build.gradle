@@ -166,6 +166,7 @@ if (rel.endsWith('mixin/NametagMixin.java')) {
                     t = t.replace('import net.minecraft.client.Camera;', 'import net.minecraft.client.Camera;\nimport net.minecraft.client.renderer.GameRenderer;')
                     t = t.replace('method = "getFov"', 'method = "getFov(Lnet/minecraft/client/Camera;FZ)F"')
                     t = t.replace('private void kollegen$zoomFov(CallbackInfoReturnable<Float> cir) {', 'private void kollegen$zoomFov(Camera camera, float partialTick, boolean allowZoom, CallbackInfoReturnable<Float> cir) {')
+                    t = t.replaceAll(/    @Inject\(method = "calculateFov"[\s\S]*?\n    \}\n/, '')
                 }
                 if (rel.endsWith('presence/KollegenPresence.java')) {
                     t = t.replace('import net.minecraft.client.renderer.entity.state.EntityRenderState;', 'import net.minecraft.client.renderer.entity.state.EntityRenderState;\nimport net.minecraft.world.level.Level;')
@@ -269,9 +270,6 @@ if (is262) {
     def portDir = file("${buildDir}/port262-src")
     tasks.register('cleanVendoredBins262') {
         doLast {
-            fileTree('src/main/resources/dev/kollegen/client').matching { include '*.bin' }.each { File f ->
-                f.delete()
-            }
         }
     }
     tasks.register('portSources262') {

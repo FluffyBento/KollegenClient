@@ -68,9 +68,12 @@ public class MouseHandlerMixin {
         }
     }
 
-    @Inject(method = "onScroll", at = @At("HEAD"))
+    @Inject(method = "onScroll", at = @At("HEAD"), cancellable = true)
     private void kollegen$onScroll(long window, double xoffset, double yoffset, CallbackInfo ci) {
         dev.kollegen.client.mods.modules.Visual.resetAfkTimer();
+        if (dev.kollegen.client.mods.modules.Visual.onMouseScroll(yoffset)) {
+            ci.cancel();
+        }
     }
 
     @Inject(method = "onButton(JLnet/minecraft/client/input/MouseButtonInfo;I)V", at = @At("HEAD"))

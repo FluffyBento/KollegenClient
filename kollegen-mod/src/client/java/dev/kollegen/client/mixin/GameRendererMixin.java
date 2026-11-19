@@ -11,6 +11,17 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 @Mixin(Camera.class)
 public class GameRendererMixin {
 
+    @Inject(method = "calculateFov", at = @At("RETURN"), cancellable = true)
+    private void kollegen$zoomCalculateFov(CallbackInfoReturnable<Float> cir) {
+        float divisor = Visual.zoomFovDivisor;
+        if (divisor > 1.0f) {
+            float fov = cir.getReturnValueF();
+            if (fov > 0f) {
+                cir.setReturnValue(Math.max(1.0f, fov / divisor));
+            }
+        }
+    }
+
     @Inject(method = "getFov", at = @At("RETURN"), cancellable = true)
     private void kollegen$zoomFov(CallbackInfoReturnable<Float> cir) {
         float divisor = Visual.zoomFovDivisor;
