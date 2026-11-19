@@ -92,11 +92,11 @@ public final class CosmeticText {
         int nameColor = parseColor(d.nameColor, FALLBACK_NAME);
         MutableComponent out = Component.empty();
         if (d.badgeIcon != null) {
-            out.append(Component.literal(d.badgeIcon).withStyle(Style.EMPTY.withColor(TextColor.fromRgb(parseColor(d.badgeColor, FALLBACK_BADGE)))));
+            out.append(Component.literal(d.badgeIcon + " ").withStyle(Style.EMPTY.withColor(TextColor.fromRgb(parseColor(d.badgeColor, FALLBACK_BADGE)))));
         }
         out.append(Component.literal(plain).withStyle(nameStyle(nameColor, d.font)));
         if (d.stickerIcon != null) {
-            out.append(Component.literal(d.stickerIcon).withStyle(Style.EMPTY.withColor(TextColor.fromRgb(parseColor(d.stickerColor, FALLBACK_NAME)))));
+            out.append(Component.literal(" " + d.stickerIcon).withStyle(Style.EMPTY.withColor(TextColor.fromRgb(parseColor(d.stickerColor, FALLBACK_NAME)))));
         }
         return out;
     }
