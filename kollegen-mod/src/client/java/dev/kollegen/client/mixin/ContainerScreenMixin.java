@@ -66,6 +66,10 @@ public abstract class ContainerScreenMixin extends Screen {
 
     @Inject(method = "init", at = @At("RETURN"))
     private void kollegen$initSearch(CallbackInfo ci) {
+        if ((Object) this instanceof net.minecraft.client.gui.screens.inventory.CreativeModeInventoryScreen) {
+            this.kollegen$searchBox = null;
+            return;
+        }
         if (InventoryEnhancements.isSearchEnabled()) {
             Minecraft mc = Minecraft.getInstance();
             int bw = 85;
@@ -82,8 +86,39 @@ public abstract class ContainerScreenMixin extends Screen {
         }
     }
 
+    @Inject(method = "containerTick", at = @At("RETURN"))
+    private void kollegen$tickSearch(CallbackInfo ci) {
+        if (this.kollegen$searchBox != null) {
+            int bw = 85;
+            int bx = this.leftPos + this.imageWidth - bw - 4;
+            int by = this.topPos > 20 ? this.topPos - 18 : this.topPos + 4;
+            this.kollegen$searchBox.setX(bx);
+            this.kollegen$searchBox.setY(by);
+        }
+    }
+
     @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
     private void kollegen$handleQuickScaleClick(MouseButtonEvent event, boolean doubleClick, CallbackInfoReturnable<Boolean> cir) {
+        if (event.button() == 0 && this.kollegen$searchBox != null) {
+            int bw = 85;
+            int bh = 14;
+            int bx = this.leftPos + this.imageWidth - bw - 4;
+            int by = this.topPos > 20 ? this.topPos - 18 : this.topPos + 4;
+            this.kollegen$searchBox.setX(bx);
+            this.kollegen$searchBox.setY(by);
+            double mx = event.x();
+            double my = event.y();
+            if (mx >= bx - 3 && mx <= bx + bw + 3 && my >= by - 2 && my <= by + bh + 2) {
+                this.kollegen$searchBox.setFocused(true);
+                this.setFocused(this.kollegen$searchBox);
+                this.kollegen$searchBox.mouseClicked(event, doubleClick);
+                cir.setReturnValue(true);
+                return;
+            } else if (this.kollegen$searchBox.isFocused()) {
+                this.kollegen$searchBox.setFocused(false);
+            }
+        }
+
         if (event.button() == 0 && dev.kollegen.client.mods.modules.UiScale.isQuickButtonEnabled()) {
             int bw = 48;
             int bh = 14;
@@ -193,6 +228,8 @@ public abstract class ContainerScreenMixin extends Screen {
                 boolean focused = this.kollegen$searchBox.isFocused();
                 Glass.fillRound(gui, bx - 3, by - 2, bw + 6, bh + 4, 4, focused ? 0xDD181B26 : 0x9910121C);
                 Glass.ring(gui, bx - 3, by - 2, bw + 6, bh + 4, 4, 1.0f, focused ? 0xFF8A5CF6 : 0x55FFFFFF);
+                this.kollegen$searchBox.setX(bx);
+                this.kollegen$searchBox.setY(by);
                 this.kollegen$searchBox.extractWidgetRenderState(gui, mouseX, mouseY, partialTick);
 
                 String query = this.kollegen$searchBox.getValue().trim().toLowerCase();

@@ -33,7 +33,7 @@ public class PvPTiers extends Module {
     public final ModeSetting showMode = new ModeSetting(
             "Modus",
             "Bevorzugter PvP-Spielmodus für das angezeigte Tier.",
-            new String[]{"Overall", "Sword", "NethPot", "UHC", "Shield", "Crystal"},
+            new String[]{"Overall (Bester)", "Sword", "Vanilla", "NethPot", "Pot", "UHC", "Axe"},
             0
     );
 
@@ -86,14 +86,19 @@ public class PvPTiers extends Module {
 
         String modeKey = switch (INSTANCE.showMode.index) {
             case 1 -> "sword";
-            case 2 -> "nethpot";
-            case 3 -> "uhc";
-            case 4 -> "shield";
-            case 5 -> "crystal";
+            case 2 -> "vanilla";
+            case 3 -> "nethop";
+            case 4 -> "pot";
+            case 5 -> "uhc";
+            case 6 -> "axe";
             default -> "overall";
         };
 
         String raw = tiers.get(modeKey);
+        if (raw == null && "nethop".equals(modeKey)) {
+            raw = tiers.get("neth_pot");
+            if (raw == null) raw = tiers.get("nethpot");
+        }
         if (raw == null && !modeKey.equals("overall")) {
             raw = tiers.get("overall");
         }
@@ -150,20 +155,32 @@ public class PvPTiers extends Module {
         PENDING.add(uuid);
         Thread t = new Thread(() -> {
             try {
-                String cleanUuid = uuid.toString().replace("-", "");
-                String url = "https://mctiers.com/api/v2/profile/" + cleanUuid;
-                HttpRequest req = HttpRequest.newBuilder()
-                        .uri(URI.create(url))
-                        .timeout(Duration.ofSeconds(4))
-                        .header("User-Agent", "KollegenClient")
-                        .GET()
-                        .build();
-                HttpResponse<String> resp = HTTP_CLIENT.send(req, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
-                if (resp.statusCode() == 200 && resp.body() != null && !resp.body().isBlank()) {
-                    JsonObject root = JsonParser.parseString(resp.body()).getAsJsonObject();
-                    parseAndStore(uuid, root);
-                    saveDiskCache();
-                } else {
+                String idStr = uuid.toString();
+                String[] urls = new String[]{
+                        "https://mctiers.net/api/v2/profile/" + idStr,
+                        "https://subtiers.net/api/v2/profile/" + idStr
+                };
+                boolean ok = false;
+                for (String url : urls) {
+                    try {
+                        HttpRequest req = HttpRequest.newBuilder()
+                                .uri(URI.create(url))
+                                .timeout(Duration.ofSeconds(4))
+                                .header("User-Agent", "KollegenClient")
+                                .GET()
+                                .build();
+                        HttpResponse<String> resp = HTTP_CLIENT.send(req, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+                        if (resp.statusCode() == 200 && resp.body() != null && !resp.body().isBlank()) {
+                            JsonObject root = JsonParser.parseString(resp.body()).getAsJsonObject();
+                            parseAndStore(uuid, root);
+                            saveDiskCache();
+                            ok = true;
+                            break;
+                        }
+                    } catch (Throwable ignored) {
+                    }
+                }
+                if (!ok) {
                     Map<String, String> empty = new ConcurrentHashMap<>();
                     empty.put("overall", "NONE");
                     TIER_CACHE.put(uuid, empty);
@@ -183,8 +200,11 @@ public class PvPTiers extends Module {
     private static void parseAndStore(UUID uuid, JsonObject obj) {
         Map<String, String> map = new ConcurrentHashMap<>();
         try {
-            if (obj.has("rankings")) {
+            if (obj.has("rankings") && obj.get("rankings").isJsonObject()) {
                 JsonObject rankings = obj.getAsJsonObject("rankings");
+                int bestTier = 99;
+                int bestPos = 99;
+                String bestStr = null;
                 for (Map.Entry<String, JsonElement> e : rankings.entrySet()) {
                     String mode = e.getKey().toLowerCase(Locale.ROOT);
                     if (e.getValue().isJsonObject()) {
@@ -192,16 +212,26 @@ public class PvPTiers extends Module {
                         int tier = data.has("tier") ? data.get("tier").getAsInt() : 0;
                         int pos = data.has("pos") ? data.get("pos").getAsInt() : 0;
                         if (tier > 0) {
-                            String prefix = pos == 1 ? "HT" : (pos == 2 ? "LT" : "T");
-                            map.put(mode, prefix + tier);
+                            String prefix = pos == 0 ? "HT" : (pos == 1 ? "LT" : "T");
+                            String val = prefix + tier;
+                            map.put(mode, val);
+                            int score = tier * 2 + pos;
+                            if (score < (bestTier * 2 + bestPos)) {
+                                bestTier = tier;
+                                bestPos = pos;
+                                bestStr = val;
+                            }
                         }
                     }
                 }
+                if (bestStr != null) {
+                    map.put("overall", bestStr);
+                }
             }
-            if (obj.has("tier")) {
+            if (obj.has("tier") && !obj.get("tier").isJsonNull()) {
                 int t = obj.get("tier").getAsInt();
                 int pos = obj.has("pos") ? obj.get("pos").getAsInt() : 0;
-                String prefix = pos == 1 ? "HT" : (pos == 2 ? "LT" : "T");
+                String prefix = pos == 0 ? "HT" : (pos == 1 ? "LT" : "T");
                 map.put("overall", prefix + t);
             }
         } catch (Throwable ignored) {

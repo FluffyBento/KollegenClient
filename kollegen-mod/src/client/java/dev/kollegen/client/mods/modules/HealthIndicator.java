@@ -44,7 +44,7 @@ public class HealthIndicator extends Module {
     public final BooleanSetting serverProtection = new BooleanSetting(
             "Server-Schutz",
             "Deaktiviert die Anzeige automatisch auf gesperrten Servern (Anti-Cheat / Bann-Schutz).",
-            true
+            false
     );
 
     public HealthIndicator() {

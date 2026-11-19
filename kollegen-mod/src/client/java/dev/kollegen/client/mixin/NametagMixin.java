@@ -37,6 +37,9 @@ public class NametagMixin {
                     } else {
                         cir.setReturnValue(true);
                     }
+                } else if (dev.kollegen.client.mods.modules.HealthIndicator.shouldShow(p)
+                        || (dev.kollegen.client.mods.modules.PvPTiers.isTiersActive() && dev.kollegen.client.mods.modules.PvPTiers.getPlayerTierBadge(p.getUUID()) != null)) {
+                    cir.setReturnValue(true);
                 }
             }
         } catch (Throwable ignored) {
@@ -57,6 +60,13 @@ public class NametagMixin {
                     }
                     if (state.nameTagAttachment == null) {
                         state.nameTagAttachment = new Vec3(0.0, p.getBbHeight() + 0.5, 0.0);
+                    }
+                } else {
+                    if (state.nameTag == null && (dev.kollegen.client.mods.modules.HealthIndicator.shouldShow(p) || dev.kollegen.client.mods.modules.PvPTiers.isTiersActive())) {
+                        state.nameTag = p.getDisplayName();
+                        if (state.nameTagAttachment == null) {
+                            state.nameTagAttachment = new Vec3(0.0, p.getBbHeight() + 0.5, 0.0);
+                        }
                     }
                 }
                 if (dev.kollegen.client.mods.modules.Player.shouldHideNametag(isSelf)) {
@@ -127,9 +137,16 @@ public class NametagMixin {
             CosmeticData d = id != null ? KollegenPresence.getCosmetics(id) : null;
             boolean hasData = d != null && !d.isEmpty();
             boolean hasTier = id != null && dev.kollegen.client.mods.modules.PvPTiers.isTiersActive() && dev.kollegen.client.mods.modules.PvPTiers.getPlayerTierBadge(id) != null;
+            boolean hasHealth = false;
+            if (id != null && mc.level != null) {
+                net.minecraft.world.entity.player.Player pl = mc.level.getPlayerByUUID(id);
+                if (pl != null && dev.kollegen.client.mods.modules.HealthIndicator.shouldShow(pl)) {
+                    hasHealth = true;
+                }
+            }
             boolean isKollegen = isSelf || (id != null && KollegenPresence.isKollegen(id)) || hasData;
 
-            if (!isKollegen && !hasTier) {
+            if (!isKollegen && !hasTier && !hasHealth) {
                 return;
             }
 
@@ -137,6 +154,10 @@ public class NametagMixin {
             Component line = useW ? state.nameTag : state.scoreText;
             if (line == null && isSelf && mc.player != null) {
                 line = mc.player.getDisplayName();
+            }
+            if (line == null && id != null && mc.level != null) {
+                net.minecraft.world.entity.player.Player pl = mc.level.getPlayerByUUID(id);
+                if (pl != null) line = pl.getDisplayName();
             }
             if (line == null) {
                 return;
@@ -155,11 +176,29 @@ public class NametagMixin {
                 else state.scoreText = decorated;
             }
 
+            if (hasHealth && id != null && mc.level != null) {
+                net.minecraft.world.entity.player.Player pl = mc.level.getPlayerByUUID(id);
+                if (pl != null) {
+                    Component cur = useW ? state.nameTag : state.scoreText;
+                    Component decorated = dev.kollegen.client.mods.modules.HealthIndicator.attachHealth(pl, cur);
+                    if (useW) state.nameTag = decorated;
+                    else state.scoreText = decorated;
+                }
+            }
+
             Vec3 anchor = state.nameTagAttachment;
             if (anchor == null) {
                 if (isSelf && mc.player != null) {
                     anchor = new Vec3(0.0, mc.player.getBbHeight() + 0.5, 0.0);
                     state.nameTagAttachment = anchor;
+                } else if (id != null && mc.level != null) {
+                    net.minecraft.world.entity.player.Player pl = mc.level.getPlayerByUUID(id);
+                    if (pl != null) {
+                        anchor = new Vec3(0.0, pl.getBbHeight() + 0.5, 0.0);
+                        state.nameTagAttachment = anchor;
+                    } else {
+                        return;
+                    }
                 } else {
                     return;
                 }
