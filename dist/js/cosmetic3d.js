@@ -1021,15 +1021,6 @@
               h.itemsG.add(root);
             }
           }, function () {}));
-        } else if (it && it.category === 'pet') {
-          pending.push(loadPetTex(petKind(it)).then(function (t) {
-            if (h.done || gen !== h.gen || !t) return;
-            var sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, transparent: true, depthWrite: false }));
-            sp.scale.set(11, 11, 1);
-            sp.position.set(-13, h.petY, -6);
-            h.pet = sp;
-            h.stage.add(sp);
-          }));
         }
       });
       if (!pending.length) { applyVanillaCape(); return; }

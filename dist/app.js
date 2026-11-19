@@ -1754,7 +1754,7 @@ async function refreshLogs() {
       const id = typeof v === "string" ? v : (v && v.id) || "";
       const it = id ? by[id] : null;
       if (!it) continue;
-      if (it.category === "pet" || (window.Cosmetic3D && window.Cosmetic3D.keyFor(it))) out.push(it);
+      if (it.category !== "pet" && (window.Cosmetic3D && window.Cosmetic3D.keyFor(it))) out.push(it);
     }
     return out;
   }
