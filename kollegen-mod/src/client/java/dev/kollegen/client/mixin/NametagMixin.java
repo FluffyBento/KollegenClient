@@ -27,9 +27,28 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(AvatarRenderer.class)
 public class NametagMixin {
+
+    @Inject(method = "shouldShowName(Lnet/minecraft/world/entity/Avatar;D)Z", at = @At("HEAD"), cancellable = true)
+    private void kollegen$showSelfName(net.minecraft.world.entity.Avatar entity, double d, CallbackInfoReturnable<Boolean> cir) {
+        try {
+            if (entity instanceof net.minecraft.world.entity.player.Player p) {
+                Minecraft mc = Minecraft.getInstance();
+                boolean isSelf = mc.player != null && (p.getUUID().equals(mc.player.getUUID()) || p.getId() == mc.player.getId());
+                if (isSelf) {
+                    if (dev.kollegen.client.mods.modules.Player.shouldHideNametag(true)) {
+                        cir.setReturnValue(false);
+                    } else {
+                        cir.setReturnValue(true);
+                    }
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+    }
 
     @Inject(method = "extractRenderState(Lnet/minecraft/world/entity/Avatar;Lnet/minecraft/client/renderer/entity/state/AvatarRenderState;F)V",
             at = @At("RETURN"))
@@ -39,9 +58,18 @@ public class NametagMixin {
                 state.id = p.getId();
                 Minecraft mc = Minecraft.getInstance();
                 boolean isSelf = mc.player != null && (p.getUUID().equals(mc.player.getUUID()) || p.getId() == mc.player.getId());
+                if (isSelf) {
+                    if (state.nameTag == null) {
+                        state.nameTag = p.getDisplayName();
+                    }
+                    if (state.nameTagAttachment == null) {
+                        state.nameTagAttachment = new Vec3(0.0, p.getBbHeight() + 0.5, 0.0);
+                    }
+                }
                 if (dev.kollegen.client.mods.modules.Player.shouldHideNametag(isSelf)) {
                     state.nameTag = null;
                     state.scoreText = null;
+                    state.nameTagAttachment = null;
                 }
                 dev.kollegen.client.presence.RenderStateIds.put(state, p.getUUID());
                 PetRenderer.notePosition(p.getUUID(), p.position(), p.getYRot());
@@ -89,6 +117,14 @@ public class NametagMixin {
 
             Minecraft mc = Minecraft.getInstance();
             boolean isSelf = mc.player != null && ((id != null && id.equals(mc.player.getUUID())) || (state.id != 0 && state.id == mc.player.getId()));
+            if (isSelf && id == null && mc.player != null) {
+                id = mc.player.getUUID();
+            }
+
+            if (isSelf && mc.options.getCameraType().isFirstPerson()) {
+                ci.cancel();
+                return;
+            }
 
             if (dev.kollegen.client.mods.modules.Player.shouldHideNametag(isSelf)) {
                 ci.cancel();
@@ -97,14 +133,20 @@ public class NametagMixin {
 
             CosmeticData d = id != null ? KollegenPresence.getCosmetics(id) : null;
             boolean hasData = d != null && !d.isEmpty();
-            boolean isKollegen = (id != null && KollegenPresence.isKollegen(id)) || hasData;
+            boolean isKollegen = isSelf || (id != null && KollegenPresence.isKollegen(id)) || hasData;
 
             if (!isKollegen) {
                 return;
             }
 
             Vec3 anchor = state.nameTagAttachment;
-            if (anchor == null) return;
+            if (anchor == null) {
+                if (isSelf && mc.player != null) {
+                    anchor = new Vec3(0.0, mc.player.getBbHeight() + 0.5, 0.0);
+                } else {
+                    return;
+                }
+            }
 
             Font font = mc.font;
             if (font == null) return;
@@ -120,7 +162,7 @@ public class NametagMixin {
             }
 
             String plainName = state.nameTag != null ? state.nameTag.getString() : (mc.player != null && isSelf ? mc.player.getName().getString() : "?");
-            Component nameComp = hasData ? CosmeticText.decorateNameLine(Component.literal(plainName), id) : (state.nameTag != null ? state.nameTag : Component.literal(plainName));
+            Component nameComp = (hasData || isSelf) && id != null ? CosmeticText.decorateNameLine(Component.literal(plainName), id) : (state.nameTag != null ? state.nameTag : Component.literal(plainName));
             int nameWidth = font.width(nameComp);
 
             int maxTextW = Math.max(nameWidth, titleWidth);
