@@ -7542,7 +7542,7 @@ startBackgroundIntervals();
   function storeRenderPackages() {
     const slot = $("storePkgSlot");
     if (!slot) return;
-    const pkgs = (kmCat || []).filter((i) => i.category === "package" && !i.hidden && (Number(i.price) || 0) > 0);
+    const pkgs = (kmCat || []).filter((i) => i.category === "package" && !i.hidden && !i.comingSoon && (Number(i.price) || 0) > 0);
     const sig = pkgs.map((p) => p.id).join("|");
     if (slot.dataset.sig === sig) return;
     slot.dataset.sig = sig;

@@ -24,10 +24,10 @@ public class OptionInstanceIntRangeMixin {
     @Inject(method = "maxInclusive", at = @At("HEAD"), cancellable = true)
     private void kollegen$overrideMaxInclusive(CallbackInfoReturnable<Integer> cir) {
         if (this.minInclusive == 2 && this.maxInclusive <= 32) {
-            int limit = 32;
+            int limit = 128;
             try {
                 if (Performance.KollegenDistance.isDistanceEnabled()) {
-                    limit = Math.max(32, Performance.KollegenDistance.getDistanceLimit());
+                    limit = Math.max(32, Math.min(128, Performance.KollegenDistance.getDistanceLimit()));
                 }
             } catch (Throwable ignored) {
             }
@@ -38,10 +38,10 @@ public class OptionInstanceIntRangeMixin {
     @Inject(method = "validateValue(Ljava/lang/Integer;)Ljava/util/Optional;", at = @At("HEAD"), cancellable = true)
     private void kollegen$validateValue(Integer value, CallbackInfoReturnable<Optional<Integer>> cir) {
         if (value != null && this.minInclusive == 2 && this.maxInclusive <= 32) {
-            int limit = 32;
+            int limit = 128;
             try {
                 if (Performance.KollegenDistance.isDistanceEnabled()) {
-                    limit = Math.max(32, Performance.KollegenDistance.getDistanceLimit());
+                    limit = Math.max(32, Math.min(128, Performance.KollegenDistance.getDistanceLimit()));
                 }
             } catch (Throwable ignored) {
             }

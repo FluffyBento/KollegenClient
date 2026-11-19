@@ -17,33 +17,6 @@ public class PetFakeChunkManagerMixin {
     @Shadow
     private ClientChunkCache clientChunkManager;
 
-    @Inject(method = "shouldBeLoaded(II)Z", at = @At("HEAD"), cancellable = true, remap = false)
-    private void kollegen$alwaysKeepLoaded(int x, int z, org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable<Boolean> cir) {
-        if (dev.kollegen.client.mods.modules.Performance.KollegenDistance.isInfinite()) {
-            cir.setReturnValue(true);
-        }
-    }
-
-    @Inject(method = "unload(IIZ)Z", at = @At("HEAD"), cancellable = true, remap = false)
-    private void kollegen$preventUnload(int x, int z, boolean save, org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable<Boolean> cir) {
-        if (dev.kollegen.client.mods.modules.Performance.KollegenDistance.isInfinite()) {
-            cir.setReturnValue(false);
-        }
-    }
-
-    @org.spongepowered.asm.mixin.injection.ModifyArg(
-            method = "update(ZLjava/util/function/BooleanSupplier;)V",
-            at = @At(value = "INVOKE", target = "Lde/johni0702/minecraft/bobby/FakeChunkManager;update(ZLjava/util/function/BooleanSupplier;I)V"),
-            index = 2,
-            remap = false
-    )
-    private int kollegen$overrideFakeChunkViewDistance(int viewDistance) {
-        if (dev.kollegen.client.mods.modules.Performance.KollegenDistance.isDistanceEnabled()) {
-            return dev.kollegen.client.mods.modules.Performance.KollegenDistance.getDistanceLimit();
-        }
-        return viewDistance;
-    }
-
     @Inject(method = "<init>", at = @At("RETURN"), remap = false)
     private void kollegen$initStorageSync(net.minecraft.client.multiplayer.ClientLevel world, ClientChunkCache clientChunkManager, CallbackInfo ci) {
         try {

@@ -10,6 +10,6 @@ public class RotatingSectionStorageMixin {
 
     @ModifyVariable(method = "<init>", at = @At("HEAD"), argsOnly = true, ordinal = 0)
     private static int kollegen$clampRadius(int radius) {
-        return Math.min(Math.max(radius, 2), 32);
+        return Math.min(Math.max(radius, 2), 128);
     }
 }

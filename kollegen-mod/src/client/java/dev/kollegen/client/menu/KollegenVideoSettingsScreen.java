@@ -163,18 +163,18 @@ public class KollegenVideoSettingsScreen extends Screen {
         int colW = pw - 32;
         int colX = px + 16;
 
-        int rd = mc.options.renderDistance().get();
-        renderSlider(g, colX, rowY, colW, 24, "Render Distance (Echte Chunks): " + rd + " Chunks", (rd - 2) / 30.0f, mx, my);
-        Glass.text(g, this.font, "Standard Minecraft Sichtweite, lädt und rendert aktive Spielwelt-Chunks.", colX + 4, rowY + 26, 0xFF888888, false);
+        int serverDist = Performance.KollegenDistance.getActualDistance();
+        renderSlider(g, colX, rowY, colW, 24, "Server-Sichtweite (Aktive Chunks): " + serverDist + " Chunks", (serverDist - 4) / 28.0f, mx, my);
+        Glass.text(g, this.font, "Sichtweite für aktive Server-Chunks (Simulation & Mobs).", colX + 4, rowY + 26, 0xFF888888, false);
 
         rowY += rowH;
 
         boolean bobbyOn = Performance.KollegenDistance.isDistanceEnabled();
-        int limit = Performance.KollegenDistance.getDistanceLimit();
-        String limitStr = !bobbyOn ? "Aus" : (limit >= 250 ? "Unbegrenzt" : limit + " Chunks");
-        float limProg = !bobbyOn ? 0.0f : (limit >= 250 ? 1.0f : Math.max(0.0f, (limit - 16) / 240.0f));
-        renderSlider(g, colX, rowY, colW, 24, "Inaktive Chunks: " + limitStr, limProg, mx, my);
-        Glass.text(g, this.font, "Speichert und rendert gesehene Chunks dauerhaft im Hintergrund.", colX + 4, rowY + 26, 0xFF888888, false);
+        int fakeDist = Performance.KollegenDistance.getDistanceLimit();
+        String limitStr = !bobbyOn ? "Aus" : fakeDist + " Chunks";
+        float limProg = !bobbyOn ? 0.0f : Math.max(0.0f, Math.min(1.0f, (fakeDist - 16) / 112.0f));
+        renderSlider(g, colX, rowY, colW, 24, "Gesamte Sichtweite (Fake Chunks): " + limitStr, limProg, mx, my);
+        Glass.text(g, this.font, "Erweiterte visuelle Sichtweite ohne Server-Belastung (16 bis 128 Chunks).", colX + 4, rowY + 26, 0xFF888888, false);
 
         rowY += rowH;
 
@@ -557,21 +557,22 @@ public class KollegenVideoSettingsScreen extends Screen {
                 mc.options.gamma().set((double) r);
             }
             case 1 -> {
-                int rd = 2 + Math.round(ratio * 30.0f);
-                mc.options.renderDistance().set(rd);
-                Performance.KollegenDistance.actualDistance.value = (double) rd;
+                int sd = 4 + Math.round(ratio * 28.0f);
+                Performance.KollegenDistance.actualDistance.value = (double) sd;
                 Performance.KollegenDistance.syncDistance();
             }
             case 2 -> {
-                if (ratio <= 0.05f) {
-                    Performance.KollegenDistance.distanceLimit.value = 0.0;
-                    Performance.KollegenDistance.syncDistance();
-                } else if (ratio >= 0.95f) {
-                    Performance.KollegenDistance.distanceLimit.value = 256.0;
+                if (ratio <= 0.02f) {
+                    if (Performance.KollegenDistance.instance != null) {
+                        Performance.KollegenDistance.instance.enabled = false;
+                    }
                     Performance.KollegenDistance.syncDistance();
                 } else {
-                    int val = 16 + Math.round(((ratio - 0.05f) / 0.90f) * 240.0f);
+                    int val = 16 + Math.round(((ratio - 0.02f) / 0.98f) * 112.0f);
                     Performance.KollegenDistance.distanceLimit.value = (double) val;
+                    if (Performance.KollegenDistance.instance != null) {
+                        Performance.KollegenDistance.instance.enabled = true;
+                    }
                     Performance.KollegenDistance.syncDistance();
                 }
             }

@@ -10,6 +10,6 @@ public class ViewAreaMixin {
 
     @ModifyVariable(method = "<init>", at = @At("HEAD"), argsOnly = true, ordinal = 4)
     private static int kollegen$clampViewDistance(int viewDistance) {
-        return Math.min(Math.max(viewDistance, 2), 32);
+        return Math.min(Math.max(viewDistance, 2), 128);
     }
 }

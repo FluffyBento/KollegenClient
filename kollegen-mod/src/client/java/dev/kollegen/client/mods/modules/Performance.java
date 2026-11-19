@@ -247,16 +247,16 @@ public final class Performance {
 
         public static final SliderSetting distanceLimit = new SliderSetting(
                 "Inaktive Chunks (Sichtweite)",
-                "Erweiterte Sichtweite für inaktive Chunks über das Server-Limit hinaus (bis zu 256 / Unbegrenzt).",
-                128.0, 16.0, 256.0, 16.0,
-                v -> v >= 250.0 ? "Unbegrenzt" : (int) Math.round(v) + " Chunks",
+                "Erweiterte Sichtweite für inaktive Chunks über das Server-Limit hinaus.",
+                48.0, 16.0, 128.0, 8.0,
+                v -> (int) Math.round(v) + " Chunks",
                 v -> syncDistance()
         );
 
         public static final SliderSetting actualDistance = new SliderSetting(
                 "Render Distance (Server-Sichtweite)",
                 "Sichtweite für echte Server-Chunks wie im Standard-Minecraft.",
-                12.0, 2.0, 32.0, 1.0,
+                12.0, 4.0, 32.0, 1.0,
                 v -> (int) Math.round(v) + " Chunks",
                 v -> syncDistance()
         );
@@ -301,26 +301,22 @@ public final class Performance {
         }
 
         public static boolean isInfinite() {
-            return isDistanceEnabled() && distanceLimit.value >= 250.0;
+            return false;
         }
 
         public static int getDistanceLimit() {
-            if (instance == null) return 128;
+            if (instance == null) return 48;
             double v = distanceLimit.value;
-            if (v >= 250.0) return 2048;
-            return Math.max(16, (int) Math.round(v));
+            return Math.max(16, Math.min(128, (int) Math.round(v)));
         }
 
         public static int getMaxChunkDistance() {
-            if (instance == null) return 128;
-            double v = distanceLimit.value;
-            if (v >= 250.0) return 2048;
-            return Math.max(16, (int) Math.round(v));
+            return getDistanceLimit();
         }
 
         public static int getActualDistance() {
             if (instance == null) return 12;
-            return Math.max(2, Math.min(32, (int) Math.round(actualDistance.value)));
+            return Math.max(4, Math.min(32, (int) Math.round(actualDistance.value)));
         }
 
         @Override
@@ -364,9 +360,7 @@ public final class Performance {
                         }
                     }
                     if (client.options != null && client.options.renderDistance() != null) {
-                        if (client.options.renderDistance().get() > 32) {
-                            client.options.renderDistance().set(32);
-                        }
+                        client.options.renderDistance().set(getActualDistance());
                     }
                 }
             } catch (Throwable ignored) {
@@ -375,39 +369,42 @@ public final class Performance {
 
         @Override
         public void onTick() {
-            if (++tickCounter % 20 == 0) {
-                net.minecraft.client.Minecraft client = net.minecraft.client.Minecraft.getInstance();
-                if (client != null && client.options != null && client.options.renderDistance() != null) {
-                    int cur = client.options.renderDistance().get();
-                    if (cur >= 2 && cur <= 32 && cur != (int) Math.round(actualDistance.value)) {
-                        actualDistance.value = cur;
-                    }
-                }
-                syncDistance();
-            }
         }
 
         public static void syncDistance() {
             try {
                 net.minecraft.client.Minecraft client = net.minecraft.client.Minecraft.getInstance();
                 if (client == null || client.gameDirectory == null) return;
+                boolean enabled = isDistanceEnabled();
+                int fakeLimit = getDistanceLimit();
+                int serverDist = getActualDistance();
+                int clientRenderDist = enabled ? fakeLimit : serverDist;
+                int bobbyLimit = enabled ? fakeLimit : 32;
+                int overwrite = enabled ? serverDist : 0;
+
                 java.io.File configDir = new java.io.File(client.gameDirectory, "config");
                 if (!configDir.exists()) configDir.mkdirs();
                 java.io.File conf = new java.io.File(configDir, "bobby.conf");
-                boolean enabled = isDistanceEnabled();
-                boolean infinite = isInfinite();
-                int limit = enabled ? (infinite ? 2048 : getDistanceLimit()) : 32;
-                int actual = enabled ? getActualDistance() : 12;
-                int bobbyLimit = enabled ? (infinite ? 2048 : Math.max(16, limit)) : 32;
                 String content = "delete-unused-regions-after-days=-1\n" +
                         "dynamic-multi-world=false\n" +
                         "enabled=" + enabled + "\n" +
                         "max-render-distance=" + bobbyLimit + "\n" +
                         "no-block-entities=true\n" +
                         "taint-fake-chunks=false\n" +
-                        "unload-delay-secs=86400\n" +
-                        "view-distance-overwrite=" + actual + "\n";
-                java.nio.file.Files.writeString(conf.toPath(), content, java.nio.charset.StandardCharsets.UTF_8);
+                        "unload-delay-secs=300\n" +
+                        "view-distance-overwrite=" + overwrite + "\n";
+
+                String existing = "";
+                if (conf.exists()) {
+                    try {
+                        existing = java.nio.file.Files.readString(conf.toPath(), java.nio.charset.StandardCharsets.UTF_8);
+                    } catch (Throwable ignored) {
+                    }
+                }
+                if (!content.equals(existing)) {
+                    java.nio.file.Files.writeString(conf.toPath(), content, java.nio.charset.StandardCharsets.UTF_8);
+                }
+
                 try {
                     Class<?> bobbyClass = Class.forName("de.johni0702.minecraft.bobby.Bobby");
                     Object bobbyInst = bobbyClass.getMethod("getInstance").invoke(null);
@@ -421,41 +418,35 @@ public final class Performance {
                                     boolean.class, boolean.class, boolean.class, boolean.class,
                                     int.class, int.class, int.class, int.class
                             );
-                            Object newCfg = ctor.newInstance(enabled, false, true, false, 86400, -1, bobbyLimit, actual);
+                            Object newCfg = ctor.newInstance(enabled, false, true, false, 300, -1, bobbyLimit, overwrite);
                             cfgRef.getClass().getMethod("setAndSave", Object.class).invoke(cfgRef, newCfg);
                         }
                     }
                 } catch (Throwable ignored) {
                 }
+
                 if (client.options != null && client.options.renderDistance() != null) {
                     try {
                         net.minecraft.client.OptionInstance<Integer> rd = client.options.renderDistance();
-                        if (rd.get() != actual) {
-                            rd.set(actual);
+                        if (rd.get() != clientRenderDist) {
+                            rd.set(clientRenderDist);
                         }
-                    } catch (Throwable ignored) {}
+                    } catch (Throwable ignored) {
+                    }
                 }
+
                 if (client.getSingleplayerServer() != null && client.getSingleplayerServer().getPlayerList() != null) {
                     try {
-                        client.getSingleplayerServer().getPlayerList().setViewDistance(actual);
-                    } catch (Throwable ignored) {}
+                        client.getSingleplayerServer().getPlayerList().setViewDistance(serverDist);
+                    } catch (Throwable ignored) {
+                    }
                 }
+
                 if (client.options != null && client.player != null && client.player.connection != null) {
                     try {
                         client.options.broadcastOptions();
-                    } catch (Throwable ignored) {}
-                }
-                if (client.level != null) {
-                    try {
-                        Class<?> extClass = Class.forName("de.johni0702.minecraft.bobby.ext.ClientChunkCacheExt");
-                        Object chunkSource = client.level.getChunkSource();
-                        if (extClass.isInstance(chunkSource)) {
-                            Object fcm = extClass.getMethod("bobby_getFakeChunkManager").invoke(chunkSource);
-                            if (fcm != null) {
-                                fcm.getClass().getMethod("update", boolean.class, java.util.function.BooleanSupplier.class).invoke(fcm, true, (java.util.function.BooleanSupplier) () -> false);
-                            }
-                        }
-                    } catch (Throwable ignored) {}
+                    } catch (Throwable ignored) {
+                    }
                 }
             } catch (Throwable ignored) {
             }
