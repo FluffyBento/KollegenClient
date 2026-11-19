@@ -34,7 +34,12 @@ public abstract class OnlineServerEntryMixin extends ServerSelectionList.Entry {
         Identifier banner = ServerBannerManager.getBanner(data);
 
         if (banner != null) {
-            g.blit(banner, x, y, x + w, y + h, 0.0f, 1.0f, 0.15f, 0.85f);
+            float imgAspect = 16.0f / 9.0f;
+            float boxAspect = (float) w / (float) h;
+            float vSpan = Math.min(1.0f, imgAspect / boxAspect);
+            float v0 = 0.5f - (vSpan * 0.5f);
+            float v1 = 0.5f + (vSpan * 0.5f);
+            g.blit(banner, x, y, x + w, y + h, 0.0f, 1.0f, v0, v1);
             g.fillGradient(x, y, x + w, y + h, 0x15000000, 0x45000000);
         } else {
             g.fillGradient(x, y, x + w, y + h, 0xDD181B26, 0xEE10121C);
