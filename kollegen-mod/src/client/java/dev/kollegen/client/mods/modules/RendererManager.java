@@ -8,6 +8,7 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
 public final class RendererManager {
@@ -206,6 +207,35 @@ public final class RendererManager {
                 }
             } catch (IOException ignored) {
             }
+            try (java.nio.file.DirectoryStream<Path> ds = Files.newDirectoryStream(mods, "sodium-fabric*.jar")) {
+                for (Path p : ds) {
+                    try {
+                        Path disabled = mods.resolve(p.getFileName().toString() + ".disabled");
+                        Files.move(p, disabled, StandardCopyOption.REPLACE_EXISTING);
+                    } catch (IOException ignored) {
+                    }
+                }
+            } catch (IOException ignored) {
+            }
+        }
+        try {
+            Path ess = mods.resolve("essentialmod.jar");
+            if (Files.exists(ess)) {
+                Files.move(ess, mods.resolve("essentialmod.jar.disabled"), StandardCopyOption.REPLACE_EXISTING);
+            }
+        } catch (IOException ignored) {
+        }
+        for (String pattern : new String[]{"hover_items*.jar", "silicon*.jar"}) {
+            try (java.nio.file.DirectoryStream<Path> ds = Files.newDirectoryStream(mods, pattern)) {
+                for (Path p : ds) {
+                    try {
+                        Path disabled = mods.resolve(p.getFileName().toString() + ".disabled");
+                        Files.move(p, disabled, StandardCopyOption.REPLACE_EXISTING);
+                    } catch (IOException ignored) {
+                    }
+                }
+            } catch (IOException ignored) {
+            }
         }
     }
 
@@ -221,8 +251,19 @@ public final class RendererManager {
 
     private static boolean isIntactJar(Path jar) {
         try (ZipFile zip = new ZipFile(jar.toFile())) {
-            return true;
-        } catch (IOException e) {
+            ZipEntry entry = zip.getEntry("fabric.mod.json");
+            if (entry == null) {
+                var it = zip.entries();
+                if (!it.hasMoreElements()) {
+                    return false;
+                }
+                entry = it.nextElement();
+            }
+            try (InputStream is = zip.getInputStream(entry)) {
+                byte[] buf = new byte[64];
+                return is.read(buf) > 0;
+            }
+        } catch (Throwable e) {
             return false;
         }
     }

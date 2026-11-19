@@ -738,7 +738,7 @@ fn clone_instance_v2(
                             "Mod '{}' ({}) nicht aktualisierbar für {} / {}: {}",
                             fname, pid, new_version, new_loader, e
                         );
-                        if new_version.starts_with("26.") && source.version.starts_with("26.") {
+                        if new_version.starts_with("26.") && source.version.starts_with("26.") && (!new_version.starts_with("26.3") || source.version.starts_with("26.3")) {
                             let _ = std::fs::copy(source_mods_dir.join(&fname), new_mods_dir.join(&fname));
                             utils::append_log(
                                 &state,

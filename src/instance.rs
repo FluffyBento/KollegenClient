@@ -949,7 +949,22 @@ pub(crate) fn enforce_controller_state(mods_dir: &Path, on: bool) {
 
 fn is_intact_jar(path: &Path) -> bool {
     match fs::File::open(path) {
-        Ok(f) => zip::ZipArchive::new(f).is_ok(),
+        Ok(f) => {
+            if let Ok(mut archive) = zip::ZipArchive::new(f) {
+                if archive.len() == 0 {
+                    return false;
+                }
+                let mut buf = [0u8; 64];
+                use std::io::Read;
+                if let Ok(mut entry) = archive.by_name("fabric.mod.json") {
+                    return entry.read(&mut buf).map(|n| n > 0).unwrap_or(false);
+                }
+                if let Ok(mut entry) = archive.by_index(0) {
+                    return entry.read(&mut buf).map(|n| n > 0).unwrap_or(false);
+                }
+            }
+            false
+        }
         Err(_) => false,
     }
 }
@@ -996,6 +1011,20 @@ pub(crate) fn enforce_renderer_consistency(mods_dir: &Path, vulkan_enabled: bool
         ] {
             if candidate.is_file() {
                 let _ = fs::remove_file(&candidate);
+            }
+        }
+    }
+    if !vulkan_enabled {
+        if let Ok(entries) = fs::read_dir(mods_dir) {
+            for entry in entries.flatten() {
+                let name = entry.file_name().to_string_lossy().to_string();
+                let lower = name.to_lowercase();
+                if (lower.starts_with("sodium-fabric") || lower.starts_with("iris-fabric"))
+                    && lower.ends_with(".jar")
+                    && !lower.ends_with(".disabled")
+                {
+                    let _ = fs::rename(entry.path(), mods_dir.join(format!("{}.disabled", name)));
+                }
             }
         }
     }
@@ -1583,7 +1612,23 @@ pub fn launch(
         if !actual_vulkan {
             let _ = crate::utils::ensure_sodium(&inst.name, data_dir, &inst.version);
         }
-        if mods_dir.join("essentialmod.jar").is_file() {
+        if inst.version.starts_with("26.3") {
+            let ess = mods_dir.join("essentialmod.jar");
+            if ess.is_file() {
+                let _ = fs::rename(&ess, mods_dir.join("essentialmod.jar.disabled"));
+            }
+            for pattern in ["hover_items", "silicon"] {
+                if let Ok(entries) = fs::read_dir(&mods_dir) {
+                    for entry in entries.flatten() {
+                        let name = entry.file_name().to_string_lossy().to_string();
+                        let lower = name.to_lowercase();
+                        if lower.starts_with(pattern) && lower.ends_with(".jar") && !lower.ends_with(".disabled") {
+                            let _ = fs::rename(entry.path(), mods_dir.join(format!("{}.disabled", name)));
+                        }
+                    }
+                }
+            }
+        } else if mods_dir.join("essentialmod.jar").is_file() {
             let _ = crate::utils::ensure_essential(&inst.name, data_dir, &inst.version);
         }
     }

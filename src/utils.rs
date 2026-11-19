@@ -135,8 +135,18 @@ pub fn download_file_client(client: &reqwest::blocking::Client, url: &str, dest:
 
 fn is_valid_jar(path: &Path) -> bool {
     if let Ok(file) = fs::File::open(path) {
-        if let Ok(archive) = zip::ZipArchive::new(file) {
-            return archive.len() > 0;
+        if let Ok(mut archive) = zip::ZipArchive::new(file) {
+            if archive.len() == 0 {
+                return false;
+            }
+            let mut buf = [0u8; 64];
+            use std::io::Read;
+            if let Ok(mut entry) = archive.by_name("fabric.mod.json") {
+                return entry.read(&mut buf).map(|n| n > 0).unwrap_or(false);
+            }
+            if let Ok(mut entry) = archive.by_index(0) {
+                return entry.read(&mut buf).map(|n| n > 0).unwrap_or(false);
+            }
         }
     }
     false
@@ -180,7 +190,9 @@ pub fn ensure_modrinth_mod(
             .map(|g| g.iter().any(|ver| {
                 let s = ver.as_str().unwrap_or("");
                 s.eq_ignore_ascii_case(mc_version)
-                    || (mc_version.starts_with("26.") && (s.starts_with("26.3") || s.starts_with("26.")))
+                    || (mc_version.starts_with("26.3") && s.starts_with("26.3"))
+                    || (mc_version.starts_with("26.2") && s.starts_with("26.2"))
+                    || (mc_version.starts_with("26.1") && s.starts_with("26.1"))
                     || (mc_version.starts_with("1.21.") && s.starts_with("1.21"))
             }))
             .unwrap_or(false)
@@ -232,6 +244,14 @@ pub fn ensure_modrinth_mod(
 }
 
 pub fn ensure_essential(name: &str, data_dir: &Path, mc_version: &str) -> Result<()> {
+    if mc_version.starts_with("26.3") {
+        let mods_dir = instance_dir(data_dir, name).join("mods");
+        let active = mods_dir.join("essentialmod.jar");
+        if active.is_file() {
+            let _ = fs::rename(&active, mods_dir.join("essentialmod.jar.disabled"));
+        }
+        return Ok(());
+    }
     let mods_dir = instance_dir(data_dir, name).join("mods");
     ensure_modrinth_mod(&mods_dir, "essential", "essentialmod.jar", mc_version)
 }
