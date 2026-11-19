@@ -54,6 +54,8 @@
   background: transparent !important;
   border: 0 !important;
   touch-action: pan-y;
+  will-change: transform;
+  transform: translateZ(0);
 }
 
 

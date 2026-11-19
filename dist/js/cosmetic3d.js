@@ -51,7 +51,7 @@
 
   function ensureRenderer(w, h) {
     if (!renderer) {
-      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance', precision: 'mediump' });
       if (THREE.SRGBColorSpace && ('outputColorSpace' in renderer)) renderer.outputColorSpace = THREE.SRGBColorSpace;
       else if (THREE.sRGBEncoding) renderer.outputEncoding = THREE.sRGBEncoding;
       renderer.setClearColor(0x000000, 0);
@@ -725,6 +725,10 @@
   var mounts = [];
   var rafOn = false;
   var lastFrame = 0;
+  var scratchR = [0, 0, 0];
+  var scratchP = [0, 0, 0];
+  var scratchS = [1, 1, 1];
+  var scratchV = null;
 
   function kick() {
     if (rafOn) return;
@@ -741,11 +745,18 @@
     rafOn = false;
     if (document.hidden) { return; }
     var any = false;
-    for (var i = 0; i < mounts.length; i++) if (needsFrame(mounts[i])) { any = true; break; }
+    var anyDragging = false;
+    for (var i = 0; i < mounts.length; i++) {
+      var m = mounts[i];
+      if (needsFrame(m)) {
+        any = true;
+        if (m.isDragging) anyDragging = true;
+      }
+    }
     if (!any) return;
     rafOn = true;
     requestAnimationFrame(tick);
-    if (now - lastFrame < 30) return; 
+    if (!anyDragging && lastFrame && (now - lastFrame < 14)) return;
     var dt = Math.min(0.1, (now - (lastFrame || now)) / 1000);
     lastFrame = now;
     mounts.slice().forEach(function (h) {
@@ -754,7 +765,6 @@
         if (!needsFrame(h)) return;
         drawMount(h, dt, now);
       } catch (e) {
-        
         console.warn('drawMount error:', e);
       }
     });
@@ -764,15 +774,15 @@
 
   function drawMount(h, dt, now) {
     var cv = h.canvas;
-    var rc = cv.getBoundingClientRect();
-    if (rc.width < 4 || rc.height < 4) { return; }
-    var dpr = Math.min(window.devicePixelRatio || 1, 2);
-    var W = Math.round(rc.width * dpr), H = Math.round(rc.height * dpr);
+    var W_css = h.cssW || cv.clientWidth || 220;
+    var H_css = h.cssH || cv.clientHeight || 440;
+    if (W_css < 4 || H_css < 4) { return; }
+    var dpr = Math.min(window.devicePixelRatio || 1, 1.25);
+    var W = Math.round(W_css * dpr), H = Math.round(H_css * dpr);
     if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; h.dirty = true; }
     if (h.animate && h.autoRotate && (now - h.lastInteract) > 2500) h.rot += dt * 0.7;
     h.stage.rotation.y = h.rot;
 
-    
     if (h.animate) {
       var timeSec = now * 0.001;
       var t = now * 0.002;
@@ -788,21 +798,18 @@
               var boneGroup = cosm.bones[bName];
               if (!boneGroup) continue;
               if (track.rTimes) {
-                var r = [0, 0, 0];
-                sampleTrack(track.rTimes, track.rVals, track.rInterp, timeSec, cosm.anim.length, r);
+                sampleTrack(track.rTimes, track.rVals, track.rInterp, timeSec, cosm.anim.length, scratchR);
                 var br = boneGroup.userData.baseRot || [0, 0, 0];
-                boneGroup.rotation.set((br[0] + r[0]) * DEG, (br[1] + r[1]) * DEG, (br[2] + r[2]) * DEG);
+                boneGroup.rotation.set((br[0] + scratchR[0]) * DEG, (br[1] + scratchR[1]) * DEG, (br[2] + scratchR[2]) * DEG);
               }
               if (track.pTimes) {
-                var p = [0, 0, 0];
-                sampleTrack(track.pTimes, track.pVals, track.pInterp, timeSec, cosm.anim.length, p);
+                sampleTrack(track.pTimes, track.pVals, track.pInterp, timeSec, cosm.anim.length, scratchP);
                 var bp = boneGroup.userData.basePos || [0, 0, 0];
-                boneGroup.position.set(bp[0] + p[0], bp[1] + p[1], bp[2] + p[2]);
+                boneGroup.position.set(bp[0] + scratchP[0], bp[1] + scratchP[1], bp[2] + scratchP[2]);
               }
               if (track.sTimes) {
-                var s = [1, 1, 1];
-                sampleTrack(track.sTimes, track.sVals, track.sInterp, timeSec, cosm.anim.length, s);
-                boneGroup.scale.set(s[0], s[1], s[2]);
+                sampleTrack(track.sTimes, track.sVals, track.sInterp, timeSec, cosm.anim.length, scratchS);
+                boneGroup.scale.set(scratchS[0], scratchS[1], scratchS[2]);
               }
             }
           }
@@ -833,10 +840,12 @@
     h.dirty = false;
     if (h.onFrame) {
       try {
-        
         var hasHat = h.items && h.items.some(function (it) { return it && (it.category === 'head_accessory' || it.category === 'face_accessory'); });
-        var v = new THREE.Vector3(0, hasHat ? 37 : 34, 0).project(h.camera);
-        h.onFrame({ x: v.x * 0.5 + 0.5, y: -v.y * 0.5 + 0.5 });
+        if (!scratchV && THREE) scratchV = new THREE.Vector3();
+        if (scratchV) {
+          scratchV.set(0, hasHat ? 37 : 34, 0).project(h.camera);
+          h.onFrame({ x: scratchV.x * 0.5 + 0.5, y: -scratchV.y * 0.5 + 0.5 });
+        }
       } catch (e) {}
     }
   }
@@ -871,7 +880,7 @@
       camera: new THREE.PerspectiveCamera(30, 1, 0.1, 600),
       player: null, cape: null, pet: null, petY: 21, capeG: null,
       box: null, skinUrl: null, capeUrl: null, itemKeys: '', gen: 0, items: [],
-      liveCosmetics: []
+      liveCosmetics: [], isDragging: false, cssW: canvas.clientWidth || 0, cssH: canvas.clientHeight || 0
     };
     h.box = unionBox(headroomBox([]));
     h.scene.add(h.stage);
@@ -879,10 +888,10 @@
     canvas.style.cursor = 'grab';
     canvas.style.touchAction = 'pan-y';
 
-    
     var drag = null;
     h.onPointerDown = function (e) {
       drag = { x: e.clientX, rot: h.rot };
+      h.isDragging = true;
       h.lastInteract = performance.now();
       try { canvas.setPointerCapture(e.pointerId); } catch (er) {}
       canvas.style.cursor = 'grabbing';
@@ -893,9 +902,11 @@
         h.dirty = true;
         kick();
       };
-      var up = function () {
+      var up = function (ev) {
         drag = null;
+        h.isDragging = false;
         canvas.style.cursor = 'grab';
+        try { if (ev && ev.pointerId) canvas.releasePointerCapture(ev.pointerId); } catch (er) {}
         canvas.removeEventListener('pointermove', move);
         canvas.removeEventListener('pointerup', up);
         canvas.removeEventListener('pointercancel', up);
@@ -920,6 +931,8 @@
           for (var i = 0; i < entries.length; i++) {
             var cr = entries[i].contentRect;
             if (cr.width >= 4 && cr.height >= 4) {
+              h.cssW = cr.width;
+              h.cssH = cr.height;
               h.dirty = true;
               kick();
             }
