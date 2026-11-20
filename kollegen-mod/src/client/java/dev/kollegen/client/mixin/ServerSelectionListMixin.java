@@ -1,7 +1,9 @@
 package dev.kollegen.client.mixin;
 
 import dev.kollegen.client.server.ServerBannerManager;
+import dev.kollegen.client.server.ServerListSettings;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractContainerWidget;
 import net.minecraft.client.gui.screens.multiplayer.JoinMultiplayerScreen;
 import net.minecraft.client.gui.screens.multiplayer.ServerSelectionList;
@@ -11,6 +13,7 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.util.List;
@@ -21,17 +24,39 @@ public abstract class ServerSelectionListMixin {
     @Unique private int kollegen$draggedIndex = -1;
     @Unique private double kollegen$dragStartY = 0.0;
 
+    @Inject(method = "extractWidgetRenderState", at = @At("HEAD"))
+    private void kollegen$onRender(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick, CallbackInfo ci) {
+        if ((Object) this instanceof ServerSelectionList ssl) {
+            ServerListSettings.applyLayout(ssl);
+        }
+    }
+
+    @Inject(method = "maxScrollAmount", at = @At("HEAD"), cancellable = true)
+    private void kollegen$maxScrollAmount(CallbackInfoReturnable<Integer> cir) {
+        if ((Object) this instanceof ServerSelectionList ssl) {
+            int contentH = ServerListSettings.calculateContentHeight(ssl);
+            cir.setReturnValue(Math.max(0, contentH - ssl.getHeight()));
+        }
+    }
+
+    @Inject(method = "setScrollAmount", at = @At("RETURN"))
+    private void kollegen$onSetScrollAmount(double amount, CallbackInfo ci) {
+        if ((Object) this instanceof ServerSelectionList ssl) {
+            ServerListSettings.applyLayout(ssl);
+        }
+    }
+
     @Inject(method = "mouseClicked", at = @At("HEAD"))
     private void kollegen$onMouseClicked(MouseButtonEvent event, boolean doubleClick, CallbackInfoReturnable<Boolean> cir) {
         if ((Object) this instanceof ServerSelectionList ssl && event.button() == 0) {
             ServerBannerManager.init();
+            ServerListSettings.applyLayout(ssl);
             int clicked = -1;
             List<?> children = ssl.children();
             for (int i = 0; i < children.size(); i++) {
                 Object obj = children.get(i);
                 if (obj instanceof ServerSelectionList.OnlineServerEntry entry) {
-                    if (event.y() >= entry.getY() && event.y() < entry.getY() + entry.getHeight()
-                            && event.x() >= ssl.getRowLeft() && event.x() <= ssl.getRowRight()) {
+                    if (entry.isMouseOver(event.x(), event.y())) {
                         clicked = i;
                         break;
                     }
@@ -52,27 +77,24 @@ public abstract class ServerSelectionListMixin {
                 ServerBannerManager.IS_DRAGGING = true;
             }
             if (ServerBannerManager.IS_DRAGGING) {
+                ServerListSettings.applyLayout(ssl);
                 int targetIdx = -1;
                 List<?> children = ssl.children();
-                int firstOnlineIdx = -1;
-                int lastOnlineIdx = -1;
+                double closestDistSq = Double.MAX_VALUE;
                 for (int i = 0; i < children.size(); i++) {
                     Object obj = children.get(i);
                     if (obj instanceof ServerSelectionList.OnlineServerEntry entry) {
-                        if (firstOnlineIdx < 0) firstOnlineIdx = i;
-                        lastOnlineIdx = i;
-                        if (event.y() >= entry.getY() && event.y() < entry.getY() + entry.getHeight()) {
+                        if (entry.isMouseOver(event.x(), event.y())) {
+                            targetIdx = i;
+                            break;
+                        }
+                        double cx = entry.getX() + entry.getWidth() / 2.0;
+                        double cy = entry.getY() + entry.getHeight() / 2.0;
+                        double distSq = (event.x() - cx) * (event.x() - cx) + (event.y() - cy) * (event.y() - cy);
+                        if (distSq < closestDistSq) {
+                            closestDistSq = distSq;
                             targetIdx = i;
                         }
-                    }
-                }
-                if (targetIdx < 0 && firstOnlineIdx >= 0 && lastOnlineIdx >= 0) {
-                    ServerSelectionList.OnlineServerEntry firstEntry = (ServerSelectionList.OnlineServerEntry) children.get(firstOnlineIdx);
-                    ServerSelectionList.OnlineServerEntry lastEntry = (ServerSelectionList.OnlineServerEntry) children.get(lastOnlineIdx);
-                    if (event.y() < firstEntry.getY()) {
-                        targetIdx = firstOnlineIdx;
-                    } else if (event.y() >= lastEntry.getY() + lastEntry.getHeight()) {
-                        targetIdx = lastOnlineIdx;
                     }
                 }
                 if (targetIdx >= 0 && targetIdx != this.kollegen$draggedIndex) {
@@ -83,6 +105,7 @@ public abstract class ServerSelectionListMixin {
                             serverList.swap(this.kollegen$draggedIndex, targetIdx);
                             serverList.save();
                             ssl.updateOnlineServers(serverList);
+                            ServerListSettings.applyLayout(ssl);
                             this.kollegen$draggedIndex = targetIdx;
                             if (targetIdx < ssl.children().size() && ssl.children().get(targetIdx) instanceof ServerSelectionList.OnlineServerEntry online) {
                                 ServerBannerManager.DRAGGED_SERVER = online.getServerData();
@@ -103,6 +126,7 @@ public abstract class ServerSelectionListMixin {
                 ServerBannerManager.IS_DRAGGING = false;
                 this.kollegen$draggedIndex = -1;
                 ServerBannerManager.DRAGGED_SERVER = null;
+                ServerListSettings.applyLayout(ssl);
                 cir.setReturnValue(true);
             } else {
                 this.kollegen$draggedIndex = -1;

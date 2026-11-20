@@ -94,6 +94,7 @@
     "ScreenNarrationMixin",
     "BossHealthOverlayMixin",
     "ServerSelectionListMixin",
+    "ServerSelectionListWidthMixin",
     "OnlineServerEntryMixin",
     "LivingEntityRendererMixin"
   ],

@@ -4,6 +4,7 @@ import com.mojang.blaze3d.platform.InputConstants;
 import dev.kollegen.client.mods.modules.KollegenShader;
 import dev.kollegen.client.mods.modules.Performance;
 import dev.kollegen.client.mods.modules.RendererManager;
+import dev.kollegen.client.server.ServerListSettings;
 import dev.kollegen.client.ui.Glass;
 import dev.kollegen.client.ui.LogoDraw;
 import net.minecraft.client.CloudStatus;
@@ -154,6 +155,22 @@ public class KollegenVideoSettingsScreen extends Screen {
         double gam = mc.options.gamma().get();
         int gamPct = (int) Math.round(gam * 100.0);
         renderSlider(g, col2X, rowY, colW, 24, "Helligkeit: " + gamPct + "%", (float) gam, mx, my);
+
+        rowY += rowH + 6;
+        int secW = pw - 32;
+        int secX = px + 16;
+        String expandIcon = ServerListSettings.expanded ? "▼" : "▶";
+        String secTitle = expandIcon + " Multiplayer-Menü Einstellungen";
+        renderButton(g, secX, rowY, secW, 24, secTitle, 0xFFA78BFA, mx, my);
+
+        if (ServerListSettings.expanded) {
+            rowY += 28;
+            renderButton(g, col1X, rowY, colW, 24, ServerListSettings.getColumnsLabel(), 0xFF38BDF8, mx, my);
+            renderButton(g, col2X, rowY, colW, 24, ServerListSettings.getHeightLabel(), 0xFF10B981, mx, my);
+
+            rowY += 28;
+            renderButton(g, secX, rowY, secW, 24, ServerListSettings.getWidthLabel(), 0xFFF59E0B, mx, my);
+        }
     }
 
     private void renderTabPerformance(GuiGraphicsExtractor g, int px, int py, int pw, int ph, int mx, int my) {
@@ -393,6 +410,34 @@ public class KollegenVideoSettingsScreen extends Screen {
             this.activeSlider = 0;
             float ratio = (float) ((mx - col2X) / colW);
             mc.options.gamma().set(Math.max(0.0, Math.min(1.0, (double) ratio)));
+            return;
+        }
+
+        rowY += rowH + 6;
+        int secW = pw - 32;
+        int secX = px + 16;
+
+        if (mx >= secX && mx <= secX + secW && my >= rowY && my <= rowY + 24) {
+            ServerListSettings.expanded = !ServerListSettings.expanded;
+            ServerListSettings.save();
+            return;
+        }
+
+        if (ServerListSettings.expanded) {
+            rowY += 28;
+            if (mx >= col1X && mx <= col1X + colW && my >= rowY && my <= rowY + 24) {
+                ServerListSettings.cycleColumns();
+                return;
+            }
+            if (mx >= col2X && mx <= col2X + colW && my >= rowY && my <= rowY + 24) {
+                ServerListSettings.cycleHeight();
+                return;
+            }
+
+            rowY += 28;
+            if (mx >= secX && mx <= secX + secW && my >= rowY && my <= rowY + 24) {
+                ServerListSettings.cycleWidth();
+            }
         }
     }
 

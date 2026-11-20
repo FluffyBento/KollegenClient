@@ -36,10 +36,20 @@ public abstract class OnlineServerEntryMixin extends ServerSelectionList.Entry {
         if (banner != null) {
             float imgAspect = 16.0f / 9.0f;
             float boxAspect = (float) w / (float) h;
-            float vSpan = Math.min(1.0f, imgAspect / boxAspect);
-            float v0 = 0.5f - (vSpan * 0.5f);
-            float v1 = 0.5f + (vSpan * 0.5f);
-            g.blit(banner, x, y, x + w, y + h, 0.0f, 1.0f, v0, v1);
+            float u0 = 0.0f;
+            float u1 = 1.0f;
+            float v0 = 0.0f;
+            float v1 = 1.0f;
+            if (boxAspect >= imgAspect) {
+                float vSpan = imgAspect / boxAspect;
+                v0 = 0.5f - (vSpan * 0.5f);
+                v1 = 0.5f + (vSpan * 0.5f);
+            } else {
+                float uSpan = boxAspect / imgAspect;
+                u0 = 0.5f - (uSpan * 0.5f);
+                u1 = 0.5f + (uSpan * 0.5f);
+            }
+            g.blit(banner, x, y, x + w, y + h, u0, u1, v0, v1);
             g.fillGradient(x, y, x + w, y + h, 0x15000000, 0x45000000);
         } else {
             g.fillGradient(x, y, x + w, y + h, 0xDD181B26, 0xEE10121C);
@@ -49,9 +59,12 @@ public abstract class OnlineServerEntryMixin extends ServerSelectionList.Entry {
         if (isDragged) {
             Glass.drawHollowRect(g, x, y, w, h, 0xFFFFCC00);
             Glass.drawHollowRect(g, x + 1, y + 1, w - 2, h - 2, 0x88FFCC00);
+        } else if (isSelected) {
+            Glass.drawHollowRect(g, x, y, w, h, 0xFF8A5CF6);
+            Glass.drawHollowRect(g, x + 1, y + 1, w - 2, h - 2, 0x888A5CF6);
         } else if (hovered) {
             Glass.drawHollowRect(g, x, y, w, h, 0xAA8A5CF6);
-        } else if (!isSelected) {
+        } else {
             Glass.drawHollowRect(g, x, y, w, h, 0x22FFFFFF);
         }
     }
