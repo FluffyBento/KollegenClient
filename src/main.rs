@@ -2590,6 +2590,24 @@ async fn install_app_update(app: tauri::AppHandle) -> Result<(), String> {
 
 
 
+fn setup_fontconfig_env() {
+    let target_dir = dirs::config_dir()
+        .map(|d| d.join("fontconfig/conf.d"))
+        .or_else(|| {
+            std::env::var_os("HOME")
+                .map(|h| PathBuf::from(h).join(".config/fontconfig/conf.d"))
+        });
+
+    if let Some(dir) = target_dir {
+        let conf_file = dir.join("99-kollegen-colrv1.conf");
+        if !conf_file.exists() {
+            let _ = std::fs::create_dir_all(&dir);
+            let content = "<?xml version=\"1.0\"?>\n<!DOCTYPE fontconfig SYSTEM \"urn:fontconfig:fonts.dtd\">\n<fontconfig>\n  <selectfont>\n    <rejectfont>\n      <glob>*/Noto-COLRv1.ttf</glob>\n      <glob>*COLRv1*</glob>\n    </rejectfont>\n  </selectfont>\n</fontconfig>\n";
+            let _ = std::fs::write(&conf_file, content);
+        }
+    }
+}
+
 fn setup_webkit_appimage_env() {
     
     
@@ -3162,6 +3180,7 @@ fn main() {
 
     
     
+    setup_fontconfig_env();
     setup_webkit_appimage_env();
 
     let data_dir = match ProjectDirs::from("dev", "kollegen", "KollegenClient") {

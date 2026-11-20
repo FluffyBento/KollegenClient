@@ -201,6 +201,22 @@ if [ -d "$HERE/apprun-hooks" ]; then
     [ -f "$h" ] && . "$h"
   done
 fi
+FC_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/fontconfig/conf.d"
+if [ ! -f "$FC_DIR/99-kollegen-colrv1.conf" ]; then
+  mkdir -p "$FC_DIR" 2>/dev/null || true
+  cat > "$FC_DIR/99-kollegen-colrv1.conf" 2>/dev/null <<'EOF' || true
+<?xml version="1.0"?>
+<!DOCTYPE fontconfig SYSTEM "urn:fontconfig:fonts.dtd">
+<fontconfig>
+  <selectfont>
+    <rejectfont>
+      <glob>*/Noto-COLRv1.ttf</glob>
+      <glob>*COLRv1*</glob>
+    </rejectfont>
+  </selectfont>
+</fontconfig>
+EOF
+fi
 rm -rf /tmp/kollegen-webkit2gtk-4.1
 ln -sfn "$HERE/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1" /tmp/kollegen-webkit2gtk-4.1
 exec "$HERE/usr/bin/kollegen-client" "$@"
