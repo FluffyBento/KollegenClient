@@ -251,7 +251,7 @@ jobs:
 
       - name: Install NSIS
         if: steps.check_pub.outputs.skip != 'true'
-        run: choco install nsis -y
+        uses: nsis-dev/setup-nsis@v1
 
       - name: Install Tauri CLI
         if: steps.check_pub.outputs.skip != 'true'
