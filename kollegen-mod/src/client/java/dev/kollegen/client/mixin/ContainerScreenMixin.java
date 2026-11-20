@@ -2,9 +2,12 @@ package dev.kollegen.client.mixin;
 
 import com.mojang.blaze3d.platform.InputConstants;
 import dev.kollegen.client.lock.ItemLockManager;
+import dev.kollegen.client.mods.Palette;
 import dev.kollegen.client.mods.modules.InventoryColor;
 import dev.kollegen.client.mods.modules.InventoryEnhancements;
 import dev.kollegen.client.ui.Glass;
+import dev.kollegen.client.ui.GuiCustomizationRenderer;
+import dev.kollegen.client.ui.GuiCustomizationSettings;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.EditBox;
@@ -66,7 +69,8 @@ public abstract class ContainerScreenMixin extends Screen {
 
     @Inject(method = "init", at = @At("RETURN"))
     private void kollegen$initSearch(CallbackInfo ci) {
-        if ((Object) this instanceof net.minecraft.client.gui.screens.inventory.CreativeModeInventoryScreen) {
+        if ((Object) this instanceof net.minecraft.client.gui.screens.inventory.CreativeModeInventoryScreen
+                || (Object) this instanceof net.minecraft.client.gui.screens.inventory.InventoryScreen) {
             this.kollegen$searchBox = null;
             return;
         }
@@ -187,10 +191,42 @@ public abstract class ContainerScreenMixin extends Screen {
         }
     }
 
+    @Inject(method = "extractContents", at = @At("HEAD"))
+    private void kollegen$renderCustomContainerBackground(GuiGraphicsExtractor gui, int mouseX, int mouseY, float partialTick, CallbackInfo ci) {
+        if ((Object) this instanceof net.minecraft.client.gui.screens.inventory.CreativeModeInventoryScreen) {
+            return;
+        }
+        if (GuiCustomizationSettings.getContainerStyle() == GuiCustomizationSettings.ContainerStyle.VANILLA) {
+            return;
+        }
+        int x = this.leftPos;
+        int y = this.topPos;
+        int w = this.imageWidth;
+        int h = this.imageHeight;
+
+        GuiCustomizationRenderer.drawCustomContainer(gui, x, y, w, h, this.menu != null ? this.menu.slots : null, this.hoveredSlot, (Screen) (Object) this);
+    }
+
     @Inject(method = "extractRenderState(Lnet/minecraft/client/gui/GuiGraphicsExtractor;IIF)V",
             at = @At("RETURN"))
     private void kollegen$tintBackground(GuiGraphicsExtractor gui, int mouseX, int mouseY, float partialTick,
                                          CallbackInfo ci) {
+        if ((Object) this instanceof net.minecraft.client.gui.screens.inventory.CreativeModeInventoryScreen) {
+            return;
+        }
+        if (GuiCustomizationSettings.getContainerStyle() != GuiCustomizationSettings.ContainerStyle.VANILLA
+                && GuiCustomizationSettings.getSlotStyle() != GuiCustomizationSettings.SlotStyle.VANILLA
+                && this.hoveredSlot != null) {
+            int hx = this.leftPos + this.hoveredSlot.x;
+            int hy = this.topPos + this.hoveredSlot.y;
+            Glass.ring(gui, hx - 1, hy - 1, 18, 18, 2.0f, 1.0f, Palette.ACCENT);
+            if (GuiCustomizationSettings.isButtonGlow()) {
+                float glow = GuiCustomizationSettings.getGlowStrength();
+                float sRadius = Math.max(1.5f, 4.0f * glow);
+                float sAlpha = Math.min(0.30f, 0.15f * glow);
+                Glass.shadowSoft(gui, hx - 1, hy - 1, 18, 18, 2.0f, sRadius, 1.0f, Glass.a(Palette.ACCENT, sAlpha));
+            }
+        }
         if (this.menu != null && this.menu.slots != null) {
             Minecraft mc = Minecraft.getInstance();
             for (Slot s : this.menu.slots) {

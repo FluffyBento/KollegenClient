@@ -5,6 +5,7 @@
   "compatibilityLevel": "JAVA_21",
   "mixins": [
     "MinecraftClientMixin",
+    "GuiGraphicsExtractorMixin",
     "HudMixin",
     "MouseHandlerMixin",
     "MouseHandlerAccessor",
@@ -97,7 +98,10 @@
     "ServerSelectionListMixin",
     "ServerSelectionListWidthMixin",
     "OnlineServerEntryMixin",
-    "LivingEntityRendererMixin"
+    "LivingEntityRendererMixin",
+    "AbstractButtonMixin",
+    "AbstractSliderButtonMixin",
+    "AbstractSliderButtonAccessor"
   ],
   "injectors": {
     "defaultRequire": 1

@@ -141,6 +141,44 @@ public final class ServerListSettings {
         save();
     }
 
+    public static void setColumns(int val) {
+        load();
+        columns = Math.max(1, Math.min(4, val));
+        save();
+    }
+
+    public static void setCardHeight(int val) {
+        load();
+        cardHeight = Math.max(36, Math.min(140, val));
+        save();
+    }
+
+    public static void setMenuWidth(int val) {
+        load();
+        menuWidth = Math.max(400, Math.min(1600, val));
+        save();
+    }
+
+    public static void setIconSize(int val) {
+        load();
+        if (val <= 0) {
+            iconSize = -1;
+        } else {
+            iconSize = Math.max(16, Math.min(96, val));
+        }
+        save();
+    }
+
+    public static void resetDefaults() {
+        load();
+        columns = 2;
+        cardHeight = 56;
+        menuWidth = 720;
+        iconSize = 32;
+        expanded = true;
+        save();
+    }
+
     public static String getColumnsLabel() {
         load();
         if (columns == 1) return "Reihen / Spalten: 1";

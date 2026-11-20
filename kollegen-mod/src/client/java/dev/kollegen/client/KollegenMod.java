@@ -130,6 +130,7 @@ public class KollegenMod implements ClientModInitializer {
                     }
                 }
             }
+            dev.kollegen.client.mods.modules.Performance.KollegenDistance.syncDistance();
         }
 
         

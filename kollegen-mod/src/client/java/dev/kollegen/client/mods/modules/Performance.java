@@ -428,6 +428,14 @@ public final class Performance {
                 if (client.options != null && client.options.renderDistance() != null) {
                     try {
                         net.minecraft.client.OptionInstance<Integer> rd = client.options.renderDistance();
+                        Object values = rd.values();
+                        if (values != null) {
+                            try {
+                                java.lang.reflect.Method setMax = values.getClass().getMethod("setMaxInclusive", int.class);
+                                setMax.invoke(values, Math.max(32, clientRenderDist));
+                            } catch (Throwable ignored) {
+                            }
+                        }
                         if (rd.get() != clientRenderDist) {
                             rd.set(clientRenderDist);
                         }
@@ -448,6 +456,13 @@ public final class Performance {
                     } catch (Throwable ignored) {
                     }
                 }
+
+                if (client.options != null) {
+                    try {
+                        client.options.save();
+                    } catch (Throwable ignored) {
+                    }
+                }
             } catch (Throwable ignored) {
             }
         }
@@ -458,6 +473,12 @@ public final class Performance {
 
         FastGraphics() {
             super("fastgraphics", "Fast Graphics", "Setzt Grafik auf Schnell.", Category.PERFORMANCE);
+        }
+
+        @Override
+        public void load(com.google.gson.JsonObject o) {
+            if (o.has("enabled")) enabled = o.get("enabled").getAsBoolean();
+            initialized = true;
         }
 
         @Override
@@ -482,6 +503,12 @@ public final class Performance {
         }
 
         @Override
+        public void load(com.google.gson.JsonObject o) {
+            if (o.has("enabled")) enabled = o.get("enabled").getAsBoolean();
+            initialized = true;
+        }
+
+        @Override
         public void onEnable() {
             if (mc.options != null) {
                 saved = mc.options.cloudStatus().get();
@@ -503,6 +530,12 @@ public final class Performance {
         }
 
         @Override
+        public void load(com.google.gson.JsonObject o) {
+            if (o.has("enabled")) enabled = o.get("enabled").getAsBoolean();
+            initialized = true;
+        }
+
+        @Override
         public void onEnable() {
             if (mc.options != null) {
                 saved = mc.options.ambientOcclusion().get();
@@ -516,7 +549,6 @@ public final class Performance {
         }
     }
 
-    
     private static class CpuOffload extends Module {
         private Boolean savedVsync = Boolean.TRUE;
         private Integer savedMipmap = 4;
@@ -525,6 +557,12 @@ public final class Performance {
 
         CpuOffload() {
             super("cpuoffload", "CPU-Last", "Last auf die CPU verschieben, GPU entlasten (VSync aus, Mipmaps/Biom-Mischung aus, Chunk-Updates nahe).", Category.PERFORMANCE);
+        }
+
+        @Override
+        public void load(com.google.gson.JsonObject o) {
+            if (o.has("enabled")) enabled = o.get("enabled").getAsBoolean();
+            initialized = true;
         }
 
         @Override
@@ -552,7 +590,6 @@ public final class Performance {
         }
     }
 
-    
     private static class MaxFps extends Module {
         private GraphicsPreset savedGfx = GraphicsPreset.FANCY;
         private CloudStatus savedCloud = CloudStatus.FANCY;
@@ -566,6 +603,12 @@ public final class Performance {
 
         MaxFps() {
             super("maxfps", "Max FPS", "Wendet die aggressivsten Performance-Einstellungen auf einmal an.", Category.PERFORMANCE);
+        }
+
+        @Override
+        public void load(com.google.gson.JsonObject o) {
+            if (o.has("enabled")) enabled = o.get("enabled").getAsBoolean();
+            initialized = true;
         }
 
         @Override

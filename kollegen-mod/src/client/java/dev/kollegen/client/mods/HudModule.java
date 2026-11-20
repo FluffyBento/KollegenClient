@@ -13,7 +13,7 @@ public abstract class HudModule extends Module {
     protected final ColorSetting backgroundColor = new ColorSetting("Hintergrundfarbe", "", Palette.tint(Palette.PANEL, 204));
     protected final SliderSetting glassOpacity = new SliderSetting("Deckkraft", "Wie durchsichtig das Glas ist.", 0.55, 0.0, 1.0, 0.05, v -> Math.round(v * 100.0) + "%", null);
     protected final SliderSetting scale = new SliderSetting("Skalierung", "Größe des Elements.", 1.0, 0.5, 2.5, 0.05, v -> Math.round(v * 100.0) + "%", null);
-    protected final ModeSetting style = new ModeSetting("Stil", "Erscheinungsbild dieses HUD-Elements.", new String[]{"Global", "Liquid Glass", "Minecraft Vanilla", "Modern Flat", "Neon Cyber"}, 0);
+    protected final ModeSetting style = new ModeSetting("Stil", "Erscheinungsbild dieses HUD-Elements.", new String[]{"Global", "Liquid Glass", "Minecraft Vanilla", "Modern Flat", "Neon"}, 0);
     protected final BooleanSetting accentBar = new BooleanSetting("Akzentleiste", "Farbige Leiste am linken Rand.", true);
     public final SliderSetting offsetX = new SliderSetting("X-Versatz", "Verschiebt das HUD horizontal.", 0.0, -2000.0, 2000.0, 1.0);
     public final SliderSetting offsetY = new SliderSetting("Y-Versatz", "Verschiebt das HUD vertikal.", 0.0, -2000.0, 2000.0, 1.0);
