@@ -3,7 +3,6 @@ package dev.kollegen.client.mixin;
 import dev.kollegen.client.server.ServerBannerManager;
 import dev.kollegen.client.server.ServerListSettings;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractContainerWidget;
 import net.minecraft.client.gui.screens.multiplayer.JoinMultiplayerScreen;
 import net.minecraft.client.gui.screens.multiplayer.ServerSelectionList;
@@ -23,13 +22,6 @@ public abstract class ServerSelectionListMixin {
 
     @Unique private int kollegen$draggedIndex = -1;
     @Unique private double kollegen$dragStartY = 0.0;
-
-    @Inject(method = "extractWidgetRenderState", at = @At("HEAD"))
-    private void kollegen$onRender(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick, CallbackInfo ci) {
-        if ((Object) this instanceof ServerSelectionList ssl) {
-            ServerListSettings.applyLayout(ssl);
-        }
-    }
 
     @Inject(method = "maxScrollAmount", at = @At("HEAD"), cancellable = true)
     private void kollegen$maxScrollAmount(CallbackInfoReturnable<Integer> cir) {

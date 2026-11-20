@@ -1,6 +1,7 @@
 package dev.kollegen.client.mixin;
 
 import dev.kollegen.client.server.ServerBannerManager;
+import dev.kollegen.client.server.ServerListSettings;
 import dev.kollegen.client.ui.Glass;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.multiplayer.ServerSelectionList;
@@ -21,6 +22,9 @@ public abstract class OnlineServerEntryMixin extends ServerSelectionList.Entry {
 
     @Inject(method = "extractContent", at = @At("HEAD"))
     private void kollegen$renderBanner(GuiGraphicsExtractor g, int mouseX, int mouseY, boolean hovered, float partialTick, CallbackInfo ci) {
+        if (this.this$0 != null) {
+            ServerListSettings.applyLayout(this.this$0);
+        }
         ServerData data = this.getServerData();
         if (data == null) return;
 
