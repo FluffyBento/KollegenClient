@@ -12,7 +12,6 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.util.List;
@@ -22,21 +21,6 @@ public abstract class ServerSelectionListMixin {
 
     @Unique private int kollegen$draggedIndex = -1;
     @Unique private double kollegen$dragStartY = 0.0;
-
-    @Inject(method = "maxScrollAmount", at = @At("HEAD"), cancellable = true)
-    private void kollegen$maxScrollAmount(CallbackInfoReturnable<Integer> cir) {
-        if ((Object) this instanceof ServerSelectionList ssl) {
-            int contentH = ServerListSettings.calculateContentHeight(ssl);
-            cir.setReturnValue(Math.max(0, contentH - ssl.getHeight()));
-        }
-    }
-
-    @Inject(method = "setScrollAmount", at = @At("RETURN"))
-    private void kollegen$onSetScrollAmount(double amount, CallbackInfo ci) {
-        if ((Object) this instanceof ServerSelectionList ssl) {
-            ServerListSettings.applyLayout(ssl);
-        }
-    }
 
     @Inject(method = "mouseClicked", at = @At("HEAD"))
     private void kollegen$onMouseClicked(MouseButtonEvent event, boolean doubleClick, CallbackInfoReturnable<Boolean> cir) {

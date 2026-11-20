@@ -93,6 +93,7 @@
     "GameNarratorMixin",
     "ScreenNarrationMixin",
     "BossHealthOverlayMixin",
+    "AbstractSelectionListMixin",
     "ServerSelectionListMixin",
     "ServerSelectionListWidthMixin",
     "OnlineServerEntryMixin",
