@@ -52,14 +52,44 @@ public class ChatMixin {
 
     @Unique
     private static boolean kollegen$checkE4mc(Component message) {
-        if (message == null) return false;
-        String raw = message.getString();
-        if (raw.contains(".e4mc.link")) {
-            java.util.regex.Matcher m = java.util.regex.Pattern.compile("([a-z0-9-]+\\.e4mc\\.link)").matcher(raw);
-            if (m.find()) {
-                dev.kollegen.client.menu.HostWorldScreen.onTunnelDomainAssigned(m.group(1));
-                return true;
+        if (message == null || kollegen$busy) return false;
+
+        String domain = null;
+        if (message.getContents() instanceof TranslatableContents tc) {
+            if ("text.e4mc_minecraft.domainAssigned".equals(tc.getKey())) {
+                Object[] args = tc.getArgs();
+                if (args.length > 0 && args[0] instanceof Component comp) {
+                    if (comp.getStyle() != null && comp.getStyle().getClickEvent() instanceof ClickEvent.CopyToClipboard copy) {
+                        domain = copy.value();
+                    }
+                    if (domain == null || domain.isEmpty() || domain.contains(" ")) {
+                        domain = comp.getString().trim();
+                    }
+                }
             }
+        }
+
+        if (domain == null || domain.isEmpty()) {
+            String raw = message.getString();
+            if (raw.contains("Hosted World") || raw.contains("World hosted successfully") || raw.contains("Domain:")) {
+                return false;
+            }
+            if (raw.contains(".e4mc.link") && (raw.contains("domain") || raw.contains("Local game") || raw.contains("hosted"))) {
+                java.util.regex.Matcher m = java.util.regex.Pattern.compile("(?:\\[|\\s|^)([a-zA-Z0-9-]+(?:\\.[a-zA-Z0-9-]+)*\\.e4mc\\.link)").matcher(raw);
+                if (m.find()) {
+                    domain = m.group(1);
+                }
+            }
+        }
+
+        if (domain != null && domain.endsWith(".e4mc.link")) {
+            kollegen$busy = true;
+            try {
+                dev.kollegen.client.menu.HostWorldScreen.onTunnelDomainAssigned(domain);
+            } finally {
+                kollegen$busy = false;
+            }
+            return true;
         }
         return false;
     }

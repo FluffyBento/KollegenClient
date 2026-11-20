@@ -127,6 +127,10 @@ public class HostWorldScreen extends Screen {
 
     public static void onTunnelDomainAssigned(String domain) {
         if (domain == null || domain.isEmpty()) return;
+        domain = domain.trim();
+        while (domain.startsWith("n") && domain.length() > 20 && domain.endsWith(".e4mc.link") && !domain.equals("eu.e4mc.link")) {
+            domain = domain.substring(1);
+        }
         if (domain.equalsIgnoreCase(activeDomain)) return;
         activeDomain = domain;
 
@@ -190,7 +194,8 @@ public class HostWorldScreen extends Screen {
 
         Component topBorder = Component.literal("§b§m----------------§r §bHosted World §b§m----------------§r");
         Component lineSuccess = Component.literal("§7• §fWorld hosted successfully");
-        Component lineDomain = Component.literal("§7• §fDomain: §b§n" + domain + "§r");
+        Component lineDomain = Component.literal("§7• §fDomain: ")
+                .append(Component.literal(domain).withStyle(s -> s.withColor(0x55FFFF).withUnderlined(true)));
 
         MutableComponent inviteBtn = Component.literal("§a[Invite Friends]§r")
                 .withStyle(s -> s
