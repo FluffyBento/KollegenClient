@@ -1,6 +1,7 @@
 package dev.kollegen.client.mixin;
 
 import dev.kollegen.client.server.ServerBannerManager;
+import dev.kollegen.client.server.ServerListSettings;
 import dev.kollegen.client.ui.Glass;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.multiplayer.ServerSelectionList;
@@ -73,18 +74,18 @@ public abstract class OnlineServerEntryMixin extends ServerSelectionList.Entry {
 
     @Inject(method = "extractIcon", at = @At("HEAD"), cancellable = true)
     private void kollegen$extractIcon(GuiGraphicsExtractor g, int x, int y, Identifier texture, CallbackInfo ci) {
-        int iconSize = Math.max(16, this.getContentHeight());
+        int iconSize = ServerListSettings.getEffectiveIconSize(this.getContentHeight());
         g.blit(texture, x, y, x + iconSize, y + iconSize, 0.0f, 1.0f, 0.0f, 1.0f);
         ci.cancel();
     }
 
     @ModifyConstant(method = "extractContent", constant = @Constant(intValue = 32))
     private int kollegen$modifyIconSizeInExtractContent(int original) {
-        return Math.max(16, this.getContentHeight());
+        return ServerListSettings.getEffectiveIconSize(this.getContentHeight());
     }
 
     @ModifyConstant(method = "mouseClicked", constant = @Constant(intValue = 32))
     private int kollegen$modifyIconSizeInMouseClicked(int original) {
-        return Math.max(16, this.getContentHeight());
+        return ServerListSettings.getEffectiveIconSize(this.getContentHeight());
     }
 }

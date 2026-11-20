@@ -21,12 +21,14 @@ public final class ServerListSettings {
     public static int columns = 2;
     public static int cardHeight = 56;
     public static int menuWidth = 720;
+    public static int iconSize = 32;
     public static boolean expanded = true;
     private static boolean loaded = false;
 
     public static final int[] COLUMN_OPTIONS = { 1, 2, 3 };
     public static final int[] HEIGHT_OPTIONS = { 36, 46, 56, 68, 80 };
     public static final int[] WIDTH_OPTIONS = { 560, 640, 720, 820, 920 };
+    public static final int[] ICON_OPTIONS = { 32, 40, 48, -1, 24 };
 
     private ServerListSettings() {
     }
@@ -43,6 +45,7 @@ public final class ServerListSettings {
             if (obj.has("columns")) columns = Math.max(1, Math.min(3, obj.get("columns").getAsInt()));
             if (obj.has("cardHeight")) cardHeight = Math.max(36, Math.min(120, obj.get("cardHeight").getAsInt()));
             if (obj.has("menuWidth")) menuWidth = Math.max(400, Math.min(1200, obj.get("menuWidth").getAsInt()));
+            if (obj.has("iconSize")) iconSize = obj.get("iconSize").getAsInt();
             if (obj.has("expanded")) expanded = obj.get("expanded").getAsBoolean();
         } catch (Throwable ignored) {
         }
@@ -55,6 +58,7 @@ public final class ServerListSettings {
             obj.addProperty("columns", columns);
             obj.addProperty("cardHeight", cardHeight);
             obj.addProperty("menuWidth", menuWidth);
+            obj.addProperty("iconSize", iconSize);
             obj.addProperty("expanded", expanded);
             try (Writer writer = Files.newBufferedWriter(CONFIG_PATH)) {
                 GSON.toJson(obj, writer);
@@ -71,6 +75,19 @@ public final class ServerListSettings {
     public static int getCardHeight() {
         load();
         return cardHeight;
+    }
+
+    public static int getIconSize() {
+        load();
+        return iconSize;
+    }
+
+    public static int getEffectiveIconSize(int contentHeight) {
+        load();
+        if (iconSize == -1) {
+            return Math.max(16, contentHeight);
+        }
+        return Math.max(16, Math.min(iconSize, contentHeight));
     }
 
     public static int getActualWidth(int screenOrWidgetWidth) {
@@ -111,6 +128,19 @@ public final class ServerListSettings {
         save();
     }
 
+    public static void cycleIconSize() {
+        load();
+        int idx = 0;
+        for (int i = 0; i < ICON_OPTIONS.length; i++) {
+            if (ICON_OPTIONS[i] == iconSize) {
+                idx = i;
+                break;
+            }
+        }
+        iconSize = ICON_OPTIONS[(idx + 1) % ICON_OPTIONS.length];
+        save();
+    }
+
     public static String getColumnsLabel() {
         load();
         if (columns == 1) return "Reihen / Spalten: 1";
@@ -142,6 +172,19 @@ public final class ServerListSettings {
             default -> menuWidth + "px";
         };
         return "Menü-Breite: " + name;
+    }
+
+    public static String getIconSizeLabel() {
+        load();
+        String name = switch (iconSize) {
+            case 24 -> "Sehr klein (24px)";
+            case 32 -> "Kompakt (32px, Standard)";
+            case 40 -> "Mittel (40px)";
+            case 48 -> "Groß (48px)";
+            case -1 -> "Volle Höhe (Auto)";
+            default -> iconSize + "px";
+        };
+        return "Icon-Größe: " + name;
     }
 
     public static int calculateContentHeight(ServerSelectionList ssl) {

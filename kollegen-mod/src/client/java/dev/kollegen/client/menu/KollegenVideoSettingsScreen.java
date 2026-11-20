@@ -7,6 +7,7 @@ import dev.kollegen.client.mods.modules.RendererManager;
 import dev.kollegen.client.server.ServerListSettings;
 import dev.kollegen.client.ui.Glass;
 import dev.kollegen.client.ui.LogoDraw;
+import net.minecraft.client.AttackIndicatorStatus;
 import net.minecraft.client.CloudStatus;
 import net.minecraft.client.GraphicsPreset;
 import net.minecraft.client.Minecraft;
@@ -29,6 +30,8 @@ public class KollegenVideoSettingsScreen extends Screen {
 
     private boolean restartRequired = false;
     private int activeSlider = -1;
+    private float scrollY = 0.0f;
+    private float maxScroll = 0.0f;
 
     public KollegenVideoSettingsScreen(Screen parent) {
         super(Component.literal("Kollegen Client Grafik-Einstellungen"));
@@ -87,10 +90,23 @@ public class KollegenVideoSettingsScreen extends Screen {
             handleSliderDrag(mx);
         }
 
+        g.enableScissor(panelX, panelY + 4, panelX + panelW, panelY + panelH - 4);
         switch (currentTab) {
             case 0 -> renderTabDisplay(g, panelX, panelY, panelW, panelH, mx, my);
             case 1 -> renderTabPerformance(g, panelX, panelY, panelW, panelH, mx, my);
             case 2 -> renderTabKollegenShader(g, panelX, panelY, panelW, panelH, mx, my);
+        }
+        g.disableScissor();
+
+        if (this.maxScroll > 0) {
+            int scrollBarX = panelX + panelW - 5;
+            int scrollBarY = panelY + 10;
+            int scrollBarH = panelH - 20;
+            float thumbRatio = (float) panelH / (panelH + this.maxScroll);
+            int thumbH = Math.max(20, Math.round(scrollBarH * thumbRatio));
+            int thumbY = scrollBarY + Math.round((scrollBarH - thumbH) * (this.scrollY / this.maxScroll));
+            Glass.pill(g, scrollBarX, thumbY, 3, thumbH, 0.0f, false, false);
+            drawRect(g, scrollBarX, thumbY, 3, thumbH, 0x88FFFFFF);
         }
 
         renderFooter(g, mx, my);
@@ -115,7 +131,7 @@ public class KollegenVideoSettingsScreen extends Screen {
 
     private void renderTabDisplay(GuiGraphicsExtractor g, int px, int py, int pw, int ph, int mx, int my) {
         Minecraft mc = Minecraft.getInstance();
-        int rowY = py + 16;
+        int rowY = py + 16 - (int) this.scrollY;
         int rowH = 28;
         int colW = (pw - 40) / 2;
         int col1X = px + 16;
@@ -130,31 +146,63 @@ public class KollegenVideoSettingsScreen extends Screen {
 
         rowY += rowH;
 
-        boolean fs = mc.options.fullscreen().get();
-        renderButton(g, col1X, rowY, colW, 24, "Vollbild: " + (fs ? "Ein" : "Aus"), fs ? 0xFF10B981 : 0xFFEF4444, mx, my);
-
-        boolean vs = mc.options.enableVsync().get();
-        renderButton(g, col2X, rowY, colW, 24, "VSync: " + (vs ? "Ein" : "Aus"), vs ? 0xFF10B981 : 0xFFEF4444, mx, my);
+        renderButton(g, col1X, rowY, colW, 24, DisplaySettings.getWindowModeLabel(), DisplaySettings.getWindowModeColor(), mx, my);
+        renderButton(g, col2X, rowY, colW, 24, DisplaySettings.getResolutionLabel(), 0xFF38BDF8, mx, my);
 
         rowY += rowH;
+
+        boolean vs = mc.options.enableVsync().get();
+        renderButton(g, col1X, rowY, colW, 24, "VSync: " + (vs ? "Ein" : "Aus"), vs ? 0xFF10B981 : 0xFFEF4444, mx, my);
 
         int sc = mc.options.guiScale().get();
         String scStr = sc == 0 ? "Auto" : String.valueOf(sc);
-        renderButton(g, col1X, rowY, colW, 24, "GUI-Skalierung: " + scStr, 0xFF38BDF8, mx, my);
-
-        CloudStatus cs = mc.options.cloudStatus().get();
-        String csStr = cs == CloudStatus.OFF ? "Aus" : (cs == CloudStatus.FAST ? "Schnell" : "Schön");
-        renderButton(g, col2X, rowY, colW, 24, "Wolken: " + csStr, 0xFFFFFFFF, mx, my);
+        renderButton(g, col2X, rowY, colW, 24, "GUI-Skalierung: " + scStr, 0xFF38BDF8, mx, my);
 
         rowY += rowH;
 
-        ParticleStatus ps = mc.options.particles().get();
-        String psStr = ps == ParticleStatus.ALL ? "Alle" : (ps == ParticleStatus.DECREASED ? "Verringert" : "Minimal");
-        renderButton(g, col1X, rowY, colW, 24, "Partikel: " + psStr, 0xFFFFFFFF, mx, my);
+        int fov = mc.options.fov().get();
+        String fovStr = fov == 110 ? "Quake Pro" : fov + "°";
+        float fovProg = (fov - 30) / 80.0f;
+        renderSlider(g, col1X, rowY, colW, 24, "Sichtfeld (FOV): " + fovStr, fovProg, mx, my);
 
         double gam = mc.options.gamma().get();
         int gamPct = (int) Math.round(gam * 100.0);
         renderSlider(g, col2X, rowY, colW, 24, "Helligkeit: " + gamPct + "%", (float) gam, mx, my);
+
+        rowY += rowH;
+
+        CloudStatus cs = mc.options.cloudStatus().get();
+        String csStr = cs == CloudStatus.OFF ? "Aus" : (cs == CloudStatus.FAST ? "Schnell" : "Schön");
+        renderButton(g, col1X, rowY, colW, 24, "Wolken: " + csStr, 0xFFFFFFFF, mx, my);
+
+        ParticleStatus ps = mc.options.particles().get();
+        String psStr = ps == ParticleStatus.ALL ? "Alle" : (ps == ParticleStatus.DECREASED ? "Verringert" : "Minimal");
+        renderButton(g, col2X, rowY, colW, 24, "Partikel: " + psStr, 0xFFFFFFFF, mx, my);
+
+        rowY += rowH;
+
+        boolean bob = mc.options.bobView().get();
+        renderButton(g, col1X, rowY, colW, 24, "Kamerawackeln: " + (bob ? "Ein" : "Aus"), bob ? 0xFF10B981 : 0xFFEF4444, mx, my);
+
+        boolean shadows = mc.options.entityShadows().get();
+        renderButton(g, col2X, rowY, colW, 24, "Schatten: " + (shadows ? "Ein" : "Aus"), shadows ? 0xFF10B981 : 0xFFEF4444, mx, my);
+
+        rowY += rowH;
+
+        double fovEff = mc.options.fovEffectScale().get();
+        renderSlider(g, col1X, rowY, colW, 24, "FOV-Effekte: " + Math.round(fovEff * 100.0) + "%", (float) fovEff, mx, my);
+
+        double scrEff = mc.options.screenEffectScale().get();
+        renderSlider(g, col2X, rowY, colW, 24, "Bildschirm-Effekte: " + Math.round(scrEff * 100.0) + "%", (float) scrEff, mx, my);
+
+        rowY += rowH;
+
+        int mm = mc.options.mipmapLevels().get();
+        renderButton(g, col1X, rowY, colW, 24, "Mipmap-Stufen: " + mm, 0xFFFFFFFF, mx, my);
+
+        AttackIndicatorStatus ais = mc.options.attackIndicator().get();
+        String aisStr = ais == AttackIndicatorStatus.CROSSHAIR ? "Fadenkreuz" : (ais == AttackIndicatorStatus.HOTBAR ? "Hotbar" : "Aus");
+        renderButton(g, col2X, rowY, colW, 24, "Angriffsanzeige: " + aisStr, 0xFFFFFFFF, mx, my);
 
         rowY += rowH + 6;
         int secW = pw - 32;
@@ -169,13 +217,17 @@ public class KollegenVideoSettingsScreen extends Screen {
             renderButton(g, col2X, rowY, colW, 24, ServerListSettings.getHeightLabel(), 0xFF10B981, mx, my);
 
             rowY += 28;
-            renderButton(g, secX, rowY, secW, 24, ServerListSettings.getWidthLabel(), 0xFFF59E0B, mx, my);
+            renderButton(g, col1X, rowY, colW, 24, ServerListSettings.getIconSizeLabel(), 0xFFE879F9, mx, my);
+            renderButton(g, col2X, rowY, colW, 24, ServerListSettings.getWidthLabel(), 0xFFF59E0B, mx, my);
         }
+
+        int totalH = (rowY + 36 + (int) this.scrollY) - py;
+        this.maxScroll = Math.max(0.0f, totalH - (ph - 16));
     }
 
     private void renderTabPerformance(GuiGraphicsExtractor g, int px, int py, int pw, int ph, int mx, int my) {
         Minecraft mc = Minecraft.getInstance();
-        int rowY = py + 20;
+        int rowY = py + 20 - (int) this.scrollY;
         int rowH = 46;
         int colW = pw - 32;
         int colX = px + 16;
@@ -206,6 +258,9 @@ public class KollegenVideoSettingsScreen extends Screen {
         float fpsProg = fps >= 260 ? 1.0f : Math.max(0.0f, (fps - 10) / 250.0f);
         renderSlider(g, colX, rowY, colW, 24, "FPS-Limit: " + fpsStr, fpsProg, mx, my);
         Glass.text(g, this.font, "Maximale Bildwiederholrate zur Begrenzung der GPU-Last.", colX + 4, rowY + 26, 0xFF888888, false);
+
+        int totalH = (rowY + 48 + (int) this.scrollY) - py;
+        this.maxScroll = Math.max(0.0f, totalH - (ph - 16));
     }
 
     private void renderTabKollegenShader(GuiGraphicsExtractor g, int px, int py, int pw, int ph, int mx, int my) {
@@ -220,7 +275,7 @@ public class KollegenVideoSettingsScreen extends Screen {
         int col2X = px + 24 + colW;
         int rowH = 26;
 
-        int y1 = py + 14;
+        int y1 = py + 14 - (int) this.scrollY;
         boolean en = ks.enabled;
         renderButton(g, col1X, y1, colW, 22, "Kollegen Shader: " + (en ? "Aktiviert" : "Aus"), en ? 0xFF10B981 : 0xFFEF4444, mx, my);
 
@@ -245,7 +300,7 @@ public class KollegenVideoSettingsScreen extends Screen {
         double con = ks.contrast.value;
         renderSlider(g, col1X, y1, colW, 22, "Kontrast: " + (conEn ? String.format("%.2f", con) : "Aus"), (float) ((con - 0.5) / 1.5), mx, my);
 
-        int y2 = py + 14;
+        int y2 = py + 14 - (int) this.scrollY;
         boolean briEn = ks.brightnessEnabled.value;
         double bri = ks.brightness.value;
         renderSlider(g, col2X, y2, colW, 22, "Helligkeit: " + (briEn ? String.format("%.2f", bri) : "Aus"), (float) ((bri - 0.5) / 1.5), mx, my);
@@ -274,6 +329,9 @@ public class KollegenVideoSettingsScreen extends Screen {
         boolean motEn = ks.motionBlurEnabled.value;
         double mot = ks.motionBlurStrength.value;
         renderSlider(g, col2X, y2, colW, 22, "Motion Blur: " + (motEn ? Math.round(mot * 100.0) + "%" : "Aus"), (float) mot, mx, my);
+
+        int totalH = (Math.max(y1, y2) + 32 + (int) this.scrollY) - py;
+        this.maxScroll = Math.max(0.0f, totalH - (ph - 16));
     }
 
     private void renderButton(GuiGraphicsExtractor g, int x, int y, int w, int h, String text, int color, int mx, int my) {
@@ -296,6 +354,15 @@ public class KollegenVideoSettingsScreen extends Screen {
     }
 
     @Override
+    public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
+        if (this.maxScroll > 0) {
+            this.scrollY = Math.max(0.0f, Math.min(this.maxScroll, this.scrollY - (float) verticalAmount * 24.0f));
+            return true;
+        }
+        return super.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount);
+    }
+
+    @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean bl) {
         double mx = event.x();
         double my = event.y();
@@ -313,6 +380,9 @@ public class KollegenVideoSettingsScreen extends Screen {
             int tx = startTabX + i * (tabW + 8);
             if (mx >= tx && mx <= tx + tabW && my >= tabY && my <= tabY + 22) {
                 this.currentTab = i;
+                this.scrollY = 0.0f;
+                this.maxScroll = 0.0f;
+                this.activeSlider = -1;
                 return true;
             }
         }
@@ -346,7 +416,7 @@ public class KollegenVideoSettingsScreen extends Screen {
 
     private void handleTabDisplayClick(int px, int py, int pw, double mx, double my) {
         Minecraft mc = Minecraft.getInstance();
-        int rowY = py + 16;
+        int rowY = py + 16 - (int) this.scrollY;
         int rowH = 28;
         int colW = (pw - 40) / 2;
         int col1X = px + 16;
@@ -369,40 +439,37 @@ public class KollegenVideoSettingsScreen extends Screen {
         rowY += rowH;
 
         if (mx >= col1X && mx <= col1X + colW && my >= rowY && my <= rowY + 24) {
-            boolean fs = !mc.options.fullscreen().get();
-            mc.options.fullscreen().set(fs);
-            mc.getWindow().setFullscreen(fs);
+            DisplaySettings.cycleWindowMode();
             return;
         }
 
         if (mx >= col2X && mx <= col2X + colW && my >= rowY && my <= rowY + 24) {
-            boolean vs = !mc.options.enableVsync().get();
-            mc.options.enableVsync().set(vs);
+            DisplaySettings.cycleResolution();
             return;
         }
 
         rowY += rowH;
 
         if (mx >= col1X && mx <= col1X + colW && my >= rowY && my <= rowY + 24) {
+            boolean vs = !mc.options.enableVsync().get();
+            mc.options.enableVsync().set(vs);
+            return;
+        }
+
+        if (mx >= col2X && mx <= col2X + colW && my >= rowY && my <= rowY + 24) {
             int sc = mc.options.guiScale().get();
             mc.options.guiScale().set((sc + 1) % 5);
             mc.resizeGui();
             return;
         }
 
-        if (mx >= col2X && mx <= col2X + colW && my >= rowY && my <= rowY + 24) {
-            CloudStatus cs = mc.options.cloudStatus().get();
-            CloudStatus next = cs == CloudStatus.OFF ? CloudStatus.FAST : (cs == CloudStatus.FAST ? CloudStatus.FANCY : CloudStatus.OFF);
-            mc.options.cloudStatus().set(next);
-            return;
-        }
-
         rowY += rowH;
 
         if (mx >= col1X && mx <= col1X + colW && my >= rowY && my <= rowY + 24) {
-            ParticleStatus ps = mc.options.particles().get();
-            ParticleStatus next = ps == ParticleStatus.ALL ? ParticleStatus.DECREASED : (ps == ParticleStatus.DECREASED ? ParticleStatus.MINIMAL : ParticleStatus.ALL);
-            mc.options.particles().set(next);
+            this.activeSlider = 5;
+            float ratio = (float) ((mx - col1X) / colW);
+            int fov = 30 + Math.round(Math.max(0.0f, Math.min(1.0f, ratio)) * 80.0f);
+            mc.options.fov().set(fov);
             return;
         }
 
@@ -410,6 +477,70 @@ public class KollegenVideoSettingsScreen extends Screen {
             this.activeSlider = 0;
             float ratio = (float) ((mx - col2X) / colW);
             mc.options.gamma().set(Math.max(0.0, Math.min(1.0, (double) ratio)));
+            return;
+        }
+
+        rowY += rowH;
+
+        if (mx >= col1X && mx <= col1X + colW && my >= rowY && my <= rowY + 24) {
+            CloudStatus cs = mc.options.cloudStatus().get();
+            CloudStatus next = cs == CloudStatus.OFF ? CloudStatus.FAST : (cs == CloudStatus.FAST ? CloudStatus.FANCY : CloudStatus.OFF);
+            mc.options.cloudStatus().set(next);
+            return;
+        }
+
+        if (mx >= col2X && mx <= col2X + colW && my >= rowY && my <= rowY + 24) {
+            ParticleStatus ps = mc.options.particles().get();
+            ParticleStatus next = ps == ParticleStatus.ALL ? ParticleStatus.DECREASED : (ps == ParticleStatus.DECREASED ? ParticleStatus.MINIMAL : ParticleStatus.ALL);
+            mc.options.particles().set(next);
+            return;
+        }
+
+        rowY += rowH;
+
+        if (mx >= col1X && mx <= col1X + colW && my >= rowY && my <= rowY + 24) {
+            boolean bob = !mc.options.bobView().get();
+            mc.options.bobView().set(bob);
+            return;
+        }
+
+        if (mx >= col2X && mx <= col2X + colW && my >= rowY && my <= rowY + 24) {
+            boolean shadows = !mc.options.entityShadows().get();
+            mc.options.entityShadows().set(shadows);
+            return;
+        }
+
+        rowY += rowH;
+
+        if (mx >= col1X && mx <= col1X + colW && my >= rowY && my <= rowY + 24) {
+            this.activeSlider = 6;
+            float ratio = (float) ((mx - col1X) / colW);
+            mc.options.fovEffectScale().set(Math.max(0.0, Math.min(1.0, (double) ratio)));
+            return;
+        }
+
+        if (mx >= col2X && mx <= col2X + colW && my >= rowY && my <= rowY + 24) {
+            this.activeSlider = 7;
+            float ratio = (float) ((mx - col2X) / colW);
+            mc.options.screenEffectScale().set(Math.max(0.0, Math.min(1.0, (double) ratio)));
+            return;
+        }
+
+        rowY += rowH;
+
+        if (mx >= col1X && mx <= col1X + colW && my >= rowY && my <= rowY + 24) {
+            int mm = (mc.options.mipmapLevels().get() + 1) % 5;
+            mc.options.mipmapLevels().set(mm);
+            mc.updateMaxMipLevel(mm);
+            mc.delayTextureReload();
+            return;
+        }
+
+        if (mx >= col2X && mx <= col2X + colW && my >= rowY && my <= rowY + 24) {
+            AttackIndicatorStatus cur = mc.options.attackIndicator().get();
+            AttackIndicatorStatus next = cur == AttackIndicatorStatus.CROSSHAIR ? AttackIndicatorStatus.HOTBAR
+                    : (cur == AttackIndicatorStatus.HOTBAR ? AttackIndicatorStatus.OFF : AttackIndicatorStatus.CROSSHAIR);
+            mc.options.attackIndicator().set(next);
             return;
         }
 
@@ -435,14 +566,18 @@ public class KollegenVideoSettingsScreen extends Screen {
             }
 
             rowY += 28;
-            if (mx >= secX && mx <= secX + secW && my >= rowY && my <= rowY + 24) {
+            if (mx >= col1X && mx <= col1X + colW && my >= rowY && my <= rowY + 24) {
+                ServerListSettings.cycleIconSize();
+                return;
+            }
+            if (mx >= col2X && mx <= col2X + colW && my >= rowY && my <= rowY + 24) {
                 ServerListSettings.cycleWidth();
             }
         }
     }
 
     private void handleTabPerformanceClick(int px, int py, int pw, double mx, double my) {
-        int rowY = py + 20;
+        int rowY = py + 20 - (int) this.scrollY;
         int rowH = 46;
         int colW = pw - 32;
         int colX = px + 16;
@@ -486,7 +621,7 @@ public class KollegenVideoSettingsScreen extends Screen {
         int col2X = px + 24 + colW;
         int rowH = 26;
 
-        int y1 = py + 14;
+        int y1 = py + 14 - (int) this.scrollY;
         if (mx >= col1X && mx <= col1X + colW && my >= y1 && my <= y1 + 22) {
             ks.enabled = !ks.enabled;
             if (!ks.enabled) {
@@ -526,7 +661,7 @@ public class KollegenVideoSettingsScreen extends Screen {
             return;
         }
 
-        int y2 = py + 14;
+        int y2 = py + 14 - (int) this.scrollY;
         if (mx >= col2X && mx <= col2X + colW && my >= y2 && my <= y2 + 22) {
             this.activeSlider = 13;
             setSliderValue(13, mx);
@@ -628,6 +763,16 @@ public class KollegenVideoSettingsScreen extends Screen {
             case 4 -> {
                 int fps = ratio >= 0.98f ? 260 : 10 + Math.round(ratio * 250.0f);
                 mc.options.framerateLimit().set(fps);
+            }
+            case 5 -> {
+                int fov = 30 + Math.round(half1Ratio * 80.0f);
+                mc.options.fov().set(fov);
+            }
+            case 6 -> {
+                mc.options.fovEffectScale().set((double) half1Ratio);
+            }
+            case 7 -> {
+                mc.options.screenEffectScale().set((double) half2Ratio);
             }
             case 10 -> {
                 KollegenShader ks = KollegenShader.INSTANCE;
