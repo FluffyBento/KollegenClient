@@ -35,6 +35,7 @@ public abstract class MinecraftClientMixin {
 
     @Inject(method = "renderFrame", at = @At("HEAD"))
     private void kollegen_client$renderFrameStart(boolean renderLevel, CallbackInfo ci) {
+        dev.kollegen.client.scenery.F2HoldHandler.onRenderTick();
         dev.kollegen.client.perf.KollegenStutterDetective.onFrameStart();
     }
 

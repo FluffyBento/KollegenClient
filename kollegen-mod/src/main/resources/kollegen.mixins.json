@@ -101,7 +101,9 @@
     "LivingEntityRendererMixin",
     "AbstractButtonMixin",
     "AbstractSliderButtonMixin",
-    "AbstractSliderButtonAccessor"
+    "AbstractSliderButtonAccessor",
+    "KeyboardHandlerMixin",
+    "CubeMapTextureMixin"
   ],
   "injectors": {
     "defaultRequire": 1

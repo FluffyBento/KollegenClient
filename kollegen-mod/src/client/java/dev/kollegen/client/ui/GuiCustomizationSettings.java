@@ -127,6 +127,7 @@ public final class GuiCustomizationSettings {
     private static float containerOpacity = 0.65f;
     private static SlotStyle slotStyle = SlotStyle.VANILLA;
     private static ContainerShape containerShape = ContainerShape.SQUARE;
+    private static String selectedScenery = "STANDARD";
 
     private static boolean loaded = false;
 
@@ -174,6 +175,9 @@ public final class GuiCustomizationSettings {
             if (obj.has("containerShape")) {
                 containerShape = ContainerShape.valueOf(obj.get("containerShape").getAsString());
             }
+            if (obj.has("selectedScenery")) {
+                selectedScenery = obj.get("selectedScenery").getAsString();
+            }
         } catch (Throwable ignored) {
         }
     }
@@ -196,6 +200,7 @@ public final class GuiCustomizationSettings {
             obj.addProperty("containerOpacity", containerOpacity);
             obj.addProperty("slotStyle", slotStyle.name());
             obj.addProperty("containerShape", containerShape.name());
+            obj.addProperty("selectedScenery", selectedScenery);
 
             try (Writer writer = Files.newBufferedWriter(CONFIG_PATH)) {
                 GSON.toJson(obj, writer);
@@ -215,9 +220,11 @@ public final class GuiCustomizationSettings {
         containerOpacity = 1.0f;
         slotStyle = SlotStyle.VANILLA;
         containerShape = ContainerShape.SQUARE;
+        selectedScenery = "STANDARD";
         save();
         ServerListSettings.resetDefaults();
         UiStyleManager.setGlobalStyle(UiStyle.MINECRAFT_VANILLA);
+        dev.kollegen.client.scenery.SceneryManager.reloadPanorama();
     }
 
     public static ButtonStyle getButtonStyle() {
@@ -451,5 +458,46 @@ public final class GuiCustomizationSettings {
             return t.name;
         }
         return cur;
+    }
+
+    public static String getSelectedScenery() {
+        load();
+        return selectedScenery;
+    }
+
+    public static void setSelectedScenery(String id) {
+        load();
+        selectedScenery = id != null ? id : "STANDARD";
+        save();
+    }
+
+    public static String getSceneryDisplayName() {
+        load();
+        if ("STANDARD".equalsIgnoreCase(selectedScenery)) {
+            return "Standard (Minecraft)";
+        }
+        List<dev.kollegen.client.scenery.SceneryManager.SceneryEntry> list = dev.kollegen.client.scenery.SceneryManager.listSceneries();
+        for (var s : list) {
+            if (s.id().equals(selectedScenery)) {
+                return s.displayName();
+            }
+        }
+        return selectedScenery;
+    }
+
+    public static void cycleScenery() {
+        load();
+        List<dev.kollegen.client.scenery.SceneryManager.SceneryEntry> list = dev.kollegen.client.scenery.SceneryManager.listSceneries();
+        List<String> options = new ArrayList<>();
+        options.add("STANDARD");
+        for (var s : list) {
+            options.add(s.id());
+        }
+        int curIdx = options.indexOf(selectedScenery);
+        if (curIdx < 0) curIdx = 0;
+        int next = (curIdx + 1) % options.size();
+        selectedScenery = options.get(next);
+        save();
+        dev.kollegen.client.scenery.SceneryManager.reloadPanorama();
     }
 }

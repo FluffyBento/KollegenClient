@@ -1524,6 +1524,23 @@ public class KollegenVideoSettingsScreen extends Screen {
 
         curY += card3H + 12;
 
+        int cardSceneryH = 104;
+        Glass.glassCard(g, cardX, curY, cardW, cardSceneryH, 8, Palette.PANEL, Glass.opacity * 0.85f, 0.2f, Glass.a(Palette.BORDER, 0.45f));
+        Glass.rr(g, cardX + 12, curY + 11, 3, 14, 1.5f, 0xFF10B981);
+        Glass.textBold(g, this.font, "Startbildschirm & Szenerie", cardX + 20, curY + 11, Palette.TEXT, true);
+        Glass.text(g, this.font, "360° Panorama als rotierender Startscreen-Hintergrund (F2 im Spiel halten).", cardX + 20, curY + 25, Palette.MUTED, false);
+
+        int rSceneryY1 = curY + 40;
+        renderSettingRow(g, col1X, rSceneryY1, colW, 24, "Hintergrund", GuiCustomizationSettings.getSceneryDisplayName(), 0xFF10B981, mx, my, false);
+        renderSettingRow(g, col2X, rSceneryY1, colW, 24, "Szenerien-Ordner", "Ordner öffnen ↗", 0xFF38BDF8, mx, my, false);
+
+        int rSceneryY2 = rSceneryY1 + rowH + 2;
+        boolean inGame = Minecraft.getInstance().player != null;
+        renderSettingRow(g, col1X, rSceneryY2, colW, 24, "Szenerie erstellen", inGame ? "Jetzt aufnehmen 📷" : "Im Spiel F2 halten", inGame ? 0xFFF59E0B : 0x88FFFFFF, mx, my, false);
+        renderSettingRow(g, col2X, rSceneryY2, colW, 24, "F2-Schnellauswahl", "Clippen & Szenerie", 0xFFA78BFA, mx, my, false);
+
+        curY += cardSceneryH + 12;
+
         int card4H = 104;
         Glass.glassCard(g, cardX, curY, cardW, card4H, 8, Palette.PANEL, Glass.opacity * 0.85f, 0.2f, Glass.a(Palette.BORDER, 0.45f));
         Glass.rr(g, cardX + 12, curY + 11, 3, 14, 1.5f, Palette.ACCENT);
@@ -1652,6 +1669,30 @@ public class KollegenVideoSettingsScreen extends Screen {
 
         curY += 104 + 12;
 
+        int rSceneryY1 = curY + 40;
+        if (mx >= col1X && mx <= col1X + colW && my >= rSceneryY1 && my <= rSceneryY1 + 24) {
+            GuiCustomizationSettings.cycleScenery();
+            return;
+        }
+        if (mx >= col2X && mx <= col2X + colW && my >= rSceneryY1 && my <= rSceneryY1 + 24) {
+            try {
+                com.mojang.blaze3d.Blaze3D.openPath(dev.kollegen.client.scenery.SceneryManager.getSceneriesDir());
+            } catch (Throwable ignored) {
+            }
+            return;
+        }
+
+        int rSceneryY2 = rSceneryY1 + rowH + 2;
+        if (mx >= col1X && mx <= col1X + colW && my >= rSceneryY2 && my <= rSceneryY2 + 24) {
+            if (Minecraft.getInstance().player != null) {
+                this.onClose();
+                dev.kollegen.client.scenery.SceneryManager.captureCurrentScenery();
+            }
+            return;
+        }
+
+        curY += 104 + 12;
+
         int r8Y = curY + 40;
         if (mx >= col1X && mx <= col1X + colW && my >= r8Y && my <= r8Y + 24) {
             if (mx >= col1X + colW - 24) {
@@ -1730,6 +1771,7 @@ public class KollegenVideoSettingsScreen extends Screen {
             return;
         }
 
+        curY += 104 + 12;
         curY += 104 + 12;
         curY += 104 + 12;
 
