@@ -180,16 +180,10 @@ public final class GuiCustomizationRenderer {
         if (!(cur instanceof AbstractContainerScreen)) {
             return false;
         }
-        if (cur instanceof CreativeModeInventoryScreen) {
-            return false;
-        }
         if (texture == null) {
             return false;
         }
         String path = texture.getPath();
-        if (path.contains("creative")) {
-            return false;
-        }
         return path.startsWith("textures/gui/container/");
     }
 
@@ -241,6 +235,20 @@ public final class GuiCustomizationRenderer {
             Glass.rr(g, x + 25, y + 7, 51, 72, 4.0f, 0x30000000);
             Glass.ring(g, x + 25, y + 7, 51, 72, 4.0f, 0.5f, 0x18FFFFFF);
             Glass.text(g, Minecraft.getInstance().font, "→", x + 135, y + 29, 0x99FFFFFF, false);
+        } else if (screen instanceof CreativeModeInventoryScreen) {
+            if (slots != null) {
+                boolean hasSurvivalSlots = false;
+                for (Slot s : slots) {
+                    if (s != null && s.x == 35 && s.y == 20) {
+                        hasSurvivalSlots = true;
+                        break;
+                    }
+                }
+                if (hasSurvivalSlots) {
+                    Glass.rr(g, x + 72, y + 5, 34, 45, 4.0f, 0x30000000);
+                    Glass.ring(g, x + 72, y + 5, 34, 45, 4.0f, 0.5f, 0x18FFFFFF);
+                }
+            }
         }
 
         if (slots != null) {

@@ -193,9 +193,6 @@ public abstract class ContainerScreenMixin extends Screen {
 
     @Inject(method = "extractContents", at = @At("HEAD"))
     private void kollegen$renderCustomContainerBackground(GuiGraphicsExtractor gui, int mouseX, int mouseY, float partialTick, CallbackInfo ci) {
-        if ((Object) this instanceof net.minecraft.client.gui.screens.inventory.CreativeModeInventoryScreen) {
-            return;
-        }
         if (GuiCustomizationSettings.getContainerStyle() == GuiCustomizationSettings.ContainerStyle.VANILLA) {
             return;
         }
@@ -211,9 +208,6 @@ public abstract class ContainerScreenMixin extends Screen {
             at = @At("RETURN"))
     private void kollegen$tintBackground(GuiGraphicsExtractor gui, int mouseX, int mouseY, float partialTick,
                                          CallbackInfo ci) {
-        if ((Object) this instanceof net.minecraft.client.gui.screens.inventory.CreativeModeInventoryScreen) {
-            return;
-        }
         if (GuiCustomizationSettings.getContainerStyle() != GuiCustomizationSettings.ContainerStyle.VANILLA
                 && GuiCustomizationSettings.getSlotStyle() != GuiCustomizationSettings.SlotStyle.VANILLA
                 && this.hoveredSlot != null) {
