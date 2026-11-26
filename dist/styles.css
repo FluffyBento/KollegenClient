@@ -3671,3 +3671,107 @@ button:disabled {
   from { box-shadow: 0 0 4px var(--warning); }
   to { box-shadow: 0 0 12px var(--warning); }
 }
+
+.create-tabs {
+  margin-bottom: 1.1rem;
+}
+
+.sub-tabs {
+  margin-bottom: 0.75rem;
+}
+
+.sub-tabs .tab {
+  font-size: 0.76rem;
+  padding: 0.38rem 0.8rem;
+}
+
+.modpacks-pane[hidden],
+.orbital-progress[hidden],
+.sub-tabs[hidden] {
+  display: none !important;
+}
+
+.modpacks-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.modpack-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  align-items: center;
+  margin-bottom: 0.4rem;
+}
+
+.modpack-toolbar > input {
+  flex: 1 1 220px;
+  max-width: 300px;
+}
+
+.modpack-toolbar .manage-search {
+  flex: 2 1 280px;
+  display: flex;
+  gap: 0.5rem;
+}
+
+.modpack-toolbar .manage-search input {
+  flex: 1;
+}
+
+.browse-kind-tabs {
+  margin: 0.25rem 0 0.65rem 0;
+}
+
+.rust-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  background: rgba(224, 108, 58, 0.18);
+  color: #f49d72;
+  border: 1px solid rgba(224, 108, 58, 0.4);
+  margin-bottom: 0.35rem;
+}
+
+.orbital-progress {
+  background: var(--bg-elevated);
+  border: 1px solid rgba(224, 108, 58, 0.45);
+  border-radius: var(--radius-md);
+  padding: 0.75rem 0.9rem;
+  margin-bottom: 0.75rem;
+}
+
+.orbital-progress-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.84rem;
+  margin-bottom: 0.4rem;
+  color: var(--text-primary);
+}
+
+.orbital-progress-track {
+  width: 100%;
+  height: 7px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.orbital-progress-fill {
+  width: 0%;
+  height: 100%;
+  background: linear-gradient(90deg, #e06c3a, #ff9d66);
+  transition: width 0.25s ease;
+}
+
+.orbital-progress-detail {
+  margin-top: 0.35rem;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}

@@ -2,6 +2,7 @@ package dev.kollegen.client.mixin;
 
 import dev.kollegen.client.mods.modules.Performance;
 import dev.kollegen.client.mods.modules.SevenTvEmoteManager;
+import dev.kollegen.client.perf.KollegenFontCache;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GlyphSource;
 import net.minecraft.network.chat.FontDescription;
@@ -12,10 +13,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(Font.class)
 public class FontMixin {
-
-    private static final int KOLLEGEN$CACHE_MASK = 1023;
-    private static final String[] KOLLEGEN$CACHED_STRINGS = new String[1024];
-    private static final int[] KOLLEGEN$CACHED_WIDTHS = new int[1024];
 
     @Inject(method = "getGlyphSource(Lnet/minecraft/network/chat/FontDescription;)Lnet/minecraft/client/gui/GlyphSource;", at = @At("HEAD"), cancellable = true)
     private void kollegen$getGlyphSource(FontDescription fontLocation, CallbackInfoReturnable<GlyphSource> cir) {
@@ -38,10 +35,10 @@ public class FontMixin {
 
         if (!Performance.KollegenTricks.shouldCacheFont()) return;
 
-        int idx = (text.hashCode() & 0x7FFFFFFF) & KOLLEGEN$CACHE_MASK;
-        String cached = KOLLEGEN$CACHED_STRINGS[idx];
-        if (cached != null && cached.equals(text)) {
-            cir.setReturnValue(KOLLEGEN$CACHED_WIDTHS[idx]);
+        int idx = (text.hashCode() & 0x7FFFFFFF) & KollegenFontCache.MASK;
+        KollegenFontCache.WidthEntry entry = KollegenFontCache.table()[idx];
+        if (entry != null && entry.text.equals(text)) {
+            cir.setReturnValue(entry.width);
         }
     }
 
@@ -49,8 +46,7 @@ public class FontMixin {
     private void kollegen$storeWidth(String text, CallbackInfoReturnable<Integer> cir) {
         if (text == null || text.isEmpty() || !Performance.KollegenTricks.shouldCacheFont()) return;
 
-        int idx = (text.hashCode() & 0x7FFFFFFF) & KOLLEGEN$CACHE_MASK;
-        KOLLEGEN$CACHED_STRINGS[idx] = text;
-        KOLLEGEN$CACHED_WIDTHS[idx] = cir.getReturnValueI();
+        int idx = (text.hashCode() & 0x7FFFFFFF) & KollegenFontCache.MASK;
+        KollegenFontCache.table()[idx] = new KollegenFontCache.WidthEntry(text, cir.getReturnValueI());
     }
 }

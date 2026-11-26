@@ -211,18 +211,36 @@ pub fn ensure_kollegen_native() {
     if let Some(home) = dirs::home_dir() {
         let native_dir = home.join(".kollegen").join("native");
         let _ = std::fs::create_dir_all(&native_dir);
-        let target = native_dir.join("libkollegen_native.so");
-        if !target.is_file() {
-            let candidates = [
-                std::path::PathBuf::from("kollegen-native/target/release/libkollegen_native.so"),
-                std::path::PathBuf::from("release/libkollegen_native.so"),
-                std::path::PathBuf::from("resources/libkollegen_native.so"),
-            ];
-            for cand in &candidates {
-                if cand.is_file() {
-                    let _ = std::fs::copy(cand, &target);
-                    break;
+        let lib_name = if cfg!(target_os = "windows") {
+            "kollegen_native.dll"
+        } else if cfg!(target_os = "macos") {
+            "libkollegen_native.dylib"
+        } else {
+            "libkollegen_native.so"
+        };
+        let target = native_dir.join(lib_name);
+        let mut candidates = vec![
+            std::path::PathBuf::from("kollegen-native/target/release").join(lib_name),
+            std::path::PathBuf::from("resources").join(lib_name),
+            std::path::PathBuf::from("release").join(lib_name),
+        ];
+        if let Ok(exe) = std::env::current_exe() {
+            if let Some(dir) = exe.parent() {
+                candidates.push(dir.join("resources").join(lib_name));
+            }
+        }
+        for cand in &candidates {
+            if cand.is_file() {
+                if let Ok(src_bytes) = std::fs::read(cand) {
+                    let needs_copy = match std::fs::read(&target) {
+                        Ok(dst_bytes) => dst_bytes != src_bytes,
+                        Err(_) => true,
+                    };
+                    if needs_copy {
+                        let _ = std::fs::write(&target, &src_bytes);
+                    }
                 }
+                break;
             }
         }
     }
@@ -332,7 +350,7 @@ fn maven_library_path(name: &str) -> Option<PathBuf> {
     Some(out)
 }
 
-fn download_libraries(libs_dir: &Path, vjson: &VersionJson) {
+pub fn download_libraries(libs_dir: &Path, vjson: &VersionJson) {
     for lib in &vjson.libraries {
         let allowed = match &lib.rules {
             Some(rules) => rules.iter().all(|rule| {
@@ -504,7 +522,11 @@ pub fn download_assets(data_dir: &Path, name: &str, version: &str) -> Result<()>
     let inst_dir = crate::utils::instance_dir(data_dir, name);
     let version_dir = inst_dir.join("versions").join(version);
     let assets_dir = inst_dir.join("assets");
-    fs::create_dir_all(&assets_dir)?;
+    download_assets_to_dir(&version_dir, &assets_dir, version)
+}
+
+pub fn download_assets_to_dir(version_dir: &Path, assets_dir: &Path, version: &str) -> Result<()> {
+    fs::create_dir_all(assets_dir)?;
 
     let vjson_path = version_dir.join(format!("{}.json", version));
     let vjson_str = fs::read_to_string(&vjson_path)?;
@@ -738,18 +760,28 @@ fn resolve_fabric_installer_version() -> Result<String> {
 
 
 
-fn find_fabric_version_dir(versions_dir: &Path) -> Option<String> {
+fn find_fabric_version_dir(versions_dir: &Path, mc_version: &str) -> Option<String> {
     let entries = fs::read_dir(versions_dir).ok()?;
+    let suffix = format!("-{}", mc_version);
     for e in entries.flatten() {
         let p = e.path();
         if !p.is_dir() {
             continue;
         }
         let name = p.file_name()?.to_string_lossy().to_string();
-        if name.to_lowercase().contains("fabric")
-            && p.join(format!("{}.json", name)).is_file()
-        {
+        let json_path = p.join(format!("{}.json", name));
+        if !name.to_lowercase().contains("fabric") || !json_path.is_file() {
+            continue;
+        }
+        if name.ends_with(&suffix) {
             return Some(name);
+        }
+        if let Ok(s) = fs::read_to_string(&json_path) {
+            if let Ok(v) = serde_json::from_str::<Value>(&s) {
+                if v.get("inheritsFrom").and_then(|x| x.as_str()) == Some(mc_version) {
+                    return Some(name);
+                }
+            }
         }
     }
     None
@@ -764,7 +796,7 @@ fn ensure_fabric(data_dir: &Path, inst: &Instance, java_path: &str) -> Result<St
     fs::create_dir_all(&versions_dir).ok();
 
     
-    if let Some(id) = find_fabric_version_dir(&versions_dir) {
+    if let Some(id) = find_fabric_version_dir(&versions_dir, &inst.version) {
         let installed = installed_fabric_loader_version(&id).unwrap_or_default();
         if fabric_loader_at_least(&installed) {
             return Ok(id);
@@ -832,7 +864,7 @@ fn ensure_fabric(data_dir: &Path, inst: &Instance, java_path: &str) -> Result<St
 
     
     
-    find_fabric_version_dir(&versions_dir)
+    find_fabric_version_dir(&versions_dir, &inst.version)
         .ok_or_else(|| anyhow!("Fabric Version-Verzeichnis nicht gefunden"))
 }
 
@@ -978,7 +1010,7 @@ pub(crate) fn has_active_sodium(_mods_dir: &Path) -> bool {
     false
 }
 
-pub(crate) fn enforce_renderer_consistency(mods_dir: &Path, _vulkan_enabled: bool) {
+pub(crate) fn enforce_renderer_consistency(mods_dir: &Path, vulkan_enabled: bool) {
     if !mods_dir.exists() {
         return;
     }
@@ -1006,7 +1038,10 @@ pub(crate) fn enforce_renderer_consistency(mods_dir: &Path, _vulkan_enabled: boo
             }
         }
     }
-    let _ = fs::write(renderer_state_path(mods_dir), "vulkan");
+    let _ = fs::write(
+        renderer_state_path(mods_dir),
+        if vulkan_enabled { "vulkan" } else { "opengl" },
+    );
 }
 
 
@@ -1279,19 +1314,37 @@ pub(crate) fn enforce_bundled_mods(mods_dir: &Path, mc_version: &str, companion_
     
     
     
-    let has_standalone_flk = fs::read_dir(mods_dir)
+    let existing_jars: Vec<(String, PathBuf)> = fs::read_dir(mods_dir)
         .map(|entries| {
-            entries.flatten().any(|e| {
-                let name = e.file_name().to_string_lossy().to_lowercase();
-                (name.starts_with("fabric-language-kotlin") || name.starts_with("fabric_language_kotlin"))
-                    && name.ends_with(".jar")
-            })
+            entries
+                .flatten()
+                .filter_map(|e| {
+                    let p = e.path();
+                    if !p.is_file() {
+                        return None;
+                    }
+                    let name = e.file_name().to_string_lossy().to_lowercase();
+                    if !name.ends_with(".jar")
+                        || name.starts_with("kollegen-client-mod")
+                        || name.starts_with("kollegen-bundle")
+                    {
+                        return None;
+                    }
+                    Some((name, p))
+                })
+                .collect()
         })
-        .unwrap_or(false);
+        .unwrap_or_default();
 
     for &(jar_name, bin_path, desired, will_deploy) in &decisions {
         let dest = mods_dir.join(jar_name);
-        if jar_name == "kollegen-bundle-flk.jar" && has_standalone_flk {
+        let has_compatible_standalone = existing_jars.iter().any(|(name, p)| {
+            bundle_standalone_prefixes(jar_name)
+                .iter()
+                .any(|pre| name.starts_with(*pre))
+                && crate::companion::jar_supports_mc(p, mc_version)
+        });
+        if has_compatible_standalone {
             let _ = fs::remove_file(&dest);
             continue;
         }
@@ -1534,6 +1587,9 @@ pub fn launch(
     java_path: &str,
     settings: &Settings,
 ) -> Result<(String, u32)> {
+    if inst.loader.eq_ignore_ascii_case("horizon") {
+        return crate::orbital::launch_horizon(state, data_dir, inst);
+    }
     let inst_dir = crate::utils::instance_dir(data_dir, &inst.name);
     let _ = crate::twitch_auth::refresh_if_needed(data_dir);
     ensure_kollegen_mod(data_dir, &inst.name, &inst.loader, &inst.version);
@@ -1542,7 +1598,13 @@ pub fn launch(
     
     
     let mods_dir = inst_dir.join("mods");
-    let actual_vulkan = true;
+    let fallback_marker = mods_dir.join(".kollegen-vulkan-fallback");
+    let actual_vulkan = if fallback_marker.is_file() {
+        let _ = fs::remove_file(&fallback_marker);
+        false
+    } else {
+        inst.vulkan_enabled
+    };
     enforce_renderer_consistency(&mods_dir, actual_vulkan);
     enforce_controller_state(&mods_dir, settings.steamdeck_mode);
     if inst.loader == "fabric" || inst.loader == "quilt" {
@@ -1671,8 +1733,17 @@ pub fn launch(
 
     
     let natives_dir = version_dir.join("natives");
+    let mut library_paths: Vec<String> = Vec::new();
     if natives_dir.exists() {
-        jvm_args.push(format!("-Djava.library.path={}", natives_dir.to_string_lossy()));
+        library_paths.push(natives_dir.to_string_lossy().into_owned());
+    }
+    if let Some(home) = dirs::home_dir() {
+        let native_dir = home.join(".kollegen").join("native");
+        library_paths.push(native_dir.to_string_lossy().into_owned());
+    }
+    let os_cp_sep = if cfg!(target_os = "windows") { ";" } else { ":" };
+    if !library_paths.is_empty() {
+        jvm_args.push(format!("-Djava.library.path={}", library_paths.join(os_cp_sep)));
     }
 
     
@@ -1685,37 +1756,52 @@ pub fn launch(
         .map(|n| n.get())
         .unwrap_or(4);
 
-    jvm_args.push("-XX:+UnlockExperimentalVMOptions".to_string());
+    let push_unique = |args: &mut Vec<String>, flag: &str| {
+        if !args.iter().any(|existing| existing == flag) {
+            args.push(flag.to_string());
+        }
+    };
+
+    push_unique(&mut jvm_args, "-XX:+UnlockExperimentalVMOptions");
 
     if is_mc_26_plus {
-        jvm_args.push("-XX:+UseCompactObjectHeaders".to_string());
+        push_unique(&mut jvm_args, "-XX:+UseCompactObjectHeaders");
     }
 
-    info!("Hardware-Profil: Optimierter G1GC gewählt ({} Kerne, {} GB RAM)", cores, ram_gb);
+    let ci_threads = cores.clamp(4, 12);
     for flag in [
-        "-XX:+UseG1GC",
-        "-XX:+ParallelRefProcEnabled",
-        "-XX:MaxGCPauseMillis=100",
-        "-XX:+UnlockExperimentalVMOptions",
         "-XX:+DisableExplicitGC",
         "-XX:+AlwaysPreTouch",
-        "-XX:G1NewSizePercent=30",
-        "-XX:G1MaxNewSizePercent=50",
-        "-XX:G1ReservePercent=15",
-        "-XX:G1HeapWastePercent=5",
-        "-XX:G1MixedGCCountTarget=4",
-        "-XX:InitiatingHeapOccupancyPercent=45",
-        "-XX:G1MixedGCLiveThresholdPercent=90",
-        "-XX:G1RSetUpdatingPauseTimePercent=5",
-        "-XX:SurvivorRatio=32",
         "-XX:+PerfDisableSharedMem",
         "-XX:+UseStringDeduplication",
         "-XX:+OptimizeStringConcat",
-        "-XX:ReservedCodeCacheSize=1024M",
+        "-XX:ReservedCodeCacheSize=512M",
         "-XX:+SegmentedCodeCache",
-        "-XX:CICompilerCount=8",
+        "-XX:+TieredCompilation",
+        "-XX:+UseFastUnorderedTimeStamps",
     ] {
-        jvm_args.push(flag.to_string());
+        push_unique(&mut jvm_args, flag);
+    }
+    jvm_args.push(format!("-XX:CICompilerCount={}", ci_threads));
+
+    #[cfg(target_arch = "x86_64")]
+    {
+        if std::arch::is_x86_feature_detected!("avx512f") {
+            push_unique(&mut jvm_args, "-XX:MaxVectorSize=64");
+            push_unique(&mut jvm_args, "-XX:+UseVectorCmov");
+            push_unique(&mut jvm_args, "-XX:+UseXMMForArrayCopy");
+            push_unique(&mut jvm_args, "-XX:+UseFMA");
+            push_unique(&mut jvm_args, "-XX:+AlignVector");
+        } else if std::arch::is_x86_feature_detected!("avx2") {
+            push_unique(&mut jvm_args, "-XX:MaxVectorSize=32");
+            push_unique(&mut jvm_args, "-XX:+UseVectorCmov");
+            push_unique(&mut jvm_args, "-XX:+UseXMMForArrayCopy");
+            if std::arch::is_x86_feature_detected!("fma") {
+                push_unique(&mut jvm_args, "-XX:+UseFMA");
+            }
+        } else {
+            push_unique(&mut jvm_args, "-XX:+UseVectorCmov");
+        }
     }
 
     jvm_args.push("-Dfile.encoding=UTF-8".to_string());
@@ -1734,29 +1820,65 @@ pub fn launch(
     }
     jvm_args.push("-Dkollegen.rust_runtime=true".to_string());
     jvm_args.push("--enable-native-access=ALL-UNNAMED".to_string());
-    if let Some(home) = dirs::home_dir() {
-        let native_dir = home.join(".kollegen").join("native");
-        jvm_args.push(format!("-Djava.library.path={}", native_dir.to_string_lossy()));
-    }
 
     let (chosen_preset, active_idx) = select_and_apply_optimization_preset(&inst_dir);
     info!(
-        "Selbstoptimierender Launcher aktiv: Verwende Preset {} ('{}' - {})",
-        active_idx, chosen_preset.name, chosen_preset.description
+        "Selbstoptimierender Launcher aktiv ({} Kerne, {} GB RAM): Verwende Preset {} ('{}' - {})",
+        cores, ram_gb, active_idx, chosen_preset.name, chosen_preset.description
     );
+    let mut preset_uses_zgc = false;
     for flag in chosen_preset.jvm_flags {
-        jvm_args.push(flag.to_string());
+        if *flag == "-XX:+UseZGC" {
+            if is_mc_26_plus {
+                preset_uses_zgc = true;
+                push_unique(&mut jvm_args, flag);
+            } else {
+                push_unique(&mut jvm_args, "-XX:+UseG1GC");
+            }
+        } else if preset_uses_zgc && flag.starts_with("-XX:G1") {
+            continue;
+        } else {
+            push_unique(&mut jvm_args, flag);
+        }
+    }
+    if !jvm_args.iter().any(|f| f == "-XX:+UseZGC" || f == "-XX:+UseG1GC") {
+        push_unique(&mut jvm_args, "-XX:+UseG1GC");
     }
 
     ensure_optimal_renderer_config(&inst_dir, cores, actual_vulkan);
 
-    let os_cp_sep = if cfg!(target_os = "windows") { ";" } else { ":" };
     let joined = classpath.join(os_cp_sep);
     let cp_arg = if cfg!(target_os = "windows") && joined.len() > 28000 {
         write_classpath_jar(&inst_dir, &classpath)?
     } else {
         joined
     };
+
+    let custom_aot = inst
+        .java_args
+        .as_deref()
+        .map(|s| s.contains("AOTCache"))
+        .unwrap_or(false);
+    if is_mc_26_plus && !custom_aot {
+        let aot_key = crate::utils::sha1_hex(
+            format!("{}\n{}\n{}", cp_arg, chosen_preset.id, actual_vulkan).as_bytes(),
+        );
+        let aot_cache_path = inst_dir.join(".kollegen-aot.cache");
+        let aot_key_path = inst_dir.join(".kollegen-aot.key");
+        let key_matches = fs::read_to_string(&aot_key_path)
+            .map(|s| s.trim() == aot_key)
+            .unwrap_or(false);
+        if key_matches && aot_cache_path.is_file() {
+            jvm_args.push(format!("-XX:AOTCache={}", aot_cache_path.display()));
+            info!("Java 25 AOT-Cache aktiv: {}", aot_cache_path.display());
+        } else {
+            let _ = fs::remove_file(&aot_cache_path);
+            let _ = fs::write(&aot_key_path, &aot_key);
+            jvm_args.push(format!("-XX:AOTCacheOutput={}", aot_cache_path.display()));
+            info!("Java 25 AOT-Cache wird nach diesem Start erstellt.");
+        }
+    }
+
     jvm_args.push("-cp".to_string());
     jvm_args.push(cp_arg);
 
@@ -2517,7 +2639,7 @@ pub fn apply_instance_performance_patch(inst_dir: &Path, is_new: bool, vulkan_en
         ("mipmapLevels", "0"),
         ("particles", "2"),
         ("entityDistanceScaling", "0.5"),
-        ("weatherRadius", "1"),
+        ("weatherRadius", "3"),
         ("graphicsPreset", "\"fast\""),
     ];
 
@@ -2643,57 +2765,42 @@ pub struct OptimizationPreset {
 pub static OPTIMIZATION_PRESETS: &[OptimizationPreset] = &[
     OptimizationPreset {
         id: 0,
-        name: "Standard ZGC + SIMD",
-        description: "Generational ZGC mit C2 Tiered Compilation & SIMD Vektorisierung",
+        name: "Generational ZGC + Compact Headers",
+        description: "Sub-ms GC-Pausen ohne Stop-the-World-Mikroruckler (Java 25)",
         jvm_flags: &[
-            "-XX:+UseFastUnorderedTimeStamps",
-            "-XX:CompileThreshold=1000",
-            "-XX:ReservedCodeCacheSize=1024M",
-            "-XX:+SegmentedCodeCache",
-            "-XX:+TieredCompilation",
-            "-XX:CICompilerCount=8",
-            "-XX:+UseVectorCmov",
-            "-XX:+UseXMMForArrayCopy",
-            "-XX:+OptimizeStringConcat",
-            "-XX:+UseStringDeduplication",
+            "-XX:+UseZGC",
+            "-XX:Tier4InvocationThreshold=2500",
         ],
     },
     OptimizationPreset {
         id: 1,
-        name: "Aggressives C2 Inlining & Geometrie-Durchsatz (2000+ FPS)",
-        description: "Erhöhtes C2 Inlining-Budget & Loop-Unrolling für Hotspot-Geometrie",
+        name: "G1GC Low-Latency (25ms)",
+        description: "G1GC mit kurzen Pause-Zielen & jungem Heap-Tuning",
         jvm_flags: &[
-            "-XX:FreqInlineSize=500",
-            "-XX:MaxInlineSize=45",
-            "-XX:InlineSmallCode=3000",
-            "-XX:LoopUnrollLimit=120",
-            "-XX:+UseFastUnorderedTimeStamps",
-            "-XX:CompileThreshold=800",
-            "-XX:ReservedCodeCacheSize=1024M",
-            "-XX:+SegmentedCodeCache",
-            "-XX:+TieredCompilation",
-            "-XX:CICompilerCount=8",
-            "-XX:+UseVectorCmov",
-            "-XX:+UseXMMForArrayCopy",
-            "-XX:+OptimizeStringConcat",
-            "-XX:+UseStringDeduplication",
+            "-XX:+UseG1GC",
+            "-XX:+ParallelRefProcEnabled",
+            "-XX:MaxGCPauseMillis=25",
+            "-XX:G1NewSizePercent=30",
+            "-XX:G1MaxNewSizePercent=50",
+            "-XX:G1ReservePercent=15",
+            "-XX:G1HeapWastePercent=5",
+            "-XX:G1MixedGCCountTarget=4",
+            "-XX:InitiatingHeapOccupancyPercent=45",
+            "-XX:G1MixedGCLiveThresholdPercent=90",
+            "-XX:G1RSetUpdatingPauseTimePercent=5",
+            "-XX:SurvivorRatio=32",
         ],
     },
     OptimizationPreset {
         id: 2,
-        name: "Zen4 AVX-512 & Vektor-Register Peak",
-        description: "512-Bit AVX Register, AlignVector & FMA für Berechnungen & Chunk-Transformationen",
+        name: "ZGC + Aggressives C2 Inlining",
+        description: "Generational ZGC kombiniert mit erhöhtem Inlining & Escape Analysis",
         jvm_flags: &[
-            "-XX:MaxVectorSize=64",
-            "-XX:+UseVectorCmov",
-            "-XX:+UseXMMForArrayCopy",
-            "-XX:+UseFMA",
-            "-XX:+AlignVector",
-            "-XX:LoopMaxUnroll=32",
-            "-XX:LoopUnrollLimit=120",
+            "-XX:+UseZGC",
             "-XX:FreqInlineSize=500",
             "-XX:MaxInlineSize=45",
             "-XX:InlineSmallCode=3000",
+            "-XX:LoopUnrollLimit=120",
             "-XX:MaxInlineLevel=18",
             "-XX:+TrustFinalNonStaticFields",
             "-XX:+UseCMoveUnconditionally",
@@ -2701,77 +2808,56 @@ pub static OPTIMIZATION_PRESETS: &[OptimizationPreset] = &[
             "-XX:+EliminateAllocations",
             "-XX:+EliminateLocks",
             "-XX:+DoEscapeAnalysis",
-            "-XX:+UseTransparentHugePages",
-            "-XX:+UseFastUnorderedTimeStamps",
-            "-XX:CompileThreshold=600",
-            "-XX:ReservedCodeCacheSize=1024M",
-            "-XX:+SegmentedCodeCache",
-            "-XX:+TieredCompilation",
-            "-XX:CICompilerCount=8",
-            "-XX:+OptimizeStringConcat",
-            "-XX:+UseStringDeduplication",
         ],
     },
     OptimizationPreset {
         id: 3,
-        name: "Ultra-Fast JIT Early Inlining & Zen4 Vektor",
-        description: "Früheres C2-Kompilieren bei 500 Aufrufen kombiniert mit AVX-512 Vektorisierung",
+        name: "G1GC + Aggressives C2 Inlining",
+        description: "G1GC Durchsatz + frühe C2-Hotspot-Kompilierung & Escape Analysis",
         jvm_flags: &[
-            "-XX:CompileThreshold=500",
-            "-XX:MaxVectorSize=64",
-            "-XX:+UseVectorCmov",
-            "-XX:+UseXMMForArrayCopy",
-            "-XX:+UseFMA",
-            "-XX:+AlignVector",
-            "-XX:LoopMaxUnroll=32",
-            "-XX:LoopUnrollLimit=120",
+            "-XX:+UseG1GC",
+            "-XX:+ParallelRefProcEnabled",
+            "-XX:MaxGCPauseMillis=35",
+            "-XX:G1NewSizePercent=30",
+            "-XX:G1MaxNewSizePercent=50",
+            "-XX:G1ReservePercent=15",
+            "-XX:G1HeapWastePercent=5",
+            "-XX:InitiatingHeapOccupancyPercent=45",
+            "-XX:Tier4InvocationThreshold=2000",
             "-XX:FreqInlineSize=500",
             "-XX:MaxInlineSize=45",
             "-XX:InlineSmallCode=3000",
+            "-XX:LoopMaxUnroll=32",
+            "-XX:LoopUnrollLimit=120",
             "-XX:MaxInlineLevel=18",
             "-XX:+TrustFinalNonStaticFields",
             "-XX:+UseCMoveUnconditionally",
             "-XX:+UseFastJNIAccessors",
             "-XX:+EliminateAllocations",
             "-XX:+EliminateLocks",
-            "-XX:+UseFastUnorderedTimeStamps",
-            "-XX:ReservedCodeCacheSize=1024M",
-            "-XX:+SegmentedCodeCache",
-            "-XX:+TieredCompilation",
-            "-XX:CICompilerCount=8",
-            "-XX:+OptimizeStringConcat",
-            "-XX:+UseStringDeduplication",
+            "-XX:+DoEscapeAnalysis",
         ],
     },
     OptimizationPreset {
         id: 4,
-        name: "Zen4 Vektor-Apex (Ultimate Inlining & Vektor-Pipeline)",
-        description: "Höchstes Inlining-Budget (Freq 600, Size 50, SmallCode 3500) & LoopUnroll 150 für absolute FPS-Peaks (2000+ FPS)",
+        name: "ZGC Vektor-Apex (Ultra Early C2)",
+        description: "Generational ZGC + höchstes C2-Inlining & schnelles Tier4-Warmup",
         jvm_flags: &[
-            "-XX:CompileThreshold=800",
-            "-XX:MaxVectorSize=64",
-            "-XX:+UseVectorCmov",
-            "-XX:+UseXMMForArrayCopy",
-            "-XX:+UseFMA",
-            "-XX:+AlignVector",
-            "-XX:LoopMaxUnroll=32",
-            "-XX:LoopUnrollLimit=150",
+            "-XX:+UseZGC",
+            "-XX:Tier3CompileThreshold=200",
+            "-XX:Tier4InvocationThreshold=1500",
             "-XX:FreqInlineSize=600",
             "-XX:MaxInlineSize=50",
             "-XX:InlineSmallCode=3500",
+            "-XX:LoopMaxUnroll=32",
+            "-XX:LoopUnrollLimit=150",
             "-XX:MaxInlineLevel=18",
             "-XX:+TrustFinalNonStaticFields",
             "-XX:+UseCMoveUnconditionally",
             "-XX:+UseFastJNIAccessors",
             "-XX:+EliminateAllocations",
             "-XX:+EliminateLocks",
-            "-XX:+UseFastUnorderedTimeStamps",
-            "-XX:ReservedCodeCacheSize=1024M",
-            "-XX:+SegmentedCodeCache",
-            "-XX:+TieredCompilation",
-            "-XX:CICompilerCount=8",
-            "-XX:+OptimizeStringConcat",
-            "-XX:+UseStringDeduplication",
+            "-XX:+DoEscapeAnalysis",
         ],
     },
 ];
@@ -2870,7 +2956,7 @@ fn parse_and_record_perf_telemetry(inst_dir: &Path, line: &str) {
         }
     }
 
-    if avg_fps > 0 && samples >= 2000 {
+    if avg_fps > 0 && samples >= 200 {
         let perf_file = inst_dir.join("kollegen_perf.json");
         let mut data: serde_json::Value = fs::read_to_string(&perf_file)
             .ok()
@@ -2986,6 +3072,15 @@ fn sanitize_name(name: &str) -> String {
 
 
 pub fn import_pack(data_dir: &Path, path: &str) -> Result<Instance> {
+    import_pack_target(data_dir, path, None, None)
+}
+
+pub fn import_pack_target(
+    data_dir: &Path,
+    path: &str,
+    custom_name: Option<&str>,
+    target_instance: Option<&str>,
+) -> Result<Instance> {
     let file = fs::File::open(path)
         .map_err(|e| anyhow!("Konnte Paket nicht öffnen: {}", e))?;
     let mut archive = zip::ZipArchive::new(file)
@@ -3015,6 +3110,7 @@ pub fn import_pack(data_dir: &Path, path: &str) -> Result<Instance> {
     idx_file
         .read_to_string(&mut index_str)
         .map_err(|e| anyhow!("Index ungültig: {}", e))?;
+    drop(idx_file);
     let index: Value = serde_json::from_str(&index_str)
         .map_err(|e| anyhow!("modrinth.index.json Parse-Fehler: {}", e))?;
 
@@ -3054,11 +3150,17 @@ pub fn import_pack(data_dir: &Path, path: &str) -> Result<Instance> {
         ("vanilla".to_string(), None)
     };
 
-    let pack_name = index
-        .get("name")
-        .and_then(|n| n.as_str())
-        .unwrap_or("Importiertes Pack")
-        .to_string();
+    let pack_name = custom_name
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(|s| s.to_string())
+        .unwrap_or_else(|| {
+            index
+                .get("name")
+                .and_then(|n| n.as_str())
+                .unwrap_or("Importiertes Pack")
+                .to_string()
+        });
     let summary = index
         .get("summary")
         .and_then(|s| s.as_str())
@@ -3068,46 +3170,56 @@ pub fn import_pack(data_dir: &Path, path: &str) -> Result<Instance> {
     
     let inst_path = crate::utils::instances_file(data_dir);
     let mut instances = crate::utils::load_json::<Vec<Instance>>(&inst_path, vec![]);
-    let base = sanitize_name(&pack_name);
-    let mut name = base.clone();
-    let mut n = 2;
-    while instances.iter().any(|i| i.name == name) {
-        name = format!("{} ({})", base, n);
-        n += 1;
-    }
 
-    let inst = Instance {
-        id: uuid::Uuid::new_v4().to_string(),
-        name: name.clone(),
-        version: mc_version.clone(),
-        loader: loader.clone(),
-        loader_version,
-        description: summary,
-        mods: vec![],
-        vulkan_enabled: true,
-        memory_min: crate::DEFAULT_MEMORY_MIN.to_string(),
-        memory_max: crate::DEFAULT_MEMORY_MAX.to_string(),
-        created_at: chrono::Utc::now().to_rfc3339(),
-        last_played: None,
-        java_args: None,
-        server: None,
+    let inst = if let Some(target_name) = target_instance.filter(|s| !s.trim().is_empty()) {
+        let existing = instances
+            .iter()
+            .find(|i| i.name == target_name)
+            .cloned()
+            .ok_or_else(|| anyhow!("Ziel-Instanz '{}' nicht gefunden.", target_name))?;
+        info!("Installiere Modpack '{}' in bestehende Instanz '{}'...", pack_name, existing.name);
+        existing
+    } else {
+        let base = sanitize_name(&pack_name);
+        let mut name = base.clone();
+        let mut n = 2;
+        while instances.iter().any(|i| i.name == name) {
+            name = format!("{} ({})", base, n);
+            n += 1;
+        }
+
+        let created = Instance {
+            id: uuid::Uuid::new_v4().to_string(),
+            name: name.clone(),
+            version: mc_version.clone(),
+            loader: loader.clone(),
+            loader_version,
+            description: summary,
+            mods: vec![],
+            vulkan_enabled: true,
+            memory_min: crate::DEFAULT_MEMORY_MIN.to_string(),
+            memory_max: crate::DEFAULT_MEMORY_MAX.to_string(),
+            created_at: chrono::Utc::now().to_rfc3339(),
+            last_played: None,
+            java_args: None,
+            server: None,
+        };
+
+        instances.push(created.clone());
+        crate::utils::save_json(&inst_path, &instances)?;
+
+        info!("Importiere Modpack '{}' (MC {})…", name, mc_version);
+        install_instance(
+            data_dir,
+            &name,
+            &mc_version,
+            &loader,
+            created.loader_version.as_deref(),
+        )?;
+        created
     };
 
-    instances.push(inst.clone());
-    crate::utils::save_json(&inst_path, &instances)?;
-
-    
-    info!("Importiere Modpack '{}' (MC {})…", name, mc_version);
-    install_instance(
-        data_dir,
-        &name,
-        &mc_version,
-        &loader,
-        inst.loader_version.as_deref(),
-    )?;
-
-    
-    let inst_dir = crate::utils::instance_dir(data_dir, &name);
+    let inst_dir = crate::utils::instance_dir(data_dir, &inst.name);
     let client = reqwest::blocking::Client::builder()
         .user_agent(crate::USER_AGENT)
         .timeout(Duration::from_secs(120))
@@ -3160,12 +3272,45 @@ pub fn import_pack(data_dir: &Path, path: &str) -> Result<Instance> {
         }
     }
 
+    for prefix in ["overrides/", "client-overrides/"] {
+        for i in 0..archive.len() {
+            if let Ok(mut entry) = archive.by_index(i) {
+                let entry_name = entry.name().replace('\\', "/");
+                if let Some(rel) = entry_name.strip_prefix(prefix) {
+                    if rel.is_empty() || entry.is_dir() || entry_name.ends_with('/') {
+                        continue;
+                    }
+                    let dest = inst_dir.join(rel);
+                    if let Some(parent) = dest.parent() {
+                        let _ = fs::create_dir_all(parent);
+                    }
+                    let mut buf = Vec::new();
+                    if entry.read_to_end(&mut buf).is_ok() {
+                        let _ = fs::write(&dest, buf);
+                    }
+                }
+            }
+        }
+    }
+
     Ok(inst)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::io::Write;
+
+    fn write_test_jar(path: &Path, entries: &[(&str, &[u8])]) {
+        let file = fs::File::create(path).unwrap();
+        let mut zip = zip::ZipWriter::new(file);
+        let opts = zip::write::FileOptions::default();
+        for (name, content) in entries {
+            zip.start_file(*name, opts).unwrap();
+            zip.write_all(content).unwrap();
+        }
+        zip.finish().unwrap();
+    }
 
     #[test]
     fn test_parse_memory_gb() {
@@ -3176,6 +3321,250 @@ mod tests {
         assert_eq!(parse_memory_gb("12"), 12);
         assert_eq!(parse_memory_gb(""), 4);
         assert_eq!(parse_memory_gb("invalid"), 4);
+    }
+
+    #[test]
+    fn test_find_fabric_version_dir_matches_mc_version() {
+        let tmp = tempfile::tempdir().unwrap();
+        let versions = tmp.path();
+
+        let old_dir = versions.join("fabric-loader-0.18.0-1.21.11");
+        fs::create_dir_all(&old_dir).unwrap();
+        fs::write(
+            old_dir.join("fabric-loader-0.18.0-1.21.11.json"),
+            r#"{"inheritsFrom":"1.21.11"}"#,
+        )
+        .unwrap();
+
+        assert_eq!(find_fabric_version_dir(versions, "26.3"), None);
+
+        let target_dir = versions.join("fabric-loader-0.20.1-26.3");
+        fs::create_dir_all(&target_dir).unwrap();
+        fs::write(
+            target_dir.join("fabric-loader-0.20.1-26.3.json"),
+            r#"{"inheritsFrom":"26.3"}"#,
+        )
+        .unwrap();
+
+        assert_eq!(
+            find_fabric_version_dir(versions, "26.3"),
+            Some("fabric-loader-0.20.1-26.3".to_string())
+        );
+
+        let custom_dir = versions.join("custom-fabric-profile");
+        fs::create_dir_all(&custom_dir).unwrap();
+        fs::write(
+            custom_dir.join("custom-fabric-profile.json"),
+            r#"{"inheritsFrom":"26.4"}"#,
+        )
+        .unwrap();
+        assert_eq!(
+            find_fabric_version_dir(versions, "26.4"),
+            Some("custom-fabric-profile".to_string())
+        );
+    }
+
+    #[test]
+    fn test_enforce_bundled_mods_dedups_standalone_and_removes_owo() {
+        let tmp = tempfile::tempdir().unwrap();
+        let mods_dir = tmp.path().join("mods");
+        fs::create_dir_all(&mods_dir).unwrap();
+
+        let companion_jar = tmp.path().join("kollegen-client-mod-26.3.jar");
+        let mut fake_bundle = Vec::new();
+        {
+            let cur = std::io::Cursor::new(&mut fake_bundle);
+            let mut z = zip::ZipWriter::new(cur);
+            let opts = zip::write::FileOptions::default();
+            z.start_file("fabric.mod.json", opts).unwrap();
+            z.write_all(br#"{"id":"fabric-api","depends":{"minecraft":"~26.3"}}"#)
+                .unwrap();
+            z.finish().unwrap();
+        }
+        write_test_jar(
+            &companion_jar,
+            &[("dev/kollegen/client/fabricapi.bin", &fake_bundle)],
+        );
+
+        let standalone_fapi = mods_dir.join("fabric-api-0.165.2+26.3.jar");
+        fs::write(&standalone_fapi, &fake_bundle).unwrap();
+        let bundle_fapi = mods_dir.join("kollegen-bundle-fabric-api.jar");
+        fs::write(&bundle_fapi, b"stale-bundle").unwrap();
+        let bundle_owo = mods_dir.join("kollegen-bundle-owo.jar");
+        fs::write(&bundle_owo, b"stale-owo").unwrap();
+
+        enforce_bundled_mods(&mods_dir, "26.3", Some(&companion_jar));
+
+        assert!(standalone_fapi.exists());
+        assert!(!bundle_fapi.exists());
+        assert!(!bundle_owo.exists());
+    }
+
+    #[test]
+    fn test_performance_patch_sets_valid_weather_radius() {
+        let tmp = tempfile::tempdir().unwrap();
+        apply_instance_performance_patch(tmp.path(), true, false);
+        let opts = fs::read_to_string(tmp.path().join("options.txt")).unwrap();
+        assert!(opts.lines().any(|l| l == "weatherRadius:3"));
+        assert!(!opts.lines().any(|l| l == "weatherRadius:1"));
+    }
+
+    #[test]
+    #[ignore]
+    fn live_fabric_26_3_end_to_end() {
+        let tmp = tempfile::tempdir().unwrap();
+        let data_dir = tmp.path();
+        let inst = Instance {
+            id: uuid::Uuid::new_v4().to_string(),
+            name: "AuditTest263".to_string(),
+            version: "26.3".to_string(),
+            loader: "fabric".to_string(),
+            loader_version: None,
+            description: String::new(),
+            mods: vec![],
+            vulkan_enabled: true,
+            memory_min: "2G".to_string(),
+            memory_max: "4G".to_string(),
+            created_at: chrono::Utc::now().to_rfc3339(),
+            last_played: None,
+            java_args: None,
+            server: None,
+        };
+        crate::utils::save_json(&data_dir.join("instances.json"), &vec![inst.clone()]).unwrap();
+        let account = crate::types::Account {
+            username: "AuditTester".to_string(),
+            uuid: "00000000-0000-4000-8000-000000000001".to_string(),
+            access_token: "offline".to_string(),
+            refresh_token: None,
+            expires_at: None,
+            avatar_id: None,
+            xuid: None,
+            client_id: None,
+        };
+        crate::utils::save_json(&data_dir.join("accounts.json"), &vec![account.clone()]).unwrap();
+
+        install_instance(data_dir, &inst.name, &inst.version, &inst.loader, None)
+            .expect("install_instance failed");
+
+        crate::companion::install_companion_mod(
+            data_dir,
+            &inst.name,
+            &inst.version,
+            &inst.loader,
+        );
+        let companion_path = crate::companion::companion_jar(data_dir, &inst.version);
+        let inst_dir = crate::utils::instance_dir(data_dir, &inst.name);
+        let mods_dir = inst_dir.join("mods");
+        enforce_bundled_mods(&mods_dir, &inst.version, companion_path.as_deref());
+        apply_instance_performance_patch(&inst_dir, true, inst.vulkan_enabled);
+        let _ = crate::servers::sync_all_servers(data_dir);
+
+        assert!(mods_dir.join("kollegen-client-mod-26.3.jar").is_file());
+        assert!(!mods_dir.join("kollegen-bundle-owo.jar").exists());
+        assert!(mods_dir.join("kollegen-bundle-fabric-api.jar").is_file());
+        assert!(mods_dir.join("kollegen-bundle-flk.jar").is_file());
+        assert!(inst_dir.join("servers.dat").is_file());
+        let opts = fs::read_to_string(inst_dir.join("options.txt")).unwrap();
+        assert!(opts.lines().any(|l| l == "weatherRadius:3"));
+
+        let java_bin = if Path::new("/usr/lib/jvm/java-25-openjdk/bin/java").is_file() {
+            "/usr/lib/jvm/java-25-openjdk/bin/java"
+        } else {
+            "/usr/lib/jvm/jre/bin/java"
+        };
+        let (tx, _rx) = std::sync::mpsc::channel();
+        let state = crate::AppState {
+            instances: std::sync::Mutex::new(vec![inst.clone()]),
+            accounts: std::sync::Mutex::new(vec![account]),
+            data_dir: data_dir.to_path_buf(),
+            logs: std::sync::Arc::new(std::sync::Mutex::new(Vec::new())),
+            discord: crate::discord::DiscordHandle { tx },
+            console_on: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
+        };
+        let settings = crate::types::Settings::default();
+        let t_launch1 = std::time::Instant::now();
+        let (_launch_id, pid) = launch(&state, data_dir, &inst, java_bin, &settings)
+            .expect("launch failed");
+
+        let log_path = inst_dir.join("logs").join("latest.log");
+        let start = std::time::Instant::now();
+        let mut content = String::new();
+        while start.elapsed() < Duration::from_secs(30) {
+            if let Ok(s) = fs::read_to_string(&log_path) {
+                content = s;
+                if content.contains("Kollegen Client Mod initialisiert")
+                    || content.contains("Stopping!")
+                {
+                    std::thread::sleep(Duration::from_secs(2));
+                    if let Ok(s2) = fs::read_to_string(&log_path) {
+                        content = s2;
+                    }
+                    break;
+                }
+            }
+            std::thread::sleep(Duration::from_millis(200));
+        }
+        let boot1_ms = t_launch1.elapsed().as_millis();
+
+        unsafe {
+            libc::kill(pid as i32, libc::SIGTERM);
+        }
+        for _ in 0..30 {
+            if inst_dir.join(".kollegen-aot.cache").is_file() {
+                break;
+            }
+            std::thread::sleep(Duration::from_millis(250));
+        }
+        std::thread::sleep(Duration::from_secs(1));
+
+        println!("=== RUN 1 (Cold + AOT Train, {} ms) ===\n{}", boot1_ms, content);
+        assert!(
+            content.contains("Kollegen Client Mod initialisiert"),
+            "Kollegen Mod failed to initialize on run 1! Log:\n{}",
+            content
+        );
+        assert!(!content.contains("MixinApplyError"));
+        assert!(!content.contains("Error parsing option value"));
+        assert!(!content.contains("Reference map 'kollegen-client-mod.refmap.json' could not be read"));
+
+        let aot_cache = inst_dir.join(".kollegen-aot.cache");
+        let aot_exists = aot_cache.is_file();
+        let aot_size = fs::metadata(&aot_cache).map(|m| m.len()).unwrap_or(0);
+        println!("=== AOT CACHE STATUS: exists={} size={} bytes ===", aot_exists, aot_size);
+
+        let _ = fs::remove_file(&log_path);
+        let t_launch2 = std::time::Instant::now();
+        let (_launch_id2, pid2) = launch(&state, data_dir, &inst, java_bin, &settings)
+            .expect("launch 2 failed");
+        let start2 = std::time::Instant::now();
+        let mut content2 = String::new();
+        while start2.elapsed() < Duration::from_secs(30) {
+            if let Ok(s) = fs::read_to_string(&log_path) {
+                content2 = s;
+                if content2.contains("Kollegen Client Mod initialisiert")
+                    || content2.contains("Stopping!")
+                {
+                    std::thread::sleep(Duration::from_secs(2));
+                    if let Ok(s2) = fs::read_to_string(&log_path) {
+                        content2 = s2;
+                    }
+                    break;
+                }
+            }
+            std::thread::sleep(Duration::from_millis(200));
+        }
+        let boot2_ms = t_launch2.elapsed().as_millis();
+        unsafe {
+            libc::kill(pid2 as i32, libc::SIGTERM);
+        }
+        std::thread::sleep(Duration::from_secs(1));
+
+        println!("=== RUN 2 (Warm / AOT={}/{} bytes, {} ms) ===\n{}", aot_exists, aot_size, boot2_ms, content2);
+        assert!(
+            content2.contains("Kollegen Client Mod initialisiert"),
+            "Kollegen Mod failed to initialize on run 2! Log:\n{}",
+            content2
+        );
     }
 }
 

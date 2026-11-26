@@ -1,0 +1,11 @@
+[workspace]
+
+[package]
+name = "hmod-packer"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+wit-component = "0.239"
+wit-parser = "0.239"
+zip = { version = "2", default-features = false, features = ["deflate"] }

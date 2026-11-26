@@ -1,6 +1,8 @@
 package dev.kollegen.client.mixin;
 
 import dev.kollegen.client.menu.AccountSwitcherScreen;
+import dev.kollegen.client.scenery.SceneryButton;
+import dev.kollegen.client.scenery.ScenerySelectionScreen;
 import dev.kollegen.client.ui.AccountButton;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.TitleScreen;
@@ -20,9 +22,15 @@ public abstract class TitleScreenMixin extends Screen {
     @Inject(method = "init", at = @At("RETURN"))
     private void kollegen$addAccountButton(CallbackInfo ci) {
         dev.kollegen.client.KollegenMod.cleanModMenu();
-        this.addRenderableWidget(new AccountButton(this.width, 10, btn -> {
+        AccountButton accountBtn = new AccountButton(this.width, 10, btn -> {
             if (this.minecraft != null) {
                 this.minecraft.setScreenAndShow(new AccountSwitcherScreen(this));
+            }
+        });
+        this.addRenderableWidget(accountBtn);
+        this.addRenderableWidget(new SceneryButton(accountBtn, 10, btn -> {
+            if (this.minecraft != null) {
+                this.minecraft.setScreenAndShow(new ScenerySelectionScreen(this));
             }
         }));
     }

@@ -1,0 +1,8 @@
+id = "kollegen_companion"
+name = "Kollegen Client"
+version = "1.27.4"
+description = "Kollegen Companion Mod für Horizon (Rechts-Shift = Menü)."
+authors = ["Kollegen Client"]
+api = "0.1"
+side = "client"
+capabilities = ["game-read", "chat", "hud", "storage", "input", "ui", "render"]

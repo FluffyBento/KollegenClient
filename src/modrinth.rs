@@ -85,11 +85,12 @@ pub fn search(
         "mod" => "mod",
         "resourcepack" => "resourcepack",
         "shader" => "shader",
+        "modpack" => "modpack",
         _ => return Err(anyhow!("Unbekannter Inhaltstyp: {}", kind)),
     };
 
     let mut facets: Vec<Vec<String>> = vec![vec![format!("project_type:{}", project_type)]];
-    if !mc_version.is_empty() {
+    if !mc_version.is_empty() && kind != "modpack" {
         let mut ver_facets = vec![format!("versions:{}", mc_version)];
         if mc_version == "26.3" || mc_version.starts_with("26.3") {
             for extra in [
@@ -251,7 +252,7 @@ pub fn list_versions(project_id: &str, mc_version: &str, loader: &str) -> Result
             .and_then(|g| g.as_array())
             .map(|a| a.iter().filter_map(|x| x.as_str().map(|s| s.to_string())).collect::<Vec<_>>())
             .unwrap_or_default();
-        let game_ok = game_versions.iter().any(|g| is_game_version_match(g, mc_version));
+        let game_ok = mc_version.is_empty() || game_versions.iter().any(|g| is_game_version_match(g, mc_version));
         let loaders = v
             .get("loaders")
             .and_then(|l| l.as_array())
@@ -259,7 +260,7 @@ pub fn list_versions(project_id: &str, mc_version: &str, loader: &str) -> Result
             .unwrap_or_default();
         
         
-        let loader_ok = loaders.is_empty() || loaders.iter().any(|l| l.eq_ignore_ascii_case(loader));
+        let loader_ok = loader.is_empty() || loaders.is_empty() || loaders.iter().any(|l| l.eq_ignore_ascii_case(loader));
         if !(game_ok && loader_ok) {
             continue;
         }
@@ -338,11 +339,27 @@ fn install_project_recursive(
         crate::utils::download_file(&file_url, &dest)?;
         info!("Installiert: {} ({})", filename, project_id);
     }
-    
-    
-    
-    
-    
+
+    if let Some(key) = meta_key(kind) {
+        let old_files: Vec<String> = load_meta(data_dir, instance_name)
+            .get(key)
+            .and_then(|v| v.as_object())
+            .map(|o| {
+                o.iter()
+                    .filter(|(k, v)| v.as_str() == Some(project_id) && k.as_str() != filename.as_str())
+                    .map(|(k, _)| k.clone())
+                    .collect()
+            })
+            .unwrap_or_default();
+        for old_fname in old_files {
+            let old_path = target_dir.join(&old_fname);
+            if old_path.is_file() {
+                let _ = fs::remove_file(&old_path);
+            }
+            let _ = remove_install_record(data_dir, instance_name, kind, &old_fname);
+        }
+    }
+
     let _ = record_install(data_dir, instance_name, kind, &filename, project_id);
 
     
@@ -513,7 +530,48 @@ pub fn list_content(data_dir: &Path, instance_name: &str) -> Value {
         });
         result[key] = serde_json::to_value(items).unwrap();
     }
+    result["modpack"] = serde_json::Value::Array(crate::orbital::list_installed_horizon_mods(data_dir, instance_name));
     result
+}
+
+pub fn install_modpack(
+    data_dir: &Path,
+    project_id: &str,
+    version_id: Option<&str>,
+    custom_name: Option<&str>,
+    target_instance: Option<&str>,
+) -> Result<crate::types::Instance> {
+    let url = format!("{}/project/{}/version", MODRINTH_API, project_id);
+    let resp = client()?.get(&url).send()?;
+    if !resp.status().is_success() {
+        return Err(anyhow!(
+            "Modrinth Versionen konnten nicht geladen werden: {}",
+            resp.status()
+        ));
+    }
+    let versions: Vec<Value> = resp.json()?;
+    let chosen = if let Some(vid) = version_id {
+        versions
+            .iter()
+            .find(|v| v.get("id").and_then(|x| x.as_str()) == Some(vid))
+            .ok_or_else(|| anyhow!("Version {} wurde nicht gefunden", vid))?
+    } else {
+        versions
+            .first()
+            .ok_or_else(|| anyhow!("Keine Version für dieses Modpack gefunden"))?
+    };
+    let (file_url, filename) = primary_file(chosen)
+        .ok_or_else(|| anyhow!("Keine Modpack-Datei in dieser Version gefunden"))?;
+    let tmp_path = std::env::temp_dir().join(format!(
+        "kollegen-pack-{}-{}",
+        uuid::Uuid::new_v4(),
+        crate::utils::sanitize_name(&filename)
+    ));
+    crate::utils::download_file(&file_url, &tmp_path)?;
+    let tmp_str = tmp_path.to_string_lossy().into_owned();
+    let res = crate::instance::import_pack_target(data_dir, &tmp_str, custom_name, target_instance);
+    let _ = fs::remove_file(&tmp_path);
+    res
 }
 
 
@@ -559,8 +617,23 @@ pub fn delete_content(
             filename
         ));
     }
-    let dir_name = category_dir(kind)?;
     let inst_dir = crate::utils::instance_dir(data_dir, instance_name);
+    if kind == "modpack" {
+        let horizon_mod = inst_dir.join("game").join("horizon-mods").join(filename);
+        if horizon_mod.is_dir() {
+            fs::remove_dir_all(&horizon_mod)?;
+        }
+        let mods_txt = inst_dir.join("game").join("horizon-mods.txt");
+        if mods_txt.is_file() {
+            if let Ok(text) = fs::read_to_string(&mods_txt) {
+                let prefix = format!("mod.{}:", filename);
+                let filtered: Vec<&str> = text.lines().filter(|l| !l.starts_with(&prefix)).collect();
+                let _ = fs::write(&mods_txt, filtered.join("\n") + "\n");
+            }
+        }
+        return Ok(());
+    }
+    let dir_name = category_dir(kind)?;
     let path = inst_dir.join(dir_name).join(filename);
     if path.exists() {
         fs::remove_file(&path)?;
@@ -790,8 +863,8 @@ pub fn copy_content_to_instance(
     items: Vec<String>,
 ) -> Result<usize> {
     let dir_name = category_dir(kind)?;
-    let src_dir = data_dir.join("instances").join(source_instance).join(dir_name);
-    let target_dir = data_dir.join("instances").join(target_instance).join(dir_name);
+    let src_dir = crate::utils::instance_dir(data_dir, source_instance).join(dir_name);
+    let target_dir = crate::utils::instance_dir(data_dir, target_instance).join(dir_name);
     if !src_dir.is_dir() {
         return Err(anyhow!("Quellverzeichnis existiert nicht"));
     }

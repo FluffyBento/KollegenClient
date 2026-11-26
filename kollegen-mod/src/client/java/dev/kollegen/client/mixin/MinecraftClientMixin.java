@@ -36,7 +36,19 @@ public abstract class MinecraftClientMixin {
     @Inject(method = "renderFrame", at = @At("HEAD"))
     private void kollegen_client$renderFrameStart(boolean renderLevel, CallbackInfo ci) {
         dev.kollegen.client.scenery.F2HoldHandler.onRenderTick();
+        dev.kollegen.client.scenery.SceneryManager.onRenderFrameStart();
         dev.kollegen.client.perf.KollegenStutterDetective.onFrameStart();
+    }
+
+    @Inject(
+            method = "renderFrame",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lcom/mojang/renderpearl/api/commands/CommandEncoder;submit()V"
+            )
+    )
+    private void kollegen_client$sceneryCaptureBeforeSubmit(boolean renderLevel, CallbackInfo ci) {
+        dev.kollegen.client.scenery.SceneryManager.onRenderFrameEnd(renderLevel);
     }
 
     @Inject(method = "renderFrame", at = @At("TAIL"))

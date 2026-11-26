@@ -1,10 +1,15 @@
 package dev.kollegen.client.mods.modules;
 
+import dev.kollegen.client.KollegenMod;
 import dev.kollegen.client.mods.BooleanSetting;
 import dev.kollegen.client.mods.Category;
 import dev.kollegen.client.mods.Module;
 import dev.kollegen.client.mods.SliderSetting;
 import dev.kollegen.client.mods.StringSetting;
+import net.fabricmc.fabric.api.resource.v1.ResourceLoader;
+import net.fabricmc.fabric.api.resource.v1.pack.PackActivationType;
+import net.fabricmc.loader.api.FabricLoader;
+import net.fabricmc.loader.api.ModContainer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
@@ -13,6 +18,9 @@ import net.minecraft.client.renderer.debug.DebugRenderer;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.gizmos.GizmoStyle;
 import net.minecraft.gizmos.Gizmos;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.Identifier;
+import net.minecraft.server.packs.repository.PackRepository;
 import net.minecraft.util.debug.DebugValueAccess;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.item.ItemEntity;
@@ -24,14 +32,17 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 
-import java.io.InputStream;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 
 public class UhcOverlay extends Module implements DebugRenderer.SimpleDebugRenderer {
     public static UhcOverlay INSTANCE;
+    private static final String BUILTIN_PACK_ID = "kollegen-client:uhc_overlay";
+    private static final String LEGACY_PACK_ID = "file/Kollegen-UHC-Overlay.zip";
+    private static boolean builtinRegistered = false;
 
     public final BooleanSetting scaleItems = new BooleanSetting(
             "Wichtige Items vergrößern",
@@ -96,16 +107,22 @@ public class UhcOverlay extends Module implements DebugRenderer.SimpleDebugRende
         setPackEnabled(false);
     }
 
-    @Override
-    public void onTick() {
-        if (this.colorOres.value && isOverlayEnabled()) {
-            Minecraft mc = Minecraft.getInstance();
-            if (mc != null && mc.options != null && mc.gui != null && mc.gui.overlay() == null) {
-                net.minecraft.server.packs.repository.PackRepository repo = mc.getResourcePackRepository();
-                if (repo != null && !repo.getSelectedIds().contains("file/Kollegen-UHC-Overlay.zip")) {
-                    setPackEnabled(true);
-                }
+    public static void registerBuiltinPack() {
+        if (builtinRegistered) return;
+        builtinRegistered = true;
+        try {
+            Optional<ModContainer> container = FabricLoader.getInstance().getModContainer(KollegenMod.MOD_ID);
+            if (container.isPresent()) {
+                boolean activeByDefault = isOverlayEnabled() && INSTANCE != null && INSTANCE.colorOres.value;
+                PackActivationType activation = activeByDefault ? PackActivationType.DEFAULT_ENABLED : PackActivationType.NORMAL;
+                ResourceLoader.registerBuiltinPack(
+                        Identifier.fromNamespaceAndPath(KollegenMod.MOD_ID, "uhc_overlay"),
+                        container.get(),
+                        Component.literal("Kollegen UHC Overlay - Farbige Erze"),
+                        activation
+                );
             }
+        } catch (Throwable ignored) {
         }
     }
 
@@ -162,40 +179,30 @@ public class UhcOverlay extends Module implements DebugRenderer.SimpleDebugRende
         return 0xFF00FFCC;
     }
 
-    public static void ensurePackExists() {
-        try {
-            Minecraft mc = Minecraft.getInstance();
-            Path rpDir = mc.getResourcePackDirectory();
-            if (rpDir == null) return;
-            Files.createDirectories(rpDir);
-            Path target = rpDir.resolve("Kollegen-UHC-Overlay.zip");
-            try (InputStream in = UhcOverlay.class.getResourceAsStream("/Kollegen-UHC-Overlay.zip")) {
-                if (in != null) {
-                    Files.copy(in, target, StandardCopyOption.REPLACE_EXISTING);
-                }
-            }
-        } catch (Throwable ignored) {
-        }
-    }
-
     public static void setPackEnabled(boolean enable) {
         try {
-            ensurePackExists();
             Minecraft mc = Minecraft.getInstance();
             if (mc == null || mc.options == null || (mc.gui != null && mc.gui.overlay() != null)) return;
-            net.minecraft.server.packs.repository.PackRepository repo = mc.getResourcePackRepository();
+            PackRepository repo = mc.getResourcePackRepository();
             if (repo == null) return;
-            repo.reload();
-            String packId = "file/Kollegen-UHC-Overlay.zip";
-            java.util.List<String> selected = new java.util.ArrayList<>(repo.getSelectedIds());
+            Collection<String> currentSelected = repo.getSelectedIds();
+            boolean hasBuiltin = currentSelected.contains(BUILTIN_PACK_ID);
+            boolean hasLegacy = currentSelected.contains(LEGACY_PACK_ID);
+            if (enable && (hasBuiltin || hasLegacy)) return;
+            if (!enable && !hasBuiltin && !hasLegacy) return;
+            List<String> selected = new ArrayList<>(currentSelected);
             boolean changed = false;
             if (enable) {
-                if (!selected.contains(packId)) {
-                    selected.add(packId);
+                if (!repo.isAvailable(BUILTIN_PACK_ID)) return;
+                if (!selected.contains(BUILTIN_PACK_ID)) {
+                    selected.add(BUILTIN_PACK_ID);
                     changed = true;
                 }
             } else {
-                if (selected.remove(packId)) {
+                if (selected.remove(BUILTIN_PACK_ID)) {
+                    changed = true;
+                }
+                if (selected.remove(LEGACY_PACK_ID)) {
                     changed = true;
                 }
             }

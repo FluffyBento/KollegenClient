@@ -1531,7 +1531,7 @@ public class KollegenVideoSettingsScreen extends Screen {
         Glass.text(g, this.font, "360° Panorama als rotierender Startscreen-Hintergrund (F2 im Spiel halten).", cardX + 20, curY + 25, Palette.MUTED, false);
 
         int rSceneryY1 = curY + 40;
-        renderSettingRow(g, col1X, rSceneryY1, colW, 24, "Hintergrund", GuiCustomizationSettings.getSceneryDisplayName(), 0xFF10B981, mx, my, false);
+        renderSettingRow(g, col1X, rSceneryY1, colW, 24, "Hintergrund", GuiCustomizationSettings.getSceneryDisplayName() + " ▸", 0xFF10B981, mx, my, false);
         renderSettingRow(g, col2X, rSceneryY1, colW, 24, "Szenerien-Ordner", "Ordner öffnen ↗", 0xFF38BDF8, mx, my, false);
 
         int rSceneryY2 = rSceneryY1 + rowH + 2;
@@ -1671,7 +1671,7 @@ public class KollegenVideoSettingsScreen extends Screen {
 
         int rSceneryY1 = curY + 40;
         if (mx >= col1X && mx <= col1X + colW && my >= rSceneryY1 && my <= rSceneryY1 + 24) {
-            GuiCustomizationSettings.cycleScenery();
+            Minecraft.getInstance().setScreenAndShow(new dev.kollegen.client.scenery.ScenerySelectionScreen(this));
             return;
         }
         if (mx >= col2X && mx <= col2X + colW && my >= rSceneryY1 && my <= rSceneryY1 + 24) {
@@ -1685,9 +1685,13 @@ public class KollegenVideoSettingsScreen extends Screen {
         int rSceneryY2 = rSceneryY1 + rowH + 2;
         if (mx >= col1X && mx <= col1X + colW && my >= rSceneryY2 && my <= rSceneryY2 + 24) {
             if (Minecraft.getInstance().player != null) {
-                this.onClose();
+                Minecraft.getInstance().setScreenAndShow(null);
                 dev.kollegen.client.scenery.SceneryManager.captureCurrentScenery();
             }
+            return;
+        }
+        if (mx >= col2X && mx <= col2X + colW && my >= rSceneryY2 && my <= rSceneryY2 + 24) {
+            Minecraft.getInstance().setScreenAndShow(new dev.kollegen.client.scenery.F2ActionScreen());
             return;
         }
 

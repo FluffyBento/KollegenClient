@@ -269,6 +269,10 @@ fn instance_servers_file(data_dir: &Path, name: &str) -> PathBuf {
     crate::utils::instance_dir(data_dir, name).join("servers.dat")
 }
 
+fn instance_horizon_servers_file(data_dir: &Path, name: &str) -> PathBuf {
+    crate::utils::instance_dir(data_dir, name).join("game").join("servers.dat")
+}
+
 fn load_instances(data_dir: &Path) -> Vec<Instance> {
     crate::utils::load_json(&crate::utils::instances_file(data_dir), vec![])
 }
@@ -308,6 +312,12 @@ pub fn merged_servers(data_dir: &Path) -> Vec<SavedServer> {
     instances.sort_by(|a, b| a.name.cmp(&b.name));
     for inst in instances {
         push_all(read_servers_file(&instance_servers_file(data_dir, &inst.name)), &mut merged);
+        if inst.loader.eq_ignore_ascii_case("horizon") {
+            push_all(
+                read_servers_file(&instance_horizon_servers_file(data_dir, &inst.name)),
+                &mut merged,
+            );
+        }
     }
     merged
 }
@@ -325,8 +335,27 @@ pub fn sync_all_servers(data_dir: &Path) -> Result<usize, String> {
             let _ = std::fs::create_dir_all(parent);
         }
         let _ = std::fs::write(&path, &bytes);
+        if inst.loader.eq_ignore_ascii_case("horizon") {
+            let h_path = instance_horizon_servers_file(data_dir, &inst.name);
+            if let Some(parent) = h_path.parent() {
+                let _ = std::fs::create_dir_all(parent);
+            }
+            let _ = std::fs::write(&h_path, &bytes);
+        }
     }
     Ok(merged.len())
+}
+
+pub fn sync_instance_horizon_servers(data_dir: &Path, instance_name: &str) -> Result<usize, String> {
+    let count = sync_all_servers(data_dir)?;
+    let merged = merged_servers(data_dir);
+    let bytes = write_servers_dat(&merged);
+    let h_path = instance_horizon_servers_file(data_dir, instance_name);
+    if let Some(parent) = h_path.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+    std::fs::write(&h_path, &bytes).map_err(|e| format!("horizon servers.dat: {}", e))?;
+    Ok(count)
 }
 
 fn options_file(data_dir: &Path, instance: &str) -> PathBuf {

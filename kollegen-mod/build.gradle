@@ -270,6 +270,10 @@ if (is262) {
     def portDir = file("${buildDir}/port262-src")
     tasks.register('cleanVendoredBins262') {
         doLast {
+            def owoBin = file('src/main/resources/dev/kollegen/client/owo.bin')
+            if (owoBin.exists()) {
+                owoBin.delete()
+            }
         }
     }
     tasks.register('portSources262') {
@@ -585,6 +589,20 @@ if (is121) {
 
 
 
+if (is262) {
+    tasks.named('processResources') {
+        doLast {
+            def f = file("${buildDir}/resources/main/kollegen.mixins.json")
+            if (f.exists()) {
+                def slurper = new groovy.json.JsonSlurper()
+                def mix = slurper.parseText(f.getText('UTF-8'))
+                mix.remove('refmap')
+                f.write(groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(mix)) + '\n', 'UTF-8')
+            }
+        }
+    }
+}
+
 def vulkanRes = file("src/main/resources/dev/kollegen/client/vulkanmod.bin")
 def vulkanUrl = "https://cdn.modrinth.com/data/JYQhtZtO/versions/hWKRTXbQ/VulkanMod-0.6.8%2B1.21.11.jar"
 tasks.register('vendorVulkanMod') {
@@ -748,9 +766,15 @@ tasks.register('vendorVulkanMod') {
         ant.copy(file: patchedJar, tofile: vulkanRes)
     }
 }
-processResources.dependsOn vendorVulkanMod,
-        flkTask, fabricApiTask, owoTask, modMenuTask,
-        clothConfigTask, chatHeadsTask, distanceTask
+if (is262) {
+    processResources.dependsOn vendorVulkanMod,
+            flkTask, fabricApiTask, modMenuTask,
+            clothConfigTask, chatHeadsTask, distanceTask
+} else {
+    processResources.dependsOn vendorVulkanMod,
+            flkTask, fabricApiTask, owoTask, modMenuTask,
+            clothConfigTask, chatHeadsTask, distanceTask
+}
 
 def javaRelease = project.minecraft_version.startsWith('1.21') ? 21 : 25
 

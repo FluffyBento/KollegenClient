@@ -14,6 +14,10 @@ public class CubeMapTextureMixin {
 
     @Inject(method = "loadContents", at = @At("HEAD"), cancellable = true)
     private void kollegen$loadCustomScenery(ResourceManager resourceManager, CallbackInfoReturnable<TextureContents> cir) {
+        CubeMapTexture self = (CubeMapTexture) (Object) this;
+        if (self.resourceId() == null || !self.resourceId().getPath().endsWith("panorama")) {
+            return;
+        }
         if (SceneryManager.hasActiveCustomScenery()) {
             TextureContents custom = SceneryManager.loadActiveSceneryTextureContents();
             if (custom != null) {

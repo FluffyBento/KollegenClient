@@ -33,6 +33,7 @@ public final class KollegenStutterDetective {
         if (!STARTED.compareAndSet(false, true)) return;
 
         Thread prewarmThread = new Thread(() -> {
+            dev.kollegen.client.nativebridge.KollegenNative.idleBackgroundThreadOnce();
             String[] classes = {
                 "net.fabricmc.fabric.api.client.rendering.v1.ArmorRenderer",
                 "net.minecraft.client.renderer.SkyRenderer",
@@ -191,7 +192,7 @@ public final class KollegenStutterDetective {
             }
         }
 
-        if (now - windowStartMillis >= 10_000 && totalFrames >= 100) {
+        if (totalFrames >= 200 && (now - windowStartMillis) >= 10_000) {
             emitTelemetry(now);
         }
     }
@@ -202,7 +203,19 @@ public final class KollegenStutterDetective {
         double avgFrametimeMs = (double) totalNanoAccum / (totalFrames * 1_000_000.0);
         int avgFps = avgFrametimeMs > 0.0 ? (int) Math.round(1000.0 / avgFrametimeMs) : 0;
 
-        LOGGER.info("[KOLLEGEN_PERF_TELEMETRY] avg_fps={} samples={}", avgFps, totalFrames);
+        int n = (int) Math.min(totalFrames, SAMPLES_SIZE);
+        long[] copy = new long[n];
+        for (int i = 0; i < n; i++) {
+            int idx = (sampleCursor - 1 - i) & SAMPLES_MASK;
+            copy[i] = FRAME_SAMPLES[idx];
+        }
+        java.util.Arrays.sort(copy);
+        long p1Nano = copy[Math.max(0, n - 1 - Math.max(0, n / 100))];
+        long p01Nano = copy[Math.max(0, n - 1 - Math.max(0, n / 1000))];
+        int p1Low = p1Nano > 0 ? (int) Math.round(1_000_000_000.0 / p1Nano) : avgFps;
+        int p01Low = p01Nano > 0 ? (int) Math.round(1_000_000_000.0 / p01Nano) : p1Low;
+
+        LOGGER.info("[KOLLEGEN_PERF_TELEMETRY] avg_fps={} p1_low={} p01_low={} samples={}", avgFps, p1Low, p01Low, totalFrames);
 
         windowStartMillis = now;
         totalFrames = 0;

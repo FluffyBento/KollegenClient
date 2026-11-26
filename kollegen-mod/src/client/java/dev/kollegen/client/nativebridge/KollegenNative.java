@@ -2,15 +2,27 @@ package dev.kollegen.client.nativebridge;
 
 import java.io.File;
 import java.io.InputStream;
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 
 public final class KollegenNative {
 
     private static volatile boolean available = false;
+    private static volatile boolean ffmAvailable = false;
     private static volatile boolean initialized = false;
     private static String version = "none";
     private static String features = "none";
+
+    private static final ThreadLocal<Boolean> BACKGROUND_IDLED = ThreadLocal.withInitial(() -> Boolean.FALSE);
+
+    private static MethodHandle ffmFavourThread;
+    private static MethodHandle ffmIdleThread;
+    private static MethodHandle ffmRssBytes;
+    private static MethodHandle ffmBatchCull;
+    private static MethodHandle ffmLodCullAndSort;
 
     private KollegenNative() {}
 
@@ -79,6 +91,7 @@ public final class KollegenNative {
                     available = true;
                     version = nativeGetVersion();
                     features = nativeGetFeatures();
+                    initFfm();
                 }
             }
         } catch (Throwable ignored) {
@@ -86,23 +99,90 @@ public final class KollegenNative {
         }
     }
 
-    public static boolean isAvailable() {
-        if (!initialized) {
-            init();
+    private static void initFfm() {
+        try {
+            if (Runtime.version().feature() < 22) return;
+            Class<?> linkerCls = Class.forName("java.lang.foreign.Linker");
+            Class<?> lookupCls = Class.forName("java.lang.foreign.SymbolLookup");
+            Class<?> descCls = Class.forName("java.lang.foreign.FunctionDescriptor");
+            Class<?> memLayoutCls = Class.forName("java.lang.foreign.MemoryLayout");
+            Class<?> valLayoutCls = Class.forName("java.lang.foreign.ValueLayout");
+            Class<?> optCls = Class.forName("java.lang.foreign.Linker$Option");
+            Class<?> memSegCls = Class.forName("java.lang.foreign.MemorySegment");
+
+            Object linker = linkerCls.getMethod("nativeLinker").invoke(null);
+            Object lookup = lookupCls.getMethod("loaderLookup").invoke(null);
+            Object criticalOpt = optCls.getMethod("critical", boolean.class).invoke(null, Boolean.TRUE);
+            Object optArr = java.lang.reflect.Array.newInstance(optCls, 1);
+            java.lang.reflect.Array.set(optArr, 0, criticalOpt);
+
+            Object jInt = valLayoutCls.getField("JAVA_INT").get(null);
+            Object jLong = valLayoutCls.getField("JAVA_LONG").get(null);
+            Object addr = valLayoutCls.getField("ADDRESS").get(null);
+
+            java.lang.reflect.Method findMethod = lookupCls.getMethod("find", String.class);
+            java.lang.reflect.Method descOf = descCls.getMethod("of", memLayoutCls, java.lang.reflect.Array.newInstance(memLayoutCls, 0).getClass());
+            java.lang.reflect.Method downcall = linkerCls.getMethod("downcallHandle", memSegCls, descCls, optArr.getClass());
+
+            ffmFavourThread = bindFfm(lookup, findMethod, descOf, downcall, linker, optArr, "kollegen_favour_thread", jInt);
+            ffmIdleThread = bindFfm(lookup, findMethod, descOf, downcall, linker, optArr, "kollegen_idle_thread", jInt);
+            ffmRssBytes = bindFfm(lookup, findMethod, descOf, downcall, linker, optArr, "kollegen_rss_bytes", jLong);
+            ffmBatchCull = bindFfm(lookup, findMethod, descOf, downcall, linker, optArr, "kollegen_batch_cull_f64", jInt, addr, jInt, addr, addr);
+            ffmLodCullAndSort = bindFfm(lookup, findMethod, descOf, downcall, linker, optArr, "kollegen_lod_cull_and_sort", jInt, addr, jInt, jInt, jInt, jLong, jLong, addr, addr);
+
+            if (ffmFavourThread != null && ffmIdleThread != null && ffmBatchCull != null) {
+                ffmAvailable = true;
+            }
+        } catch (Throwable ignored) {
+            ffmAvailable = false;
         }
-        return available;
     }
 
-    public static String getVersion() {
-        return version;
+    private static MethodHandle bindFfm(
+            Object lookup,
+            java.lang.reflect.Method findMethod,
+            java.lang.reflect.Method descOf,
+            java.lang.reflect.Method downcall,
+            Object linker,
+            Object optArr,
+            String symbol,
+            Object retLayout,
+            Object... argLayouts
+    ) {
+        try {
+            @SuppressWarnings("unchecked")
+            java.util.Optional<Object> sym = (java.util.Optional<Object>) findMethod.invoke(lookup, symbol);
+            if (sym.isEmpty()) return null;
+            Class<?> memLayoutCls = Class.forName("java.lang.foreign.MemoryLayout");
+            Object argsArr = java.lang.reflect.Array.newInstance(memLayoutCls, argLayouts.length);
+            for (int i = 0; i < argLayouts.length; i++) {
+                java.lang.reflect.Array.set(argsArr, i, argLayouts[i]);
+            }
+            Object desc = descOf.invoke(null, retLayout, argsArr);
+            return (MethodHandle) downcall.invoke(linker, sym.get(), desc, optArr);
+        } catch (Throwable ignored) {
+            return null;
+        }
     }
 
-    public static String getFeatures() {
-        return features;
+    public static boolean isFfmAvailable() {
+        return available && ffmAvailable;
+    }
+
+    public static void idleBackgroundThreadOnce() {
+        if (!BACKGROUND_IDLED.get()) {
+            BACKGROUND_IDLED.set(Boolean.TRUE);
+            idleBackgroundThread();
+        }
     }
 
     public static boolean favourRenderThread() {
         if (isAvailable()) {
+            if (ffmAvailable && ffmFavourThread != null) {
+                try {
+                    return ((int) ffmFavourThread.invokeExact()) != 0;
+                } catch (Throwable ignored) {}
+            }
             try {
                 return nativeFavourCurrentThread();
             } catch (Throwable ignored) {}
@@ -117,6 +197,11 @@ public final class KollegenNative {
 
     public static boolean idleBackgroundThread() {
         if (isAvailable()) {
+            if (ffmAvailable && ffmIdleThread != null) {
+                try {
+                    return ((int) ffmIdleThread.invokeExact()) != 0;
+                } catch (Throwable ignored) {}
+            }
             try {
                 return nativeIdleCurrentThread();
             } catch (Throwable ignored) {}
@@ -199,6 +284,12 @@ public final class KollegenNative {
 
     public static long getRssBytes() {
         if (isAvailable()) {
+            if (ffmAvailable && ffmRssBytes != null) {
+                try {
+                    long bytes = (long) ffmRssBytes.invokeExact();
+                    if (bytes > 0) return bytes;
+                } catch (Throwable ignored) {}
+            }
             try {
                 long bytes = nativeGetMemoryRssBytes();
                 if (bytes > 0) return bytes;
@@ -206,6 +297,21 @@ public final class KollegenNative {
         }
         Runtime rt = Runtime.getRuntime();
         return rt.totalMemory() - rt.freeMemory();
+    }
+
+    public static boolean isAvailable() {
+        if (!initialized) {
+            init();
+        }
+        return available;
+    }
+
+    public static String getVersion() {
+        return version;
+    }
+
+    public static String getFeatures() {
+        return features;
     }
 
     private static int fallbackBoxInFrustum(double minX, double minY, double minZ, double maxX, double maxY, double maxZ, float[] planes) {

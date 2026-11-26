@@ -22,6 +22,7 @@ mod servers;
 mod types;
 mod utils;
 mod clipping;
+mod orbital;
 
 use anyhow::Result;
 use base64::Engine;
@@ -151,6 +152,13 @@ fn get_instances(state: State<'_, AppState>) -> Result<Vec<types::Instance>, Str
     let path = utils::instances_file(&state.data_dir);
     let mut instances = utils::load_json::<Vec<types::Instance>>(&path, vec![]);
     for inst in &mut instances {
+        if inst.loader.eq_ignore_ascii_case("horizon") {
+            inst.mods = crate::orbital::list_installed_horizon_mods(&state.data_dir, &inst.name)
+                .into_iter()
+                .filter_map(|v| v.get("name").and_then(|n| n.as_str()).map(String::from))
+                .collect();
+            continue;
+        }
         let mods_dir = utils::instance_dir(&state.data_dir, &inst.name).join("mods");
         if let Ok(entries) = std::fs::read_dir(&mods_dir) {
             let mut jars = Vec::new();
@@ -1000,7 +1008,10 @@ fn auto_resolve_conflict(
                 continue;
             }
         };
-        let fname = jar.file_name().unwrap().to_string_lossy().to_string();
+        let fname = jar
+            .file_name()
+            .map(|n| n.to_string_lossy().to_string())
+            .unwrap_or_default();
         if crate::companion::is_companion_mod_name(&fname) {
             let expected_companion = crate::companion::companion_filename_for_version(&mc_version);
             if fname != expected_companion {
@@ -1398,6 +1409,11 @@ fn install_instance(
     
     
     companion::install_companion_mod(&state.data_dir, &name, &version, &loader);
+    if loader.to_ascii_lowercase().contains("fabric") || loader.to_ascii_lowercase().contains("quilt") {
+        let mods_dir = utils::instance_dir(&state.data_dir, &name).join("mods");
+        let comp = companion::companion_jar(&state.data_dir, &version);
+        instance::enforce_bundled_mods(&mods_dir, &version, comp.as_deref());
+    }
     Ok(())
 }
 
@@ -1446,6 +1462,21 @@ fn launch_game(
         inst.server = Some(if s.contains(':') { s.clone() } else { format!("{}:25565", s) });
     } else {
         inst.server = None;
+    }
+
+    if inst.loader.eq_ignore_ascii_case("horizon") {
+        let settings = utils::load_json::<types::Settings>(
+            &utils::settings_file(&state.data_dir),
+            types::Settings::default(),
+        );
+        let launch_result = instance::launch(&state, &state.data_dir, &inst, "", &settings);
+        return match launch_result {
+            Ok((result, _pid)) => Ok(result),
+            Err(e) => {
+                utils::append_log(&state, &format!("Launch fehlgeschlagen: {}", e));
+                Err(e.to_string())
+            }
+        };
     }
 
     {
@@ -1647,6 +1678,67 @@ fn install_content(
 }
 
 #[tauri::command]
+async fn install_modpack(
+    state: State<'_, AppState>,
+    project_id: String,
+    version_id: Option<String>,
+    custom_name: Option<String>,
+    target_instance: Option<String>,
+) -> Result<types::Instance, String> {
+    let data_dir = state.data_dir.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        crate::modrinth::install_modpack(
+            &data_dir,
+            &project_id,
+            version_id.as_deref(),
+            custom_name.as_deref(),
+            target_instance.as_deref(),
+        )
+        .map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+async fn list_rust_mods() -> Result<Vec<crate::orbital::RustModCatalogEntry>, String> {
+    tauri::async_runtime::spawn_blocking(|| crate::orbital::list_rust_mods())
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn install_orbital_laser(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    instance_name: Option<String>,
+    target_instance: Option<String>,
+) -> Result<types::Instance, String> {
+    let data_dir = state.data_dir.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        crate::orbital::install_orbital_laser(Some(&app), &data_dir, instance_name, target_instance)
+            .map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+async fn install_horizon_instance(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    instance_name: Option<String>,
+) -> Result<types::Instance, String> {
+    let data_dir = state.data_dir.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        crate::orbital::install_horizon_only(Some(&app), &data_dir, instance_name)
+            .map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
 fn modrinth_versions(
     project_id: String,
     mc_version: String,
@@ -1767,8 +1859,17 @@ fn get_instance_modules(state: State<'_, AppState>, instance_name: String) -> Re
     let bundle_flags = crate::instance::read_bundle_flags(&mods_dir);
     let chatheads_enabled = bundle_flags.get("chatheads").and_then(|v| v.as_bool()).unwrap_or(true);
 
+    let vulkan_enabled = crate::utils::load_json::<Vec<types::Instance>>(
+        &crate::utils::instances_file(&state.data_dir),
+        vec![],
+    )
+    .into_iter()
+    .find(|i| i.name == instance_name)
+    .map(|i| i.vulkan_enabled)
+    .unwrap_or(true);
+
     let mut map = serde_json::Map::new();
-    map.insert("vulkan".to_string(), serde_json::Value::Bool(true));
+    map.insert("vulkan".to_string(), serde_json::Value::Bool(vulkan_enabled));
     map.insert("essential".to_string(), serde_json::Value::Bool(essential_enabled));
     map.insert("sodium".to_string(), serde_json::Value::Bool(false));
     map.insert("chatheads".to_string(), serde_json::Value::Bool(chatheads_enabled));
@@ -2432,9 +2533,32 @@ fn skin_mc_profile(state: State<'_, AppState>) -> Value {
 }
 #[tauri::command]
 fn cape_equip(state: State<'_, AppState>, cape_id: String) -> Value {
-    let res = crate::skins::equip_cape(&state.data_dir, &cape_id);
-    let capes_data = capes::load_capes(&state.data_dir);
-    capes::sync_active_cape_to_instances(&state.data_dir, &capes_data, Some(&cape_id));
+    let trimmed = cape_id.trim();
+    if trimmed.is_empty() {
+        let mut capes_data = capes::load_capes(&state.data_dir);
+        if capes_data
+            .active_cape
+            .as_deref()
+            .is_some_and(|a| a.starts_with("vanilla_"))
+        {
+            capes_data.active_cape = None;
+            capes::save_capes(&state.data_dir, &capes_data);
+            capes::sync_active_cape_to_instances(&state.data_dir, &capes_data, None);
+        }
+        return serde_json::json!({ "ok": true });
+    }
+    let res = crate::skins::equip_cape(&state.data_dir, trimmed);
+    if res.get("ok").and_then(|v| v.as_bool()).unwrap_or(false) {
+        let mut capes_data = capes::load_capes(&state.data_dir);
+        let active_key = if trimmed.starts_with("vanilla_") {
+            trimmed.to_string()
+        } else {
+            format!("vanilla_{}", trimmed)
+        };
+        capes_data.active_cape = Some(active_key.clone());
+        capes::save_capes(&state.data_dir, &capes_data);
+        capes::sync_active_cape_to_instances(&state.data_dir, &capes_data, Some(&active_key));
+    }
     res
 }
 
@@ -3270,6 +3394,10 @@ fn main() {
             download_jre_command,
             modrinth_search,
             install_content,
+            install_modpack,
+            list_rust_mods,
+            install_orbital_laser,
+            install_horizon_instance,
             modrinth_versions,
             optimize_instance,
             list_content,

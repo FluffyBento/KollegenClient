@@ -522,6 +522,7 @@
     const info = {
       vanilla: ["Vanilla", "Reines Minecraft ohne Mods."],
       fabric: ["Fabric", "Empfohlen: leicht, schnell und die Basis der Kollegen-Mod."],
+      horizon: ["Horizon (Rust · 26.3)", "Rust-Engine (~2s Start, inkl. Kollegen Companion & Rust Mods). Lädt keine Java-Fabric-Mods."],
       forge: ["Forge", "Für klassische Mod-Packs. Die Kollegen-Mod läuft hier nicht."],
       neoforge: ["NeoForge", "Moderner Forge-Nachfolger. Die Kollegen-Mod läuft hier nicht."],
     };

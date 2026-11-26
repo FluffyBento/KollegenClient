@@ -498,7 +498,7 @@ pub fn read_mod_asset(data_dir: &Path, file: &str) -> serde_json::Value {
     }
     let entry = format!("assets/{}", clean);
 
-    let jar = ["26.2", "1.21.11", ""]
+    let jar = ["26.3", "26.2", "1.21.11", ""]
         .iter()
         .filter_map(|v| crate::companion::companion_jar(data_dir, v))
         .find(|p| p.exists());

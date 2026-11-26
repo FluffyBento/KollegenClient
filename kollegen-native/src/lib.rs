@@ -29,7 +29,7 @@ pub extern "system" fn Java_dev_kollegen_client_nativebridge_KollegenNative_nati
     env: JNIEnv<'local>,
     _class: JClass<'local>,
 ) -> JString<'local> {
-    env.new_string("1.26.2").unwrap_or_else(|_| JString::default())
+    env.new_string("2.0.0").unwrap_or_else(|_| JString::default())
 }
 
 #[no_mangle]
@@ -153,9 +153,79 @@ pub extern "system" fn Java_dev_kollegen_client_nativebridge_KollegenNative_nati
     if env.get_double_array_region(&aabbs, 0, &mut box_buf).is_err() {
         return 0;
     }
-    let mut res_bools = vec![false; n];
-    let visible = cull::batch_cull_boxes(&box_buf, n, &p_buf, &mut res_bools);
-    let u8_res: Vec<u8> = res_bools.into_iter().map(|b| if b { 1 } else { 0 }).collect();
-    let _ = env.set_boolean_array_region(&results, 0, &u8_res);
+    let mut res_u8 = vec![0u8; n];
+    let visible = cull::batch_cull_u8(&box_buf, n, &p_buf, &mut res_u8);
+    let _ = env.set_boolean_array_region(&results, 0, &res_u8);
     visible
+}
+
+#[no_mangle]
+pub extern "C" fn kollegen_native_version() -> u32 {
+    200
+}
+
+#[no_mangle]
+pub extern "C" fn kollegen_favour_thread() -> i32 {
+    i32::from(threads::favour_current_thread())
+}
+
+#[no_mangle]
+pub extern "C" fn kollegen_idle_thread() -> i32 {
+    i32::from(threads::idle_current_thread())
+}
+
+#[no_mangle]
+pub extern "C" fn kollegen_rss_bytes() -> u64 {
+    system::resident_memory_bytes()
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn kollegen_batch_cull_f64(
+    aabbs_ptr: *const f64,
+    count: i32,
+    planes_ptr: *const f32,
+    out_ptr: *mut u8,
+) -> i32 {
+    if count <= 0 || aabbs_ptr.is_null() || planes_ptr.is_null() || out_ptr.is_null() {
+        return 0;
+    }
+    let n = count as usize;
+    let aabbs = std::slice::from_raw_parts(aabbs_ptr, n * 6);
+    let planes: &[f32; 24] = &*(planes_ptr as *const [f32; 24]);
+    let out = std::slice::from_raw_parts_mut(out_ptr, n);
+    cull::batch_cull_u8(aabbs, n, planes, out)
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn kollegen_lod_cull_and_sort(
+    chunks_ptr: *const i32,
+    count: i32,
+    px: i32,
+    pz: i32,
+    vanilla_dist_sq: i64,
+    max_dist_sq: i64,
+    planes_ptr: *const f32,
+    out_ptr: *mut u64,
+) -> i32 {
+    if count <= 0 || chunks_ptr.is_null() || out_ptr.is_null() {
+        return 0;
+    }
+    let n = count as usize;
+    let chunks = std::slice::from_raw_parts(chunks_ptr, n * 4);
+    let planes = if planes_ptr.is_null() {
+        None
+    } else {
+        Some(&*(planes_ptr as *const [f32; 24]))
+    };
+    let out = std::slice::from_raw_parts_mut(out_ptr, n);
+    cull::cull_and_sort_lod_chunks(
+        chunks,
+        n,
+        px,
+        pz,
+        vanilla_dist_sq,
+        max_dist_sq,
+        planes,
+        out,
+    ) as i32
 }

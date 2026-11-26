@@ -56,6 +56,9 @@ pub fn feature_string() -> String {
     let mut features = Vec::new();
     #[cfg(target_arch = "x86_64")]
     {
+        if is_x86_feature_detected!("avx512f") {
+            features.push("AVX512");
+        }
         if is_x86_feature_detected!("avx2") {
             features.push("AVX2");
         }
@@ -75,7 +78,8 @@ pub fn feature_string() -> String {
     }
     #[cfg(any(target_os = "linux", target_os = "android"))]
     {
-        features.push("POSIX-SCHED");
+        features.push("TID-SCHED");
+        features.push("FFM-SIMD");
     }
-    format!("Kollegen Native Rust Engine v1.26.2 [{}]", features.join("+"))
+    format!("Kollegen Native Rust Engine v2.0.0 [{}]", features.join("+"))
 }

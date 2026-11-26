@@ -62,7 +62,7 @@ public class F2ActionScreen extends Screen {
         renderCard(g, card1X, cardY, cardW, cardH, "Clippen", "Replay-Clip aufnehmen", "[Taste 1]", 0xFF38BDF8, this.card1HoverAnim, true);
         renderCard(g, card2X, cardY, cardW, cardH, "Szenerie", "360° Menü-Hintergrund", "[Taste 2]", 0xFF10B981, this.card2HoverAnim, false);
 
-        Glass.textC(g, this.font, "[1] Clippen  •  [2] Szenerie  •  [ESC] Schließen", px + pw / 2, py + ph - 18, 0x88FFFFFF, false);
+        Glass.textC(g, this.font, "[1] Clippen  •  [2] Szenerie  •  [3] Verwalten  •  [ESC]", px + pw / 2, py + ph - 18, 0x88FFFFFF, false);
 
         super.extractRenderState(g, mouseX, mouseY, partialTick);
     }
@@ -99,7 +99,7 @@ public class F2ActionScreen extends Screen {
 
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
-        if (event.button() == 0) {
+        if (event.button() == InputConstants.MOUSE_BUTTON_LEFT) {
             int pw = 390;
             int ph = 180;
             int px = (this.width - pw) / 2;
@@ -160,6 +160,12 @@ public class F2ActionScreen extends Screen {
         }
         if (key == InputConstants.KEY_2 || key == InputConstants.KEY_NUMPAD2 || key == InputConstants.KEY_S) {
             triggerSceneryAction();
+            return true;
+        }
+        if (key == InputConstants.KEY_3 || key == InputConstants.KEY_NUMPAD3 || key == InputConstants.KEY_M) {
+            if (this.minecraft != null) {
+                this.minecraft.setScreenAndShow(new ScenerySelectionScreen(null));
+            }
             return true;
         }
         if (key == InputConstants.KEY_ESCAPE || event.isEscape()) {

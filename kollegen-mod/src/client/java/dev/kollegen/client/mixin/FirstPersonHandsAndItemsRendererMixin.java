@@ -35,11 +35,15 @@ public class FirstPersonHandsAndItemsRendererMixin {
     @Unique
     private static InteractionHand kollegen$maceHand = null;
 
-    @Inject(method = "submitArmWithItem", at = @At("HEAD"), require = 0)
+    @Inject(method = "submitArmWithItem", at = @At("HEAD"), cancellable = true, require = 0)
     private void kollegen$onArmWithItemHead(PlayerRenderState playerState, FirstPersonHandsAndItemsRenderState handsState,
                                             float equippedProgress, float swingProgress, InteractionHand hand, float pt,
                                             ItemStack stack, float height, PoseStack poseStack,
                                             SubmitNodeCollector submitNodeCollector, int light, CallbackInfo ci) {
+        if (dev.kollegen.client.scenery.SceneryManager.isCapturing()) {
+            ci.cancel();
+            return;
+        }
         if (stack != null && stack.is(Items.SHIELD)) {
             kollegen$isShield = true;
             ShieldStatusContext.setFirstPerson(true);

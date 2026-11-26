@@ -122,13 +122,22 @@ public abstract class EntityRendererMixin<T extends Entity, S extends EntityRend
             if (frustum == null) return;
 
             double r = state.shadowRadius > 0.0f ? state.shadowRadius : 1.0;
-            AABB shadowAABB = new AABB(
-                    state.x - r - 1.0, state.y - 4.0, state.z - r - 1.0,
-                    state.x + r + 1.0, state.y + 1.5, state.z + r + 1.0
-            );
-
-            if (!frustum.isVisible(shadowAABB)) {
-                ci.cancel();
+            if (frustum instanceof FrustumAccessor fa) {
+                int res = fa.kollegen$cubeInFrustum(
+                        state.x - r - 1.0, state.y - 4.0, state.z - r - 1.0,
+                        state.x + r + 1.0, state.y + 1.5, state.z + r + 1.0
+                );
+                if (res != -2 && res != -1) {
+                    ci.cancel();
+                }
+            } else {
+                AABB shadowAABB = new AABB(
+                        state.x - r - 1.0, state.y - 4.0, state.z - r - 1.0,
+                        state.x + r + 1.0, state.y + 1.5, state.z + r + 1.0
+                );
+                if (!frustum.isVisible(shadowAABB)) {
+                    ci.cancel();
+                }
             }
         } catch (Throwable ignored) {
         }

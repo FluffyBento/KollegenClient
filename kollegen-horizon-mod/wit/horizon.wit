@@ -1,0 +1,246 @@
+package horizon:mods@0.1.0;
+
+interface log {
+    enum level {
+        debug,
+        info,
+        warn,
+        error,
+    }
+    write: func(level: level, message: string);
+}
+
+interface game {
+    record player {
+        x: f64,
+        y: f64,
+        z: f64,
+        yaw: f32,
+        pitch: f32,
+        health: f32,
+        food: u32,
+        dimension: string,
+    }
+    record clock {
+        game-time: u64,
+        day-time: u64,
+    }
+    get-player: func() -> option<player>;
+    get-clock: func() -> option<clock>;
+    player-flying: func() -> bool;
+}
+
+interface chat {
+    show: func(text: string);
+}
+
+interface hud {
+    enum corner {
+        top-left,
+        top-right,
+        bottom-left,
+        bottom-right,
+    }
+    record line {
+        text: string,
+        color: u32,
+    }
+    set-panel: func(corner: corner, lines: list<line>);
+    clear: func();
+}
+
+interface storage {
+    get: func(key: string) -> option<list<u8>>;
+    set: func(key: string, value: list<u8>) -> result<_, string>;
+    delete: func(key: string);
+}
+
+interface input {
+    record held-item {
+        id: string,
+        count: u32,
+        slot: u32,
+        custom-name: option<string>,
+        custom-data: option<string>,
+    }
+    record item-use {
+        item: held-item,
+        ticks: u32,
+    }
+    record click {
+        x: f32,
+        y: f32,
+        button: u32,
+    }
+    variant event {
+        use-start(item-use),
+        use-stop(item-use),
+        key-down(string),
+        key-up(string),
+        screen-click(click),
+        screen-closed,
+    }
+    variant typed {
+        text(string),
+        key(string),
+    }
+    claim-items: func(ids: list<string>);
+    register-key: func(name: string, label: string, key: string);
+    held: func() -> option<held-item>;
+    poll: func() -> list<event>;
+    poll-typed: func() -> list<typed>;
+}
+
+interface ui {
+    record rect {
+        x: f32,
+        y: f32,
+        w: f32,
+        h: f32,
+    }
+    record point {
+        x: f32,
+        y: f32,
+    }
+    variant draw {
+        fill(tuple<rect, u32>),
+        quad(tuple<list<point>, u32>),
+        sprite(tuple<string, rect, u32>),
+        item(tuple<string, string, point, f32>),
+        text(tuple<string, point, u32, bool>),
+    }
+    show: func(draws: list<draw>);
+    close: func();
+    cursor: func() -> option<point>;
+}
+
+interface atlas {
+    variant tint {
+        none,
+        grass,
+        foliage,
+        dry-foliage,
+        water,
+        fixed(u32),
+    }
+    record sprite {
+        array: u32,
+        layer: u32,
+        animated: bool,
+        cutout: bool,
+    }
+    record face {
+        sprite: sprite,
+        rect: tuple<f32, f32, f32, f32>,
+        inset: f32,
+        uv: tuple<f32, f32, f32, f32, f32, f32>,
+        tint: tint,
+        translucent: bool,
+    }
+    record block-faces {
+        sides: list<list<face>>,
+        particle: option<sprite>,
+        cube: bool,
+    }
+    block-sprites: func(names: list<string>) -> list<option<block-faces>>;
+    texture-sprites: func(names: list<string>) -> list<option<sprite>>;
+    resources-version: func() -> u64;
+}
+
+interface render {
+    set-post: func(wgsl: string);
+    set-params: func(params: list<f32>);
+    clear-post: func();
+    set-data: func(words: list<u32>);
+    set-history: func(on: bool);
+    set-warp: func(wgsl: string);
+    warp-on: func(on: bool, x: f64, y: f64, z: f64, copies: u32, radius: f32);
+    set-warp-data: func(data: list<f32>);
+    hold-world: func(on: bool);
+    hold-world-within: func(areas: list<tuple<f64, f64, f64>>);
+    set-hand-tint: func(r: f32, g: f32, b: f32);
+    set-view-offset: func(x: f64, y: f64, z: f64);
+    shake: func(strength: f32, seconds: f32);
+}
+
+interface %world {
+    record hit {
+        block-x: s32,
+        block-y: s32,
+        block-z: s32,
+        x: f64,
+        y: f64,
+        z: f64,
+        block: string,
+    }
+    raycast: func(distance: f32) -> option<hit>;
+    run-commands: func(commands: list<string>);
+    play-sound: func(event: string, at: option<tuple<f64, f64, f64>>, volume: f32, pitch: f32);
+    set-flying-speed: func(speed: option<f32>);
+    push-player: func(x: f32, y: f32, z: f32);
+    carry-player: func(x: f32, y: f32, z: f32, turn: f32) -> bool;
+    shift-player: func(x: f64, y: f64, z: f64) -> bool;
+    enum heightmap {
+        world-surface,
+        motion-blocking,
+        motion-blocking-no-leaves,
+        ocean-floor,
+    }
+    record block-run {
+        x: s32,
+        z: s32,
+        y: s32,
+        height: u32,
+        surface: option<heightmap>,
+        block: u32,
+        only: option<u32>,
+    }
+    record block-edit {
+        palette: list<string>,
+        filters: list<string>,
+        runs: list<block-run>,
+    }
+    edit-blocks: func(edit: block-edit);
+    record surface-heights {
+        tag: u32,
+        heights: list<option<s32>>,
+    }
+    surface-height: func(tag: u32, columns: list<tuple<s32, s32>>, heightmap: heightmap);
+    poll-surface-heights: func() -> list<surface-heights>;
+    record column-blocks {
+        tag: u32,
+        palette: list<string>,
+        bases: list<option<s32>>,
+        blocks: list<u16>,
+        tints: list<u32>,
+    }
+    read-columns: func(tag: u32, columns: list<tuple<s32, s32>>, heightmap: heightmap, below: u32, above: u32);
+    poll-columns: func() -> list<column-blocks>;
+}
+
+interface events {
+    record registration {
+        commands: list<string>,
+        tick: bool,
+        frame: bool,
+        chat: bool,
+    }
+    init: func() -> result<registration, string>;
+    tick: func(tick: u64);
+    frame: func(seconds: f32);
+    command: func(name: string, args: string) -> result<option<string>, string>;
+    chat: func(text: string);
+}
+
+world horizon-mod {
+    import log;
+    import game;
+    import chat;
+    import hud;
+    import storage;
+    import input;
+    import ui;
+    import render;
+    import %world;
+    export events;
+}

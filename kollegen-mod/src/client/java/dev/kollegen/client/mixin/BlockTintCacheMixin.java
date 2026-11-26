@@ -1,6 +1,8 @@
 package dev.kollegen.client.mixin;
 
 import dev.kollegen.client.mods.modules.Performance;
+import dev.kollegen.client.nativebridge.KollegenNative;
+import dev.kollegen.client.perf.KollegenTintCacheEntry;
 import net.minecraft.client.color.block.BlockTintCache;
 import net.minecraft.core.BlockPos;
 import org.spongepowered.asm.mixin.Mixin;
@@ -10,21 +12,29 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-import java.util.Arrays;
-
 @Mixin(BlockTintCache.class)
 public class BlockTintCacheMixin {
 
     @Unique
-    private static final int KOLLEGEN$TINT_MASK = 1023;
+    private volatile int kollegen$epoch;
     @Unique
-    private final long[] kollegen$keys = new long[1024];
-    @Unique
-    private final int[] kollegen$values = new int[1024];
+    private volatile ThreadLocal<KollegenTintCacheEntry> kollegen$localCache;
 
-    @Inject(method = "<init>", at = @At("RETURN"))
-    private void kollegen$init(CallbackInfo ci) {
-        Arrays.fill(kollegen$keys, Long.MIN_VALUE);
+    @Unique
+    private KollegenTintCacheEntry kollegen$entry() {
+        ThreadLocal<KollegenTintCacheEntry> tl = this.kollegen$localCache;
+        if (tl == null) {
+            synchronized (this) {
+                tl = this.kollegen$localCache;
+                if (tl == null) {
+                    tl = ThreadLocal.withInitial(KollegenTintCacheEntry::new);
+                    this.kollegen$localCache = tl;
+                }
+            }
+        }
+        KollegenTintCacheEntry entry = tl.get();
+        entry.sync(this.kollegen$epoch);
+        return entry;
     }
 
     @Inject(method = "getColor(Lnet/minecraft/core/BlockPos;)I", at = @At("HEAD"), cancellable = true)
@@ -32,10 +42,18 @@ public class BlockTintCacheMixin {
         if (!Performance.KollegenTricks.shouldUseBedrockCache()) return;
         if (pos == null) return;
 
+        if (Performance.KollegenTricks.shouldUseRustRuntime()) {
+            String tname = Thread.currentThread().getName();
+            if (!"Render thread".equals(tname)) {
+                KollegenNative.idleBackgroundThreadOnce();
+            }
+        }
+
+        KollegenTintCacheEntry l1 = kollegen$entry();
         long key = pos.asLong();
-        int idx = (int) (key ^ (key >>> 16)) & KOLLEGEN$TINT_MASK;
-        if (kollegen$keys[idx] == key) {
-            cir.setReturnValue(kollegen$values[idx]);
+        int idx = (int) (key ^ (key >>> 16)) & KollegenTintCacheEntry.MASK;
+        if (l1.keys[idx] == key) {
+            cir.setReturnValue(l1.values[idx]);
         }
     }
 
@@ -44,28 +62,20 @@ public class BlockTintCacheMixin {
         if (!Performance.KollegenTricks.shouldUseBedrockCache()) return;
         if (pos == null) return;
 
+        KollegenTintCacheEntry l1 = kollegen$entry();
         long key = pos.asLong();
-        int idx = (int) (key ^ (key >>> 16)) & KOLLEGEN$TINT_MASK;
-        kollegen$keys[idx] = key;
-        kollegen$values[idx] = cir.getReturnValueI();
+        int idx = (int) (key ^ (key >>> 16)) & KollegenTintCacheEntry.MASK;
+        l1.keys[idx] = key;
+        l1.values[idx] = cir.getReturnValueI();
     }
 
     @Inject(method = "invalidateForChunk(II)V", at = @At("HEAD"))
     private void kollegen$invalidateChunk(int x, int z, CallbackInfo ci) {
-        for (int i = 0; i < 1024; i++) {
-            long k = kollegen$keys[i];
-            if (k != Long.MIN_VALUE) {
-                int bx = (int) (k >> 38);
-                int bz = (int) ((k << 26) >> 38);
-                if ((bx >> 4) == x && (bz >> 4) == z) {
-                    kollegen$keys[i] = Long.MIN_VALUE;
-                }
-            }
-        }
+        this.kollegen$epoch++;
     }
 
     @Inject(method = "invalidateAll()V", at = @At("HEAD"))
     private void kollegen$invalidateAll(CallbackInfo ci) {
-        Arrays.fill(kollegen$keys, Long.MIN_VALUE);
+        this.kollegen$epoch++;
     }
 }

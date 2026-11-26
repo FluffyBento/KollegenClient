@@ -146,8 +146,12 @@
     <section id="createPanel" class="panel tab-panel" data-tab="create" aria-labelledby="createTitle" hidden="">
       <header class="panel-header">
         <h2 id="createTitle">Instanz erstellen</h2>
-        <p class="page-sub">Wähle eine Minecraft-Version und einen Mod-Loader. Für die Kollegen-Mod und Performance-Mods empfehlen wir Fabric.</p>
+        <p class="page-sub">Wähle eine Minecraft-Version und einen Mod-Loader, oder installiere direkt Modpacks und Rust Mods.</p>
       </header>
+      <div class="tabs create-tabs" id="createModeTabs" role="tablist">
+        <button type="button" class="tab active" data-create-tab="custom" role="tab" aria-selected="true">Eigene Instanz</button>
+        <button type="button" class="tab" data-create-tab="modpacks" role="tab" aria-selected="false">Modpacks</button>
+      </div>
       <form id="createForm" class="form-stack create-form">
         <div class="create-grid">
           <div class="form-group create-name">
@@ -158,6 +162,7 @@
             <label for="iLoader">Mod-Loader</label>
             <select id="iLoader" aria-label="Mod Loader" required="">
               <option value="fabric" selected="">Fabric</option>
+              <option value="horizon">Horizon (Rust · 26.3)</option>
               <option value="vanilla">Vanilla</option>
               <option value="forge">Forge</option>
               <option value="neoforge">NeoForge</option>
@@ -180,6 +185,28 @@
           <button type="submit" class="btn-primary">Instanz erstellen</button>
         </div>
       </form>
+      <div id="createModpacksPane" class="modpacks-pane" hidden="">
+        <div class="tabs sub-tabs" id="createModpackSubtabs" role="tablist">
+          <button type="button" class="tab active" data-mp-tab="modpacks" role="tab" aria-selected="true">Modpacks</button>
+          <button type="button" class="tab" data-mp-tab="rust-mods" role="tab" aria-selected="false">Rust Mods</button>
+        </div>
+        <div class="modpack-toolbar">
+          <input id="createMpName" placeholder="Optional: Instanz-Name (Standard = Paketname)">
+          <div class="manage-search">
+            <input id="createMpQuery" placeholder="Modpacks oder Rust Mods suchen...">
+            <button type="button" id="createMpSearchBtn" class="btn-primary">Suchen</button>
+          </div>
+        </div>
+        <div id="createOrbitalProgress" class="orbital-progress" hidden="">
+          <div class="orbital-progress-head">
+            <strong id="createOrbitalStep">Installiere…</strong>
+            <span id="createOrbitalPct">0%</span>
+          </div>
+          <div class="orbital-progress-track"><div id="createOrbitalFill" class="orbital-progress-fill"></div></div>
+          <div id="createOrbitalDetail" class="orbital-progress-detail"></div>
+        </div>
+        <div id="createMpResults" class="cards" role="list"></div>
+      </div>
     </section>
 
 
@@ -636,6 +663,7 @@
           <button class="tab active" data-kind="mod" role="tab" aria-selected="true">Mods</button>
           <button class="tab" data-kind="resourcepack" role="tab" aria-selected="false">Resource Packs</button>
           <button class="tab" data-kind="shader" role="tab" aria-selected="false">Shader</button>
+          <button class="tab" data-kind="modpack" role="tab" aria-selected="false">Modpacks</button>
           <button class="tab" data-kind="modules" role="tab" aria-selected="false">Zusatz-Mods</button>
           <button class="tab" data-kind="settings" role="tab" aria-selected="false">Einstellungen</button>
         </div>
@@ -670,6 +698,24 @@
             <input id="manageQuery" placeholder="Suchen...">
             <button id="manageSearchBtn" class="btn-primary">Suchen</button>
           </div>
+        </div>
+        <div class="tabs browse-kind-tabs" id="browseKindTabs" role="tablist">
+          <button type="button" class="tab" data-browse-kind="mod" role="tab">Mods</button>
+          <button type="button" class="tab" data-browse-kind="resourcepack" role="tab">Resource Packs</button>
+          <button type="button" class="tab" data-browse-kind="shader" role="tab">Shader</button>
+          <button type="button" class="tab" data-browse-kind="modpack" role="tab">Modpacks</button>
+        </div>
+        <div class="tabs sub-tabs" id="manageModpackSubtabs" role="tablist" hidden="">
+          <button type="button" class="tab active" data-mp-tab="modpacks" role="tab" aria-selected="true">Modpacks</button>
+          <button type="button" class="tab" data-mp-tab="rust-mods" role="tab" aria-selected="false">Rust Mods</button>
+        </div>
+        <div id="manageOrbitalProgress" class="orbital-progress" hidden="">
+          <div class="orbital-progress-head">
+            <strong id="manageOrbitalStep">Installiere…</strong>
+            <span id="manageOrbitalPct">0%</span>
+          </div>
+          <div class="orbital-progress-track"><div id="manageOrbitalFill" class="orbital-progress-fill"></div></div>
+          <div id="manageOrbitalDetail" class="orbital-progress-detail"></div>
         </div>
         <div id="manageResults" class="cards" role="list"></div>
       </div>

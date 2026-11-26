@@ -34,11 +34,23 @@ async function loadVersions() {
 }
 
 async function updateLoaderVersions() {
-  const version = $("iVersion").value;
+  const vSelect = $("iVersion");
   const loader = $("iLoader").value;
   const lvSelect = $("iLoaderVer");
   lvSelect.innerHTML = '<option value="">(Standard / Neueste)</option>';
 
+  if (loader === "horizon") {
+    if (vSelect && Array.from(vSelect.options).some((o) => o.value === "26.3")) {
+      vSelect.value = "26.3";
+    }
+    if (vSelect) vSelect.disabled = true;
+    if (lvSelect) lvSelect.disabled = true;
+    return;
+  }
+  if (vSelect) vSelect.disabled = false;
+  if (lvSelect) lvSelect.disabled = false;
+
+  const version = vSelect.value;
   if (loader === "vanilla" || !version) return;
 
   try {
@@ -56,7 +68,7 @@ async function updateLoaderVersions() {
   }
 }
 
-const LOADER_COLORS = { vanilla: "#6abe30", fabric: "#dbb69b", forge: "#5b8def", neoforge: "#f08a3c", quilt: "#a66bf0" };
+const LOADER_COLORS = { vanilla: "#6abe30", fabric: "#dbb69b", forge: "#5b8def", neoforge: "#f08a3c", quilt: "#a66bf0", horizon: "#e06c3a" };
 
 const UI_ICONS = {
   play: '<path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z" fill="currentColor" stroke="none"/>',
@@ -292,7 +304,7 @@ function buildInstanceCard(inst, index) {
   const chips = document.createElement("div");
   chips.className = "instance-card-chips";
   const modCount = Array.isArray(inst.mods) ? inst.mods.length : 0;
-  if (modCount > 0) chips.append(makeChip(`${modCount} Mods`));
+  if (modCount > 0) chips.append(makeChip(modCount === 1 ? "1 Mod" : `${modCount} Mods`));
   if (inst.memory_max) chips.append(makeChip(`RAM ${inst.memory_max}`));
 
   const actions = document.createElement("div");
@@ -670,7 +682,7 @@ async function refreshInstances() {
 
 function instIconSVG(name, loader) {
   const l = String(loader || "vanilla").toLowerCase();
-  const top = l === "fabric" ? "#7ddc4f" : l === "forge" ? "#8fd14f" : l === "neoforge" ? "#a3e635" : "#6abe30";
+  const top = l === "horizon" ? "#e06c3a" : l === "fabric" ? "#7ddc4f" : l === "forge" ? "#8fd14f" : l === "neoforge" ? "#a3e635" : "#6abe30";
   return `<svg viewBox="0 0 64 64" aria-hidden="true">`
     + `<polygon points="32,6 58,20 32,34 6,20" fill="${top}"/>`
     + `<polygon points="20,13 46,27 32,33 14,23" fill="#86d95c" opacity="0.55"/>`
@@ -2396,6 +2408,16 @@ async function createInstance() {
   }
   const fill = document.getElementById("createProgressFill");
   try {
+    if (loader === "horizon") {
+      if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = "Installiere Horizon..."; }
+      if (fill) fill.style.width = "35%";
+      await invoke("install_horizon_instance", { instanceName: name });
+      if (fill) fill.style.width = "100%";
+      alert("Horizon-Instanz erfolgreich erstellt und vorbereitet!");
+      $("iName").value = "";
+      await refreshInstances();
+      return;
+    }
     if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = "Erstelle..."; }
     if (fill) fill.style.width = "10%";
 
@@ -2537,9 +2559,9 @@ async function deleteInstance(name, id) {
     overlay.innerHTML = `
       <div class="modal-content" style="max-width: 440px; text-align: center;">
         <h3 style="color: var(--danger, #ff4d4d); margin-bottom: 0.8rem;">Instanz löschen?</h3>
-        <p style="margin-bottom: 0.8rem; color: var(--muted, #aaa);">Möchtest du die Instanz <b>"${name}"</b> wirklich endgültig löschen? Alle Welten, Einstellungen und Mods gehen unwiderruflich verloren!</p>
-        <p style="font-size: 0.85rem; color: #fff; margin-bottom: 0.5rem;">Tippe zur Bestätigung <b>"${name}"</b> ein:</p>
-        <input id="delConfirmInput" type="text" autocomplete="off" spellcheck="false" placeholder="${name}" style="width: 100%; padding: 0.6rem 0.8rem; margin-bottom: 1.2rem; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; color: #fff; text-align: center; font-size: 0.95rem;" />
+        <p style="margin-bottom: 0.8rem; color: var(--muted, #aaa);">Möchtest du die Instanz <b>"${escapeHtml(name)}"</b> wirklich endgültig löschen? Alle Welten, Einstellungen und Mods gehen unwiderruflich verloren!</p>
+        <p style="font-size: 0.85rem; color: #fff; margin-bottom: 0.5rem;">Tippe zur Bestätigung <b>"${escapeHtml(name)}"</b> ein:</p>
+        <input id="delConfirmInput" type="text" autocomplete="off" spellcheck="false" placeholder="${escapeHtml(name)}" style="width: 100%; padding: 0.6rem 0.8rem; margin-bottom: 1.2rem; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; color: #fff; text-align: center; font-size: 0.95rem;" />
         <div style="display: flex; gap: 10px; justify-content: center;">
           <button id="delCancel" class="btn-secondary" style="padding: 0.6rem 1.2rem;">Abbrechen</button>
           <button id="delConfirm" class="btn-primary" disabled style="background: var(--danger, #ff4d4d); color: #fff; padding: 0.6rem 1.2rem; opacity: 0.4; cursor: not-allowed;">Endgültig löschen</button>
@@ -5815,15 +5837,27 @@ $("joinFriendClose").onclick = () => {
 
 let manageInst = null;
 let manageKind = "mod";
-
-
-document.addEventListener("click", () => closeVersionMenu());
+let manageModpackSubTab = "modpacks";
+let createModeTab = "custom";
+let createModpackSubTab = "modpacks";
+let rustModsCatalogCache = null;
 
 function setManageTab(kind) {
   manageKind = kind;
   document.querySelectorAll("#manageModal .tab[data-kind]").forEach((t) =>
     t.classList.toggle("active", t.dataset.kind === kind)
   );
+  document.querySelectorAll("#browseKindTabs .tab[data-browse-kind]").forEach((t) =>
+    t.classList.toggle("active", t.dataset.browseKind === kind)
+  );
+  const subTabs = document.getElementById("manageModpackSubtabs");
+  if (subTabs) subTabs.hidden = kind !== "modpack";
+  const importBtn = document.getElementById("manageImportBtn");
+  if (importBtn) importBtn.style.display = kind === "modpack" ? "none" : "";
+  const qEl = document.getElementById("manageQuery");
+  if (qEl) {
+    qEl.placeholder = kind === "modpack" ? "Modpacks oder Rust Mods suchen..." : "Suchen...";
+  }
   const isSettings = kind === "settings";
   const isModules = kind === "modules";
   const modActions = document.getElementById("manageModActions");
@@ -6032,6 +6066,11 @@ function showManageOverview() {
 function showManageBrowse() {
   $("manageOverview").style.display = "none";
   $("manageBrowse").style.display = "block";
+  document.querySelectorAll("#browseKindTabs .tab[data-browse-kind]").forEach((t) =>
+    t.classList.toggle("active", t.dataset.browseKind === manageKind)
+  );
+  const subTabs = $("manageModpackSubtabs");
+  if (subTabs) subTabs.hidden = manageKind !== "modpack";
   manageSearch(true);
 }
 
@@ -6042,7 +6081,7 @@ function openManage(inst) {
   showManageOverview();
   $("manageModal").style.display = "flex";
   stopBackgroundIntervals();
-  setManageTab(inst.loader === "vanilla" ? "resourcepack" : "mod");
+  setManageTab(inst.loader === "horizon" ? "modpack" : inst.loader === "vanilla" ? "resourcepack" : "mod");
 }
 
 $("manageClose").onclick = () => {
@@ -6051,8 +6090,23 @@ $("manageClose").onclick = () => {
   $("manageModal").style.display = "none";
   startBackgroundIntervals();
 };
-document.querySelectorAll(".tab").forEach((t) => {
+document.querySelectorAll("#manageModal .tab[data-kind]").forEach((t) => {
   t.onclick = () => setManageTab(t.dataset.kind);
+});
+document.querySelectorAll("#browseKindTabs .tab[data-browse-kind]").forEach((t) => {
+  t.onclick = () => {
+    setManageTab(t.dataset.browseKind);
+    showManageBrowse();
+  };
+});
+document.querySelectorAll("#manageModpackSubtabs .tab[data-mp-tab]").forEach((t) => {
+  t.onclick = () => {
+    manageModpackSubTab = t.dataset.mpTab;
+    document.querySelectorAll("#manageModpackSubtabs .tab[data-mp-tab]").forEach((x) =>
+      x.classList.toggle("active", x.dataset.mpTab === manageModpackSubTab)
+    );
+    manageSearch(true);
+  };
 });
 $("manageSearchBtn").onclick = () => manageSearch(true);
 $("manageBrowseBtn").onclick = () => showManageBrowse();
@@ -6234,11 +6288,128 @@ $("manageCloneBtn").onclick = async () => {
   });
 };
 
-function renderCard(p) {
+async function getRustModsCatalog() {
+  if (rustModsCatalogCache) return rustModsCatalogCache;
+  try {
+    const items = await invoke("list_rust_mods");
+    rustModsCatalogCache = Array.isArray(items) ? items : [];
+  } catch (e) {
+    console.warn("list_rust_mods failed:", e);
+    rustModsCatalogCache = [];
+  }
+  return rustModsCatalogCache;
+}
+
+let orbitalProgressListenerBound = false;
+function ensureOrbitalProgressListener() {
+  if (orbitalProgressListenerBound || !window.__TAURI__?.event?.listen) return;
+  orbitalProgressListenerBound = true;
+  window.__TAURI__.event.listen("orbital-install-progress", (event) => {
+    const payload = event?.payload;
+    if (!payload) return;
+    for (const prefix of ["createOrbital", "manageOrbital"]) {
+      const box = document.getElementById(prefix + "Progress");
+      const stepEl = document.getElementById(prefix + "Step");
+      const pctEl = document.getElementById(prefix + "Pct");
+      const fillEl = document.getElementById(prefix + "Fill");
+      const detailEl = document.getElementById(prefix + "Detail");
+      if (box && !box.hidden) {
+        if (stepEl) stepEl.textContent = payload.step || "Installiere…";
+        if (pctEl) pctEl.textContent = `${payload.pct ?? 0}%`;
+        if (fillEl) fillEl.style.width = `${payload.pct ?? 0}%`;
+        if (detailEl) detailEl.textContent = payload.detail || "";
+      }
+    }
+  });
+}
+
+async function installOrbitalLaserPack(targetInstance, customName, btn, progressPrefix) {
+  ensureOrbitalProgressListener();
+  const box = document.getElementById(progressPrefix + "Progress");
+  const stepEl = document.getElementById(progressPrefix + "Step");
+  const pctEl = document.getElementById(progressPrefix + "Pct");
+  const fillEl = document.getElementById(progressPrefix + "Fill");
+  const detailEl = document.getElementById(progressPrefix + "Detail");
+  const prevText = btn ? btn.textContent : "";
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = "Installiere…";
+  }
+  if (box) {
+    box.hidden = false;
+    if (stepEl) stepEl.textContent = "Starte Setup…";
+    if (pctEl) pctEl.textContent = "5%";
+    if (fillEl) fillEl.style.width = "5%";
+    if (detailEl) detailEl.textContent = "Lade Horizon & Orbital Laser…";
+  }
+  try {
+    const inst = await invoke("install_orbital_laser", {
+      instanceName: customName || null,
+      targetInstance: targetInstance || null,
+    });
+    await refreshInstances();
+    if (targetInstance && manageInst && manageInst.name === inst.name) {
+      manageInst = inst;
+      manageLoadInstalled();
+    } else if (typeof manageLoadInstalled === "function" && manageInst) {
+      manageLoadInstalled();
+    }
+    toast(`Orbital Laser in Instanz '${inst.name}' installiert!`, "ok");
+    if (btn) {
+      btn.textContent = "Installiert ✓";
+    }
+    if (box) {
+      setTimeout(() => { box.hidden = true; }, 3500);
+    }
+  } catch (e) {
+    alert("Orbital Laser Installation fehlgeschlagen: " + e);
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = prevText || "Installieren";
+    }
+    if (box) box.hidden = true;
+  }
+}
+
+async function installModpackItem(projectId, title, versionId, customName, btn, targetInstance) {
+  const prevText = btn ? btn.textContent : "";
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = "Installiere…";
+  }
+  try {
+    const inst = await invoke("install_modpack", {
+      projectId,
+      versionId: versionId ?? null,
+      customName: customName || null,
+      targetInstance: targetInstance || null,
+    });
+    await refreshInstances();
+    if (targetInstance && manageInst && manageInst.name === inst.name) {
+      manageInst = inst;
+      manageLoadInstalled();
+      toast(`Modpack '${title}' in Instanz '${inst.name}' installiert!`, "ok");
+    } else {
+      toast(`Modpack '${inst.name}' erstellt und installiert!`, "ok");
+    }
+    if (btn) btn.textContent = "Installiert ✓";
+  } catch (e) {
+    alert("Modpack-Installation fehlgeschlagen: " + e);
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = prevText || "Installieren";
+    }
+  }
+}
+
+function renderCard(p, ctx) {
   const card = document.createElement("div");
   card.className = "card";
   card.dataset.pid = p.id;
-  const installed = currentInstalled.has(p.id);
+  const isCreateCtx = ctx && ctx.mode === "create";
+  const progressPrefix = isCreateCtx ? "createOrbital" : "manageOrbital";
+  const customName = isCreateCtx ? (($("createMpName")?.value || "").trim() || null) : null;
+  const installed = !isCreateCtx && currentInstalled.has(p.id);
   const iconWrap = document.createElement("div");
   iconWrap.className = "card-icon-wrap";
   if (p.icon_url) {
@@ -6265,6 +6436,12 @@ function renderCard(p) {
   card.append(iconWrap);
   const body = document.createElement("div");
   body.className = "card-body";
+  if (p.is_rust_mod) {
+    const rb = document.createElement("div");
+    rb.className = "rust-badge";
+    rb.textContent = `${p.engine || "Rust Mod"} · MC ${p.mc_version || "26.3"} · ${p.version || ""}`;
+    body.append(rb);
+  }
   const title = document.createElement("div");
   title.className = "card-title";
   title.textContent = p.title;
@@ -6273,30 +6450,42 @@ function renderCard(p) {
   desc.textContent = p.description;
   const meta = document.createElement("div");
   meta.className = "card-meta";
-  meta.textContent = `${(p.downloads || 0).toLocaleString()} Downloads`;
-  
-  
+  meta.textContent = p.is_rust_mod
+    ? "Vollautomatische Horizon-Installation"
+    : `${(p.downloads || 0).toLocaleString()} Downloads`;
+
   const installGroup = document.createElement("div");
   installGroup.className = "install-group";
   installGroup.style.cssText = "position:relative; display:inline-flex; gap:6px;";
   const btn = document.createElement("button");
-  if (installed) {
+  if (installed && !p.is_rust_mod) {
     btn.textContent = "Installiert";
     btn.disabled = true;
     btn.classList.add("installed-btn");
+  } else if (p.is_rust_mod) {
+    btn.textContent = "Installieren";
+    const targetInst = !isCreateCtx && manageInst ? manageInst.name : null;
+    btn.onclick = () => installOrbitalLaserPack(targetInst, customName, btn, progressPrefix);
+  } else if (p.project_type === "modpack") {
+    btn.textContent = "Installieren";
+    const targetInst = !isCreateCtx && manageInst ? manageInst.name : null;
+    btn.onclick = () => installModpackItem(p.id, p.title, null, customName, btn, targetInst);
   } else {
     btn.textContent = "Installieren";
     btn.onclick = () => manageInstall(p.id, p.title, null);
   }
-  const arrow = document.createElement("button");
-  arrow.textContent = "▾";
-  arrow.className = "ver-arrow";
-  arrow.title = "Bestimmte Version wählen";
-  arrow.onclick = (e) => {
-    e.stopPropagation();
-    toggleVersionMenu(p, arrow);
-  };
-  installGroup.append(btn, arrow);
+  installGroup.append(btn);
+  if (!p.is_rust_mod) {
+    const arrow = document.createElement("button");
+    arrow.textContent = "▾";
+    arrow.className = "ver-arrow";
+    arrow.title = "Bestimmte Version wählen";
+    arrow.onclick = (e) => {
+      e.stopPropagation();
+      toggleVersionMenu(p, arrow, ctx);
+    };
+    installGroup.append(arrow);
+  }
   const viewBtn = document.createElement("button");
   viewBtn.textContent = "Ansehen";
   viewBtn.className = "view-btn";
@@ -6316,12 +6505,14 @@ function closeVersionMenu() {
   }
 }
 
-async function toggleVersionMenu(p, arrow) {
+async function toggleVersionMenu(p, arrow, ctx) {
   if (activeVersionMenu && activeVersionMenu._pid === p.id) {
     closeVersionMenu();
     return;
   }
   closeVersionMenu();
+  const isCreateCtx = ctx && ctx.mode === "create";
+  const isModpack = p.project_type === "modpack";
   const menu = document.createElement("div");
   menu.className = "version-menu";
   menu._pid = p.id;
@@ -6348,8 +6539,8 @@ async function toggleVersionMenu(p, arrow) {
   try {
     const versions = await invoke("modrinth_versions", {
       projectId: p.id,
-      mcVersion: manageInst.version,
-      loader: manageInst.loader,
+      mcVersion: isModpack ? "" : (manageInst ? manageInst.version : ""),
+      loader: isModpack ? "" : (manageInst ? manageInst.loader : ""),
     });
     menu.innerHTML = "";
     if (!versions || versions.length === 0) {
@@ -6366,7 +6557,13 @@ async function toggleVersionMenu(p, arrow) {
         item.onclick = (ev) => {
           ev.stopPropagation();
           closeVersionMenu();
-          manageInstall(p.id, p.title, v.id);
+          if (isModpack) {
+            const customName = isCreateCtx ? (($("createMpName")?.value || "").trim() || null) : null;
+            const targetInst = !isCreateCtx && manageInst ? manageInst.name : null;
+            installModpackItem(p.id, p.title, v.id, customName, null, targetInst);
+          } else {
+            manageInstall(p.id, p.title, v.id);
+          }
         };
         menu.append(item);
       }
@@ -6407,9 +6604,39 @@ async function refreshInstalledSet() {
 
 async function fetchNextApiPage() {
   if (manageExhausted) return;
+  const queryText = ($("manageQuery")?.value || "").trim();
+  if (manageKind === "modpack") {
+    const rustMods = await getRustModsCatalog();
+    const qLower = queryText.toLowerCase();
+    const matchedRust = rustMods.filter((r) =>
+      !qLower || `${r.title} ${r.description} ${r.engine} ${r.id}`.toLowerCase().includes(qLower)
+    );
+    if (manageModpackSubTab === "rust-mods") {
+      if (manageApiOffset === 0) {
+        for (const r of matchedRust) manageAllHits.push(r);
+      }
+      manageExhausted = true;
+      return;
+    }
+    if (manageApiOffset === 0) {
+      for (const r of matchedRust) manageAllHits.push(r);
+    }
+    const hits = await invoke("modrinth_search", {
+      kind: "modpack",
+      query: queryText,
+      mcVersion: "",
+      loader: "",
+      offset: manageApiOffset,
+    });
+    const arr = hits || [];
+    for (const p of arr) manageAllHits.push(p);
+    manageApiOffset += MANAGE_PAGE;
+    if (arr.length < MANAGE_PAGE) manageExhausted = true;
+    return;
+  }
   const hits = await invoke("modrinth_search", {
     kind: manageKind,
-    query: $("manageQuery").value,
+    query: queryText,
     mcVersion: manageInst.version,
     loader: manageInst.loader,
     offset: manageApiOffset,
@@ -6420,6 +6647,150 @@ async function fetchNextApiPage() {
   }
   manageApiOffset += MANAGE_PAGE;
   if (arr.length < MANAGE_PAGE) manageExhausted = true;
+}
+
+let createMpAllHits = [];
+let createMpOffset = 0;
+let createMpExhausted = false;
+let createMpPage = 0;
+
+function resetCreateMpSearch() {
+  createMpAllHits = [];
+  createMpOffset = 0;
+  createMpExhausted = false;
+  createMpPage = 0;
+}
+
+async function fetchCreateMpPage() {
+  if (createMpExhausted) return;
+  const queryText = ($("createMpQuery")?.value || "").trim();
+  const rustMods = await getRustModsCatalog();
+  const qLower = queryText.toLowerCase();
+  const matchedRust = rustMods.filter((r) =>
+    !qLower || `${r.title} ${r.description} ${r.engine} ${r.id}`.toLowerCase().includes(qLower)
+  );
+  if (createModpackSubTab === "rust-mods") {
+    if (createMpOffset === 0) {
+      for (const r of matchedRust) createMpAllHits.push(r);
+    }
+    createMpExhausted = true;
+    return;
+  }
+  if (createMpOffset === 0) {
+    for (const r of matchedRust) createMpAllHits.push(r);
+  }
+  const hits = await invoke("modrinth_search", {
+    kind: "modpack",
+    query: queryText,
+    mcVersion: "",
+    loader: "",
+    offset: createMpOffset,
+  });
+  const arr = hits || [];
+  for (const p of arr) createMpAllHits.push(p);
+  createMpOffset += MANAGE_PAGE;
+  if (arr.length < MANAGE_PAGE) createMpExhausted = true;
+}
+
+function renderCreateMpPage() {
+  const results = $("createMpResults");
+  if (!results) return;
+  const start = createMpPage * MANAGE_PAGE;
+  const pageHits = createMpAllHits.slice(start, start + MANAGE_PAGE);
+  results.innerHTML = "";
+  if (pageHits.length === 0) {
+    results.innerHTML = "<div class='loading'>Keine Ergebnisse.</div>";
+    return;
+  }
+  for (const p of pageHits) results.append(renderCard(p, { mode: "create" }));
+  const pager = document.createElement("div");
+  pager.className = "pager";
+  pager.style.cssText = "display:flex; gap:12px; justify-content:center; align-items:center; padding:14px;";
+  const prev = document.createElement("button");
+  prev.textContent = "← Zurück";
+  prev.disabled = createMpPage === 0;
+  prev.onclick = () => {
+    if (createMpPage > 0) {
+      createMpPage--;
+      renderCreateMpPage();
+    }
+  };
+  const info = document.createElement("span");
+  info.className = "pager-info";
+  info.textContent = `Seite ${createMpPage + 1}`;
+  const next = document.createElement("button");
+  next.textContent = "Weiter →";
+  const hasMoreLoaded = createMpAllHits.length > (createMpPage + 1) * MANAGE_PAGE;
+  next.disabled = createMpExhausted && !hasMoreLoaded;
+  next.onclick = async () => {
+    createMpPage++;
+    results.innerHTML = "<div class='loading'>Lade...</div>";
+    const needed = (createMpPage + 1) * MANAGE_PAGE;
+    while (createMpAllHits.length < needed && !createMpExhausted) {
+      await fetchCreateMpPage();
+    }
+    renderCreateMpPage();
+  };
+  pager.append(prev, info, next);
+  results.append(pager);
+}
+
+async function createModpacksSearch(reset) {
+  if (reset) resetCreateMpSearch();
+  const results = $("createMpResults");
+  if (!results) return;
+  results.innerHTML = "<div class='loading'>Lade...</div>";
+  const needed = (createMpPage + 1) * MANAGE_PAGE;
+  while (createMpAllHits.length < needed && !createMpExhausted) {
+    await fetchCreateMpPage();
+  }
+  renderCreateMpPage();
+}
+
+function setCreateModeTab(tab) {
+  createModeTab = tab;
+  document.querySelectorAll("#createModeTabs .tab[data-create-tab]").forEach((t) => {
+    const on = t.dataset.createTab === tab;
+    t.classList.toggle("active", on);
+    t.setAttribute("aria-selected", on ? "true" : "false");
+  });
+  const form = $("createForm");
+  const mpPane = $("createModpacksPane");
+  if (form) {
+    form.hidden = tab !== "custom";
+    form.style.display = tab === "custom" ? "" : "none";
+  }
+  if (mpPane) {
+    mpPane.hidden = tab !== "modpacks";
+    mpPane.style.display = tab === "modpacks" ? "" : "none";
+  }
+  if (tab === "modpacks") {
+    createModpacksSearch(true);
+  }
+}
+
+document.querySelectorAll("#createModeTabs .tab[data-create-tab]").forEach((t) => {
+  t.onclick = () => setCreateModeTab(t.dataset.createTab);
+});
+document.querySelectorAll("#createModpackSubtabs .tab[data-mp-tab]").forEach((t) => {
+  t.onclick = () => {
+    createModpackSubTab = t.dataset.mpTab;
+    document.querySelectorAll("#createModpackSubtabs .tab[data-mp-tab]").forEach((x) => {
+      const on = x.dataset.mpTab === createModpackSubTab;
+      x.classList.toggle("active", on);
+      x.setAttribute("aria-selected", on ? "true" : "false");
+    });
+    createModpacksSearch(true);
+  };
+});
+if ($("createMpSearchBtn")) {
+  $("createMpSearchBtn").onclick = () => createModpacksSearch(true);
+}
+if ($("createMpQuery")) {
+  $("createMpQuery").onkeyup = (e) => { if (e.key === "Enter") createModpacksSearch(true); };
+}
+if ($("manageQuery")) {
+  $("manageQuery").onkeyup = (e) => { if (e.key === "Enter") manageSearch(true); };
 }
 
 async function ensureHits(page) {
@@ -6446,9 +6817,10 @@ async function manageSearch(reset) {
   if (reset) resetManageSearch();
   const results = $("manageResults");
   results.innerHTML = "<div class='loading'>Lade...</div>";
-  if (manageKind === "mod" && manageInst.loader === "vanilla") {
-    results.innerHTML =
-      "<div class='loading'>Mods sind nur für Fabric/Forge/NeoForge Instanzen verfügbar.</div>";
+  if (manageKind === "mod" && (manageInst.loader === "vanilla" || manageInst.loader === "horizon")) {
+    results.innerHTML = manageInst.loader === "horizon"
+      ? "<div class='loading'>Für Horizon-Instanzen stehen Mods im Tab „Modpacks“ → „Rust Mods“ bereit.</div>"
+      : "<div class='loading'>Mods sind nur für Fabric/Forge/NeoForge Instanzen verfügbar.</div>";
     return;
   }
   await refreshInstalledSet();
@@ -6730,7 +7102,7 @@ function stripHtml(s) {
 
 
 async function openExternal(p) {
-  const link = `https://modrinth.com/project/${encodeURIComponent(p.id)}`;
+  const link = p.external_url || `https://modrinth.com/project/${encodeURIComponent(p.id)}`;
   try {
     await invoke("open_url", { url: link });
   } catch (e) {

@@ -2,7 +2,9 @@ package dev.kollegen.client.distance;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
+import dev.kollegen.client.mixin.FrustumAccessor;
 import dev.kollegen.client.mods.modules.Performance;
+import dev.kollegen.client.nativebridge.KollegenNative;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMaps;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
@@ -39,7 +41,10 @@ public final class KollegenDistanceManager {
     private static final Set<Long> VISITED_REGIONS = Collections.synchronizedSet(new HashSet<>());
 
     private static final ExecutorService DISK_IO = Executors.newSingleThreadExecutor(r -> {
-        Thread t = new Thread(r, "KollegenDistance-Disk");
+        Thread t = new Thread(() -> {
+            KollegenNative.idleBackgroundThreadOnce();
+            r.run();
+        }, "KollegenDistance-Disk");
         t.setDaemon(true);
         t.setPriority(Thread.MIN_PRIORITY);
         return t;
@@ -457,7 +462,12 @@ public final class KollegenDistanceManager {
                     double maxZ = minZ + 16.0;
                     double minY = lod.minY - 16.0;
                     double maxY = lod.maxY + 16.0;
-                    if (!frustum.isVisible(new AABB(minX, minY, minZ, maxX, maxY, maxZ))) {
+                    if (frustum instanceof FrustumAccessor fa) {
+                        int res = fa.kollegen$cubeInFrustum(minX, minY, minZ, maxX, maxY, maxZ);
+                        if (res != -2 && res != -1) {
+                            continue;
+                        }
+                    } else if (!frustum.isVisible(new AABB(minX, minY, minZ, maxX, maxY, maxZ))) {
                         continue;
                     }
                 }
