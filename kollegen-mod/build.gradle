@@ -227,6 +227,7 @@ if (rel.endsWith('mixin/MinecraftAccessor.java')) {
                     exclude '**/SoundEngineMixin.java'
                     exclude '**/ClientChunkCacheMixin.java'
                     exclude '**/ClientLevelMixin.java'
+                    exclude '**/GlobalSettingsUniformMixin.java'
                 }
             }
         }
@@ -249,7 +250,7 @@ if (rel.endsWith('mixin/MinecraftAccessor.java')) {
             def slurper = new groovy.json.JsonSlurper()
             def mix = slurper.parseText(new String(data['kollegen.mixins.json'], 'UTF-8'))
             mix.remove('refmap')
-            mix.mixins = mix.mixins.findAll { !(it in ['FogRendererMixin', 'BlockEntityRenderDispatcherMixin', 'MthMixin', 'BlockTintCacheMixin', 'EntityRendererMixin', 'ItemClusterRenderStateMixin', 'WeatherEffectRendererMixin', 'FramerateLimitTrackerMixin', 'SoundEngineMixin', 'ClientChunkCacheMixin', 'ClientLevelMixin']) }
+            mix.mixins = mix.mixins.findAll { !(it in ['FogRendererMixin', 'BlockEntityRenderDispatcherMixin', 'MthMixin', 'BlockTintCacheMixin', 'EntityRendererMixin', 'ItemClusterRenderStateMixin', 'WeatherEffectRendererMixin', 'FramerateLimitTrackerMixin', 'SoundEngineMixin', 'ClientChunkCacheMixin', 'ClientLevelMixin', 'GlobalSettingsUniformMixin']) }
             data['kollegen.mixins.json'] = (groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(mix)) + '\n').getBytes('UTF-8')
             def fmj = slurper.parseText(new String(data['fabric.mod.json'], 'UTF-8'))
             fmj.depends = [fabricloader: '>=0.16.0', minecraft: '>=1.21', java: '>=21']

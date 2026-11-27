@@ -345,59 +345,103 @@ public class KollegenVideoSettingsScreen extends Screen {
         int y1 = py + 14 - (int) this.scrollY;
         boolean en = ks.enabled;
         renderButton(g, col1X, y1, colW, 22, "Kollegen Shader: " + (en ? "Aktiviert" : "Aus"), en ? 0xFF10B981 : 0xFFEF4444, mx, my);
+        boolean sunEn = ks.sunLighting.value;
+        renderButton(g, col2X, y1, colW, 22, "Sonnenlicht & Schatten: " + (sunEn ? "Ein" : "Aus"), sunEn ? 0xFF10B981 : 0xFFEF4444, mx, my);
 
         y1 += rowH;
         String[] profs = ks.preset.options;
         int profIdx = ks.preset.index;
         String curProf = (profIdx >= 0 && profIdx < profs.length) ? profs[profIdx] : "Eigenes";
         renderButton(g, col1X, y1, colW, 22, "Profil: " + curProf, 0xFFA78BFA, mx, my);
+        boolean rainEn = ks.rainPuddles.value;
+        renderButton(g, col2X, y1, colW, 22, "Regen-Nässe & Pfützen: " + (rainEn ? "Ein" : "Aus"), rainEn ? 0xFF38BDF8 : 0xFF94A3B8, mx, my);
+
+        y1 += rowH;
+        boolean vegEn = ks.wavingVegetation.value;
+        renderButton(g, col1X, y1, colW, 22, "Wind-Pflanzen & Laub: " + (vegEn ? "Ein" : "Aus"), vegEn ? 0xFF10B981 : 0xFFEF4444, mx, my);
+        boolean watEn = ks.wavingWater.value;
+        renderButton(g, col2X, y1, colW, 22, "Wellen-Wasser: " + (watEn ? "Ein" : "Aus"), watEn ? 0xFF38BDF8 : 0xFFEF4444, mx, my);
+
+        y1 += rowH;
+        double wind = ks.windStrength.value;
+        renderSlider(g, col1X, y1, colW, 22, "Wind-Intensität: " + Math.round(wind * 100.0) + "%", (float) (wind / 1.5), mx, my);
+        double wRefl = ks.waterShimmer.value;
+        renderSlider(g, col2X, y1, colW, 22, "Wasser-Reflexionen: " + Math.round(wRefl * 100.0) + "%", (float) (wRefl / 1.5), mx, my);
+
+        y1 += rowH;
+        double pbr = ks.pbrStrength.value;
+        renderSlider(g, col1X, y1, colW, 22, "PBR-Relief & Glanz: " + Math.round(pbr * 100.0) + "%", (float) (pbr / 1.5), mx, my);
+        double rays = ks.godRays.value;
+        renderSlider(g, col2X, y1, colW, 22, "3D-Sonnenstrahlen: " + Math.round(rays * 100.0) + "%", (float) (rays / 1.5), mx, my);
+
+        y1 += rowH;
+        double em = ks.emissiveStrength.value;
+        renderSlider(g, col1X, y1, colW, 22, "Erze & Licht-Glow: " + Math.round(em * 100.0) + "%", (float) (em / 2.0), mx, my);
+        double ssaoV = ks.ssao.value;
+        renderSlider(g, col2X, y1, colW, 22, "Ambient Occl. (SSAO): " + Math.round(ssaoV * 100.0) + "%", (float) ssaoV, mx, my);
+
+        y1 += rowH;
+        double sss = ks.foliageSss.value;
+        renderSlider(g, col1X, y1, colW, 22, "Blätter-SSS: " + Math.round(sss * 100.0) + "%", (float) (sss / 1.5), mx, my);
+        double fogV = ks.depthFog.value;
+        renderSlider(g, col2X, y1, colW, 22, "Atmosphären-Nebel: " + Math.round(fogV * 100.0) + "%", (float) fogV, mx, my);
+
+        y1 += rowH;
+        double cld = ks.cloudShading.value;
+        renderSlider(g, col1X, y1, colW, 22, "Himmel & Wolken: " + Math.round(cld * 100.0) + "%", (float) (cld / 1.5), mx, my);
+        int tmIdx = (int) Math.round(ks.toneMap.value);
+        String tmLabel = tmIdx == 0 ? "Linear" : (tmIdx == 1 ? "ACES Filmic" : (tmIdx == 2 ? "Reinhard-Jodie" : "Uncharted 2"));
+        renderButton(g, col2X, y1, colW, 22, "Tone Mapping: " + tmLabel, 0xFFF59E0B, mx, my);
 
         y1 += rowH;
         boolean satEn = ks.saturationEnabled.value;
         double sat = ks.saturation.value;
         renderSlider(g, col1X, y1, colW, 22, "Sättigung: " + (satEn ? Math.round(sat * 100.0) + "%" : "Aus"), (float) (sat / 3.0), mx, my);
+        boolean briEn = ks.brightnessEnabled.value;
+        double bri = ks.brightness.value;
+        renderSlider(g, col2X, y1, colW, 22, "Helligkeit: " + (briEn ? String.format("%.2f", bri) : "Aus"), (float) ((bri - 0.5) / 1.5), mx, my);
 
         y1 += rowH;
         boolean vibEn = ks.vibranceEnabled.value;
         double vib = ks.vibrance.value;
         renderSlider(g, col1X, y1, colW, 22, "Vibrance: " + (vibEn ? String.format("%.2f", vib) : "Aus"), (float) ((vib - 0.5) / 2.0), mx, my);
+        boolean expEn = ks.exposureEnabled.value;
+        double exp = ks.exposure.value;
+        renderSlider(g, col2X, y1, colW, 22, "Belichtung: " + (expEn ? String.format("%.2f", exp) : "Aus"), (float) ((exp - 0.5) / 1.5), mx, my);
 
         y1 += rowH;
         boolean conEn = ks.contrastEnabled.value;
         double con = ks.contrast.value;
         renderSlider(g, col1X, y1, colW, 22, "Kontrast: " + (conEn ? String.format("%.2f", con) : "Aus"), (float) ((con - 0.5) / 1.5), mx, my);
-
-        int y2 = py + 14 - (int) this.scrollY;
-        boolean briEn = ks.brightnessEnabled.value;
-        double bri = ks.brightness.value;
-        renderSlider(g, col2X, y2, colW, 22, "Helligkeit: " + (briEn ? String.format("%.2f", bri) : "Aus"), (float) ((bri - 0.5) / 1.5), mx, my);
-
-        y2 += rowH;
-        boolean expEn = ks.exposureEnabled.value;
-        double exp = ks.exposure.value;
-        renderSlider(g, col2X, y2, colW, 22, "Belichtung: " + (expEn ? String.format("%.2f", exp) : "Aus"), (float) ((exp - 0.5) / 1.5), mx, my);
-
-        y2 += rowH;
         boolean blEn = ks.bloomEnabled.value;
         double bl = ks.bloom.value;
-        renderSlider(g, col2X, y2, colW, 22, "Bloom: " + (blEn ? Math.round(bl * 100.0) + "%" : "Aus"), (float) bl, mx, my);
+        renderSlider(g, col2X, y1, colW, 22, "Bloom: " + (blEn ? Math.round(bl * 100.0) + "%" : "Aus"), (float) bl, mx, my);
 
-        y2 += rowH;
+        y1 += rowH;
+        double gam = ks.gamma.value;
+        renderSlider(g, col1X, y1, colW, 22, "Gamma: " + String.format("%.2f", gam), (float) ((gam - 0.8) / 0.8), mx, my);
         boolean warEn = ks.warmthEnabled.value;
         double war = ks.warmth.value;
-        renderSlider(g, col2X, y2, colW, 22, "Farbtemperatur: " + (warEn ? String.format("%.2f", war) : "Aus"), (float) ((war - 0.7) / 0.7), mx, my);
+        renderSlider(g, col2X, y1, colW, 22, "Farbtemperatur: " + (warEn ? String.format("%.2f", war) : "Aus"), (float) ((war - 0.7) / 0.7), mx, my);
 
-        y2 += rowH;
+        y1 += rowH;
         boolean vigEn = ks.vignetteEnabled.value;
         double vig = ks.vignetteStrength.value;
-        renderSlider(g, col2X, y2, colW, 22, "Kino-Vignette: " + (vigEn ? Math.round(vig * 100.0) + "%" : "Aus"), (float) vig, mx, my);
-
-        y2 += rowH;
+        renderSlider(g, col1X, y1, colW, 22, "Kino-Vignette: " + (vigEn ? Math.round(vig * 100.0) + "%" : "Aus"), (float) vig, mx, my);
         boolean motEn = ks.motionBlurEnabled.value;
         double mot = ks.motionBlurStrength.value;
-        renderSlider(g, col2X, y2, colW, 22, "Motion Blur: " + (motEn ? Math.round(mot * 100.0) + "%" : "Aus"), (float) mot, mx, my);
+        renderSlider(g, col2X, y1, colW, 22, "Motion Blur: " + (motEn ? Math.round(mot * 100.0) + "%" : "Aus"), (float) mot, mx, my);
 
-        int totalH = (Math.max(y1, y2) + 32 + (int) this.scrollY) - py;
+        y1 += rowH;
+        double rt = ks.raytracingStrength.value;
+        renderSlider(g, col1X, y1, colW, 22, "Screen-Space Raytracing: " + Math.round(rt * 100.0) + "%", (float) (rt / 1.5), mx, my);
+        double realV = ks.realism.value;
+        renderSlider(g, col2X, y1, colW, 22, "Realismus: " + Math.round(realV * 100.0) + "%", (float) (realV / 1.5), mx, my);
+
+        y1 += rowH;
+        renderButton(g, col1X, y1, colW * 2 + 8, 22, "Profil-Defaults laden", 0xFF38BDF8, mx, my);
+
+        int totalH = (y1 + 32 + (int) this.scrollY) - py;
         this.maxScroll = Math.max(0.0f, totalH - (ph - 16));
     }
 
@@ -1185,12 +1229,95 @@ public class KollegenVideoSettingsScreen extends Screen {
             ModuleManager.save();
             return;
         }
+        if (mx >= col2X && mx <= col2X + colW && my >= y1 && my <= y1 + 22) {
+            ks.sunLighting.value = !ks.sunLighting.value;
+            ModuleManager.save();
+            return;
+        }
 
         y1 += rowH;
         if (mx >= col1X && mx <= col1X + colW && my >= y1 && my <= y1 + 22) {
             int next = (ks.preset.index + 1) % ks.preset.options.length;
             ks.preset.index = next;
             ks.applyPreset(next);
+            ModuleManager.save();
+            return;
+        }
+        if (mx >= col2X && mx <= col2X + colW && my >= y1 && my <= y1 + 22) {
+            ks.rainPuddles.value = !ks.rainPuddles.value;
+            ModuleManager.save();
+            return;
+        }
+
+        y1 += rowH;
+        if (mx >= col1X && mx <= col1X + colW && my >= y1 && my <= y1 + 22) {
+            ks.wavingVegetation.value = !ks.wavingVegetation.value;
+            ModuleManager.save();
+            return;
+        }
+        if (mx >= col2X && mx <= col2X + colW && my >= y1 && my <= y1 + 22) {
+            ks.wavingWater.value = !ks.wavingWater.value;
+            ModuleManager.save();
+            return;
+        }
+
+        y1 += rowH;
+        if (mx >= col1X && mx <= col1X + colW && my >= y1 && my <= y1 + 22) {
+            this.activeSlider = 20;
+            setSliderValue(20, mx);
+            return;
+        }
+        if (mx >= col2X && mx <= col2X + colW && my >= y1 && my <= y1 + 22) {
+            this.activeSlider = 25;
+            setSliderValue(25, mx);
+            return;
+        }
+
+        y1 += rowH;
+        if (mx >= col1X && mx <= col1X + colW && my >= y1 && my <= y1 + 22) {
+            this.activeSlider = 21;
+            setSliderValue(21, mx);
+            return;
+        }
+        if (mx >= col2X && mx <= col2X + colW && my >= y1 && my <= y1 + 22) {
+            this.activeSlider = 26;
+            setSliderValue(26, mx);
+            return;
+        }
+
+        y1 += rowH;
+        if (mx >= col1X && mx <= col1X + colW && my >= y1 && my <= y1 + 22) {
+            this.activeSlider = 22;
+            setSliderValue(22, mx);
+            return;
+        }
+        if (mx >= col2X && mx <= col2X + colW && my >= y1 && my <= y1 + 22) {
+            this.activeSlider = 27;
+            setSliderValue(27, mx);
+            return;
+        }
+
+        y1 += rowH;
+        if (mx >= col1X && mx <= col1X + colW && my >= y1 && my <= y1 + 22) {
+            this.activeSlider = 23;
+            setSliderValue(23, mx);
+            return;
+        }
+        if (mx >= col2X && mx <= col2X + colW && my >= y1 && my <= y1 + 22) {
+            this.activeSlider = 28;
+            setSliderValue(28, mx);
+            return;
+        }
+
+        y1 += rowH;
+        if (mx >= col1X && mx <= col1X + colW && my >= y1 && my <= y1 + 22) {
+            this.activeSlider = 24;
+            setSliderValue(24, mx);
+            return;
+        }
+        if (mx >= col2X && mx <= col2X + colW && my >= y1 && my <= y1 + 22) {
+            int nextTm = ((int) Math.round(ks.toneMap.value) + 1) % 4;
+            ks.toneMap.value = (double) nextTm;
             ModuleManager.save();
             return;
         }
@@ -1201,11 +1328,21 @@ public class KollegenVideoSettingsScreen extends Screen {
             setSliderValue(10, mx);
             return;
         }
+        if (mx >= col2X && mx <= col2X + colW && my >= y1 && my <= y1 + 22) {
+            this.activeSlider = 13;
+            setSliderValue(13, mx);
+            return;
+        }
 
         y1 += rowH;
         if (mx >= col1X && mx <= col1X + colW && my >= y1 && my <= y1 + 22) {
             this.activeSlider = 11;
             setSliderValue(11, mx);
+            return;
+        }
+        if (mx >= col2X && mx <= col2X + colW && my >= y1 && my <= y1 + 22) {
+            this.activeSlider = 14;
+            setSliderValue(14, mx);
             return;
         }
 
@@ -1215,46 +1352,52 @@ public class KollegenVideoSettingsScreen extends Screen {
             setSliderValue(12, mx);
             return;
         }
-
-        int y2 = py + 14 - (int) this.scrollY;
-        if (mx >= col2X && mx <= col2X + colW && my >= y2 && my <= y2 + 22) {
-            this.activeSlider = 13;
-            setSliderValue(13, mx);
-            return;
-        }
-
-        y2 += rowH;
-        if (mx >= col2X && mx <= col2X + colW && my >= y2 && my <= y2 + 22) {
-            this.activeSlider = 14;
-            setSliderValue(14, mx);
-            return;
-        }
-
-        y2 += rowH;
-        if (mx >= col2X && mx <= col2X + colW && my >= y2 && my <= y2 + 22) {
+        if (mx >= col2X && mx <= col2X + colW && my >= y1 && my <= y1 + 22) {
             this.activeSlider = 15;
             setSliderValue(15, mx);
             return;
         }
 
-        y2 += rowH;
-        if (mx >= col2X && mx <= col2X + colW && my >= y2 && my <= y2 + 22) {
+        y1 += rowH;
+        if (mx >= col1X && mx <= col1X + colW && my >= y1 && my <= y1 + 22) {
+            this.activeSlider = 19;
+            setSliderValue(19, mx);
+            return;
+        }
+        if (mx >= col2X && mx <= col2X + colW && my >= y1 && my <= y1 + 22) {
             this.activeSlider = 16;
             setSliderValue(16, mx);
             return;
         }
 
-        y2 += rowH;
-        if (mx >= col2X && mx <= col2X + colW && my >= y2 && my <= y2 + 22) {
+        y1 += rowH;
+        if (mx >= col1X && mx <= col1X + colW && my >= y1 && my <= y1 + 22) {
             this.activeSlider = 17;
             setSliderValue(17, mx);
             return;
         }
-
-        y2 += rowH;
-        if (mx >= col2X && mx <= col2X + colW && my >= y2 && my <= y2 + 22) {
+        if (mx >= col2X && mx <= col2X + colW && my >= y1 && my <= y1 + 22) {
             this.activeSlider = 18;
             setSliderValue(18, mx);
+            return;
+        }
+
+        y1 += rowH;
+        if (mx >= col1X && mx <= col1X + colW && my >= y1 && my <= y1 + 22) {
+            this.activeSlider = 29;
+            setSliderValue(29, mx);
+            return;
+        }
+        if (mx >= col2X && mx <= col2X + colW && my >= y1 && my <= y1 + 22) {
+            this.activeSlider = 30;
+            setSliderValue(30, mx);
+            return;
+        }
+
+        y1 += rowH;
+        if (mx >= col1X && mx <= col1X + colW * 2 + 8 && my >= y1 && my <= y1 + 22) {
+            ks.applyPreset(ks.preset.index);
+            ModuleManager.save();
         }
     }
 
@@ -1264,11 +1407,13 @@ public class KollegenVideoSettingsScreen extends Screen {
         int col2X = px + 24 + colW;
         int rowH = 26;
 
-        int y1 = py + 14 - (int) this.scrollY;
-        y1 += rowH;
-        y1 += rowH;
+        int y1 = py + 14 - (int) this.scrollY + rowH * 8;
         if (mx >= col1X && mx <= col1X + colW && my >= y1 && my <= y1 + 22) {
             openNumericModal(ModalTarget.SHADER_SATURATION);
+            return;
+        }
+        if (mx >= col2X && mx <= col2X + colW && my >= y1 && my <= y1 + 22) {
+            openNumericModal(ModalTarget.SHADER_BRIGHTNESS);
             return;
         }
         y1 += rowH;
@@ -1276,39 +1421,30 @@ public class KollegenVideoSettingsScreen extends Screen {
             openNumericModal(ModalTarget.SHADER_VIBRANCE);
             return;
         }
+        if (mx >= col2X && mx <= col2X + colW && my >= y1 && my <= y1 + 22) {
+            openNumericModal(ModalTarget.SHADER_EXPOSURE);
+            return;
+        }
         y1 += rowH;
         if (mx >= col1X && mx <= col1X + colW && my >= y1 && my <= y1 + 22) {
             openNumericModal(ModalTarget.SHADER_CONTRAST);
             return;
         }
-
-        int y2 = py + 14 - (int) this.scrollY;
-        if (mx >= col2X && mx <= col2X + colW && my >= y2 && my <= y2 + 22) {
-            openNumericModal(ModalTarget.SHADER_BRIGHTNESS);
-            return;
-        }
-        y2 += rowH;
-        if (mx >= col2X && mx <= col2X + colW && my >= y2 && my <= y2 + 22) {
-            openNumericModal(ModalTarget.SHADER_EXPOSURE);
-            return;
-        }
-        y2 += rowH;
-        if (mx >= col2X && mx <= col2X + colW && my >= y2 && my <= y2 + 22) {
+        if (mx >= col2X && mx <= col2X + colW && my >= y1 && my <= y1 + 22) {
             openNumericModal(ModalTarget.SHADER_BLOOM);
             return;
         }
-        y2 += rowH;
-        if (mx >= col2X && mx <= col2X + colW && my >= y2 && my <= y2 + 22) {
+        y1 += rowH;
+        if (mx >= col2X && mx <= col2X + colW && my >= y1 && my <= y1 + 22) {
             openNumericModal(ModalTarget.SHADER_WARMTH);
             return;
         }
-        y2 += rowH;
-        if (mx >= col2X && mx <= col2X + colW && my >= y2 && my <= y2 + 22) {
+        y1 += rowH;
+        if (mx >= col1X && mx <= col1X + colW && my >= y1 && my <= y1 + 22) {
             openNumericModal(ModalTarget.SHADER_VIGNETTE);
             return;
         }
-        y2 += rowH;
-        if (mx >= col2X && mx <= col2X + colW && my >= y2 && my <= y2 + 22) {
+        if (mx >= col2X && mx <= col2X + colW && my >= y1 && my <= y1 + 22) {
             openNumericModal(ModalTarget.SHADER_MOTION_BLUR);
         }
     }
@@ -1441,8 +1577,8 @@ public class KollegenVideoSettingsScreen extends Screen {
             case 17 -> {
                 KollegenShader ks = KollegenShader.INSTANCE;
                 if (ks != null) {
-                    ks.vignetteEnabled.value = half2Ratio > 0.02f;
-                    ks.vignetteStrength.value = (double) half2Ratio;
+                    ks.vignetteEnabled.value = half1Ratio > 0.02f;
+                    ks.vignetteStrength.value = (double) half1Ratio;
                 }
             }
             case 18 -> {
@@ -1450,6 +1586,78 @@ public class KollegenVideoSettingsScreen extends Screen {
                 if (ks != null) {
                     ks.motionBlurEnabled.value = half2Ratio > 0.02f;
                     ks.motionBlurStrength.value = (double) half2Ratio;
+                }
+            }
+            case 19 -> {
+                KollegenShader ks = KollegenShader.INSTANCE;
+                if (ks != null) {
+                    ks.gamma.value = Math.round((0.8 + half1Ratio * 0.8) * 50.0) / 50.0;
+                }
+            }
+            case 20 -> {
+                KollegenShader ks = KollegenShader.INSTANCE;
+                if (ks != null) {
+                    ks.windStrength.value = Math.round(half1Ratio * 1.5 * 20.0) / 20.0;
+                }
+            }
+            case 21 -> {
+                KollegenShader ks = KollegenShader.INSTANCE;
+                if (ks != null) {
+                    ks.pbrStrength.value = Math.round(half1Ratio * 1.5 * 20.0) / 20.0;
+                }
+            }
+            case 22 -> {
+                KollegenShader ks = KollegenShader.INSTANCE;
+                if (ks != null) {
+                    ks.emissiveStrength.value = Math.round(half1Ratio * 2.0 * 20.0) / 20.0;
+                }
+            }
+            case 23 -> {
+                KollegenShader ks = KollegenShader.INSTANCE;
+                if (ks != null) {
+                    ks.foliageSss.value = Math.round(half1Ratio * 1.5 * 20.0) / 20.0;
+                }
+            }
+            case 24 -> {
+                KollegenShader ks = KollegenShader.INSTANCE;
+                if (ks != null) {
+                    ks.cloudShading.value = Math.round(half1Ratio * 1.5 * 20.0) / 20.0;
+                }
+            }
+            case 25 -> {
+                KollegenShader ks = KollegenShader.INSTANCE;
+                if (ks != null) {
+                    ks.waterShimmer.value = Math.round(half2Ratio * 1.5 * 20.0) / 20.0;
+                }
+            }
+            case 26 -> {
+                KollegenShader ks = KollegenShader.INSTANCE;
+                if (ks != null) {
+                    ks.godRays.value = Math.round(half2Ratio * 1.5 * 20.0) / 20.0;
+                }
+            }
+            case 27 -> {
+                KollegenShader ks = KollegenShader.INSTANCE;
+                if (ks != null) {
+                    ks.ssao.value = Math.round(half2Ratio * 20.0) / 20.0;
+                }
+            }
+            case 28 -> {
+                KollegenShader ks = KollegenShader.INSTANCE;
+                if (ks != null) {
+                    ks.depthFog.value = Math.round(half2Ratio * 20.0) / 20.0;
+                }
+            }
+            case 29 -> {
+                KollegenShader ks = KollegenShader.INSTANCE;
+                if (ks != null) {
+                    ks.raytracingStrength.value = Math.round(half1Ratio * 1.5 * 20.0) / 20.0;
+                }
+            }
+            case 30 -> {
+                KollegenShader ks = KollegenShader.INSTANCE;
+                if (ks != null) {
+                    ks.realism.value = Math.round(half2Ratio * 1.5 * 20.0) / 20.0;
                 }
             }
         }

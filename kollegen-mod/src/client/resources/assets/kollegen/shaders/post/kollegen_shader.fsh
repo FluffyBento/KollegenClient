@@ -2,7 +2,7 @@
 #extension GL_ARB_separate_shader_objects : require
 
 uniform sampler2D InSampler;
-uniform sampler2D DepthSampler;
+uniform sampler2D BloomSampler;
 
 layout(std140) uniform SamplerInfo {
     vec2 OutSize;
@@ -14,26 +14,54 @@ layout(std140) uniform ShaderConfig {
     float Contrast;
     float Brightness;
     float Vignette;
-
     float Bloom;
     float Exposure;
     float Warmth;
     float Vibrance;
-
     float ToneMap;
     float Gamma;
     float GodRays;
     float SSAO;
-
     float DepthFog;
     float WaterShimmer;
     float GameTime;
     float SunVisibility;
-
     float SunScreenX;
     float SunScreenY;
     float FarPlane;
-    float Pad;
+    float RainWet;
+    float DayFactor;
+    float EmissiveHint;
+    float TanHalfFov;
+    float Aspect;
+    float SunViewX;
+    float SunViewY;
+    float SunViewZ;
+    float Raytracing;
+    float WorldUpViewX;
+    float WorldUpViewY;
+    float WorldUpViewZ;
+    float ScreenYFlip;
+    float Realism;
+    float DimType;
+    float SunWorldX;
+    float SunWorldY;
+    float SunWorldZ;
+    float CamVoxX;
+    float CamVoxY;
+    float CamVoxZ;
+    float CamRightX;
+    float CamRightY;
+    float CamRightZ;
+    float CamUpX;
+    float CamUpY;
+    float CamUpZ;
+    float CamBackX;
+    float CamBackY;
+    float CamBackZ;
+    float VoxReady;
+    float PadA;
+    float PadB;
 };
 
 layout(location = 0) in vec2 texCoord;
@@ -46,11 +74,11 @@ float luminance(vec3 v) {
 }
 
 vec3 aces(vec3 x) {
-    const float a = 2.1;
-    const float b = 0.15;
-    const float c = 2.03;
-    const float d = 0.8;
-    const float e = 0.25;
+    const float a = 2.51;
+    const float b = 0.03;
+    const float c = 2.43;
+    const float d = 0.59;
+    const float e = 0.14;
     return clamp((x * (a * x + b)) / (x * (c * x + d) + e), 0.0, 1.0);
 }
 
@@ -61,170 +89,87 @@ vec3 reinhard_jodie(vec3 v) {
 }
 
 vec3 uncharted2Tonemap(vec3 x) {
-    float A = 0.28;
-    float B = 0.29;
+    float A = 0.22;
+    float B = 0.30;
     float C = 0.10;
-    float D = 0.2;
-    float E = 0.025;
-    float F = 0.35;
+    float D = 0.20;
+    float E = 0.01;
+    float F = 0.30;
     return ((x * (A * x + C * B) + D * E) / (x * (A * x + B) + D * F)) - E / F;
 }
 
 void main() {
     vec4 inTexel = texture(InSampler, texCoord);
-    vec3 c = inTexel.rgb;
-    float rawDepth = texture(DepthSampler, texCoord).r;
-    bool isSky = rawDepth >= 0.9999;
-
-    vec2 px = 1.0 / max(InSize, vec2(1.0, 1.0));
-
-    if (!isSky && SSAO > 0.01) {
-        float occ = 0.0;
-        vec2 off[6] = vec2[](
-            vec2(1.5, 0.5), vec2(-1.5, -0.5),
-            vec2(0.5, 1.5), vec2(-0.5, -1.5),
-            vec2(1.2, -1.2), vec2(-1.2, 1.2)
-        );
-        for (int i = 0; i < 6; i++) {
-            float sd = texture(DepthSampler, texCoord + off[i] * px * 2.2).r;
-            float diff = rawDepth - sd;
-            if (diff > 0.00008 && diff < 0.008) {
-                occ += 1.0;
-            }
-        }
-        float ao = 1.0 - (occ / 6.0) * SSAO * 0.65;
-        c *= clamp(ao, 0.28, 1.0);
-    }
-
-    if (!isSky && DepthFog > 0.01) {
-        float zNear = 0.05;
-        float zFar = max(FarPlane, 64.0);
-        float linearDist = (zNear * zFar) / (zFar - rawDepth * (zFar - zNear));
-        float fogDensity = DepthFog * 0.006;
-        float fogFactor = 1.0 - exp(-pow(linearDist * fogDensity, 1.35));
-        fogFactor = clamp(fogFactor, 0.0, 0.90);
-
-        vec2 sunPos = vec2(SunScreenX, SunScreenY);
-        float distToSun = length(texCoord - sunPos);
-        float sunScattering = pow(max(1.0 - distToSun * 1.4, 0.0), 3.0) * SunVisibility;
-
-        vec3 skyHaze = mix(vec3(0.55, 0.68, 0.88), vec3(1.15, 0.98, 0.76), sunScattering * 0.65);
-        c = mix(c, skyHaze, fogFactor);
-    }
-
-    if (GodRays > 0.01 && SunVisibility > 0.05) {
-        vec2 sunPos = vec2(SunScreenX, SunScreenY);
-        vec2 delta = (sunPos - texCoord) / 8.0;
-        vec2 cur = texCoord;
-        float godRay = 0.0;
-        float decay = 1.0;
-        for (int i = 0; i < 8; i++) {
-            cur += delta;
-            float d = texture(DepthSampler, clamp(cur, 0.0, 1.0)).r;
-            if (d >= 0.9998) {
-                godRay += decay;
-            }
-            decay *= 0.85;
-        }
-        float toSunDist = length(sunPos - texCoord);
-        float sunCone = smoothstep(1.1, 0.0, toSunDist);
-        float intensity = (godRay / 8.0) * GodRays * SunVisibility * sunCone * 0.42;
-        vec3 beamColor = vec3(1.18, 1.02, 0.78);
-        c += beamColor * intensity;
-    }
-
-    if (!isSky && WaterShimmer > 0.01) {
-        vec2 sunPos = vec2(SunScreenX, SunScreenY);
-        float toSun = length(sunPos - texCoord);
-        vec2 waveCoord = texCoord * 32.0 + vec2(GameTime * 0.9, GameTime * 0.6);
-        float wave = sin(waveCoord.x) * cos(waveCoord.y);
-        float spec = pow(max(1.0 - toSun * 1.8 + wave * 0.18, 0.0), 10.0) * SunVisibility;
-        c += vec3(0.85, 0.95, 1.1) * spec * WaterShimmer * 0.28;
-    }
+    vec3 c = pow(max(inTexel.rgb, vec3(0.0)), vec3(2.2));
+    float realFac = clamp(Realism, 0.0, 1.5);
 
     if (Bloom > 0.01) {
-        vec3 bloomAcc = vec3(0.0);
-        float wSum = 0.0;
-        for (int x = -2; x <= 2; x++) {
-            for (int y = -2; y <= 2; y++) {
-                if (x == 0 && y == 0) continue;
-                vec2 offset = vec2(float(x), float(y)) * px * 1.5;
-                vec3 s = texture(InSampler, texCoord + offset).rgb;
-                float sum = s.r + s.g + s.b;
-                if (sum > 2.5) {
-                    float weight = 1.0 / (1.0 + float(x * x + y * y));
-                    bloomAcc += (s - 0.83) * weight;
-                    wSum += weight;
-                }
-            }
-        }
-        if (wSum > 0.0) {
-            c += (bloomAcc / wSum) * Bloom * 0.35;
-        }
+        vec3 b = texture(BloomSampler, texCoord).rgb;
+        c += b * (Bloom * (0.72 + 0.16 * realFac));
     }
 
-    if (abs(Exposure - 1.0) > 0.001) {
-        c *= Exposure;
+    c *= max(Exposure, 0.1);
+
+    if (abs(Warmth - 1.0) > 0.005) {
+        float t = Warmth - 1.0;
+        c.r *= (1.0 + t * 0.55);
+        c.g *= (1.0 + t * 0.14);
+        c.b *= (1.0 - t * 0.52);
+        c = max(c, vec3(0.0));
     }
-
-    if (abs(Warmth - 1.0) > 0.001) {
-        if (Warmth > 1.0) {
-            float t = Warmth - 1.0;
-            c.r += c.r * t * 0.12;
-            c.g += c.g * t * 0.04;
-            c.b -= c.b * t * 0.08;
-        } else {
-            float t = 1.0 - Warmth;
-            c.r -= c.r * t * 0.08;
-            c.b += c.b * t * 0.12;
-        }
-    }
-
-    float luma = luminance(c);
-
-    if (abs(Vibrance - 1.0) > 0.001) {
-        float maxC = max(c.r, max(c.g, c.b));
-        float minC = min(c.r, min(c.g, c.b));
-        float sat = maxC - minC;
-        float factor = 1.0 + (Vibrance - 1.0) * (1.0 - sat);
-        c = mix(vec3(luma), c, max(0.0, factor));
-        luma = luminance(c);
-    }
-
-    if (abs(Saturation - 1.0) > 0.001) {
-        c = mix(vec3(luma), c, Saturation);
-    }
-
-    if (abs(Contrast - 1.0) > 0.001) {
-        c = (c - 0.5) * Contrast + 0.5;
-    }
-
-    if (abs(Brightness - 1.0) > 0.001) {
-        c *= Brightness;
-    }
-
-    c = max(vec3(0.0), c);
 
     if (ToneMap > 0.5) {
         if (ToneMap < 1.5) {
-            c = aces(c);
+            c = aces(c * 1.18);
         } else if (ToneMap < 2.5) {
-            c = reinhard_jodie(c);
+            c = reinhard_jodie(c * 1.38);
         } else {
-            c = clamp(uncharted2Tonemap(c), 0.0, 1.0);
+            vec3 curr = uncharted2Tonemap(c * 1.75);
+            vec3 whiteScale = 1.0 / uncharted2Tonemap(vec3(11.2));
+            c = curr * whiteScale;
         }
     }
 
-    if (abs(Gamma - 1.0) > 0.001 && Gamma > 0.1) {
-        c = pow(clamp(c, 0.0, 1.0), vec3(1.0 / Gamma));
+    c = pow(max(c, vec3(0.0)), vec3(1.0 / 2.2));
+
+    if (realFac > 0.1 && ToneMap > 0.5) {
+        float lumaGrade = clamp(luminance(c), 0.0, 1.0);
+        vec3 splitTone = mix(vec3(-0.022, 0.004, 0.032), vec3(0.036, 0.012, -0.022) * DayFactor, smoothstep(0.16, 0.80, lumaGrade));
+        c += splitTone * (4.0 * lumaGrade * (1.0 - lumaGrade) * smoothstep(0.1, 0.8, realFac) * 0.65);
     }
 
-    if (Vignette > 0.001) {
-        vec2 uv = texCoord - 0.5;
-        float dist = length(uv);
-        float vig = clamp(1.0 - dist * dist * Vignette * 1.5, 0.0, 1.0);
-        c *= vig;
+    if (abs(Vibrance - 1.0) > 0.005) {
+        float luma = luminance(c);
+        float maxCol = max(c.r, max(c.g, c.b));
+        float minCol = min(c.r, min(c.g, c.b));
+        float sat = maxCol - minCol;
+        float vibAmt = clamp(1.0 + (Vibrance - 1.0) * (1.0 - sat), 0.1, 3.0);
+        c = mix(vec3(luma), c, vibAmt);
     }
 
-    fragColor = vec4(clamp(c, 0.0, 1.0), 1.0);
+    if (abs(Saturation - 1.0) > 0.005) {
+        float luma = luminance(c);
+        c = mix(vec3(luma), c, Saturation);
+    }
+
+    if (abs(Contrast - 1.0) > 0.005) {
+        c = (c - 0.5) * Contrast + 0.5;
+    }
+
+    if (abs(Brightness - 1.0) > 0.005) {
+        c *= Brightness;
+    }
+
+    if (abs(Gamma - 1.0) > 0.005) {
+        c = pow(max(c, vec3(0.0)), vec3(1.0 / max(1.0 + (Gamma - 1.0) * 0.55, 0.35)));
+    }
+
+    if (Vignette > 0.005) {
+        vec2 center = texCoord - 0.5;
+        float dist = dot(center, center);
+        float vig = clamp(1.0 - dist * (Vignette * 2.2), 0.0, 1.0);
+        c *= mix(1.0, vig, 0.92);
+    }
+
+    fragColor = vec4(clamp(c, 0.0, 1.0), inTexel.a);
 }

@@ -29,6 +29,7 @@ public class PostShaderMixin {
     private void kollegen$injectPrepare(List<Identifier> list, CallbackInfo ci) {
         if (KollegenShader.isShaderActive()) {
             try {
+                KollegenShader.ensureVoxelShadowTexture(this.minecraft);
                 if (!list.contains(KollegenShader.SHADER_ID)) {
                     list.add(KollegenShader.SHADER_ID);
                 }
@@ -46,6 +47,8 @@ public class PostShaderMixin {
             return;
         }
         try {
+            KollegenShader.ensureVoxelShadowTexture(this.minecraft);
+            KollegenShader.updateVoxelShadow(this.minecraft);
             if (this.minecraft != null && this.minecraft.getShaderManager() != null) {
                 PostChain chain = this.minecraft.getShaderManager().getPostChain(KollegenShader.SHADER_ID, LevelTargetBundle.MAIN_TARGETS);
                 if (chain != null) {

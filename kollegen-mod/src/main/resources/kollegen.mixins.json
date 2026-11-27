@@ -103,7 +103,11 @@
     "AbstractSliderButtonMixin",
     "AbstractSliderButtonAccessor",
     "KeyboardHandlerMixin",
-    "CubeMapTextureMixin"
+    "CubeMapTextureMixin",
+    "GlobalSettingsUniformMixin",
+    "SectionCompilerMixin",
+    "BufferBuilderMixin",
+    "CloudRendererMixin"
   ],
   "injectors": {
     "defaultRequire": 1

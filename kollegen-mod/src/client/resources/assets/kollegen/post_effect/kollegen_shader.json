@@ -1,45 +1,281 @@
 {
     "targets": {
+        "lit": {},
+        "bloom_a": {},
+        "bloom_b": {},
         "swap": {}
     },
     "passes": [
         {
             "vertex_shader": "minecraft:core/screenquad",
+            "fragment_shader": "kollegen:post/shader_gbuffer",
+            "inputs": [
+                { "sampler_name": "In", "target": "minecraft:main" },
+                { "sampler_name": "Depth", "target": "minecraft:main", "use_depth_buffer": true },
+                { "sampler_name": "VoxelShadow", "location": "kollegen:voxel_shadow", "width": 128, "height": 256, "bilinear": false }
+            ],
+            "output": "lit",
+            "uniforms": {
+                "ShaderConfig": [
+                    { "name": "Saturation", "type": "float", "value": 1.18 },
+                    { "name": "Contrast", "type": "float", "value": 1.12 },
+                    { "name": "Brightness", "type": "float", "value": 1.00 },
+                    { "name": "Vignette", "type": "float", "value": 0.0 },
+                    { "name": "Bloom", "type": "float", "value": 0.42 },
+                    { "name": "Exposure", "type": "float", "value": 1.06 },
+                    { "name": "Warmth", "type": "float", "value": 1.05 },
+                    { "name": "Vibrance", "type": "float", "value": 1.20 },
+                    { "name": "ToneMap", "type": "float", "value": 1.0 },
+                    { "name": "Gamma", "type": "float", "value": 1.14 },
+                    { "name": "GodRays", "type": "float", "value": 0.90 },
+                    { "name": "SSAO", "type": "float", "value": 0.60 },
+                    { "name": "DepthFog", "type": "float", "value": 0.40 },
+                    { "name": "WaterShimmer", "type": "float", "value": 1.05 },
+                    { "name": "GameTime", "type": "float", "value": 0.0 },
+                    { "name": "SunVisibility", "type": "float", "value": 1.0 },
+                    { "name": "SunScreenX", "type": "float", "value": 0.5 },
+                    { "name": "SunScreenY", "type": "float", "value": 0.25 },
+                    { "name": "FarPlane", "type": "float", "value": 256.0 },
+                    { "name": "RainWet", "type": "float", "value": 0.0 },
+                    { "name": "DayFactor", "type": "float", "value": 1.0 },
+                    { "name": "EmissiveHint", "type": "float", "value": 1.00 },
+                    { "name": "TanHalfFov", "type": "float", "value": 0.70 },
+                    { "name": "Aspect", "type": "float", "value": 1.77 },
+                    { "name": "SunViewX", "type": "float", "value": 0.0 },
+                    { "name": "SunViewY", "type": "float", "value": 0.6 },
+                    { "name": "SunViewZ", "type": "float", "value": -0.8 },
+                    { "name": "Raytracing", "type": "float", "value": 1.10 },
+                    { "name": "WorldUpViewX", "type": "float", "value": 0.0 },
+                    { "name": "WorldUpViewY", "type": "float", "value": 1.0 },
+                    { "name": "WorldUpViewZ", "type": "float", "value": 0.0 },
+                    { "name": "ScreenYFlip", "type": "float", "value": -1.0 },
+                    { "name": "Realism", "type": "float", "value": 1.10 },
+                    { "name": "DimType", "type": "float", "value": 0.0 },
+                    { "name": "SunWorldX", "type": "float", "value": 0.55 },
+                    { "name": "SunWorldY", "type": "float", "value": 0.75 },
+                    { "name": "SunWorldZ", "type": "float", "value": 0.36 },
+                    { "name": "CamVoxX", "type": "float", "value": 64.0 },
+                    { "name": "CamVoxY", "type": "float", "value": 24.0 },
+                    { "name": "CamVoxZ", "type": "float", "value": 64.0 },
+                    { "name": "CamRightX", "type": "float", "value": 1.0 },
+                    { "name": "CamRightY", "type": "float", "value": 0.0 },
+                    { "name": "CamRightZ", "type": "float", "value": 0.0 },
+                    { "name": "CamUpX", "type": "float", "value": 0.0 },
+                    { "name": "CamUpY", "type": "float", "value": 1.0 },
+                    { "name": "CamUpZ", "type": "float", "value": 0.0 },
+                    { "name": "CamBackX", "type": "float", "value": 0.0 },
+                    { "name": "CamBackY", "type": "float", "value": 0.0 },
+                    { "name": "CamBackZ", "type": "float", "value": 1.0 },
+                    { "name": "VoxReady", "type": "float", "value": 0.0 },
+                    { "name": "PadA", "type": "float", "value": 0.0 },
+                    { "name": "PadB", "type": "float", "value": 0.0 }
+                ]
+            }
+        },
+        {
+            "vertex_shader": "minecraft:core/screenquad",
+            "fragment_shader": "kollegen:post/bloom_extract",
+            "inputs": [
+                { "sampler_name": "In", "target": "lit" }
+            ],
+            "output": "bloom_a",
+            "uniforms": {
+                "ShaderConfig": [
+                    { "name": "Saturation", "type": "float", "value": 1.18 },
+                    { "name": "Contrast", "type": "float", "value": 1.12 },
+                    { "name": "Brightness", "type": "float", "value": 1.00 },
+                    { "name": "Vignette", "type": "float", "value": 0.0 },
+                    { "name": "Bloom", "type": "float", "value": 0.42 },
+                    { "name": "Exposure", "type": "float", "value": 1.06 },
+                    { "name": "Warmth", "type": "float", "value": 1.05 },
+                    { "name": "Vibrance", "type": "float", "value": 1.20 },
+                    { "name": "ToneMap", "type": "float", "value": 1.0 },
+                    { "name": "Gamma", "type": "float", "value": 1.14 },
+                    { "name": "GodRays", "type": "float", "value": 0.90 },
+                    { "name": "SSAO", "type": "float", "value": 0.60 },
+                    { "name": "DepthFog", "type": "float", "value": 0.40 },
+                    { "name": "WaterShimmer", "type": "float", "value": 1.05 },
+                    { "name": "GameTime", "type": "float", "value": 0.0 },
+                    { "name": "SunVisibility", "type": "float", "value": 1.0 },
+                    { "name": "SunScreenX", "type": "float", "value": 0.5 },
+                    { "name": "SunScreenY", "type": "float", "value": 0.25 },
+                    { "name": "FarPlane", "type": "float", "value": 256.0 },
+                    { "name": "RainWet", "type": "float", "value": 0.0 },
+                    { "name": "DayFactor", "type": "float", "value": 1.0 },
+                    { "name": "EmissiveHint", "type": "float", "value": 1.00 },
+                    { "name": "TanHalfFov", "type": "float", "value": 0.70 },
+                    { "name": "Aspect", "type": "float", "value": 1.77 },
+                    { "name": "SunViewX", "type": "float", "value": 0.0 },
+                    { "name": "SunViewY", "type": "float", "value": 0.6 },
+                    { "name": "SunViewZ", "type": "float", "value": -0.8 },
+                    { "name": "Raytracing", "type": "float", "value": 1.10 },
+                    { "name": "WorldUpViewX", "type": "float", "value": 0.0 },
+                    { "name": "WorldUpViewY", "type": "float", "value": 1.0 },
+                    { "name": "WorldUpViewZ", "type": "float", "value": 0.0 },
+                    { "name": "ScreenYFlip", "type": "float", "value": -1.0 },
+                    { "name": "Realism", "type": "float", "value": 1.10 },
+                    { "name": "DimType", "type": "float", "value": 0.0 },
+                    { "name": "SunWorldX", "type": "float", "value": 0.55 },
+                    { "name": "SunWorldY", "type": "float", "value": 0.75 },
+                    { "name": "SunWorldZ", "type": "float", "value": 0.36 },
+                    { "name": "CamVoxX", "type": "float", "value": 64.0 },
+                    { "name": "CamVoxY", "type": "float", "value": 24.0 },
+                    { "name": "CamVoxZ", "type": "float", "value": 64.0 },
+                    { "name": "CamRightX", "type": "float", "value": 1.0 },
+                    { "name": "CamRightY", "type": "float", "value": 0.0 },
+                    { "name": "CamRightZ", "type": "float", "value": 0.0 },
+                    { "name": "CamUpX", "type": "float", "value": 0.0 },
+                    { "name": "CamUpY", "type": "float", "value": 1.0 },
+                    { "name": "CamUpZ", "type": "float", "value": 0.0 },
+                    { "name": "CamBackX", "type": "float", "value": 0.0 },
+                    { "name": "CamBackY", "type": "float", "value": 0.0 },
+                    { "name": "CamBackZ", "type": "float", "value": 1.0 },
+                    { "name": "VoxReady", "type": "float", "value": 0.0 },
+                    { "name": "PadA", "type": "float", "value": 0.0 },
+                    { "name": "PadB", "type": "float", "value": 0.0 }
+                ]
+            }
+        },
+        {
+            "vertex_shader": "minecraft:core/screenquad",
+            "fragment_shader": "kollegen:post/bloom_blur",
+            "inputs": [
+                { "sampler_name": "In", "target": "bloom_a" }
+            ],
+            "output": "bloom_b",
+            "uniforms": {
+                "BlurParams": [
+                    { "name": "DirAndStride", "type": "vec4", "value": [ 1.0, 0.0, 2.2, 0.0 ] }
+                ]
+            }
+        },
+        {
+            "vertex_shader": "minecraft:core/screenquad",
+            "fragment_shader": "kollegen:post/bloom_blur",
+            "inputs": [
+                { "sampler_name": "In", "target": "bloom_b" }
+            ],
+            "output": "bloom_a",
+            "uniforms": {
+                "BlurParams": [
+                    { "name": "DirAndStride", "type": "vec4", "value": [ 0.0, 1.0, 2.2, 0.0 ] }
+                ]
+            }
+        },
+        {
+            "vertex_shader": "minecraft:core/screenquad",
+            "fragment_shader": "kollegen:post/bloom_blur",
+            "inputs": [
+                { "sampler_name": "In", "target": "bloom_a" }
+            ],
+            "output": "bloom_b",
+            "uniforms": {
+                "BlurParams": [
+                    { "name": "DirAndStride", "type": "vec4", "value": [ 1.0, 0.0, 5.5, 0.0 ] }
+                ]
+            }
+        },
+        {
+            "vertex_shader": "minecraft:core/screenquad",
+            "fragment_shader": "kollegen:post/bloom_blur",
+            "inputs": [
+                { "sampler_name": "In", "target": "bloom_b" }
+            ],
+            "output": "bloom_a",
+            "uniforms": {
+                "BlurParams": [
+                    { "name": "DirAndStride", "type": "vec4", "value": [ 0.0, 1.0, 5.5, 0.0 ] }
+                ]
+            }
+        },
+        {
+            "vertex_shader": "minecraft:core/screenquad",
+            "fragment_shader": "kollegen:post/bloom_blur",
+            "inputs": [
+                { "sampler_name": "In", "target": "bloom_a" }
+            ],
+            "output": "bloom_b",
+            "uniforms": {
+                "BlurParams": [
+                    { "name": "DirAndStride", "type": "vec4", "value": [ 1.0, 0.0, 13.5, 0.0 ] }
+                ]
+            }
+        },
+        {
+            "vertex_shader": "minecraft:core/screenquad",
+            "fragment_shader": "kollegen:post/bloom_blur",
+            "inputs": [
+                { "sampler_name": "In", "target": "bloom_b" }
+            ],
+            "output": "bloom_a",
+            "uniforms": {
+                "BlurParams": [
+                    { "name": "DirAndStride", "type": "vec4", "value": [ 0.0, 1.0, 13.5, 0.0 ] }
+                ]
+            }
+        },
+        {
+            "vertex_shader": "minecraft:core/screenquad",
             "fragment_shader": "kollegen:post/kollegen_shader",
             "inputs": [
-                {
-                    "sampler_name": "In",
-                    "target": "minecraft:main"
-                },
-                {
-                    "sampler_name": "Depth",
-                    "target": "minecraft:main",
-                    "use_depth_buffer": true
-                }
+                { "sampler_name": "In", "target": "lit" },
+                { "sampler_name": "Bloom", "target": "bloom_a" }
             ],
             "output": "swap",
             "uniforms": {
                 "ShaderConfig": [
-                    { "name": "Saturation", "type": "float", "value": 1.20 },
-                    { "name": "Contrast", "type": "float", "value": 1.08 },
-                    { "name": "Brightness", "type": "float", "value": 1.02 },
+                    { "name": "Saturation", "type": "float", "value": 1.18 },
+                    { "name": "Contrast", "type": "float", "value": 1.12 },
+                    { "name": "Brightness", "type": "float", "value": 1.00 },
                     { "name": "Vignette", "type": "float", "value": 0.0 },
-                    { "name": "Bloom", "type": "float", "value": 0.25 },
-                    { "name": "Exposure", "type": "float", "value": 1.04 },
-                    { "name": "Warmth", "type": "float", "value": 1.04 },
-                    { "name": "Vibrance", "type": "float", "value": 1.18 },
+                    { "name": "Bloom", "type": "float", "value": 0.42 },
+                    { "name": "Exposure", "type": "float", "value": 1.06 },
+                    { "name": "Warmth", "type": "float", "value": 1.05 },
+                    { "name": "Vibrance", "type": "float", "value": 1.20 },
                     { "name": "ToneMap", "type": "float", "value": 1.0 },
-                    { "name": "Gamma", "type": "float", "value": 1.18 },
-                    { "name": "GodRays", "type": "float", "value": 0.45 },
-                    { "name": "SSAO", "type": "float", "value": 0.40 },
-                    { "name": "DepthFog", "type": "float", "value": 0.35 },
-                    { "name": "WaterShimmer", "type": "float", "value": 0.35 },
+                    { "name": "Gamma", "type": "float", "value": 1.14 },
+                    { "name": "GodRays", "type": "float", "value": 0.90 },
+                    { "name": "SSAO", "type": "float", "value": 0.60 },
+                    { "name": "DepthFog", "type": "float", "value": 0.40 },
+                    { "name": "WaterShimmer", "type": "float", "value": 1.05 },
                     { "name": "GameTime", "type": "float", "value": 0.0 },
                     { "name": "SunVisibility", "type": "float", "value": 1.0 },
                     { "name": "SunScreenX", "type": "float", "value": 0.5 },
-                    { "name": "SunScreenY", "type": "float", "value": 0.2 },
+                    { "name": "SunScreenY", "type": "float", "value": 0.25 },
                     { "name": "FarPlane", "type": "float", "value": 256.0 },
-                    { "name": "Pad", "type": "float", "value": 0.0 }
+                    { "name": "RainWet", "type": "float", "value": 0.0 },
+                    { "name": "DayFactor", "type": "float", "value": 1.0 },
+                    { "name": "EmissiveHint", "type": "float", "value": 1.00 },
+                    { "name": "TanHalfFov", "type": "float", "value": 0.70 },
+                    { "name": "Aspect", "type": "float", "value": 1.77 },
+                    { "name": "SunViewX", "type": "float", "value": 0.0 },
+                    { "name": "SunViewY", "type": "float", "value": 0.6 },
+                    { "name": "SunViewZ", "type": "float", "value": -0.8 },
+                    { "name": "Raytracing", "type": "float", "value": 1.10 },
+                    { "name": "WorldUpViewX", "type": "float", "value": 0.0 },
+                    { "name": "WorldUpViewY", "type": "float", "value": 1.0 },
+                    { "name": "WorldUpViewZ", "type": "float", "value": 0.0 },
+                    { "name": "ScreenYFlip", "type": "float", "value": -1.0 },
+                    { "name": "Realism", "type": "float", "value": 1.10 },
+                    { "name": "DimType", "type": "float", "value": 0.0 },
+                    { "name": "SunWorldX", "type": "float", "value": 0.55 },
+                    { "name": "SunWorldY", "type": "float", "value": 0.75 },
+                    { "name": "SunWorldZ", "type": "float", "value": 0.36 },
+                    { "name": "CamVoxX", "type": "float", "value": 64.0 },
+                    { "name": "CamVoxY", "type": "float", "value": 24.0 },
+                    { "name": "CamVoxZ", "type": "float", "value": 64.0 },
+                    { "name": "CamRightX", "type": "float", "value": 1.0 },
+                    { "name": "CamRightY", "type": "float", "value": 0.0 },
+                    { "name": "CamRightZ", "type": "float", "value": 0.0 },
+                    { "name": "CamUpX", "type": "float", "value": 0.0 },
+                    { "name": "CamUpY", "type": "float", "value": 1.0 },
+                    { "name": "CamUpZ", "type": "float", "value": 0.0 },
+                    { "name": "CamBackX", "type": "float", "value": 0.0 },
+                    { "name": "CamBackY", "type": "float", "value": 0.0 },
+                    { "name": "CamBackZ", "type": "float", "value": 1.0 },
+                    { "name": "VoxReady", "type": "float", "value": 0.0 },
+                    { "name": "PadA", "type": "float", "value": 0.0 },
+                    { "name": "PadB", "type": "float", "value": 0.0 }
                 ]
             }
         },
@@ -47,10 +283,7 @@
             "vertex_shader": "minecraft:core/screenquad",
             "fragment_shader": "minecraft:post/blit",
             "inputs": [
-                {
-                    "sampler_name": "In",
-                    "target": "swap"
-                }
+                { "sampler_name": "In", "target": "swap" }
             ],
             "uniforms": {
                 "BlitConfig": [
